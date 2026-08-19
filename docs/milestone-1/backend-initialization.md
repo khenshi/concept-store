@@ -10,7 +10,7 @@ This part initializes the backend infrastructure required to begin Milestone 1. 
 - TypeScript
 - PostgreSQL
 - Prisma 6
-- Joi environment validation
+- Zod environment validation
 - Jest and Supertest
 - ESLint and Prettier
 

@@ -1,12 +1,33 @@
-import Joi from 'joi';
+import { z } from 'zod';
 
-export const envValidationSchema = Joi.object({
-  NODE_ENV: Joi.string()
-    .valid('development', 'test', 'production')
-    .default('development'),
-  PORT: Joi.number().port().default(3000),
-  DATABASE_URL: Joi.string()
-    .uri({ scheme: ['postgresql', 'postgres'] })
-    .required(),
-  JWT_SECRET: Joi.string().min(32).required(),
-});
+const envSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(['development', 'test', 'production'])
+      .default('development'),
+    PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+    DATABASE_URL: z
+      .string()
+      .url()
+      .refine(
+        (value) => /^postgres(?:ql)?:\/\//.test(value),
+        'DATABASE_URL must use the postgresql or postgres protocol',
+      ),
+    JWT_SECRET: z.string().min(32),
+  })
+  .passthrough();
+
+export function validateEnvironment(
+  environment: Record<string, unknown>,
+): Record<string, unknown> {
+  const result = envSchema.safeParse(environment);
+
+  if (!result.success) {
+    const details = result.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join('; ');
+    throw new Error(`Environment validation failed: ${details}`);
+  }
+
+  return result.data;
+}

@@ -2,6 +2,10 @@
 
 All project documentation is maintained in this directory and organized by milestone.
 
+## Architecture
+
+- [Technology stack](tech-stack.md)
+
 ## Milestone 1 — SaaS / Multi-Tenant Foundation
 
 - [Backend initialization](milestone-1/backend-initialization.md)
