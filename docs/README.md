@@ -1,0 +1,22 @@
+# Concept Store Documentation
+
+All project documentation is maintained in this directory and organized by milestone.
+
+## Milestone 1 — SaaS / Multi-Tenant Foundation
+
+- [Backend initialization](milestone-1/backend-initialization.md)
+- [Authentication foundation](milestone-1/authentication-foundation.md)
+
+## Documentation convention
+
+Each implementation part should document, when applicable:
+
+- scope and explicit exclusions
+- architecture and important design decisions
+- setup and configuration
+- modules, database schema, and API changes
+- business and security rules
+- validation performed
+- assumptions, limitations, and known issues
+
+Documentation must be updated as part of the same task that changes the corresponding behavior.
