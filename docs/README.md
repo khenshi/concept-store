@@ -14,6 +14,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Authentication foundation](milestone-1/authentication-foundation.md)
 - [Authentication session persistence](milestone-1/authentication-session-persistence.md)
 - [Authentication session endpoints](milestone-1/authentication-session-endpoints.md)
+- [Frontend authentication foundation](milestone-1/frontend-authentication-foundation.md)
 - [Organizations and membership foundation](milestone-1/organizations-and-memberships.md)
 - [Initial organization RBAC](milestone-1/initial-rbac.md)
 

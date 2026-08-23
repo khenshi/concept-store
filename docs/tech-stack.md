@@ -43,6 +43,7 @@ Password recovery, email verification, MFA, and global session administration re
 - Zod for browser-visible environment validation and future form schemas
 - Vitest, Testing Library, and jsdom for component and unit tests
 - ESLint and Prettier
+- React context for the initial authentication state boundary
 - browser/PWA delivery
 - IndexedDB for offline POS persistence when Milestone 8 is assigned
 
