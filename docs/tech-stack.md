@@ -26,11 +26,13 @@ NestJS DTO decorators are retained because they work directly with the framework
 ## Authentication and authorization
 
 - bcrypt for password hashing
-- short-lived JWT access tokens for the current authentication foundation
+- short-lived JWT access tokens held by the frontend in memory
+- rotating opaque refresh tokens in secure HTTP-only cookies
+- hashed, revocable refresh sessions stored in PostgreSQL
 - NestJS guards for authenticated and authorized access
 - organization membership and role-based authorization for tenant operations
 
-Rotating refresh tokens, session revocation, password recovery, email verification, and MFA remain undecided or out of the current scope.
+Password recovery, email verification, MFA, and global session administration remain out of the current scope.
 
 ## Frontend
 

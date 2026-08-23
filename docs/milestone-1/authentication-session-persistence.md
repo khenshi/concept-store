@@ -56,3 +56,5 @@ Access JWTs remain stateless and are not stored in `UserSession`.
 - Session naming, device metadata, IP addresses, and user-agent storage are intentionally omitted because they are not required for secure rotation.
 - Expired-session cleanup is deferred until actual retention volume requires it.
 - Cookie lifetime and refresh-token lifetime will be defined in the session-endpoints part.
+
+Token rotation, cookies, refresh, and logout were subsequently implemented in [Authentication session endpoints](authentication-session-endpoints.md).

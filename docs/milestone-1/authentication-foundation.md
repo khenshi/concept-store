@@ -92,3 +92,5 @@ This part includes unit tests for registration, password hashing, successful and
 - Registration is open because invitation and organization onboarding policy has not yet been assigned.
 - Registration creates only a user identity; it does not create an organization or grant a role.
 - Rate limiting, password reset, email verification, MFA, and refresh tokens are not included in this part.
+
+Refresh sessions were subsequently added in [Authentication session persistence](authentication-session-persistence.md) and [Authentication session endpoints](authentication-session-endpoints.md).
