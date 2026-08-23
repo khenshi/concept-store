@@ -7,9 +7,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { OrganizationRole } from '@prisma/client';
 import { isUUID } from 'class-validator';
 import type { Request } from 'express';
+import type { OrganizationRole } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { AuthenticatedUser } from '../../auth/auth.types';
 import type { OrganizationContext } from './organization-authorization.types';

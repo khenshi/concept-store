@@ -1,4 +1,4 @@
-import type { OrganizationRole } from '@prisma/client';
+import type { OrganizationRole } from '../../../generated/prisma/client';
 
 export interface OrganizationContext {
   organizationId: string;

@@ -3,8 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrganizationRole, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import type { AddOrganizationMemberDto } from './dto/add-organization-member.dto';
 import type { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import type { OrganizationMember } from './organization-memberships.types';

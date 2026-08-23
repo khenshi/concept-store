@@ -11,7 +11,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { OrganizationRole } from '@prisma/client';
+import { OrganizationRole } from '../../../generated/prisma/client';
 import { AuthGuard } from '../../auth/auth.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';

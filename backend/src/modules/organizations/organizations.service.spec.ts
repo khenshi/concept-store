@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
-import { OrganizationRole } from '@prisma/client';
 import { Test } from '@nestjs/testing';
+import { OrganizationRole } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { OrganizationsService } from './organizations.service';
 

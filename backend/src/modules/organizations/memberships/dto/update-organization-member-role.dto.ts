@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { OrganizationRole } from '@prisma/client';
+import { OrganizationRole } from '../../../../generated/prisma/client';
 
 export class UpdateOrganizationMemberRoleDto {
   @IsEnum(OrganizationRole)

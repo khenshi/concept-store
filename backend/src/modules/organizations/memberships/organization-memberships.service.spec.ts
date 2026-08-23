@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { OrganizationRole, Prisma } from '@prisma/client';
 import { Test } from '@nestjs/testing';
+import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { OrganizationMembershipsService } from './organization-memberships.service';
 

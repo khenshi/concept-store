@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { OrganizationRole } from '@prisma/client';
+import { OrganizationRole } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { CreateOrganizationDto } from './dto/create-organization.dto';
 import type { OrganizationAccess } from './organizations.types';

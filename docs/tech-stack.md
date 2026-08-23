@@ -13,7 +13,8 @@ This document records the agreed technology direction for the Concept Store Mana
 - NestJS modular monolith
 - REST APIs with JSON
 - PostgreSQL as the source-of-truth database
-- Prisma for database access and migrations
+- Prisma 7 for database access and migrations
+- Prisma's PostgreSQL driver adapter for direct database connections
 - Zod for environment configuration validation
 - `class-validator` and `class-transformer` for NestJS request DTO validation
 - Jest for unit tests
