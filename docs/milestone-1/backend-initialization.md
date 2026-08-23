@@ -57,6 +57,8 @@ The Prisma schema intentionally contains no business models. Those entities will
 
 ## Development commands
 
+The development TypeScript configuration loads both Node.js and Jest global types so colocated unit tests are recognized by editors and `tsc`. The production build configuration loads only Node.js types and excludes test files.
+
 ```bash
 npm run start:dev
 npm run format:check
