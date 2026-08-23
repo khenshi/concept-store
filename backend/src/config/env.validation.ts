@@ -6,6 +6,13 @@ const envSchema = z
       .enum(['development', 'test', 'production'])
       .default('development'),
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+    FRONTEND_ORIGIN: z
+      .string()
+      .url()
+      .refine(
+        (value) => ['http:', 'https:'].includes(new URL(value).protocol),
+        'FRONTEND_ORIGIN must use HTTP or HTTPS',
+      ),
     DATABASE_URL: z
       .string()
       .url()
@@ -14,6 +21,7 @@ const envSchema = z
         'DATABASE_URL must use the postgresql or postgres protocol',
       ),
     JWT_SECRET: z.string().min(32),
+    REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
   })
   .passthrough();
 

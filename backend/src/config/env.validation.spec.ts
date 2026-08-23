@@ -3,6 +3,7 @@ import { validateEnvironment } from './env.validation';
 describe('validateEnvironment', () => {
   const requiredEnvironment = {
     DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/concept_store',
+    FRONTEND_ORIGIN: 'http://localhost:3001',
     JWT_SECRET: 'a-secure-test-secret-with-at-least-32-characters',
   };
 
@@ -13,6 +14,7 @@ describe('validateEnvironment', () => {
       ...requiredEnvironment,
       NODE_ENV: 'development',
       PORT: 4000,
+      REFRESH_TOKEN_TTL_DAYS: 30,
     });
   });
 

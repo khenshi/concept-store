@@ -8,6 +8,16 @@ export interface AuthResponse {
   user: AuthenticatedUser;
 }
 
+export interface RefreshSession {
+  token: string;
+  expiresAt: Date;
+}
+
+export interface AuthSessionResponse {
+  response: AuthResponse;
+  refreshSession: RefreshSession;
+}
+
 export interface AccessTokenPayload {
   sub: string;
   email: string;
