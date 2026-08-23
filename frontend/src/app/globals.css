@@ -1,12 +1,18 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #f4f1ea;
-  --foreground: #17251f;
-  --muted: #5f6d66;
-  --surface: #fffdf8;
-  --border: #d8d5cc;
-  --accent: #146348;
+  --primary: #059669;
+  --primary-dark: #047857;
+  --primary-light: #d1fae5;
+  --accent: #f59e0b;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --error: #dc2626;
 }
 
 * {
@@ -20,14 +26,7 @@ html {
 body {
   margin: 0;
   color: var(--foreground);
-  background:
-    radial-gradient(
-      circle at top right,
-      rgb(20 99 72 / 10%),
-      transparent 34rem
-    ),
-    var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
 }
 
 .home-shell {
@@ -38,12 +37,12 @@ body {
 }
 
 .intro {
-  width: min(100%, 56rem);
+  width: min(100%, 60rem);
 }
 
 .eyebrow {
   margin: 0 0 1rem;
-  color: var(--accent);
+  color: var(--primary-dark);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -51,13 +50,12 @@ body {
 }
 
 h1 {
-  max-width: 12ch;
+  max-width: 17ch;
   margin: 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(3rem, 9vw, 6rem);
-  font-weight: 500;
-  letter-spacing: -0.055em;
-  line-height: 0.94;
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
 }
 
 .summary {
@@ -94,15 +92,20 @@ input {
   border: 0;
   border-radius: 0.65rem;
   color: white;
-  background: var(--accent);
+  background: var(--primary);
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
 }
 
+.primary-link:hover,
+.auth-form button:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+
 .text-link,
 .alternate-action a {
-  color: var(--accent);
+  color: var(--primary-dark);
   font-weight: 700;
   text-underline-offset: 0.2em;
 }
@@ -117,8 +120,8 @@ input {
 .areas article {
   padding: 1.4rem;
   border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border-radius: 0.75rem;
+  background: var(--surface);
 }
 
 .areas span {
@@ -144,13 +147,11 @@ input {
   width: min(100%, 29rem);
   padding: clamp(1.5rem, 5vw, 2.5rem);
   border: 1px solid var(--border);
-  border-radius: 1.25rem;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: 0 1.5rem 5rem rgb(23 37 31 / 8%);
+  border-radius: 0.75rem;
+  background: var(--surface);
 }
 
 .wordmark {
-  font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.15rem;
   font-weight: 700;
   text-decoration: none;
@@ -164,7 +165,7 @@ input {
 .status-card h1,
 .app-welcome h1 {
   max-width: none;
-  font-size: clamp(2.25rem, 8vw, 3.5rem);
+  font-size: clamp(2rem, 7vw, 3rem);
 }
 
 .auth-heading > p:last-child,
@@ -203,25 +204,26 @@ input {
 .field input:focus-visible,
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgb(20 99 72 / 28%);
+  outline: 3px solid var(--primary-light);
   outline-offset: 2px;
 }
 
 .field input[aria-invalid='true'] {
-  border-color: #a43a32;
+  border-color: var(--error);
 }
 
 .field-error,
 .form-alert {
   margin: 0;
-  color: #8c2e28;
+  color: var(--error);
   font-size: 0.875rem;
 }
 
 .form-alert {
   padding: 0.8rem;
+  border: 1px solid var(--error);
   border-radius: 0.5rem;
-  background: #f9e9e6;
+  background: var(--surface);
 }
 
 .auth-form button:disabled,
