@@ -32,18 +32,19 @@ NestJS DTO decorators are retained because they work directly with the framework
 
 Rotating refresh tokens, session revocation, password recovery, email verification, and MFA remain undecided or out of the current scope.
 
-## Frontend direction
+## Frontend
 
-The frontend has not yet been initialized. The agreed direction from the project architecture is:
-
-- Next.js
-- React
+- Next.js 16 with App Router
+- React 19
 - TypeScript
-- Tailwind CSS
+- Tailwind CSS 4
+- Zod for browser-visible environment validation and future form schemas
+- Vitest, Testing Library, and jsdom for component and unit tests
+- ESLint and Prettier
 - browser/PWA delivery
 - IndexedDB for offline POS persistence when Milestone 8 is assigned
 
-Additional frontend libraries, including component, form, server-state, and testing libraries, should be selected as part of frontend initialization rather than treated as already implemented.
+The store-operations and merchant experiences will use separate route areas within one frontend application. Additional component, form, and server-state libraries will be selected only when their first feature requires them.
 
 ## Deferred infrastructure
 
