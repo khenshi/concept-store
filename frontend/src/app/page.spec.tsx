@@ -6,9 +6,15 @@ describe('Home', () => {
     render(<Home />);
 
     expect(
-      screen.getByRole('heading', { name: 'Frontend foundation ready.' }),
+      screen.getByRole('heading', {
+        name: 'Run your concept store in one place.',
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText('Store operations')).toBeInTheDocument();
     expect(screen.getByText('Merchant portal')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      'href',
+      '/login',
+    );
   });
 });

@@ -1,13 +1,23 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <main className="home-shell">
       <section className="intro" aria-labelledby="page-title">
         <p className="eyebrow">Concept Store Management System</p>
-        <h1 id="page-title">Frontend foundation ready.</h1>
+        <h1 id="page-title">Run your concept store in one place.</h1>
         <p className="summary">
           The shared web application will provide separate store-operations and
           merchant experiences as Milestone 1 flows are connected.
         </p>
+        <div className="home-actions">
+          <Link className="primary-link" href="/login">
+            Sign in
+          </Link>
+          <Link className="text-link" href="/register">
+            Create an account
+          </Link>
+        </div>
         <div className="areas" aria-label="Planned application areas">
           <article>
             <span>Store operations</span>
