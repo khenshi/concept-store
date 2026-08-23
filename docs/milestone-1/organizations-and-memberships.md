@@ -110,5 +110,7 @@ These rules cover the endpoints introduced in this part. A reusable tenant conte
 
 - Any authenticated user may create an organization during the current foundation stage.
 - Organization names are not globally unique because independent businesses may legitimately share a name.
-- Only the creator membership can currently be created. Adding or removing members requires RBAC and an explicit onboarding policy.
+- The organization-creation endpoint creates only the owner membership; subsequent membership administration is handled by the RBAC endpoints.
 - Organization update and deletion are not part of this implementation.
+
+Membership administration and initial role enforcement were subsequently added in [Initial organization RBAC](initial-rbac.md).
