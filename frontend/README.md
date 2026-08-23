@@ -2,7 +2,7 @@
 
 Shared Next.js web application for the Concept Store Management System. Store operators and merchants will use separate role-based areas within this application.
 
-The current code contains only the frontend foundation. Authentication screens and API integration are not implemented yet.
+The current code contains the frontend and authentication-state foundations. Authentication screens and protected application areas are not implemented yet.
 
 ## Requirements
 
@@ -32,6 +32,7 @@ npm run build
 src/
   app/          Next.js App Router routes and layouts
   config/       Validated frontend environment configuration
+  features/     Feature-owned client state, API behavior, and types
 ```
 
 Feature directories will be introduced only as their Milestone 1 vertical slices are implemented.
