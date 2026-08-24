@@ -59,10 +59,12 @@ model Branch {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchants    MerchantBranch[]
 
   @@unique([organizationId, name])
   @@unique([organizationId, code])
+  @@unique([id, organizationId])
 }
 
 model OrganizationMembership {
@@ -91,11 +93,27 @@ model Merchant {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branches     MerchantBranch[]
 
   @@unique([organizationId, code])
+  @@unique([id, organizationId])
   @@index([organizationId, status])
   @@index([organizationId, name])
+}
+
+model MerchantBranch {
+  organizationId String
+  merchantId     String
+  branchId       String
+  createdAt      DateTime @default(now())
+
+  merchant Merchant @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  branch   Branch   @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@id([merchantId, branchId])
+  @@index([organizationId, branchId])
+  @@index([organizationId, merchantId])
 }
 
 enum OrganizationRole {

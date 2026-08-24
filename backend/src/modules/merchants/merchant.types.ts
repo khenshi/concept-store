@@ -11,4 +11,11 @@ export interface MerchantRecord {
   status: MerchantStatus;
   createdAt: Date;
   updatedAt: Date;
+  branches: MerchantBranchSummary[];
+}
+
+export interface MerchantBranchSummary {
+  id: string;
+  name: string;
+  code: string | null;
 }

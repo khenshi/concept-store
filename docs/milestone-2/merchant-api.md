@@ -10,13 +10,14 @@ Merchant user-account linking, merchant self-service, spaces, agreements, produc
 
 All routes require a valid JWT access token and organization membership.
 
-| Method  | Route                                                         | Purpose                        |
-| ------- | ------------------------------------------------------------- | ------------------------------ |
-| `POST`  | `/organizations/:organizationId/merchants`                    | Create a merchant              |
-| `GET`   | `/organizations/:organizationId/merchants`                    | List and filter merchants      |
-| `GET`   | `/organizations/:organizationId/merchants/:merchantId`        | Get a merchant                 |
-| `PATCH` | `/organizations/:organizationId/merchants/:merchantId`        | Update merchant profile fields |
-| `PATCH` | `/organizations/:organizationId/merchants/:merchantId/status` | Change lifecycle status        |
+| Method  | Route                                                           | Purpose                        |
+| ------- | --------------------------------------------------------------- | ------------------------------ |
+| `POST`  | `/organizations/:organizationId/merchants`                      | Create a merchant              |
+| `GET`   | `/organizations/:organizationId/merchants`                      | List and filter merchants      |
+| `GET`   | `/organizations/:organizationId/merchants/:merchantId`          | Get a merchant                 |
+| `PATCH` | `/organizations/:organizationId/merchants/:merchantId`          | Update merchant profile fields |
+| `PATCH` | `/organizations/:organizationId/merchants/:merchantId/status`   | Change lifecycle status        |
+| `PUT`   | `/organizations/:organizationId/merchants/:merchantId/branches` | Replace branch assignments     |
 
 Hard deletion is not exposed. Setting a merchant to `ENDED` preserves the record for future operational and financial relationships.
 
@@ -36,6 +37,7 @@ Creation requires:
 - contact name: 2–120 characters
 - valid email: at most 254 characters
 - telephone number: 7–25 characters using digits and common telephone separators
+- at least one unique branch UUID belonging to the organization
 
 The optional merchant code:
 
@@ -45,6 +47,8 @@ The optional merchant code:
 - must be unique within the organization
 
 Profile updates are partial but cannot be empty. Required profile/contact fields cannot be cleared. The optional code may be cleared with `null` or an empty string.
+
+Branch assignments are managed separately from profile fields. Merchant responses include current branch summaries.
 
 Email addresses are trimmed and lowercased. Names and telephone numbers are trimmed without changing their meaningful formatting.
 

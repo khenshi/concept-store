@@ -6,6 +6,8 @@ This part introduces the PostgreSQL and Prisma foundation for organization-owned
 
 Merchant APIs, account access, frontend screens, spaces, agreements, products, inventory, sales, and settlements are not implemented by this part.
 
+Merchant-to-branch participation was added in the later [merchant branch assignment](merchant-branch-assignments.md) part.
+
 ## Merchant model
 
 | Field            | Required | Purpose                                             |

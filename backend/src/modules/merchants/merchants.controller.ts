@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -30,6 +31,7 @@ import { OrganizationRoles } from '../organizations/authorization/organization-r
 import { CreateMerchantDto } from './dto/create-merchant.dto';
 import { ListMerchantsQueryDto } from './dto/list-merchants-query.dto';
 import { UpdateMerchantStatusDto } from './dto/update-merchant-status.dto';
+import { UpdateMerchantBranchesDto } from './dto/update-merchant-branches.dto';
 import { UpdateMerchantDto } from './dto/update-merchant.dto';
 import type { MerchantRecord } from './merchant.types';
 import { MerchantsService } from './merchants.service';
@@ -113,6 +115,22 @@ export class MerchantsController {
     @Body() dto: UpdateMerchantStatusDto,
   ): Promise<MerchantRecord> {
     return this.merchantsService.updateStatus(
+      organization.organizationId,
+      merchantId,
+      dto,
+    );
+  }
+
+  @Put(':merchantId/branches')
+  @ApiOperation({ summary: 'Replace the branches where a merchant operates' })
+  @ApiOkResponse({ type: MerchantResponseDto })
+  updateBranches(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
+    merchantId: string,
+    @Body() dto: UpdateMerchantBranchesDto,
+  ): Promise<MerchantRecord> {
+    return this.merchantsService.updateBranches(
       organization.organizationId,
       merchantId,
       dto,

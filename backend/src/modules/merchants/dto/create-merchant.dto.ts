@@ -2,11 +2,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
   IsOptional,
   IsString,
   Length,
   Matches,
   MaxLength,
+  IsUUID,
 } from 'class-validator';
 import {
   normalizeEmail,
@@ -48,4 +52,17 @@ export class CreateMerchantDto {
     message: 'phone must be a valid telephone number',
   })
   phone!: string;
+
+  @ApiProperty({
+    type: String,
+    isArray: true,
+    format: 'uuid',
+    minItems: 1,
+    description: 'Branches where the merchant currently operates',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  branchIds!: string[];
 }

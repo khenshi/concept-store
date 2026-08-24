@@ -11,6 +11,7 @@ describe('merchant DTOs', () => {
       contactName: '  Maria Santos  ',
       email: '  MARIA@AMIHAN.EXAMPLE  ',
       phone: '  +63 917 123 4567  ',
+      branchIds: ['6b109a2f-142c-4af4-93d8-12941d0685ac'],
     });
 
     await expect(validate(dto)).resolves.toHaveLength(0);
@@ -20,6 +21,7 @@ describe('merchant DTOs', () => {
       contactName: 'Maria Santos',
       email: 'maria@amihan.example',
       phone: '+63 917 123 4567',
+      branchIds: ['6b109a2f-142c-4af4-93d8-12941d0685ac'],
     });
   });
 
@@ -30,7 +32,7 @@ describe('merchant DTOs', () => {
 
     const errors = await validate(dto);
     expect(errors.map((error) => error.property)).toEqual(
-      expect.arrayContaining(['contactName', 'email', 'phone']),
+      expect.arrayContaining(['contactName', 'email', 'phone', 'branchIds']),
     );
   });
 

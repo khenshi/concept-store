@@ -11,6 +11,8 @@ import { MerchantsService } from './merchants.service';
 describe('MerchantsService', () => {
   const organizationId = '580c75b7-1050-4a08-a2c2-585171d84dc8';
   const merchantId = '2f671678-91d3-4d04-a8f9-787a2e9f3c1a';
+  const branchId = '6b109a2f-142c-4af4-93d8-12941d0685ac';
+  const branch = { id: branchId, name: 'Makati Main', code: 'MKT-01' };
   const merchant = {
     id: merchantId,
     organizationId,
@@ -22,15 +24,33 @@ describe('MerchantsService', () => {
     status: MerchantStatus.ACTIVE,
     createdAt: new Date('2026-08-24T00:00:00.000Z'),
     updatedAt: new Date('2026-08-24T00:00:00.000Z'),
+    branches: [branch],
   };
+  const merchantRow = { ...merchant, branches: [{ branch }] };
   const createInput = {
     name: merchant.name,
     code: merchant.code,
     contactName: merchant.contactName,
     email: merchant.email,
     phone: merchant.phone,
+    branchIds: [branchId],
+  };
+  const include = {
+    branches: {
+      select: { branch: { select: { id: true, name: true, code: true } } },
+    },
+  };
+  const transaction = {
+    branch: { count: jest.fn() },
+    merchant: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findFirstOrThrow: jest.fn(),
+    },
+    merchantBranch: { deleteMany: jest.fn(), createMany: jest.fn() },
   };
   const prisma = {
+    $transaction: jest.fn(),
     merchant: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -42,6 +62,10 @@ describe('MerchantsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation(
+      (callback: (client: typeof transaction) => unknown) =>
+        callback(transaction),
+    );
     const moduleRef = await Test.createTestingModule({
       providers: [
         MerchantsService,
@@ -52,18 +76,42 @@ describe('MerchantsService', () => {
   });
 
   it('creates a merchant inside the trusted organization', async () => {
-    prisma.merchant.create.mockResolvedValue(merchant);
+    transaction.branch.count.mockResolvedValue(1);
+    transaction.merchant.create.mockResolvedValue(merchantRow);
 
     await expect(service.create(organizationId, createInput)).resolves.toEqual(
       merchant,
     );
-    expect(prisma.merchant.create).toHaveBeenCalledWith({
-      data: { organizationId, ...createInput },
+    expect(transaction.branch.count).toHaveBeenCalledWith({
+      where: { organizationId, id: { in: [branchId] } },
+    });
+    expect(transaction.merchant.create).toHaveBeenCalledWith({
+      data: {
+        organizationId,
+        name: merchant.name,
+        code: merchant.code,
+        contactName: merchant.contactName,
+        email: merchant.email,
+        phone: merchant.phone,
+        branches: { create: [{ organizationId, branchId }] },
+      },
+      include,
     });
   });
 
+  it('rejects a branch that does not belong to the organization', async () => {
+    transaction.branch.count.mockResolvedValue(0);
+
+    await expect(service.create(organizationId, createInput)).rejects.toThrow(
+      new BadRequestException(
+        'Every branch must belong to the merchant organization',
+      ),
+    );
+    expect(transaction.merchant.create).not.toHaveBeenCalled();
+  });
+
   it('lists merchants using tenant, status, and case-insensitive search filters', async () => {
-    prisma.merchant.findMany.mockResolvedValue([merchant]);
+    prisma.merchant.findMany.mockResolvedValue([merchantRow]);
 
     await expect(
       service.findAll(organizationId, {
@@ -84,6 +132,7 @@ describe('MerchantsService', () => {
         ],
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      include,
     });
   });
 
@@ -95,13 +144,14 @@ describe('MerchantsService', () => {
     );
     expect(prisma.merchant.findFirst).toHaveBeenCalledWith({
       where: { id: merchantId, organizationId },
+      include,
     });
   });
 
   it('updates a merchant using both tenant and merchant identifiers', async () => {
-    prisma.merchant.findFirst.mockResolvedValue(merchant);
+    prisma.merchant.findFirst.mockResolvedValue(merchantRow);
     prisma.merchant.update.mockResolvedValue({
-      ...merchant,
+      ...merchantRow,
       contactName: 'Ana Santos',
     });
 
@@ -113,6 +163,7 @@ describe('MerchantsService', () => {
     expect(prisma.merchant.update).toHaveBeenCalledWith({
       where: { id: merchantId, organizationId },
       data: { contactName: 'Ana Santos' },
+      include,
     });
   });
 
@@ -126,9 +177,9 @@ describe('MerchantsService', () => {
   });
 
   it('updates status without accepting profile fields', async () => {
-    prisma.merchant.findFirst.mockResolvedValue(merchant);
+    prisma.merchant.findFirst.mockResolvedValue(merchantRow);
     prisma.merchant.update.mockResolvedValue({
-      ...merchant,
+      ...merchantRow,
       status: MerchantStatus.SUSPENDED,
     });
 
@@ -140,11 +191,33 @@ describe('MerchantsService', () => {
     expect(prisma.merchant.update).toHaveBeenCalledWith({
       where: { id: merchantId, organizationId },
       data: { status: MerchantStatus.SUSPENDED },
+      include,
+    });
+  });
+
+  it('replaces branch assignments atomically within the organization', async () => {
+    transaction.merchant.findFirst.mockResolvedValue({ id: merchantId });
+    transaction.branch.count.mockResolvedValue(1);
+    transaction.merchantBranch.deleteMany.mockResolvedValue({ count: 1 });
+    transaction.merchantBranch.createMany.mockResolvedValue({ count: 1 });
+    transaction.merchant.findFirstOrThrow.mockResolvedValue(merchantRow);
+
+    await expect(
+      service.updateBranches(organizationId, merchantId, {
+        branchIds: [branchId],
+      }),
+    ).resolves.toEqual(merchant);
+    expect(transaction.merchantBranch.deleteMany).toHaveBeenCalledWith({
+      where: { organizationId, merchantId },
+    });
+    expect(transaction.merchantBranch.createMany).toHaveBeenCalledWith({
+      data: [{ organizationId, merchantId, branchId }],
     });
   });
 
   it('maps tenant-scoped code uniqueness violations to conflict', async () => {
-    prisma.merchant.create.mockRejectedValue(
+    transaction.branch.count.mockResolvedValue(1);
+    transaction.merchant.create.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
         code: 'P2002',
         clientVersion: '7.9.1',

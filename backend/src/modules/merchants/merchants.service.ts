@@ -9,8 +9,21 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { CreateMerchantDto } from './dto/create-merchant.dto';
 import type { ListMerchantsQueryDto } from './dto/list-merchants-query.dto';
 import type { UpdateMerchantStatusDto } from './dto/update-merchant-status.dto';
+import type { UpdateMerchantBranchesDto } from './dto/update-merchant-branches.dto';
 import type { UpdateMerchantDto } from './dto/update-merchant.dto';
 import type { MerchantRecord } from './merchant.types';
+
+const merchantBranchesInclude = {
+  branches: {
+    select: {
+      branch: { select: { id: true, name: true, code: true } },
+    },
+  },
+} satisfies Prisma.MerchantInclude;
+
+type MerchantWithBranches = Prisma.MerchantGetPayload<{
+  include: typeof merchantBranchesInclude;
+}>;
 
 @Injectable()
 export class MerchantsService {
@@ -20,16 +33,35 @@ export class MerchantsService {
     organizationId: string,
     dto: CreateMerchantDto,
   ): Promise<MerchantRecord> {
+    const { branchIds, ...profile } = dto;
     try {
-      return await this.prisma.merchant.create({
-        data: { organizationId, ...dto },
+      const merchant = await this.prisma.$transaction(async (transaction) => {
+        await this.assertBranchesBelongToOrganization(
+          transaction,
+          organizationId,
+          branchIds,
+        );
+        return transaction.merchant.create({
+          data: {
+            organizationId,
+            ...profile,
+            branches: {
+              create: branchIds.map((branchId) => ({
+                organizationId,
+                branchId,
+              })),
+            },
+          },
+          include: merchantBranchesInclude,
+        });
       });
+      return this.toRecord(merchant);
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
   }
 
-  findAll(
+  async findAll(
     organizationId: string,
     query: ListMerchantsQueryDto,
   ): Promise<MerchantRecord[]> {
@@ -43,14 +75,16 @@ export class MerchantsService {
         ]
       : undefined;
 
-    return this.prisma.merchant.findMany({
+    const merchants = await this.prisma.merchant.findMany({
       where: {
         organizationId,
         status: query.status,
         OR: searchFilters,
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      include: merchantBranchesInclude,
     });
+    return merchants.map((merchant) => this.toRecord(merchant));
   }
 
   async findOne(
@@ -59,10 +93,11 @@ export class MerchantsService {
   ): Promise<MerchantRecord> {
     const merchant = await this.prisma.merchant.findFirst({
       where: { id: merchantId, organizationId },
+      include: merchantBranchesInclude,
     });
 
     if (!merchant) throw new NotFoundException('Merchant not found');
-    return merchant;
+    return this.toRecord(merchant);
   }
 
   async update(
@@ -77,10 +112,12 @@ export class MerchantsService {
     await this.findOne(organizationId, merchantId);
 
     try {
-      return await this.prisma.merchant.update({
+      const merchant = await this.prisma.merchant.update({
         where: { id: merchantId, organizationId },
         data: dto,
+        include: merchantBranchesInclude,
       });
+      return this.toRecord(merchant);
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -92,10 +129,73 @@ export class MerchantsService {
     dto: UpdateMerchantStatusDto,
   ): Promise<MerchantRecord> {
     await this.findOne(organizationId, merchantId);
-    return this.prisma.merchant.update({
+    const merchant = await this.prisma.merchant.update({
       where: { id: merchantId, organizationId },
       data: { status: dto.status },
+      include: merchantBranchesInclude,
     });
+    return this.toRecord(merchant);
+  }
+
+  async updateBranches(
+    organizationId: string,
+    merchantId: string,
+    dto: UpdateMerchantBranchesDto,
+  ): Promise<MerchantRecord> {
+    const merchant = await this.prisma.$transaction(async (transaction) => {
+      const exists = await transaction.merchant.findFirst({
+        where: { id: merchantId, organizationId },
+        select: { id: true },
+      });
+      if (!exists) throw new NotFoundException('Merchant not found');
+
+      await this.assertBranchesBelongToOrganization(
+        transaction,
+        organizationId,
+        dto.branchIds,
+      );
+      await transaction.merchantBranch.deleteMany({
+        where: { organizationId, merchantId },
+      });
+      await transaction.merchantBranch.createMany({
+        data: dto.branchIds.map((branchId) => ({
+          organizationId,
+          merchantId,
+          branchId,
+        })),
+      });
+
+      return transaction.merchant.findFirstOrThrow({
+        where: { id: merchantId, organizationId },
+        include: merchantBranchesInclude,
+      });
+    });
+    return this.toRecord(merchant);
+  }
+
+  private async assertBranchesBelongToOrganization(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    branchIds: string[],
+  ): Promise<void> {
+    const branchCount = await transaction.branch.count({
+      where: { organizationId, id: { in: branchIds } },
+    });
+    if (branchCount !== branchIds.length) {
+      throw new BadRequestException(
+        'Every branch must belong to the merchant organization',
+      );
+    }
+  }
+
+  private toRecord(merchant: MerchantWithBranches): MerchantRecord {
+    const { branches, ...profile } = merchant;
+    return {
+      ...profile,
+      branches: branches
+        .map(({ branch }) => branch)
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    };
   }
 
   private rethrowKnownError(error: unknown): never {

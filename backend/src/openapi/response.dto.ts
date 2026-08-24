@@ -121,4 +121,22 @@ export class MerchantResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   updatedAt!: Date;
+
+  @ApiProperty({
+    type: () => MerchantBranchResponseDto,
+    isArray: true,
+    minItems: 1,
+  })
+  branches!: MerchantBranchResponseDto[];
+}
+
+export class MerchantBranchResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Makati Main' })
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'MKT-01' })
+  code!: string | null;
 }

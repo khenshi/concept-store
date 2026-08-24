@@ -8,6 +8,7 @@ The Milestone 2 backend allows concept-store organizations to centrally manage m
 - required merchant contact information
 - optional tenant-unique merchant codes
 - merchant lifecycle status
+- one-or-more current branch assignments per merchant
 - create, list, search, retrieve, update, and status operations
 - owner and manager authorization
 - tenant isolation
@@ -34,6 +35,8 @@ The optional merchant code is unique within an organization and normalized at th
 
 Merchant records cannot be hard-deleted through the API. The `ENDED` status preserves identity for later agreements, products, sales, settlements, and payouts.
 
+Merchants remain organization-owned and may operate in one or multiple branches. Composite tenant foreign keys prevent a merchant from being connected to a branch belonging to another organization.
+
 ## Security and tenant isolation
 
 All merchant endpoints require both authentication and stored organization membership. The backend derives organization context from the authenticated user rather than trusting an organization ID as authorization.
@@ -53,6 +56,7 @@ The backend supports:
 - merchant detail retrieval
 - partial profile updates
 - dedicated lifecycle status updates
+- transactional replacement of current branch assignments
 
 Status changes currently allow movement between any defined statuses. Transition restrictions and status-history records are deferred until a concrete business workflow requires them.
 

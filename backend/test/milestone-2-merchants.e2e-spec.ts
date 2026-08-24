@@ -21,6 +21,7 @@ const MERCHANT_USER_ID = '44444444-4444-4444-8444-444444444444';
 const ORGANIZATION_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OTHER_ORGANIZATION_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const MERCHANT_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const BRANCH_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 
 describe('Milestone 2 merchant API access (e2e)', () => {
   let app: INestApplication;
@@ -35,6 +36,7 @@ describe('Milestone 2 merchant API access (e2e)', () => {
       id: MERCHANT_ID,
       status: MerchantStatus.SUSPENDED,
     }),
+    updateBranches: jest.fn().mockResolvedValue({ id: MERCHANT_ID }),
   };
   const rolesByUserId: Record<string, OrganizationRole> = {
     [OWNER_ID]: OrganizationRole.OWNER,
@@ -169,6 +171,7 @@ describe('Milestone 2 merchant API access (e2e)', () => {
         contactName: '  Maria Santos  ',
         email: '  MARIA@AMIHAN.EXAMPLE  ',
         phone: '  +63 917 123 4567  ',
+        branchIds: [BRANCH_ID],
       })
       .expect(201, { id: MERCHANT_ID });
 
@@ -178,6 +181,7 @@ describe('Milestone 2 merchant API access (e2e)', () => {
       contactName: 'Maria Santos',
       email: 'maria@amihan.example',
       phone: '+63 917 123 4567',
+      branchIds: [BRANCH_ID],
     });
   });
 
@@ -230,6 +234,25 @@ describe('Milestone 2 merchant API access (e2e)', () => {
     );
   });
 
+  it('allows a manager to replace merchant branch assignments', async () => {
+    const token = accessToken(MANAGER_ID, 'manager@example.com');
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .put(
+        `/organizations/${ORGANIZATION_ID}/merchants/${MERCHANT_ID}/branches`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .send({ branchIds: [BRANCH_ID] })
+      .expect(200, { id: MERCHANT_ID });
+
+    expect(merchantsService.updateBranches).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      MERCHANT_ID,
+      { branchIds: [BRANCH_ID] },
+    );
+  });
+
   it('publishes the merchant routes and schema in OpenAPI', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const response = await request(app.getHttpServer())
@@ -241,6 +264,9 @@ describe('Milestone 2 merchant API access (e2e)', () => {
     );
     expect(response.text).toContain(
       '"/organizations/{organizationId}/merchants/{merchantId}/status"',
+    );
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/merchants/{merchantId}/branches"',
     );
     expect(response.text).toContain('"MerchantResponseDto"');
   });
