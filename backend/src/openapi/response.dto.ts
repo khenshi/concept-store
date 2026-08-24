@@ -1,5 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MerchantStatus, OrganizationRole } from '../generated/prisma/client';
+import {
+  MerchantStatus,
+  OrganizationRole,
+  SpaceStatus,
+  SpaceType,
+} from '../generated/prisma/client';
 
 export class StatusResponseDto {
   @ApiProperty({ example: 'ok' })
@@ -139,4 +144,36 @@ export class MerchantBranchResponseDto {
 
   @ApiPropertyOptional({ nullable: true, example: 'MKT-01' })
   code!: string | null;
+}
+
+export class SpaceResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  branchId!: string;
+
+  @ApiProperty({ example: 'RACK-A01' })
+  code!: string;
+
+  @ApiProperty({ example: 'Front display rack' })
+  name!: string;
+
+  @ApiProperty({ enum: SpaceType })
+  type!: SpaceType;
+
+  @ApiPropertyOptional({ nullable: true, example: 'Window bay' })
+  customType!: string | null;
+
+  @ApiProperty({ enum: SpaceStatus })
+  status!: SpaceStatus;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
 }

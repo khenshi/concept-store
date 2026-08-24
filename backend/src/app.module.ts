@@ -6,6 +6,7 @@ import { PrismaModule } from './infrastructure/database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MerchantsModule } from './modules/merchants/merchants.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { SpacesModule } from './modules/spaces/spaces.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
     AuthModule,
     OrganizationsModule,
     MerchantsModule,
+    SpacesModule,
   ],
   controllers: [AppController],
 })
