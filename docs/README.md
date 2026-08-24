@@ -27,6 +27,10 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend completion](milestone-1/frontend-completion.md)
 - [Swagger API documentation](milestone-1/swagger-api-documentation.md)
 
+## Milestone 2 — Merchant Management
+
+- [Merchant data model](milestone-2/merchant-data-model.md)
+
 ## Documentation convention
 
 Each implementation part should document, when applicable:
