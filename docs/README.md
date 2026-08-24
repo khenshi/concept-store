@@ -22,6 +22,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Initial organization RBAC](milestone-1/initial-rbac.md)
 - [Branch data model](milestone-1/branch-data-model.md)
 - [Branch API and authorization](milestone-1/branch-api.md)
+- [Frontend branch management](milestone-1/frontend-branch-management.md)
 
 ## Documentation convention
 

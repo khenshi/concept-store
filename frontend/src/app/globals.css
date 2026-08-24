@@ -71,7 +71,8 @@ a {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -401,9 +402,227 @@ a:focus-visible {
   margin-top: 2.5rem;
 }
 
+.workspace-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.workspace-heading-overview {
+  margin-top: 2.5rem;
+}
+
+.workspace-context {
+  margin: 0 0 0.6rem;
+  color: var(--primary-dark);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.role-badge {
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  color: var(--primary-dark);
+  background: var(--primary-light);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.organization-nav {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.organization-nav a {
+  padding: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.organization-nav a[aria-current='page'] {
+  border-bottom: 2px solid var(--primary);
+  color: var(--foreground);
+}
+
+.workspace-state > .primary-link {
+  margin-top: 1rem;
+}
+
+.branch-workspace {
+  width: min(100%, 72rem);
+  margin: clamp(3rem, 8vh, 5rem) auto 0;
+}
+
+.branch-workspace .workspace-heading h1 {
+  max-width: none;
+  font-size: clamp(2rem, 6vw, 3rem);
+}
+
+.branch-workspace .workspace-heading p:last-child {
+  max-width: 44rem;
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.branch-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(22rem, 0.95fr);
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 2rem;
+}
+
+.success-message {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--success);
+  border-radius: 0.5rem;
+  color: var(--foreground);
+  background: var(--surface);
+  line-height: 1.5;
+}
+
+.branch-layout-readonly {
+  grid-template-columns: minmax(0, 48rem);
+}
+
+.branch-panel {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.branch-empty {
+  padding: 3rem 0.5rem;
+  text-align: center;
+}
+
+.branch-empty h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.branch-empty p {
+  max-width: 32rem;
+  margin: 0.6rem auto 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.branch-list {
+  display: grid;
+  gap: 0;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.branch-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.branch-list li:last-child {
+  padding-bottom: 0;
+}
+
+.branch-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.branch-name-line span {
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+  color: var(--muted);
+  background: var(--background);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.branch-list address {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-style: normal;
+  line-height: 1.5;
+}
+
+.branch-list button,
+.text-button {
+  padding: 0;
+  border: 0;
+  color: var(--primary-dark);
+  background: transparent;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.branch-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.branch-form-panel h2:focus {
+  outline: 3px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+.branch-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(8rem, 0.75fr);
+  gap: 1rem;
+}
+
+.branch-form-row-compact {
+  grid-template-columns: minmax(0, 1fr) 9rem;
+}
+
+.optional-label,
+.field-hint {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
 @media (max-width: 40rem) {
   .areas,
-  .organization-grid {
+  .organization-grid,
+  .branch-layout,
+  .branch-form-row,
+  .branch-form-row-compact {
     grid-template-columns: 1fr;
+  }
+
+  .workspace-heading {
+    display: grid;
+  }
+
+  .role-badge {
+    width: fit-content;
   }
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { getOrganization } from './organization-api';
+import { OrganizationNavigation } from './organization-navigation';
 import type { OrganizationAccess } from './organization.types';
 
 const roleLabels = {
@@ -71,12 +72,29 @@ export function OrganizationWorkspace({
       <Link className="back-link" href="/app">
         ← All organizations
       </Link>
-      <p className="eyebrow">{roleLabels[organization.role]} workspace</p>
-      <h1 id="workspace-title">{organization.name}</h1>
+      <div className="workspace-heading workspace-heading-overview">
+        <div>
+          <p className="workspace-context">
+            {roleLabels[organization.role]} workspace
+          </p>
+          <h1 id="workspace-title">{organization.name}</h1>
+        </div>
+        <span className="role-badge">{organization.role.toLowerCase()}</span>
+      </div>
+      <OrganizationNavigation
+        organizationId={organizationId}
+        active="overview"
+      />
       <p>
-        Organization access is confirmed. Branches and role-specific workspace
-        tools will be added in their own Milestone 1 parts.
+        Organization access is confirmed. Continue to branches to manage this
+        concept store&apos;s physical locations.
       </p>
+      <Link
+        className="primary-link"
+        href={`/app/organizations/${organizationId}/branches`}
+      >
+        View branches
+      </Link>
     </section>
   );
 }
