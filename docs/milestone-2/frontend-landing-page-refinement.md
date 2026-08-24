@@ -16,6 +16,8 @@ The page follows the approved **Clear Store Ledger** direction and the supplied 
 
 The reference influenced composition and pacing, but its branding, copy, customer logos, statistics, and illustrations were not copied.
 
+The final implementation uses Tailwind utilities for page-specific presentation. Shared global CSS is not used for the landing-page composition.
+
 ## Page Structure
 
 - restrained navigation with sign-in and registration actions

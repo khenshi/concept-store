@@ -6,14 +6,13 @@ The public login and account-creation pages were visually aligned with the refin
 
 ## Design
 
-Desktop pages use a two-panel composition:
+Both pages use one centered authentication column on a white background. The column grows from a compact mobile width to a comfortable 32rem maximum on larger screens. It contains the Concept Store wordmark, a clear return path, concise heading, labeled credentials, validation feedback, and the alternate authentication action.
 
-- a quiet Cloud Slate context panel with the Concept Store wordmark, product positioning, and an illustrative store record
-- a focused white form area with a clear return path, concise heading, labeled credentials, validation feedback, and the alternate authentication action
+Authentication headings use a restrained responsive scale with a 2.625rem maximum so they remain prominent without overpowering the form.
 
-The context panel is intentionally informational rather than promotional. It does not contain customer claims or real organization data. The sample store record is hidden from assistive technology.
+The same focused composition is used at desktop, tablet, and mobile widths. No supporting illustration or promotional panel competes with the account task.
 
-At tablet and mobile widths, the context panel reduces to the product wordmark and the form becomes the primary content. This preserves task focus and avoids forcing decorative content ahead of account access.
+The final implementation uses Tailwind utilities for the authentication-page presentation and shares the Tailwind-based product wordmark with the landing page.
 
 ## Content Changes
 

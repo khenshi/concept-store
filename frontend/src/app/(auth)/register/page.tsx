@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: 'Create account | Concept Store' };
 
 export default function RegisterPage() {
   return (
-    <main className="auth-shell">
+    <main className="grid min-h-screen place-items-center bg-white">
       <CredentialsForm mode="register" />
     </main>
   );

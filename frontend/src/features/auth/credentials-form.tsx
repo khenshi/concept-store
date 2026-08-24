@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
+import { BrandWordmark } from '@/components/brand-wordmark';
 import { ApiError } from './auth-client';
 import { useAuth } from './auth-context';
 import {
@@ -19,32 +20,20 @@ const content = {
   login: {
     eyebrow: 'Welcome back',
     title: 'Sign in to your workspace.',
-    description:
-      'Continue to your organization, branches, team, and merchants.',
     submit: 'Sign in',
     submitting: 'Signing in…',
     alternate: 'New to Concept Store?',
     alternateLink: 'Create an account',
     alternateHref: '/register',
-    panelEyebrow: 'Your store, clearly organized',
-    panelTitle: 'Pick up where your team left off.',
-    panelDescription:
-      'Return to one shared operational record, with access shaped around your organization and role.',
   },
   register: {
     eyebrow: 'Start your workspace',
     title: 'Create your account.',
-    description:
-      'Begin with your account. We will guide you through store setup next.',
     submit: 'Create account',
     submitting: 'Creating account…',
     alternate: 'Already have an account?',
     alternateLink: 'Sign in',
     alternateHref: '/login',
-    panelEyebrow: 'A clear foundation',
-    panelTitle: 'Set up your concept store with confidence.',
-    panelDescription:
-      'Bring your organization, physical branches, team members, and merchants into one dependable workspace.',
   },
 } as const;
 
@@ -100,114 +89,104 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
   }
 
   return (
-    <>
-      <aside className="auth-context" aria-label="About Concept Store">
-        <Link
-          className="landing-wordmark auth-wordmark"
-          href="/"
-          aria-label="Concept Store home"
-        >
-          <span className="wordmark-mark" aria-hidden="true">
-            CS
-          </span>
-          <span>Concept Store</span>
-        </Link>
-
-        <div className="auth-context-copy">
-          <p className="eyebrow">{copy.panelEyebrow}</p>
-          <h2>{copy.panelTitle}</h2>
-          <p>{copy.panelDescription}</p>
-        </div>
-
-        <div className="auth-context-record" aria-hidden="true">
-          <div className="auth-record-heading">
-            <span>Store workspace</span>
-            <i>Active</i>
-          </div>
-          <div className="auth-record-row">
-            <span>Organization</span>
-            <strong>North &amp; Pine</strong>
-          </div>
-          <div className="auth-record-row">
-            <span>Connected operations</span>
-            <strong>Branches · Team · Merchants</strong>
-          </div>
-        </div>
-
-        <p className="auth-context-note">
-          Built for multi-merchant retail in the Philippines.
+    <section
+      className="flex min-h-screen w-full max-w-md flex-col justify-center px-5 py-10 sm:max-w-lg sm:px-8 lg:py-16"
+      aria-labelledby="auth-title"
+    >
+      <Link
+        className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 no-underline hover:text-emerald-700"
+        href="/"
+      >
+        <span aria-hidden="true">←</span> Back to home
+      </Link>
+      <div className="mt-10">
+        <p className="mb-4 text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
+          {copy.eyebrow}
         </p>
-      </aside>
+        <h1
+          className="max-w-none text-[clamp(1.875rem,6vw,2.625rem)] leading-[1.08] font-bold tracking-[-0.04em] text-slate-900"
+          id="auth-title"
+        >
+          {copy.title}
+        </h1>
+      </div>
 
-      <section className="auth-card" aria-labelledby="auth-title">
-        <Link className="auth-back-link" href="/">
-          <span aria-hidden="true">←</span> Back to home
-        </Link>
-        <div className="auth-heading">
-          <p className="eyebrow">{copy.eyebrow}</p>
-          <h1 id="auth-title">{copy.title}</h1>
-          <p>{copy.description}</p>
-        </div>
+      <form className="mt-8 grid gap-5" onSubmit={handleSubmit} noValidate>
+        {submissionError ? (
+          <p
+            className="m-0 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+            role="alert"
+          >
+            {submissionError}
+          </p>
+        ) : null}
 
-        <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          {submissionError ? (
-            <p className="form-alert" role="alert">
-              {submissionError}
+        <div className="grid gap-2">
+          <label className="text-sm font-bold" htmlFor="email">
+            Email address
+          </label>
+          <input
+            className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            aria-invalid={Boolean(fieldErrors.email)}
+            aria-describedby={fieldErrors.email ? 'email-error' : undefined}
+          />
+          {fieldErrors.email ? (
+            <p id="email-error" className="m-0 text-sm text-red-600">
+              {fieldErrors.email}
             </p>
           ) : null}
+        </div>
 
-          <div className="field">
-            <label htmlFor="email">Email address</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              aria-invalid={Boolean(fieldErrors.email)}
-              aria-describedby={fieldErrors.email ? 'email-error' : undefined}
-            />
-            {fieldErrors.email ? (
-              <p id="email-error" className="field-error">
-                {fieldErrors.email}
-              </p>
-            ) : null}
-          </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-bold" htmlFor="password">
+            Password
+          </label>
+          <input
+            className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
+            id="password"
+            name="password"
+            type="password"
+            autoComplete={
+              mode === 'login' ? 'current-password' : 'new-password'
+            }
+            placeholder={
+              mode === 'register' ? 'At least 8 characters' : undefined
+            }
+            aria-invalid={Boolean(fieldErrors.password)}
+            aria-describedby={
+              fieldErrors.password ? 'password-error' : undefined
+            }
+          />
+          {fieldErrors.password ? (
+            <p id="password-error" className="m-0 text-sm text-red-600">
+              {fieldErrors.password}
+            </p>
+          ) : null}
+        </div>
 
-          <div className="field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete={
-                mode === 'login' ? 'current-password' : 'new-password'
-              }
-              placeholder={
-                mode === 'register' ? 'At least 8 characters' : undefined
-              }
-              aria-invalid={Boolean(fieldErrors.password)}
-              aria-describedby={
-                fieldErrors.password ? 'password-error' : undefined
-              }
-            />
-            {fieldErrors.password ? (
-              <p id="password-error" className="field-error">
-                {fieldErrors.password}
-              </p>
-            ) : null}
-          </div>
+        <button
+          className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 disabled:cursor-wait disabled:opacity-65"
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? copy.submitting : copy.submit}
+        </button>
+      </form>
 
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? copy.submitting : copy.submit}
-          </button>
-        </form>
-
-        <p className="alternate-action">
-          {copy.alternate}{' '}
-          <Link href={copy.alternateHref}>{copy.alternateLink}</Link>
-        </p>
-      </section>
-    </>
+      <p className="mt-6 text-center text-sm text-slate-500">
+        {copy.alternate}{' '}
+        <Link
+          className="font-bold text-emerald-700 underline underline-offset-3"
+          href={copy.alternateHref}
+        >
+          {copy.alternateLink}
+        </Link>
+      </p>
+    </section>
   );
 }
