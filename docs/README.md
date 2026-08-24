@@ -36,6 +36,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend completion](milestone-2/frontend-completion.md)
 - [Frontend merchant branch assignments](milestone-2/frontend-merchant-branch-assignments.md)
 - [Frontend landing page refinement](milestone-2/frontend-landing-page-refinement.md)
+- [Frontend authentication page refinement](milestone-2/frontend-auth-page-refinement.md)
 
 ## Documentation convention
 
