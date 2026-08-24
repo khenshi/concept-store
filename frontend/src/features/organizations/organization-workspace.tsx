@@ -1,0 +1,82 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { ApiError } from '@/features/auth/auth-client';
+import { useAuth } from '@/features/auth/auth-context';
+import { getOrganization } from './organization-api';
+import type { OrganizationAccess } from './organization.types';
+
+const roleLabels = {
+  OWNER: 'Owner',
+  MANAGER: 'Manager',
+  CASHIER: 'Cashier',
+  MERCHANT: 'Merchant',
+} as const;
+
+export function OrganizationWorkspace({
+  organizationId,
+}: {
+  organizationId: string;
+}) {
+  const { request } = useAuth();
+  const [organization, setOrganization] = useState<OrganizationAccess | null>(
+    null,
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void getOrganization(request, organizationId)
+      .then((result) => {
+        if (active) setOrganization(result);
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setError(
+            cause instanceof ApiError
+              ? cause.message
+              : 'The organization could not be loaded.',
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [organizationId, request]);
+
+  if (error) {
+    return (
+      <section className="workspace-state" role="alert">
+        <p className="eyebrow">Organization unavailable</p>
+        <h1>We could not open this workspace.</h1>
+        <p>{error}</p>
+        <Link className="text-link" href="/app">
+          Choose another organization
+        </Link>
+      </section>
+    );
+  }
+
+  if (!organization) {
+    return (
+      <p className="workspace-state" role="status">
+        Loading organization…
+      </p>
+    );
+  }
+
+  return (
+    <section className="workspace-state" aria-labelledby="workspace-title">
+      <Link className="back-link" href="/app">
+        ← All organizations
+      </Link>
+      <p className="eyebrow">{roleLabels[organization.role]} workspace</p>
+      <h1 id="workspace-title">{organization.name}</h1>
+      <p>
+        Organization access is confirmed. Branches and role-specific workspace
+        tools will be added in their own Milestone 1 parts.
+      </p>
+    </section>
+  );
+}
