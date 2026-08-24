@@ -21,6 +21,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Organizations and membership foundation](milestone-1/organizations-and-memberships.md)
 - [Initial organization RBAC](milestone-1/initial-rbac.md)
 - [Branch data model](milestone-1/branch-data-model.md)
+- [Branch API and authorization](milestone-1/branch-api.md)
 
 ## Documentation convention
 
