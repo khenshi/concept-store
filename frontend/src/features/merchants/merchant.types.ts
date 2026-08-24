@@ -11,6 +11,13 @@ export interface Merchant {
   status: MerchantStatus;
   createdAt: string;
   updatedAt: string;
+  branches: MerchantBranchSummary[];
+}
+
+export interface MerchantBranchSummary {
+  id: string;
+  name: string;
+  code: string | null;
 }
 
 export interface MerchantInput {
@@ -19,9 +26,10 @@ export interface MerchantInput {
   contactName: string;
   email: string;
   phone: string;
+  branchIds: string[];
 }
 
-export type MerchantUpdateInput = Omit<MerchantInput, 'code'> & {
+export type MerchantUpdateInput = Omit<MerchantInput, 'code' | 'branchIds'> & {
   code: string | null;
 };
 

@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
+import { listBranches } from '@/features/branches/branch-api';
+import type { Branch } from '@/features/branches/branch.types';
 import { getOrganization } from '@/features/organizations/organization-api';
 import { OrganizationNavigation } from '@/features/organizations/organization-navigation';
 import type { OrganizationAccess } from '@/features/organizations/organization.types';
@@ -13,9 +15,10 @@ import {
   createMerchant,
   getMerchant,
   updateMerchant,
+  updateMerchantBranches,
   updateMerchantStatus,
 } from './merchant-api';
-import { merchantSchema } from './merchant.schemas';
+import { merchantBranchesSchema, merchantSchema } from './merchant.schemas';
 import type { Merchant, MerchantInput, MerchantStatus } from './merchant.types';
 
 type MerchantField = keyof MerchantInput;
@@ -54,6 +57,7 @@ export function MerchantProfile({
     null,
   );
   const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -61,6 +65,7 @@ export function MerchantProfile({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isUpdatingBranches, setIsUpdatingBranches] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -69,11 +74,17 @@ export function MerchantProfile({
       const organizationResult = await getOrganization(request, organizationId);
       setOrganization(organizationResult);
       if (
-        merchantId &&
-        (organizationResult.role === 'OWNER' ||
-          organizationResult.role === 'MANAGER')
+        organizationResult.role === 'OWNER' ||
+        organizationResult.role === 'MANAGER'
       ) {
-        setMerchant(await getMerchant(request, organizationId, merchantId));
+        const [branchResult, merchantResult] = await Promise.all([
+          listBranches(request, organizationId),
+          merchantId
+            ? getMerchant(request, organizationId, merchantId)
+            : Promise.resolve(null),
+        ]);
+        setBranches(branchResult);
+        setMerchant(merchantResult);
       }
     } catch (cause: unknown) {
       setLoadError(errorMessage(cause));
@@ -89,16 +100,19 @@ export function MerchantProfile({
         if (!active) return;
         setOrganization(organizationResult);
         if (
-          merchantId &&
-          (organizationResult.role === 'OWNER' ||
-            organizationResult.role === 'MANAGER')
+          organizationResult.role === 'OWNER' ||
+          organizationResult.role === 'MANAGER'
         ) {
-          const merchantResult = await getMerchant(
-            request,
-            organizationId,
-            merchantId,
-          );
-          if (active) setMerchant(merchantResult);
+          const [branchResult, merchantResult] = await Promise.all([
+            listBranches(request, organizationId),
+            merchantId
+              ? getMerchant(request, organizationId, merchantId)
+              : Promise.resolve(null),
+          ]);
+          if (active) {
+            setBranches(branchResult);
+            setMerchant(merchantResult);
+          }
         }
       })
       .catch((cause: unknown) => {
@@ -122,6 +136,9 @@ export function MerchantProfile({
       contactName: formData.get('contactName'),
       email: formData.get('email'),
       phone: formData.get('phone'),
+      branchIds: merchant
+        ? merchant.branches.map((branch) => branch.id)
+        : formData.getAll('branchIds'),
     });
 
     setSubmissionError(null);
@@ -141,11 +158,18 @@ export function MerchantProfile({
     setIsSubmitting(true);
     try {
       if (merchant) {
+        const profile = {
+          name: result.data.name,
+          code: result.data.code,
+          contactName: result.data.contactName,
+          email: result.data.email,
+          phone: result.data.phone,
+        };
         const updated = await updateMerchant(
           request,
           organizationId,
           merchant.id,
-          { ...result.data, code: result.data.code ?? null },
+          { ...profile, code: profile.code ?? null },
         );
         setMerchant(updated);
         setSuccessMessage(`${updated.name} was updated successfully.`);
@@ -163,6 +187,37 @@ export function MerchantProfile({
       setSubmissionError(errorMessage(cause));
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleBranchesSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!merchant) return;
+    const form = event.currentTarget;
+    const result = merchantBranchesSchema.safeParse(
+      new FormData(form).getAll('branchIds'),
+    );
+    setSubmissionError(null);
+    setSuccessMessage(null);
+    if (!result.success) {
+      setSubmissionError(result.error.issues[0]?.message ?? 'Select a branch.');
+      return;
+    }
+
+    setIsUpdatingBranches(true);
+    try {
+      const updated = await updateMerchantBranches(
+        request,
+        organizationId,
+        merchant.id,
+        result.data,
+      );
+      setMerchant(updated);
+      setSuccessMessage(`${updated.name}'s branch assignments were updated.`);
+    } catch (cause: unknown) {
+      setSubmissionError(errorMessage(cause));
+    } finally {
+      setIsUpdatingBranches(false);
     }
   }
 
@@ -283,49 +338,73 @@ export function MerchantProfile({
             </p>
           ) : null}
           <div className="merchant-profile-layout">
+            {!merchant && branches.length === 0 ? (
+              <section className="merchant-panel merchant-branch-prerequisite">
+                <h2>Add a branch first</h2>
+                <p>
+                  A merchant must operate in at least one branch before its
+                  profile can be created.
+                </p>
+                <Link
+                  className="text-link"
+                  href={`/app/organizations/${organizationId}/branches`}
+                >
+                  Manage branches
+                </Link>
+              </section>
+            ) : null}
             <MerchantForm
               merchant={merchant}
+              branches={branches}
               fieldErrors={fieldErrors}
               isSubmitting={isSubmitting}
               onSubmit={handleProfileSubmit}
             />
             {merchant ? (
-              <section
-                className="merchant-panel"
-                aria-labelledby="status-title"
-              >
-                <h2 id="status-title">Lifecycle status</h2>
-                <p className="panel-description">
-                  Ended merchants remain available for historical records.
-                </p>
-                <form
-                  className="merchant-status-form"
-                  onSubmit={handleStatusSubmit}
+              <div className="merchant-side-panels">
+                <BranchAssignmentForm
+                  branches={branches}
+                  merchant={merchant}
+                  isSubmitting={isUpdatingBranches}
+                  onSubmit={handleBranchesSubmit}
+                />
+                <section
+                  className="merchant-panel"
+                  aria-labelledby="status-title"
                 >
-                  <div className="field">
-                    <label htmlFor="merchant-status">Status</label>
-                    <select
-                      id="merchant-status"
-                      name="status"
-                      key={merchant.status}
-                      defaultValue={merchant.status}
-                    >
-                      {Object.entries(statusLabels).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    className="secondary-button"
-                    type="submit"
-                    disabled={isUpdatingStatus}
+                  <h2 id="status-title">Lifecycle status</h2>
+                  <p className="panel-description">
+                    Ended merchants remain available for historical records.
+                  </p>
+                  <form
+                    className="merchant-status-form"
+                    onSubmit={handleStatusSubmit}
                   >
-                    {isUpdatingStatus ? 'Updating status…' : 'Update status'}
-                  </button>
-                </form>
-              </section>
+                    <div className="field">
+                      <label htmlFor="merchant-status">Status</label>
+                      <select
+                        id="merchant-status"
+                        name="status"
+                        key={merchant.status}
+                        defaultValue={merchant.status}
+                      >
+                        {Object.entries(statusLabels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      className="secondary-button"
+                      type="submit"
+                      disabled={isUpdatingStatus}
+                    >
+                      {isUpdatingStatus ? 'Updating status…' : 'Update status'}
+                    </button>
+                  </form>
+                </section>
+              </div>
             ) : null}
           </div>
         </>
@@ -336,11 +415,13 @@ export function MerchantProfile({
 
 function MerchantForm({
   merchant,
+  branches,
   fieldErrors,
   isSubmitting,
   onSubmit,
 }: {
   merchant: Merchant | null;
+  branches: Branch[];
   fieldErrors: FieldErrors;
   isSubmitting: boolean;
   onSubmit(event: FormEvent<HTMLFormElement>): void;
@@ -423,10 +504,28 @@ function MerchantForm({
             </div>
           );
         })}
+        {!merchant ? (
+          <fieldset className="branch-choice-group">
+            <legend>Operating branches</legend>
+            <p>Select every branch where this merchant currently operates.</p>
+            {branches.map((branch) => (
+              <label key={branch.id}>
+                <input type="checkbox" name="branchIds" value={branch.id} />
+                <span>
+                  <strong>{branch.name}</strong>
+                  {branch.code ? <small>{branch.code}</small> : null}
+                </span>
+              </label>
+            ))}
+            {fieldErrors.branchIds ? (
+              <p className="field-error">{fieldErrors.branchIds}</p>
+            ) : null}
+          </fieldset>
+        ) : null}
         <button
           className="primary-button"
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || (!merchant && branches.length === 0)}
         >
           {isSubmitting
             ? merchant
@@ -435,6 +534,58 @@ function MerchantForm({
             : merchant
               ? 'Save changes'
               : 'Create merchant'}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function BranchAssignmentForm({
+  branches,
+  merchant,
+  isSubmitting,
+  onSubmit,
+}: {
+  branches: Branch[];
+  merchant: Merchant;
+  isSubmitting: boolean;
+  onSubmit(event: FormEvent<HTMLFormElement>): void;
+}) {
+  const assignedIds = new Set(merchant.branches.map((branch) => branch.id));
+  return (
+    <section className="merchant-panel" aria-labelledby="branches-title">
+      <h2 id="branches-title">Operating branches</h2>
+      <p className="panel-description">
+        Select one or more branches where this merchant operates.
+      </p>
+      <form
+        className="merchant-branches-form"
+        onSubmit={onSubmit}
+        key={merchant.branches.map((branch) => branch.id).join(':')}
+      >
+        <fieldset className="branch-choice-group">
+          <legend className="sr-only">Assigned branches</legend>
+          {branches.map((branch) => (
+            <label key={branch.id}>
+              <input
+                type="checkbox"
+                name="branchIds"
+                value={branch.id}
+                defaultChecked={assignedIds.has(branch.id)}
+              />
+              <span>
+                <strong>{branch.name}</strong>
+                {branch.code ? <small>{branch.code}</small> : null}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        <button
+          className="secondary-button"
+          type="submit"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? 'Saving branches…' : 'Save branch assignments'}
         </button>
       </form>
     </section>

@@ -4,6 +4,7 @@ import {
   getMerchant,
   listMerchants,
   updateMerchant,
+  updateMerchantBranches,
   updateMerchantStatus,
 } from './merchant-api';
 import type { MerchantInput, MerchantUpdateInput } from './merchant.types';
@@ -16,6 +17,7 @@ describe('merchant API', () => {
     contactName: 'Maria Santos',
     email: 'maria@amihan.example',
     phone: '+63 917 123 4567',
+    branchIds: ['branch-id'],
   };
 
   beforeEach(() => vi.clearAllMocks());
@@ -48,7 +50,13 @@ describe('merchant API', () => {
 
   it('updates profile and status through separate endpoints', async () => {
     vi.mocked(request).mockResolvedValue({});
-    const update: MerchantUpdateInput = { ...input, code: null };
+    const update: MerchantUpdateInput = {
+      name: input.name,
+      code: null,
+      contactName: input.contactName,
+      email: input.email,
+      phone: input.phone,
+    };
     await updateMerchant(request, 'organization-id', 'merchant-id', update);
     await updateMerchantStatus(
       request,
@@ -71,6 +79,21 @@ describe('merchant API', () => {
         method: 'PATCH',
         body: JSON.stringify({ status: 'SUSPENDED' }),
       }),
+    );
+  });
+
+  it('replaces merchant branches through the assignment endpoint', async () => {
+    vi.mocked(request).mockResolvedValue({});
+    await updateMerchantBranches(request, 'organization-id', 'merchant-id', [
+      'branch-1',
+    ]);
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization-id/merchants/merchant-id/branches',
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branchIds: ['branch-1'] }),
+      },
     );
   });
 });

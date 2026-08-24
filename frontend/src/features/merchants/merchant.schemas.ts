@@ -14,7 +14,7 @@ export const merchantStatusSchema = z.enum([
   'ENDED',
 ]);
 
-export const merchantSchema = z.object({
+export const merchantProfileSchema = z.object({
   name: requiredText('Merchant name', 120),
   code: z
     .string()
@@ -43,4 +43,12 @@ export const merchantSchema = z.object({
       /^\+?[0-9][0-9 ()-]{6,24}$/,
       'Enter a valid telephone number using 7–25 characters.',
     ),
+});
+
+export const merchantBranchesSchema = z
+  .array(z.string().uuid())
+  .min(1, 'Select at least one branch.');
+
+export const merchantSchema = merchantProfileSchema.extend({
+  branchIds: merchantBranchesSchema,
 });

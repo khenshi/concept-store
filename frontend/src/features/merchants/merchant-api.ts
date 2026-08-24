@@ -76,3 +76,19 @@ export function updateMerchantStatus(
     },
   );
 }
+
+export function updateMerchantBranches(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  merchantId: string,
+  branchIds: string[],
+): Promise<Merchant> {
+  return request<Merchant>(
+    `${merchantPath(organizationId)}/${encodeURIComponent(merchantId)}/branches`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branchIds }),
+    },
+  );
+}

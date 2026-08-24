@@ -9,6 +9,7 @@ The Milestone 2 frontend provides organization owners and managers with the comp
 - merchant creation
 - merchant detail and profile editing
 - merchant lifecycle-status management
+- merchant branch selection and assignment management
 - role-aware organization navigation
 - loading, empty, error, validation, success, confirmation, and pending states
 
@@ -38,6 +39,8 @@ The directory shows:
 
 Users can search across the fields supported by the backend and filter by exact lifecycle status. Filters are applied explicitly rather than issuing a request after every keystroke.
 
+Directory records also show the branches where each merchant currently operates.
+
 Pagination remains deferred consistently with the backend API contract.
 
 ## Profile validation
@@ -54,6 +57,10 @@ Validation errors remain adjacent to their fields and focus moves to the first i
 ## Lifecycle status
 
 Status changes are kept separate from profile changes. Changing to `ENDED` requires confirmation because it represents the end of the merchant relationship. Ended merchants remain visible for historical continuity.
+
+## Operating branches
+
+Merchant creation requires at least one selected organization branch. Existing assignments are edited separately from the merchant profile and may contain one or multiple branches. Organizations without branches must create a branch before creating a merchant.
 
 ## Design and accessibility
 

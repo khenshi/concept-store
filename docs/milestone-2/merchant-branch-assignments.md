@@ -4,7 +4,7 @@
 
 This part connects organization-owned merchants to the specific branches where they operate. It adds a tenant-safe many-to-many database relationship, requires branch selection during merchant creation, exposes complete branch-assignment replacement, returns branch summaries with merchant responses, and extends validation, Swagger, and tests.
 
-Frontend branch selection is intentionally deferred to the next frontend part so the backend relationship can be reviewed and committed first.
+Frontend behavior is documented separately in [frontend merchant branch assignments](frontend-merchant-branch-assignments.md).
 
 ## Relationship
 

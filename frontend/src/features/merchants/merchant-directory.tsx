@@ -233,6 +233,11 @@ export function MerchantDirectory({
                     <small>
                       {merchant.email} · {merchant.phone}
                     </small>
+                    <small>
+                      {merchant.branches
+                        .map((branch) => branch.name)
+                        .join(', ')}
+                    </small>
                   </div>
                   <div className="merchant-list-actions">
                     <span

@@ -9,6 +9,7 @@ describe('merchant schema', () => {
         contactName: ' Maria Santos ',
         email: ' MARIA@AMIHAN.EXAMPLE ',
         phone: ' +63 917 123 4567 ',
+        branchIds: ['6b109a2f-142c-4af4-93d8-12941d0685ac'],
       }),
     ).toEqual({
       name: 'Amihan Goods',
@@ -16,6 +17,7 @@ describe('merchant schema', () => {
       contactName: 'Maria Santos',
       email: 'maria@amihan.example',
       phone: '+63 917 123 4567',
+      branchIds: ['6b109a2f-142c-4af4-93d8-12941d0685ac'],
     });
   });
 
@@ -27,6 +29,7 @@ describe('merchant schema', () => {
         contactName: '',
         email: 'invalid',
         phone: '123',
+        branchIds: [],
       }).success,
     ).toBe(false);
   });
