@@ -30,6 +30,7 @@ All project documentation is maintained in this directory and organized by miles
 ## Milestone 2 — Merchant Management
 
 - [Merchant data model](milestone-2/merchant-data-model.md)
+- [Merchant API](milestone-2/merchant-api.md)
 
 ## Documentation convention
 

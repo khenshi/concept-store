@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { OrganizationRole } from '../generated/prisma/client';
+import { MerchantStatus, OrganizationRole } from '../generated/prisma/client';
 
 export class StatusResponseDto {
   @ApiProperty({ example: 'ok' })
@@ -83,6 +83,38 @@ export class BranchResponseDto {
 
   @ApiProperty({ minLength: 2, maxLength: 2, example: 'PH' })
   countryCode!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
+}
+
+export class MerchantResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ example: 'Amihan Goods' })
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'AMIHAN-01' })
+  code!: string | null;
+
+  @ApiProperty({ example: 'Maria Santos' })
+  contactName!: string;
+
+  @ApiProperty({ format: 'email', example: 'maria@amihan.example' })
+  email!: string;
+
+  @ApiProperty({ example: '+63 917 123 4567' })
+  phone!: string;
+
+  @ApiProperty({ enum: MerchantStatus })
+  status!: MerchantStatus;
 
   @ApiProperty({ format: 'date-time' })
   createdAt!: Date;

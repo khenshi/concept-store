@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { validateEnvironment } from './config/env.validation';
 import { PrismaModule } from './infrastructure/database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { MerchantsModule } from './modules/merchants/merchants.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
     PrismaModule,
     AuthModule,
     OrganizationsModule,
+    MerchantsModule,
   ],
   controllers: [AppController],
 })
