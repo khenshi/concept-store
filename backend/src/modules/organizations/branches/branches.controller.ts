@@ -8,6 +8,18 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { BranchResponseDto } from '../../../openapi/response.dto';
 import { OrganizationRole } from '../../../generated/prisma/client';
 import { AuthGuard } from '../../auth/auth.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
@@ -20,12 +32,24 @@ import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
+@ApiTags('branches')
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
+@ApiNotFoundResponse({ description: 'Organization or branch was not found' })
 @Controller('organizations/:organizationId/branches')
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
   @Post()
+  @ApiOperation({ summary: 'Create a branch' })
+  @ApiCreatedResponse({ type: BranchResponseDto })
+  @ApiForbiddenResponse({
+    description: 'The organization role cannot create branches',
+  })
+  @ApiConflictResponse({
+    description: 'The branch name or code already exists',
+  })
   create(
     @CurrentOrganization() organization: OrganizationContext,
     @Body() dto: CreateBranchDto,
@@ -34,6 +58,8 @@ export class BranchesController {
   }
 
   @Get()
+  @ApiOperation({ summary: 'List branches in the organization' })
+  @ApiOkResponse({ type: BranchResponseDto, isArray: true })
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
   ): Promise<BranchRecord[]> {
@@ -41,6 +67,8 @@ export class BranchesController {
   }
 
   @Get(':branchId')
+  @ApiOperation({ summary: 'Get a branch in the organization' })
+  @ApiOkResponse({ type: BranchResponseDto })
   findOne(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
@@ -50,6 +78,14 @@ export class BranchesController {
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
   @Patch(':branchId')
+  @ApiOperation({ summary: 'Update a branch' })
+  @ApiOkResponse({ type: BranchResponseDto })
+  @ApiForbiddenResponse({
+    description: 'The organization role cannot update branches',
+  })
+  @ApiConflictResponse({
+    description: 'The branch name or code already exists',
+  })
   update(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,

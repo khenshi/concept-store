@@ -22,6 +22,10 @@ const envSchema = z
       ),
     JWT_SECRET: z.string().min(32),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+    SWAGGER_ENABLED: z
+      .union([z.boolean(), z.enum(['true', 'false'])])
+      .transform((value) => value === true || value === 'true')
+      .optional(),
   })
   .passthrough();
 
@@ -37,5 +41,9 @@ export function validateEnvironment(
     throw new Error(`Environment validation failed: ${details}`);
   }
 
-  return result.data;
+  return {
+    ...result.data,
+    SWAGGER_ENABLED:
+      result.data.SWAGGER_ENABLED ?? result.data.NODE_ENV !== 'production',
+  };
 }

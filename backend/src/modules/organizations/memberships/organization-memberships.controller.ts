@@ -11,6 +11,19 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiConflictResponse,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNoContentResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { OrganizationMemberResponseDto } from '../../../openapi/response.dto';
 import { OrganizationRole } from '../../../generated/prisma/client';
 import { AuthGuard } from '../../auth/auth.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
@@ -23,6 +36,10 @@ import { OrganizationMembershipsService } from './organization-memberships.servi
 import type { OrganizationMember } from './organization-memberships.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
+@ApiTags('organization members')
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
+@ApiNotFoundResponse({ description: 'Organization or member was not found' })
 @Controller('organizations/:organizationId/members')
 export class OrganizationMembershipsController {
   constructor(
@@ -31,6 +48,11 @@ export class OrganizationMembershipsController {
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
   @Get()
+  @ApiOperation({ summary: 'List organization members' })
+  @ApiOkResponse({ type: OrganizationMemberResponseDto, isArray: true })
+  @ApiForbiddenResponse({
+    description: 'The organization role cannot list members',
+  })
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
   ): Promise<OrganizationMember[]> {
@@ -39,6 +61,10 @@ export class OrganizationMembershipsController {
 
   @OrganizationRoles(OrganizationRole.OWNER)
   @Post()
+  @ApiOperation({ summary: 'Add a registered user to the organization' })
+  @ApiCreatedResponse({ type: OrganizationMemberResponseDto })
+  @ApiForbiddenResponse({ description: 'Only owners can add members' })
+  @ApiConflictResponse({ description: 'The user is already a member' })
   add(
     @CurrentOrganization() organization: OrganizationContext,
     @Body() dto: AddOrganizationMemberDto,
@@ -48,6 +74,12 @@ export class OrganizationMembershipsController {
 
   @OrganizationRoles(OrganizationRole.OWNER)
   @Patch(':userId/role')
+  @ApiOperation({ summary: 'Change an organization member role' })
+  @ApiOkResponse({ type: OrganizationMemberResponseDto })
+  @ApiForbiddenResponse({ description: 'Only owners can change member roles' })
+  @ApiConflictResponse({
+    description: 'The operation would remove the last owner',
+  })
   updateRole(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
@@ -63,6 +95,12 @@ export class OrganizationMembershipsController {
   @OrganizationRoles(OrganizationRole.OWNER)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':userId')
+  @ApiOperation({ summary: 'Remove an organization member' })
+  @ApiNoContentResponse()
+  @ApiForbiddenResponse({ description: 'Only owners can remove members' })
+  @ApiConflictResponse({
+    description: 'The operation would remove the last owner',
+  })
   remove(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,

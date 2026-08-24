@@ -4,6 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { OrganizationRole } from '../src/generated/prisma/client';
+import { OPENAPI_JSON_PATH, setupSwagger } from '../src/config/swagger';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
@@ -92,6 +93,7 @@ describe('Milestone 1 organization access (e2e)', () => {
         whitelist: true,
       }),
     );
+    setupSwagger(app);
     await app.init();
     jwtService = moduleRef.get(JwtService);
   });
@@ -112,6 +114,28 @@ describe('Milestone 1 organization access (e2e)', () => {
       .expect(401);
 
     expect(branchesService.findAll).not.toHaveBeenCalled();
+  });
+
+  it('publishes an OpenAPI document for the assembled organization routes', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    const response = await request(app.getHttpServer())
+      .get(`/${OPENAPI_JSON_PATH}`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      info: { title: 'Concept Store Management System API', version: '1.0' },
+      components: {
+        securitySchemes: {
+          'access-token': { type: 'http', scheme: 'bearer' },
+        },
+      },
+    });
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/branches"',
+    );
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/members"',
+    );
   });
 
   it('hides an organization from a user without membership', async () => {

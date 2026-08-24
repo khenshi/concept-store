@@ -10,6 +10,21 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import {
+  ApiBearerAuth,
+  ApiConflictResponse,
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import {
+  AuthenticatedUserResponseDto,
+  AuthResponseDto,
+} from '../../openapi/response.dto';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import type { AuthResponse, AuthenticatedUser } from './auth.types';
@@ -18,6 +33,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshCookieService } from './sessions/refresh-cookie.service';
 
+@ApiTags('authentication')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -26,6 +42,9 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @ApiOperation({ summary: 'Register an account and start a session' })
+  @ApiCreatedResponse({ type: AuthResponseDto })
+  @ApiConflictResponse({ description: 'The email is already registered' })
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) response: Response,
@@ -37,6 +56,9 @@ export class AuthController {
 
   @HttpCode(HttpStatus.OK)
   @Post('login')
+  @ApiOperation({ summary: 'Log in and start a session' })
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) response: Response,
@@ -48,6 +70,14 @@ export class AuthController {
 
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
+  @ApiCookieAuth('concept_store_refresh')
+  @ApiOperation({
+    summary: 'Rotate the refresh session and issue an access token',
+  })
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Refresh session is missing or invalid',
+  })
   async refresh(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
@@ -61,6 +91,9 @@ export class AuthController {
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post('logout')
+  @ApiCookieAuth('concept_store_refresh')
+  @ApiOperation({ summary: 'Revoke the refresh session' })
+  @ApiNoContentResponse()
   async logout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
@@ -71,6 +104,12 @@ export class AuthController {
 
   @UseGuards(AuthGuard)
   @Get('me')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Return the authenticated user' })
+  @ApiOkResponse({ type: AuthenticatedUserResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Access token is missing or invalid',
+  })
   getCurrentUser(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
     return user;
   }

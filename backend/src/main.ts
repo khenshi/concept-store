@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { setupSwagger } from './config/swagger';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -21,6 +22,10 @@ async function bootstrap(): Promise<void> {
     }),
   );
   app.enableShutdownHooks();
+
+  if (configService.getOrThrow<boolean>('SWAGGER_ENABLED')) {
+    setupSwagger(app);
+  }
 
   await app.listen(configService.getOrThrow<number>('PORT'));
 }

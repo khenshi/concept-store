@@ -25,6 +25,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend branch management](milestone-1/frontend-branch-management.md)
 - [Backend completion](milestone-1/backend-completion.md)
 - [Frontend completion](milestone-1/frontend-completion.md)
+- [Swagger API documentation](milestone-1/swagger-api-documentation.md)
 
 ## Documentation convention
 

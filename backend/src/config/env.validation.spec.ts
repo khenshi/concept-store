@@ -15,7 +15,21 @@ describe('validateEnvironment', () => {
       NODE_ENV: 'development',
       PORT: 4000,
       REFRESH_TOKEN_TTL_DAYS: 30,
+      SWAGGER_ENABLED: true,
     });
+  });
+
+  it('disables Swagger by default in production and supports an explicit override', () => {
+    expect(
+      validateEnvironment({ ...requiredEnvironment, NODE_ENV: 'production' }),
+    ).toMatchObject({ SWAGGER_ENABLED: false });
+    expect(
+      validateEnvironment({
+        ...requiredEnvironment,
+        NODE_ENV: 'production',
+        SWAGGER_ENABLED: 'true',
+      }),
+    ).toMatchObject({ SWAGGER_ENABLED: true });
   });
 
   it('rejects a non-PostgreSQL database URL', () => {
