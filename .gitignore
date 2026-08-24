@@ -1,0 +1,28 @@
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs and operating-system files
+*.log
+.DS_Store
+
+# Editor files
+.idea/
+.vscode/
+
+# Local AI tooling (Codex project configuration is intentionally retained)
+/.agent/
+/.agents/
+/.claude/
+/.cursor/
+/.gemini/
