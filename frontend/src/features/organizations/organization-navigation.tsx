@@ -3,9 +3,11 @@ import Link from 'next/link';
 export function OrganizationNavigation({
   organizationId,
   active,
+  showMembers = false,
 }: {
   organizationId: string;
-  active: 'overview' | 'branches';
+  active: 'overview' | 'branches' | 'members';
+  showMembers?: boolean;
 }) {
   const basePath = `/app/organizations/${organizationId}`;
 
@@ -23,6 +25,14 @@ export function OrganizationNavigation({
       >
         Branches
       </Link>
+      {showMembers ? (
+        <Link
+          aria-current={active === 'members' ? 'page' : undefined}
+          href={`${basePath}/members`}
+        >
+          Members
+        </Link>
+      ) : null}
     </nav>
   );
 }

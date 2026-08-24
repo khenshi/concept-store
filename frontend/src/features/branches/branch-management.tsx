@@ -160,6 +160,7 @@ export function BranchManagement({
       <OrganizationNavigation
         organizationId={organizationId}
         active="branches"
+        showMembers={canManage}
       />
 
       {successMessage ? (

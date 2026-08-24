@@ -24,6 +24,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Branch API and authorization](milestone-1/branch-api.md)
 - [Frontend branch management](milestone-1/frontend-branch-management.md)
 - [Backend completion](milestone-1/backend-completion.md)
+- [Frontend completion](milestone-1/frontend-completion.md)
 
 ## Documentation convention
 

@@ -84,6 +84,9 @@ export function OrganizationWorkspace({
       <OrganizationNavigation
         organizationId={organizationId}
         active="overview"
+        showMembers={
+          organization.role === 'OWNER' || organization.role === 'MANAGER'
+        }
       />
       <p>
         Organization access is confirmed. Continue to branches to manage this
@@ -95,6 +98,14 @@ export function OrganizationWorkspace({
       >
         View branches
       </Link>
+      {organization.role === 'OWNER' || organization.role === 'MANAGER' ? (
+        <Link
+          className="secondary-link"
+          href={`/app/organizations/${organizationId}/members`}
+        >
+          View members
+        </Link>
+      ) : null}
     </section>
   );
 }
