@@ -43,6 +43,7 @@ model Organization {
   memberships OrganizationMembership[]
   branches    Branch[]
   merchants   Merchant[]
+  spaces      Space[]
 }
 
 model Branch {
@@ -61,6 +62,7 @@ model Branch {
 
   organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   merchants    MerchantBranch[]
+  spaces       Space[]
 
   @@unique([organizationId, name])
   @@unique([organizationId, code])
@@ -93,8 +95,9 @@ model Merchant {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branches     MerchantBranch[]
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branches         MerchantBranch[]
+  spaceAssignments SpaceAssignment[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -108,12 +111,56 @@ model MerchantBranch {
   branchId       String
   createdAt      DateTime @default(now())
 
-  merchant Merchant @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  branch   Branch   @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  merchant         Merchant          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  branch           Branch            @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  spaceAssignments SpaceAssignment[]
 
   @@id([merchantId, branchId])
+  @@unique([merchantId, branchId, organizationId])
   @@index([organizationId, branchId])
   @@index([organizationId, merchantId])
+}
+
+model Space {
+  id             String      @id @default(uuid())
+  organizationId String
+  branchId       String
+  code           String
+  name           String
+  type           SpaceType
+  customType     String?
+  status         SpaceStatus @default(ACTIVE)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch            @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  assignments  SpaceAssignment[]
+
+  @@unique([organizationId, branchId, code])
+  @@unique([id, branchId, organizationId])
+  @@index([organizationId, branchId, status])
+  @@index([organizationId, branchId, name])
+}
+
+model SpaceAssignment {
+  id             String    @id @default(uuid())
+  organizationId String
+  branchId       String
+  spaceId        String
+  merchantId     String
+  startDate      DateTime  @db.Date
+  endDate        DateTime? @db.Date
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  space          Space          @relation(fields: [spaceId, branchId, organizationId], references: [id, branchId, organizationId], onDelete: Restrict)
+  merchant       Merchant       @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  merchantBranch MerchantBranch @relation(fields: [merchantId, branchId, organizationId], references: [merchantId, branchId, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, branchId])
+  @@index([organizationId, merchantId])
+  @@index([spaceId, startDate])
 }
 
 enum OrganizationRole {
@@ -128,4 +175,19 @@ enum MerchantStatus {
   INACTIVE
   SUSPENDED
   ENDED
+}
+
+enum SpaceType {
+  RACK
+  SHELF
+  CABINET
+  BOOTH
+  TABLE
+  DRAWER
+  CUSTOM
+}
+
+enum SpaceStatus {
+  ACTIVE
+  INACTIVE
 }

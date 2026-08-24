@@ -24,7 +24,7 @@ For new frontend work:
 - extract a component only when markup or behavior is genuinely reused
 - avoid replacing utilities with a large custom abstraction layer
 
-The remaining operational CSS can be migrated incrementally when those screens are intentionally refined. It should not block feature work or trigger a broad visual refactor by default.
+The remaining operational CSS was subsequently migrated in [Frontend Tailwind migration](frontend-tailwind-migration.md). Tailwind utilities are now the standard across the entire frontend.
 
 ## Validation
 

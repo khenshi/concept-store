@@ -31,6 +31,13 @@ const statusLabels: Record<MerchantStatus, string> = {
   ENDED: 'Ended',
 };
 
+const statusStyles: Record<MerchantStatus, string> = {
+  ACTIVE: 'bg-emerald-100 text-emerald-700',
+  INACTIVE: 'bg-slate-100 text-slate-600',
+  SUSPENDED: 'bg-amber-100 text-amber-800',
+  ENDED: 'bg-slate-200 text-slate-700',
+};
+
 function errorMessage(cause: unknown): string {
   return cause instanceof ApiError
     ? cause.message
@@ -257,7 +264,10 @@ export function MerchantProfile({
 
   if (isLoading) {
     return (
-      <p className="workspace-state" role="status">
+      <p
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
+        role="status"
+      >
         Loading merchant profile…
       </p>
     );
@@ -268,11 +278,18 @@ export function MerchantProfile({
 
   if (loadError || !organization || (merchantId && canManage && !merchant)) {
     return (
-      <section className="workspace-state" role="alert">
-        <h1>We could not load the merchant profile.</h1>
-        <p>{loadError ?? 'The merchant could not be loaded.'}</p>
+      <section
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
+        role="alert"
+      >
+        <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
+          We could not load the merchant profile.
+        </h1>
+        <p className="mt-4 leading-7 text-slate-500">
+          {loadError ?? 'The merchant could not be loaded.'}
+        </p>
         <button
-          className="text-button"
+          className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
           type="button"
           onClick={() => void load()}
         >
@@ -286,20 +303,27 @@ export function MerchantProfile({
 
   return (
     <section
-      className="merchant-workspace"
+      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
       aria-labelledby="merchant-profile-title"
     >
       <Link
-        className="back-link"
+        className="p-0 font-bold text-emerald-700 underline underline-offset-3"
         href={`/app/organizations/${organizationId}/merchants`}
       >
         ← Merchant directory
       </Link>
-      <div className="workspace-heading merchant-profile-heading">
+      <div className="mt-8 flex items-start justify-between gap-6 max-sm:grid">
         <div>
-          <p className="workspace-context">{organization.name}</p>
-          <h1 id="merchant-profile-title">{title}</h1>
-          <p>
+          <p className="mb-2 text-sm font-bold text-emerald-700">
+            {organization.name}
+          </p>
+          <h1
+            className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]"
+            id="merchant-profile-title"
+          >
+            {title}
+          </h1>
+          <p className="mt-4 leading-7 text-slate-500">
             {merchant
               ? 'Review the merchant profile and lifecycle status.'
               : 'Create an active merchant profile with complete contact details.'}
@@ -307,7 +331,7 @@ export function MerchantProfile({
         </div>
         {merchant ? (
           <span
-            className={`status-badge status-${merchant.status.toLowerCase()}`}
+            className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[merchant.status]}`}
           >
             {statusLabels[merchant.status]}
           </span>
@@ -321,32 +345,42 @@ export function MerchantProfile({
       />
 
       {!canManage ? (
-        <section className="merchant-panel permission-panel">
-          <h2>Merchant management is limited</h2>
-          <p>Only organization owners and managers can manage merchants.</p>
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="m-0 text-base font-bold">
+            Merchant management is limited
+          </h2>
+          <p className="mt-3 leading-7 text-slate-500">
+            Only organization owners and managers can manage merchants.
+          </p>
         </section>
       ) : (
         <>
           {successMessage ? (
-            <p className="success-message" role="status">
+            <p
+              className="mt-6 rounded-lg border border-green-600 bg-white px-4 py-3"
+              role="status"
+            >
               {successMessage}
             </p>
           ) : null}
           {submissionError ? (
-            <p className="form-alert merchant-action-alert" role="alert">
+            <p
+              className="mt-6 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+              role="alert"
+            >
               {submissionError}
             </p>
           ) : null}
-          <div className="merchant-profile-layout">
+          <div className="mt-6 grid items-start gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
             {!merchant && branches.length === 0 ? (
-              <section className="merchant-panel merchant-branch-prerequisite">
-                <h2>Add a branch first</h2>
-                <p>
+              <section className="rounded-xl border border-slate-200 bg-white p-6 md:col-span-2">
+                <h2 className="m-0 text-base font-bold">Add a branch first</h2>
+                <p className="mt-3 leading-7 text-slate-500">
                   A merchant must operate in at least one branch before its
                   profile can be created.
                 </p>
                 <Link
-                  className="text-link"
+                  className="font-bold text-emerald-700 underline underline-offset-3"
                   href={`/app/organizations/${organizationId}/branches`}
                 >
                   Manage branches
@@ -361,7 +395,7 @@ export function MerchantProfile({
               onSubmit={handleProfileSubmit}
             />
             {merchant ? (
-              <div className="merchant-side-panels">
+              <div className="grid gap-5">
                 <BranchAssignmentForm
                   branches={branches}
                   merchant={merchant}
@@ -369,20 +403,28 @@ export function MerchantProfile({
                   onSubmit={handleBranchesSubmit}
                 />
                 <section
-                  className="merchant-panel"
+                  className="rounded-xl border border-slate-200 bg-white p-6"
                   aria-labelledby="status-title"
                 >
-                  <h2 id="status-title">Lifecycle status</h2>
-                  <p className="panel-description">
+                  <h2 className="m-0 text-base font-bold" id="status-title">
+                    Lifecycle status
+                  </h2>
+                  <p className="mt-3 leading-7 text-slate-500">
                     Ended merchants remain available for historical records.
                   </p>
                   <form
-                    className="merchant-status-form"
+                    className="mt-5 grid gap-4"
                     onSubmit={handleStatusSubmit}
                   >
-                    <div className="field">
-                      <label htmlFor="merchant-status">Status</label>
+                    <div className="grid gap-2">
+                      <label
+                        className="text-sm font-bold"
+                        htmlFor="merchant-status"
+                      >
+                        Status
+                      </label>
                       <select
+                        className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
                         id="merchant-status"
                         name="status"
                         key={merchant.status}
@@ -396,7 +438,7 @@ export function MerchantProfile({
                       </select>
                     </div>
                     <button
-                      className="secondary-button"
+                      className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
                       type="submit"
                       disabled={isUpdatingStatus}
                     >
@@ -476,16 +518,27 @@ function MerchantForm({
   ];
 
   return (
-    <section className="merchant-panel" aria-labelledby="profile-form-title">
-      <h2 id="profile-form-title">Merchant profile</h2>
-      <form className="merchant-form" onSubmit={onSubmit} noValidate>
+    <section
+      className="rounded-xl border border-slate-200 bg-white p-6"
+      aria-labelledby="profile-form-title"
+    >
+      <h2 className="m-0 text-base font-bold" id="profile-form-title">
+        Merchant profile
+      </h2>
+      <form className="mt-5 grid gap-4" onSubmit={onSubmit} noValidate>
         {fields.map((field) => {
           const error = fieldErrors[field.name];
           const errorId = `merchant-${field.name}-error`;
           return (
-            <div className="field" key={field.name}>
-              <label htmlFor={`merchant-${field.name}`}>{field.label}</label>
+            <div className="grid gap-2" key={field.name}>
+              <label
+                className="text-sm font-bold"
+                htmlFor={`merchant-${field.name}`}
+              >
+                {field.label}
+              </label>
               <input
+                className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
                 id={`merchant-${field.name}`}
                 name={field.name}
                 type={field.type}
@@ -497,7 +550,7 @@ function MerchantForm({
                 aria-describedby={error ? errorId : undefined}
               />
               {error ? (
-                <p id={errorId} className="field-error">
+                <p id={errorId} className="m-0 text-sm text-red-600">
                   {error}
                 </p>
               ) : null}
@@ -505,25 +558,41 @@ function MerchantForm({
           );
         })}
         {!merchant ? (
-          <fieldset className="branch-choice-group">
-            <legend>Operating branches</legend>
-            <p>Select every branch where this merchant currently operates.</p>
+          <fieldset className="grid gap-3 border-0 p-0">
+            <legend className="mb-2 text-sm font-bold">
+              Operating branches
+            </legend>
+            <p className="m-0 text-sm leading-6 text-slate-500">
+              Select every branch where this merchant currently operates.
+            </p>
             {branches.map((branch) => (
-              <label key={branch.id}>
-                <input type="checkbox" name="branchIds" value={branch.id} />
-                <span>
+              <label
+                className="flex cursor-pointer items-start gap-3 rounded-[0.6rem] border border-slate-200 p-3 has-checked:border-emerald-600 has-checked:bg-emerald-50"
+                key={branch.id}
+              >
+                <input
+                  className="mt-1 accent-emerald-600"
+                  type="checkbox"
+                  name="branchIds"
+                  value={branch.id}
+                />
+                <span className="grid gap-1">
                   <strong>{branch.name}</strong>
-                  {branch.code ? <small>{branch.code}</small> : null}
+                  {branch.code ? (
+                    <small className="text-slate-500">{branch.code}</small>
+                  ) : null}
                 </span>
               </label>
             ))}
             {fieldErrors.branchIds ? (
-              <p className="field-error">{fieldErrors.branchIds}</p>
+              <p className="m-0 text-sm text-red-600">
+                {fieldErrors.branchIds}
+              </p>
             ) : null}
           </fieldset>
         ) : null}
         <button
-          className="primary-button"
+          className="w-fit min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
           type="submit"
           disabled={isSubmitting || (!merchant && branches.length === 0)}
         >
@@ -553,35 +622,46 @@ function BranchAssignmentForm({
 }) {
   const assignedIds = new Set(merchant.branches.map((branch) => branch.id));
   return (
-    <section className="merchant-panel" aria-labelledby="branches-title">
-      <h2 id="branches-title">Operating branches</h2>
-      <p className="panel-description">
+    <section
+      className="rounded-xl border border-slate-200 bg-white p-6"
+      aria-labelledby="branches-title"
+    >
+      <h2 className="m-0 text-base font-bold" id="branches-title">
+        Operating branches
+      </h2>
+      <p className="mt-3 leading-7 text-slate-500">
         Select one or more branches where this merchant operates.
       </p>
       <form
-        className="merchant-branches-form"
+        className="mt-5 grid gap-4"
         onSubmit={onSubmit}
         key={merchant.branches.map((branch) => branch.id).join(':')}
       >
-        <fieldset className="branch-choice-group">
+        <fieldset className="grid gap-3 border-0 p-0">
           <legend className="sr-only">Assigned branches</legend>
           {branches.map((branch) => (
-            <label key={branch.id}>
+            <label
+              className="flex cursor-pointer items-start gap-3 rounded-[0.6rem] border border-slate-200 p-3 has-checked:border-emerald-600 has-checked:bg-emerald-50"
+              key={branch.id}
+            >
               <input
+                className="mt-1 accent-emerald-600"
                 type="checkbox"
                 name="branchIds"
                 value={branch.id}
                 defaultChecked={assignedIds.has(branch.id)}
               />
-              <span>
+              <span className="grid gap-1">
                 <strong>{branch.name}</strong>
-                {branch.code ? <small>{branch.code}</small> : null}
+                {branch.code ? (
+                  <small className="text-slate-500">{branch.code}</small>
+                ) : null}
               </span>
             </label>
           ))}
         </fieldset>
         <button
-          className="secondary-button"
+          className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
           type="submit"
           disabled={isSubmitting}
         >

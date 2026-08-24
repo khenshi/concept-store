@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
-import { BrandWordmark } from '@/components/brand-wordmark';
 import { ApiError } from './auth-client';
 import { useAuth } from './auth-context';
 import {

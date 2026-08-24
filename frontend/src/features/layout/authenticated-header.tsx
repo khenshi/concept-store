@@ -5,8 +5,8 @@ import { LogoutButton } from '@/features/auth/logout-button';
 
 export function AuthenticatedHeader() {
   return (
-    <header className="app-header">
-      <Link className="wordmark" href="/app">
+    <header className="flex items-center justify-between">
+      <Link className="text-lg font-bold no-underline" href="/app">
         Concept Store
       </Link>
       <LogoutButton />

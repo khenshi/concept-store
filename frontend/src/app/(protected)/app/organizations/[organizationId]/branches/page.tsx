@@ -9,7 +9,7 @@ export default async function BranchesPage({ params }: BranchesPageProps) {
   const { organizationId } = await params;
 
   return (
-    <main className="app-shell">
+    <main className="min-h-screen px-[clamp(1.25rem,5vw,4rem)] py-5">
       <AuthenticatedHeader />
       <BranchManagement organizationId={organizationId} />
     </main>

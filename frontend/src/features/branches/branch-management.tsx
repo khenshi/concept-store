@@ -102,7 +102,10 @@ export function BranchManagement({
 
   if (isLoading) {
     return (
-      <p className="workspace-state" role="status">
+      <p
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
+        role="status"
+      >
         Loading branches…
       </p>
     );
@@ -110,11 +113,18 @@ export function BranchManagement({
 
   if (loadError || !organization) {
     return (
-      <section className="workspace-state" role="alert">
-        <h1>We could not load the branches.</h1>
-        <p>{loadError ?? 'The organization could not be loaded.'}</p>
+      <section
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
+        role="alert"
+      >
+        <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
+          We could not load the branches.
+        </h1>
+        <p className="mt-4 leading-7 text-slate-500">
+          {loadError ?? 'The organization could not be loaded.'}
+        </p>
         <button
-          className="text-button"
+          className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
           type="button"
           onClick={() => void load()}
         >
@@ -144,17 +154,29 @@ export function BranchManagement({
   }
 
   return (
-    <section className="branch-workspace" aria-labelledby="branch-title">
-      <div className="workspace-heading">
+    <section
+      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
+      aria-labelledby="branch-title"
+    >
+      <div className="flex items-start justify-between gap-6 max-sm:grid">
         <div>
-          <p className="workspace-context">{organization.name}</p>
-          <h1 id="branch-title">Branches</h1>
-          <p>
+          <p className="mb-2 text-sm font-bold text-emerald-700">
+            {organization.name}
+          </p>
+          <h1
+            className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]"
+            id="branch-title"
+          >
+            Branches
+          </h1>
+          <p className="mt-4 leading-7 text-slate-500">
             Manage the physical store locations that belong to this
             organization.
           </p>
         </div>
-        <span className="role-badge">{organization.role.toLowerCase()}</span>
+        <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 capitalize">
+          {organization.role.toLowerCase()}
+        </span>
       </div>
 
       <OrganizationNavigation
@@ -165,44 +187,62 @@ export function BranchManagement({
       />
 
       {successMessage ? (
-        <p className="success-message" role="status">
+        <p
+          className="mt-6 rounded-lg border border-green-600 bg-white px-4 py-3"
+          role="status"
+        >
           {successMessage}
         </p>
       ) : null}
 
       <div
-        className={
-          canManage ? 'branch-layout' : 'branch-layout branch-layout-readonly'
-        }
+        className={`mt-6 grid items-start gap-5 ${canManage ? 'md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]' : 'grid-cols-1'}`}
       >
-        <section className="branch-panel" aria-labelledby="branch-list-title">
-          <div className="panel-heading">
-            <h2 id="branch-list-title">Store locations</h2>
-            <span>{branches.length}</span>
+        <section
+          className="rounded-xl border border-slate-200 bg-white p-6"
+          aria-labelledby="branch-list-title"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="m-0 text-base font-bold" id="branch-list-title">
+              Store locations
+            </h2>
+            <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
+              {branches.length}
+            </span>
           </div>
 
           {branches.length === 0 ? (
-            <div className="branch-empty">
-              <h3>No branches yet</h3>
-              <p>
+            <div className="py-10 text-center">
+              <h3 className="m-0 text-base font-bold">No branches yet</h3>
+              <p className="mx-auto mt-2 max-w-md leading-7 text-slate-500">
                 {canManage
                   ? 'Add the first physical store location using the branch form.'
                   : 'An owner or manager has not added a branch yet.'}
               </p>
             </div>
           ) : (
-            <ul className="branch-list">
+            <ul className="mt-5 list-none p-0">
               {branches.map((branch) => (
-                <li key={branch.id}>
+                <li
+                  className="flex items-start justify-between gap-4 border-b border-slate-200 py-4 last:border-b-0"
+                  key={branch.id}
+                >
                   <div>
-                    <div className="branch-name-line">
+                    <div className="flex flex-wrap items-center gap-2">
                       <strong>{branch.name}</strong>
-                      {branch.code ? <span>{branch.code}</span> : null}
+                      {branch.code ? (
+                        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                          {branch.code}
+                        </span>
+                      ) : null}
                     </div>
-                    <address>{addressFor(branch)}</address>
+                    <address className="mt-2 text-sm leading-6 text-slate-500 not-italic">
+                      {addressFor(branch)}
+                    </address>
                   </div>
                   {canManage ? (
                     <button
+                      className="cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
                       type="button"
                       onClick={() => {
                         setSuccessMessage(null);
@@ -301,37 +341,44 @@ function BranchForm({
 
   return (
     <section
-      className="branch-panel branch-form-panel"
+      className="rounded-xl border border-slate-200 bg-white p-6"
       aria-labelledby="branch-form-title"
     >
-      <div className="panel-heading">
+      <div className="flex items-center justify-between gap-4">
         <h2
           id="branch-form-title"
+          className="m-0 text-base font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100"
           ref={headingRef}
           tabIndex={branch ? -1 : undefined}
         >
           {branch ? 'Edit branch' : 'Add a branch'}
         </h2>
       </div>
-      <p className="panel-description">
+      <p className="mt-4 leading-7 text-slate-500">
         {branch
           ? 'Update this physical store location.'
           : 'Record a physical store location for this organization.'}
       </p>
 
-      <form className="branch-form" onSubmit={handleSubmit} noValidate>
+      <form className="mt-5 grid gap-4" onSubmit={handleSubmit} noValidate>
         {submissionError ? (
-          <p className="form-alert" role="alert">
+          <p
+            className="m-0 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+            role="alert"
+          >
             {submissionError}
           </p>
         ) : null}
         {Object.keys(fieldErrors).length > 0 ? (
-          <p className="form-alert" role="alert">
+          <p
+            className="m-0 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+            role="alert"
+          >
             Review the highlighted fields and try again.
           </p>
         ) : null}
 
-        <div className="branch-form-row">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1.5fr)_minmax(8rem,0.5fr)]">
           <BranchField
             name="name"
             label="Branch name"
@@ -364,7 +411,7 @@ function BranchForm({
           error={fieldErrors.addressLine2}
           maxLength={200}
         />
-        <div className="branch-form-row">
+        <div className="grid gap-4 sm:grid-cols-2">
           <BranchField
             name="city"
             label="City"
@@ -382,7 +429,7 @@ function BranchForm({
             required
           />
         </div>
-        <div className="branch-form-row branch-form-row-compact">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)]">
           <BranchField
             name="postalCode"
             label="Postal code"
@@ -401,9 +448,9 @@ function BranchForm({
           />
         </div>
 
-        <div className="form-actions">
+        <div className="flex flex-wrap items-center gap-3">
           <button
-            className="primary-button"
+            className="w-fit min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
             type="submit"
             disabled={isSubmitting}
           >
@@ -417,7 +464,7 @@ function BranchForm({
           </button>
           {branch ? (
             <button
-              className="secondary-button"
+              className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold text-slate-900 disabled:cursor-wait disabled:opacity-65"
               type="button"
               onClick={onCancel}
             >
@@ -454,12 +501,15 @@ function BranchField({
     .join(' ');
 
   return (
-    <div className="field">
-      <label htmlFor={name}>
+    <div className="grid gap-2">
+      <label className="text-sm font-bold" htmlFor={name}>
         {label}{' '}
-        {!required ? <span className="optional-label">Optional</span> : null}
+        {!required ? (
+          <span className="font-normal text-slate-500">Optional</span>
+        ) : null}
       </label>
       <input
+        className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
         id={name}
         name={name}
         type="text"
@@ -470,12 +520,12 @@ function BranchField({
         aria-describedby={describedBy || undefined}
       />
       {hint ? (
-        <small id={hintId} className="field-hint">
+        <small id={hintId} className="text-sm text-slate-500">
           {hint}
         </small>
       ) : null}
       {error ? (
-        <p id={errorId} className="field-error">
+        <p id={errorId} className="m-0 text-sm text-red-600">
           {error}
         </p>
       ) : null}

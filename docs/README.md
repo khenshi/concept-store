@@ -38,6 +38,12 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend landing page refinement](milestone-2/frontend-landing-page-refinement.md)
 - [Frontend authentication page refinement](milestone-2/frontend-auth-page-refinement.md)
 - [Frontend public-surface Tailwind refactor](milestone-2/frontend-tailwind-refactor.md)
+- [Frontend Tailwind migration](milestone-2/frontend-tailwind-migration.md)
+
+## Milestone 3 — Spaces and Agreements
+
+- [Backend design](milestone-3/backend-design.md)
+- [Space and assignment data model](milestone-3/space-assignment-data-model.md)
 
 ## Documentation convention
 

@@ -161,7 +161,10 @@ export function OrganizationMemberManagement({
 
   if (isLoading) {
     return (
-      <p className="workspace-state" role="status">
+      <p
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
+        role="status"
+      >
         Loading organization members…
       </p>
     );
@@ -169,11 +172,18 @@ export function OrganizationMemberManagement({
 
   if (loadError || !organization) {
     return (
-      <section className="workspace-state" role="alert">
-        <h1>We could not load the organization members.</h1>
-        <p>{loadError ?? 'The organization could not be loaded.'}</p>
+      <section
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
+        role="alert"
+      >
+        <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
+          We could not load the organization members.
+        </h1>
+        <p className="mt-4 leading-7 text-slate-500">
+          {loadError ?? 'The organization could not be loaded.'}
+        </p>
         <button
-          className="text-button"
+          className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
           type="button"
           onClick={() => void load()}
         >
@@ -188,14 +198,28 @@ export function OrganizationMemberManagement({
   const canManageMembers = organization.role === 'OWNER';
 
   return (
-    <section className="member-workspace" aria-labelledby="member-title">
-      <div className="workspace-heading">
+    <section
+      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
+      aria-labelledby="member-title"
+    >
+      <div className="flex items-start justify-between gap-6 max-sm:grid">
         <div>
-          <p className="workspace-context">{organization.name}</p>
-          <h1 id="member-title">Organization members</h1>
-          <p>Review staff access and the role assigned to each account.</p>
+          <p className="mb-2 text-sm font-bold text-emerald-700">
+            {organization.name}
+          </p>
+          <h1
+            className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]"
+            id="member-title"
+          >
+            Organization members
+          </h1>
+          <p className="mt-4 leading-7 text-slate-500">
+            Review staff access and the role assigned to each account.
+          </p>
         </div>
-        <span className="role-badge">{organization.role.toLowerCase()}</span>
+        <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 capitalize">
+          {organization.role.toLowerCase()}
+        </span>
       </div>
 
       <OrganizationNavigation
@@ -206,54 +230,69 @@ export function OrganizationMemberManagement({
       />
 
       {!canViewMembers ? (
-        <section className="member-panel permission-panel">
-          <h2>Member access is limited</h2>
-          <p>Only organization owners and managers can view the member list.</p>
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="m-0 text-base font-bold">Member access is limited</h2>
+          <p className="mt-3 leading-7 text-slate-500">
+            Only organization owners and managers can view the member list.
+          </p>
         </section>
       ) : (
         <>
           {successMessage ? (
-            <p className="success-message" role="status">
+            <p
+              className="mt-6 rounded-lg border border-green-600 bg-white px-4 py-3"
+              role="status"
+            >
               {successMessage}
             </p>
           ) : null}
           {actionError ? (
-            <p className="form-alert member-action-alert" role="alert">
+            <p
+              className="mt-6 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+              role="alert"
+            >
               {actionError}
             </p>
           ) : null}
 
           <div
-            className={
-              canManageMembers
-                ? 'member-layout'
-                : 'member-layout member-layout-readonly'
-            }
+            className={`mt-6 grid items-start gap-5 ${canManageMembers ? 'md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]' : 'grid-cols-1'}`}
           >
             <section
-              className="member-panel"
+              className="rounded-xl border border-slate-200 bg-white p-6"
               aria-labelledby="member-list-title"
             >
-              <div className="panel-heading">
-                <h2 id="member-list-title">People with access</h2>
-                <span>{members.length}</span>
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="m-0 text-base font-bold" id="member-list-title">
+                  People with access
+                </h2>
+                <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
+                  {members.length}
+                </span>
               </div>
 
               {members.length === 0 ? (
-                <div className="member-empty">
-                  <h3>No members found</h3>
-                  <p>Add a registered user to give them organization access.</p>
+                <div className="py-10 text-center">
+                  <h3 className="m-0 text-base font-bold">No members found</h3>
+                  <p className="mx-auto mt-2 max-w-md leading-7 text-slate-500">
+                    Add a registered user to give them organization access.
+                  </p>
                 </div>
               ) : (
-                <ul className="member-list">
+                <ul className="mt-5 list-none p-0">
                   {members.map((member) => (
-                    <li key={member.id}>
-                      <div className="member-summary">
+                    <li
+                      className="flex items-center justify-between gap-4 border-b border-slate-200 py-4 last:border-b-0 max-sm:grid max-sm:items-stretch"
+                      key={member.id}
+                    >
+                      <div className="grid gap-1">
                         <strong>{member.email}</strong>
-                        <span>Joined {joinedDate(member.joinedAt)}</span>
+                        <span className="text-sm text-slate-500">
+                          Joined {joinedDate(member.joinedAt)}
+                        </span>
                       </div>
                       {canManageMembers ? (
-                        <div className="member-controls">
+                        <div className="flex items-center gap-2 max-sm:flex-wrap max-sm:items-stretch">
                           <label
                             className="sr-only"
                             htmlFor={`role-${member.id}`}
@@ -261,6 +300,7 @@ export function OrganizationMemberManagement({
                             Role for {member.email}
                           </label>
                           <select
+                            className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-60"
                             id={`role-${member.id}`}
                             value={member.role}
                             disabled={pendingMemberId === member.id}
@@ -278,6 +318,7 @@ export function OrganizationMemberManagement({
                             ))}
                           </select>
                           <button
+                            className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm font-bold disabled:cursor-wait disabled:opacity-65"
                             type="button"
                             disabled={pendingMemberId === member.id}
                             onClick={() => void handleRemove(member)}
@@ -286,7 +327,7 @@ export function OrganizationMemberManagement({
                           </button>
                         </div>
                       ) : (
-                        <span className="role-badge">
+                        <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
                           {roleLabels[member.role]}
                         </span>
                       )}
@@ -364,22 +405,33 @@ function AddMemberForm({
   }
 
   return (
-    <section className="member-panel" aria-labelledby="add-member-title">
-      <div className="panel-heading">
-        <h2 id="add-member-title">Add a member</h2>
+    <section
+      className="rounded-xl border border-slate-200 bg-white p-6"
+      aria-labelledby="add-member-title"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="m-0 text-base font-bold" id="add-member-title">
+          Add a member
+        </h2>
       </div>
-      <p className="panel-description">
+      <p className="mt-4 leading-7 text-slate-500">
         The person must already have a registered Concept Store account.
       </p>
-      <form className="member-form" onSubmit={handleSubmit} noValidate>
+      <form className="mt-5 grid gap-4" onSubmit={handleSubmit} noValidate>
         {submissionError ? (
-          <p className="form-alert" role="alert">
+          <p
+            className="m-0 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+            role="alert"
+          >
             {submissionError}
           </p>
         ) : null}
-        <div className="field">
-          <label htmlFor="member-email">Account email</label>
+        <div className="grid gap-2">
+          <label className="text-sm font-bold" htmlFor="member-email">
+            Account email
+          </label>
           <input
+            className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
             id="member-email"
             name="email"
             type="email"
@@ -390,14 +442,21 @@ function AddMemberForm({
             aria-describedby={emailError ? 'member-email-error' : undefined}
           />
           {emailError ? (
-            <p id="member-email-error" className="field-error">
+            <p id="member-email-error" className="m-0 text-sm text-red-600">
               {emailError}
             </p>
           ) : null}
         </div>
-        <div className="field">
-          <label htmlFor="member-role">Organization role</label>
-          <select id="member-role" name="role" defaultValue="CASHIER">
+        <div className="grid gap-2">
+          <label className="text-sm font-bold" htmlFor="member-role">
+            Organization role
+          </label>
+          <select
+            className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
+            id="member-role"
+            name="role"
+            defaultValue="CASHIER"
+          >
             {roles.map((role) => (
               <option key={role} value={role}>
                 {roleLabels[role]}
@@ -406,7 +465,7 @@ function AddMemberForm({
           </select>
         </div>
         <button
-          className="primary-button"
+          className="w-fit min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
           type="submit"
           disabled={isSubmitting}
         >

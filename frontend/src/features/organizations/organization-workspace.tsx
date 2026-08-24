@@ -48,11 +48,21 @@ export function OrganizationWorkspace({
 
   if (error) {
     return (
-      <section className="workspace-state" role="alert">
-        <p className="eyebrow">Organization unavailable</p>
-        <h1>We could not open this workspace.</h1>
-        <p>{error}</p>
-        <Link className="text-link" href="/app">
+      <section
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
+        role="alert"
+      >
+        <p className="mt-10 mb-4 text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
+          Organization unavailable
+        </p>
+        <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
+          We could not open this workspace.
+        </h1>
+        <p className="mt-4 leading-7 text-slate-500">{error}</p>
+        <Link
+          className="font-bold text-emerald-700 underline underline-offset-3"
+          href="/app"
+        >
           Choose another organization
         </Link>
       </section>
@@ -61,25 +71,41 @@ export function OrganizationWorkspace({
 
   if (!organization) {
     return (
-      <p className="workspace-state" role="status">
+      <p
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
+        role="status"
+      >
         Loading organization…
       </p>
     );
   }
 
   return (
-    <section className="workspace-state" aria-labelledby="workspace-title">
-      <Link className="back-link" href="/app">
+    <section
+      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
+      aria-labelledby="workspace-title"
+    >
+      <Link
+        className="p-0 font-bold text-emerald-700 underline underline-offset-3"
+        href="/app"
+      >
         ← All organizations
       </Link>
-      <div className="workspace-heading workspace-heading-overview">
+      <div className="mt-10 flex items-start justify-between gap-6 max-sm:grid">
         <div>
-          <p className="workspace-context">
+          <p className="mb-2 text-sm font-bold text-emerald-700">
             {roleLabels[organization.role]} workspace
           </p>
-          <h1 id="workspace-title">{organization.name}</h1>
+          <h1
+            className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]"
+            id="workspace-title"
+          >
+            {organization.name}
+          </h1>
         </div>
-        <span className="role-badge">{organization.role.toLowerCase()}</span>
+        <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 capitalize">
+          {organization.role.toLowerCase()}
+        </span>
       </div>
       <OrganizationNavigation
         organizationId={organizationId}
@@ -91,12 +117,12 @@ export function OrganizationWorkspace({
           organization.role === 'OWNER' || organization.role === 'MANAGER'
         }
       />
-      <p>
+      <p className="mt-6 leading-7 text-slate-500">
         Organization access is confirmed. Continue to branches to manage this
         concept store&apos;s physical locations.
       </p>
       <Link
-        className="primary-link"
+        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[0.65rem] bg-emerald-600 px-4.5 py-3 font-bold text-white no-underline hover:bg-emerald-700"
         href={`/app/organizations/${organizationId}/branches`}
       >
         View branches
@@ -104,13 +130,13 @@ export function OrganizationWorkspace({
       {organization.role === 'OWNER' || organization.role === 'MANAGER' ? (
         <>
           <Link
-            className="secondary-link"
+            className="mt-4 ml-3 inline-flex font-bold text-emerald-700 underline underline-offset-3 max-sm:ml-0"
             href={`/app/organizations/${organizationId}/merchants`}
           >
             View merchants
           </Link>
           <Link
-            className="secondary-link"
+            className="mt-4 ml-3 inline-flex font-bold text-emerald-700 underline underline-offset-3 max-sm:ml-0"
             href={`/app/organizations/${organizationId}/members`}
           >
             View members

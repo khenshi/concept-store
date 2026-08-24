@@ -8,7 +8,7 @@ interface MerchantPageProps {
 export default async function MerchantPage({ params }: MerchantPageProps) {
   const { organizationId, merchantId } = await params;
   return (
-    <main className="app-shell">
+    <main className="min-h-screen px-[clamp(1.25rem,5vw,4rem)] py-5">
       <AuthenticatedHeader />
       <MerchantProfile
         organizationId={organizationId}

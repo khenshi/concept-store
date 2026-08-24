@@ -21,6 +21,13 @@ const statusLabels: Record<MerchantStatus, string> = {
   ENDED: 'Ended',
 };
 
+const statusStyles: Record<MerchantStatus, string> = {
+  ACTIVE: 'bg-emerald-100 text-emerald-700',
+  INACTIVE: 'bg-slate-100 text-slate-600',
+  SUSPENDED: 'bg-amber-100 text-amber-800',
+  ENDED: 'bg-slate-200 text-slate-700',
+};
+
 function errorMessage(cause: unknown): string {
   return cause instanceof ApiError
     ? cause.message
@@ -110,7 +117,10 @@ export function MerchantDirectory({
 
   if (isLoading) {
     return (
-      <p className="workspace-state" role="status">
+      <p
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
+        role="status"
+      >
         Loading merchants…
       </p>
     );
@@ -118,11 +128,16 @@ export function MerchantDirectory({
 
   if (loadError && !organization) {
     return (
-      <section className="workspace-state" role="alert">
-        <h1>We could not load the merchant directory.</h1>
-        <p>{loadError}</p>
+      <section
+        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
+        role="alert"
+      >
+        <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
+          We could not load the merchant directory.
+        </h1>
+        <p className="mt-4 leading-7 text-slate-500">{loadError}</p>
         <button
-          className="text-button"
+          className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
           type="button"
           onClick={() => void load()}
         >
@@ -137,14 +152,28 @@ export function MerchantDirectory({
     organization.role === 'OWNER' || organization.role === 'MANAGER';
 
   return (
-    <section className="merchant-workspace" aria-labelledby="merchant-title">
-      <div className="workspace-heading">
+    <section
+      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
+      aria-labelledby="merchant-title"
+    >
+      <div className="flex items-start justify-between gap-6 max-sm:grid">
         <div>
-          <p className="workspace-context">{organization.name}</p>
-          <h1 id="merchant-title">Merchants</h1>
-          <p>Manage the independent brands operating in this concept store.</p>
+          <p className="mb-2 text-sm font-bold text-emerald-700">
+            {organization.name}
+          </p>
+          <h1
+            className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]"
+            id="merchant-title"
+          >
+            Merchants
+          </h1>
+          <p className="mt-4 leading-7 text-slate-500">
+            Manage the independent brands operating in this concept store.
+          </p>
         </div>
-        <span className="role-badge">{organization.role.toLowerCase()}</span>
+        <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 capitalize">
+          {organization.role.toLowerCase()}
+        </span>
       </div>
       <OrganizationNavigation
         organizationId={organizationId}
@@ -154,29 +183,41 @@ export function MerchantDirectory({
       />
 
       {!canManage ? (
-        <section className="merchant-panel permission-panel">
-          <h2>Merchant management is limited</h2>
-          <p>Only organization owners and managers can manage merchants.</p>
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="m-0 text-base font-bold">
+            Merchant management is limited
+          </h2>
+          <p className="mt-3 leading-7 text-slate-500">
+            Only organization owners and managers can manage merchants.
+          </p>
         </section>
       ) : (
-        <section className="merchant-panel merchant-directory-panel">
-          <div className="merchant-directory-heading">
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex items-start justify-between gap-4 max-sm:grid">
             <div>
-              <h2>Merchant directory</h2>
-              <p>{merchants.length} matching merchants</p>
+              <h2 className="m-0 text-base font-bold">Merchant directory</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                {merchants.length} matching merchants
+              </p>
             </div>
             <Link
-              className="primary-link"
+              className="inline-flex min-h-11 items-center justify-center rounded-[0.65rem] bg-emerald-600 px-4.5 py-3 font-bold text-white no-underline hover:bg-emerald-700"
               href={`/app/organizations/${organizationId}/merchants/new`}
             >
               Add merchant
             </Link>
           </div>
 
-          <form className="merchant-filters" onSubmit={handleFilter}>
-            <div className="field">
-              <label htmlFor="merchant-search">Search</label>
+          <form
+            className="mt-6 grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.4fr)_auto]"
+            onSubmit={handleFilter}
+          >
+            <div className="grid gap-2">
+              <label className="text-sm font-bold" htmlFor="merchant-search">
+                Search
+              </label>
               <input
+                className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
                 id="merchant-search"
                 name="search"
                 type="search"
@@ -185,9 +226,15 @@ export function MerchantDirectory({
                 maxLength={120}
               />
             </div>
-            <div className="field">
-              <label htmlFor="merchant-status-filter">Status</label>
+            <div className="grid gap-2">
+              <label
+                className="text-sm font-bold"
+                htmlFor="merchant-status-filter"
+              >
+                Status
+              </label>
               <select
+                className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
                 id="merchant-status-filter"
                 name="status"
                 defaultValue={filters.status ?? ''}
@@ -201,7 +248,7 @@ export function MerchantDirectory({
               </select>
             </div>
             <button
-              className="secondary-button"
+              className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
               type="submit"
               disabled={isFiltering}
             >
@@ -210,42 +257,57 @@ export function MerchantDirectory({
           </form>
 
           {loadError ? (
-            <p className="form-alert merchant-filter-error" role="alert">
+            <p
+              className="mt-4 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+              role="alert"
+            >
               {loadError}
             </p>
           ) : null}
 
           {merchants.length === 0 ? (
-            <div className="merchant-empty">
-              <h3>No merchants found</h3>
-              <p>Adjust the filters or add the first merchant profile.</p>
+            <div className="py-10 text-center">
+              <h3 className="m-0 text-base font-bold">No merchants found</h3>
+              <p className="mt-2 leading-7 text-slate-500">
+                Adjust the filters or add the first merchant profile.
+              </p>
             </div>
           ) : (
-            <ul className="merchant-list">
+            <ul className="mt-5 list-none p-0">
               {merchants.map((merchant) => (
-                <li key={merchant.id}>
-                  <div className="merchant-summary">
-                    <div className="merchant-name-line">
+                <li
+                  className="flex items-start justify-between gap-4 border-b border-slate-200 py-4 last:border-b-0 max-sm:grid max-sm:items-stretch"
+                  key={merchant.id}
+                >
+                  <div className="grid gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <strong>{merchant.name}</strong>
-                      {merchant.code ? <span>{merchant.code}</span> : null}
+                      {merchant.code ? (
+                        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                          {merchant.code}
+                        </span>
+                      ) : null}
                     </div>
-                    <p>{merchant.contactName}</p>
-                    <small>
+                    <p className="m-0 text-sm text-slate-600">
+                      {merchant.contactName}
+                    </p>
+                    <small className="text-slate-500">
                       {merchant.email} · {merchant.phone}
                     </small>
-                    <small>
+                    <small className="text-slate-500">
                       {merchant.branches
                         .map((branch) => branch.name)
                         .join(', ')}
                     </small>
                   </div>
-                  <div className="merchant-list-actions">
+                  <div className="flex items-center gap-4 max-sm:justify-between">
                     <span
-                      className={`status-badge status-${merchant.status.toLowerCase()}`}
+                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[merchant.status]}`}
                     >
                       {statusLabels[merchant.status]}
                     </span>
                     <Link
+                      className="font-bold text-emerald-700 underline underline-offset-3"
                       href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
                     >
                       View
