@@ -9,8 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Concept Store Management System',
-  description: 'Operations and merchant management for concept stores.',
+  title: 'Concept Store | Clear operations for multi-merchant retail',
+  description:
+    'Manage your concept store organization, branches, team, and merchants in one clear workspace.',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
