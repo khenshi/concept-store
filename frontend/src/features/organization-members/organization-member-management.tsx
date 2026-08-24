@@ -202,6 +202,7 @@ export function OrganizationMemberManagement({
         organizationId={organizationId}
         active="members"
         showMembers={canViewMembers}
+        showMerchants={canViewMembers}
       />
 
       {!canViewMembers ? (

@@ -161,6 +161,7 @@ export function BranchManagement({
         organizationId={organizationId}
         active="branches"
         showMembers={canManage}
+        showMerchants={canManage}
       />
 
       {successMessage ? (

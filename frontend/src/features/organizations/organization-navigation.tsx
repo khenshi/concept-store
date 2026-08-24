@@ -4,10 +4,12 @@ export function OrganizationNavigation({
   organizationId,
   active,
   showMembers = false,
+  showMerchants = false,
 }: {
   organizationId: string;
-  active: 'overview' | 'branches' | 'members';
+  active: 'overview' | 'branches' | 'members' | 'merchants';
   showMembers?: boolean;
+  showMerchants?: boolean;
 }) {
   const basePath = `/app/organizations/${organizationId}`;
 
@@ -25,6 +27,14 @@ export function OrganizationNavigation({
       >
         Branches
       </Link>
+      {showMerchants ? (
+        <Link
+          aria-current={active === 'merchants' ? 'page' : undefined}
+          href={`${basePath}/merchants`}
+        >
+          Merchants
+        </Link>
+      ) : null}
       {showMembers ? (
         <Link
           aria-current={active === 'members' ? 'page' : undefined}

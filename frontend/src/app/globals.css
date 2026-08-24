@@ -773,11 +773,187 @@ a:focus-visible {
   margin-top: 1.25rem;
 }
 
+.merchant-workspace {
+  width: min(100%, 72rem);
+  margin: clamp(3rem, 8vh, 5rem) auto 0;
+}
+
+.merchant-workspace .workspace-heading h1 {
+  max-width: none;
+  font-size: clamp(2rem, 6vw, 3rem);
+}
+
+.merchant-workspace .workspace-heading p:last-child {
+  max-width: 44rem;
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.merchant-profile-heading {
+  margin-top: 2.5rem;
+}
+
+.merchant-panel {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+}
+
+.merchant-panel h2,
+.merchant-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.merchant-directory-panel {
+  margin-top: 2rem;
+}
+
+.merchant-directory-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.merchant-directory-heading p {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.merchant-filters {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) minmax(10rem, 0.45fr) auto;
+  gap: 1rem;
+  align-items: end;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--background);
+}
+
+.merchant-filter-error,
+.merchant-action-alert {
+  margin-top: 1rem;
+}
+
+.merchant-empty {
+  padding: 3rem 0.5rem;
+  text-align: center;
+}
+
+.merchant-empty p {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+}
+
+.merchant-list {
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.merchant-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.merchant-summary {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.merchant-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.merchant-name-line span {
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+  color: var(--muted);
+  background: var(--background);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.merchant-summary p,
+.merchant-summary small {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.merchant-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.merchant-list-actions a {
+  color: var(--primary-dark);
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+
+.status-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--foreground);
+  background: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.status-active {
+  border-color: var(--success);
+}
+
+.status-suspended {
+  border-color: var(--warning);
+}
+
+.status-ended {
+  color: var(--muted);
+  background: var(--background);
+}
+
+.merchant-profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 2rem;
+}
+
+.merchant-form,
+.merchant-status-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
 @media (max-width: 40rem) {
   .areas,
   .organization-grid,
   .branch-layout,
   .member-layout,
+  .merchant-profile-layout,
+  .merchant-filters,
   .branch-form-row,
   .branch-form-row-compact {
     grid-template-columns: 1fr;
@@ -802,6 +978,21 @@ a:focus-visible {
 
   .member-list li {
     display: grid;
+  }
+
+  .merchant-directory-heading,
+  .merchant-list li,
+  .merchant-list-actions {
+    align-items: stretch;
+  }
+
+  .merchant-directory-heading,
+  .merchant-list li {
+    display: grid;
+  }
+
+  .merchant-list-actions {
+    justify-content: space-between;
   }
 
   .member-controls {
