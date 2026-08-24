@@ -20,6 +20,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend organization entry](milestone-1/frontend-organization-entry.md)
 - [Organizations and membership foundation](milestone-1/organizations-and-memberships.md)
 - [Initial organization RBAC](milestone-1/initial-rbac.md)
+- [Branch data model](milestone-1/branch-data-model.md)
 
 ## Documentation convention
 
