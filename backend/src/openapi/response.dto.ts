@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  AgreementStatus,
   MerchantStatus,
   OrganizationRole,
+  SettlementSchedule,
   SpaceStatus,
   SpaceType,
 } from '../generated/prisma/client';
@@ -223,4 +225,43 @@ export class SpaceAssignmentResponseDto {
 
   @ApiProperty({ type: SpaceAssignmentMerchantResponseDto })
   merchant!: SpaceAssignmentMerchantResponseDto;
+}
+
+export class MerchantAgreementResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  merchantId!: string;
+
+  @ApiProperty({ format: 'date', example: '2026-09-01' })
+  startDate!: Date;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    format: 'date',
+    example: '2027-08-31',
+  })
+  endDate!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, example: '2500.00' })
+  fixedRentAmount!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String, example: '5.00' })
+  commissionRate!: string | null;
+
+  @ApiProperty({ enum: SettlementSchedule })
+  settlementSchedule!: SettlementSchedule;
+
+  @ApiProperty({ enum: AgreementStatus })
+  status!: AgreementStatus;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
 }

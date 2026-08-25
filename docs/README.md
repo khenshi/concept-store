@@ -45,6 +45,9 @@ All project documentation is maintained in this directory and organized by miles
 - [Backend design](milestone-3/backend-design.md)
 - [Space and assignment data model](milestone-3/space-assignment-data-model.md)
 - [Space CRUD API](milestone-3/space-api.md)
+- [Space assignment API](milestone-3/space-assignment-api.md)
+- [Merchant agreement data model](milestone-3/merchant-agreement-data-model.md)
+- [Merchant agreement API](milestone-3/merchant-agreement-api.md)
 
 ## Documentation convention
 
