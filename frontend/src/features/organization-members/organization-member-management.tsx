@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -199,20 +201,12 @@ export function OrganizationMemberManagement({
       ) : (
         <>
           {loadError ? (
-            <div
+            <RequestError
               className="mt-6 rounded-xl border border-slate-200 bg-white p-6"
-              role="alert"
-            >
-              <h2 className="m-0 text-base font-bold">Members unavailable</h2>
-              <p className="mt-2 leading-7 text-slate-500">{loadError}</p>
-              <button
-                className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
-                type="button"
-                onClick={() => void load()}
-              >
-                Try again
-              </button>
-            </div>
+              title="Members unavailable"
+              message={loadError}
+              onRetry={() => void load()}
+            />
           ) : null}
           {successMessage ? (
             <p
@@ -252,14 +246,7 @@ export function OrganizationMemberManagement({
                 </div>
 
                 {isLoading ? (
-                  <div className="mt-5 grid gap-3" aria-label="Loading members">
-                    {[0, 1, 2].map((item) => (
-                      <div
-                        className="h-14 animate-pulse rounded-lg bg-slate-100"
-                        key={item}
-                      />
-                    ))}
-                  </div>
+                  <ListSkeleton label="Loading members" rowClassName="h-14" />
                 ) : members.length === 0 ? (
                   <div className="py-10 text-center">
                     <h3 className="m-0 text-base font-bold">

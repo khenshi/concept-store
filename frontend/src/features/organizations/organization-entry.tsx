@@ -1,9 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { RequestError } from '@/components/ui/request-error';
 import { createOrganization, listOrganizations } from './organization-api';
 import { createOrganizationSchema } from './organization.schemas';
 import type { OrganizationAccess } from './organization.types';
@@ -88,7 +91,7 @@ export function OrganizationEntry() {
 
   return (
     <section
-      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
+      className="mx-auto mt-8 w-full max-w-5xl sm:mt-12"
       aria-labelledby="organization-title"
     >
       <div className="max-w-3xl">
@@ -124,20 +127,13 @@ export function OrganizationEntry() {
           </div>
 
           {isLoading ? (
-            <p className="mt-5 leading-7 text-slate-500" role="status">
-              Loading organizations…
-            </p>
+            <ListSkeleton label="Loading organizations" />
           ) : loadError ? (
-            <div className="mt-5 text-red-600" role="alert">
-              <p className="mb-3">{loadError}</p>
-              <button
-                className="cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
-                type="button"
-                onClick={() => void loadOrganizations()}
-              >
-                Try again
-              </button>
-            </div>
+            <RequestError
+              className="mt-5"
+              message={loadError}
+              onRetry={() => void loadOrganizations()}
+            />
           ) : organizations.length === 0 ? (
             <p className="mt-5 leading-7 text-slate-500">
               You do not belong to an organization yet. Create your first one to
@@ -147,12 +143,9 @@ export function OrganizationEntry() {
             <ul className="mt-5 grid list-none gap-2.5 p-0">
               {organizations.map((organization) => (
                 <li key={organization.id}>
-                  <button
-                    className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-[0.6rem] border border-slate-200 bg-white p-4 text-left text-slate-900 hover:border-emerald-600"
-                    type="button"
-                    onClick={() =>
-                      router.push(`/app/organizations/${organization.id}`)
-                    }
+                  <Link
+                    className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-[0.6rem] border border-slate-200 bg-white p-4 text-left text-slate-900 no-underline hover:border-emerald-600"
+                    href={`/app/organizations/${organization.id}`}
                   >
                     <span className="grid gap-1">
                       <strong>{organization.name}</strong>
@@ -161,7 +154,7 @@ export function OrganizationEntry() {
                       </small>
                     </span>
                     <span aria-hidden="true">→</span>
-                  </button>
+                  </Link>
                 </li>
               ))}
             </ul>

@@ -69,12 +69,22 @@ Merchant pages now reuse the persistent organization record and the shared lazy 
 - Structural skeletons preserve the page hierarchy while merchant-specific data loads.
 - Profile creation, profile editing, lifecycle status changes, and branch assignment behavior remain unchanged.
 
+### Organization selector and shared request states
+
+The organization selector now follows the authenticated workspace spacing and uses navigational links for organization choices, allowing Next.js to handle route prefetching and standard link behavior.
+
+Two narrowly scoped request-state components standardize repeated authenticated UI without abstracting feature logic:
+
+- `ListSkeleton` provides consistent, accessible structural loading rows.
+- `RequestError` provides a consistent error announcement and retry action.
+
+The selector, branch list, member list, and merchant directory reuse these components. Forms remain feature-owned because their fields, validation, and mutation behavior are domain-specific.
+
 ## Remaining refactor parts
 
 Subsequent reviewable parts will migrate:
 
-1. organization selector and shared form/list patterns
-2. final authenticated responsive, accessibility, and performance validation
+1. final authenticated responsive, accessibility, and performance validation
 
 Milestone 3 assignment and agreement features remain paused until this refactor is reviewed.
 

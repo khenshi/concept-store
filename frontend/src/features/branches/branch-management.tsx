@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -147,26 +149,14 @@ export function BranchManagement({
           </div>
 
           {branchesStatus === 'loading' || branchesStatus === 'idle' ? (
-            <div className="mt-5 grid gap-3" aria-label="Loading branches">
-              {[0, 1, 2].map((item) => (
-                <div
-                  className="h-16 animate-pulse rounded-lg bg-slate-100"
-                  key={item}
-                />
-              ))}
-            </div>
+            <ListSkeleton label="Loading branches" />
           ) : branchesError ? (
-            <div className="py-8" role="alert">
-              <h3 className="m-0 text-base font-bold">Branches unavailable</h3>
-              <p className="mt-2 leading-7 text-slate-500">{branchesError}</p>
-              <button
-                className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
-                type="button"
-                onClick={() => void loadBranches({ refresh: true })}
-              >
-                Try again
-              </button>
-            </div>
+            <RequestError
+              className="py-8"
+              title="Branches unavailable"
+              message={branchesError}
+              onRetry={() => void loadBranches({ refresh: true })}
+            />
           ) : branches.length === 0 ? (
             <div className="py-10 text-center">
               <h3 className="m-0 text-base font-bold">No branches yet</h3>

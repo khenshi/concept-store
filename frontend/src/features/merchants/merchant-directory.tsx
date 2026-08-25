@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -230,30 +232,15 @@ export function MerchantDirectory({
           </form>
 
           {loadError ? (
-            <div
+            <RequestError
               className="mt-4 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
-              role="alert"
-            >
-              <p>{loadError}</p>
-              <button
-                className="mt-2 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
-                type="button"
-                onClick={() => void load()}
-              >
-                Try again
-              </button>
-            </div>
+              message={loadError}
+              onRetry={() => void load()}
+            />
           ) : null}
 
           {isLoading ? (
-            <div className="mt-5 grid gap-3" aria-label="Loading merchants">
-              {[0, 1, 2].map((item) => (
-                <div
-                  className="h-20 animate-pulse rounded-lg bg-slate-100"
-                  key={item}
-                />
-              ))}
-            </div>
+            <ListSkeleton label="Loading merchants" rowClassName="h-20" />
           ) : merchants.length === 0 ? (
             <div className="py-10 text-center">
               <h3 className="m-0 text-base font-bold">No merchants found</h3>
