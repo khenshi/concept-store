@@ -59,13 +59,22 @@ Branch management and organization member management now consume the persistent 
 - Member loading, empty, action-error, and request-error states remain local to the member workspace.
 - Existing role boundaries, mutations, routes, and API contracts are unchanged.
 
+### Merchant directory and profile
+
+Merchant pages now reuse the persistent organization record and the shared lazy branch cache.
+
+- The directory requests only merchant data and applies search/status filters without reloading the organization.
+- Merchant profile and creation pages reuse cached branches instead of issuing a separate branch request on every route visit.
+- Directory and profile failures are isolated from the persistent organization header and navigation.
+- Structural skeletons preserve the page hierarchy while merchant-specific data loads.
+- Profile creation, profile editing, lifecycle status changes, and branch assignment behavior remain unchanged.
+
 ## Remaining refactor parts
 
 Subsequent reviewable parts will migrate:
 
-1. merchant directory and merchant profile
-2. organization selector and shared form/list patterns
-3. final authenticated responsive, accessibility, and performance validation
+1. organization selector and shared form/list patterns
+2. final authenticated responsive, accessibility, and performance validation
 
 Milestone 3 assignment and agreement features remain paused until this refactor is reviewed.
 

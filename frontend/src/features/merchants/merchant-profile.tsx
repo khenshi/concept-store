@@ -6,11 +6,9 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
-import { listBranches } from '@/features/branches/branch-api';
 import type { Branch } from '@/features/branches/branch.types';
-import { getOrganization } from '@/features/organizations/organization-api';
-import { OrganizationNavigation } from '@/features/organizations/organization-navigation';
-import type { OrganizationAccess } from '@/features/organizations/organization.types';
+import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
+import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
 import {
   createMerchant,
   getMerchant,
@@ -60,11 +58,15 @@ export function MerchantProfile({
 }) {
   const router = useRouter();
   const { request } = useAuth();
-  const [organization, setOrganization] = useState<OrganizationAccess | null>(
-    null,
-  );
+  const {
+    organization,
+    organizationStatus,
+    organizationError,
+    refreshOrganization,
+    branches,
+    loadBranches,
+  } = useOrganizationWorkspaceContext();
   const [merchant, setMerchant] = useState<Merchant | null>(null);
-  const [branches, setBranches] = useState<Branch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -78,48 +80,35 @@ export function MerchantProfile({
     setIsLoading(true);
     setLoadError(null);
     try {
-      const organizationResult = await getOrganization(request, organizationId);
-      setOrganization(organizationResult);
-      if (
-        organizationResult.role === 'OWNER' ||
-        organizationResult.role === 'MANAGER'
-      ) {
-        const [branchResult, merchantResult] = await Promise.all([
-          listBranches(request, organizationId),
-          merchantId
-            ? getMerchant(request, organizationId, merchantId)
-            : Promise.resolve(null),
-        ]);
-        setBranches(branchResult);
-        setMerchant(merchantResult);
-      }
+      const [, merchantResult] = await Promise.all([
+        loadBranches(),
+        merchantId
+          ? getMerchant(request, organizationId, merchantId)
+          : Promise.resolve(null),
+      ]);
+      setMerchant(merchantResult);
     } catch (cause: unknown) {
       setLoadError(errorMessage(cause));
     } finally {
       setIsLoading(false);
     }
-  }, [merchantId, organizationId, request]);
+  }, [loadBranches, merchantId, organizationId, request]);
 
   useEffect(() => {
+    if (!organization) return;
+    if (organization.role !== 'OWNER' && organization.role !== 'MANAGER') {
+      return;
+    }
     let active = true;
-    void getOrganization(request, organizationId)
-      .then(async (organizationResult) => {
-        if (!active) return;
-        setOrganization(organizationResult);
-        if (
-          organizationResult.role === 'OWNER' ||
-          organizationResult.role === 'MANAGER'
-        ) {
-          const [branchResult, merchantResult] = await Promise.all([
-            listBranches(request, organizationId),
-            merchantId
-              ? getMerchant(request, organizationId, merchantId)
-              : Promise.resolve(null),
-          ]);
-          if (active) {
-            setBranches(branchResult);
-            setMerchant(merchantResult);
-          }
+    void Promise.all([
+      loadBranches(),
+      merchantId
+        ? getMerchant(request, organizationId, merchantId)
+        : Promise.resolve(null),
+    ])
+      .then(([, merchantResult]) => {
+        if (active) {
+          setMerchant(merchantResult);
         }
       })
       .catch((cause: unknown) => {
@@ -131,7 +120,7 @@ export function MerchantProfile({
     return () => {
       active = false;
     };
-  }, [merchantId, organizationId, request]);
+  }, [loadBranches, merchantId, organization, organizationId, request]);
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -262,36 +251,33 @@ export function MerchantProfile({
     }
   }
 
-  if (isLoading) {
+  if (organizationStatus === 'loading') {
     return (
       <p
         className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
         role="status"
       >
-        Loading merchant profile…
+        Loading organization…
       </p>
     );
   }
 
-  const canManage =
-    organization?.role === 'OWNER' || organization?.role === 'MANAGER';
-
-  if (loadError || !organization || (merchantId && canManage && !merchant)) {
+  if (organizationStatus === 'error' || !organization) {
     return (
       <section
         className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
         role="alert"
       >
         <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
-          We could not load the merchant profile.
+          We could not load the organization.
         </h1>
         <p className="mt-4 leading-7 text-slate-500">
-          {loadError ?? 'The merchant could not be loaded.'}
+          {organizationError ?? 'The organization could not be loaded.'}
         </p>
         <button
           className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
           type="button"
-          onClick={() => void load()}
+          onClick={() => void refreshOrganization()}
         >
           Try again
         </button>
@@ -299,51 +285,62 @@ export function MerchantProfile({
     );
   }
 
-  const title = merchant ? merchant.name : 'Add merchant';
+  const canManage =
+    organization.role === 'OWNER' || organization.role === 'MANAGER';
+
+  const title = merchant
+    ? merchant.name
+    : merchantId
+      ? 'Merchant profile'
+      : 'Add merchant';
 
   return (
-    <section
-      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
-      aria-labelledby="merchant-profile-title"
-    >
+    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
       <Link
         className="p-0 font-bold text-emerald-700 underline underline-offset-3"
         href={`/app/organizations/${organizationId}/merchants`}
       >
         ← Merchant directory
       </Link>
-      <div className="mt-8 flex items-start justify-between gap-6 max-sm:grid">
-        <div>
-          <p className="mb-2 text-sm font-bold text-emerald-700">
-            {organization.name}
-          </p>
-          <h1
-            className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]"
-            id="merchant-profile-title"
-          >
-            {title}
-          </h1>
-          <p className="mt-4 leading-7 text-slate-500">
-            {merchant
+      <div className="mt-8">
+        <OrganizationPageHeader
+          organization={organization}
+          organizationId={organizationId}
+          active="merchants"
+          title={title}
+          description={
+            merchant
               ? 'Review the merchant profile and lifecycle status.'
-              : 'Create an active merchant profile with complete contact details.'}
-          </p>
-        </div>
-        {merchant ? (
-          <span
-            className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[merchant.status]}`}
-          >
-            {statusLabels[merchant.status]}
-          </span>
-        ) : null}
+              : 'Create an active merchant profile with complete contact details.'
+          }
+        />
       </div>
-      <OrganizationNavigation
-        organizationId={organizationId}
-        active="merchants"
-        showMembers={canManage}
-        showMerchants={canManage}
-        showSpaces={canManage}
-      />
+      {merchant ? (
+        <span
+          className={`mt-5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[merchant.status]}`}
+        >
+          {statusLabels[merchant.status]}
+        </span>
+      ) : null}
+
+      {loadError && canManage ? (
+        <section
+          className="mt-6 rounded-xl border border-slate-200 bg-white p-6"
+          role="alert"
+        >
+          <h2 className="m-0 text-base font-bold">
+            We could not load the merchant profile
+          </h2>
+          <p className="mt-2 leading-7 text-slate-500">{loadError}</p>
+          <button
+            className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
+            type="button"
+            onClick={() => void load()}
+          >
+            Try again
+          </button>
+        </section>
+      ) : null}
 
       {!canManage ? (
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
@@ -352,6 +349,24 @@ export function MerchantProfile({
           </h2>
           <p className="mt-3 leading-7 text-slate-500">
             Only organization owners and managers can manage merchants.
+          </p>
+        </section>
+      ) : loadError ? null : isLoading ? (
+        <div
+          className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]"
+          aria-label="Loading merchant profile"
+        >
+          <div className="h-96 animate-pulse rounded-xl bg-slate-100" />
+          <div className="h-72 animate-pulse rounded-xl bg-slate-100" />
+        </div>
+      ) : merchantId && !merchant ? (
+        <section
+          className="mt-6 rounded-xl border border-slate-200 bg-white p-6"
+          role="alert"
+        >
+          <h2 className="m-0 text-base font-bold">Merchant not found</h2>
+          <p className="mt-2 leading-7 text-slate-500">
+            The merchant could not be loaded.
           </p>
         </section>
       ) : (

@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
-import { getOrganization } from '@/features/organizations/organization-api';
-import { OrganizationNavigation } from '@/features/organizations/organization-navigation';
-import type { OrganizationAccess } from '@/features/organizations/organization.types';
+import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
+import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
 import { listMerchants } from './merchant-api';
 import type {
   Merchant,
@@ -40,47 +39,41 @@ export function MerchantDirectory({
   organizationId: string;
 }) {
   const { request } = useAuth();
-  const [organization, setOrganization] = useState<OrganizationAccess | null>(
-    null,
-  );
+  const {
+    organization,
+    organizationStatus,
+    organizationError,
+    refreshOrganization,
+  } = useOrganizationWorkspaceContext();
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filters, setFilters] = useState<MerchantFilters>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  async function load(selectedFilters: MerchantFilters = filters) {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const organizationResult = await getOrganization(request, organizationId);
-      setOrganization(organizationResult);
-      if (
-        organizationResult.role === 'OWNER' ||
-        organizationResult.role === 'MANAGER'
-      ) {
-        setMerchants(await listMerchants(request, organizationId, filters));
-      }
+      setMerchants(
+        await listMerchants(request, organizationId, selectedFilters),
+      );
     } catch (cause: unknown) {
       setLoadError(errorMessage(cause));
     } finally {
       setIsLoading(false);
     }
-  }, [filters, organizationId, request]);
+  }
 
   useEffect(() => {
+    if (!organization) return;
+    if (organization.role !== 'OWNER' && organization.role !== 'MANAGER') {
+      return;
+    }
     let active = true;
-    void getOrganization(request, organizationId)
-      .then(async (organizationResult) => {
-        if (!active) return;
-        setOrganization(organizationResult);
-        if (
-          organizationResult.role === 'OWNER' ||
-          organizationResult.role === 'MANAGER'
-        ) {
-          const result = await listMerchants(request, organizationId);
-          if (active) setMerchants(result);
-        }
+    void listMerchants(request, organizationId)
+      .then((result) => {
+        if (active) setMerchants(result);
       })
       .catch((cause: unknown) => {
         if (active) setLoadError(errorMessage(cause));
@@ -91,7 +84,7 @@ export function MerchantDirectory({
     return () => {
       active = false;
     };
-  }, [organizationId, request]);
+  }, [organization, organizationId, request]);
 
   async function handleFilter(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -115,31 +108,33 @@ export function MerchantDirectory({
     }
   }
 
-  if (isLoading) {
+  if (organizationStatus === 'loading') {
     return (
       <p
         className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
         role="status"
       >
-        Loading merchants…
+        Loading organization…
       </p>
     );
   }
 
-  if (loadError && !organization) {
+  if (organizationStatus === 'error' || !organization) {
     return (
       <section
         className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
         role="alert"
       >
         <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
-          We could not load the merchant directory.
+          We could not load the organization.
         </h1>
-        <p className="mt-4 leading-7 text-slate-500">{loadError}</p>
+        <p className="mt-4 leading-7 text-slate-500">
+          {organizationError ?? 'The organization could not be loaded.'}
+        </p>
         <button
           className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
           type="button"
-          onClick={() => void load()}
+          onClick={() => void refreshOrganization()}
         >
           Try again
         </button>
@@ -147,40 +142,17 @@ export function MerchantDirectory({
     );
   }
 
-  if (!organization) return null;
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
 
   return (
-    <section
-      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
-      aria-labelledby="merchant-title"
-    >
-      <div className="flex items-start justify-between gap-6 max-sm:grid">
-        <div>
-          <p className="mb-2 text-sm font-bold text-emerald-700">
-            {organization.name}
-          </p>
-          <h1
-            className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]"
-            id="merchant-title"
-          >
-            Merchants
-          </h1>
-          <p className="mt-4 leading-7 text-slate-500">
-            Manage the independent brands operating in this concept store.
-          </p>
-        </div>
-        <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 capitalize">
-          {organization.role.toLowerCase()}
-        </span>
-      </div>
-      <OrganizationNavigation
+    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
+      <OrganizationPageHeader
+        organization={organization}
         organizationId={organizationId}
         active="merchants"
-        showMembers={canManage}
-        showMerchants={canManage}
-        showSpaces={canManage}
+        title="Merchants"
+        description="Manage the independent brands operating in this concept store."
       />
 
       {!canManage ? (
@@ -258,15 +230,31 @@ export function MerchantDirectory({
           </form>
 
           {loadError ? (
-            <p
+            <div
               className="mt-4 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
               role="alert"
             >
-              {loadError}
-            </p>
+              <p>{loadError}</p>
+              <button
+                className="mt-2 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
+                type="button"
+                onClick={() => void load()}
+              >
+                Try again
+              </button>
+            </div>
           ) : null}
 
-          {merchants.length === 0 ? (
+          {isLoading ? (
+            <div className="mt-5 grid gap-3" aria-label="Loading merchants">
+              {[0, 1, 2].map((item) => (
+                <div
+                  className="h-20 animate-pulse rounded-lg bg-slate-100"
+                  key={item}
+                />
+              ))}
+            </div>
+          ) : merchants.length === 0 ? (
             <div className="py-10 text-center">
               <h3 className="m-0 text-base font-bold">No merchants found</h3>
               <p className="mt-2 leading-7 text-slate-500">
