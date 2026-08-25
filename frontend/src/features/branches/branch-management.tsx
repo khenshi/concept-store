@@ -1,19 +1,12 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
-import { getOrganization } from '@/features/organizations/organization-api';
-import { OrganizationNavigation } from '@/features/organizations/organization-navigation';
-import type { OrganizationAccess } from '@/features/organizations/organization.types';
-import { createBranch, listBranches, updateBranch } from './branch-api';
+import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
+import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
+import { createBranch, updateBranch } from './branch-api';
 import { branchSchema } from './branch.schemas';
 import type { Branch, BranchInput } from './branch.types';
 
@@ -51,82 +44,53 @@ export function BranchManagement({
 }: {
   organizationId: string;
 }) {
-  const { request } = useAuth();
-  const [organization, setOrganization] = useState<OrganizationAccess | null>(
-    null,
-  );
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const {
+    organization,
+    organizationStatus,
+    organizationError,
+    refreshOrganization,
+    branches,
+    branchesStatus,
+    branchesError,
+    loadBranches,
+    upsertBranch,
+  } = useOrganizationWorkspaceContext();
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    setLoadError(null);
-    try {
-      const [organizationResult, branchResult] = await Promise.all([
-        getOrganization(request, organizationId),
-        listBranches(request, organizationId),
-      ]);
-      setOrganization(organizationResult);
-      setBranches(branchResult);
-    } catch (cause: unknown) {
-      setLoadError(errorMessage(cause));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [organizationId, request]);
-
   useEffect(() => {
-    let active = true;
-    void Promise.all([
-      getOrganization(request, organizationId),
-      listBranches(request, organizationId),
-    ])
-      .then(([organizationResult, branchResult]) => {
-        if (!active) return;
-        setOrganization(organizationResult);
-        setBranches(branchResult);
-      })
-      .catch((cause: unknown) => {
-        if (active) setLoadError(errorMessage(cause));
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [organizationId, request]);
+    if (branchesStatus === 'idle') {
+      void loadBranches().catch(() => undefined);
+    }
+  }, [branchesStatus, loadBranches]);
 
-  if (isLoading) {
+  if (organizationStatus === 'loading') {
     return (
       <p
         className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
         role="status"
       >
-        Loading branches…
+        Loading organization…
       </p>
     );
   }
 
-  if (loadError || !organization) {
+  if (organizationStatus === 'error' || !organization) {
     return (
       <section
         className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
         role="alert"
       >
         <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
-          We could not load the branches.
+          We could not load the organization.
         </h1>
         <p className="mt-4 leading-7 text-slate-500">
-          {loadError ?? 'The organization could not be loaded.'}
+          {organizationError ?? 'The organization could not be loaded.'}
         </p>
         <button
           className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
           type="button"
-          onClick={() => void load()}
+          onClick={() => void refreshOrganization()}
         >
           Try again
         </button>
@@ -143,48 +107,18 @@ export function BranchManagement({
         ? `${saved.name} was updated successfully.`
         : `${saved.name} was added successfully.`,
     );
-    setBranches((current) => {
-      const exists = current.some((branch) => branch.id === saved.id);
-      const next = exists
-        ? current.map((branch) => (branch.id === saved.id ? saved : branch))
-        : [...current, saved];
-      return next.sort((left, right) => left.name.localeCompare(right.name));
-    });
+    upsertBranch(saved);
     setEditingBranch(null);
   }
 
   return (
-    <section
-      className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
-      aria-labelledby="branch-title"
-    >
-      <div className="flex items-start justify-between gap-6 max-sm:grid">
-        <div>
-          <p className="mb-2 text-sm font-bold text-emerald-700">
-            {organization.name}
-          </p>
-          <h1
-            className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]"
-            id="branch-title"
-          >
-            Branches
-          </h1>
-          <p className="mt-4 leading-7 text-slate-500">
-            Manage the physical store locations that belong to this
-            organization.
-          </p>
-        </div>
-        <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700 capitalize">
-          {organization.role.toLowerCase()}
-        </span>
-      </div>
-
-      <OrganizationNavigation
+    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
+      <OrganizationPageHeader
+        organization={organization}
         organizationId={organizationId}
         active="branches"
-        showMembers={canManage}
-        showMerchants={canManage}
-        showSpaces={canManage}
+        title="Branches"
+        description="Manage the physical store locations that belong to this organization."
       />
 
       {successMessage ? (
@@ -212,7 +146,28 @@ export function BranchManagement({
             </span>
           </div>
 
-          {branches.length === 0 ? (
+          {branchesStatus === 'loading' || branchesStatus === 'idle' ? (
+            <div className="mt-5 grid gap-3" aria-label="Loading branches">
+              {[0, 1, 2].map((item) => (
+                <div
+                  className="h-16 animate-pulse rounded-lg bg-slate-100"
+                  key={item}
+                />
+              ))}
+            </div>
+          ) : branchesError ? (
+            <div className="py-8" role="alert">
+              <h3 className="m-0 text-base font-bold">Branches unavailable</h3>
+              <p className="mt-2 leading-7 text-slate-500">{branchesError}</p>
+              <button
+                className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
+                type="button"
+                onClick={() => void loadBranches({ refresh: true })}
+              >
+                Try again
+              </button>
+            </div>
+          ) : branches.length === 0 ? (
             <div className="py-10 text-center">
               <h3 className="m-0 text-base font-bold">No branches yet</h3>
               <p className="mx-auto mt-2 max-w-md leading-7 text-slate-500">

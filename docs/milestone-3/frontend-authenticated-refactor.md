@@ -48,14 +48,24 @@ The overview consumes the persistent organization record and presents role-appro
 
 Space management reuses the persistent organization record and lazy branch cache. Only branch-specific spaces are fetched when the selected branch changes. Branch loading failures do not replace the already-rendered organization page header.
 
+### Branches and organization members
+
+Branch management and organization member management now consume the persistent organization workspace instead of requesting the same organization independently on every sibling route.
+
+- Branches use the shared page header and lazy branch cache.
+- Creating or editing a branch updates the shared cache immediately, including branch selectors used by other organization pages.
+- Branch request failures are isolated to the branch list, so the organization context and management form remain available.
+- Organization members request only member data after the shared organization record establishes that the current role may view it.
+- Member loading, empty, action-error, and request-error states remain local to the member workspace.
+- Existing role boundaries, mutations, routes, and API contracts are unchanged.
+
 ## Remaining refactor parts
 
 Subsequent reviewable parts will migrate:
 
-1. branches and organization members
-2. merchant directory and merchant profile
-3. organization selector and shared form/list patterns
-4. final authenticated responsive, accessibility, and performance validation
+1. merchant directory and merchant profile
+2. organization selector and shared form/list patterns
+3. final authenticated responsive, accessibility, and performance validation
 
 Milestone 3 assignment and agreement features remain paused until this refactor is reviewed.
 

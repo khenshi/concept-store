@@ -39,6 +39,7 @@ function Consumer() {
     organization: current,
     branches,
     loadBranches,
+    upsertBranch,
   } = useOrganizationWorkspaceContext();
   return (
     <>
@@ -50,6 +51,15 @@ function Consumer() {
       >
         Load branches
       </button>
+      <button
+        type="button"
+        onClick={() =>
+          upsertBranch({ ...branch, name: 'Makati Flagship', code: 'MKT-02' })
+        }
+      >
+        Update branch
+      </button>
+      <span>{branches[0]?.name}</span>
     </>
   );
 }
@@ -78,6 +88,11 @@ describe('OrganizationWorkspaceProvider', () => {
     expect(await screen.findByText('1 branches')).toBeInTheDocument();
     expect(listBranches).toHaveBeenCalledTimes(1);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
+    await waitFor(() => expect(listBranches).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Update branch' }));
+    expect(screen.getByText('Makati Flagship')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
     await waitFor(() => expect(listBranches).toHaveBeenCalledTimes(1));
   });

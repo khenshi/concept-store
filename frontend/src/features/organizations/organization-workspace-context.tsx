@@ -29,6 +29,7 @@ interface OrganizationWorkspaceContextValue {
   branchesStatus: LoadStatus;
   branchesError: string | null;
   loadBranches(options?: { refresh?: boolean }): Promise<Branch[]>;
+  upsertBranch(branch: Branch): void;
 }
 
 const OrganizationWorkspaceContext =
@@ -58,6 +59,8 @@ export function OrganizationWorkspaceProvider({
   const [branchesStatus, setBranchesStatus] = useState<LoadStatus>('idle');
   const [branchesError, setBranchesError] = useState<string | null>(null);
   const branchesPromiseRef = useRef<Promise<Branch[]> | null>(null);
+  const branchesRef = useRef<Branch[]>([]);
+  const branchesStatusRef = useRef<LoadStatus>('idle');
 
   const refreshOrganization = useCallback(async () => {
     setOrganizationStatus('loading');
@@ -96,15 +99,18 @@ export function OrganizationWorkspaceProvider({
   const loadBranches = useCallback(
     async (options?: { refresh?: boolean }): Promise<Branch[]> => {
       if (!options?.refresh) {
-        if (branchesStatus === 'ready') return branches;
+        if (branchesStatusRef.current === 'ready') return branchesRef.current;
         if (branchesPromiseRef.current) return branchesPromiseRef.current;
       }
 
+      branchesStatusRef.current = 'loading';
       setBranchesStatus('loading');
       setBranchesError(null);
       const promise = listBranches(request, organizationId)
         .then((result) => {
+          branchesRef.current = result;
           setBranches(result);
+          branchesStatusRef.current = 'ready';
           setBranchesStatus('ready');
           return result;
         })
@@ -112,6 +118,7 @@ export function OrganizationWorkspaceProvider({
           setBranchesError(
             errorMessage(cause, 'The branches could not be loaded.'),
           );
+          branchesStatusRef.current = 'error';
           setBranchesStatus('error');
           throw cause;
         })
@@ -121,8 +128,26 @@ export function OrganizationWorkspaceProvider({
       branchesPromiseRef.current = promise;
       return promise;
     },
-    [branches, branchesStatus, organizationId, request],
+    [organizationId, request],
   );
+
+  const upsertBranch = useCallback((branch: Branch) => {
+    const exists = branchesRef.current.some(
+      (candidate) => candidate.id === branch.id,
+    );
+    const next = (
+      exists
+        ? branchesRef.current.map((candidate) =>
+            candidate.id === branch.id ? branch : candidate,
+          )
+        : [...branchesRef.current, branch]
+    ).sort((left, right) => left.name.localeCompare(right.name));
+    branchesRef.current = next;
+    branchesStatusRef.current = 'ready';
+    setBranches(next);
+    setBranchesStatus('ready');
+    setBranchesError(null);
+  }, []);
 
   const value = useMemo<OrganizationWorkspaceContextValue>(
     () => ({
@@ -135,6 +160,7 @@ export function OrganizationWorkspaceProvider({
       branchesStatus,
       branchesError,
       loadBranches,
+      upsertBranch,
     }),
     [
       branches,
@@ -146,6 +172,7 @@ export function OrganizationWorkspaceProvider({
       organizationId,
       organizationStatus,
       refreshOrganization,
+      upsertBranch,
     ],
   );
 
