@@ -142,34 +142,50 @@ export class MerchantsService {
     merchantId: string,
     dto: UpdateMerchantBranchesDto,
   ): Promise<MerchantRecord> {
-    const merchant = await this.prisma.$transaction(async (transaction) => {
-      const exists = await transaction.merchant.findFirst({
-        where: { id: merchantId, organizationId },
-        select: { id: true },
-      });
-      if (!exists) throw new NotFoundException('Merchant not found');
+    const merchant = await this.prisma.$transaction(
+      async (transaction) => {
+        const exists = await transaction.merchant.findFirst({
+          where: { id: merchantId, organizationId },
+          select: { id: true },
+        });
+        if (!exists) throw new NotFoundException('Merchant not found');
 
-      await this.assertBranchesBelongToOrganization(
-        transaction,
-        organizationId,
-        dto.branchIds,
-      );
-      await transaction.merchantBranch.deleteMany({
-        where: { organizationId, merchantId },
-      });
-      await transaction.merchantBranch.createMany({
-        data: dto.branchIds.map((branchId) => ({
+        await this.assertBranchesBelongToOrganization(
+          transaction,
           organizationId,
-          merchantId,
-          branchId,
-        })),
-      });
+          dto.branchIds,
+        );
+        const currentAssignmentCount = await transaction.spaceAssignment.count({
+          where: {
+            organizationId,
+            merchantId,
+            branchId: { notIn: dto.branchIds },
+            endDate: null,
+          },
+        });
+        if (currentAssignmentCount > 0) {
+          throw new ConflictException(
+            'End current space assignments before removing their branches',
+          );
+        }
+        await transaction.merchantBranch.deleteMany({
+          where: { organizationId, merchantId },
+        });
+        await transaction.merchantBranch.createMany({
+          data: dto.branchIds.map((branchId) => ({
+            organizationId,
+            merchantId,
+            branchId,
+          })),
+        });
 
-      return transaction.merchant.findFirstOrThrow({
-        where: { id: merchantId, organizationId },
-        include: merchantBranchesInclude,
-      });
-    });
+        return transaction.merchant.findFirstOrThrow({
+          where: { id: merchantId, organizationId },
+          include: merchantBranchesInclude,
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
     return this.toRecord(merchant);
   }
 

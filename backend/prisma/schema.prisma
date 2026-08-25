@@ -113,12 +113,10 @@ model MerchantBranch {
   branchId       String
   createdAt      DateTime @default(now())
 
-  merchant         Merchant          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  branch           Branch            @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  spaceAssignments SpaceAssignment[]
+  merchant Merchant @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  branch   Branch   @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@id([merchantId, branchId])
-  @@unique([merchantId, branchId, organizationId])
   @@index([organizationId, branchId])
   @@index([organizationId, merchantId])
 }
@@ -156,9 +154,8 @@ model SpaceAssignment {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  space          Space          @relation(fields: [spaceId, branchId, organizationId], references: [id, branchId, organizationId], onDelete: Restrict)
-  merchant       Merchant       @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  merchantBranch MerchantBranch @relation(fields: [merchantId, branchId, organizationId], references: [merchantId, branchId, organizationId], onDelete: Restrict)
+  space    Space    @relation(fields: [spaceId, branchId, organizationId], references: [id, branchId, organizationId], onDelete: Restrict)
+  merchant Merchant @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@index([organizationId, branchId])
   @@index([organizationId, merchantId])

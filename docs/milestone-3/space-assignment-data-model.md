@@ -65,21 +65,20 @@ Composite database relationships enforce the following:
 - `(branchId, organizationId)` must identify a real branch for every space.
 - `(spaceId, branchId, organizationId)` must identify a real space for every assignment.
 - `(merchantId, organizationId)` must identify a real merchant for every assignment.
-- `(merchantId, branchId, organizationId)` must identify an existing `MerchantBranch` participation record.
 
-The last constraint means a merchant cannot occupy a space in a branch where it does not currently participate. It also makes cross-organization space assignments impossible at the database layer.
-
-`MerchantBranch` receives a redundant composite unique key in tenant-first relational terms so PostgreSQL can use it as the exact composite foreign-key target. Its existing `(merchantId, branchId)` primary key remains unchanged.
+The API requires an existing `MerchantBranch` participation record before creating an assignment. This relationship is deliberately checked in the service rather than retained as a historical foreign key: `MerchantBranch` represents current participation and must be removable after all current assignments in that branch end. Tenant consistency remains protected by the assignment's composite space and merchant foreign keys.
 
 ## Deletion and history
 
-All new business foreign keys use restrictive deletion behavior. Removing a branch-participation record, merchant, branch, or space cannot silently erase or orphan assignment history.
+All assignment-history foreign keys use restrictive deletion behavior. Removing a merchant, branch, or space cannot silently erase or orphan assignment history. Removing current branch participation is allowed only after the merchant has no current space assignment there and does not delete historical assignments.
 
 Space and assignment APIs will use lifecycle updates rather than hard deletion.
 
 ## Migration
 
 Migration: `20260824030000_add_spaces_and_assignments`
+
+Completion correction: `20260825010000_decouple_assignment_history_from_merchant_branch`
 
 The migration creates:
 

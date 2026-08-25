@@ -33,11 +33,15 @@ Assignment responses include the assignment identifiers and dates plus a small m
 
 The service checks current occupancy for a useful API error. PostgreSQL's partial unique index on current assignments remains the final concurrency-safe constraint, and racing insert failures are mapped to the same conflict response.
 
+Assignment creation and merchant branch-participation replacement use serializable transactions so a concurrent branch removal cannot create an assignment without current participation.
+
+Ending uses a conditional update so concurrent requests cannot overwrite an already-recorded end date.
+
 ## Tenant isolation
 
 Organization IDs are accepted only as guarded route context. Every space, assignment, and branch-participation lookup includes the trusted organization ID. A valid identifier belonging to another tenant is returned as unavailable rather than disclosed.
 
-The assignment's `branchId` is derived from the trusted space record; it is never accepted from the client. Existing composite foreign keys additionally enforce organization, branch, merchant, and space consistency in PostgreSQL.
+The assignment's `branchId` is derived from the trusted space record; it is never accepted from the client. Composite foreign keys enforce organization, branch, merchant, and space consistency in PostgreSQL. Current `MerchantBranch` participation is checked by the service at creation time and can later be removed without destroying assignment history once no current assignment remains.
 
 ## Module structure
 

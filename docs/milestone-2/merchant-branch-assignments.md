@@ -59,6 +59,8 @@ Request:
 
 The replacement runs in a database transaction. Validation, removal of prior assignments, creation of the replacement set, and retrieval of the updated merchant either complete together or fail together.
 
+Milestone 3 adds one integration rule: a branch cannot be removed while the merchant has a current space assignment there. The current space assignment must be ended first. Once ended, its historical record remains preserved and branch participation may be removed.
+
 Merchant responses include branch summaries with `id`, `name`, and optional `code`, ordered by branch name.
 
 ## Minimum assignment rule
@@ -79,7 +81,7 @@ Milestone 3 will use `SpaceAssignment` for physical placement and assignment his
 
 Merchant and branch foreign keys use restrictive deletion behavior. Removing a merchant from a branch deletes only the current join row through the supported replacement operation; it does not delete either business record.
 
-Historical branch participation is not tracked in this milestone. Physical-space assignment history will be preserved separately in Milestone 3.
+Historical branch participation is not tracked in this milestone. Physical-space assignment history is preserved independently in Milestone 3 and does not retain a foreign-key dependency on the mutable current `MerchantBranch` row.
 
 ## Validation
 

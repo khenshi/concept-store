@@ -28,6 +28,7 @@ describe('SpaceAssignmentsService', () => {
     merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMIHAN-01' },
   };
   const prisma = {
+    $transaction: jest.fn(),
     space: { findFirst: jest.fn() },
     merchantBranch: { findFirst: jest.fn() },
     spaceAssignment: {
@@ -35,12 +36,17 @@ describe('SpaceAssignmentsService', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
+      findFirstOrThrow: jest.fn(),
     },
   };
   let service: SpaceAssignmentsService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation(
+      (operation: (transaction: typeof prisma) => unknown) => operation(prisma),
+    );
     const moduleRef = await Test.createTestingModule({
       providers: [
         SpaceAssignmentsService,
@@ -194,14 +200,18 @@ describe('SpaceAssignmentsService', () => {
       ...assignment,
       endDate: new Date('2026-09-30T00:00:00.000Z'),
     };
-    prisma.spaceAssignment.update.mockResolvedValue(ended);
+    prisma.spaceAssignment.updateMany.mockResolvedValue({ count: 1 });
+    prisma.spaceAssignment.findFirstOrThrow.mockResolvedValue(ended);
 
     await expect(
       service.end(organizationId, assignmentId, { endDate: '2026-09-30' }),
     ).resolves.toEqual(ended);
-    expect(prisma.spaceAssignment.update).toHaveBeenCalledWith({
-      where: { id: assignmentId, organizationId },
+    expect(prisma.spaceAssignment.updateMany).toHaveBeenCalledWith({
+      where: { id: assignmentId, organizationId, endDate: null },
       data: { endDate: new Date('2026-09-30T00:00:00.000Z') },
+    });
+    expect(prisma.spaceAssignment.findFirstOrThrow).toHaveBeenCalledWith({
+      where: { id: assignmentId, organizationId },
       include: spaceAssignmentInclude,
     });
   });
@@ -234,6 +244,22 @@ describe('SpaceAssignmentsService', () => {
     ).rejects.toThrow(
       new ConflictException('Space assignment has already ended'),
     );
+  });
+
+  it('does not overwrite an end date recorded by a concurrent request', async () => {
+    prisma.spaceAssignment.findFirst.mockResolvedValue({
+      id: assignmentId,
+      startDate: assignment.startDate,
+      endDate: null,
+    });
+    prisma.spaceAssignment.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.end(organizationId, assignmentId, { endDate: '2026-09-30' }),
+    ).rejects.toThrow(
+      new ConflictException('Space assignment has already ended'),
+    );
+    expect(prisma.spaceAssignment.findFirstOrThrow).not.toHaveBeenCalled();
   });
 
   it('rejects impossible calendar dates', async () => {

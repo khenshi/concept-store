@@ -48,6 +48,7 @@ describe('MerchantsService', () => {
       findFirstOrThrow: jest.fn(),
     },
     merchantBranch: { deleteMany: jest.fn(), createMany: jest.fn() },
+    spaceAssignment: { count: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(),
@@ -77,6 +78,7 @@ describe('MerchantsService', () => {
 
   it('creates a merchant inside the trusted organization', async () => {
     transaction.branch.count.mockResolvedValue(1);
+    transaction.spaceAssignment.count.mockResolvedValue(0);
     transaction.merchant.create.mockResolvedValue(merchantRow);
 
     await expect(service.create(organizationId, createInput)).resolves.toEqual(
@@ -213,6 +215,31 @@ describe('MerchantsService', () => {
     expect(transaction.merchantBranch.createMany).toHaveBeenCalledWith({
       data: [{ organizationId, merchantId, branchId }],
     });
+  });
+
+  it('blocks branch removal while a merchant has a current space assignment', async () => {
+    transaction.merchant.findFirst.mockResolvedValue({ id: merchantId });
+    transaction.branch.count.mockResolvedValue(1);
+    transaction.spaceAssignment.count.mockResolvedValue(1);
+
+    await expect(
+      service.updateBranches(organizationId, merchantId, {
+        branchIds: [branchId],
+      }),
+    ).rejects.toThrow(
+      new ConflictException(
+        'End current space assignments before removing their branches',
+      ),
+    );
+    expect(transaction.spaceAssignment.count).toHaveBeenCalledWith({
+      where: {
+        organizationId,
+        merchantId,
+        branchId: { notIn: [branchId] },
+        endDate: null,
+      },
+    });
+    expect(transaction.merchantBranch.deleteMany).not.toHaveBeenCalled();
   });
 
   it('maps tenant-scoped code uniqueness violations to conflict', async () => {
