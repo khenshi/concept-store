@@ -52,6 +52,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend application foundation](milestone-3/frontend-foundation.md)
 - [Frontend space management](milestone-3/frontend-space-management.md)
 - [Frontend space assignments](milestone-3/frontend-space-assignments.md)
+- [Frontend merchant agreements](milestone-3/frontend-merchant-agreements.md)
 - [Authenticated frontend refactor](milestone-3/frontend-authenticated-refactor.md)
 
 ## Documentation convention

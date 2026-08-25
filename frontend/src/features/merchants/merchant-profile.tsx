@@ -9,6 +9,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import type { Branch } from '@/features/branches/branch.types';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
+import { MerchantAgreementManagement } from './agreements/merchant-agreement-management';
 import {
   createMerchant,
   getMerchant,
@@ -468,6 +469,13 @@ export function MerchantProfile({
               </div>
             ) : null}
           </div>
+          {merchant ? (
+            <MerchantAgreementManagement
+              organizationId={organizationId}
+              merchantId={merchant.id}
+              merchantName={merchant.name}
+            />
+          ) : null}
         </>
       )}
     </section>
