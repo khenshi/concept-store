@@ -14,6 +14,7 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
+import { SpaceAssignmentManagement } from './assignments/space-assignment-management';
 import { createSpace, listSpaces, updateSpace } from './space-api';
 import { spaceSchema } from './space.schemas';
 import type { Space, SpaceInput, SpaceStatus, SpaceType } from './space.types';
@@ -73,6 +74,7 @@ export function SpaceManagement({
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
+  const [assignmentSpace, setAssignmentSpace] = useState<Space | null>(null);
   const [isLoadingSpaces, setIsLoadingSpaces] = useState(true);
   const [spaceLoadError, setSpaceLoadError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -169,6 +171,7 @@ export function SpaceManagement({
         : [...current, saved];
       return next.sort((left, right) => left.name.localeCompare(right.name));
     });
+    if (assignmentSpace?.id === saved.id) setAssignmentSpace(saved);
     setEditingSpace(null);
   }
 
@@ -234,6 +237,7 @@ export function SpaceManagement({
                   setSpaceLoadError(null);
                   setSelectedBranchId(event.target.value);
                   setEditingSpace(null);
+                  setAssignmentSpace(null);
                   setSuccessMessage(null);
                 }}
               >
@@ -316,7 +320,7 @@ export function SpaceManagement({
                             : typeLabels[space.type]}
                         </p>
                       </div>
-                      <div className="flex items-center gap-4 max-sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-4 max-sm:justify-between">
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[space.status]}`}
                         >
@@ -331,6 +335,17 @@ export function SpaceManagement({
                           }}
                         >
                           Edit
+                        </button>
+                        <button
+                          className="cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-emerald-700 underline underline-offset-3"
+                          type="button"
+                          onClick={() => {
+                            setEditingSpace(null);
+                            setAssignmentSpace(space);
+                            setSuccessMessage(null);
+                          }}
+                        >
+                          Assignments
                         </button>
                       </div>
                     </li>
@@ -348,6 +363,14 @@ export function SpaceManagement({
               onCancel={() => setEditingSpace(null)}
             />
           </div>
+          {assignmentSpace ? (
+            <SpaceAssignmentManagement
+              key={assignmentSpace.id}
+              organizationId={organizationId}
+              space={assignmentSpace}
+              onClose={() => setAssignmentSpace(null)}
+            />
+          ) : null}
         </>
       )}
     </section>
