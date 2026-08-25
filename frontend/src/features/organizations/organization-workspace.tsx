@@ -142,6 +142,7 @@ function OrganizationOverviewSkeleton() {
   return (
     <section
       className="mx-auto mt-12 w-full animate-pulse"
+      role="status"
       aria-label="Loading organization workspace"
       aria-busy="true"
     >

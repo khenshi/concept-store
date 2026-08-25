@@ -14,53 +14,51 @@ export function OrganizationNavigation({
   showSpaces?: boolean;
 }) {
   const basePath = `/app/organizations/${organizationId}`;
+  const destinations = [
+    { key: 'overview', label: 'Overview', href: basePath, visible: true },
+    {
+      key: 'branches',
+      label: 'Branches',
+      href: `${basePath}/branches`,
+      visible: true,
+    },
+    {
+      key: 'spaces',
+      label: 'Spaces',
+      href: `${basePath}/spaces`,
+      visible: showSpaces,
+    },
+    {
+      key: 'merchants',
+      label: 'Merchants',
+      href: `${basePath}/merchants`,
+      visible: showMerchants,
+    },
+    {
+      key: 'members',
+      label: 'Members',
+      href: `${basePath}/members`,
+      visible: showMembers,
+    },
+  ] as const;
 
   return (
     <nav
-      className="mt-7 flex gap-1 overflow-x-auto border-b border-slate-200"
+      className="mt-7 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-slate-200"
       aria-label="Organization"
     >
-      <Link
-        className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
-        aria-current={active === 'overview' ? 'page' : undefined}
-        href={basePath}
-      >
-        Overview
-      </Link>
-      <Link
-        className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
-        aria-current={active === 'branches' ? 'page' : undefined}
-        href={`${basePath}/branches`}
-      >
-        Branches
-      </Link>
-      {showSpaces ? (
-        <Link
-          className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
-          aria-current={active === 'spaces' ? 'page' : undefined}
-          href={`${basePath}/spaces`}
-        >
-          Spaces
-        </Link>
-      ) : null}
-      {showMerchants ? (
-        <Link
-          className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
-          aria-current={active === 'merchants' ? 'page' : undefined}
-          href={`${basePath}/merchants`}
-        >
-          Merchants
-        </Link>
-      ) : null}
-      {showMembers ? (
-        <Link
-          className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
-          aria-current={active === 'members' ? 'page' : undefined}
-          href={`${basePath}/members`}
-        >
-          Members
-        </Link>
-      ) : null}
+      {destinations.map((destination) =>
+        destination.visible ? (
+          <Link
+            key={destination.key}
+            className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
+            aria-current={active === destination.key ? 'page' : undefined}
+            href={destination.href}
+          >
+            {destination.label}
+          </Link>
+        ) : null,
+      )}
     </nav>
   );
 }

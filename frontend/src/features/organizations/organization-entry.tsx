@@ -65,16 +65,21 @@ export function OrganizationEntry() {
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     setNameError(null);
     setSubmissionError(null);
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(form);
     const result = createOrganizationSchema.safeParse({
       name: formData.get('name'),
     });
 
     if (!result.success) {
       setNameError(result.error.flatten().fieldErrors.name?.[0] ?? null);
+      window.requestAnimationFrame(() => {
+        const nameField = form.elements.namedItem('name');
+        if (nameField instanceof HTMLElement) nameField.focus();
+      });
       return;
     }
 

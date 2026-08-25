@@ -8,6 +8,8 @@ import {
   type FormEvent,
 } from 'react';
 import type { ZodError } from 'zod';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -249,7 +251,7 @@ export function SpaceManagement({
 
           {successMessage ? (
             <p
-              className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+              className="mt-5 rounded-lg border border-green-600 bg-white px-4 py-3 text-sm text-slate-900"
               role="status"
             >
               {successMessage}
@@ -276,20 +278,17 @@ export function SpaceManagement({
               </div>
 
               {isLoadingSpaces ? (
-                <p className="py-10 text-center text-slate-500" role="status">
-                  Loading branch spaces…
-                </p>
+                <ListSkeleton
+                  className="py-5"
+                  label="Loading branch spaces"
+                  rowClassName="h-16"
+                />
               ) : spaceLoadError ? (
-                <div className="py-8 text-center" role="alert">
-                  <p className="text-sm text-red-600">{spaceLoadError}</p>
-                  <button
-                    className="mt-3 cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-emerald-700 underline underline-offset-3"
-                    type="button"
-                    onClick={() => void loadSpaces()}
-                  >
-                    Try again
-                  </button>
-                </div>
+                <RequestError
+                  className="py-8 text-center"
+                  message={spaceLoadError}
+                  onRetry={() => void loadSpaces()}
+                />
               ) : spaces.length === 0 ? (
                 <div className="py-10 text-center">
                   <h3 className="text-base font-bold">No spaces yet</h3>
@@ -359,6 +358,7 @@ function SpacePageSkeleton() {
   return (
     <section
       className="mt-6 grid animate-pulse gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]"
+      role="status"
       aria-label="Loading branch space management"
       aria-busy="true"
     >

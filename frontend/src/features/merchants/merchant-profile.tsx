@@ -354,10 +354,13 @@ export function MerchantProfile({
       ) : loadError ? null : isLoading ? (
         <div
           className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]"
+          role="status"
           aria-label="Loading merchant profile"
+          aria-busy="true"
         >
           <div className="h-96 animate-pulse rounded-xl bg-slate-100" />
           <div className="h-72 animate-pulse rounded-xl bg-slate-100" />
+          <span className="sr-only">Loading merchant profile…</span>
         </div>
       ) : merchantId && !merchant ? (
         <section

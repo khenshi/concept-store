@@ -82,9 +82,19 @@ The selector, branch list, member list, and merchant directory reuse these compo
 
 ## Remaining refactor parts
 
-Subsequent reviewable parts will migrate:
+The authenticated frontend refactor is complete. No additional product features or business rules were introduced by this work.
 
-1. final authenticated responsive, accessibility, and performance validation
+## Final validation
+
+The final audit covered authenticated page responsiveness, keyboard and screen-reader behavior, repeated request patterns, and design-system consistency.
+
+- Organization tabs remain directly accessible in DOM order and scroll horizontally on narrow screens without moving or hiding destinations.
+- Active navigation continues to use `aria-current="page"`; conditional links remain aligned with the existing role rules.
+- Structural loading states announce status and decorative skeleton rows remain hidden from assistive technology.
+- Organization creation now moves focus to the invalid name field after client-side validation.
+- Space list loading, retry, and success feedback now use the same patterns as the other operational pages.
+- Tenant organization data is fetched only by the persistent organization provider, and branch requests remain lazy, cached, and deduplicated.
+- Feature-specific requests remain scoped to the page that needs them; no global cache or state dependency was added.
 
 Milestone 3 assignment and agreement features remain paused until this refactor is reviewed.
 
