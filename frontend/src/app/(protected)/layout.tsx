@@ -7,7 +7,7 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
     <AuthGate>
       <div className="min-h-screen bg-slate-50">
         <AuthenticatedHeader />
-        <main className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
+        <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
           {children}
         </main>
       </div>

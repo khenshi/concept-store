@@ -9,8 +9,8 @@ export function AuthenticatedHeader() {
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
-      <div className="mx-auto flex min-h-17 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:px-8 lg:px-10">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
+      <div className="mx-auto flex min-h-17 w-full max-w-5xl items-center justify-between gap-6 px-5 sm:px-8">
         <div className="flex min-w-0 items-center gap-5">
           <BrandWordmark
             className="shrink-0 text-sm text-slate-950 sm:text-base"

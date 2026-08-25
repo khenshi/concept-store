@@ -342,6 +342,7 @@ export function MerchantProfile({
         active="merchants"
         showMembers={canManage}
         showMerchants={canManage}
+        showSpaces={canManage}
       />
 
       {!canManage ? (

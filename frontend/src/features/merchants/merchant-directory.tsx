@@ -180,6 +180,7 @@ export function MerchantDirectory({
         active="merchants"
         showMembers={canManage}
         showMerchants={canManage}
+        showSpaces={canManage}
       />
 
       {!canManage ? (

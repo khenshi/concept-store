@@ -184,6 +184,7 @@ export function BranchManagement({
         active="branches"
         showMembers={canManage}
         showMerchants={canManage}
+        showSpaces={canManage}
       />
 
       {successMessage ? (

@@ -50,6 +50,8 @@ All project documentation is maintained in this directory and organized by miles
 - [Merchant agreement API](milestone-3/merchant-agreement-api.md)
 - [Backend completion](milestone-3/backend-completion.md)
 - [Frontend application foundation](milestone-3/frontend-foundation.md)
+- [Frontend space management](milestone-3/frontend-space-management.md)
+- [Authenticated frontend refactor](milestone-3/frontend-authenticated-refactor.md)
 
 ## Documentation convention
 

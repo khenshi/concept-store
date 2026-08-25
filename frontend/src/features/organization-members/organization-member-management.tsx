@@ -227,6 +227,7 @@ export function OrganizationMemberManagement({
         active="members"
         showMembers={canViewMembers}
         showMerchants={canViewMembers}
+        showSpaces={canViewMembers}
       />
 
       {!canViewMembers ? (

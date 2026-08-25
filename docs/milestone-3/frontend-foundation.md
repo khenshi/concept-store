@@ -52,7 +52,7 @@ The foundation follows the approved modern, minimal, clean, and trustworthy B2B 
 - neutral slate page surfaces
 - white operational navigation surface
 - emerald reserved for brand and active states
-- subtle borders and shadows
+- subtle borders with flat static surfaces
 - no gradients, decorative animation, or unnecessary color
 - responsive layout without hiding required actions
 

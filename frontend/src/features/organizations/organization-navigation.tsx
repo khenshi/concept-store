@@ -5,11 +5,13 @@ export function OrganizationNavigation({
   active,
   showMembers = false,
   showMerchants = false,
+  showSpaces = false,
 }: {
   organizationId: string;
-  active: 'overview' | 'branches' | 'members' | 'merchants';
+  active: 'overview' | 'branches' | 'members' | 'merchants' | 'spaces';
   showMembers?: boolean;
   showMerchants?: boolean;
+  showSpaces?: boolean;
 }) {
   const basePath = `/app/organizations/${organizationId}`;
 
@@ -32,6 +34,15 @@ export function OrganizationNavigation({
       >
         Branches
       </Link>
+      {showSpaces ? (
+        <Link
+          className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
+          aria-current={active === 'spaces' ? 'page' : undefined}
+          href={`${basePath}/spaces`}
+        >
+          Spaces
+        </Link>
+      ) : null}
       {showMerchants ? (
         <Link
           className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
