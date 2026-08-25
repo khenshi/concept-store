@@ -2,7 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
@@ -33,6 +39,11 @@ export function OrganizationEntry() {
   const [nameError, setNameError] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [search, setSearch] = useState('');
+  const createDialogRef = useRef<HTMLDialogElement>(null);
+  const filteredOrganizations = organizations.filter((organization) =>
+    organization.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
+  );
 
   const loadOrganizations = useCallback(async () => {
     setIsLoading(true);
@@ -94,6 +105,17 @@ export function OrganizationEntry() {
     }
   }
 
+  function openCreateDialog() {
+    setNameError(null);
+    setSubmissionError(null);
+    createDialogRef.current?.showModal();
+  }
+
+  function closeCreateDialog() {
+    if (isSubmitting) return;
+    createDialogRef.current?.close();
+  }
+
   return (
     <section
       className="mx-auto mt-8 w-full max-w-5xl sm:mt-12"
@@ -115,69 +137,111 @@ export function OrganizationEntry() {
         </p>
       </div>
 
-      <div className="mt-10 grid items-start gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
-        <section
-          className="rounded-xl border border-slate-200 bg-white p-6"
-          aria-labelledby="available-title"
+      <div className="mt-8 flex items-end gap-3 max-sm:grid">
+        <div className="grid min-w-0 flex-1 gap-2">
+          <label className="text-sm font-bold" htmlFor="organization-search">
+            Search organizations
+          </label>
+          <input
+            className="min-h-12 max-w-xl rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
+            id="organization-search"
+            type="search"
+            value={search}
+            placeholder="ex. My Concept Store"
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+        <button
+          className="min-h-12 w-fit cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 max-sm:w-full disabled:cursor-wait disabled:opacity-65"
+          type="button"
+          onClick={openCreateDialog}
         >
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="m-0 text-base font-bold" id="available-title">
-              Your organizations
-            </h2>
-            {!isLoading && !loadError ? (
-              <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
-                {organizations.length}
-              </span>
-            ) : null}
-          </div>
+          Create organization
+        </button>
+      </div>
 
-          {isLoading ? (
-            <ListSkeleton label="Loading organizations" />
-          ) : loadError ? (
-            <RequestError
-              className="mt-5"
-              message={loadError}
-              onRetry={() => void loadOrganizations()}
-            />
-          ) : organizations.length === 0 ? (
-            <p className="mt-5 leading-7 text-slate-500">
-              You do not belong to an organization yet. Create your first one to
-              continue.
-            </p>
-          ) : (
-            <ul className="mt-5 grid list-none gap-2.5 p-0">
-              {organizations.map((organization) => (
-                <li key={organization.id}>
-                  <Link
-                    className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-[0.6rem] border border-slate-200 bg-white p-4 text-left text-slate-900 no-underline hover:border-emerald-600"
-                    href={`/app/organizations/${organization.id}`}
-                  >
-                    <span className="grid gap-1">
-                      <strong>{organization.name}</strong>
-                      <small className="text-slate-500">
-                        {roleLabels[organization.role]}
-                      </small>
-                    </span>
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+      <section
+        className="mt-6 rounded-xl border border-slate-200 bg-white p-6"
+        aria-labelledby="available-title"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="m-0 text-base font-bold" id="available-title">
+            Your organizations
+          </h2>
+          {!isLoading && !loadError ? (
+            <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
+              {filteredOrganizations.length}
+            </span>
+          ) : null}
+        </div>
 
-        <section
-          className="rounded-xl border border-slate-200 bg-white p-6"
-          aria-labelledby="create-title"
-        >
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="m-0 text-base font-bold" id="create-title">
-              Create an organization
-            </h2>
-          </div>
-          <p className="mt-4 leading-7 text-slate-500">
-            Create a concept-store workspace. You will become its owner.
+        {isLoading ? (
+          <ListSkeleton label="Loading organizations" />
+        ) : loadError ? (
+          <RequestError
+            className="mt-5"
+            message={loadError}
+            onRetry={() => void loadOrganizations()}
+          />
+        ) : organizations.length === 0 ? (
+          <p className="mt-5 leading-7 text-slate-500">
+            You do not belong to an organization yet. Create your first one to
+            continue.
           </p>
+        ) : filteredOrganizations.length === 0 ? (
+          <div className="py-10 text-center">
+            <h3 className="text-base font-bold">No organizations found</h3>
+            <p className="mt-2 leading-7 text-slate-500">
+              Try a different organization name.
+            </p>
+          </div>
+        ) : (
+          <ul className="mt-5 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredOrganizations.map((organization) => (
+              <li key={organization.id}>
+                <Link
+                  className="flex w-full cursor-pointer items-center justify-between gap-4 rounded-[0.6rem] border border-slate-200 bg-white p-4 text-left text-slate-900 no-underline hover:border-emerald-600"
+                  href={`/app/organizations/${organization.id}`}
+                >
+                  <span className="grid gap-1">
+                    <strong>{organization.name}</strong>
+                    <small className="text-slate-500">
+                      {roleLabels[organization.role]}
+                    </small>
+                  </span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <dialog
+        className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border border-slate-200 bg-white p-0 text-slate-900 backdrop:bg-slate-950/40"
+        ref={createDialogRef}
+        onCancel={(event) => {
+          if (isSubmitting) event.preventDefault();
+        }}
+        onClose={() => {
+          setNameError(null);
+          setSubmissionError(null);
+        }}
+        aria-labelledby="create-title"
+        aria-describedby="create-description"
+      >
+        <section className="p-6 sm:p-7">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
+                New workspace
+              </p>
+              <h2 className="mt-2 text-xl font-bold" id="create-title">
+                Create an organization
+              </h2>
+            </div>
+            
+          </div>
           <form className="mt-5 grid gap-4" onSubmit={handleCreate} noValidate>
             {submissionError ? (
               <p
@@ -212,16 +276,27 @@ export function OrganizationEntry() {
                 </p>
               ) : null}
             </div>
-            <button
-              className="w-fit min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
-              type="submit"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating organization…' : 'Create organization'}
-            </button>
+            <div className="mt-4 flex justify-between">
+              <button
+                className="cursor-pointer bg-transparent p-0 font-bold text-slate-500 hover:text-slate-900 disabled:cursor-wait disabled:opacity-60"
+                type="button"
+                onClick={closeCreateDialog}
+                disabled={isSubmitting}
+                aria-label="Close create organization dialog"
+              >
+                Close
+              </button>
+              <button
+                className="w-fit min-h-9 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4 py-2 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Creating organization…' : 'Create organization'}
+              </button>
+            </div>
           </form>
         </section>
-      </div>
+      </dialog>
     </section>
   );
 }

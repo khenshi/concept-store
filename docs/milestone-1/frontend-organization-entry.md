@@ -20,6 +20,8 @@ Loads `GET /organizations` through the authenticated request client. Only organi
 
 The creation form sends `POST /organizations`. Names are trimmed and validated as 2–120 characters, matching the backend. A successful creation navigates directly to the new organization workspace.
 
+The workspace selector presents search and creation controls beneath the page introduction. Search filters the already-loaded membership-scoped organization list without another API request. Organization cards use a responsive one-, two-, and three-column grid. Organization creation opens a focused modal, and a successful request navigates directly to the created organization's overview route.
+
 ### `/app/organizations/:organizationId`
 
 Loads `GET /organizations/:organizationId` before displaying the selected workspace. The backend membership check remains authoritative; placing or changing an organization UUID in the URL does not grant tenant access.
