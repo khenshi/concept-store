@@ -177,3 +177,50 @@ export class SpaceResponseDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: Date;
 }
+
+export class SpaceAssignmentMerchantResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Amihan Goods' })
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'AMIHAN-01' })
+  code!: string | null;
+}
+
+export class SpaceAssignmentResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  branchId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  spaceId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  merchantId!: string;
+
+  @ApiProperty({ format: 'date', example: '2026-08-25' })
+  startDate!: Date;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    format: 'date',
+    example: '2026-09-30',
+  })
+  endDate!: Date | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
+
+  @ApiProperty({ type: SpaceAssignmentMerchantResponseDto })
+  merchant!: SpaceAssignmentMerchantResponseDto;
+}
