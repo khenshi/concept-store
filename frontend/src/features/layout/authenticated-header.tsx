@@ -1,15 +1,41 @@
 'use client';
 
 import Link from 'next/link';
+import { BrandWordmark } from '@/components/brand-wordmark';
+import { useAuth } from '@/features/auth/auth-context';
 import { LogoutButton } from '@/features/auth/logout-button';
 
 export function AuthenticatedHeader() {
+  const { user } = useAuth();
+
   return (
-    <header className="flex items-center justify-between">
-      <Link className="text-lg font-bold no-underline" href="/app">
-        Concept Store
-      </Link>
-      <LogoutButton />
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
+      <div className="mx-auto flex min-h-17 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:px-8 lg:px-10">
+        <div className="flex min-w-0 items-center gap-5">
+          <BrandWordmark
+            className="shrink-0 text-sm text-slate-950 sm:text-base"
+            href="/app"
+          />
+          <span
+            className="hidden h-5 w-px bg-slate-200 sm:block"
+            aria-hidden="true"
+          />
+          <Link
+            className="hidden text-sm font-semibold text-slate-500 no-underline hover:text-emerald-700 sm:block"
+            href="/app"
+          >
+            Workspaces
+          </Link>
+        </div>
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          {user ? (
+            <span className="hidden max-w-56 truncate text-sm text-slate-500 md:block">
+              {user.email}
+            </span>
+          ) : null}
+          <LogoutButton />
+        </div>
+      </div>
     </header>
   );
 }

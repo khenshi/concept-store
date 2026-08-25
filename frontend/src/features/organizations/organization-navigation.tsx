@@ -15,18 +15,18 @@ export function OrganizationNavigation({
 
   return (
     <nav
-      className="mt-7 flex gap-6 border-b border-slate-200"
+      className="mt-7 flex gap-1 overflow-x-auto border-b border-slate-200"
       aria-label="Organization"
     >
       <Link
-        className="border-b-2 border-transparent pb-3 text-sm font-bold text-slate-500 no-underline aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-900"
+        className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
         aria-current={active === 'overview' ? 'page' : undefined}
         href={basePath}
       >
         Overview
       </Link>
       <Link
-        className="border-b-2 border-transparent pb-3 text-sm font-bold text-slate-500 no-underline aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-900"
+        className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
         aria-current={active === 'branches' ? 'page' : undefined}
         href={`${basePath}/branches`}
       >
@@ -34,7 +34,7 @@ export function OrganizationNavigation({
       </Link>
       {showMerchants ? (
         <Link
-          className="border-b-2 border-transparent pb-3 text-sm font-bold text-slate-500 no-underline aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-900"
+          className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
           aria-current={active === 'merchants' ? 'page' : undefined}
           href={`${basePath}/merchants`}
         >
@@ -43,7 +43,7 @@ export function OrganizationNavigation({
       ) : null}
       {showMembers ? (
         <Link
-          className="border-b-2 border-transparent pb-3 text-sm font-bold text-slate-500 no-underline aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-900"
+          className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950"
           aria-current={active === 'members' ? 'page' : undefined}
           href={`${basePath}/members`}
         >

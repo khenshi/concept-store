@@ -2,13 +2,17 @@ import Link from 'next/link';
 
 type BrandWordmarkProps = {
   className?: string;
+  href?: string;
 };
 
-export function BrandWordmark({ className = '' }: BrandWordmarkProps) {
+export function BrandWordmark({
+  className = '',
+  href = '/',
+}: BrandWordmarkProps) {
   return (
     <Link
       className={`inline-flex w-fit items-center gap-2.5 font-bold tracking-[-0.02em] no-underline ${className}`}
-      href="/"
+      href={href}
       aria-label="Concept Store home"
     >
       <span
