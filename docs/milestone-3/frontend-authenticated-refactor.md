@@ -96,7 +96,7 @@ The final audit covered authenticated page responsiveness, keyboard and screen-r
 - Tenant organization data is fetched only by the persistent organization provider, and branch requests remain lazy, cached, and deduplicated.
 - Feature-specific requests remain scoped to the page that needs them; no global cache or state dependency was added.
 
-Milestone 3 assignment and agreement features remain paused until this refactor is reviewed.
+The assignment and agreement features were implemented after this refactor and are covered by the overall [Milestone 3 completion](./completion.md).
 
 ## Validation
 

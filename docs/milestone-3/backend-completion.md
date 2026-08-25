@@ -4,7 +4,7 @@
 
 The Milestone 3 backend is complete. It represents branch-owned physical spaces, current and historical merchant occupancy, and organization-level merchant commercial agreements.
 
-This completion covers the backend only. The Milestone 3 frontend remains a separate next phase.
+This document records the backend completion. The frontend was completed afterward and is covered by the overall [Milestone 3 completion](./completion.md).
 
 ## Implemented capabilities
 

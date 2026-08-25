@@ -42,6 +42,7 @@ All project documentation is maintained in this directory and organized by miles
 
 ## Milestone 3 — Spaces and Agreements
 
+- [Milestone completion](milestone-3/completion.md)
 - [Backend design](milestone-3/backend-design.md)
 - [Space and assignment data model](milestone-3/space-assignment-data-model.md)
 - [Space CRUD API](milestone-3/space-api.md)
