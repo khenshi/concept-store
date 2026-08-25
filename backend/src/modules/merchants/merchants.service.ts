@@ -41,17 +41,21 @@ export class MerchantsService {
           organizationId,
           branchIds,
         );
-        return transaction.merchant.create({
-          data: {
-            organizationId,
-            ...profile,
-            branches: {
-              create: branchIds.map((branchId) => ({
-                organizationId,
-                branchId,
-              })),
-            },
+        const data = {
+          ...profile,
+          organization: { connect: { id: organizationId } },
+          branches: {
+            create: branchIds.map((branchId) => ({
+              branch: {
+                connect: {
+                  id_organizationId: { id: branchId, organizationId },
+                },
+              },
+            })),
           },
+        } satisfies Prisma.MerchantCreateInput;
+        return transaction.merchant.create({
+          data,
           include: merchantBranchesInclude,
         });
       });

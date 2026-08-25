@@ -50,6 +50,8 @@ Profile updates are partial but cannot be empty. Required profile/contact fields
 
 Branch assignments are managed separately from profile fields. Merchant responses include current branch summaries.
 
+Merchant creation writes the organization and initial branches through explicit Prisma relation connections. Branch connections use the composite branch/organization key, keeping the nested write compatible with Prisma's checked create input while preserving tenant consistency.
+
 Email addresses are trimmed and lowercased. Names and telephone numbers are trimmed without changing their meaningful formatting.
 
 ## Listing and filtering

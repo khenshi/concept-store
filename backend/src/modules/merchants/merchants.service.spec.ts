@@ -89,13 +89,23 @@ describe('MerchantsService', () => {
     });
     expect(transaction.merchant.create).toHaveBeenCalledWith({
       data: {
-        organizationId,
         name: merchant.name,
         code: merchant.code,
         contactName: merchant.contactName,
         email: merchant.email,
         phone: merchant.phone,
-        branches: { create: [{ organizationId, branchId }] },
+        organization: { connect: { id: organizationId } },
+        branches: {
+          create: [
+            {
+              branch: {
+                connect: {
+                  id_organizationId: { id: branchId, organizationId },
+                },
+              },
+            },
+          ],
+        },
       },
       include,
     });
