@@ -80,21 +80,11 @@ export function OrganizationWorkspace({
 
   return (
     <section className="mx-auto mt-8 w-full sm:mt-12">
-      <Link
-        className="text-sm font-bold text-emerald-700 underline underline-offset-3"
-        href="/app"
-      >
-        ← All organizations
-      </Link>
-      <div className="mt-8">
-        <OrganizationPageHeader
-          organization={organization}
-          organizationId={organizationId}
-          active="overview"
-          title="Workspace overview"
-          description="Choose an operational area to continue managing this concept store."
-        />
-      </div>
+      <OrganizationPageHeader
+        organization={organization}
+        title="Workspace overview"
+        description="Choose an operational area to continue managing this concept store."
+      />
 
       <section
         className="mt-6 rounded-xl border border-slate-200 bg-white p-6"

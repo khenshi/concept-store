@@ -185,8 +185,6 @@ export function OrganizationMemberManagement({
     <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
       <OrganizationPageHeader
         organization={organization}
-        organizationId={organizationId}
-        active="members"
         title="Organization members"
         description="Review staff access and the role assigned to each account."
       />

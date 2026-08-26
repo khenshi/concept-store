@@ -151,8 +151,6 @@ export function MerchantDirectory({
     <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
       <OrganizationPageHeader
         organization={organization}
-        organizationId={organizationId}
-        active="merchants"
         title="Merchants"
         description="Manage the independent brands operating in this concept store."
       />

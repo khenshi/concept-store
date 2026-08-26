@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { OrganizationWorkspaceProvider } from '@/features/organizations/organization-workspace-context';
+import { OrganizationWorkspaceShell } from '@/features/organizations/organization-workspace-shell';
 
 interface OrganizationLayoutProps {
   children: ReactNode;
@@ -13,7 +14,9 @@ export default async function OrganizationLayout({
   const { organizationId } = await params;
   return (
     <OrganizationWorkspaceProvider organizationId={organizationId}>
-      {children}
+      <OrganizationWorkspaceShell organizationId={organizationId}>
+        {children}
+      </OrganizationWorkspaceShell>
     </OrganizationWorkspaceProvider>
   );
 }

@@ -179,8 +179,6 @@ export function SpaceManagement({
     <section className="mx-auto mt-8 w-full sm:mt-12">
       <OrganizationPageHeader
         organization={organization}
-        organizationId={organizationId}
-        active="spaces"
         title="Spaces"
         description="Organize the racks, shelves, booths, and other physical selling areas available in each branch."
       />

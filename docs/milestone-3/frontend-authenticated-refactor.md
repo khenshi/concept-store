@@ -89,6 +89,7 @@ The authenticated frontend refactor is complete. No additional product features 
 The final audit covered authenticated page responsiveness, keyboard and screen-reader behavior, repeated request patterns, and design-system consistency.
 
 - Organization tabs remain directly accessible in DOM order and scroll horizontally on narrow screens without moving or hiding destinations.
+- Organization navigation is owned by the persistent route layout and appears as a left sidebar on desktop. It falls back to the same horizontally scrollable destinations on narrow screens.
 - Active navigation continues to use `aria-current="page"`; conditional links remain aligned with the existing role rules.
 - Structural loading states announce status and decorative skeleton rows remain hidden from assistive technology.
 - Organization creation now moves focus to the invalid name field after client-side validation.

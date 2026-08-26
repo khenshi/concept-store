@@ -240,7 +240,6 @@ export function OrganizationEntry() {
                 Create an organization
               </h2>
             </div>
-            
           </div>
           <form className="mt-5 grid gap-4" onSubmit={handleCreate} noValidate>
             {submissionError ? (
@@ -291,7 +290,9 @@ export function OrganizationEntry() {
                 type="submit"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Creating organization…' : 'Create organization'}
+                {isSubmitting
+                  ? 'Creating organization…'
+                  : 'Create organization'}
               </button>
             </div>
           </form>

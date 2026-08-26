@@ -306,8 +306,6 @@ export function MerchantProfile({
       <div className="mt-8">
         <OrganizationPageHeader
           organization={organization}
-          organizationId={organizationId}
-          active="merchants"
           title={title}
           description={
             merchant

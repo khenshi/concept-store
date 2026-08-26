@@ -117,8 +117,6 @@ export function BranchManagement({
     <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
       <OrganizationPageHeader
         organization={organization}
-        organizationId={organizationId}
-        active="branches"
         title="Branches"
         description="Manage the physical store locations that belong to this organization."
       />
