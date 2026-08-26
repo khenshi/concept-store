@@ -90,6 +90,7 @@ The final audit covered authenticated page responsiveness, keyboard and screen-r
 
 - Organization tabs remain directly accessible in DOM order and scroll horizontally on narrow screens without moving or hiding destinations.
 - Organization navigation is owned by the persistent route layout and appears as a left sidebar on desktop. It falls back to the same horizontally scrollable destinations on narrow screens.
+- The sidebar organization switcher loads the user's available memberships once per organization layout. Its bordered white menu shows organization names, roles, and the current workspace using the established slate and emerald visual language, supports direct workspace switching, and includes an option to return to the complete organization list.
 - Active navigation continues to use `aria-current="page"`; conditional links remain aligned with the existing role rules.
 - Structural loading states announce status and decorative skeleton rows remain hidden from assistive technology.
 - Organization creation now moves focus to the invalid name field after client-side validation.

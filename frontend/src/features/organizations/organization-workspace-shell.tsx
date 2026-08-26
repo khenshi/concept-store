@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { OrganizationNavigation } from './organization-navigation';
+import { OrganizationSwitcher } from './organization-switcher';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
 
 export function OrganizationWorkspaceShell({
@@ -20,12 +20,10 @@ export function OrganizationWorkspaceShell({
   return (
     <div className="w-full lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-7">
       <aside className="mt-8 min-w-0 lg:sticky lg:top-24 lg:self-start sm:mt-12">
-        <Link
-          className="text-sm font-bold text-emerald-700 underline underline-offset-3"
-          href="/app"
-        >
-          ← All organizations
-        </Link>
+        <OrganizationSwitcher
+          organizationId={organizationId}
+          organizationName={organization?.name}
+        />
         {organizationStatus === 'loading' ? (
           <div
             className="mt-5 h-10 animate-pulse rounded-lg bg-slate-200"
