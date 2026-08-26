@@ -56,6 +56,11 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend merchant agreements](milestone-3/frontend-merchant-agreements.md)
 - [Authenticated frontend refactor](milestone-3/frontend-authenticated-refactor.md)
 
+## Milestone 4 — Products and Inventory
+
+- [Backend design](milestone-4/backend-design.md)
+- [Product and inventory data model](milestone-4/product-inventory-data-model.md)
+
 ## Documentation convention
 
 Each implementation part should document, when applicable:
