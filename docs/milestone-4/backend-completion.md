@@ -90,6 +90,8 @@ Milestone 4 adds:
 
 Prisma validation and client generation pass. Migration status found 10 migrations and reported this Milestone 4 migration as pending on the configured database. It was intentionally not applied automatically; apply it through the normal reviewed migration workflow for the target environment.
 
+The migration uses PostgreSQL `TEXT` for Prisma `String` identifiers, matching every existing organization, merchant, branch, and user key. An earlier unapplied draft used native `UUID` columns and failed shadow-database foreign-key validation because the existing referenced identifiers are `TEXT`; the migration was corrected before deployment.
+
 ## Explicit exclusions
 
 Milestone 4 does not implement product variants, categories, images, suppliers, purchasing, warehouses, low-stock configuration, CSV exports, sales/POS, returns, damaged-stock workflows, merchant self-service, or offline synchronization.

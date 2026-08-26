@@ -36,6 +36,8 @@ export function OrganizationWorkspaceShell({
             showMembers={canManage}
             showMerchants={canManage}
             showSpaces={canManage}
+            showProducts={canManage}
+            showInventory={canManage}
           />
         ) : null}
       </aside>

@@ -6,9 +6,9 @@ CREATE TYPE "InventoryMovementType" AS ENUM ('STOCK_IN', 'ADJUSTMENT');
 
 -- CreateTable
 CREATE TABLE "Product" (
-    "id" UUID NOT NULL,
-    "organizationId" UUID NOT NULL,
-    "merchantId" UUID NOT NULL,
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "sku" TEXT NOT NULL,
     "barcode" TEXT,
@@ -23,9 +23,9 @@ CREATE TABLE "Product" (
 
 -- CreateTable
 CREATE TABLE "Inventory" (
-    "organizationId" UUID NOT NULL,
-    "branchId" UUID NOT NULL,
-    "productId" UUID NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -35,15 +35,15 @@ CREATE TABLE "Inventory" (
 
 -- CreateTable
 CREATE TABLE "InventoryMovement" (
-    "id" UUID NOT NULL,
-    "organizationId" UUID NOT NULL,
-    "branchId" UUID NOT NULL,
-    "productId" UUID NOT NULL,
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "branchId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
     "quantityChange" INTEGER NOT NULL,
     "type" "InventoryMovementType" NOT NULL,
     "referenceId" TEXT,
     "note" TEXT,
-    "createdById" UUID NOT NULL,
+    "createdById" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "InventoryMovement_pkey" PRIMARY KEY ("id"),

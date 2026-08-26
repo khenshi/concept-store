@@ -71,6 +71,18 @@ export function OrganizationWorkspace({
       visible: canManage,
     },
     {
+      label: 'Products',
+      description: 'Maintain merchant-owned products and selling codes.',
+      href: `/app/organizations/${organizationId}/products`,
+      visible: canManage,
+    },
+    {
+      label: 'Inventory',
+      description: 'Review current stock across branches and merchants.',
+      href: `/app/organizations/${organizationId}/inventory`,
+      visible: canManage,
+    },
+    {
       label: 'Members',
       description: 'Manage the people and roles operating this workspace.',
       href: `/app/organizations/${organizationId}/members`,

@@ -8,11 +8,15 @@ export function OrganizationNavigation({
   showMembers = false,
   showMerchants = false,
   showSpaces = false,
+  showProducts = false,
+  showInventory = false,
 }: {
   organizationId: string;
   showMembers?: boolean;
   showMerchants?: boolean;
   showSpaces?: boolean;
+  showProducts?: boolean;
+  showInventory?: boolean;
 }) {
   const pathname = usePathname();
   const basePath = `/app/organizations/${organizationId}`;
@@ -35,6 +39,18 @@ export function OrganizationNavigation({
       label: 'Merchants',
       href: `${basePath}/merchants`,
       visible: showMerchants,
+    },
+    {
+      key: 'products',
+      label: 'Products',
+      href: `${basePath}/products`,
+      visible: showProducts,
+    },
+    {
+      key: 'inventory',
+      label: 'Inventory',
+      href: `${basePath}/inventory`,
+      visible: showInventory,
     },
     {
       key: 'members',
