@@ -63,6 +63,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Product management API](milestone-4/product-api.md)
 - [Stock-in and inventory adjustments](milestone-4/inventory-operations-api.md)
 - [Inventory views and movement history](milestone-4/inventory-views-api.md)
+- [Backend completion](milestone-4/backend-completion.md)
 
 ## Documentation convention
 
