@@ -46,14 +46,19 @@ describe('InventoryService', () => {
     },
     inventoryMovement: { create: jest.fn() },
   };
-  const prisma = { $transaction: jest.fn() };
+  const prisma = {
+    $transaction: jest.fn(),
+    inventory: { findMany: jest.fn(), count: jest.fn() },
+    inventoryMovement: { findFirst: jest.fn(), findMany: jest.fn() },
+  };
   let service: InventoryService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation(
-      (callback: (client: typeof transaction) => unknown) =>
-        callback(transaction),
+      (
+        input: ((client: typeof transaction) => unknown) | Promise<unknown>[],
+      ) => (Array.isArray(input) ? Promise.all(input) : input(transaction)),
     );
     transaction.product.findFirst.mockResolvedValue({
       merchantId,
@@ -241,5 +246,132 @@ describe('InventoryService', () => {
         'Inventory changed concurrently; retry the request',
       ),
     );
+  });
+
+  it('returns a tenant-scoped filtered inventory page', async () => {
+    const inventoryView = {
+      ...inventory,
+      product: {
+        id: productId,
+        organizationId,
+        merchantId,
+        name: 'Handwoven pouch',
+        sku: 'AMH-01',
+        barcode: null,
+        sellingPrice: new Prisma.Decimal('450.00'),
+        status: ProductStatus.ACTIVE,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMH' },
+      },
+      branch: { id: branchId, name: 'Makati Main', code: 'MKT' },
+    };
+    prisma.inventory.findMany.mockResolvedValue([inventoryView]);
+    prisma.inventory.count.mockResolvedValue(1);
+
+    await expect(
+      service.findAll(organizationId, {
+        branchId,
+        merchantId,
+        search: 'pouch',
+        offset: 0,
+        limit: 25,
+      }),
+    ).resolves.toEqual({
+      items: [
+        {
+          ...inventoryView,
+          product: { ...inventoryView.product, sellingPrice: '450.00' },
+        },
+      ],
+      total: 1,
+      offset: 0,
+      limit: 25,
+    });
+    expect(prisma.inventory.findMany).toHaveBeenCalledWith({
+      where: {
+        organizationId,
+        branchId,
+        productId: undefined,
+        product: {
+          merchantId,
+          status: undefined,
+          OR: [
+            { name: { contains: 'pouch', mode: 'insensitive' } },
+            { sku: { contains: 'pouch', mode: 'insensitive' } },
+            { barcode: { contains: 'pouch', mode: 'insensitive' } },
+          ],
+        },
+      },
+      include: {
+        product: {
+          include: {
+            merchant: { select: { id: true, name: true, code: true } },
+          },
+        },
+        branch: { select: { id: true, name: true, code: true } },
+      },
+      orderBy: [
+        { product: { name: 'asc' } },
+        { branch: { name: 'asc' } },
+        { productId: 'asc' },
+      ],
+      skip: 0,
+      take: 25,
+    });
+  });
+
+  it('returns movement history with a next cursor', async () => {
+    const secondMovementId = '30fb4b47-283d-4ea1-9122-fb5ab8e809ad';
+    const movementView = {
+      ...movement,
+      product: {
+        id: productId,
+        name: 'Handwoven pouch',
+        sku: 'AMH-01',
+        barcode: null,
+      },
+      branch: { id: branchId, name: 'Makati Main', code: 'MKT' },
+      createdBy: { id: userId, email: 'manager@example.com' },
+    };
+    prisma.inventoryMovement.findMany.mockResolvedValue([
+      movementView,
+      { ...movementView, id: secondMovementId },
+    ]);
+
+    await expect(
+      service.findMovements(organizationId, { branchId, limit: 1 }),
+    ).resolves.toEqual({ items: [movementView], nextCursor: movement.id });
+    expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith({
+      where: {
+        organizationId,
+        branchId,
+        productId: undefined,
+        type: undefined,
+      },
+      include: {
+        product: {
+          select: { id: true, name: true, sku: true, barcode: true },
+        },
+        branch: { select: { id: true, name: true, code: true } },
+        createdBy: { select: { id: true, email: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      cursor: undefined,
+      skip: undefined,
+      take: 2,
+    });
+  });
+
+  it('rejects a movement cursor from another organization', async () => {
+    prisma.inventoryMovement.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.findMovements(organizationId, {
+        cursor: movement.id,
+        limit: 50,
+      }),
+    ).rejects.toThrow(new NotFoundException('Movement cursor not found'));
+    expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
   });
 });

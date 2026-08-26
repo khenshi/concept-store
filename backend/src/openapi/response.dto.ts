@@ -256,6 +256,115 @@ export class InventoryOperationResponseDto {
   movement!: InventoryMovementResponseDto;
 }
 
+export class InventoryBranchSummaryResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Makati Main' })
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'MKT-01' })
+  code!: string | null;
+}
+
+export class InventoryProductSummaryResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  merchantId!: string;
+
+  @ApiProperty({ example: 'Handwoven pouch' })
+  name!: string;
+
+  @ApiProperty({ example: 'AMH-01' })
+  sku!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: '4801234567890' })
+  barcode!: string | null;
+
+  @ApiProperty({ type: String, example: '450.00' })
+  sellingPrice!: string;
+
+  @ApiProperty({ enum: ProductStatus })
+  status!: ProductStatus;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
+
+  @ApiProperty({ type: ProductMerchantResponseDto })
+  merchant!: ProductMerchantResponseDto;
+}
+
+export class InventoryViewResponseDto extends InventoryResponseDto {
+  @ApiProperty({ type: InventoryProductSummaryResponseDto })
+  product!: InventoryProductSummaryResponseDto;
+
+  @ApiProperty({ type: InventoryBranchSummaryResponseDto })
+  branch!: InventoryBranchSummaryResponseDto;
+}
+
+export class InventoryPageResponseDto {
+  @ApiProperty({ type: InventoryViewResponseDto, isArray: true })
+  items!: InventoryViewResponseDto[];
+
+  @ApiProperty({ example: 125 })
+  total!: number;
+
+  @ApiProperty({ example: 0 })
+  offset!: number;
+
+  @ApiProperty({ example: 50 })
+  limit!: number;
+}
+
+export class InventoryMovementProductResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Handwoven pouch' })
+  name!: string;
+
+  @ApiProperty({ example: 'AMH-01' })
+  sku!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: '4801234567890' })
+  barcode!: string | null;
+}
+
+export class InventoryMovementActorResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'email', example: 'manager@example.com' })
+  email!: string;
+}
+
+export class InventoryMovementViewResponseDto extends InventoryMovementResponseDto {
+  @ApiProperty({ type: InventoryMovementProductResponseDto })
+  product!: InventoryMovementProductResponseDto;
+
+  @ApiProperty({ type: InventoryBranchSummaryResponseDto })
+  branch!: InventoryBranchSummaryResponseDto;
+
+  @ApiProperty({ type: InventoryMovementActorResponseDto })
+  createdBy!: InventoryMovementActorResponseDto;
+}
+
+export class InventoryMovementPageResponseDto {
+  @ApiProperty({ type: InventoryMovementViewResponseDto, isArray: true })
+  items!: InventoryMovementViewResponseDto[];
+
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  nextCursor!: string | null;
+}
+
 export class SpaceResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;

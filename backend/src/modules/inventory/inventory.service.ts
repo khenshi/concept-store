@@ -10,8 +10,18 @@ import {
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { AdjustInventoryDto } from './dto/adjust-inventory.dto';
+import type { ListInventoryMovementsQueryDto } from './dto/list-inventory-movements-query.dto';
+import type { ListInventoryQueryDto } from './dto/list-inventory-query.dto';
 import type { StockInDto } from './dto/stock-in.dto';
-import type { InventoryOperationRecord } from './inventory.types';
+import {
+  inventoryViewInclude,
+  movementViewInclude,
+  type InventoryMovementPageRecord,
+  type InventoryOperationRecord,
+  type InventoryPageRecord,
+  type InventoryViewRecord,
+  type InventoryViewRow,
+} from './inventory.types';
 
 @Injectable()
 export class InventoryService {
@@ -51,6 +61,84 @@ export class InventoryService {
       dto.referenceId,
       false,
     );
+  }
+
+  async findAll(
+    organizationId: string,
+    query: ListInventoryQueryDto,
+  ): Promise<InventoryPageRecord> {
+    const where: Prisma.InventoryWhereInput = {
+      organizationId,
+      branchId: query.branchId,
+      productId: query.productId,
+      product: {
+        merchantId: query.merchantId,
+        status: query.status,
+        OR: query.search
+          ? [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { sku: { contains: query.search, mode: 'insensitive' } },
+              { barcode: { contains: query.search, mode: 'insensitive' } },
+            ]
+          : undefined,
+      },
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.inventory.findMany({
+        where,
+        include: inventoryViewInclude,
+        orderBy: [
+          { product: { name: 'asc' } },
+          { branch: { name: 'asc' } },
+          { productId: 'asc' },
+        ],
+        skip: query.offset,
+        take: query.limit,
+      }),
+      this.prisma.inventory.count({ where }),
+    ]);
+    return {
+      items: rows.map((row) => this.toInventoryView(row)),
+      total,
+      offset: query.offset,
+      limit: query.limit,
+    };
+  }
+
+  async findMovements(
+    organizationId: string,
+    query: ListInventoryMovementsQueryDto,
+  ): Promise<InventoryMovementPageRecord> {
+    const where: Prisma.InventoryMovementWhereInput = {
+      organizationId,
+      branchId: query.branchId,
+      productId: query.productId,
+      type: query.type,
+    };
+    if (query.cursor) {
+      const cursorExists = await this.prisma.inventoryMovement.findFirst({
+        where: { ...where, id: query.cursor },
+        select: { id: true },
+      });
+      if (!cursorExists) {
+        throw new NotFoundException('Movement cursor not found');
+      }
+    }
+
+    const rows = await this.prisma.inventoryMovement.findMany({
+      where,
+      include: movementViewInclude,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      cursor: query.cursor ? { id: query.cursor } : undefined,
+      skip: query.cursor ? 1 : undefined,
+      take: query.limit + 1,
+    });
+    const hasNextPage = rows.length > query.limit;
+    const items = hasNextPage ? rows.slice(0, query.limit) : rows;
+    return {
+      items,
+      nextCursor: hasNextPage ? (items.at(-1)?.id ?? null) : null,
+    };
   }
 
   private async changeQuantity(
@@ -163,5 +251,15 @@ export class InventoryService {
         'Product merchant does not operate in this branch',
       );
     }
+  }
+
+  private toInventoryView(inventory: InventoryViewRow): InventoryViewRecord {
+    return {
+      ...inventory,
+      product: {
+        ...inventory.product,
+        sellingPrice: inventory.product.sellingPrice.toFixed(2),
+      },
+    };
   }
 }
