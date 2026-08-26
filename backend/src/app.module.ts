@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { MerchantAgreementsModule } from './modules/merchant-agreements/merchant-agreements.module';
 import { MerchantsModule } from './modules/merchants/merchants.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { ProductsModule } from './modules/products/products.module';
 import { SpacesModule } from './modules/spaces/spaces.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { SpacesModule } from './modules/spaces/spaces.module';
     MerchantAgreementsModule,
     OrganizationsModule,
     MerchantsModule,
+    ProductsModule,
     SpacesModule,
   ],
   controllers: [AppController],

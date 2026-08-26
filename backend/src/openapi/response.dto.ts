@@ -3,6 +3,7 @@ import {
   AgreementStatus,
   MerchantStatus,
   OrganizationRole,
+  ProductStatus,
   SettlementSchedule,
   SpaceStatus,
   SpaceType,
@@ -146,6 +147,52 @@ export class MerchantBranchResponseDto {
 
   @ApiPropertyOptional({ nullable: true, example: 'MKT-01' })
   code!: string | null;
+}
+
+export class ProductMerchantResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Amihan Goods' })
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'AMIHAN-01' })
+  code!: string | null;
+}
+
+export class ProductResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  merchantId!: string;
+
+  @ApiProperty({ example: 'Handwoven pouch' })
+  name!: string;
+
+  @ApiProperty({ example: 'AMH-01' })
+  sku!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: '4801234567890' })
+  barcode!: string | null;
+
+  @ApiProperty({ type: String, example: '450.00' })
+  sellingPrice!: string;
+
+  @ApiProperty({ enum: ProductStatus })
+  status!: ProductStatus;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
+
+  @ApiProperty({ type: ProductMerchantResponseDto })
+  merchant!: ProductMerchantResponseDto;
 }
 
 export class SpaceResponseDto {

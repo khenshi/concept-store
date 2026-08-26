@@ -60,6 +60,7 @@ All project documentation is maintained in this directory and organized by miles
 
 - [Backend design](milestone-4/backend-design.md)
 - [Product and inventory data model](milestone-4/product-inventory-data-model.md)
+- [Product management API](milestone-4/product-api.md)
 
 ## Documentation convention
 
