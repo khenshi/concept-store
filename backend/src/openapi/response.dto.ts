@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   AgreementStatus,
+  InventoryMovementType,
   MerchantStatus,
   OrganizationRole,
   ProductStatus,
@@ -193,6 +194,66 @@ export class ProductResponseDto {
 
   @ApiProperty({ type: ProductMerchantResponseDto })
   merchant!: ProductMerchantResponseDto;
+}
+
+export class InventoryResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  branchId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  productId!: string;
+
+  @ApiProperty({ example: 24 })
+  quantity!: number;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
+}
+
+export class InventoryMovementResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  branchId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  productId!: string;
+
+  @ApiProperty({ example: 10 })
+  quantityChange!: number;
+
+  @ApiProperty({ enum: InventoryMovementType })
+  type!: InventoryMovementType;
+
+  @ApiPropertyOptional({ nullable: true, example: 'DELIVERY-1042' })
+  referenceId!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, example: 'Opening stock count' })
+  note!: string | null;
+
+  @ApiProperty({ format: 'uuid' })
+  createdById!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+}
+
+export class InventoryOperationResponseDto {
+  @ApiProperty({ type: InventoryResponseDto })
+  inventory!: InventoryResponseDto;
+
+  @ApiProperty({ type: InventoryMovementResponseDto })
+  movement!: InventoryMovementResponseDto;
 }
 
 export class SpaceResponseDto {
