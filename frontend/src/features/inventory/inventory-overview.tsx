@@ -1,19 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
+import { listMerchants } from '@/features/merchants/merchant-api';
+import type { Merchant } from '@/features/merchants/merchant.types';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import { listInventory } from './inventory-api';
-import type { InventoryPage } from './inventory.types';
+import { listProducts } from '@/features/products/product-api';
+import type { Product, ProductStatus } from '@/features/products/product.types';
+import { adjustInventory, listInventory, stockIn } from './inventory-api';
+import { InventoryOperationModal } from './inventory-operation-modal';
+import type {
+  InventoryAdjustmentInput,
+  InventoryFilters,
+  InventoryItem,
+  InventoryOperation,
+  InventoryPage,
+  StockInInput,
+} from './inventory.types';
+
+const PAGE_SIZE = 25;
+const fieldClass =
+  'min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5';
+type Operation = { mode: 'stock-in' } | { mode: 'adjust'; item: InventoryItem };
 
 function message(cause: unknown): string {
   return cause instanceof ApiError
     ? cause.message
-    : 'Inventory could not be loaded. Please try again.';
+    : 'The request could not be completed. Please try again.';
 }
 
 export function InventoryOverview({
@@ -22,38 +39,47 @@ export function InventoryOverview({
   organizationId: string;
 }) {
   const { request } = useAuth();
-  const { organization, organizationStatus } =
+  const { organization, organizationStatus, branches, loadBranches } =
     useOrganizationWorkspaceContext();
   const [page, setPage] = useState<InventoryPage>({
     items: [],
     total: 0,
     offset: 0,
-    limit: 50,
+    limit: PAGE_SIZE,
+  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [filters, setFilters] = useState<InventoryFilters>({
+    limit: PAGE_SIZE,
+    offset: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isFiltering, setIsFiltering] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [operation, setOperation] = useState<Operation | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  async function load(): Promise<void> {
-    setIsLoading(true);
-    setError(null);
-    try {
-      setPage(await listInventory(request, organizationId));
-    } catch (cause: unknown) {
-      setError(message(cause));
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const [formError, setFormError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!organization) return;
-    if (organization.role !== 'OWNER' && organization.role !== 'MANAGER') {
+    if (
+      !organization ||
+      (organization.role !== 'OWNER' && organization.role !== 'MANAGER')
+    )
       return;
-    }
     let active = true;
-    void listInventory(request, organizationId)
-      .then((result) => {
-        if (active) setPage(result);
+    void Promise.all([
+      listInventory(request, organizationId, { limit: PAGE_SIZE, offset: 0 }),
+      listProducts(request, organizationId),
+      listMerchants(request, organizationId),
+      loadBranches(),
+    ])
+      .then(([inventory, catalog, merchantList]) => {
+        if (active) {
+          setPage(inventory);
+          setProducts(catalog);
+          setMerchants(merchantList);
+        }
       })
       .catch((cause: unknown) => {
         if (active) setError(message(cause));
@@ -64,93 +90,378 @@ export function InventoryOverview({
     return () => {
       active = false;
     };
-  }, [organization, organizationId, request]);
+  }, [loadBranches, organization, organizationId, request]);
+
+  async function fetchPage(
+    next: InventoryFilters,
+    filtering = false,
+  ): Promise<void> {
+    if (filtering) setIsFiltering(true);
+    else setIsLoading(true);
+    setError(null);
+    try {
+      setPage(await listInventory(request, organizationId, next));
+      setFilters(next);
+    } catch (cause: unknown) {
+      setError(message(cause));
+    } finally {
+      setIsFiltering(false);
+      setIsLoading(false);
+    }
+  }
+
+  function submitFilters(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    void fetchPage(
+      {
+        branchId: String(data.get('branchId') ?? '') || undefined,
+        merchantId: String(data.get('merchantId') ?? '') || undefined,
+        status: (String(data.get('status') ?? '') || undefined) as
+          ProductStatus | undefined,
+        search: String(data.get('search') ?? '').trim() || undefined,
+        offset: 0,
+        limit: PAGE_SIZE,
+      },
+      true,
+    );
+  }
+
+  function mergeOperation(
+    result: InventoryOperation,
+    selected: Operation,
+  ): void {
+    setPage((current) => {
+      const index = current.items.findIndex(
+        (item) =>
+          item.productId === result.inventory.productId &&
+          item.branchId === result.inventory.branchId,
+      );
+      if (index >= 0)
+        return {
+          ...current,
+          items: current.items.map((item, itemIndex) =>
+            itemIndex === index ? { ...item, ...result.inventory } : item,
+          ),
+        };
+      if (selected.mode === 'adjust') return current;
+      const product = products.find(
+        (item) => item.id === result.inventory.productId,
+      );
+      const branch = branches.find(
+        (item) => item.id === result.inventory.branchId,
+      );
+      if (!product || !branch) return current;
+      return {
+        ...current,
+        total: current.total + 1,
+        items: [
+          {
+            ...result.inventory,
+            product,
+            branch: { id: branch.id, name: branch.name, code: branch.code },
+          },
+          ...current.items,
+        ].slice(0, current.limit),
+      };
+    });
+  }
+
+  async function saveStockIn(input: StockInInput): Promise<void> {
+    if (!operation) return;
+    setIsSaving(true);
+    setFormError(null);
+    try {
+      const result = await stockIn(request, organizationId, input);
+      mergeOperation(result, operation);
+      setSuccess(`Recorded ${input.quantity} units of stock.`);
+      setOperation(null);
+    } catch (cause: unknown) {
+      setFormError(message(cause));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function saveAdjustment(
+    input: InventoryAdjustmentInput,
+  ): Promise<void> {
+    if (!operation) return;
+    setIsSaving(true);
+    setFormError(null);
+    try {
+      const result = await adjustInventory(request, organizationId, input);
+      mergeOperation(result, operation);
+      setSuccess(`Inventory was adjusted by ${input.quantityChange}.`);
+      setOperation(null);
+    } catch (cause: unknown) {
+      setFormError(message(cause));
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   if (organizationStatus === 'loading')
     return <ListSkeleton label="Loading inventory" />;
   if (!organization) return null;
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
+  const from = page.total === 0 ? 0 : page.offset + 1;
+  const to = Math.min(page.offset + page.items.length, page.total);
 
   return (
     <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
       <OrganizationPageHeader
         organization={organization}
         title="Inventory"
-        description="Review current product quantities across store branches."
+        description="Track current product quantities across branches and record every change."
       />
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-        {!canManage ? (
-          <p className="leading-7 text-slate-500">
-            Inventory access is currently limited to owners and managers.
-          </p>
-        ) : (
-          <>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-base font-bold">Current stock</h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  {page.total} product and branch records
-                </p>
-              </div>
-              <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700">
-                Live quantity
-              </span>
+      {!canManage ? (
+        <Limited />
+      ) : (
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex items-start justify-between gap-4 max-sm:grid">
+            <div>
+              <h2 className="text-base font-bold">Current stock</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                {page.total} product and branch records
+              </p>
             </div>
-            {error ? (
-              <RequestError
-                className="mt-5 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
-                message={error}
-                onRetry={() => void load()}
+            <button
+              className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 font-bold text-white disabled:opacity-60"
+              type="button"
+              disabled={products.length === 0 || branches.length === 0}
+              onClick={() => {
+                setFormError(null);
+                setOperation({ mode: 'stock-in' });
+              }}
+            >
+              Record stock-in
+            </button>
+          </div>
+          <form
+            className="mt-6 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_repeat(3,minmax(9rem,0.45fr))_auto]"
+            onSubmit={submitFilters}
+          >
+            <Filter label="Search" id="inventory-search">
+              <input
+                className={fieldClass}
+                id="inventory-search"
+                name="search"
+                type="search"
+                defaultValue={filters.search}
+                placeholder="Name, SKU, or barcode"
               />
-            ) : null}
-            {isLoading ? (
-              <ListSkeleton label="Loading inventory" rowClassName="h-20" />
-            ) : page.items.length === 0 ? (
-              <div className="py-10 text-center">
-                <h3 className="text-base font-bold">No inventory yet</h3>
-                <p className="mt-2 text-slate-500">
-                  Stock-in creates the first branch inventory record for a
-                  product.
-                </p>
-              </div>
-            ) : (
-              <ul className="mt-5 list-none p-0">
-                {page.items.map((item) => (
-                  <li
-                    className="flex items-center justify-between gap-4 border-b border-slate-200 py-4 last:border-0"
-                    key={`${item.productId}:${item.branchId}`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <strong>{item.product.name}</strong>
-                        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-                          {item.product.sku}
-                        </span>
-                      </div>
-                      <p className="mt-1 truncate text-sm text-slate-500">
-                        {item.product.merchant.name} · {item.branch.name}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <strong
-                        className={
-                          item.quantity < 0 ? 'text-red-600' : 'text-slate-950'
-                        }
-                      >
-                        {item.quantity}
-                      </strong>
-                      <span className="mt-1 block text-xs text-slate-500">
-                        on hand
-                      </span>
-                    </div>
-                  </li>
+            </Filter>
+            <Filter label="Branch" id="inventory-branch">
+              <select
+                className={fieldClass}
+                id="inventory-branch"
+                name="branchId"
+                defaultValue={filters.branchId ?? ''}
+              >
+                <option value="">All branches</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
                 ))}
-              </ul>
-            )}
-          </>
-        )}
-      </section>
+              </select>
+            </Filter>
+            <Filter label="Merchant" id="inventory-merchant">
+              <select
+                className={fieldClass}
+                id="inventory-merchant"
+                name="merchantId"
+                defaultValue={filters.merchantId ?? ''}
+              >
+                <option value="">All merchants</option>
+                {merchants.map((merchant) => (
+                  <option key={merchant.id} value={merchant.id}>
+                    {merchant.name}
+                  </option>
+                ))}
+              </select>
+            </Filter>
+            <Filter label="Product status" id="inventory-status">
+              <select
+                className={fieldClass}
+                id="inventory-status"
+                name="status"
+                defaultValue={filters.status ?? ''}
+              >
+                <option value="">All statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            </Filter>
+            <button
+              className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
+              disabled={isFiltering}
+            >
+              {isFiltering ? 'Applying…' : 'Apply'}
+            </button>
+          </form>
+          {success ? (
+            <p
+              className="mt-5 rounded-lg border border-green-600 p-3 text-sm"
+              role="status"
+            >
+              {success}
+            </p>
+          ) : null}
+          {error ? (
+            <RequestError
+              className="mt-5 rounded-lg border border-red-600 p-3 text-sm text-red-600"
+              message={error}
+              onRetry={() => void fetchPage(filters)}
+            />
+          ) : null}
+          {isLoading ? (
+            <ListSkeleton label="Loading inventory" rowClassName="h-24" />
+          ) : page.items.length === 0 ? (
+            <Empty />
+          ) : (
+            <ul className="mt-5 list-none p-0">
+              {page.items.map((item) => (
+                <InventoryRow
+                  key={`${item.productId}:${item.branchId}`}
+                  item={item}
+                  onAdjust={() => {
+                    setFormError(null);
+                    setOperation({ mode: 'adjust', item });
+                  }}
+                />
+              ))}
+            </ul>
+          )}
+          {page.total > 0 ? (
+            <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-200 pt-5">
+              <p className="text-sm text-slate-500">
+                Showing {from}–{to} of {page.total}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 font-bold disabled:opacity-50"
+                  disabled={page.offset === 0 || isLoading}
+                  onClick={() =>
+                    void fetchPage({
+                      ...filters,
+                      offset: Math.max(0, page.offset - page.limit),
+                    })
+                  }
+                >
+                  Previous
+                </button>
+                <button
+                  className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 font-bold disabled:opacity-50"
+                  disabled={page.offset + page.limit >= page.total || isLoading}
+                  onClick={() =>
+                    void fetchPage({
+                      ...filters,
+                      offset: page.offset + page.limit,
+                    })
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      )}
+      {operation ? (
+        <InventoryOperationModal
+          operation={operation}
+          products={products}
+          merchants={merchants}
+          branches={branches}
+          isSaving={isSaving}
+          requestError={formError}
+          onClose={() => setOperation(null)}
+          onStockIn={saveStockIn}
+          onAdjust={saveAdjustment}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function InventoryRow({
+  item,
+  onAdjust,
+}: {
+  item: InventoryItem;
+  onAdjust(): void;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-5 border-b border-slate-200 py-4 last:border-0 max-sm:grid">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <strong>{item.product.name}</strong>
+          <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+            {item.product.sku}
+          </span>
+        </div>
+        <p className="mt-1 truncate text-sm text-slate-500">
+          {item.product.merchant.name} · {item.branch.name}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-5 max-sm:justify-between">
+        <div className="text-right">
+          <strong
+            className={item.quantity < 0 ? 'text-red-600' : 'text-slate-950'}
+          >
+            {item.quantity}
+          </strong>
+          <span className="mt-1 block text-xs text-slate-500">on hand</span>
+        </div>
+        <button
+          className="border-0 bg-transparent p-0 text-sm font-bold text-emerald-700 underline underline-offset-3"
+          type="button"
+          onClick={onAdjust}
+        >
+          Adjust
+        </button>
+      </div>
+    </li>
+  );
+}
+function Filter({
+  label,
+  id,
+  children,
+}: {
+  label: string;
+  id: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="grid gap-2">
+      <label className="text-sm font-bold" htmlFor={id}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+function Limited() {
+  return (
+    <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+      <h2 className="text-base font-bold">Inventory access is limited</h2>
+      <p className="mt-3 text-slate-500">
+        Inventory management is currently available to owners and managers.
+      </p>
+    </section>
+  );
+}
+function Empty() {
+  return (
+    <div className="py-10 text-center">
+      <h3 className="text-base font-bold">No inventory found</h3>
+      <p className="mt-2 text-slate-500">
+        Adjust the filters or record the first stock-in.
+      </p>
+    </div>
   );
 }

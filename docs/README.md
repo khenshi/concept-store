@@ -66,6 +66,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Backend completion](milestone-4/backend-completion.md)
 - [Frontend foundation](milestone-4/frontend-foundation.md)
 - [Frontend product management](milestone-4/frontend-product-management.md)
+- [Frontend inventory management](milestone-4/frontend-inventory-management.md)
 
 ## Documentation convention
 
