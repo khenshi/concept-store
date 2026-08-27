@@ -14,6 +14,7 @@ import type {
   AuthenticatedUser,
   AuthStatus,
   ChangePasswordInput,
+  DeleteAccountInput,
   Credentials,
   RegistrationCredentials,
   UpdateProfileInput,
@@ -27,6 +28,7 @@ interface AuthContextValue {
   register(credentials: RegistrationCredentials): Promise<void>;
   updateProfile(input: UpdateProfileInput): Promise<AuthenticatedUser>;
   changePassword(input: ChangePasswordInput): Promise<void>;
+  deleteAccount(input: DeleteAccountInput): Promise<void>;
   logout(): Promise<void>;
   request<T>(path: string, init?: RequestInit): Promise<T>;
 }
@@ -74,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authClient.changePassword(input);
   }, []);
 
+  const deleteAccount = useCallback(async (input: DeleteAccountInput) => {
+    await authClient.deleteAccount(input);
+  }, []);
+
   const logout = useCallback(async () => {
     await authClient.logout();
   }, []);
@@ -92,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       updateProfile,
       changePassword,
+      deleteAccount,
       logout,
       request,
     }),
@@ -103,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       updateProfile,
       changePassword,
+      deleteAccount,
       logout,
       request,
     ],

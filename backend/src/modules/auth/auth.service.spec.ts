@@ -1,4 +1,8 @@
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { hash } from 'bcryptjs';
@@ -18,7 +22,14 @@ describe('AuthService', () => {
     token: 'session-id.refresh-secret',
     expiresAt: new Date('2026-09-22T00:00:00.000Z'),
   };
-  const transaction = { user: { create: jest.fn() } };
+  const transaction = {
+    user: { create: jest.fn(), update: jest.fn() },
+    userSession: { deleteMany: jest.fn() },
+    organizationMembership: {
+      findMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+  };
   const prisma = {
     $transaction: jest.fn(),
     user: {
@@ -254,5 +265,67 @@ describe('AuthService', () => {
         'New password must be different from the current password',
       ),
     );
+  });
+
+  it('anonymizes an eligible account while preserving its audit identity', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({
+      passwordHash: await hash('current secure password', 4),
+    });
+    transaction.organizationMembership.findMany.mockResolvedValue([]);
+    transaction.organizationMembership.deleteMany.mockResolvedValue({
+      count: 2,
+    });
+    transaction.userSession.deleteMany.mockResolvedValue({ count: 2 });
+    transaction.user.update.mockResolvedValue({});
+
+    await expect(
+      service.deleteCurrentUser(user.id, 'current secure password'),
+    ).resolves.toBeUndefined();
+
+    expect(transaction.organizationMembership.deleteMany).toHaveBeenCalledWith({
+      where: { userId: user.id },
+    });
+    expect(transaction.userSession.deleteMany).toHaveBeenCalledWith({
+      where: { userId: user.id },
+    });
+    expect(transaction.user.update).toHaveBeenCalledWith({
+      where: { id: user.id, deletedAt: null },
+      data: expect.objectContaining({
+        firstName: 'Deleted',
+        lastName: 'User',
+        phone: null,
+        email: `deleted+${user.id}@deleted.invalid`,
+        deletedAt: expect.any(Date) as unknown,
+      }) as unknown,
+    });
+  });
+
+  it('blocks deletion when the user is an organization sole owner', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({
+      passwordHash: await hash('current secure password', 4),
+    });
+    transaction.organizationMembership.findMany.mockResolvedValue([
+      { organizationId: 'organization-id' },
+    ]);
+
+    await expect(
+      service.deleteCurrentUser(user.id, 'current secure password'),
+    ).rejects.toThrow(
+      new ConflictException(
+        'Transfer ownership or add another owner before deleting your account',
+      ),
+    );
+    expect(transaction.user.update).not.toHaveBeenCalled();
+  });
+
+  it('requires the account password before deletion', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({
+      passwordHash: await hash('current secure password', 4),
+    });
+
+    await expect(
+      service.deleteCurrentUser(user.id, 'incorrect password'),
+    ).rejects.toThrow(new UnauthorizedException('Password is incorrect'));
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

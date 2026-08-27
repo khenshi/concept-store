@@ -41,3 +41,10 @@ export const changePasswordSchema = z
     message: 'New password must be different from your current password.',
     path: ['newPassword'],
   });
+
+export const deleteAccountSchema = z.object({
+  password: z
+    .string()
+    .min(1, 'Enter your password to continue.')
+    .max(128, 'Password must contain 128 characters or fewer.'),
+});

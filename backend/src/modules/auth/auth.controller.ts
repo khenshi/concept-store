@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -36,6 +37,7 @@ import type {
 } from './auth.types';
 import { CurrentUser } from './current-user.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -155,6 +157,27 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ): Promise<void> {
     await this.authService.changePassword(user.id, dto);
+    this.refreshCookieService.clear(response);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AuthGuard)
+  @Delete('me')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Delete the authenticated user account' })
+  @ApiNoContentResponse({
+    description: 'Account anonymized and access revoked',
+  })
+  @ApiConflictResponse({
+    description: 'The user is the sole owner of an organization',
+  })
+  @ApiUnauthorizedResponse({ description: 'Password is incorrect' })
+  async deleteCurrentUser(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Body() dto: DeleteAccountDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    await this.authService.deleteCurrentUser(user.id, dto.password);
     this.refreshCookieService.clear(response);
   }
 }

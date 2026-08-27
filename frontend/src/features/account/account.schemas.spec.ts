@@ -1,4 +1,8 @@
-import { changePasswordSchema, updateProfileSchema } from './account.schemas';
+import {
+  changePasswordSchema,
+  deleteAccountSchema,
+  updateProfileSchema,
+} from './account.schemas';
 
 describe('update profile schema', () => {
   it('trims personal details and normalizes an empty phone', () => {
@@ -15,6 +19,15 @@ describe('update profile schema', () => {
     expect(
       updateProfileSchema.safeParse({ firstName: '', lastName: '' }).success,
     ).toBe(false);
+  });
+});
+
+describe('delete account schema', () => {
+  it('requires a password confirmation', () => {
+    expect(deleteAccountSchema.safeParse({ password: '' }).success).toBe(false);
+    expect(
+      deleteAccountSchema.safeParse({ password: 'current password' }).success,
+    ).toBe(true);
   });
 });
 

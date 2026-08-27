@@ -33,5 +33,9 @@ export interface ChangePasswordInput {
   newPassword: string;
 }
 
+export interface DeleteAccountInput {
+  password: string;
+}
+
 export type AuthStatus =
   'loading' | 'authenticated' | 'unauthenticated' | 'error';

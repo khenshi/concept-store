@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type {
@@ -87,10 +88,15 @@ export class AuthService {
         lastName: true,
         phone: true,
         passwordHash: true,
+        deletedAt: true,
       },
     });
 
-    if (!user || !(await compare(dto.password, user.passwordHash))) {
+    if (
+      !user ||
+      user.deletedAt ||
+      !(await compare(dto.password, user.passwordHash))
+    ) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -178,6 +184,56 @@ export class AuthService {
         data: { revokedAt: new Date() },
       }),
     ]);
+  }
+
+  async deleteCurrentUser(userId: string, password: string): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (!(await compare(password, user.passwordHash))) {
+      throw new UnauthorizedException('Password is incorrect');
+    }
+
+    await this.prisma.$transaction(
+      async (transaction) => {
+        const soleOwnerships =
+          await transaction.organizationMembership.findMany({
+            where: {
+              userId,
+              role: 'OWNER',
+              organization: {
+                memberships: {
+                  none: { role: 'OWNER', userId: { not: userId } },
+                },
+              },
+            },
+            select: { organizationId: true },
+          });
+        if (soleOwnerships.length > 0) {
+          throw new ConflictException(
+            'Transfer ownership or add another owner before deleting your account',
+          );
+        }
+
+        await transaction.organizationMembership.deleteMany({
+          where: { userId },
+        });
+        await transaction.userSession.deleteMany({ where: { userId } });
+        await transaction.user.update({
+          where: { id: userId, deletedAt: null },
+          data: {
+            firstName: 'Deleted',
+            lastName: 'User',
+            phone: null,
+            email: `deleted+${userId}@deleted.invalid`,
+            passwordHash: randomBytes(32).toString('hex'),
+            deletedAt: new Date(),
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   private async createAuthResponse(

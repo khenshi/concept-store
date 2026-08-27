@@ -123,6 +123,26 @@ describe('SessionService', () => {
     );
   });
 
+  it('rejects refresh for a deleted account', async () => {
+    prisma.userSession.findUnique.mockResolvedValue({
+      refreshTokenHash: hashSecret(secret),
+      expiresAt: new Date('2026-09-22T00:00:00.000Z'),
+      revokedAt: null,
+      user: {
+        id: 'user-id',
+        email: 'deleted@example.invalid',
+        firstName: 'Deleted',
+        lastName: 'User',
+        phone: null,
+        deletedAt: new Date('2026-08-23T00:00:00.000Z'),
+      },
+    });
+
+    await expect(service.rotate(token)).rejects.toThrow(
+      new UnauthorizedException('Refresh session is invalid or expired'),
+    );
+  });
+
   it('revokes only a session matching the presented secret', async () => {
     prisma.userSession.updateMany.mockResolvedValue({ count: 1 });
 

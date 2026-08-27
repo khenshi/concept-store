@@ -117,6 +117,32 @@ describe('AuthClient', () => {
     expect(listener).toHaveBeenLastCalledWith(null);
   });
 
+  it('deletes the account and clears the in-memory session', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(firstSession))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = new AuthClient('http://localhost:3000');
+    const listener = vi.fn();
+    client.subscribe(listener);
+    await client.login({
+      email: firstSession.user.email,
+      password: 'password',
+    });
+
+    await client.deleteAccount({ password: 'current secure password' });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3000/auth/me',
+      expect.objectContaining({
+        method: 'DELETE',
+        body: JSON.stringify({ password: 'current secure password' }),
+      }),
+    );
+    expect(listener).toHaveBeenLastCalledWith(null);
+  });
+
   it('coordinates one refresh for concurrent unauthorized requests', async () => {
     let protectedCalls = 0;
     let refreshCalls = 0;

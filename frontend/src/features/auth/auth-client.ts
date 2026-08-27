@@ -4,6 +4,7 @@ import { publicEnvironment } from '@/config/public-environment';
 import type {
   AuthResponse,
   ChangePasswordInput,
+  DeleteAccountInput,
   Credentials,
   RegistrationCredentials,
   UpdateProfileInput,
@@ -56,6 +57,15 @@ export class AuthClient {
   async changePassword(input: ChangePasswordInput): Promise<void> {
     await this.request<void>('/auth/change-password', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    this.setSession(null);
+  }
+
+  async deleteAccount(input: DeleteAccountInput): Promise<void> {
+    await this.request<void>('/auth/me', {
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     });

@@ -5,6 +5,7 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { updateProfileSchema } from './account.schemas';
 import { ChangePasswordForm } from './change-password-form';
+import { DeleteAccountForm } from './delete-account-form';
 
 type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'phone', string>>;
 
@@ -150,6 +151,7 @@ export function AccountSettings() {
         </form>
       </section>
       <ChangePasswordForm />
+      <DeleteAccountForm />
     </div>
   );
 }

@@ -65,12 +65,18 @@ export class SessionService {
             firstName: true,
             lastName: true,
             phone: true,
+            deletedAt: true,
           },
         },
       },
     });
 
-    if (!session || session.revokedAt || session.expiresAt <= new Date()) {
+    if (
+      !session ||
+      session.revokedAt ||
+      session.expiresAt <= new Date() ||
+      session.user.deletedAt
+    ) {
       throw new UnauthorizedException(INVALID_SESSION_MESSAGE);
     }
 
@@ -103,7 +109,13 @@ export class SessionService {
     }
 
     return {
-      user: session.user,
+      user: {
+        id: session.user.id,
+        email: session.user.email,
+        firstName: session.user.firstName,
+        lastName: session.user.lastName,
+        phone: session.user.phone,
+      },
       refreshSession: {
         token: `${parsed.id}.${nextSecret}`,
         expiresAt: session.expiresAt,

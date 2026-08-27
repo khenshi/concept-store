@@ -17,12 +17,15 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
 
   organizationMemberships OrganizationMembership[]
   sentOrganizationInvitations OrganizationInvitation[] @relation("InvitationSender")
   acceptedOrganizationInvitations OrganizationInvitation[] @relation("InvitationAcceptor")
   sessions                UserSession[]
   inventoryMovements      InventoryMovement[]
+
+  @@index([deletedAt])
 }
 
 model OrganizationInvitation {
