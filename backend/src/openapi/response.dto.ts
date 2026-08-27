@@ -408,6 +408,22 @@ export class SpaceAssignmentMerchantResponseDto {
   code!: string | null;
 }
 
+export class SpaceCurrentAssignmentResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ type: SpaceAssignmentMerchantResponseDto })
+  merchant!: SpaceAssignmentMerchantResponseDto;
+}
+
+export class SpaceListResponseDto extends SpaceResponseDto {
+  @ApiPropertyOptional({
+    nullable: true,
+    type: SpaceCurrentAssignmentResponseDto,
+  })
+  currentAssignment!: SpaceCurrentAssignmentResponseDto | null;
+}
+
 export class SpaceAssignmentResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;

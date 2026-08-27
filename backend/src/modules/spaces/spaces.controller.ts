@@ -20,7 +20,10 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OrganizationRole } from '../../generated/prisma/client';
-import { SpaceResponseDto } from '../../openapi/response.dto';
+import {
+  SpaceListResponseDto,
+  SpaceResponseDto,
+} from '../../openapi/response.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { OrganizationAccessGuard } from '../organizations/authorization/organization-access.guard';
 import type { OrganizationContext } from '../organizations/authorization/organization-authorization.types';
@@ -29,7 +32,7 @@ import { OrganizationRoles } from '../organizations/authorization/organization-r
 import { CreateSpaceDto } from './dto/create-space.dto';
 import { UpdateSpaceDto } from './dto/update-space.dto';
 import { SpacesService } from './spaces.service';
-import type { SpaceRecord } from './spaces.types';
+import type { SpaceListRecord, SpaceRecord } from './spaces.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
 @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
@@ -66,11 +69,11 @@ export class SpacesController {
 
   @Get('branches/:branchId/spaces')
   @ApiOperation({ summary: 'List physical spaces in a branch' })
-  @ApiOkResponse({ type: SpaceResponseDto, isArray: true })
+  @ApiOkResponse({ type: SpaceListResponseDto, isArray: true })
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
-  ): Promise<SpaceRecord[]> {
+  ): Promise<SpaceListRecord[]> {
     return this.spacesService.findAll(organization.organizationId, branchId);
   }
 

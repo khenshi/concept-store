@@ -8,7 +8,7 @@ import { Prisma, SpaceType } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { CreateSpaceDto } from './dto/create-space.dto';
 import type { UpdateSpaceDto } from './dto/update-space.dto';
-import type { SpaceRecord } from './spaces.types';
+import type { SpaceListRecord, SpaceRecord } from './spaces.types';
 
 @Injectable()
 export class SpacesService {
@@ -42,12 +42,27 @@ export class SpacesService {
   async findAll(
     organizationId: string,
     branchId: string,
-  ): Promise<SpaceRecord[]> {
+  ): Promise<SpaceListRecord[]> {
     await this.requireBranch(organizationId, branchId);
-    return this.prisma.space.findMany({
+    const spaces = await this.prisma.space.findMany({
       where: { organizationId, branchId },
       orderBy: [{ name: 'asc' }, { code: 'asc' }, { id: 'asc' }],
+      include: {
+        assignments: {
+          where: { endDate: null },
+          orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
+          take: 1,
+          select: {
+            id: true,
+            merchant: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
     });
+    return spaces.map(({ assignments, ...space }) => ({
+      ...space,
+      currentAssignment: assignments[0] ?? null,
+    }));
   }
 
   async findOne(organizationId: string, spaceId: string): Promise<SpaceRecord> {

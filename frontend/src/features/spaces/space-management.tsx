@@ -77,10 +77,16 @@ export function SpaceManagement({
   const [selectedBranchId, setSelectedBranchId] = useState(initialBranchId);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
+  const [isSpaceFormOpen, setIsSpaceFormOpen] = useState(false);
   const [assignmentSpace, setAssignmentSpace] = useState<Space | null>(null);
   const [isLoadingSpaces, setIsLoadingSpaces] = useState(true);
   const [spaceLoadError, setSpaceLoadError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [view, setView] = useState<'spaces' | 'assignments'>('spaces');
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [merchantFilter, setMerchantFilter] = useState('');
   const activeBranchId = selectedBranchId || branches[0]?.id || '';
 
   useEffect(() => {
@@ -176,7 +182,32 @@ export function SpaceManagement({
     });
     if (assignmentSpace?.id === saved.id) setAssignmentSpace(saved);
     setEditingSpace(null);
+    setIsSpaceFormOpen(false);
   }
+
+  const assignedMerchants = (() => {
+    const merchants = new Map<string, { id: string; name: string }>();
+    spaces.forEach((space) => {
+      const merchant = space.currentAssignment?.merchant;
+      if (merchant) merchants.set(merchant.id, merchant);
+    });
+    return [...merchants.values()].sort((left, right) =>
+      left.name.localeCompare(right.name),
+    );
+  })();
+
+  const filteredSpaces = (() => {
+    const query = search.trim().toLowerCase();
+    return spaces.filter(
+      (space) =>
+        (!query ||
+          `${space.name} ${space.code}`.toLowerCase().includes(query)) &&
+        (!typeFilter || space.type === typeFilter) &&
+        (!statusFilter || space.status === statusFilter) &&
+        (!merchantFilter ||
+          space.currentAssignment?.merchant.id === merchantFilter),
+    );
+  })();
 
   return (
     <section className="mx-auto mt-8 w-full sm:mt-12">
@@ -240,6 +271,10 @@ export function SpaceManagement({
                   setEditingSpace(null);
                   setAssignmentSpace(null);
                   setSuccessMessage(null);
+                  setSearch('');
+                  setTypeFilter('');
+                  setStatusFilter('');
+                  setMerchantFilter('');
                 }}
               >
                 {branches.map((branch) => (
@@ -262,114 +297,244 @@ export function SpaceManagement({
               {successMessage}
             </p>
           ) : null}
+          <div
+            className="mt-6 flex gap-1 border-b border-slate-200"
+            role="tablist"
+            aria-label="Space views"
+          >
+            {(['spaces', 'assignments'] as const).map((tab) => (
+              <button
+                className={`border-x-0 border-t-0 bg-transparent px-3 py-3 text-sm font-bold ${view === tab ? 'border-b-2 border-emerald-600 text-slate-950' : 'border-b-2 border-transparent text-slate-500'}`}
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={view === tab}
+                onClick={() => setView(tab)}
+              >
+                {tab === 'spaces' ? 'Spaces' : 'Assignments'}
+              </button>
+            ))}
+          </div>
 
-          <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.65fr)]">
-            <section
-              className="rounded-xl border border-slate-200 bg-white p-6"
-              aria-labelledby="space-list-title"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-base font-bold" id="space-list-title">
-                    Branch spaces
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {selectedBranch?.name}
-                  </p>
+          {view === 'spaces' ? (
+            <div className="mt-5">
+              <section
+                className="rounded-xl border border-slate-200 bg-white p-6"
+                aria-labelledby="space-list-title"
+              >
+                <div className="flex items-start justify-between gap-4 max-sm:grid">
+                  <div>
+                    <h2 className="text-base font-bold" id="space-list-title">
+                      Branch spaces
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {selectedBranch?.name}
+                    </p>
+                  </div>
+                  <button
+                    className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700"
+                    type="button"
+                    onClick={() => {
+                      setEditingSpace(null);
+                      setIsSpaceFormOpen(true);
+                    }}
+                  >
+                    Add space
+                  </button>
                 </div>
-                <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
-                  {spaces.length}
-                </span>
-              </div>
 
-              {isLoadingSpaces ? (
-                <ListSkeleton
-                  className="py-5"
-                  label="Loading branch spaces"
-                  rowClassName="h-16"
-                />
-              ) : spaceLoadError ? (
-                <RequestError
-                  className="py-8 text-center"
-                  message={spaceLoadError}
-                  onRetry={() => void loadSpaces()}
-                />
-              ) : spaces.length === 0 ? (
-                <div className="py-10 text-center">
-                  <h3 className="text-base font-bold">No spaces yet</h3>
-                  <p className="mx-auto mt-2 max-w-md leading-7 text-slate-500">
-                    Add the first physical selling space using the form.
-                  </p>
-                </div>
-              ) : (
-                <ul className="mt-5 list-none divide-y divide-slate-200 p-0">
-                  {spaces.map((space) => (
-                    <li
-                      className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0 max-sm:grid"
-                      key={space.id}
+                <div className="mt-5 grid items-end gap-4 border-y border-slate-200 bg-slate-50/60 py-5 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-bold" htmlFor="space-search">
+                      Search
+                    </label>
+                    <input
+                      className="min-h-11 rounded-[0.6rem] border border-slate-200 bg-white px-3"
+                      id="space-search"
+                      type="search"
+                      value={search}
+                      placeholder="Name or code"
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label
+                      className="text-sm font-bold"
+                      htmlFor="space-type-filter"
                     >
-                      <div className="grid gap-1.5">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <strong>{space.name}</strong>
-                          <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-                            {space.code}
-                          </span>
-                        </div>
-                        <p className="m-0 text-sm text-slate-500">
-                          {space.type === 'CUSTOM'
-                            ? space.customType
-                            : typeLabels[space.type]}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-4 max-sm:justify-between">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[space.status]}`}
-                        >
-                          {statusLabels[space.status]}
-                        </span>
-                        <button
-                          className="cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-emerald-700 underline underline-offset-3"
-                          type="button"
-                          onClick={() => {
-                            setSuccessMessage(null);
-                            setEditingSpace(space);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-emerald-700 underline underline-offset-3"
-                          type="button"
-                          onClick={() => {
-                            setEditingSpace(null);
-                            setAssignmentSpace(space);
-                            setSuccessMessage(null);
-                          }}
-                        >
-                          Assignments
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                      Type
+                    </label>
+                    <SelectControl
+                      id="space-type-filter"
+                      value={typeFilter}
+                      onValueChange={setTypeFilter}
+                    >
+                      <option value="">All types</option>
+                      {Object.entries(typeLabels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </SelectControl>
+                  </div>
+                  <div className="grid gap-2">
+                    <label
+                      className="text-sm font-bold"
+                      htmlFor="space-status-filter"
+                    >
+                      Status
+                    </label>
+                    <SelectControl
+                      id="space-status-filter"
+                      value={statusFilter}
+                      onValueChange={setStatusFilter}
+                    >
+                      <option value="">All statuses</option>
+                      {Object.entries(statusLabels).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </SelectControl>
+                  </div>
+                  <div className="grid gap-2">
+                    <label
+                      className="text-sm font-bold"
+                      htmlFor="space-merchant-filter"
+                    >
+                      Merchant
+                    </label>
+                    <SelectControl
+                      id="space-merchant-filter"
+                      value={merchantFilter}
+                      onValueChange={setMerchantFilter}
+                    >
+                      <option value="">All assignments</option>
+                      {assignedMerchants.map((merchant) => (
+                        <option key={merchant.id} value={merchant.id}>
+                          {merchant.name}
+                        </option>
+                      ))}
+                    </SelectControl>
+                  </div>
+                </div>
 
+                {isLoadingSpaces ? (
+                  <ListSkeleton
+                    className="py-5"
+                    label="Loading branch spaces"
+                    rowClassName="h-16"
+                  />
+                ) : spaceLoadError ? (
+                  <RequestError
+                    className="py-8 text-center"
+                    message={spaceLoadError}
+                    onRetry={() => void loadSpaces()}
+                  />
+                ) : spaces.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <h3 className="text-base font-bold">No spaces yet</h3>
+                    <p className="mx-auto mt-2 max-w-md leading-7 text-slate-500">
+                      Add the first physical selling space in this branch.
+                    </p>
+                  </div>
+                ) : filteredSpaces.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <h3 className="text-base font-bold">No matching spaces</h3>
+                    <p className="mt-2 text-slate-500">
+                      Adjust the search or filters to see more spaces.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="mt-5 list-none divide-y divide-slate-200 p-0">
+                    {filteredSpaces.map((space) => (
+                      <li
+                        className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0 max-sm:grid"
+                        key={space.id}
+                      >
+                        <div className="grid gap-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <strong>{space.name}</strong>
+                            <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                              {space.code}
+                            </span>
+                          </div>
+                          <p className="m-0 text-sm text-slate-500">
+                            {space.type === 'CUSTOM'
+                              ? space.customType
+                              : typeLabels[space.type]}
+                          </p>
+                          <p className="m-0 text-sm font-semibold text-slate-700">
+                            {space.currentAssignment?.merchant.name ?? ''}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 max-sm:justify-between">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[space.status]}`}
+                          >
+                            {statusLabels[space.status]}
+                          </span>
+                          <button
+                            className="cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-emerald-700 underline underline-offset-3"
+                            type="button"
+                            onClick={() => {
+                              setSuccessMessage(null);
+                              setEditingSpace(space);
+                              setIsSpaceFormOpen(true);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </div>
+          ) : (
+            <section className="mt-5 rounded-xl border border-slate-200 bg-white p-6">
+              <h2 className="text-base font-bold">Space assignments</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Select a space to review its current assignment and preserved
+                history.
+              </p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {spaces.map((space) => (
+                  <button
+                    className={`rounded-[0.6rem] border p-4 text-left ${assignmentSpace?.id === space.id ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-300'}`}
+                    key={space.id}
+                    type="button"
+                    onClick={() => setAssignmentSpace(space)}
+                  >
+                    <strong className="block">{space.name}</strong>
+                    <span className="mt-1 block text-sm text-slate-500">
+                      {space.currentAssignment?.merchant.name ?? 'Unassigned'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          {view === 'assignments' && assignmentSpace ? (
+            <SpaceAssignmentManagement
+              key={assignmentSpace.id}
+              organizationId={organizationId}
+              space={assignmentSpace}
+              onClose={() => setAssignmentSpace(null)}
+            />
+          ) : null}
+          {isSpaceFormOpen ? (
             <SpaceForm
               key={editingSpace?.id ?? `new-${activeBranchId}`}
               organizationId={organizationId}
               branchId={activeBranchId}
               space={editingSpace}
               onSaved={handleSaved}
-              onCancel={() => setEditingSpace(null)}
-            />
-          </div>
-          {assignmentSpace ? (
-            <SpaceAssignmentManagement
-              key={assignmentSpace.id}
-              organizationId={organizationId}
-              space={assignmentSpace}
-              onClose={() => setAssignmentSpace(null)}
+              onCancel={() => {
+                setEditingSpace(null);
+                setIsSpaceFormOpen(false);
+              }}
             />
           ) : null}
         </>
@@ -416,7 +581,7 @@ function SpaceForm({
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    if (space) headingRef.current?.focus();
+    headingRef.current?.focus();
   }, [space]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -466,117 +631,126 @@ function SpaceForm({
   }
 
   return (
-    <section
-      className="rounded-xl border border-slate-200 bg-white p-6"
-      aria-labelledby="space-form-title"
+    <div
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/35 p-4"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isSubmitting) onCancel();
+      }}
     >
-      <h2
-        className="text-base font-bold"
-        id="space-form-title"
-        ref={headingRef}
-        tabIndex={space ? -1 : undefined}
+      <section
+        className="w-full max-w-xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="space-form-title"
       >
-        {space ? 'Edit space' : 'Add a space'}
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-slate-500">
-        {space
-          ? 'Update this space without changing its branch.'
-          : 'Create a physical selling area in the selected branch.'}
-      </p>
+        <h2
+          className="text-base font-bold"
+          id="space-form-title"
+          ref={headingRef}
+          tabIndex={-1}
+        >
+          {space ? 'Edit space' : 'Add a space'}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          {space
+            ? 'Update this space without changing its branch.'
+            : 'Create a physical selling area in the selected branch.'}
+        </p>
 
-      <form className="mt-5 grid gap-4" onSubmit={handleSubmit} noValidate>
-        {submissionError ? (
-          <p
-            className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-            role="alert"
-          >
-            {submissionError}
-          </p>
-        ) : null}
-        <SpaceTextField
-          name="code"
-          label="Space code"
-          defaultValue={space?.code}
-          error={fieldErrors.code}
-          hint="For example RACK-A01"
-        />
-        <SpaceTextField
-          name="name"
-          label="Space name"
-          defaultValue={space?.name}
-          error={fieldErrors.name}
-        />
-        <div className="grid gap-2">
-          <label className="text-sm font-semibold" htmlFor="space-type">
-            Type
-          </label>
-          <SelectControl
-            className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-            id="space-type"
-            name="type"
-            value={selectedType}
-            onValueChange={(value) => setSelectedType(value as SpaceType)}
-          >
-            {Object.entries(typeLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </SelectControl>
-        </div>
-        {selectedType === 'CUSTOM' ? (
+        <form className="mt-5 grid gap-4" onSubmit={handleSubmit} noValidate>
+          {submissionError ? (
+            <p
+              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+              role="alert"
+            >
+              {submissionError}
+            </p>
+          ) : null}
           <SpaceTextField
-            name="customType"
-            label="Custom type"
-            defaultValue={space?.customType ?? undefined}
-            error={fieldErrors.customType}
+            name="code"
+            label="Space code"
+            defaultValue={space?.code}
+            error={fieldErrors.code}
+            hint="For example RACK-A01"
           />
-        ) : (
-          <input name="customType" type="hidden" value="" />
-        )}
-        <div className="grid gap-2">
-          <label className="text-sm font-semibold" htmlFor="space-status">
-            Status
-          </label>
-          <SelectControl
-            className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
-            id="space-status"
-            name="status"
-            defaultValue={space?.status ?? 'ACTIVE'}
-          >
-            {Object.entries(statusLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </SelectControl>
-        </div>
-        <div className="flex flex-wrap gap-3 pt-1">
-          <button
-            className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
-            type="submit"
-            disabled={isSubmitting}
-          >
-            {isSubmitting
-              ? space
-                ? 'Saving…'
-                : 'Adding…'
-              : space
-                ? 'Save changes'
-                : 'Add space'}
-          </button>
-          {space ? (
+          <SpaceTextField
+            name="name"
+            label="Space name"
+            defaultValue={space?.name}
+            error={fieldErrors.name}
+          />
+          <div className="grid gap-2">
+            <label className="text-sm font-semibold" htmlFor="space-type">
+              Type
+            </label>
+            <SelectControl
+              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
+              id="space-type"
+              name="type"
+              value={selectedType}
+              onValueChange={(value) => setSelectedType(value as SpaceType)}
+            >
+              {Object.entries(typeLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </SelectControl>
+          </div>
+          {selectedType === 'CUSTOM' ? (
+            <SpaceTextField
+              name="customType"
+              label="Custom type"
+              defaultValue={space?.customType ?? undefined}
+              error={fieldErrors.customType}
+            />
+          ) : (
+            <input name="customType" type="hidden" value="" />
+          )}
+          <div className="grid gap-2">
+            <label className="text-sm font-semibold" htmlFor="space-status">
+              Status
+            </label>
+            <SelectControl
+              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
+              id="space-status"
+              name="status"
+              defaultValue={space?.status ?? 'ACTIVE'}
+            >
+              {Object.entries(statusLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </SelectControl>
+          </div>
+          <div className="flex flex-wrap gap-3 pt-1">
+            <button
+              className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting
+                ? space
+                  ? 'Saving…'
+                  : 'Adding…'
+                : space
+                  ? 'Save changes'
+                  : 'Add space'}
+            </button>
             <button
               className="min-h-11 cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               type="button"
+              disabled={isSubmitting}
               onClick={onCancel}
             >
               Cancel
             </button>
-          ) : null}
-        </div>
-      </form>
-    </section>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 

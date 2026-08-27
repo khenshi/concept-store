@@ -12,7 +12,6 @@ All project documentation is maintained in this directory and organized by miles
 - [Product and inventory tables](frontend-product-inventory-tables.md)
 - [Overview, members, and accessibility](frontend-overview-members-accessibility.md)
 - [Unified dropdowns and confirmations](frontend-unified-controls.md)
-- [Workflow refinement — Part 1](frontend-workflow-refinement-part-1.md)
 
 ## Milestone 1 — SaaS / Multi-Tenant Foundation
 

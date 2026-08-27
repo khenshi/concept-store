@@ -25,6 +25,7 @@ export function OrganizationWorkspaceShell({
       showMerchants={canManage}
       showProducts={canManage}
       showInventory={canManage}
+      showSpaces={canManage}
       onNavigate={() => setIsMenuOpen(false)}
     />
   ) : null;

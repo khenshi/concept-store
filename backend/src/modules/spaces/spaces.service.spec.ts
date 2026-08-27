@@ -82,14 +82,25 @@ describe('SpacesService', () => {
 
   it('lists spaces only inside the trusted branch and organization', async () => {
     prisma.branch.findFirst.mockResolvedValue({ id: branchId });
-    prisma.space.findMany.mockResolvedValue([space]);
+    prisma.space.findMany.mockResolvedValue([{ ...space, assignments: [] }]);
 
     await expect(service.findAll(organizationId, branchId)).resolves.toEqual([
-      space,
+      { ...space, currentAssignment: null },
     ]);
     expect(prisma.space.findMany).toHaveBeenCalledWith({
       where: { organizationId, branchId },
       orderBy: [{ name: 'asc' }, { code: 'asc' }, { id: 'asc' }],
+      include: {
+        assignments: {
+          where: { endDate: null },
+          orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
+          take: 1,
+          select: {
+            id: true,
+            merchant: { select: { id: true, name: true, code: true } },
+          },
+        },
+      },
     });
   });
 

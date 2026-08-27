@@ -12,3 +12,12 @@ export interface SpaceRecord {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface SpaceCurrentAssignmentRecord {
+  id: string;
+  merchant: { id: string; name: string; code: string | null };
+}
+
+export interface SpaceListRecord extends SpaceRecord {
+  currentAssignment: SpaceCurrentAssignmentRecord | null;
+}

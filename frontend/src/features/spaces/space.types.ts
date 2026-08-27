@@ -14,6 +14,10 @@ export interface Space {
   status: SpaceStatus;
   createdAt: string;
   updatedAt: string;
+  currentAssignment?: {
+    id: string;
+    merchant: { id: string; name: string; code: string | null };
+  } | null;
 }
 
 export interface SpaceInput {
