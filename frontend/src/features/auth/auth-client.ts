@@ -1,7 +1,11 @@
 import 'client-only';
 
 import { publicEnvironment } from '@/config/public-environment';
-import type { AuthResponse, Credentials } from './auth.types';
+import type {
+  AuthResponse,
+  Credentials,
+  RegistrationCredentials,
+} from './auth.types';
 
 interface ApiErrorBody {
   message?: string | string[];
@@ -31,7 +35,7 @@ export class AuthClient {
     return () => this.listeners.delete(listener);
   }
 
-  register(credentials: Credentials): Promise<AuthResponse> {
+  register(credentials: RegistrationCredentials): Promise<AuthResponse> {
     return this.authenticate('/auth/register', credentials);
   }
 

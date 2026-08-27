@@ -19,7 +19,15 @@ export class OrganizationMembershipsService {
       select: {
         role: true,
         createdAt: true,
-        user: { select: { id: true, email: true } },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -37,7 +45,13 @@ export class OrganizationMembershipsService {
   ): Promise<OrganizationMember> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      select: { id: true, email: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+      },
     });
 
     if (!user) {
@@ -128,7 +142,15 @@ export class OrganizationMembershipsService {
       select: {
         role: true,
         createdAt: true,
-        user: { select: { id: true, email: true } },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
       },
     });
 

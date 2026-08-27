@@ -3,7 +3,13 @@ import type { AuthResponse } from './auth.types';
 
 const firstSession: AuthResponse = {
   accessToken: 'first-access-token',
-  user: { id: 'user-id', email: 'owner@example.com' },
+  user: {
+    id: 'user-id',
+    email: 'owner@example.com',
+    firstName: 'Maria',
+    lastName: 'Santos',
+    phone: null,
+  },
 };
 
 const rotatedSession: AuthResponse = {

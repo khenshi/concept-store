@@ -10,10 +10,13 @@ import {
   loginSchema,
   registrationSchema,
   type AuthFormValues,
+  type RegistrationFormValues,
 } from './auth.schemas';
 
 type FormMode = 'login' | 'register';
-type FieldErrors = Partial<Record<keyof AuthFormValues, string>>;
+type FieldErrors = Partial<
+  Record<keyof AuthFormValues | keyof RegistrationFormValues, string>
+>;
 
 const content = {
   login: {
@@ -36,11 +39,17 @@ const content = {
   },
 } as const;
 
-function fieldErrorsFrom(error: ZodError<AuthFormValues>): FieldErrors {
-  const flattened = error.flatten().fieldErrors;
+function fieldErrorsFrom(error: ZodError): FieldErrors {
+  const flattened = error.flatten().fieldErrors as Record<
+    string,
+    string[] | undefined
+  >;
   return {
     email: flattened.email?.[0],
     password: flattened.password?.[0],
+    firstName: flattened.firstName?.[0],
+    lastName: flattened.lastName?.[0],
+    phone: flattened.phone?.[0],
   };
 }
 
@@ -58,12 +67,16 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
 
     const formData = new FormData(event.currentTarget);
     const values = {
+      firstName: String(formData.get('firstName') ?? '').trim(),
+      lastName: String(formData.get('lastName') ?? '').trim(),
+      phone: String(formData.get('phone') ?? '').trim(),
       email: String(formData.get('email') ?? '').trim(),
       password: String(formData.get('password') ?? ''),
     };
-    const result = (
-      mode === 'login' ? loginSchema : registrationSchema
-    ).safeParse(values);
+    const result =
+      mode === 'login'
+        ? loginSchema.safeParse(values)
+        : registrationSchema.safeParse(values);
 
     if (!result.success) {
       setFieldErrors(fieldErrorsFrom(result.error));
@@ -74,7 +87,13 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
     setIsSubmitting(true);
 
     try {
-      await (mode === 'login' ? login(result.data) : register(result.data));
+      if (mode === 'login') {
+        const loginResult = loginSchema.parse(values);
+        await login(loginResult);
+      } else {
+        const registrationResult = registrationSchema.parse(values);
+        await register(registrationResult);
+      }
       router.replace('/app');
     } catch (cause: unknown) {
       setSubmissionError(
@@ -120,6 +139,33 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
           </p>
         ) : null}
 
+        {mode === 'register' ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AuthField
+              id="firstName"
+              label="First name"
+              autoComplete="given-name"
+              error={fieldErrors.firstName}
+            />
+            <AuthField
+              id="lastName"
+              label="Last name"
+              autoComplete="family-name"
+              error={fieldErrors.lastName}
+            />
+          </div>
+        ) : null}
+
+        {mode === 'register' ? (
+          <AuthField
+            id="phone"
+            label="Phone number (optional)"
+            type="tel"
+            autoComplete="tel"
+            error={fieldErrors.phone}
+          />
+        ) : null}
+
         <div className="grid gap-2">
           <label className="text-sm font-bold" htmlFor="email">
             Email address
@@ -154,7 +200,7 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
               mode === 'login' ? 'current-password' : 'new-password'
             }
             placeholder={
-              mode === 'register' ? 'At least 8 characters' : undefined
+              mode === 'register' ? 'At least 12 characters' : undefined
             }
             aria-invalid={Boolean(fieldErrors.password)}
             aria-describedby={
@@ -187,5 +233,43 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
         </Link>
       </p>
     </section>
+  );
+}
+
+function AuthField({
+  id,
+  label,
+  type = 'text',
+  autoComplete,
+  error,
+}: {
+  id: 'firstName' | 'lastName' | 'phone';
+  label: string;
+  type?: 'text' | 'tel';
+  autoComplete: string;
+  error?: string;
+}) {
+  return (
+    <div className="grid gap-2">
+      <label className="text-sm font-bold" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 text-slate-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
+        id={id}
+        name={id}
+        type={type}
+        autoComplete={autoComplete}
+        maxLength={id === 'phone' ? 25 : 80}
+        required={id !== 'phone'}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? `${id}-error` : undefined}
+      />
+      {error ? (
+        <p className="m-0 text-sm text-red-600" id={`${id}-error`}>
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }

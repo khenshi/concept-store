@@ -11,12 +11,12 @@ import { isUUID } from 'class-validator';
 import type { Request } from 'express';
 import type { OrganizationRole } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
-import type { AuthenticatedUser } from '../../auth/auth.types';
+import type { AuthenticatedPrincipal } from '../../auth/auth.types';
 import type { OrganizationContext } from './organization-authorization.types';
 import { ORGANIZATION_ROLES_KEY } from './organization-roles.decorator';
 
 type OrganizationRequest = Request & {
-  user: AuthenticatedUser;
+  user: AuthenticatedPrincipal;
   organizationContext?: OrganizationContext;
 };
 

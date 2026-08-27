@@ -1,6 +1,12 @@
-export interface AuthenticatedUser {
+export interface AuthenticatedPrincipal {
   id: string;
   email: string;
+}
+
+export interface AuthenticatedUser extends AuthenticatedPrincipal {
+  firstName: string;
+  lastName: string;
+  phone: string | null;
 }
 
 export interface AuthResponse {

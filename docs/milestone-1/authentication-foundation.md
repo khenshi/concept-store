@@ -4,7 +4,7 @@
 
 This part adds standalone user identity and authentication:
 
-- user registration with email and password
+- user registration with personal name, optional phone, email, and password
 - secure password hashing
 - login with short-lived JWT access tokens
 - a protected endpoint for retrieving the authenticated identity
@@ -16,6 +16,8 @@ It does not implement organizations, organization membership, roles, permissions
 `User` contains:
 
 - UUID `id`
+- required `firstName` and `lastName`
+- optional `phone`
 - unique normalized `email`
 - `passwordHash`
 - `createdAt` and `updatedAt` timestamps
@@ -30,12 +32,15 @@ Creates a standalone user and returns an access token. The request body is:
 
 ```json
 {
+  "firstName": "Maria",
+  "lastName": "Santos",
+  "phone": "+63 917 123 4567",
   "email": "owner@example.com",
   "password": "a password with at least 12 characters"
 }
 ```
 
-Emails are trimmed and converted to lowercase. Passwords must contain 12–128 characters. Duplicate email addresses return HTTP `409`.
+Names and phone numbers are trimmed, while emails are trimmed and converted to lowercase. First and last names are required, phone is optional, and passwords must contain 12–128 characters. Duplicate email addresses return HTTP `409`.
 
 ### `POST /auth/login`
 
@@ -55,7 +60,7 @@ Unknown accounts and incorrect passwords both return the same HTTP `401` message
 
 ### `GET /auth/me`
 
-Requires `Authorization: Bearer <access-token>` and returns the authenticated user's `id` and `email`.
+Requires `Authorization: Bearer <access-token>` and returns the authenticated user's `id`, personal details, and email.
 
 ## Security decisions
 

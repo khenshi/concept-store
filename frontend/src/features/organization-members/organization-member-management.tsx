@@ -310,7 +310,13 @@ export function OrganizationMemberManagement({
                               className="px-6 py-4 font-bold text-slate-950"
                               scope="row"
                             >
-                              {member.email}
+                              <span className="block">
+                                {member.firstName} {member.lastName}
+                              </span>
+                              <span className="mt-1 block text-xs font-normal text-slate-500">
+                                {member.email}
+                                {member.phone ? ` · ${member.phone}` : ''}
+                              </span>
                             </th>
                             <td className="px-4 py-4 text-slate-500">
                               {joinedDate(member.joinedAt)}

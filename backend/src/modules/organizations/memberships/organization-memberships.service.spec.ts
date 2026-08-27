@@ -9,6 +9,9 @@ describe('OrganizationMembershipsService', () => {
   const user = {
     id: '9bc85010-28e5-4c41-8320-8abcc30feede',
     email: 'member@example.com',
+    firstName: 'Maria',
+    lastName: 'Santos',
+    phone: null,
   };
   const joinedAt = new Date('2026-08-23T00:00:00.000Z');
   const transaction = {
@@ -57,7 +60,15 @@ describe('OrganizationMembershipsService', () => {
       select: {
         role: true,
         createdAt: true,
-        user: { select: { id: true, email: true } },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });

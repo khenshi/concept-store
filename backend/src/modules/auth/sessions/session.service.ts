@@ -58,7 +58,15 @@ export class SessionService {
         refreshTokenHash: true,
         expiresAt: true,
         revokedAt: true,
-        user: { select: { id: true, email: true } },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
       },
     });
 

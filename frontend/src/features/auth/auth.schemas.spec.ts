@@ -10,6 +10,9 @@ describe('authentication form schemas', () => {
 
   it('rejects registration passwords shorter than twelve characters', () => {
     const result = registrationSchema.safeParse({
+      firstName: 'Maria',
+      lastName: 'Santos',
+      phone: '',
       email: 'owner@example.com',
       password: 'too-short',
     });
@@ -19,6 +22,9 @@ describe('authentication form schemas', () => {
 
   it('normalizes email validation errors for the form', () => {
     const result = registrationSchema.safeParse({
+      firstName: 'Maria',
+      lastName: 'Santos',
+      phone: '',
       email: 'not-an-email',
       password: 'a-secure-password',
     });
@@ -29,5 +35,24 @@ describe('authentication form schemas', () => {
         'Enter a valid email address.',
       );
     }
+  });
+
+  it('requires personal names and normalizes an empty optional phone', () => {
+    expect(
+      registrationSchema.safeParse({
+        firstName: '  Maria ',
+        lastName: ' Santos ',
+        phone: '',
+        email: 'owner@example.com',
+        password: 'a-secure-password',
+      }),
+    ).toMatchObject({
+      success: true,
+      data: {
+        firstName: 'Maria',
+        lastName: 'Santos',
+        phone: undefined,
+      },
+    });
   });
 });

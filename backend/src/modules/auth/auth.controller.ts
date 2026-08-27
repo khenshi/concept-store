@@ -27,7 +27,11 @@ import {
 } from '../../openapi/response.dto';
 import { AuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
-import type { AuthResponse, AuthenticatedUser } from './auth.types';
+import type {
+  AuthResponse,
+  AuthenticatedPrincipal,
+  AuthenticatedUser,
+} from './auth.types';
 import { CurrentUser } from './current-user.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -110,7 +114,9 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'Access token is missing or invalid',
   })
-  getCurrentUser(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
-    return user;
+  getCurrentUser(
+    @CurrentUser() user: AuthenticatedPrincipal,
+  ): Promise<AuthenticatedUser> {
+    return this.authService.getCurrentUser(user.id);
   }
 }

@@ -25,8 +25,11 @@ export function AuthenticatedHeader() {
             All organizations
           </Link>
           {user ? (
-            <span className="hidden max-w-56 truncate text-sm text-slate-500 md:block">
-              {user.email}
+            <span className="hidden max-w-64 text-right md:grid">
+              <strong className="truncate text-sm text-slate-800">
+                {user.firstName} {user.lastName}
+              </strong>
+              <small className="truncate text-slate-500">{user.email}</small>
             </span>
           ) : null}
           <LogoutButton />

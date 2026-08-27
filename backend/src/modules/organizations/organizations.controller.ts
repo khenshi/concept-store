@@ -18,7 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { OrganizationAccessResponseDto } from '../../openapi/response.dto';
 import { AuthGuard } from '../auth/auth.guard';
-import type { AuthenticatedUser } from '../auth/auth.types';
+import type { AuthenticatedPrincipal } from '../auth/auth.types';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import type { OrganizationAccess } from './organizations.types';
@@ -36,7 +36,7 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'Create an organization owned by the current user' })
   @ApiCreatedResponse({ type: OrganizationAccessResponseDto })
   create(
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedPrincipal,
     @Body() dto: CreateOrganizationDto,
   ): Promise<OrganizationAccess> {
     return this.organizationsService.create(user.id, dto);
@@ -46,7 +46,7 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'List organizations available to the current user' })
   @ApiOkResponse({ type: OrganizationAccessResponseDto, isArray: true })
   findAll(
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedPrincipal,
   ): Promise<OrganizationAccess[]> {
     return this.organizationsService.findAllForUser(user.id);
   }
@@ -60,7 +60,7 @@ export class OrganizationsController {
     description: 'Organization is unavailable to the user',
   })
   findOne(
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentUser() user: AuthenticatedPrincipal,
     @Param('organizationId', new ParseUUIDPipe({ version: '4' }))
     organizationId: string,
   ): Promise<OrganizationAccess> {

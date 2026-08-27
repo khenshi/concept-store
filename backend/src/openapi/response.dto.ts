@@ -21,6 +21,15 @@ export class AuthenticatedUserResponseDto {
 
   @ApiProperty({ format: 'email', example: 'owner@example.com' })
   email!: string;
+
+  @ApiProperty({ example: 'Maria' })
+  firstName!: string;
+
+  @ApiProperty({ example: 'Santos' })
+  lastName!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: '+63 917 123 4567' })
+  phone!: string | null;
 }
 
 export class AuthResponseDto {
@@ -54,6 +63,15 @@ export class OrganizationMemberResponseDto {
 
   @ApiProperty({ format: 'email', example: 'manager@example.com' })
   email!: string;
+
+  @ApiProperty({ example: 'Maria' })
+  firstName!: string;
+
+  @ApiProperty({ example: 'Santos' })
+  lastName!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: '+63 917 123 4567' })
+  phone!: string | null;
 
   @ApiProperty({ enum: OrganizationRole })
   role!: OrganizationRole;

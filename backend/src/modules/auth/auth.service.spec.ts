@@ -7,7 +7,13 @@ import { AuthService } from './auth.service';
 import { SessionService } from './sessions/session.service';
 
 describe('AuthService', () => {
-  const user = { id: 'user-id', email: 'owner@example.com' };
+  const user = {
+    id: 'user-id',
+    email: 'owner@example.com',
+    firstName: 'Maria',
+    lastName: 'Santos',
+    phone: null,
+  };
   const refreshSession = {
     token: 'session-id.refresh-secret',
     expiresAt: new Date('2026-09-22T00:00:00.000Z'),
@@ -15,7 +21,7 @@ describe('AuthService', () => {
   const transaction = { user: { create: jest.fn() } };
   const prisma = {
     $transaction: jest.fn(),
-    user: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
   };
   const jwtService = { signAsync: jest.fn() };
   const sessionService = {
@@ -46,14 +52,28 @@ describe('AuthService', () => {
 
   it('registers the user and session atomically without returning password data', async () => {
     transaction.user.create.mockImplementation(
-      ({ data }: { data: { email: string; passwordHash: string } }) => {
+      ({
+        data,
+      }: {
+        data: {
+          email: string;
+          firstName: string;
+          lastName: string;
+          phone?: string;
+          passwordHash: string;
+        };
+      }) => {
         expect(data.email).toBe(user.email);
+        expect(data.firstName).toBe(user.firstName);
+        expect(data.lastName).toBe(user.lastName);
         expect(data.passwordHash).not.toBe('correct horse battery staple');
         return user;
       },
     );
 
     const result = await service.register({
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
       password: 'correct horse battery staple',
     });
@@ -126,5 +146,21 @@ describe('AuthService', () => {
 
     await expect(service.logout('refresh-token')).resolves.toBeUndefined();
     expect(sessionService.revoke).toHaveBeenCalledWith('refresh-token');
+  });
+
+  it('loads current personal details from the database', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue(user);
+
+    await expect(service.getCurrentUser(user.id)).resolves.toEqual(user);
+    expect(prisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+      },
+    });
   });
 });

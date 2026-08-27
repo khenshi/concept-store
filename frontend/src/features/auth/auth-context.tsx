@@ -10,14 +10,19 @@ import {
   type ReactNode,
 } from 'react';
 import { authClient } from './auth-client';
-import type { AuthenticatedUser, AuthStatus, Credentials } from './auth.types';
+import type {
+  AuthenticatedUser,
+  AuthStatus,
+  Credentials,
+  RegistrationCredentials,
+} from './auth.types';
 
 interface AuthContextValue {
   status: AuthStatus;
   user: AuthenticatedUser | null;
   error: string | null;
   login(credentials: Credentials): Promise<void>;
-  register(credentials: Credentials): Promise<void>;
+  register(credentials: RegistrationCredentials): Promise<void>;
   logout(): Promise<void>;
   request<T>(path: string, init?: RequestInit): Promise<T>;
 }
@@ -51,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authClient.login(credentials);
   }, []);
 
-  const register = useCallback(async (credentials: Credentials) => {
+  const register = useCallback(async (credentials: RegistrationCredentials) => {
     await authClient.register(credentials);
   }, []);
 
