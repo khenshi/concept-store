@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import {
+  OperationalPage,
+  OperationalPanel,
+  StatusNotice,
+} from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -60,6 +65,7 @@ export function BranchManagement({
   } = useOrganizationWorkspaceContext();
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [workspaceBranch, setWorkspaceBranch] = useState<Branch | null>(null);
+  const [showBranchForm, setShowBranchForm] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -113,43 +119,45 @@ export function BranchManagement({
     );
     upsertBranch(saved);
     setEditingBranch(null);
+    setShowBranchForm(false);
   }
 
   return (
-    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
+    <OperationalPage>
       <OrganizationPageHeader
         organization={organization}
         title="Branches"
         description="Manage the physical store locations that belong to this organization."
       />
 
-      {successMessage ? (
-        <p
-          className="mt-6 rounded-lg border border-green-600 bg-white px-4 py-3"
-          role="status"
-        >
-          {successMessage}
-        </p>
-      ) : null}
+      {successMessage ? <StatusNotice>{successMessage}</StatusNotice> : null}
 
       <div
-        className={`mt-6 grid items-start gap-5 ${canManage ? 'md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]' : 'grid-cols-1'}`}
+        className={`grid items-start gap-5 ${canManage && (showBranchForm || editingBranch) ? 'xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.6fr)]' : 'grid-cols-1'}`}
       >
-        <section
-          className="rounded-xl border border-slate-200 bg-white p-6"
-          aria-labelledby="branch-list-title"
+        <OperationalPanel
+          title="Store locations"
+          description={`${branches.length} branches · Open a branch to manage its spaces and inventory`}
+          action={
+            canManage ? (
+              <button
+                className="min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 font-bold text-white hover:bg-emerald-700"
+                type="button"
+                onClick={() => {
+                  setEditingBranch(null);
+                  setSuccessMessage(null);
+                  setShowBranchForm(true);
+                }}
+              >
+                Add branch
+              </button>
+            ) : null
+          }
         >
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="m-0 text-base font-bold" id="branch-list-title">
-              Store locations
-            </h2>
-            <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
-              {branches.length}
-            </span>
-          </div>
-
           {branchesStatus === 'loading' || branchesStatus === 'idle' ? (
-            <ListSkeleton label="Loading branches" />
+            <div className="px-5 pb-5 sm:px-6">
+              <ListSkeleton label="Loading branches" />
+            </div>
           ) : branchesError ? (
             <RequestError
               className="py-8"
@@ -158,16 +166,16 @@ export function BranchManagement({
               onRetry={() => void loadBranches({ refresh: true })}
             />
           ) : branches.length === 0 ? (
-            <div className="py-10 text-center">
+            <div className="px-5 py-10 text-center sm:px-6">
               <h3 className="m-0 text-base font-bold">No branches yet</h3>
               <p className="mx-auto mt-2 max-w-md leading-7 text-slate-500">
                 {canManage
-                  ? 'Add the first physical store location using the branch form.'
+                  ? 'Add the first physical store location to begin organizing spaces and inventory.'
                   : 'An owner or manager has not added a branch yet.'}
               </p>
             </div>
           ) : (
-            <ul className="mt-5 list-none p-0">
+            <ul className="list-none px-5 py-1 sm:px-6">
               {branches.map((branch) => (
                 <li
                   className="flex items-start justify-between gap-4 border-b border-slate-200 py-4 last:border-b-0"
@@ -211,15 +219,18 @@ export function BranchManagement({
               ))}
             </ul>
           )}
-        </section>
+        </OperationalPanel>
 
-        {canManage ? (
+        {canManage && (showBranchForm || editingBranch) ? (
           <BranchForm
             key={editingBranch?.id ?? 'new-branch'}
             organizationId={organizationId}
             branch={editingBranch}
             onSaved={handleSaved}
-            onCancel={() => setEditingBranch(null)}
+            onCancel={() => {
+              setEditingBranch(null);
+              setShowBranchForm(false);
+            }}
           />
         ) : null}
       </div>
@@ -235,7 +246,7 @@ export function BranchManagement({
           }}
         />
       ) : null}
-    </section>
+    </OperationalPage>
   );
 }
 

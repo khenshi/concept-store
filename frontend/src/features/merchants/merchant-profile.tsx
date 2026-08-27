@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
+import { OperationalPage } from '@/components/ui/operational-page';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import type { Branch } from '@/features/branches/branch.types';
@@ -296,7 +297,7 @@ export function MerchantProfile({
       : 'Add merchant';
 
   return (
-    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
+    <OperationalPage>
       <Link
         className="p-0 font-bold text-emerald-700 underline underline-offset-3"
         href={`/app/organizations/${organizationId}/merchants`}
@@ -498,7 +499,7 @@ export function MerchantProfile({
           ) : null}
         </>
       )}
-    </section>
+    </OperationalPage>
   );
 }
 

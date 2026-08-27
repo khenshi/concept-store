@@ -8,6 +8,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Owner and manager frontend workflows](frontend-owner-manager-workflows.md)
 - [Authenticated application shell](frontend-authenticated-shell.md)
 - [Operational page structure](frontend-operational-page-structure.md)
+- [Branch and merchant workspaces](frontend-branch-merchant-workspaces.md)
 
 ## Milestone 1 — SaaS / Multi-Tenant Foundation
 

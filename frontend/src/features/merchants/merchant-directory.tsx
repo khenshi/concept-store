@@ -3,6 +3,12 @@
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import {
+  FilterField,
+  OperationalPage,
+  OperationalPanel,
+  OperationalToolbar,
+} from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -149,7 +155,7 @@ export function MerchantDirectory({
     organization.role === 'OWNER' || organization.role === 'MANAGER';
 
   return (
-    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
+    <OperationalPage>
       <OrganizationPageHeader
         organization={organization}
         title="Merchants"
@@ -166,69 +172,58 @@ export function MerchantDirectory({
           </p>
         </section>
       ) : (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <div className="flex items-start justify-between gap-4 max-sm:grid">
-            <div>
-              <h2 className="m-0 text-base font-bold">Merchant directory</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                {merchants.length} matching merchants
-              </p>
-            </div>
+        <OperationalPanel
+          title="Merchant directory"
+          description={`${merchants.length} matching merchants · Independent brands participating in this store`}
+          action={
             <Link
               className="inline-flex min-h-11 items-center justify-center rounded-[0.65rem] bg-emerald-600 px-4.5 py-3 font-bold text-white no-underline hover:bg-emerald-700"
               href={`/app/organizations/${organizationId}/merchants/new`}
             >
               Add merchant
             </Link>
-          </div>
-
-          <form
-            className="mt-6 grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.4fr)_auto]"
-            onSubmit={handleFilter}
-          >
-            <div className="grid gap-2">
-              <label className="text-sm font-bold" htmlFor="merchant-search">
-                Search
-              </label>
-              <input
-                className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
-                id="merchant-search"
-                name="search"
-                type="search"
-                defaultValue={filters.search}
-                placeholder="Name, code, or contact"
-                maxLength={120}
-              />
-            </div>
-            <div className="grid gap-2">
-              <label
-                className="text-sm font-bold"
-                htmlFor="merchant-status-filter"
-              >
-                Status
-              </label>
-              <select
-                className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
-                id="merchant-status-filter"
-                name="status"
-                defaultValue={filters.status ?? ''}
-              >
-                <option value="">All statuses</option>
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
-              type="submit"
-              disabled={isFiltering}
+          }
+        >
+          <OperationalToolbar>
+            <form
+              className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.4fr)_auto]"
+              onSubmit={handleFilter}
             >
-              {isFiltering ? 'Applying…' : 'Apply filters'}
-            </button>
-          </form>
+              <FilterField label="Search" id="merchant-search">
+                <input
+                  className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
+                  id="merchant-search"
+                  name="search"
+                  type="search"
+                  defaultValue={filters.search}
+                  placeholder="Name, code, or contact"
+                  maxLength={120}
+                />
+              </FilterField>
+              <FilterField label="Status" id="merchant-status-filter">
+                <select
+                  className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
+                  id="merchant-status-filter"
+                  name="status"
+                  defaultValue={filters.status ?? ''}
+                >
+                  <option value="">All statuses</option>
+                  {Object.entries(statusLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </FilterField>
+              <button
+                className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
+                type="submit"
+                disabled={isFiltering}
+              >
+                {isFiltering ? 'Applying…' : 'Apply filters'}
+              </button>
+            </form>
+          </OperationalToolbar>
 
           {loadError ? (
             <RequestError
@@ -248,7 +243,7 @@ export function MerchantDirectory({
               </p>
             </div>
           ) : (
-            <ul className="mt-5 list-none p-0">
+            <ul className="list-none px-5 py-1 sm:px-6">
               {merchants.map((merchant) => (
                 <li
                   className="flex items-start justify-between gap-4 border-b border-slate-200 py-4 last:border-b-0 max-sm:grid max-sm:items-stretch"
@@ -292,8 +287,8 @@ export function MerchantDirectory({
               ))}
             </ul>
           )}
-        </section>
+        </OperationalPanel>
       )}
-    </section>
+    </OperationalPage>
   );
 }
