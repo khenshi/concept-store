@@ -393,18 +393,47 @@ export function InventoryOverview({
               ) : page.items.length === 0 ? (
                 <Empty />
               ) : (
-                <ul className="list-none px-5 py-1 sm:px-6">
-                  {page.items.map((item) => (
-                    <InventoryRow
-                      key={`${item.productId}:${item.branchId}`}
-                      item={item}
-                      onAdjust={() => {
-                        setFormError(null);
-                        setOperation({ mode: 'adjust', item });
-                      }}
-                    />
-                  ))}
-                </ul>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
+                    <thead className="bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+                      <tr>
+                        <th className="px-6 py-3.5 font-bold" scope="col">
+                          Product
+                        </th>
+                        <th className="px-4 py-3.5 font-bold" scope="col">
+                          Merchant
+                        </th>
+                        <th className="px-4 py-3.5 font-bold" scope="col">
+                          Branch
+                        </th>
+                        <th
+                          className="px-4 py-3.5 text-right font-bold"
+                          scope="col"
+                        >
+                          On hand
+                        </th>
+                        <th
+                          className="px-6 py-3.5 text-right font-bold"
+                          scope="col"
+                        >
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {page.items.map((item) => (
+                        <InventoryRow
+                          key={`${item.productId}:${item.branchId}`}
+                          item={item}
+                          onAdjust={() => {
+                            setFormError(null);
+                            setOperation({ mode: 'adjust', item });
+                          }}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
               {page.total > 0 ? (
                 <div className="flex items-center justify-between gap-4 border-t border-slate-200 px-5 py-5 sm:px-6">
@@ -479,27 +508,30 @@ function InventoryRow({
   onAdjust(): void;
 }) {
   return (
-    <li className="flex items-center justify-between gap-5 border-b border-slate-200 py-4 last:border-0 max-sm:grid">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <strong>{item.product.name}</strong>
-          <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-            {item.product.sku}
-          </span>
-        </div>
-        <p className="mt-1 truncate text-sm text-slate-500">
-          {item.product.merchant.name} · {item.branch.name}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-5 max-sm:justify-between">
-        <div className="text-right">
-          <strong
-            className={item.quantity < 0 ? 'text-red-600' : 'text-slate-950'}
-          >
-            {item.quantity}
-          </strong>
-          <span className="mt-1 block text-xs text-slate-500">on hand</span>
-        </div>
+    <tr className="border-t border-slate-200 text-slate-700 hover:bg-slate-50/60">
+      <th className="px-6 py-4" scope="row">
+        <span className="block font-bold text-slate-950">
+          {item.product.name}
+        </span>
+        <span className="mt-1 block text-xs font-semibold text-slate-500">
+          {item.product.sku}
+        </span>
+      </th>
+      <td className="px-4 py-4">{item.product.merchant.name}</td>
+      <td className="px-4 py-4">
+        <span className="block font-semibold text-slate-700">
+          {item.branch.name}
+        </span>
+        <span className="mt-1 block text-xs text-slate-500">
+          {item.branch.code ?? 'No branch code'}
+        </span>
+      </td>
+      <td
+        className={`px-4 py-4 text-right text-base font-bold ${item.quantity < 0 ? 'text-red-600' : 'text-slate-950'}`}
+      >
+        {item.quantity}
+      </td>
+      <td className="px-6 py-4 text-right">
         <button
           className="border-0 bg-transparent p-0 text-sm font-bold text-emerald-700 underline underline-offset-3"
           type="button"
@@ -507,8 +539,8 @@ function InventoryRow({
         >
           Adjust
         </button>
-      </div>
-    </li>
+      </td>
+    </tr>
   );
 }
 function Limited() {

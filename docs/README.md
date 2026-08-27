@@ -9,6 +9,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Authenticated application shell](frontend-authenticated-shell.md)
 - [Operational page structure](frontend-operational-page-structure.md)
 - [Branch and merchant workspaces](frontend-branch-merchant-workspaces.md)
+- [Product and inventory tables](frontend-product-inventory-tables.md)
 
 ## Milestone 1 — SaaS / Multi-Tenant Foundation
 

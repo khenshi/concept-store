@@ -314,18 +314,47 @@ export function ProductDirectory({
           ) : products.length === 0 ? (
             <Empty />
           ) : (
-            <ul className="list-none px-5 py-1 sm:px-6">
-              {products.map((product) => (
-                <ProductRow
-                  key={product.id}
-                  organizationId={organizationId}
-                  product={product}
-                  pending={pendingStatusId === product.id}
-                  onEdit={() => openForm(product)}
-                  onToggle={() => void toggle(product)}
-                />
-              ))}
-            </ul>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[58rem] border-collapse text-left text-sm">
+                <thead className="bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+                  <tr>
+                    <th className="px-6 py-3.5 font-bold" scope="col">
+                      Product
+                    </th>
+                    <th className="px-4 py-3.5 font-bold" scope="col">
+                      Merchant
+                    </th>
+                    <th className="px-4 py-3.5 font-bold" scope="col">
+                      Identifiers
+                    </th>
+                    <th className="px-4 py-3.5 font-bold" scope="col">
+                      Price
+                    </th>
+                    <th className="px-4 py-3.5 font-bold" scope="col">
+                      Status
+                    </th>
+                    <th
+                      className="px-6 py-3.5 text-right font-bold"
+                      scope="col"
+                    >
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => (
+                    <ProductRow
+                      key={product.id}
+                      organizationId={organizationId}
+                      product={product}
+                      pending={pendingStatusId === product.id}
+                      onEdit={() => openForm(product)}
+                      onToggle={() => void toggle(product)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </OperationalPanel>
       )}
@@ -357,59 +386,63 @@ function ProductRow({
   onToggle(): void;
 }) {
   return (
-    <li className="flex items-center justify-between gap-5 border-b border-slate-200 py-4 last:border-0 max-sm:grid">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <strong>{product.name}</strong>
-          <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-            {product.sku}
-          </span>
-          <span
-            className={
-              product.status === 'ACTIVE'
-                ? 'rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700'
-                : 'rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600'
-            }
+    <tr className="border-t border-slate-200 text-slate-700 hover:bg-slate-50/60">
+      <th className="px-6 py-4 font-bold text-slate-950" scope="row">
+        {product.name}
+      </th>
+      <td className="px-4 py-4">{product.merchant.name}</td>
+      <td className="px-4 py-4">
+        <span className="block font-semibold text-slate-700">
+          {product.sku}
+        </span>
+        <span className="mt-1 block text-xs text-slate-500">
+          {product.barcode ?? 'No barcode'}
+        </span>
+      </td>
+      <td className="px-4 py-4 font-bold text-slate-950">
+        {peso.format(Number(product.sellingPrice))}
+      </td>
+      <td className="px-4 py-4">
+        <span
+          className={
+            product.status === 'ACTIVE'
+              ? 'rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700'
+              : 'rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600'
+          }
+        >
+          {product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+        </span>
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex items-center justify-end gap-4">
+          <Link
+            className="text-sm font-bold text-emerald-700 underline underline-offset-3"
+            href={`/app/organizations/${organizationId}/inventory?productId=${product.id}`}
           >
-            {product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-          </span>
+            View stock
+          </Link>
+          <button
+            className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-emerald-700 underline underline-offset-3"
+            type="button"
+            onClick={onEdit}
+          >
+            Edit
+          </button>
+          <button
+            className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-slate-600 underline underline-offset-3 disabled:cursor-wait disabled:opacity-60"
+            type="button"
+            disabled={pending}
+            onClick={onToggle}
+          >
+            {pending
+              ? 'Updating…'
+              : product.status === 'ACTIVE'
+                ? 'Deactivate'
+                : 'Activate'}
+          </button>
         </div>
-        <p className="mt-1 truncate text-sm text-slate-500">
-          {product.merchant.name}
-          {product.barcode ? ` · ${product.barcode}` : ''}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-4 max-sm:justify-between">
-        <strong className="text-sm">
-          {peso.format(Number(product.sellingPrice))}
-        </strong>
-        <Link
-          className="text-sm font-bold text-emerald-700 underline underline-offset-3"
-          href={`/app/organizations/${organizationId}/inventory?productId=${product.id}`}
-        >
-          View stock
-        </Link>
-        <button
-          className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-emerald-700 underline underline-offset-3"
-          type="button"
-          onClick={onEdit}
-        >
-          Edit
-        </button>
-        <button
-          className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-slate-600 underline underline-offset-3 disabled:cursor-wait disabled:opacity-60"
-          type="button"
-          disabled={pending}
-          onClick={onToggle}
-        >
-          {pending
-            ? 'Updating…'
-            : product.status === 'ACTIVE'
-              ? 'Deactivate'
-              : 'Activate'}
-        </button>
-      </div>
-    </li>
+      </td>
+    </tr>
   );
 }
 
