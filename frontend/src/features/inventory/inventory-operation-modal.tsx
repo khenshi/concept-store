@@ -115,7 +115,7 @@ export function InventoryOperationModal({
         aria-modal="true"
         aria-labelledby="inventory-operation-title"
       >
-        <div className="flex items-start justify-between gap-4">
+        <div>
           <div>
             <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
               Inventory operation
@@ -134,14 +134,6 @@ export function InventoryOperationModal({
                 : 'Add stock only to a branch where the product merchant operates.'}
             </p>
           </div>
-          <button
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold"
-            type="button"
-            disabled={isSaving}
-            onClick={onClose}
-          >
-            Close
-          </button>
         </div>
         <form
           className="mt-6 grid gap-5"

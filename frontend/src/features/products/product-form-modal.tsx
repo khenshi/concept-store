@@ -78,7 +78,7 @@ export function ProductFormModal({
         aria-modal="true"
         aria-labelledby="product-form-title"
       >
-        <div className="flex items-start justify-between gap-4">
+        <div>
           <div>
             <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
               Product record
@@ -96,14 +96,6 @@ export function ProductFormModal({
               after creation.
             </p>
           </div>
-          <button
-            className="cursor-pointer rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold"
-            type="button"
-            disabled={isSaving}
-            onClick={onClose}
-          >
-            Close
-          </button>
         </div>
         <form
           className="mt-6 grid gap-5"

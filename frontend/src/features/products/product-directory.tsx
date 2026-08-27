@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import Link from 'next/link';
+import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import {
   FilterField,
@@ -79,6 +79,7 @@ export function ProductDirectory({
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const { confirm, confirmationDialog } = useConfirmationDialog();
 
   async function load(selected: ProductFilters = filters): Promise<void> {
     setIsLoading(true);
@@ -184,6 +185,20 @@ export function ProductDirectory({
   async function toggle(product: Product): Promise<void> {
     const status: ProductStatus =
       product.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    const action = status === 'ACTIVE' ? 'activate' : 'deactivate';
+    if (
+      !(await confirm({
+        title: `${status === 'ACTIVE' ? 'Activate' : 'Deactivate'} ${product.name}?`,
+        description:
+          status === 'ACTIVE'
+            ? 'The product will become available as an active catalog item.'
+            : 'The product will remain in historical records but will no longer be active in the catalog.',
+        confirmLabel: `${status === 'ACTIVE' ? 'Activate' : 'Deactivate'} product`,
+        tone: status === 'ACTIVE' ? 'primary' : 'danger',
+      }))
+    ) {
+      return;
+    }
     setPendingStatusId(product.id);
     setError(null);
     try {
@@ -197,7 +212,7 @@ export function ProductDirectory({
         current.map((item) => (item.id === saved.id ? saved : item)),
       );
       upsertProduct(saved);
-      setSuccess(`${saved.name} is now ${saved.status.toLowerCase()}.`);
+      setSuccess(`${saved.name} was ${action}d.`);
     } catch (cause: unknown) {
       setError(message(cause));
     } finally {
@@ -350,7 +365,6 @@ export function ProductDirectory({
                   {products.map((product) => (
                     <ProductRow
                       key={product.id}
-                      organizationId={organizationId}
                       product={product}
                       pending={pendingStatusId === product.id}
                       onEdit={() => openForm(product)}
@@ -373,18 +387,17 @@ export function ProductDirectory({
           onSave={save}
         />
       ) : null}
+      {confirmationDialog}
     </OperationalPage>
   );
 }
 
 function ProductRow({
-  organizationId,
   product,
   pending,
   onEdit,
   onToggle,
 }: {
-  organizationId: string;
   product: Product;
   pending: boolean;
   onEdit(): void;
@@ -420,12 +433,6 @@ function ProductRow({
       </td>
       <td className="px-6 py-4">
         <div className="flex items-center justify-end gap-4">
-          <Link
-            className="text-sm font-bold text-emerald-700 underline underline-offset-3"
-            href={`/app/organizations/${organizationId}/inventory?productId=${product.id}`}
-          >
-            View stock
-          </Link>
           <button
             className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-emerald-700 underline underline-offset-3"
             type="button"
