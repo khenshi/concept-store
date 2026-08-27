@@ -45,10 +45,12 @@ export function SpaceAssignmentManagement({
   organizationId,
   space,
   onClose,
+  onChanged,
 }: {
   organizationId: string;
   space: Space;
   onClose(): void;
+  onChanged?(): void | Promise<void>;
 }) {
   const { request } = useAuth();
   const [assignments, setAssignments] = useState<SpaceAssignment[]>([]);
@@ -151,6 +153,7 @@ export function SpaceAssignmentManagement({
         `${created.merchant.name} was assigned to ${space.name}.`,
       );
       form.reset();
+      await onChanged?.();
     } catch (cause: unknown) {
       setActionError(errorMessage(cause));
     } finally {
@@ -211,6 +214,7 @@ export function SpaceAssignmentManagement({
         `${ended.merchant.name}'s assignment ended on ${businessDate(ended.endDate ?? result.data.endDate)}.`,
       );
       form.reset();
+      await onChanged?.();
     } catch (cause: unknown) {
       setActionError(errorMessage(cause));
     } finally {

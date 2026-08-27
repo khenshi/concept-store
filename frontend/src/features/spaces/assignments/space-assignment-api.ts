@@ -19,6 +19,16 @@ export function listSpaceAssignments(
   );
 }
 
+export function listBranchSpaceAssignments(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+): Promise<SpaceAssignment[]> {
+  return request<SpaceAssignment[]>(
+    `${organizationPath(organizationId)}/branches/${encodeURIComponent(branchId)}/space-assignments`,
+  );
+}
+
 export function createSpaceAssignment(
   request: AuthenticatedRequest,
   organizationId: string,

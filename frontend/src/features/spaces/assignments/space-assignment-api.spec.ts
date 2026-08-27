@@ -2,6 +2,7 @@ import type { AuthenticatedRequest } from '@/features/organizations/organization
 import {
   createSpaceAssignment,
   endSpaceAssignment,
+  listBranchSpaceAssignments,
   listSpaceAssignments,
 } from './space-assignment-api';
 
@@ -15,6 +16,14 @@ describe('space assignment API', () => {
     await listSpaceAssignments(request, 'organization/id', 'space/id');
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%2Fid/spaces/space%2Fid/assignments',
+    );
+  });
+
+  it('lists branch assignment history through one scoped path', async () => {
+    vi.mocked(request).mockResolvedValue([]);
+    await listBranchSpaceAssignments(request, 'organization/id', 'branch/id');
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%2Fid/branches/branch%2Fid/space-assignments',
     );
   });
 

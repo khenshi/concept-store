@@ -10,7 +10,9 @@ import { parseBusinessDate } from './dto/assignment-date.validation';
 import type { CreateSpaceAssignmentDto } from './dto/create-space-assignment.dto';
 import type { EndSpaceAssignmentDto } from './dto/end-space-assignment.dto';
 import {
+  branchSpaceAssignmentInclude,
   spaceAssignmentInclude,
+  type BranchSpaceAssignmentRecord,
   type SpaceAssignmentRecord,
 } from './space-assignments.types';
 
@@ -89,6 +91,23 @@ export class SpaceAssignmentsService {
       where: { organizationId, spaceId },
       include: spaceAssignmentInclude,
       orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+    });
+  }
+
+  async findAllForBranch(
+    organizationId: string,
+    branchId: string,
+  ): Promise<BranchSpaceAssignmentRecord[]> {
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchId, organizationId },
+      select: { id: true },
+    });
+    if (!branch) throw new NotFoundException('Branch not found');
+
+    return this.prisma.spaceAssignment.findMany({
+      where: { organizationId, branchId },
+      include: branchSpaceAssignmentInclude,
+      orderBy: [{ endDate: 'asc' }, { startDate: 'desc' }, { id: 'asc' }],
     });
   }
 

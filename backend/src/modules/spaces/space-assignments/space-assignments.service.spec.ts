@@ -7,7 +7,10 @@ import { Test } from '@nestjs/testing';
 import { Prisma, SpaceStatus } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { SpaceAssignmentsService } from './space-assignments.service';
-import { spaceAssignmentInclude } from './space-assignments.types';
+import {
+  branchSpaceAssignmentInclude,
+  spaceAssignmentInclude,
+} from './space-assignments.types';
 
 describe('SpaceAssignmentsService', () => {
   const organizationId = '580c75b7-1050-4a08-a2c2-585171d84dc8';
@@ -30,6 +33,7 @@ describe('SpaceAssignmentsService', () => {
   const prisma = {
     $transaction: jest.fn(),
     space: { findFirst: jest.fn() },
+    branch: { findFirst: jest.fn() },
     merchantBranch: { findFirst: jest.fn() },
     spaceAssignment: {
       create: jest.fn(),
@@ -188,6 +192,43 @@ describe('SpaceAssignmentsService', () => {
       include: spaceAssignmentInclude,
       orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
     });
+  });
+
+  it('lists all assignment history for a trusted branch', async () => {
+    const branchAssignment = {
+      ...assignment,
+      space: {
+        id: spaceId,
+        code: 'RACK-A01',
+        name: 'Front rack',
+        type: 'RACK',
+        status: 'ACTIVE',
+      },
+    };
+    prisma.branch.findFirst.mockResolvedValue({ id: branchId });
+    prisma.spaceAssignment.findMany.mockResolvedValue([branchAssignment]);
+
+    await expect(
+      service.findAllForBranch(organizationId, branchId),
+    ).resolves.toEqual([branchAssignment]);
+    expect(prisma.branch.findFirst).toHaveBeenCalledWith({
+      where: { id: branchId, organizationId },
+      select: { id: true },
+    });
+    expect(prisma.spaceAssignment.findMany).toHaveBeenCalledWith({
+      where: { organizationId, branchId },
+      include: branchSpaceAssignmentInclude,
+      orderBy: [{ endDate: 'asc' }, { startDate: 'desc' }, { id: 'asc' }],
+    });
+  });
+
+  it('conceals assignment history for a branch outside the organization', async () => {
+    prisma.branch.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.findAllForBranch(organizationId, branchId),
+    ).rejects.toThrow(new NotFoundException('Branch not found'));
+    expect(prisma.spaceAssignment.findMany).not.toHaveBeenCalled();
   });
 
   it('ends a current assignment without changing its history', async () => {

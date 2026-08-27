@@ -460,6 +460,28 @@ export class SpaceAssignmentResponseDto {
   merchant!: SpaceAssignmentMerchantResponseDto;
 }
 
+export class SpaceAssignmentSpaceResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'RACK-A01' })
+  code!: string;
+
+  @ApiProperty({ example: 'Front display rack' })
+  name!: string;
+
+  @ApiProperty({ enum: SpaceType })
+  type!: SpaceType;
+
+  @ApiProperty({ enum: SpaceStatus })
+  status!: SpaceStatus;
+}
+
+export class BranchSpaceAssignmentResponseDto extends SpaceAssignmentResponseDto {
+  @ApiProperty({ type: SpaceAssignmentSpaceResponseDto })
+  space!: SpaceAssignmentSpaceResponseDto;
+}
+
 export class MerchantAgreementResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;

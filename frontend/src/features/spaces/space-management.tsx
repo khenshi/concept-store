@@ -15,7 +15,7 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import { SpaceAssignmentManagement } from './assignments/space-assignment-management';
+import { SpaceAssignmentWorkspace } from './assignments/space-assignment-workspace';
 import { createSpace, listSpaces, updateSpace } from './space-api';
 import { spaceSchema } from './space.schemas';
 import type { Space, SpaceInput, SpaceStatus, SpaceType } from './space.types';
@@ -78,7 +78,6 @@ export function SpaceManagement({
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
   const [isSpaceFormOpen, setIsSpaceFormOpen] = useState(false);
-  const [assignmentSpace, setAssignmentSpace] = useState<Space | null>(null);
   const [isLoadingSpaces, setIsLoadingSpaces] = useState(true);
   const [spaceLoadError, setSpaceLoadError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -176,11 +175,17 @@ export function SpaceManagement({
     setSpaces((current) => {
       const exists = current.some((space) => space.id === saved.id);
       const next = exists
-        ? current.map((space) => (space.id === saved.id ? saved : space))
+        ? current.map((space) =>
+            space.id === saved.id
+              ? {
+                  ...saved,
+                  currentAssignment: space.currentAssignment,
+                }
+              : space,
+          )
         : [...current, saved];
       return next.sort((left, right) => left.name.localeCompare(right.name));
     });
-    if (assignmentSpace?.id === saved.id) setAssignmentSpace(saved);
     setEditingSpace(null);
     setIsSpaceFormOpen(false);
   }
@@ -269,7 +274,6 @@ export function SpaceManagement({
                   setSpaceLoadError(null);
                   setSelectedBranchId(value);
                   setEditingSpace(null);
-                  setAssignmentSpace(null);
                   setSuccessMessage(null);
                   setSearch('');
                   setTypeFilter('');
@@ -493,37 +497,14 @@ export function SpaceManagement({
               </section>
             </div>
           ) : (
-            <section className="mt-5 rounded-xl border border-slate-200 bg-white p-6">
-              <h2 className="text-base font-bold">Space assignments</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                Select a space to review its current assignment and preserved
-                history.
-              </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {spaces.map((space) => (
-                  <button
-                    className={`rounded-[0.6rem] border p-4 text-left ${assignmentSpace?.id === space.id ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-300'}`}
-                    key={space.id}
-                    type="button"
-                    onClick={() => setAssignmentSpace(space)}
-                  >
-                    <strong className="block">{space.name}</strong>
-                    <span className="mt-1 block text-sm text-slate-500">
-                      {space.currentAssignment?.merchant.name ?? 'Unassigned'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-          {view === 'assignments' && assignmentSpace ? (
-            <SpaceAssignmentManagement
-              key={assignmentSpace.id}
+            <SpaceAssignmentWorkspace
+              key={activeBranchId}
               organizationId={organizationId}
-              space={assignmentSpace}
-              onClose={() => setAssignmentSpace(null)}
+              branchId={activeBranchId}
+              spaces={spaces}
+              onAssignmentsChanged={loadSpaces}
             />
-          ) : null}
+          )}
           {isSpaceFormOpen ? (
             <SpaceForm
               key={editingSpace?.id ?? `new-${activeBranchId}`}

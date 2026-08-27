@@ -4,6 +4,14 @@ export interface SpaceAssignmentMerchant {
   code: string | null;
 }
 
+export interface SpaceAssignmentSpace {
+  id: string;
+  name: string;
+  code: string;
+  type: string;
+  status: string;
+}
+
 export interface SpaceAssignment {
   id: string;
   organizationId: string;
@@ -15,6 +23,7 @@ export interface SpaceAssignment {
   createdAt: string;
   updatedAt: string;
   merchant: SpaceAssignmentMerchant;
+  space?: SpaceAssignmentSpace;
 }
 
 export interface CreateSpaceAssignmentInput {

@@ -21,7 +21,10 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OrganizationRole } from '../../../generated/prisma/client';
-import { SpaceAssignmentResponseDto } from '../../../openapi/response.dto';
+import {
+  BranchSpaceAssignmentResponseDto,
+  SpaceAssignmentResponseDto,
+} from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
 import { OrganizationAccessGuard } from '../../organizations/authorization/organization-access.guard';
 import type { OrganizationContext } from '../../organizations/authorization/organization-authorization.types';
@@ -30,7 +33,10 @@ import { OrganizationRoles } from '../../organizations/authorization/organizatio
 import { CreateSpaceAssignmentDto } from './dto/create-space-assignment.dto';
 import { EndSpaceAssignmentDto } from './dto/end-space-assignment.dto';
 import { SpaceAssignmentsService } from './space-assignments.service';
-import type { SpaceAssignmentRecord } from './space-assignments.types';
+import type {
+  BranchSpaceAssignmentRecord,
+  SpaceAssignmentRecord,
+} from './space-assignments.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
 @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
@@ -78,6 +84,21 @@ export class SpaceAssignmentsController {
     return this.spaceAssignmentsService.findAll(
       organization.organizationId,
       spaceId,
+    );
+  }
+
+  @Get('branches/:branchId/space-assignments')
+  @ApiOperation({
+    summary: 'List current and historical assignments for a branch',
+  })
+  @ApiOkResponse({ type: BranchSpaceAssignmentResponseDto, isArray: true })
+  findAllForBranch(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+  ): Promise<BranchSpaceAssignmentRecord[]> {
+    return this.spaceAssignmentsService.findAllForBranch(
+      organization.organizationId,
+      branchId,
     );
   }
 
