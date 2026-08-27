@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import {
@@ -16,6 +17,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
 import { listMerchants } from './merchant-api';
+import { MerchantCreateModal } from './merchant-create-modal';
 import type {
   Merchant,
   MerchantFilters,
@@ -48,18 +50,23 @@ export function MerchantDirectory({
   organizationId: string;
 }) {
   const { request } = useAuth();
+  const router = useRouter();
   const {
     organization,
     organizationStatus,
     organizationError,
     refreshOrganization,
     loadMerchants,
+    branches,
+    branchesStatus,
+    loadBranches,
   } = useOrganizationWorkspaceContext();
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filters, setFilters] = useState<MerchantFilters>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   async function load(selectedFilters: MerchantFilters = filters) {
     setIsLoading(true);
@@ -95,6 +102,16 @@ export function MerchantDirectory({
       active = false;
     };
   }, [loadMerchants, organization]);
+
+  useEffect(() => {
+    if (
+      organization &&
+      (organization.role === 'OWNER' || organization.role === 'MANAGER') &&
+      branchesStatus === 'idle'
+    ) {
+      void loadBranches().catch(() => undefined);
+    }
+  }, [branchesStatus, loadBranches, organization]);
 
   async function handleFilter(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -177,12 +194,13 @@ export function MerchantDirectory({
           title="Merchant directory"
           description={`${merchants.length} matching merchants · Independent brands participating in this store`}
           action={
-            <Link
-              className="inline-flex min-h-11 items-center justify-center rounded-[0.65rem] bg-emerald-600 px-4.5 py-3 font-bold text-white no-underline hover:bg-emerald-700"
-              href={`/app/organizations/${organizationId}/merchants/new`}
+            <button
+              className="inline-flex min-h-11 items-center justify-center rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700"
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
             >
               Add merchant
-            </Link>
+            </button>
           }
         >
           <OperationalToolbar>
@@ -290,6 +308,19 @@ export function MerchantDirectory({
           )}
         </OperationalPanel>
       )}
+      {isCreateOpen ? (
+        <MerchantCreateModal
+          organizationId={organizationId}
+          branches={branches}
+          onCancel={() => setIsCreateOpen(false)}
+          onCreated={(merchant) => {
+            setIsCreateOpen(false);
+            router.push(
+              `/app/organizations/${organizationId}/merchants/${merchant.id}`,
+            );
+          }}
+        />
+      ) : null}
     </OperationalPage>
   );
 }

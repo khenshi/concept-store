@@ -1,4 +1,4 @@
-import { MerchantProfile } from '@/features/merchants/merchant-profile';
+import { redirect } from 'next/navigation';
 
 interface NewMerchantPageProps {
   params: Promise<{ organizationId: string }>;
@@ -8,5 +8,5 @@ export default async function NewMerchantPage({
   params,
 }: NewMerchantPageProps) {
   const { organizationId } = await params;
-  return <MerchantProfile organizationId={organizationId} />;
+  redirect(`/app/organizations/${organizationId}/merchants`);
 }

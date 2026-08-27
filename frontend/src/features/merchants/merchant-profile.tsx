@@ -468,6 +468,7 @@ export function MerchantProfile({
             {merchant ? (
               <div className="grid gap-5">
                 <BranchAssignmentForm
+                  key={merchant.id}
                   branches={branches}
                   merchant={merchant}
                   isSubmitting={isUpdatingBranches}
@@ -825,7 +826,20 @@ function BranchAssignmentForm({
   isSubmitting: boolean;
   onSubmit(event: FormEvent<HTMLFormElement>): void;
 }) {
-  const assignedIds = new Set(merchant.branches.map((branch) => branch.id));
+  const [selectedBranchIds, setSelectedBranchIds] = useState(
+    merchant.branches.map((branch) => branch.id),
+  );
+  const availableBranches = branches.filter(
+    (branch) => !selectedBranchIds.includes(branch.id),
+  );
+
+  function addBranch(branchId: string) {
+    if (!branchId) return;
+    setSelectedBranchIds((current) =>
+      current.includes(branchId) ? current : [...current, branchId],
+    );
+  }
+
   return (
     <section
       className="rounded-xl border border-slate-200 bg-white p-6"
@@ -837,38 +851,78 @@ function BranchAssignmentForm({
       <p className="mt-3 leading-7 text-slate-500">
         Select one or more branches where this merchant operates.
       </p>
-      <form
-        className="mt-5 grid gap-4"
-        onSubmit={onSubmit}
-        key={merchant.branches.map((branch) => branch.id).join(':')}
-      >
-        <fieldset className="grid gap-3 border-0 p-0">
-          <legend className="sr-only">Assigned branches</legend>
-          {branches.map((branch) => (
-            <label
-              className="flex cursor-pointer items-start gap-3 rounded-[0.6rem] border border-slate-200 p-3 has-checked:border-emerald-600 has-checked:bg-emerald-50"
-              key={branch.id}
-            >
-              <input
-                className="mt-1 accent-emerald-600"
-                type="checkbox"
-                name="branchIds"
-                value={branch.id}
-                defaultChecked={assignedIds.has(branch.id)}
-              />
-              <span className="grid gap-1">
-                <strong>{branch.name}</strong>
-                {branch.code ? (
-                  <small className="text-slate-500">{branch.code}</small>
-                ) : null}
-              </span>
-            </label>
-          ))}
-        </fieldset>
+      <form className="mt-5 grid gap-4" onSubmit={onSubmit}>
+        {selectedBranchIds.map((branchId) => (
+          <input
+            key={branchId}
+            type="hidden"
+            name="branchIds"
+            value={branchId}
+          />
+        ))}
+        <div className="grid gap-2">
+          <label
+            className="text-sm font-bold"
+            htmlFor="profile-merchant-branch"
+          >
+            Add a branch
+          </label>
+          <SelectControl
+            id="profile-merchant-branch"
+            value=""
+            disabled={availableBranches.length === 0 || isSubmitting}
+            onValueChange={addBranch}
+          >
+            <option value="" disabled>
+              {availableBranches.length
+                ? 'Select a branch'
+                : 'All branches selected'}
+            </option>
+            {availableBranches.map((branch) => (
+              <option key={branch.id} value={branch.id}>
+                {branch.name}
+                {branch.code ? ` (${branch.code})` : ''}
+              </option>
+            ))}
+          </SelectControl>
+        </div>
+        {selectedBranchIds.length ? (
+          <div className="flex flex-wrap gap-2" aria-label="Selected branches">
+            {selectedBranchIds.map((branchId) => {
+              const branch = branches.find((item) => item.id === branchId);
+              if (!branch) return null;
+              return (
+                <span
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 py-1.5 pr-2 pl-3 text-sm font-semibold text-emerald-800"
+                  key={branch.id}
+                >
+                  {branch.name}
+                  <button
+                    className="grid size-6 place-items-center rounded-full border-0 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 disabled:opacity-50"
+                    type="button"
+                    aria-label={`Remove ${branch.name}`}
+                    disabled={isSubmitting}
+                    onClick={() =>
+                      setSelectedBranchIds((current) =>
+                        current.filter((id) => id !== branch.id),
+                      )
+                    }
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+            Select at least one operating branch before saving.
+          </p>
+        )}
         <button
           className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || selectedBranchIds.length === 0}
         >
           {isSubmitting ? 'Saving branches…' : 'Save branch assignments'}
         </button>
