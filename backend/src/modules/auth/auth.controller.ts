@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -35,6 +36,7 @@ import type {
 import { CurrentUser } from './current-user.decorator';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { RefreshCookieService } from './sessions/refresh-cookie.service';
 
 @ApiTags('authentication')
@@ -118,5 +120,20 @@ export class AuthController {
     @CurrentUser() user: AuthenticatedPrincipal,
   ): Promise<AuthenticatedUser> {
     return this.authService.getCurrentUser(user.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('me')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Update the authenticated user profile' })
+  @ApiOkResponse({ type: AuthenticatedUserResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Access token is missing or invalid',
+  })
+  updateCurrentUser(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Body() dto: UpdateProfileDto,
+  ): Promise<AuthenticatedUser> {
+    return this.authService.updateCurrentUser(user.id, dto);
   }
 }

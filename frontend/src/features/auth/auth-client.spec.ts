@@ -56,6 +56,41 @@ describe('AuthClient', () => {
     );
   });
 
+  it('updates the current profile through an authenticated request', async () => {
+    const updatedUser = { ...firstSession.user, firstName: 'Mia' };
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(firstSession))
+      .mockResolvedValueOnce(jsonResponse(updatedUser));
+    const client = new AuthClient('http://localhost:3000');
+    await client.login({
+      email: firstSession.user.email,
+      password: 'password',
+    });
+
+    await expect(
+      client.updateProfile({
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+      }),
+    ).resolves.toEqual(updatedUser);
+
+    const requestInit = fetchMock.mock.calls[1][1];
+    expect(fetchMock.mock.calls[1][0]).toBe('http://localhost:3000/auth/me');
+    expect(requestInit).toEqual(
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+        }),
+      }),
+    );
+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe(
+      `Bearer ${firstSession.accessToken}`,
+    );
+  });
+
   it('coordinates one refresh for concurrent unauthorized requests', async () => {
     let protectedCalls = 0;
     let refreshCalls = 0;

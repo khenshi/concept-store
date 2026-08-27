@@ -22,5 +22,11 @@ export interface RegistrationCredentials extends Credentials {
   phone?: string;
 }
 
+export interface UpdateProfileInput {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
 export type AuthStatus =
   'loading' | 'authenticated' | 'unauthenticated' | 'error';

@@ -5,6 +5,7 @@ import type {
   AuthResponse,
   Credentials,
   RegistrationCredentials,
+  UpdateProfileInput,
 } from './auth.types';
 
 interface ApiErrorBody {
@@ -41,6 +42,14 @@ export class AuthClient {
 
   login(credentials: Credentials): Promise<AuthResponse> {
     return this.authenticate('/auth/login', credentials);
+  }
+
+  updateProfile(input: UpdateProfileInput): Promise<AuthResponse['user']> {
+    return this.request<AuthResponse['user']>('/auth/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
   }
 
   async logout(): Promise<void> {

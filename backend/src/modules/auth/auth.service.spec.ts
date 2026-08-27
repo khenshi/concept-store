@@ -21,7 +21,11 @@ describe('AuthService', () => {
   const transaction = { user: { create: jest.fn() } };
   const prisma = {
     $transaction: jest.fn(),
-    user: { findUnique: jest.fn(), findUniqueOrThrow: jest.fn() },
+    user: {
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      update: jest.fn(),
+    },
   };
   const jwtService = { signAsync: jest.fn() };
   const sessionService = {
@@ -154,6 +158,34 @@ describe('AuthService', () => {
     await expect(service.getCurrentUser(user.id)).resolves.toEqual(user);
     expect(prisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
       where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+      },
+    });
+  });
+
+  it('updates only the authenticated user personal details', async () => {
+    const updated = { ...user, firstName: 'Mia', phone: '+63 900 000 0000' };
+    prisma.user.update.mockResolvedValue(updated);
+
+    await expect(
+      service.updateCurrentUser(user.id, {
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        phone: updated.phone,
+      }),
+    ).resolves.toEqual(updated);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: {
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        phone: updated.phone,
+      },
       select: {
         id: true,
         email: true,

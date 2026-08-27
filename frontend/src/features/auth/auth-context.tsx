@@ -15,6 +15,7 @@ import type {
   AuthStatus,
   Credentials,
   RegistrationCredentials,
+  UpdateProfileInput,
 } from './auth.types';
 
 interface AuthContextValue {
@@ -23,6 +24,7 @@ interface AuthContextValue {
   error: string | null;
   login(credentials: Credentials): Promise<void>;
   register(credentials: RegistrationCredentials): Promise<void>;
+  updateProfile(input: UpdateProfileInput): Promise<AuthenticatedUser>;
   logout(): Promise<void>;
   request<T>(path: string, init?: RequestInit): Promise<T>;
 }
@@ -60,6 +62,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await authClient.register(credentials);
   }, []);
 
+  const updateProfile = useCallback(async (input: UpdateProfileInput) => {
+    const updatedUser = await authClient.updateProfile(input);
+    setUser(updatedUser);
+    return updatedUser;
+  }, []);
+
   const logout = useCallback(async () => {
     await authClient.logout();
   }, []);
@@ -70,8 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, error, login, register, logout, request }),
-    [status, user, error, login, register, logout, request],
+    () => ({
+      status,
+      user,
+      error,
+      login,
+      register,
+      updateProfile,
+      logout,
+      request,
+    }),
+    [status, user, error, login, register, updateProfile, logout, request],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

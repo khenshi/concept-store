@@ -14,6 +14,7 @@ import type {
 } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import type { UpdateProfileDto } from './dto/update-profile.dto';
 import { SessionService } from './sessions/session.service';
 
 const PASSWORD_HASH_ROUNDS = 12;
@@ -119,6 +120,27 @@ export class AuthService {
   async getCurrentUser(userId: string): Promise<AuthenticatedUser> {
     return this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+      },
+    });
+  }
+
+  async updateCurrentUser(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<AuthenticatedUser> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phone: dto.phone ?? null,
+      },
       select: {
         id: true,
         email: true,

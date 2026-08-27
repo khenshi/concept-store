@@ -25,12 +25,16 @@ export function AuthenticatedHeader() {
             All organizations
           </Link>
           {user ? (
-            <span className="hidden max-w-64 text-right md:grid">
+            <Link
+              className="hidden max-w-64 text-right no-underline md:grid"
+              href="/app/account"
+              aria-label="Open account settings"
+            >
               <strong className="truncate text-sm text-slate-800">
                 {user.firstName} {user.lastName}
               </strong>
               <small className="truncate text-slate-500">{user.email}</small>
-            </span>
+            </Link>
           ) : null}
           <LogoutButton />
         </div>
