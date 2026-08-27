@@ -19,8 +19,32 @@ model User {
   updatedAt    DateTime @updatedAt
 
   organizationMemberships OrganizationMembership[]
+  sentOrganizationInvitations OrganizationInvitation[] @relation("InvitationSender")
+  acceptedOrganizationInvitations OrganizationInvitation[] @relation("InvitationAcceptor")
   sessions                UserSession[]
   inventoryMovements      InventoryMovement[]
+}
+
+model OrganizationInvitation {
+  id             String           @id @default(uuid())
+  organizationId String
+  email          String
+  role           OrganizationRole
+  tokenHash      String           @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  invitedById    String
+  acceptedById   String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invitedBy     User         @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedBy    User?        @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, email])
+  @@index([organizationId, expiresAt])
 }
 
 model UserSession {
@@ -52,6 +76,7 @@ model Organization {
   products           Product[]
   inventory          Inventory[]
   inventoryMovements InventoryMovement[]
+  invitations       OrganizationInvitation[]
 }
 
 model Branch {

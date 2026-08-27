@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
@@ -22,12 +16,16 @@ import { OrganizationPageHeader } from '@/features/organizations/organization-pa
 import type { OrganizationRole } from '@/features/organizations/organization.types';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
 import {
-  addOrganizationMember,
+  listOrganizationInvitations,
+  revokeOrganizationInvitation,
+} from '@/features/organization-invitations/organization-invitation-api';
+import { OrganizationInvitationModal } from '@/features/organization-invitations/organization-invitation-modal';
+import type { OrganizationInvitation } from '@/features/organization-invitations/organization-invitation.types';
+import {
   listOrganizationMembers,
   removeOrganizationMember,
   updateOrganizationMemberRole,
 } from './organization-member-api';
-import { addOrganizationMemberSchema } from './organization-member.schemas';
 import type { OrganizationMember } from './organization-member.types';
 
 const roles: OrganizationRole[] = ['OWNER', 'MANAGER', 'CASHIER', 'MERCHANT'];
@@ -64,6 +62,8 @@ export function OrganizationMemberManagement({
     refreshOrganization,
   } = useOrganizationWorkspaceContext();
   const [members, setMembers] = useState<OrganizationMember[]>([]);
+  const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
+  const [invitationStatusTime, setInvitationStatusTime] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -71,18 +71,27 @@ export function OrganizationMemberManagement({
   const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const { confirm, confirmationDialog } = useConfirmationDialog();
+  const organizationRole = organization?.role;
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      setMembers(await listOrganizationMembers(request, organizationId));
+      const [memberResult, invitationResult] = await Promise.all([
+        listOrganizationMembers(request, organizationId),
+        organizationRole === 'OWNER'
+          ? listOrganizationInvitations(request, organizationId)
+          : Promise.resolve([]),
+      ]);
+      setMembers(memberResult);
+      setInvitations(invitationResult);
+      setInvitationStatusTime(Date.now());
     } catch (cause: unknown) {
       setLoadError(errorMessage(cause));
     } finally {
       setIsLoading(false);
     }
-  }, [organizationId, request]);
+  }, [organizationRole, organizationId, request]);
 
   useEffect(() => {
     if (!organization) return;
@@ -90,9 +99,18 @@ export function OrganizationMemberManagement({
       return;
     }
     let active = true;
-    void listOrganizationMembers(request, organizationId)
-      .then((memberResult) => {
-        if (active) setMembers(memberResult);
+    void Promise.all([
+      listOrganizationMembers(request, organizationId),
+      organization.role === 'OWNER'
+        ? listOrganizationInvitations(request, organizationId)
+        : Promise.resolve([]),
+    ])
+      .then(([memberResult, invitationResult]) => {
+        if (active) {
+          setMembers(memberResult);
+          setInvitations(invitationResult);
+          setInvitationStatusTime(Date.now());
+        }
       })
       .catch((cause: unknown) => {
         if (active) setLoadError(errorMessage(cause));
@@ -166,6 +184,33 @@ export function OrganizationMemberManagement({
       setActionError(errorMessage(cause));
     } finally {
       setPendingMemberId(null);
+    }
+  }
+
+  async function handleRevoke(invitation: OrganizationInvitation) {
+    if (
+      !(await confirm({
+        title: 'Revoke this invitation?',
+        description: `${invitation.email} will no longer be able to use its invitation link.`,
+        confirmLabel: 'Revoke invitation',
+        tone: 'danger',
+      }))
+    )
+      return;
+
+    setActionError(null);
+    try {
+      const revoked = await revokeOrganizationInvitation(
+        request,
+        organizationId,
+        invitation.id,
+      );
+      setInvitations((current) =>
+        current.map((item) => (item.id === revoked.id ? revoked : item)),
+      );
+      setSuccessMessage(`The invitation for ${revoked.email} was revoked.`);
+    } catch (cause: unknown) {
+      setActionError(errorMessage(cause));
     }
   }
 
@@ -256,7 +301,7 @@ export function OrganizationMemberManagement({
                       type="button"
                       onClick={() => setIsAddMemberOpen(true)}
                     >
-                      Add member
+                      Invite member
                     </button>
                   ) : null
                 }
@@ -377,17 +422,27 @@ export function OrganizationMemberManagement({
                 )}
               </OperationalPanel>
 
+              {canManageMembers ? (
+                <InvitationList
+                  invitations={invitations}
+                  statusTime={invitationStatusTime}
+                  onRevoke={handleRevoke}
+                />
+              ) : null}
+
               {canManageMembers && isAddMemberOpen ? (
-                <AddMemberForm
+                <OrganizationInvitationModal
                   organizationId={organizationId}
-                  onCancel={() => setIsAddMemberOpen(false)}
-                  onAdded={(member) => {
-                    setMembers((current) => [...current, member]);
+                  onClose={() => setIsAddMemberOpen(false)}
+                  onCreated={(invitation) => {
+                    setInvitations((current) => [
+                      invitation,
+                      ...current.filter((item) => item.id !== invitation.id),
+                    ]);
                     setSuccessMessage(
-                      `${member.email} was added as ${roleLabels[member.role]}.`,
+                      `An invitation was created for ${invitation.email}.`,
                     );
                     setActionError(null);
-                    setIsAddMemberOpen(false);
                   }}
                 />
               ) : null}
@@ -400,154 +455,63 @@ export function OrganizationMemberManagement({
   );
 }
 
-function AddMemberForm({
-  organizationId,
-  onAdded,
-  onCancel,
+function InvitationList({
+  invitations,
+  statusTime,
+  onRevoke,
 }: {
-  organizationId: string;
-  onAdded(member: OrganizationMember): void;
-  onCancel(): void;
+  invitations: OrganizationInvitation[];
+  statusTime: number;
+  onRevoke(invitation: OrganizationInvitation): Promise<void>;
 }) {
-  const { request } = useAuth();
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-
-  useEffect(() => {
-    headingRef.current?.focus();
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !isSubmitting) onCancel();
-    }
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isSubmitting, onCancel]);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const result = addOrganizationMemberSchema.safeParse({
-      email: formData.get('email'),
-      role: formData.get('role'),
-    });
-
-    setEmailError(null);
-    setSubmissionError(null);
-    if (!result.success) {
-      setEmailError(result.error.flatten().fieldErrors.email?.[0] ?? null);
-      window.requestAnimationFrame(() => {
-        const emailField = form.elements.namedItem('email');
-        if (emailField instanceof HTMLElement) emailField.focus();
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const member = await addOrganizationMember(
-        request,
-        organizationId,
-        result.data,
-      );
-      form.reset();
-      onAdded(member);
-    } catch (cause: unknown) {
-      setSubmissionError(errorMessage(cause));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/45 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="add-member-title"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isSubmitting) onCancel();
-      }}
+    <OperationalPanel
+      title="Invitations"
+      description="Pending and historical organization invitations"
     >
-      <section className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
-        <h2
-          className="text-xl font-bold tracking-tight text-slate-950"
-          id="add-member-title"
-          ref={headingRef}
-          tabIndex={-1}
-        >
-          Add a member
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          The person must already have a registered Concept Store account.
+      {invitations.length === 0 ? (
+        <p className="p-6 text-sm text-slate-500">
+          No invitations created yet.
         </p>
-        <form className="mt-6 grid gap-4" onSubmit={handleSubmit} noValidate>
-          {submissionError ? (
-            <p
-              className="m-0 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
-              role="alert"
-            >
-              {submissionError}
-            </p>
-          ) : null}
-          <div className="grid gap-2">
-            <label className="text-sm font-bold" htmlFor="member-email">
-              Account email
-            </label>
-            <input
-              className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
-              id="member-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              maxLength={254}
-              required
-              aria-invalid={Boolean(emailError)}
-              aria-describedby={emailError ? 'member-email-error' : undefined}
-            />
-            {emailError ? (
-              <p id="member-email-error" className="m-0 text-sm text-red-600">
-                {emailError}
-              </p>
-            ) : null}
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-bold" htmlFor="member-role">
-              Organization role
-            </label>
-            <SelectControl
-              className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
-              id="member-role"
-              name="role"
-              defaultValue="CASHIER"
-            >
-              {roles.map((role) => (
-                <option key={role} value={role}>
-                  {roleLabels[role]}
-                </option>
-              ))}
-            </SelectControl>
-          </div>
-          <div className="mt-2 flex flex-wrap justify-end gap-3">
-            <button
-              className="min-h-11 rounded-[0.6rem] border border-slate-200 bg-white px-4 font-bold text-slate-700"
-              type="button"
-              disabled={isSubmitting}
-              onClick={onCancel}
-            >
-              Cancel
-            </button>
-            <button
-              className="min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
-              type="submit"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Adding member…' : 'Add member'}
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
+      ) : (
+        <ul className="list-none divide-y divide-slate-200 p-0">
+          {invitations.map((invitation) => {
+            const pending =
+              !invitation.acceptedAt &&
+              !invitation.revokedAt &&
+              new Date(invitation.expiresAt).getTime() > statusTime;
+            const status = invitation.acceptedAt
+              ? 'Accepted'
+              : invitation.revokedAt
+                ? 'Revoked'
+                : pending
+                  ? 'Pending'
+                  : 'Expired';
+            return (
+              <li
+                className="flex items-center justify-between gap-4 px-6 py-4 max-sm:grid"
+                key={invitation.id}
+              >
+                <div>
+                  <strong>{invitation.email}</strong>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {roleLabels[invitation.role]} · {status}
+                  </p>
+                </div>
+                {pending ? (
+                  <button
+                    className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 font-bold"
+                    type="button"
+                    onClick={() => void onRevoke(invitation)}
+                  >
+                    Revoke
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </OperationalPanel>
   );
 }

@@ -56,7 +56,16 @@ export function GuestGate({ children }: { children: ReactNode }) {
   const { status } = useAuth();
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/app');
+    if (status === 'authenticated') {
+      const returnTo = new URLSearchParams(window.location.search).get(
+        'returnTo',
+      );
+      router.replace(
+        returnTo?.startsWith('/') && !returnTo.startsWith('//')
+          ? returnTo
+          : '/app',
+      );
+    }
   }, [router, status]);
 
   if (status === 'loading' || status === 'authenticated') {

@@ -80,6 +80,67 @@ export class OrganizationMemberResponseDto {
   joinedAt!: Date;
 }
 
+export class OrganizationInvitationResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'email' })
+  email!: string;
+
+  @ApiProperty({ enum: OrganizationRole })
+  role!: OrganizationRole;
+
+  @ApiProperty({ format: 'date-time' })
+  expiresAt!: Date;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  acceptedAt!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  revokedAt!: Date | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+}
+
+export class CreatedOrganizationInvitationResponseDto {
+  @ApiProperty({ type: OrganizationInvitationResponseDto })
+  invitation!: OrganizationInvitationResponseDto;
+
+  @ApiProperty({
+    description: 'Single-use invitation token returned only once',
+  })
+  token!: string;
+}
+
+export class OrganizationInvitationPreviewResponseDto {
+  @ApiProperty({ example: 'Common Ground Concept Store' })
+  organizationName!: string;
+
+  @ApiProperty({ format: 'email' })
+  email!: string;
+
+  @ApiProperty({ enum: OrganizationRole })
+  role!: OrganizationRole;
+
+  @ApiProperty({ format: 'date-time' })
+  expiresAt!: Date;
+}
+
+export class AcceptedOrganizationInvitationResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ example: 'Common Ground Concept Store' })
+  organizationName!: string;
+
+  @ApiProperty({ enum: OrganizationRole })
+  role!: OrganizationRole;
+}
+
 export class BranchResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;

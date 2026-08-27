@@ -94,7 +94,14 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
         const registrationResult = registrationSchema.parse(values);
         await register(registrationResult);
       }
-      router.replace('/app');
+      const returnTo = new URLSearchParams(window.location.search).get(
+        'returnTo',
+      );
+      router.replace(
+        returnTo?.startsWith('/') && !returnTo.startsWith('//')
+          ? returnTo
+          : '/app',
+      );
     } catch (cause: unknown) {
       setSubmissionError(
         cause instanceof ApiError
