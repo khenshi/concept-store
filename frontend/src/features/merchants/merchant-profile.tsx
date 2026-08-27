@@ -389,6 +389,28 @@ export function MerchantProfile({
               {submissionError}
             </p>
           ) : null}
+          {merchant ? (
+            <section
+              className="mt-6 grid gap-3 sm:grid-cols-3"
+              aria-label="Merchant workflows"
+            >
+              <ContextLink
+                href={`/app/organizations/${organizationId}/products?merchantId=${merchant.id}`}
+                title="Products"
+                description="Open this merchant’s catalog."
+              />
+              <ContextLink
+                href={`/app/organizations/${organizationId}/inventory?merchantId=${merchant.id}`}
+                title="Inventory"
+                description="Review this merchant’s branch stock."
+              />
+              <ContextLink
+                href={`/app/organizations/${organizationId}/spaces${merchant.branches[0] ? `?branchId=${merchant.branches[0].id}` : ''}`}
+                title="Spaces"
+                description="Manage assignments in a participating branch."
+              />
+            </section>
+          ) : null}
           <div className="mt-6 grid items-start gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
             {!merchant && branches.length === 0 ? (
               <section className="rounded-xl border border-slate-200 bg-white p-6 md:col-span-2">
@@ -477,6 +499,33 @@ export function MerchantProfile({
         </>
       )}
     </section>
+  );
+}
+
+function ContextLink({
+  href,
+  title,
+  description,
+}: {
+  href: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      className="rounded-xl border border-slate-200 bg-white p-4 no-underline transition hover:border-emerald-300 hover:shadow-sm"
+      href={href}
+    >
+      <span className="font-bold text-slate-950">
+        {title}{' '}
+        <span className="text-emerald-600" aria-hidden="true">
+          →
+        </span>
+      </span>
+      <span className="mt-1 block text-sm leading-6 text-slate-500">
+        {description}
+      </span>
+    </Link>
   );
 }
 

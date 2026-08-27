@@ -7,84 +7,100 @@ export function OrganizationNavigation({
   organizationId,
   showMembers = false,
   showMerchants = false,
-  showSpaces = false,
   showProducts = false,
   showInventory = false,
+  onNavigate,
 }: {
   organizationId: string;
   showMembers?: boolean;
   showMerchants?: boolean;
-  showSpaces?: boolean;
   showProducts?: boolean;
   showInventory?: boolean;
+  onNavigate?(): void;
 }) {
   const pathname = usePathname();
   const basePath = `/app/organizations/${organizationId}`;
-  const destinations = [
-    { key: 'overview', label: 'Overview', href: basePath, visible: true },
+  const groups = [
     {
-      key: 'branches',
-      label: 'Branches',
-      href: `${basePath}/branches`,
-      visible: true,
+      label: null,
+      destinations: [
+        { key: 'overview', label: 'Overview', href: basePath, visible: true },
+      ],
     },
     {
-      key: 'spaces',
-      label: 'Spaces',
-      href: `${basePath}/spaces`,
-      visible: showSpaces,
+      label: 'Operations',
+      destinations: [
+        {
+          key: 'products',
+          label: 'Products',
+          href: `${basePath}/products`,
+          visible: showProducts,
+        },
+        {
+          key: 'inventory',
+          label: 'Inventory',
+          href: `${basePath}/inventory`,
+          visible: showInventory,
+        },
+      ],
     },
     {
-      key: 'merchants',
-      label: 'Merchants',
-      href: `${basePath}/merchants`,
-      visible: showMerchants,
-    },
-    {
-      key: 'products',
-      label: 'Products',
-      href: `${basePath}/products`,
-      visible: showProducts,
-    },
-    {
-      key: 'inventory',
-      label: 'Inventory',
-      href: `${basePath}/inventory`,
-      visible: showInventory,
-    },
-    {
-      key: 'members',
-      label: 'Members',
-      href: `${basePath}/members`,
-      visible: showMembers,
+      label: 'Business',
+      destinations: [
+        {
+          key: 'merchants',
+          label: 'Merchants',
+          href: `${basePath}/merchants`,
+          visible: showMerchants,
+        },
+        {
+          key: 'branches',
+          label: 'Branches',
+          href: `${basePath}/branches`,
+          visible: true,
+        },
+        {
+          key: 'members',
+          label: 'Members',
+          href: `${basePath}/members`,
+          visible: showMembers,
+        },
+      ],
     },
   ] as const;
 
   return (
-    <nav
-      className="mt-5 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-slate-200 lg:grid lg:gap-1 lg:overflow-visible lg:border-b-0"
-      aria-label="Organization"
-    >
-      {destinations.map((destination) =>
-        destination.visible ? (
-          <Link
-            key={destination.key}
-            className="shrink-0 border-b-2 border-transparent px-3 py-3 text-sm font-semibold text-slate-500 no-underline transition-colors hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:text-slate-950 lg:rounded-[0.6rem] lg:border-b-0 lg:border-l-2 lg:py-2.5 lg:aria-[current=page]:bg-white"
-            aria-current={
-              destination.key === 'overview'
-                ? pathname === basePath
-                  ? 'page'
-                  : undefined
-                : pathname.startsWith(destination.href)
-                  ? 'page'
-                  : undefined
-            }
-            href={destination.href}
-          >
-            {destination.label}
-          </Link>
-        ) : null,
-      )}
+    <nav className="mt-4 grid gap-5" aria-label="Organization">
+      {groups.map((group, index) => (
+        <div className="grid gap-1" key={group.label ?? index}>
+          {group.label ? (
+            <p className="px-3 pt-2 text-[0.68rem] font-bold tracking-[0.14em] text-slate-400 uppercase">
+              {group.label}
+            </p>
+          ) : null}
+          {group.destinations.map((destination) =>
+            destination.visible ? (
+              <Link
+                key={destination.key}
+                className="rounded-[0.6rem] border-l-2 border-transparent px-3 py-2.5 text-sm font-semibold text-slate-500 no-underline transition-colors hover:bg-slate-50 hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:bg-emerald-50 aria-[current=page]:text-emerald-800"
+                aria-current={
+                  destination.key === 'overview'
+                    ? pathname === basePath
+                      ? 'page'
+                      : undefined
+                    : pathname.startsWith(destination.href)
+                      ? 'page'
+                      : undefined
+                }
+                href={destination.href}
+                onClick={onNavigate}
+              >
+                {destination.label}
+              </Link>
+            ) : null,
+          )}
+        </div>
+      ))}
     </nav>
   );
 }

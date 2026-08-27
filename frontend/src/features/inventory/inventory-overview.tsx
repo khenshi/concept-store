@@ -5,13 +5,12 @@ import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
-import { listMerchants } from '@/features/merchants/merchant-api';
 import type { Merchant } from '@/features/merchants/merchant.types';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import { listProducts } from '@/features/products/product-api';
 import type { Product, ProductStatus } from '@/features/products/product.types';
 import { adjustInventory, listInventory, stockIn } from './inventory-api';
+import { InventoryMovementHistory } from './inventory-movement-history';
 import { InventoryOperationModal } from './inventory-operation-modal';
 import type {
   InventoryAdjustmentInput,
@@ -35,12 +34,26 @@ function message(cause: unknown): string {
 
 export function InventoryOverview({
   organizationId,
+  initialFilters = {},
 }: {
   organizationId: string;
+  initialFilters?: Pick<
+    InventoryFilters,
+    'branchId' | 'merchantId' | 'productId'
+  >;
 }) {
   const { request } = useAuth();
-  const { organization, organizationStatus, branches, loadBranches } =
-    useOrganizationWorkspaceContext();
+  const initialBranchId = initialFilters.branchId;
+  const initialMerchantId = initialFilters.merchantId;
+  const initialProductId = initialFilters.productId;
+  const {
+    organization,
+    organizationStatus,
+    branches,
+    loadBranches,
+    loadMerchants,
+    loadProducts,
+  } = useOrganizationWorkspaceContext();
   const [page, setPage] = useState<InventoryPage>({
     items: [],
     total: 0,
@@ -50,6 +63,9 @@ export function InventoryOverview({
   const [products, setProducts] = useState<Product[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filters, setFilters] = useState<InventoryFilters>({
+    branchId: initialBranchId,
+    merchantId: initialMerchantId,
+    productId: initialProductId,
     limit: PAGE_SIZE,
     offset: 0,
   });
@@ -60,6 +76,9 @@ export function InventoryOverview({
   const [error, setError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [view, setView] = useState<'current' | 'history'>('current');
+  const [historyOpened, setHistoryOpened] = useState(false);
+  const [historyVersion, setHistoryVersion] = useState(0);
 
   useEffect(() => {
     if (
@@ -69,9 +88,15 @@ export function InventoryOverview({
       return;
     let active = true;
     void Promise.all([
-      listInventory(request, organizationId, { limit: PAGE_SIZE, offset: 0 }),
-      listProducts(request, organizationId),
-      listMerchants(request, organizationId),
+      listInventory(request, organizationId, {
+        branchId: initialBranchId,
+        merchantId: initialMerchantId,
+        productId: initialProductId,
+        limit: PAGE_SIZE,
+        offset: 0,
+      }),
+      loadProducts(),
+      loadMerchants(),
       loadBranches(),
     ])
       .then(([inventory, catalog, merchantList]) => {
@@ -90,7 +115,17 @@ export function InventoryOverview({
     return () => {
       active = false;
     };
-  }, [loadBranches, organization, organizationId, request]);
+  }, [
+    initialBranchId,
+    initialMerchantId,
+    initialProductId,
+    loadBranches,
+    loadMerchants,
+    loadProducts,
+    organization,
+    organizationId,
+    request,
+  ]);
 
   async function fetchPage(
     next: InventoryFilters,
@@ -117,6 +152,7 @@ export function InventoryOverview({
       {
         branchId: String(data.get('branchId') ?? '') || undefined,
         merchantId: String(data.get('merchantId') ?? '') || undefined,
+        productId: filters.productId,
         status: (String(data.get('status') ?? '') || undefined) as
           ProductStatus | undefined,
         search: String(data.get('search') ?? '').trim() || undefined,
@@ -175,6 +211,7 @@ export function InventoryOverview({
       const result = await stockIn(request, organizationId, input);
       mergeOperation(result, operation);
       setSuccess(`Recorded ${input.quantity} units of stock.`);
+      setHistoryVersion((version) => version + 1);
       setOperation(null);
     } catch (cause: unknown) {
       setFormError(message(cause));
@@ -193,6 +230,7 @@ export function InventoryOverview({
       const result = await adjustInventory(request, organizationId, input);
       mergeOperation(result, operation);
       setSuccess(`Inventory was adjusted by ${input.quantityChange}.`);
+      setHistoryVersion((version) => version + 1);
       setOperation(null);
     } catch (cause: unknown) {
       setFormError(message(cause));
@@ -219,156 +257,203 @@ export function InventoryOverview({
       {!canManage ? (
         <Limited />
       ) : (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <div className="flex items-start justify-between gap-4 max-sm:grid">
-            <div>
-              <h2 className="text-base font-bold">Current stock</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                {page.total} product and branch records
-              </p>
-            </div>
+        <>
+          <div
+            className="mt-6 flex gap-1 border-b border-slate-200"
+            role="tablist"
+            aria-label="Inventory views"
+          >
             <button
-              className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 font-bold text-white disabled:opacity-60"
+              className={`border-x-0 border-t-0 bg-transparent px-3 py-3 text-sm font-bold ${view === 'current' ? 'border-b-2 border-emerald-600 text-slate-950' : 'border-b-2 border-transparent text-slate-500'}`}
               type="button"
-              disabled={products.length === 0 || branches.length === 0}
+              role="tab"
+              aria-selected={view === 'current'}
+              onClick={() => setView('current')}
+            >
+              Current stock
+            </button>
+            <button
+              className={`border-x-0 border-t-0 bg-transparent px-3 py-3 text-sm font-bold ${view === 'history' ? 'border-b-2 border-emerald-600 text-slate-950' : 'border-b-2 border-transparent text-slate-500'}`}
+              type="button"
+              role="tab"
+              aria-selected={view === 'history'}
               onClick={() => {
-                setFormError(null);
-                setOperation({ mode: 'stock-in' });
+                setView('history');
+                setHistoryOpened(true);
               }}
             >
-              Record stock-in
+              Movement history
             </button>
           </div>
-          <form
-            className="mt-6 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_repeat(3,minmax(9rem,0.45fr))_auto]"
-            onSubmit={submitFilters}
-          >
-            <Filter label="Search" id="inventory-search">
-              <input
-                className={fieldClass}
-                id="inventory-search"
-                name="search"
-                type="search"
-                defaultValue={filters.search}
-                placeholder="Name, SKU, or barcode"
-              />
-            </Filter>
-            <Filter label="Branch" id="inventory-branch">
-              <select
-                className={fieldClass}
-                id="inventory-branch"
-                name="branchId"
-                defaultValue={filters.branchId ?? ''}
-              >
-                <option value="">All branches</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
-            </Filter>
-            <Filter label="Merchant" id="inventory-merchant">
-              <select
-                className={fieldClass}
-                id="inventory-merchant"
-                name="merchantId"
-                defaultValue={filters.merchantId ?? ''}
-              >
-                <option value="">All merchants</option>
-                {merchants.map((merchant) => (
-                  <option key={merchant.id} value={merchant.id}>
-                    {merchant.name}
-                  </option>
-                ))}
-              </select>
-            </Filter>
-            <Filter label="Product status" id="inventory-status">
-              <select
-                className={fieldClass}
-                id="inventory-status"
-                name="status"
-                defaultValue={filters.status ?? ''}
-              >
-                <option value="">All statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
-            </Filter>
-            <button
-              className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
-              disabled={isFiltering}
-            >
-              {isFiltering ? 'Applying…' : 'Apply'}
-            </button>
-          </form>
-          {success ? (
-            <p
-              className="mt-5 rounded-lg border border-green-600 p-3 text-sm"
-              role="status"
-            >
-              {success}
-            </p>
-          ) : null}
-          {error ? (
-            <RequestError
-              className="mt-5 rounded-lg border border-red-600 p-3 text-sm text-red-600"
-              message={error}
-              onRetry={() => void fetchPage(filters)}
-            />
-          ) : null}
-          {isLoading ? (
-            <ListSkeleton label="Loading inventory" rowClassName="h-24" />
-          ) : page.items.length === 0 ? (
-            <Empty />
-          ) : (
-            <ul className="mt-5 list-none p-0">
-              {page.items.map((item) => (
-                <InventoryRow
-                  key={`${item.productId}:${item.branchId}`}
-                  item={item}
-                  onAdjust={() => {
+          {view === 'current' ? (
+            <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+              <div className="flex items-start justify-between gap-4 max-sm:grid">
+                <div>
+                  <h2 className="text-base font-bold">Current stock</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {page.total} product and branch records
+                  </p>
+                </div>
+                <button
+                  className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 font-bold text-white disabled:opacity-60"
+                  type="button"
+                  disabled={products.length === 0 || branches.length === 0}
+                  onClick={() => {
                     setFormError(null);
-                    setOperation({ mode: 'adjust', item });
+                    setOperation({ mode: 'stock-in' });
                   }}
-                />
-              ))}
-            </ul>
-          )}
-          {page.total > 0 ? (
-            <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-200 pt-5">
-              <p className="text-sm text-slate-500">
-                Showing {from}–{to} of {page.total}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 font-bold disabled:opacity-50"
-                  disabled={page.offset === 0 || isLoading}
-                  onClick={() =>
-                    void fetchPage({
-                      ...filters,
-                      offset: Math.max(0, page.offset - page.limit),
-                    })
-                  }
                 >
-                  Previous
-                </button>
-                <button
-                  className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 font-bold disabled:opacity-50"
-                  disabled={page.offset + page.limit >= page.total || isLoading}
-                  onClick={() =>
-                    void fetchPage({
-                      ...filters,
-                      offset: page.offset + page.limit,
-                    })
-                  }
-                >
-                  Next
+                  Record stock-in
                 </button>
               </div>
-            </div>
+              <form
+                className="mt-6 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_repeat(3,minmax(9rem,0.45fr))_auto]"
+                onSubmit={submitFilters}
+              >
+                <input
+                  type="hidden"
+                  name="productId"
+                  value={filters.productId ?? ''}
+                />
+                <Filter label="Search" id="inventory-search">
+                  <input
+                    className={fieldClass}
+                    id="inventory-search"
+                    name="search"
+                    type="search"
+                    defaultValue={filters.search}
+                    placeholder="Name, SKU, or barcode"
+                  />
+                </Filter>
+                <Filter label="Branch" id="inventory-branch">
+                  <select
+                    className={fieldClass}
+                    id="inventory-branch"
+                    name="branchId"
+                    defaultValue={filters.branchId ?? ''}
+                  >
+                    <option value="">All branches</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </Filter>
+                <Filter label="Merchant" id="inventory-merchant">
+                  <select
+                    className={fieldClass}
+                    id="inventory-merchant"
+                    name="merchantId"
+                    defaultValue={filters.merchantId ?? ''}
+                  >
+                    <option value="">All merchants</option>
+                    {merchants.map((merchant) => (
+                      <option key={merchant.id} value={merchant.id}>
+                        {merchant.name}
+                      </option>
+                    ))}
+                  </select>
+                </Filter>
+                <Filter label="Product status" id="inventory-status">
+                  <select
+                    className={fieldClass}
+                    id="inventory-status"
+                    name="status"
+                    defaultValue={filters.status ?? ''}
+                  >
+                    <option value="">All statuses</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </Filter>
+                <button
+                  className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
+                  disabled={isFiltering}
+                >
+                  {isFiltering ? 'Applying…' : 'Apply'}
+                </button>
+              </form>
+              {success ? (
+                <p
+                  className="mt-5 rounded-lg border border-green-600 p-3 text-sm"
+                  role="status"
+                >
+                  {success}
+                </p>
+              ) : null}
+              {error ? (
+                <RequestError
+                  className="mt-5 rounded-lg border border-red-600 p-3 text-sm text-red-600"
+                  message={error}
+                  onRetry={() => void fetchPage(filters)}
+                />
+              ) : null}
+              {isLoading ? (
+                <ListSkeleton label="Loading inventory" rowClassName="h-24" />
+              ) : page.items.length === 0 ? (
+                <Empty />
+              ) : (
+                <ul className="mt-5 list-none p-0">
+                  {page.items.map((item) => (
+                    <InventoryRow
+                      key={`${item.productId}:${item.branchId}`}
+                      item={item}
+                      onAdjust={() => {
+                        setFormError(null);
+                        setOperation({ mode: 'adjust', item });
+                      }}
+                    />
+                  ))}
+                </ul>
+              )}
+              {page.total > 0 ? (
+                <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-200 pt-5">
+                  <p className="text-sm text-slate-500">
+                    Showing {from}–{to} of {page.total}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 font-bold disabled:opacity-50"
+                      disabled={page.offset === 0 || isLoading}
+                      onClick={() =>
+                        void fetchPage({
+                          ...filters,
+                          offset: Math.max(0, page.offset - page.limit),
+                        })
+                      }
+                    >
+                      Previous
+                    </button>
+                    <button
+                      className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 font-bold disabled:opacity-50"
+                      disabled={
+                        page.offset + page.limit >= page.total || isLoading
+                      }
+                      onClick={() =>
+                        void fetchPage({
+                          ...filters,
+                          offset: page.offset + page.limit,
+                        })
+                      }
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
           ) : null}
-        </section>
+          {historyOpened ? (
+            <InventoryMovementHistory
+              organizationId={organizationId}
+              products={products}
+              branches={branches}
+              hidden={view !== 'history'}
+              refreshKey={historyVersion}
+            />
+          ) : null}
+        </>
       )}
       {operation ? (
         <InventoryOperationModal

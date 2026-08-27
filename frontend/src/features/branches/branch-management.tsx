@@ -11,6 +11,7 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/organi
 import { createBranch, updateBranch } from './branch-api';
 import { branchSchema } from './branch.schemas';
 import type { Branch, BranchInput } from './branch.types';
+import { BranchWorkspaceDrawer } from './branch-workspace-drawer';
 
 type BranchField = keyof BranchInput;
 type FieldErrors = Partial<Record<BranchField, string>>;
@@ -58,6 +59,7 @@ export function BranchManagement({
     upsertBranch,
   } = useOrganizationWorkspaceContext();
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
+  const [workspaceBranch, setWorkspaceBranch] = useState<Branch | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -184,18 +186,27 @@ export function BranchManagement({
                       {addressFor(branch)}
                     </address>
                   </div>
-                  {canManage ? (
+                  <div className="flex shrink-0 flex-wrap justify-end gap-3">
                     <button
                       className="cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
                       type="button"
-                      onClick={() => {
-                        setSuccessMessage(null);
-                        setEditingBranch(branch);
-                      }}
+                      onClick={() => setWorkspaceBranch(branch)}
                     >
-                      Edit
+                      Open workspace
                     </button>
-                  ) : null}
+                    {canManage ? (
+                      <button
+                        className="cursor-pointer border-0 bg-transparent p-0 font-bold text-slate-600 underline underline-offset-3"
+                        type="button"
+                        onClick={() => {
+                          setSuccessMessage(null);
+                          setEditingBranch(branch);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -212,6 +223,18 @@ export function BranchManagement({
           />
         ) : null}
       </div>
+      {workspaceBranch ? (
+        <BranchWorkspaceDrawer
+          organizationId={organizationId}
+          branch={workspaceBranch}
+          canManage={canManage}
+          onClose={() => setWorkspaceBranch(null)}
+          onEdit={() => {
+            setEditingBranch(workspaceBranch);
+            setWorkspaceBranch(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

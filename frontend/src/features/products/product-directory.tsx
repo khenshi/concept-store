@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import Link from 'next/link';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
-import { listMerchants } from '@/features/merchants/merchant-api';
 import type { Merchant } from '@/features/merchants/merchant.types';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
@@ -44,15 +44,24 @@ function sorted(products: Product[]): Product[] {
 
 export function ProductDirectory({
   organizationId,
+  initialMerchantId,
 }: {
   organizationId: string;
+  initialMerchantId?: string;
 }) {
   const { request } = useAuth();
-  const { organization, organizationStatus } =
-    useOrganizationWorkspaceContext();
+  const {
+    organization,
+    organizationStatus,
+    loadMerchants,
+    loadProducts,
+    upsertProduct,
+  } = useOrganizationWorkspaceContext();
   const [products, setProducts] = useState<Product[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
-  const [filters, setFilters] = useState<ProductFilters>({});
+  const [filters, setFilters] = useState<ProductFilters>({
+    merchantId: initialMerchantId,
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -83,8 +92,12 @@ export function ProductDirectory({
       return;
     let active = true;
     void Promise.all([
-      listProducts(request, organizationId),
-      listMerchants(request, organizationId),
+      initialMerchantId
+        ? listProducts(request, organizationId, {
+            merchantId: initialMerchantId,
+          })
+        : loadProducts(),
+      loadMerchants(),
     ])
       .then(([catalog, activeMerchants]) => {
         if (active) {
@@ -101,7 +114,14 @@ export function ProductDirectory({
     return () => {
       active = false;
     };
-  }, [organization, organizationId, request]);
+  }, [
+    initialMerchantId,
+    loadMerchants,
+    loadProducts,
+    organization,
+    organizationId,
+    request,
+  ]);
 
   async function filter(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -139,6 +159,7 @@ export function ProductDirectory({
       setProducts((current) =>
         sorted([...current.filter((item) => item.id !== saved.id), saved]),
       );
+      upsertProduct(saved);
       setSuccess(
         editing
           ? `${saved.name} was updated.`
@@ -167,6 +188,7 @@ export function ProductDirectory({
       setProducts((current) =>
         current.map((item) => (item.id === saved.id ? saved : item)),
       );
+      upsertProduct(saved);
       setSuccess(`${saved.name} is now ${saved.status.toLowerCase()}.`);
     } catch (cause: unknown) {
       setError(message(cause));
@@ -297,6 +319,7 @@ export function ProductDirectory({
               {products.map((product) => (
                 <ProductRow
                   key={product.id}
+                  organizationId={organizationId}
                   product={product}
                   pending={pendingStatusId === product.id}
                   onEdit={() => openForm(product)}
@@ -322,11 +345,13 @@ export function ProductDirectory({
 }
 
 function ProductRow({
+  organizationId,
   product,
   pending,
   onEdit,
   onToggle,
 }: {
+  organizationId: string;
   product: Product;
   pending: boolean;
   onEdit(): void;
@@ -359,6 +384,12 @@ function ProductRow({
         <strong className="text-sm">
           {peso.format(Number(product.sellingPrice))}
         </strong>
+        <Link
+          className="text-sm font-bold text-emerald-700 underline underline-offset-3"
+          href={`/app/organizations/${organizationId}/inventory?productId=${product.id}`}
+        >
+          View stock
+        </Link>
         <button
           className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-emerald-700 underline underline-offset-3"
           type="button"

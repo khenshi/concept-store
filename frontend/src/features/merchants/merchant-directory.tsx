@@ -46,6 +46,7 @@ export function MerchantDirectory({
     organizationStatus,
     organizationError,
     refreshOrganization,
+    loadMerchants,
   } = useOrganizationWorkspaceContext();
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filters, setFilters] = useState<MerchantFilters>({});
@@ -73,7 +74,7 @@ export function MerchantDirectory({
       return;
     }
     let active = true;
-    void listMerchants(request, organizationId)
+    void loadMerchants()
       .then((result) => {
         if (active) setMerchants(result);
       })
@@ -86,7 +87,7 @@ export function MerchantDirectory({
     return () => {
       active = false;
     };
-  }, [organization, organizationId, request]);
+  }, [loadMerchants, organization]);
 
   async function handleFilter(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

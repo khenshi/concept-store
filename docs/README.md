@@ -5,6 +5,8 @@ All project documentation is maintained in this directory and organized by miles
 ## Architecture
 
 - [Technology stack](tech-stack.md)
+- [Owner and manager frontend workflows](frontend-owner-manager-workflows.md)
+- [Authenticated application shell](frontend-authenticated-shell.md)
 
 ## Milestone 1 — SaaS / Multi-Tenant Foundation
 
@@ -58,6 +60,7 @@ All project documentation is maintained in this directory and organized by miles
 
 ## Milestone 4 — Products and Inventory
 
+- [Milestone completion](milestone-4/completion.md)
 - [Backend design](milestone-4/backend-design.md)
 - [Product and inventory data model](milestone-4/product-inventory-data-model.md)
 - [Product management API](milestone-4/product-api.md)
@@ -67,6 +70,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend foundation](milestone-4/frontend-foundation.md)
 - [Frontend product management](milestone-4/frontend-product-management.md)
 - [Frontend inventory management](milestone-4/frontend-inventory-management.md)
+- [Frontend movement history](milestone-4/frontend-movement-history.md)
 
 ## Documentation convention
 

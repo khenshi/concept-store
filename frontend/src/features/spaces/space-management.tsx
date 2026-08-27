@@ -57,8 +57,10 @@ function fieldErrorsFrom(error: ZodError<SpaceInput>): FieldErrors {
 
 export function SpaceManagement({
   organizationId,
+  initialBranchId = '',
 }: {
   organizationId: string;
+  initialBranchId?: string;
 }) {
   const { request } = useAuth();
   const {
@@ -71,7 +73,7 @@ export function SpaceManagement({
     branchesError,
     loadBranches,
   } = useOrganizationWorkspaceContext();
-  const [selectedBranchId, setSelectedBranchId] = useState('');
+  const [selectedBranchId, setSelectedBranchId] = useState(initialBranchId);
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
   const [assignmentSpace, setAssignmentSpace] = useState<Space | null>(null);

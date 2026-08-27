@@ -16,9 +16,11 @@ const roleLabels = {
 export function OrganizationSwitcher({
   organizationId,
   organizationName,
+  compact = false,
 }: {
   organizationId: string;
   organizationName?: string;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const { request } = useAuth();
@@ -88,9 +90,11 @@ export function OrganizationSwitcher({
 
   return (
     <div className="relative grid gap-2" ref={containerRef}>
-      <span className="text-xs font-bold tracking-[0.08em] text-slate-500 uppercase">
-        Organization
-      </span>
+      {!compact ? (
+        <span className="text-xs font-bold tracking-[0.08em] text-slate-500 uppercase">
+          Organization
+        </span>
+      ) : null}
       <button
         className="flex min-h-11 w-full min-w-0 cursor-pointer items-center justify-between gap-3 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-left text-sm font-semibold text-slate-900 hover:border-emerald-600"
         type="button"

@@ -14,6 +14,10 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { listBranches } from '@/features/branches/branch-api';
 import type { Branch } from '@/features/branches/branch.types';
+import { listMerchants } from '@/features/merchants/merchant-api';
+import type { Merchant } from '@/features/merchants/merchant.types';
+import { listProducts } from '@/features/products/product-api';
+import type { Product } from '@/features/products/product.types';
 import { getOrganization } from './organization-api';
 import type { OrganizationAccess } from './organization.types';
 
@@ -30,6 +34,13 @@ interface OrganizationWorkspaceContextValue {
   branchesError: string | null;
   loadBranches(options?: { refresh?: boolean }): Promise<Branch[]>;
   upsertBranch(branch: Branch): void;
+  merchants: Merchant[];
+  merchantsStatus: LoadStatus;
+  loadMerchants(options?: { refresh?: boolean }): Promise<Merchant[]>;
+  products: Product[];
+  productsStatus: LoadStatus;
+  loadProducts(options?: { refresh?: boolean }): Promise<Product[]>;
+  upsertProduct(product: Product): void;
 }
 
 const OrganizationWorkspaceContext =
@@ -61,6 +72,16 @@ export function OrganizationWorkspaceProvider({
   const branchesPromiseRef = useRef<Promise<Branch[]> | null>(null);
   const branchesRef = useRef<Branch[]>([]);
   const branchesStatusRef = useRef<LoadStatus>('idle');
+  const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [merchantsStatus, setMerchantsStatus] = useState<LoadStatus>('idle');
+  const merchantsRef = useRef<Merchant[]>([]);
+  const merchantsStatusRef = useRef<LoadStatus>('idle');
+  const merchantsPromiseRef = useRef<Promise<Merchant[]> | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsStatus, setProductsStatus] = useState<LoadStatus>('idle');
+  const productsRef = useRef<Product[]>([]);
+  const productsStatusRef = useRef<LoadStatus>('idle');
+  const productsPromiseRef = useRef<Promise<Product[]> | null>(null);
 
   const refreshOrganization = useCallback(async () => {
     setOrganizationStatus('loading');
@@ -149,6 +170,77 @@ export function OrganizationWorkspaceProvider({
     setBranchesError(null);
   }, []);
 
+  const loadMerchants = useCallback(
+    async (options?: { refresh?: boolean }) => {
+      if (!options?.refresh) {
+        if (merchantsStatusRef.current === 'ready') return merchantsRef.current;
+        if (merchantsPromiseRef.current) return merchantsPromiseRef.current;
+      }
+      merchantsStatusRef.current = 'loading';
+      setMerchantsStatus('loading');
+      const promise = listMerchants(request, organizationId)
+        .then((result) => {
+          merchantsRef.current = result;
+          merchantsStatusRef.current = 'ready';
+          setMerchants(result);
+          setMerchantsStatus('ready');
+          return result;
+        })
+        .catch((cause: unknown) => {
+          merchantsStatusRef.current = 'error';
+          setMerchantsStatus('error');
+          throw cause;
+        })
+        .finally(() => {
+          merchantsPromiseRef.current = null;
+        });
+      merchantsPromiseRef.current = promise;
+      return promise;
+    },
+    [organizationId, request],
+  );
+
+  const loadProducts = useCallback(
+    async (options?: { refresh?: boolean }) => {
+      if (!options?.refresh) {
+        if (productsStatusRef.current === 'ready') return productsRef.current;
+        if (productsPromiseRef.current) return productsPromiseRef.current;
+      }
+      productsStatusRef.current = 'loading';
+      setProductsStatus('loading');
+      const promise = listProducts(request, organizationId)
+        .then((result) => {
+          productsRef.current = result;
+          productsStatusRef.current = 'ready';
+          setProducts(result);
+          setProductsStatus('ready');
+          return result;
+        })
+        .catch((cause: unknown) => {
+          productsStatusRef.current = 'error';
+          setProductsStatus('error');
+          throw cause;
+        })
+        .finally(() => {
+          productsPromiseRef.current = null;
+        });
+      productsPromiseRef.current = promise;
+      return promise;
+    },
+    [organizationId, request],
+  );
+
+  const upsertProduct = useCallback((product: Product) => {
+    const next = [
+      ...productsRef.current.filter((item) => item.id !== product.id),
+      product,
+    ].sort((left, right) => left.name.localeCompare(right.name));
+    productsRef.current = next;
+    productsStatusRef.current = 'ready';
+    setProducts(next);
+    setProductsStatus('ready');
+  }, []);
+
   const value = useMemo<OrganizationWorkspaceContextValue>(
     () => ({
       organizationId,
@@ -160,6 +252,13 @@ export function OrganizationWorkspaceProvider({
       branchesStatus,
       branchesError,
       loadBranches,
+      merchants,
+      merchantsStatus,
+      loadMerchants,
+      products,
+      productsStatus,
+      loadProducts,
+      upsertProduct,
       upsertBranch,
     }),
     [
@@ -173,6 +272,13 @@ export function OrganizationWorkspaceProvider({
       organizationStatus,
       refreshOrganization,
       upsertBranch,
+      merchants,
+      merchantsStatus,
+      loadMerchants,
+      products,
+      productsStatus,
+      loadProducts,
+      upsertProduct,
     ],
   );
 
