@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import {
+  OperationalPage,
+  OperationalPanel,
+  StatusNotice,
+} from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -182,7 +187,7 @@ export function OrganizationMemberManagement({
   const canManageMembers = organization.role === 'OWNER';
 
   return (
-    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
+    <OperationalPage>
       <OrganizationPageHeader
         organization={organization}
         title="Organization members"
@@ -207,12 +212,7 @@ export function OrganizationMemberManagement({
             />
           ) : null}
           {successMessage ? (
-            <p
-              className="mt-6 rounded-lg border border-green-600 bg-white px-4 py-3"
-              role="status"
-            >
-              {successMessage}
-            </p>
+            <StatusNotice>{successMessage}</StatusNotice>
           ) : null}
           {actionError ? (
             <p
@@ -227,24 +227,14 @@ export function OrganizationMemberManagement({
             <div
               className={`mt-6 grid items-start gap-5 ${canManageMembers ? 'md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]' : 'grid-cols-1'}`}
             >
-              <section
-                className="rounded-xl border border-slate-200 bg-white p-6"
-                aria-labelledby="member-list-title"
+              <OperationalPanel
+                title="People with access"
+                description={`${members.length} organization members · Roles apply across the organization; branch access is not configured yet`}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <h2
-                    className="m-0 text-base font-bold"
-                    id="member-list-title"
-                  >
-                    People with access
-                  </h2>
-                  <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
-                    {members.length}
-                  </span>
-                </div>
-
                 {isLoading ? (
-                  <ListSkeleton label="Loading members" rowClassName="h-14" />
+                  <div className="px-5 pb-5 sm:px-6">
+                    <ListSkeleton label="Loading members" rowClassName="h-14" />
+                  </div>
                 ) : members.length === 0 ? (
                   <div className="py-10 text-center">
                     <h3 className="m-0 text-base font-bold">
@@ -255,63 +245,101 @@ export function OrganizationMemberManagement({
                     </p>
                   </div>
                 ) : (
-                  <ul className="mt-5 list-none p-0">
-                    {members.map((member) => (
-                      <li
-                        className="flex items-center justify-between gap-4 border-b border-slate-200 py-4 last:border-b-0 max-sm:grid max-sm:items-stretch"
-                        key={member.id}
-                      >
-                        <div className="grid gap-1">
-                          <strong>{member.email}</strong>
-                          <span className="text-sm text-slate-500">
-                            Joined {joinedDate(member.joinedAt)}
-                          </span>
-                        </div>
-                        {canManageMembers ? (
-                          <div className="flex items-center gap-2 max-sm:flex-wrap max-sm:items-stretch">
-                            <label
-                              className="sr-only"
-                              htmlFor={`role-${member.id}`}
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
+                      <caption className="sr-only">
+                        Organization member accounts, join dates, roles, and
+                        available actions
+                      </caption>
+                      <thead className="bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+                        <tr>
+                          <th className="px-6 py-3.5 font-bold" scope="col">
+                            Account
+                          </th>
+                          <th className="px-4 py-3.5 font-bold" scope="col">
+                            Joined
+                          </th>
+                          <th className="px-4 py-3.5 font-bold" scope="col">
+                            Organization role
+                          </th>
+                          <th
+                            className="px-6 py-3.5 text-right font-bold"
+                            scope="col"
+                          >
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {members.map((member) => (
+                          <tr
+                            className="border-t border-slate-200 hover:bg-slate-50/60"
+                            key={member.id}
+                          >
+                            <th
+                              className="px-6 py-4 font-bold text-slate-950"
+                              scope="row"
                             >
-                              Role for {member.email}
-                            </label>
-                            <select
-                              className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-60"
-                              id={`role-${member.id}`}
-                              value={member.role}
-                              disabled={pendingMemberId === member.id}
-                              onChange={(event) =>
-                                void handleRoleChange(
-                                  member,
-                                  event.target.value as OrganizationRole,
-                                )
-                              }
-                            >
-                              {roles.map((role) => (
-                                <option key={role} value={role}>
-                                  {roleLabels[role]}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm font-bold disabled:cursor-wait disabled:opacity-65"
-                              type="button"
-                              disabled={pendingMemberId === member.id}
-                              onClick={() => void handleRemove(member)}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                            {roleLabels[member.role]}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                              {member.email}
+                            </th>
+                            <td className="px-4 py-4 text-slate-500">
+                              {joinedDate(member.joinedAt)}
+                            </td>
+                            <td className="px-4 py-4">
+                              {canManageMembers ? (
+                                <>
+                                  <label
+                                    className="sr-only"
+                                    htmlFor={`role-${member.id}`}
+                                  >
+                                    Role for {member.email}
+                                  </label>
+                                  <select
+                                    className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-60"
+                                    id={`role-${member.id}`}
+                                    value={member.role}
+                                    disabled={pendingMemberId === member.id}
+                                    onChange={(event) =>
+                                      void handleRoleChange(
+                                        member,
+                                        event.target.value as OrganizationRole,
+                                      )
+                                    }
+                                  >
+                                    {roles.map((role) => (
+                                      <option key={role} value={role}>
+                                        {roleLabels[role]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </>
+                              ) : (
+                                <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                                  {roleLabels[member.role]}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              {canManageMembers ? (
+                                <button
+                                  className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm font-bold disabled:cursor-wait disabled:opacity-65"
+                                  type="button"
+                                  disabled={pendingMemberId === member.id}
+                                  onClick={() => void handleRemove(member)}
+                                >
+                                  Remove
+                                </button>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              </section>
+              </OperationalPanel>
 
               {canManageMembers ? (
                 <AddMemberForm
@@ -329,7 +357,7 @@ export function OrganizationMemberManagement({
           ) : null}
         </>
       )}
-    </section>
+    </OperationalPage>
   );
 }
 
@@ -382,19 +410,15 @@ function AddMemberForm({
   }
 
   return (
-    <section
-      className="rounded-xl border border-slate-200 bg-white p-6"
-      aria-labelledby="add-member-title"
+    <OperationalPanel
+      title="Add a member"
+      description="The person must already have a registered Concept Store account."
     >
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="m-0 text-base font-bold" id="add-member-title">
-          Add a member
-        </h2>
-      </div>
-      <p className="mt-4 leading-7 text-slate-500">
-        The person must already have a registered Concept Store account.
-      </p>
-      <form className="mt-5 grid gap-4" onSubmit={handleSubmit} noValidate>
+      <form
+        className="grid gap-4 p-5 sm:p-6"
+        onSubmit={handleSubmit}
+        noValidate
+      >
         {submissionError ? (
           <p
             className="m-0 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
@@ -449,6 +473,6 @@ function AddMemberForm({
           {isSubmitting ? 'Adding member…' : 'Add member'}
         </button>
       </form>
-    </section>
+    </OperationalPanel>
   );
 }

@@ -82,7 +82,7 @@ export function OrganizationNavigation({
             destination.visible ? (
               <Link
                 key={destination.key}
-                className="rounded-[0.6rem] border-l-2 border-transparent px-3 py-2.5 text-sm font-semibold text-slate-500 no-underline transition-colors hover:bg-slate-50 hover:text-slate-900 aria-[current=page]:border-emerald-600 aria-[current=page]:bg-emerald-50 aria-[current=page]:text-emerald-800"
+                className="rounded-[0.6rem] border-l-2 border-transparent px-3 py-2.5 text-sm font-semibold text-slate-500 no-underline transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-[current=page]:border-emerald-600 aria-[current=page]:bg-emerald-50 aria-[current=page]:text-emerald-800"
                 aria-current={
                   destination.key === 'overview'
                     ? pathname === basePath

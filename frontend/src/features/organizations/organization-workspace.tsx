@@ -1,6 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import {
+  OperationalPage,
+  OperationalPanel,
+} from '@/components/ui/operational-page';
 import { OrganizationPageHeader } from './organization-page-header';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
 
@@ -51,92 +55,104 @@ export function OrganizationWorkspace({
 
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
-  const destinations = [
+  const groups = [
     {
-      label: 'Branches',
-      description: 'Manage the physical locations in this organization.',
-      href: `/app/organizations/${organizationId}/branches`,
-      visible: true,
+      title: 'Operations',
+      description: 'Catalog and physical stock used in daily store operations.',
+      destinations: [
+        {
+          label: 'Products',
+          description: 'Merchant-owned catalog, codes, and prices.',
+          href: `/app/organizations/${organizationId}/products`,
+          visible: canManage,
+        },
+        {
+          label: 'Inventory',
+          description: 'Branch quantities and auditable stock movements.',
+          href: `/app/organizations/${organizationId}/inventory`,
+          visible: canManage,
+        },
+      ],
     },
     {
-      label: 'Spaces',
-      description: 'Organize racks, shelves, booths, and selling areas.',
-      href: `/app/organizations/${organizationId}/spaces`,
-      visible: canManage,
+      title: 'Business',
+      description:
+        'People, brands, and locations participating in this organization.',
+      destinations: [
+        {
+          label: 'Merchants',
+          description: 'Independent brands, participation, and agreements.',
+          href: `/app/organizations/${organizationId}/merchants`,
+          visible: canManage,
+        },
+        {
+          label: 'Branches',
+          description: 'Locations with contextual spaces and inventory.',
+          href: `/app/organizations/${organizationId}/branches`,
+          visible: true,
+        },
+        {
+          label: 'Members',
+          description: 'Organization accounts and assigned roles.',
+          href: `/app/organizations/${organizationId}/members`,
+          visible: canManage,
+        },
+      ],
     },
-    {
-      label: 'Merchants',
-      description: 'Review independent brands and branch participation.',
-      href: `/app/organizations/${organizationId}/merchants`,
-      visible: canManage,
-    },
-    {
-      label: 'Products',
-      description: 'Maintain merchant-owned products and selling codes.',
-      href: `/app/organizations/${organizationId}/products`,
-      visible: canManage,
-    },
-    {
-      label: 'Inventory',
-      description: 'Review current stock across branches and merchants.',
-      href: `/app/organizations/${organizationId}/inventory`,
-      visible: canManage,
-    },
-    {
-      label: 'Members',
-      description: 'Manage the people and roles operating this workspace.',
-      href: `/app/organizations/${organizationId}/members`,
-      visible: canManage,
-    },
-  ].filter((destination) => destination.visible);
+  ]
+    .map((group) => ({
+      ...group,
+      destinations: group.destinations.filter(
+        (destination) => destination.visible,
+      ),
+    }))
+    .filter((group) => group.destinations.length > 0);
 
   return (
-    <section className="mx-auto mt-8 w-full sm:mt-12">
+    <OperationalPage>
       <OrganizationPageHeader
         organization={organization}
         title="Workspace overview"
         description="Choose an operational area to continue managing this concept store."
       />
 
-      <section
-        className="mt-6 rounded-xl border border-slate-200 bg-white p-6"
-        aria-labelledby="workspace-sections-title"
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-base font-bold" id="workspace-sections-title">
-              Store operations
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Available areas reflect your organization role.
-            </p>
-          </div>
-          <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
-            {destinations.length}
-          </span>
-        </div>
-        <ul className="mt-5 grid list-none gap-3 p-0 sm:grid-cols-2">
-          {destinations.map((destination) => (
-            <li key={destination.label}>
-              <Link
-                className="group flex h-full items-start justify-between gap-4 rounded-[0.6rem] border border-slate-200 p-4 text-slate-950 no-underline transition-colors hover:border-emerald-600"
-                href={destination.href}
-              >
-                <span>
-                  <strong className="text-sm">{destination.label}</strong>
-                  <span className="mt-1 block text-sm leading-6 text-slate-500">
-                    {destination.description}
-                  </span>
-                </span>
-                <span className="text-emerald-700" aria-hidden="true">
-                  →
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </section>
+      <div className="grid gap-0 xl:grid-cols-2 xl:gap-5">
+        {groups.map((group) => (
+          <OperationalPanel
+            key={group.title}
+            title={group.title}
+            description={group.description}
+          >
+            <ul className="list-none px-5 py-2 sm:px-6">
+              {group.destinations.map((destination) => (
+                <li
+                  className="border-b border-slate-200 last:border-0"
+                  key={destination.label}
+                >
+                  <Link
+                    className="group flex items-center justify-between gap-5 py-4 text-slate-950 no-underline"
+                    href={destination.href}
+                  >
+                    <span>
+                      <strong className="text-sm">{destination.label}</strong>
+                      <span className="mt-1 block text-sm leading-6 text-slate-500">
+                        {destination.description}
+                      </span>
+                    </span>
+                    <span
+                      className="text-emerald-700 transition group-hover:translate-x-1"
+                      aria-hidden="true"
+                    >
+                      →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </OperationalPanel>
+        ))}
+      </div>
+    </OperationalPage>
   );
 }
 

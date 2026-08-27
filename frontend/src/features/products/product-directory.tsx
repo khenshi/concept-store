@@ -316,6 +316,10 @@ export function ProductDirectory({
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[58rem] border-collapse text-left text-sm">
+                <caption className="sr-only">
+                  Product catalog with merchant ownership, identifiers, price,
+                  status, and actions
+                </caption>
                 <thead className="bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
                   <tr>
                     <th className="px-6 py-3.5 font-bold" scope="col">
