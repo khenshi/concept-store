@@ -28,5 +28,10 @@ export interface UpdateProfileInput {
   phone?: string;
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export type AuthStatus =
   'loading' | 'authenticated' | 'unauthenticated' | 'error';

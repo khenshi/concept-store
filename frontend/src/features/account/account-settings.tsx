@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { updateProfileSchema } from './account.schemas';
+import { ChangePasswordForm } from './change-password-form';
 
 type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'phone', string>>;
 
@@ -148,6 +149,7 @@ export function AccountSettings() {
           </div>
         </form>
       </section>
+      <ChangePasswordForm />
     </div>
   );
 }

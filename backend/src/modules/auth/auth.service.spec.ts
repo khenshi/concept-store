@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { hash } from 'bcryptjs';
@@ -26,6 +26,7 @@ describe('AuthService', () => {
       findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
     },
+    userSession: { updateMany: jest.fn() },
   };
   const jwtService = { signAsync: jest.fn() };
   const sessionService = {
@@ -38,8 +39,10 @@ describe('AuthService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation(
-      (callback: (client: typeof transaction) => unknown) =>
-        callback(transaction),
+      (operation: ((client: typeof transaction) => unknown) | unknown[]) =>
+        Array.isArray(operation)
+          ? Promise.all(operation)
+          : operation(transaction),
     );
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -194,5 +197,62 @@ describe('AuthService', () => {
         phone: true,
       },
     });
+  });
+
+  it('changes the password and revokes every active refresh session', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({
+      passwordHash: await hash('current secure password', 4),
+    });
+    prisma.user.update.mockResolvedValue({});
+    prisma.userSession.updateMany.mockResolvedValue({ count: 2 });
+
+    await expect(
+      service.changePassword(user.id, {
+        currentPassword: 'current secure password',
+        newPassword: 'different secure password',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: { passwordHash: expect.any(String) as unknown },
+    });
+    expect(prisma.userSession.updateMany).toHaveBeenCalledWith({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: expect.any(Date) as unknown },
+    });
+  });
+
+  it('rejects an incorrect current password without changing sessions', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({
+      passwordHash: await hash('current secure password', 4),
+    });
+
+    await expect(
+      service.changePassword(user.id, {
+        currentPassword: 'incorrect password',
+        newPassword: 'different secure password',
+      }),
+    ).rejects.toThrow(
+      new UnauthorizedException('Current password is incorrect'),
+    );
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects reusing the current password', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({
+      passwordHash: await hash('current secure password', 4),
+    });
+
+    await expect(
+      service.changePassword(user.id, {
+        currentPassword: 'current secure password',
+        newPassword: 'current secure password',
+      }),
+    ).rejects.toThrow(
+      new BadRequestException(
+        'New password must be different from the current password',
+      ),
+    );
   });
 });

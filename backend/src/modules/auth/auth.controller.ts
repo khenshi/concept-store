@@ -13,6 +13,7 @@ import {
 import type { Request, Response } from 'express';
 import {
   ApiBearerAuth,
+  ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
@@ -34,6 +35,7 @@ import type {
   AuthenticatedUser,
 } from './auth.types';
 import { CurrentUser } from './current-user.decorator';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -135,5 +137,24 @@ export class AuthController {
     @Body() dto: UpdateProfileDto,
   ): Promise<AuthenticatedUser> {
     return this.authService.updateCurrentUser(user.id, dto);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AuthGuard)
+  @Post('change-password')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Change the authenticated user password' })
+  @ApiNoContentResponse({
+    description: 'Password changed and all refresh sessions revoked',
+  })
+  @ApiBadRequestResponse({ description: 'The new password is unchanged' })
+  @ApiUnauthorizedResponse({ description: 'Current password is incorrect' })
+  async changePassword(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Body() dto: ChangePasswordDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    await this.authService.changePassword(user.id, dto);
+    this.refreshCookieService.clear(response);
   }
 }

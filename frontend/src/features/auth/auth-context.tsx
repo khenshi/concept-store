@@ -13,6 +13,7 @@ import { authClient } from './auth-client';
 import type {
   AuthenticatedUser,
   AuthStatus,
+  ChangePasswordInput,
   Credentials,
   RegistrationCredentials,
   UpdateProfileInput,
@@ -25,6 +26,7 @@ interface AuthContextValue {
   login(credentials: Credentials): Promise<void>;
   register(credentials: RegistrationCredentials): Promise<void>;
   updateProfile(input: UpdateProfileInput): Promise<AuthenticatedUser>;
+  changePassword(input: ChangePasswordInput): Promise<void>;
   logout(): Promise<void>;
   request<T>(path: string, init?: RequestInit): Promise<T>;
 }
@@ -68,6 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return updatedUser;
   }, []);
 
+  const changePassword = useCallback(async (input: ChangePasswordInput) => {
+    await authClient.changePassword(input);
+  }, []);
+
   const logout = useCallback(async () => {
     await authClient.logout();
   }, []);
@@ -85,10 +91,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       updateProfile,
+      changePassword,
       logout,
       request,
     }),
-    [status, user, error, login, register, updateProfile, logout, request],
+    [
+      status,
+      user,
+      error,
+      login,
+      register,
+      updateProfile,
+      changePassword,
+      logout,
+      request,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

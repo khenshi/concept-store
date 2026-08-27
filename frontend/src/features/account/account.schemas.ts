@@ -20,3 +20,24 @@ export const updateProfileSchema = z.object({
 });
 
 export type UpdateProfileValues = z.infer<typeof updateProfileSchema>;
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z
+      .string()
+      .min(1, 'Enter your current password.')
+      .max(128, 'Password must contain 128 characters or fewer.'),
+    newPassword: z
+      .string()
+      .min(12, 'New password must contain at least 12 characters.')
+      .max(128, 'New password must contain 128 characters or fewer.'),
+    confirmPassword: z.string().min(1, 'Confirm your new password.'),
+  })
+  .refine((values) => values.newPassword === values.confirmPassword, {
+    message: 'Passwords do not match.',
+    path: ['confirmPassword'],
+  })
+  .refine((values) => values.currentPassword !== values.newPassword, {
+    message: 'New password must be different from your current password.',
+    path: ['newPassword'],
+  });

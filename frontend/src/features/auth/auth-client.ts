@@ -3,6 +3,7 @@ import 'client-only';
 import { publicEnvironment } from '@/config/public-environment';
 import type {
   AuthResponse,
+  ChangePasswordInput,
   Credentials,
   RegistrationCredentials,
   UpdateProfileInput,
@@ -50,6 +51,15 @@ export class AuthClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     });
+  }
+
+  async changePassword(input: ChangePasswordInput): Promise<void> {
+    await this.request<void>('/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    this.setSession(null);
   }
 
   async logout(): Promise<void> {

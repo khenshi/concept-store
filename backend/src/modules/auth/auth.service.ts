@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -14,6 +15,7 @@ import type {
 } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import type { ChangePasswordDto } from './dto/change-password.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import { SessionService } from './sessions/session.service';
 
@@ -149,6 +151,33 @@ export class AuthService {
         phone: true,
       },
     });
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { passwordHash: true },
+    });
+    if (!(await compare(dto.currentPassword, user.passwordHash))) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    if (await compare(dto.newPassword, user.passwordHash)) {
+      throw new BadRequestException(
+        'New password must be different from the current password',
+      );
+    }
+
+    const passwordHash = await hash(dto.newPassword, PASSWORD_HASH_ROUNDS);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      }),
+      this.prisma.userSession.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 
   private async createAuthResponse(
