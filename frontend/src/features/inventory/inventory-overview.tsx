@@ -1,7 +1,14 @@
 'use client';
 
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import {
+  FilterField,
+  OperationalPage,
+  OperationalPanel,
+  OperationalToolbar,
+  StatusNotice,
+} from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -248,7 +255,7 @@ export function InventoryOverview({
   const to = Math.min(page.offset + page.items.length, page.total);
 
   return (
-    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
+    <OperationalPage>
       <OrganizationPageHeader
         organization={organization}
         title="Inventory"
@@ -286,14 +293,10 @@ export function InventoryOverview({
             </button>
           </div>
           {view === 'current' ? (
-            <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-              <div className="flex items-start justify-between gap-4 max-sm:grid">
-                <div>
-                  <h2 className="text-base font-bold">Current stock</h2>
-                  <p className="mt-2 text-sm text-slate-500">
-                    {page.total} product and branch records
-                  </p>
-                </div>
+            <OperationalPanel
+              title="Current stock"
+              description={`${page.total} product and branch records · Physical quantities by location`}
+              action={
                 <button
                   className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 font-bold text-white disabled:opacity-60"
                   type="button"
@@ -305,83 +308,79 @@ export function InventoryOverview({
                 >
                   Record stock-in
                 </button>
-              </div>
-              <form
-                className="mt-6 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_repeat(3,minmax(9rem,0.45fr))_auto]"
-                onSubmit={submitFilters}
-              >
-                <input
-                  type="hidden"
-                  name="productId"
-                  value={filters.productId ?? ''}
-                />
-                <Filter label="Search" id="inventory-search">
+              }
+            >
+              <OperationalToolbar>
+                <form
+                  className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_repeat(3,minmax(9rem,0.45fr))_auto]"
+                  onSubmit={submitFilters}
+                >
                   <input
-                    className={fieldClass}
-                    id="inventory-search"
-                    name="search"
-                    type="search"
-                    defaultValue={filters.search}
-                    placeholder="Name, SKU, or barcode"
+                    type="hidden"
+                    name="productId"
+                    value={filters.productId ?? ''}
                   />
-                </Filter>
-                <Filter label="Branch" id="inventory-branch">
-                  <select
-                    className={fieldClass}
-                    id="inventory-branch"
-                    name="branchId"
-                    defaultValue={filters.branchId ?? ''}
+                  <FilterField label="Search" id="inventory-search">
+                    <input
+                      className={fieldClass}
+                      id="inventory-search"
+                      name="search"
+                      type="search"
+                      defaultValue={filters.search}
+                      placeholder="Name, SKU, or barcode"
+                    />
+                  </FilterField>
+                  <FilterField label="Branch" id="inventory-branch">
+                    <select
+                      className={fieldClass}
+                      id="inventory-branch"
+                      name="branchId"
+                      defaultValue={filters.branchId ?? ''}
+                    >
+                      <option value="">All branches</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
+                    </select>
+                  </FilterField>
+                  <FilterField label="Merchant" id="inventory-merchant">
+                    <select
+                      className={fieldClass}
+                      id="inventory-merchant"
+                      name="merchantId"
+                      defaultValue={filters.merchantId ?? ''}
+                    >
+                      <option value="">All merchants</option>
+                      {merchants.map((merchant) => (
+                        <option key={merchant.id} value={merchant.id}>
+                          {merchant.name}
+                        </option>
+                      ))}
+                    </select>
+                  </FilterField>
+                  <FilterField label="Product status" id="inventory-status">
+                    <select
+                      className={fieldClass}
+                      id="inventory-status"
+                      name="status"
+                      defaultValue={filters.status ?? ''}
+                    >
+                      <option value="">All statuses</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="INACTIVE">Inactive</option>
+                    </select>
+                  </FilterField>
+                  <button
+                    className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
+                    disabled={isFiltering}
                   >
-                    <option value="">All branches</option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
-                </Filter>
-                <Filter label="Merchant" id="inventory-merchant">
-                  <select
-                    className={fieldClass}
-                    id="inventory-merchant"
-                    name="merchantId"
-                    defaultValue={filters.merchantId ?? ''}
-                  >
-                    <option value="">All merchants</option>
-                    {merchants.map((merchant) => (
-                      <option key={merchant.id} value={merchant.id}>
-                        {merchant.name}
-                      </option>
-                    ))}
-                  </select>
-                </Filter>
-                <Filter label="Product status" id="inventory-status">
-                  <select
-                    className={fieldClass}
-                    id="inventory-status"
-                    name="status"
-                    defaultValue={filters.status ?? ''}
-                  >
-                    <option value="">All statuses</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                  </select>
-                </Filter>
-                <button
-                  className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
-                  disabled={isFiltering}
-                >
-                  {isFiltering ? 'Applying…' : 'Apply'}
-                </button>
-              </form>
-              {success ? (
-                <p
-                  className="mt-5 rounded-lg border border-green-600 p-3 text-sm"
-                  role="status"
-                >
-                  {success}
-                </p>
-              ) : null}
+                    {isFiltering ? 'Applying…' : 'Apply'}
+                  </button>
+                </form>
+              </OperationalToolbar>
+              {success ? <StatusNotice>{success}</StatusNotice> : null}
               {error ? (
                 <RequestError
                   className="mt-5 rounded-lg border border-red-600 p-3 text-sm text-red-600"
@@ -394,7 +393,7 @@ export function InventoryOverview({
               ) : page.items.length === 0 ? (
                 <Empty />
               ) : (
-                <ul className="mt-5 list-none p-0">
+                <ul className="list-none px-5 py-1 sm:px-6">
                   {page.items.map((item) => (
                     <InventoryRow
                       key={`${item.productId}:${item.branchId}`}
@@ -408,7 +407,7 @@ export function InventoryOverview({
                 </ul>
               )}
               {page.total > 0 ? (
-                <div className="mt-5 flex items-center justify-between gap-4 border-t border-slate-200 pt-5">
+                <div className="flex items-center justify-between gap-4 border-t border-slate-200 px-5 py-5 sm:px-6">
                   <p className="text-sm text-slate-500">
                     Showing {from}–{to} of {page.total}
                   </p>
@@ -442,7 +441,7 @@ export function InventoryOverview({
                   </div>
                 </div>
               ) : null}
-            </section>
+            </OperationalPanel>
           ) : null}
           {historyOpened ? (
             <InventoryMovementHistory
@@ -468,7 +467,7 @@ export function InventoryOverview({
           onAdjust={saveAdjustment}
         />
       ) : null}
-    </section>
+    </OperationalPage>
   );
 }
 
@@ -510,24 +509,6 @@ function InventoryRow({
         </button>
       </div>
     </li>
-  );
-}
-function Filter({
-  label,
-  id,
-  children,
-}: {
-  label: string;
-  id: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="grid gap-2">
-      <label className="text-sm font-bold" htmlFor={id}>
-        {label}
-      </label>
-      {children}
-    </div>
   );
 }
 function Limited() {

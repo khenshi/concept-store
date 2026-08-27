@@ -7,6 +7,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Technology stack](tech-stack.md)
 - [Owner and manager frontend workflows](frontend-owner-manager-workflows.md)
 - [Authenticated application shell](frontend-authenticated-shell.md)
+- [Operational page structure](frontend-operational-page-structure.md)
 
 ## Milestone 1 — SaaS / Multi-Tenant Foundation
 

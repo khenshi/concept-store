@@ -1,8 +1,15 @@
 'use client';
 
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import {
+  FilterField,
+  OperationalPage,
+  OperationalPanel,
+  OperationalToolbar,
+  StatusNotice,
+} from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -215,7 +222,7 @@ export function ProductDirectory({
     organization.role === 'OWNER' || organization.role === 'MANAGER';
 
   return (
-    <section className="mx-auto mt-8 w-full max-w-5xl sm:mt-12">
+    <OperationalPage>
       <OrganizationPageHeader
         organization={organization}
         title="Products"
@@ -224,14 +231,10 @@ export function ProductDirectory({
       {!canManage ? (
         <Limited />
       ) : (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <div className="flex items-start justify-between gap-4 max-sm:grid">
-            <div>
-              <h2 className="text-base font-bold">Product directory</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                {products.length} matching products
-              </p>
-            </div>
+        <OperationalPanel
+          title="Product directory"
+          description={`${products.length} matching products · Catalog records and current selling prices`}
+          action={
             <button
               className="min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 font-bold text-white hover:bg-emerald-700 disabled:opacity-60"
               type="button"
@@ -240,69 +243,65 @@ export function ProductDirectory({
             >
               Add product
             </button>
-          </div>
+          }
+        >
           {merchants.length === 0 && !isLoading ? (
-            <p className="mt-4 rounded-lg border border-amber-500 p-3 text-sm">
+            <StatusNotice tone="warning">
               Add a merchant before creating products.
-            </p>
+            </StatusNotice>
           ) : null}
-          <form
-            className="mt-6 grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.5fr)_minmax(9rem,0.4fr)_auto]"
-            onSubmit={(event) => void filter(event)}
-          >
-            <Filter label="Search" id="product-search">
-              <input
-                className={fieldClass}
-                id="product-search"
-                name="search"
-                type="search"
-                defaultValue={filters.search}
-                placeholder="Name, SKU, or barcode"
-                maxLength={160}
-              />
-            </Filter>
-            <Filter label="Merchant" id="product-merchant">
-              <select
-                className={fieldClass}
-                id="product-merchant"
-                name="merchantId"
-                defaultValue={filters.merchantId ?? ''}
-              >
-                <option value="">All merchants</option>
-                {merchants.map((merchant) => (
-                  <option key={merchant.id} value={merchant.id}>
-                    {merchant.name}
-                  </option>
-                ))}
-              </select>
-            </Filter>
-            <Filter label="Status" id="product-status">
-              <select
-                className={fieldClass}
-                id="product-status"
-                name="status"
-                defaultValue={filters.status ?? ''}
-              >
-                <option value="">All statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
-            </Filter>
-            <button
-              className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
-              disabled={isFiltering}
+          <OperationalToolbar>
+            <form
+              className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.5fr)_minmax(9rem,0.4fr)_auto]"
+              onSubmit={(event) => void filter(event)}
             >
-              {isFiltering ? 'Applying…' : 'Apply'}
-            </button>
-          </form>
-          {success ? (
-            <p
-              className="mt-5 rounded-lg border border-green-600 p-3 text-sm"
-              role="status"
-            >
-              {success}
-            </p>
-          ) : null}
+              <FilterField label="Search" id="product-search">
+                <input
+                  className={fieldClass}
+                  id="product-search"
+                  name="search"
+                  type="search"
+                  defaultValue={filters.search}
+                  placeholder="Name, SKU, or barcode"
+                  maxLength={160}
+                />
+              </FilterField>
+              <FilterField label="Merchant" id="product-merchant">
+                <select
+                  className={fieldClass}
+                  id="product-merchant"
+                  name="merchantId"
+                  defaultValue={filters.merchantId ?? ''}
+                >
+                  <option value="">All merchants</option>
+                  {merchants.map((merchant) => (
+                    <option key={merchant.id} value={merchant.id}>
+                      {merchant.name}
+                    </option>
+                  ))}
+                </select>
+              </FilterField>
+              <FilterField label="Status" id="product-status">
+                <select
+                  className={fieldClass}
+                  id="product-status"
+                  name="status"
+                  defaultValue={filters.status ?? ''}
+                >
+                  <option value="">All statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+              </FilterField>
+              <button
+                className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
+                disabled={isFiltering}
+              >
+                {isFiltering ? 'Applying…' : 'Apply'}
+              </button>
+            </form>
+          </OperationalToolbar>
+          {success ? <StatusNotice>{success}</StatusNotice> : null}
           {error ? (
             <RequestError
               className="mt-5 rounded-lg border border-red-600 p-3 text-sm text-red-600"
@@ -315,7 +314,7 @@ export function ProductDirectory({
           ) : products.length === 0 ? (
             <Empty />
           ) : (
-            <ul className="mt-5 list-none p-0">
+            <ul className="list-none px-5 py-1 sm:px-6">
               {products.map((product) => (
                 <ProductRow
                   key={product.id}
@@ -328,7 +327,7 @@ export function ProductDirectory({
               ))}
             </ul>
           )}
-        </section>
+        </OperationalPanel>
       )}
       {formOpen ? (
         <ProductFormModal
@@ -340,7 +339,7 @@ export function ProductDirectory({
           onSave={save}
         />
       ) : null}
-    </section>
+    </OperationalPage>
   );
 }
 
@@ -414,24 +413,6 @@ function ProductRow({
   );
 }
 
-function Filter({
-  label,
-  id,
-  children,
-}: {
-  label: string;
-  id: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="grid gap-2">
-      <label className="text-sm font-bold" htmlFor={id}>
-        {label}
-      </label>
-      {children}
-    </div>
-  );
-}
 function Limited() {
   return (
     <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
