@@ -1,6 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
@@ -63,6 +69,7 @@ export function OrganizationMemberManagement({
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const { confirm, confirmationDialog } = useConfirmationDialog();
 
   const load = useCallback(async () => {
@@ -110,6 +117,14 @@ export function OrganizationMemberManagement({
     role: OrganizationRole,
   ) {
     if (role === member.role) return;
+    const confirmed = await confirm({
+      title: `Change ${member.email}'s role?`,
+      description: `Change this member from ${roleLabels[member.role]} to ${roleLabels[role]}. Their organization access will immediately follow the new role.`,
+      confirmLabel: 'Change role',
+      tone: role === 'OWNER' ? 'danger' : 'primary',
+    });
+    if (!confirmed) return;
+
     setActionError(null);
     setSuccessMessage(null);
     setPendingMemberId(member.id);
@@ -230,12 +245,21 @@ export function OrganizationMemberManagement({
           ) : null}
 
           {!loadError ? (
-            <div
-              className={`mt-6 grid items-start gap-5 ${canManageMembers ? 'md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]' : 'grid-cols-1'}`}
-            >
+            <div className="mt-6">
               <OperationalPanel
                 title="People with access"
                 description={`${members.length} organization members · Roles apply across the organization; branch access is not configured yet`}
+                action={
+                  canManageMembers ? (
+                    <button
+                      className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700"
+                      type="button"
+                      onClick={() => setIsAddMemberOpen(true)}
+                    >
+                      Add member
+                    </button>
+                  ) : null
+                }
               >
                 {isLoading ? (
                   <div className="px-5 pb-5 sm:px-6">
@@ -347,15 +371,17 @@ export function OrganizationMemberManagement({
                 )}
               </OperationalPanel>
 
-              {canManageMembers ? (
+              {canManageMembers && isAddMemberOpen ? (
                 <AddMemberForm
                   organizationId={organizationId}
+                  onCancel={() => setIsAddMemberOpen(false)}
                   onAdded={(member) => {
                     setMembers((current) => [...current, member]);
                     setSuccessMessage(
                       `${member.email} was added as ${roleLabels[member.role]}.`,
                     );
                     setActionError(null);
+                    setIsAddMemberOpen(false);
                   }}
                 />
               ) : null}
@@ -371,14 +397,26 @@ export function OrganizationMemberManagement({
 function AddMemberForm({
   organizationId,
   onAdded,
+  onCancel,
 }: {
   organizationId: string;
   onAdded(member: OrganizationMember): void;
+  onCancel(): void;
 }) {
   const { request } = useAuth();
   const [emailError, setEmailError] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !isSubmitting) onCancel();
+    }
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isSubmitting, onCancel]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -417,69 +455,93 @@ function AddMemberForm({
   }
 
   return (
-    <OperationalPanel
-      title="Add a member"
-      description="The person must already have a registered Concept Store account."
+    <div
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/45 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-member-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isSubmitting) onCancel();
+      }}
     >
-      <form
-        className="grid gap-4 p-5 sm:p-6"
-        onSubmit={handleSubmit}
-        noValidate
-      >
-        {submissionError ? (
-          <p
-            className="m-0 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
-            role="alert"
-          >
-            {submissionError}
-          </p>
-        ) : null}
-        <div className="grid gap-2">
-          <label className="text-sm font-bold" htmlFor="member-email">
-            Account email
-          </label>
-          <input
-            className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
-            id="member-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            maxLength={254}
-            required
-            aria-invalid={Boolean(emailError)}
-            aria-describedby={emailError ? 'member-email-error' : undefined}
-          />
-          {emailError ? (
-            <p id="member-email-error" className="m-0 text-sm text-red-600">
-              {emailError}
+      <section className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+        <h2
+          className="text-xl font-bold tracking-tight text-slate-950"
+          id="add-member-title"
+          ref={headingRef}
+          tabIndex={-1}
+        >
+          Add a member
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          The person must already have a registered Concept Store account.
+        </p>
+        <form className="mt-6 grid gap-4" onSubmit={handleSubmit} noValidate>
+          {submissionError ? (
+            <p
+              className="m-0 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+              role="alert"
+            >
+              {submissionError}
             </p>
           ) : null}
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-bold" htmlFor="member-role">
-            Organization role
-          </label>
-          <SelectControl
-            className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
-            id="member-role"
-            name="role"
-            defaultValue="CASHIER"
-          >
-            {roles.map((role) => (
-              <option key={role} value={role}>
-                {roleLabels[role]}
-              </option>
-            ))}
-          </SelectControl>
-        </div>
-        <button
-          className="w-fit min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
-          type="submit"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? 'Adding member…' : 'Add member'}
-        </button>
-      </form>
-    </OperationalPanel>
+          <div className="grid gap-2">
+            <label className="text-sm font-bold" htmlFor="member-email">
+              Account email
+            </label>
+            <input
+              className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
+              id="member-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              maxLength={254}
+              required
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? 'member-email-error' : undefined}
+            />
+            {emailError ? (
+              <p id="member-email-error" className="m-0 text-sm text-red-600">
+                {emailError}
+              </p>
+            ) : null}
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-bold" htmlFor="member-role">
+              Organization role
+            </label>
+            <SelectControl
+              className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
+              id="member-role"
+              name="role"
+              defaultValue="CASHIER"
+            >
+              {roles.map((role) => (
+                <option key={role} value={role}>
+                  {roleLabels[role]}
+                </option>
+              ))}
+            </SelectControl>
+          </div>
+          <div className="mt-2 flex flex-wrap justify-end gap-3">
+            <button
+              className="min-h-11 rounded-[0.6rem] border border-slate-200 bg-white px-4 font-bold text-slate-700"
+              type="button"
+              disabled={isSubmitting}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+            <button
+              className="min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Adding member…' : 'Add member'}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
