@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
+import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { OperationalPage } from '@/components/ui/operational-page';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import type { Branch } from '@/features/branches/branch.types';
@@ -77,6 +79,7 @@ export function MerchantProfile({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingBranches, setIsUpdatingBranches] = useState(false);
+  const { confirm, confirmationDialog } = useConfirmationDialog();
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -227,7 +230,13 @@ export function MerchantProfile({
     if (status === merchant.status) return;
     if (
       status === 'ENDED' &&
-      !window.confirm(`Mark ${merchant.name} as ended?`)
+      !(await confirm({
+        title: `End ${merchant.name}?`,
+        description:
+          'The merchant will remain available in historical records, but its lifecycle status will be ended.',
+        confirmLabel: 'End merchant',
+        tone: 'danger',
+      }))
     ) {
       return;
     }
@@ -464,7 +473,7 @@ export function MerchantProfile({
                       >
                         Status
                       </label>
-                      <select
+                      <SelectControl
                         className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
                         id="merchant-status"
                         name="status"
@@ -476,7 +485,7 @@ export function MerchantProfile({
                             {label}
                           </option>
                         ))}
-                      </select>
+                      </SelectControl>
                     </div>
                     <button
                       className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
@@ -499,6 +508,7 @@ export function MerchantProfile({
           ) : null}
         </>
       )}
+      {confirmationDialog}
     </OperationalPage>
   );
 }

@@ -10,6 +10,7 @@ import {
   StatusNotice,
 } from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import type { Merchant } from '@/features/merchants/merchant.types';
@@ -331,7 +332,7 @@ export function InventoryOverview({
                     />
                   </FilterField>
                   <FilterField label="Branch" id="inventory-branch">
-                    <select
+                    <SelectControl
                       className={fieldClass}
                       id="inventory-branch"
                       name="branchId"
@@ -343,10 +344,10 @@ export function InventoryOverview({
                           {branch.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectControl>
                   </FilterField>
                   <FilterField label="Merchant" id="inventory-merchant">
-                    <select
+                    <SelectControl
                       className={fieldClass}
                       id="inventory-merchant"
                       name="merchantId"
@@ -358,10 +359,10 @@ export function InventoryOverview({
                           {merchant.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectControl>
                   </FilterField>
                   <FilterField label="Product status" id="inventory-status">
-                    <select
+                    <SelectControl
                       className={fieldClass}
                       id="inventory-status"
                       name="status"
@@ -370,7 +371,7 @@ export function InventoryOverview({
                       <option value="">All statuses</option>
                       <option value="ACTIVE">Active</option>
                       <option value="INACTIVE">Inactive</option>
-                    </select>
+                    </SelectControl>
                   </FilterField>
                   <button
                     className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"

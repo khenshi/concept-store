@@ -8,7 +8,9 @@ import {
   type FormEvent,
 } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import {
@@ -103,6 +105,7 @@ export function MerchantAgreementManagement({
   const [pendingAgreementId, setPendingAgreementId] = useState<string | null>(
     null,
   );
+  const { confirm, confirmationDialog } = useConfirmationDialog();
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -184,9 +187,11 @@ export function MerchantAgreementManagement({
 
   async function handleActivate(agreement: MerchantAgreement) {
     if (
-      !window.confirm(
-        `Activate this agreement for ${merchantName}? This may end the current active agreement.`,
-      )
+      !(await confirm({
+        title: 'Activate this agreement?',
+        description: `Activate this agreement for ${merchantName}. If another agreement is active, it may be ended according to the existing agreement rules.`,
+        confirmLabel: 'Activate agreement',
+      }))
     ) {
       return;
     }
@@ -226,7 +231,14 @@ export function MerchantAgreementManagement({
       setActionError('End date cannot be earlier than the start date.');
       return;
     }
-    if (!window.confirm(`End the active agreement for ${merchantName}?`))
+    if (
+      !(await confirm({
+        title: 'End the active agreement?',
+        description: `End the active agreement for ${merchantName} on the selected date. Its history will be preserved.`,
+        confirmLabel: 'End agreement',
+        tone: 'danger',
+      }))
+    )
       return;
 
     setPendingAgreementId(agreement.id);
@@ -321,6 +333,7 @@ export function MerchantAgreementManagement({
           </div>
         </>
       )}
+      {confirmationDialog}
     </section>
   );
 }
@@ -432,7 +445,7 @@ function AgreementForm({
           <label className="text-sm font-bold" htmlFor="settlementSchedule">
             Settlement schedule
           </label>
-          <select
+          <SelectControl
             className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
             id="settlementSchedule"
             name="settlementSchedule"
@@ -443,7 +456,7 @@ function AgreementForm({
                 {label}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </div>
         <div className="flex flex-wrap gap-3">
           <button

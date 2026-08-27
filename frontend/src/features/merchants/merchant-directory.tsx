@@ -10,6 +10,7 @@ import {
   OperationalToolbar,
 } from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -201,7 +202,7 @@ export function MerchantDirectory({
                 />
               </FilterField>
               <FilterField label="Status" id="merchant-status-filter">
-                <select
+                <SelectControl
                   className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
                   id="merchant-status-filter"
                   name="status"
@@ -213,7 +214,7 @@ export function MerchantDirectory({
                       {label}
                     </option>
                   ))}
-                </select>
+                </SelectControl>
               </FilterField>
               <button
                 className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"

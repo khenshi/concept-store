@@ -8,6 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from 'react';
+import { SelectControl } from '@/components/ui/select-control';
 import type { Branch } from '@/features/branches/branch.types';
 import type { Merchant } from '@/features/merchants/merchant.types';
 import type { Product } from '@/features/products/product.types';
@@ -150,12 +151,12 @@ export function InventoryOperationModal({
           {!adjusting ? (
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Product" id="productId" error={errors.productId}>
-                <select
+                <SelectControl
                   className={inputClass}
                   id="productId"
                   name="productId"
                   value={productId}
-                  onChange={(event) => setProductId(event.target.value)}
+                  onValueChange={setProductId}
                 >
                   <option value="">Select a product</option>
                   {products
@@ -165,10 +166,10 @@ export function InventoryOperationModal({
                         {product.name} ({product.sku})
                       </option>
                     ))}
-                </select>
+                </SelectControl>
               </Field>
               <Field label="Branch" id="branchId" error={errors.branchId}>
-                <select
+                <SelectControl
                   className={inputClass}
                   id="branchId"
                   name="branchId"
@@ -181,7 +182,7 @@ export function InventoryOperationModal({
                       {branch.name}
                     </option>
                   ))}
-                </select>
+                </SelectControl>
               </Field>
             </div>
           ) : null}

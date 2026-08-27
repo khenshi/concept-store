@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
   OperationalPage,
   OperationalPanel,
   StatusNotice,
 } from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -61,6 +63,7 @@ export function OrganizationMemberManagement({
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
+  const { confirm, confirmationDialog } = useConfirmationDialog();
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -127,9 +130,12 @@ export function OrganizationMemberManagement({
   }
 
   async function handleRemove(member: OrganizationMember) {
-    const confirmed = window.confirm(
-      `Remove ${member.email} from this organization?`,
-    );
+    const confirmed = await confirm({
+      title: 'Remove this member?',
+      description: `${member.email} will lose access to this organization. Their account will not be deleted.`,
+      confirmLabel: 'Remove member',
+      tone: 'danger',
+    });
     if (!confirmed) return;
 
     setActionError(null);
@@ -294,15 +300,15 @@ export function OrganizationMemberManagement({
                                   >
                                     Role for {member.email}
                                   </label>
-                                  <select
+                                  <SelectControl
                                     className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-60"
                                     id={`role-${member.id}`}
                                     value={member.role}
                                     disabled={pendingMemberId === member.id}
-                                    onChange={(event) =>
+                                    onValueChange={(value) =>
                                       void handleRoleChange(
                                         member,
-                                        event.target.value as OrganizationRole,
+                                        value as OrganizationRole,
                                       )
                                     }
                                   >
@@ -311,7 +317,7 @@ export function OrganizationMemberManagement({
                                         {roleLabels[role]}
                                       </option>
                                     ))}
-                                  </select>
+                                  </SelectControl>
                                 </>
                               ) : (
                                 <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
@@ -357,6 +363,7 @@ export function OrganizationMemberManagement({
           ) : null}
         </>
       )}
+      {confirmationDialog}
     </OperationalPage>
   );
 }
@@ -452,7 +459,7 @@ function AddMemberForm({
           <label className="text-sm font-bold" htmlFor="member-role">
             Organization role
           </label>
-          <select
+          <SelectControl
             className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
             id="member-role"
             name="role"
@@ -463,7 +470,7 @@ function AddMemberForm({
                 {roleLabels[role]}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </div>
         <button
           className="w-fit min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"

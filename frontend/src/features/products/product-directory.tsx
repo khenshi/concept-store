@@ -11,6 +11,7 @@ import {
   StatusNotice,
 } from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import type { Merchant } from '@/features/merchants/merchant.types';
@@ -267,7 +268,7 @@ export function ProductDirectory({
                 />
               </FilterField>
               <FilterField label="Merchant" id="product-merchant">
-                <select
+                <SelectControl
                   className={fieldClass}
                   id="product-merchant"
                   name="merchantId"
@@ -279,10 +280,10 @@ export function ProductDirectory({
                       {merchant.name}
                     </option>
                   ))}
-                </select>
+                </SelectControl>
               </FilterField>
               <FilterField label="Status" id="product-status">
-                <select
+                <SelectControl
                   className={fieldClass}
                   id="product-status"
                   name="status"
@@ -291,7 +292,7 @@ export function ProductDirectory({
                   <option value="">All statuses</option>
                   <option value="ACTIVE">Active</option>
                   <option value="INACTIVE">Inactive</option>
-                </select>
+                </SelectControl>
               </FilterField>
               <button
                 className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"

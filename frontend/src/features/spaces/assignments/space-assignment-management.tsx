@@ -9,7 +9,9 @@ import {
   type FormEvent,
 } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { listMerchants } from '@/features/merchants/merchant-api';
@@ -56,6 +58,7 @@ export function SpaceAssignmentManagement({
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { confirm, confirmationDialog } = useConfirmationDialog();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -181,7 +184,12 @@ export function SpaceAssignmentManagement({
       return;
     }
     if (
-      !window.confirm(`End ${currentAssignment.merchant.name}'s assignment?`)
+      !(await confirm({
+        title: 'End this space assignment?',
+        description: `End ${currentAssignment.merchant.name}'s assignment on the selected date. Assignment history will be preserved.`,
+        confirmLabel: 'End assignment',
+        tone: 'danger',
+      }))
     ) {
       return;
     }
@@ -290,6 +298,7 @@ export function SpaceAssignmentManagement({
           <AssignmentHistory assignments={assignments} />
         </div>
       )}
+      {confirmationDialog}
     </section>
   );
 }
@@ -325,7 +334,7 @@ function AssignmentForm({
           <label className="text-sm font-bold" htmlFor="assignment-merchant">
             Merchant
           </label>
-          <select
+          <SelectControl
             className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
             id="assignment-merchant"
             name="merchantId"
@@ -342,7 +351,7 @@ function AssignmentForm({
                 {merchant.code ? ` (${merchant.code})` : ''}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </div>
         <DateField
           id="assignment-start-date"

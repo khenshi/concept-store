@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { SelectControl } from '@/components/ui/select-control';
 import type { Merchant } from '@/features/merchants/merchant.types';
 import { productSchema } from './product.schemas';
 import type { Product, ProductInput } from './product.types';
@@ -118,7 +119,7 @@ export function ProductFormModal({
                 disabled
               />
             ) : (
-              <select
+              <SelectControl
                 className={fieldClass}
                 id="merchantId"
                 name="merchantId"
@@ -134,7 +135,7 @@ export function ProductFormModal({
                     {merchant.code ? ` (${merchant.code})` : ''}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             )}
           </Field>
           <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.45fr)]">

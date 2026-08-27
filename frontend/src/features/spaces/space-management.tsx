@@ -10,6 +10,7 @@ import {
 import type { ZodError } from 'zod';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -228,14 +229,14 @@ export function SpaceManagement({
               <label className="text-sm font-semibold" htmlFor="space-branch">
                 Branch
               </label>
-              <select
+              <SelectControl
                 className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
                 id="space-branch"
                 value={activeBranchId}
-                onChange={(event) => {
+                onValueChange={(value) => {
                   setIsLoadingSpaces(true);
                   setSpaceLoadError(null);
-                  setSelectedBranchId(event.target.value);
+                  setSelectedBranchId(value);
                   setEditingSpace(null);
                   setAssignmentSpace(null);
                   setSuccessMessage(null);
@@ -246,7 +247,7 @@ export function SpaceManagement({
                     {branch.name}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </div>
             <p className="m-0 text-sm text-slate-500">
               {selectedBranch?.city}, {selectedBranch?.province}
@@ -509,21 +510,19 @@ function SpaceForm({
           <label className="text-sm font-semibold" htmlFor="space-type">
             Type
           </label>
-          <select
+          <SelectControl
             className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
             id="space-type"
             name="type"
             value={selectedType}
-            onChange={(event) =>
-              setSelectedType(event.target.value as SpaceType)
-            }
+            onValueChange={(value) => setSelectedType(value as SpaceType)}
           >
             {Object.entries(typeLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </div>
         {selectedType === 'CUSTOM' ? (
           <SpaceTextField
@@ -539,7 +538,7 @@ function SpaceForm({
           <label className="text-sm font-semibold" htmlFor="space-status">
             Status
           </label>
-          <select
+          <SelectControl
             className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
             id="space-status"
             name="status"
@@ -550,7 +549,7 @@ function SpaceForm({
                 {label}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </div>
         <div className="flex flex-wrap gap-3 pt-1">
           <button

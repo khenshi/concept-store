@@ -10,6 +10,7 @@ import {
 import type { Branch } from '@/features/branches/branch.types';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import type { Product } from '@/features/products/product.types';
@@ -147,7 +148,7 @@ export function InventoryMovementHistory({
         onSubmit={submit}
       >
         <Filter label="Branch" id="movement-branch">
-          <select
+          <SelectControl
             className={fieldClass}
             id="movement-branch"
             name="branchId"
@@ -159,10 +160,10 @@ export function InventoryMovementHistory({
                 {branch.name}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </Filter>
         <Filter label="Product" id="movement-product">
-          <select
+          <SelectControl
             className={fieldClass}
             id="movement-product"
             name="productId"
@@ -174,10 +175,10 @@ export function InventoryMovementHistory({
                 {product.name} ({product.sku})
               </option>
             ))}
-          </select>
+          </SelectControl>
         </Filter>
         <Filter label="Movement type" id="movement-type">
-          <select
+          <SelectControl
             className={fieldClass}
             id="movement-type"
             name="type"
@@ -186,7 +187,7 @@ export function InventoryMovementHistory({
             <option value="">All types</option>
             <option value="STOCK_IN">Stock-in</option>
             <option value="ADJUSTMENT">Adjustment</option>
-          </select>
+          </SelectControl>
         </Filter>
         <button
           className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:opacity-60"
