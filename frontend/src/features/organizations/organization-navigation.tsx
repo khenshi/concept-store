@@ -56,6 +56,12 @@ export function OrganizationNavigation({
           visible: showMerchants,
         },
         {
+          key: 'agreements',
+          label: 'Agreements',
+          href: `${basePath}/agreements`,
+          visible: showMerchants,
+        },
+        {
           key: 'branches',
           label: 'Branches',
           href: `${basePath}/branches`,
@@ -96,9 +102,13 @@ export function OrganizationNavigation({
                     ? pathname === basePath
                       ? 'page'
                       : undefined
-                    : pathname.startsWith(destination.href)
-                      ? 'page'
-                      : undefined
+                    : destination.key === 'merchants'
+                      ? pathname === destination.href
+                        ? 'page'
+                        : undefined
+                      : pathname.startsWith(destination.href)
+                        ? 'page'
+                        : undefined
                 }
                 href={destination.href}
                 onClick={onNavigate}

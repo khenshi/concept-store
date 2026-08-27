@@ -520,3 +520,19 @@ export class MerchantAgreementResponseDto {
   @ApiProperty({ format: 'date-time' })
   updatedAt!: Date;
 }
+
+export class MerchantAgreementMerchantResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Amihan Goods' })
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'AMIHAN-01' })
+  code!: string | null;
+}
+
+export class MerchantAgreementViewResponseDto extends MerchantAgreementResponseDto {
+  @ApiProperty({ type: MerchantAgreementMerchantResponseDto })
+  merchant!: MerchantAgreementMerchantResponseDto;
+}

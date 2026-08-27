@@ -12,7 +12,7 @@ import { useAuth } from '@/features/auth/auth-context';
 import type { Branch } from '@/features/branches/branch.types';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import { MerchantAgreementManagement } from './agreements/merchant-agreement-management';
+import { MerchantAgreementSummary } from './agreements/merchant-agreement-summary';
 import {
   createMerchant,
   getMerchant,
@@ -22,6 +22,7 @@ import {
 } from './merchant-api';
 import { merchantBranchesSchema, merchantSchema } from './merchant.schemas';
 import type { Merchant, MerchantInput, MerchantStatus } from './merchant.types';
+import { MerchantSwitcher } from './merchant-switcher';
 
 type MerchantField = keyof MerchantInput;
 type FieldErrors = Partial<Record<MerchantField, string>>;
@@ -79,6 +80,7 @@ export function MerchantProfile({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isUpdatingBranches, setIsUpdatingBranches] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(!merchantId);
   const { confirm, confirmationDialog } = useConfirmationDialog();
 
   const load = useCallback(async () => {
@@ -173,6 +175,7 @@ export function MerchantProfile({
           { ...profile, code: profile.code ?? null },
         );
         setMerchant(updated);
+        setIsEditingProfile(false);
         setSuccessMessage(`${updated.name} was updated successfully.`);
       } else {
         const created = await createMerchant(
@@ -314,15 +317,19 @@ export function MerchantProfile({
         ← Merchant directory
       </Link>
       <div className="mt-8">
-        <OrganizationPageHeader
-          organization={organization}
-          title={title}
-          description={
-            merchant
-              ? 'Review the merchant profile and lifecycle status.'
-              : 'Create an active merchant profile with complete contact details.'
-          }
-        />
+        {merchant ? (
+          <MerchantProfileHeader
+            organizationId={organizationId}
+            merchant={merchant}
+            role={organization.role}
+          />
+        ) : (
+          <OrganizationPageHeader
+            organization={organization}
+            title={title}
+            description="Create an active merchant profile with complete contact details."
+          />
+        )}
       </div>
       {merchant ? (
         <span
@@ -437,13 +444,27 @@ export function MerchantProfile({
                 </Link>
               </section>
             ) : null}
-            <MerchantForm
-              merchant={merchant}
-              branches={branches}
-              fieldErrors={fieldErrors}
-              isSubmitting={isSubmitting}
-              onSubmit={handleProfileSubmit}
-            />
+            {merchant && !isEditingProfile ? (
+              <MerchantProfileDetails
+                merchant={merchant}
+                onEdit={() => {
+                  setSubmissionError(null);
+                  setSuccessMessage(null);
+                  setIsEditingProfile(true);
+                }}
+              />
+            ) : (
+              <MerchantForm
+                merchant={merchant}
+                branches={branches}
+                fieldErrors={fieldErrors}
+                isSubmitting={isSubmitting}
+                onSubmit={handleProfileSubmit}
+                onCancel={
+                  merchant ? () => setIsEditingProfile(false) : undefined
+                }
+              />
+            )}
             {merchant ? (
               <div className="grid gap-5">
                 <BranchAssignmentForm
@@ -500,7 +521,7 @@ export function MerchantProfile({
             ) : null}
           </div>
           {merchant ? (
-            <MerchantAgreementManagement
+            <MerchantAgreementSummary
               organizationId={organizationId}
               merchantId={merchant.id}
               merchantName={merchant.name}
@@ -510,6 +531,91 @@ export function MerchantProfile({
       )}
       {confirmationDialog}
     </OperationalPage>
+  );
+}
+
+function MerchantProfileHeader({
+  organizationId,
+  merchant,
+  role,
+}: {
+  organizationId: string;
+  merchant: Merchant;
+  role: 'OWNER' | 'MANAGER' | 'CASHIER' | 'MERCHANT';
+}) {
+  const roleLabels = {
+    OWNER: 'Owner',
+    MANAGER: 'Manager',
+    CASHIER: 'Cashier',
+    MERCHANT: 'Merchant',
+  } as const;
+  return (
+    <div className="flex items-start justify-between gap-6 border-b border-slate-200 pb-6 max-sm:grid">
+      <div>
+        <MerchantSwitcher
+          organizationId={organizationId}
+          merchantId={merchant.id}
+        />
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+          Review this merchant’s profile, store participation, and related
+          workflows.
+        </p>
+      </div>
+      <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+        {roleLabels[role]}
+      </span>
+    </div>
+  );
+}
+
+function MerchantProfileDetails({
+  merchant,
+  onEdit,
+}: {
+  merchant: Merchant;
+  onEdit(): void;
+}) {
+  const details = [
+    ['Merchant name', merchant.name],
+    ['Merchant code', merchant.code ?? 'Not assigned'],
+    ['Contact name', merchant.contactName],
+    ['Contact email', merchant.email],
+    ['Contact phone', merchant.phone],
+  ];
+  return (
+    <section
+      className="rounded-xl border border-slate-200 bg-white p-6"
+      aria-labelledby="profile-details-title"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-bold" id="profile-details-title">
+            Merchant profile
+          </h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Primary business and contact information.
+          </p>
+        </div>
+        <button
+          className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-bold"
+          type="button"
+          onClick={onEdit}
+        >
+          Edit profile
+        </button>
+      </div>
+      <dl className="mt-5 grid gap-0">
+        {details.map(([label, value]) => (
+          <div
+            className="grid gap-1 border-t border-slate-200 py-4 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-4"
+            key={label}
+          >
+            <dt className="text-sm font-semibold text-slate-500">{label}</dt>
+            <dd className="m-0 font-semibold text-slate-900">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -546,12 +652,14 @@ function MerchantForm({
   fieldErrors,
   isSubmitting,
   onSubmit,
+  onCancel,
 }: {
   merchant: Merchant | null;
   branches: Branch[];
   fieldErrors: FieldErrors;
   isSubmitting: boolean;
   onSubmit(event: FormEvent<HTMLFormElement>): void;
+  onCancel?(): void;
 }) {
   const fields: Array<{
     name: MerchantField;
@@ -676,19 +784,31 @@ function MerchantForm({
             ) : null}
           </fieldset>
         ) : null}
-        <button
-          className="w-fit min-h-11 cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
-          type="submit"
-          disabled={isSubmitting || (!merchant && branches.length === 0)}
-        >
-          {isSubmitting
-            ? merchant
-              ? 'Saving changes…'
-              : 'Creating merchant…'
-            : merchant
-              ? 'Save changes'
-              : 'Create merchant'}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            className="min-h-11 w-fit cursor-pointer rounded-[0.65rem] border-0 bg-emerald-600 px-4.5 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
+            type="submit"
+            disabled={isSubmitting || (!merchant && branches.length === 0)}
+          >
+            {isSubmitting
+              ? merchant
+                ? 'Saving changes…'
+                : 'Creating merchant…'
+              : merchant
+                ? 'Save changes'
+                : 'Create merchant'}
+          </button>
+          {onCancel ? (
+            <button
+              className="min-h-11 rounded-[0.65rem] border border-slate-200 bg-white px-4 font-bold"
+              type="button"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
       </form>
     </section>
   );

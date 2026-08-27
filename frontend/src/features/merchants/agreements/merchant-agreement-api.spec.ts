@@ -3,6 +3,8 @@ import {
   activateMerchantAgreement,
   createMerchantAgreement,
   endMerchantAgreement,
+  getMerchantAgreement,
+  listOrganizationAgreements,
   listMerchantAgreements,
   updateMerchantAgreement,
 } from './merchant-agreement-api';
@@ -31,6 +33,19 @@ describe('merchant agreement API', () => {
     expect(request).toHaveBeenLastCalledWith(
       '/organizations/organization-id/merchants/merchant-id/agreements',
       expect.objectContaining({ method: 'POST', body: JSON.stringify(input) }),
+    );
+  });
+
+  it('lists organization agreements and gets one agreement', async () => {
+    vi.mocked(request).mockResolvedValue([]);
+    await listOrganizationAgreements(request, 'organization/id');
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/organization%2Fid/merchant-agreements',
+    );
+
+    await getMerchantAgreement(request, 'organization/id', 'agreement/id');
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/organization%2Fid/merchant-agreements/agreement%2Fid',
     );
   });
 

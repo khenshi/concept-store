@@ -13,7 +13,14 @@ export interface MerchantAgreement {
   status: AgreementStatus;
   createdAt: string;
   updatedAt: string;
+  merchant?: {
+    id: string;
+    name: string;
+    code: string | null;
+  };
 }
+
+export type AgreementType = 'FIXED_RENT' | 'COMMISSION' | 'HYBRID' | 'UNSET';
 
 export interface MerchantAgreementInput {
   startDate: string;

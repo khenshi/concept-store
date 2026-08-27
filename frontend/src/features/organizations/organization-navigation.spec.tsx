@@ -31,4 +31,24 @@ describe('OrganizationNavigation', () => {
       screen.queryByRole('link', { name: 'Members' }),
     ).not.toBeInTheDocument();
   });
+
+  it('shows agreements as a permanent business destination', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/organization-id/agreements',
+    );
+    render(
+      <OrganizationNavigation organizationId="organization-id" showMerchants />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Agreements' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Merchant profile' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Merchants' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
 });

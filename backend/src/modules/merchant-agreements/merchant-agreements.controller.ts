@@ -21,7 +21,10 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OrganizationRole } from '../../generated/prisma/client';
-import { MerchantAgreementResponseDto } from '../../openapi/response.dto';
+import {
+  MerchantAgreementResponseDto,
+  MerchantAgreementViewResponseDto,
+} from '../../openapi/response.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { OrganizationAccessGuard } from '../organizations/authorization/organization-access.guard';
 import type { OrganizationContext } from '../organizations/authorization/organization-authorization.types';
@@ -31,7 +34,10 @@ import { CreateMerchantAgreementDto } from './dto/create-merchant-agreement.dto'
 import { EndMerchantAgreementDto } from './dto/end-merchant-agreement.dto';
 import { UpdateMerchantAgreementDto } from './dto/update-merchant-agreement.dto';
 import { MerchantAgreementsService } from './merchant-agreements.service';
-import type { MerchantAgreementRecord } from './merchant-agreements.types';
+import type {
+  MerchantAgreementRecord,
+  MerchantAgreementViewRecord,
+} from './merchant-agreements.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
 @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
@@ -69,6 +75,17 @@ export class MerchantAgreementsController {
     );
   }
 
+  @Get('merchant-agreements')
+  @ApiOperation({ summary: 'List all merchant agreements in an organization' })
+  @ApiOkResponse({ type: MerchantAgreementViewResponseDto, isArray: true })
+  findAllForOrganization(
+    @CurrentOrganization() organization: OrganizationContext,
+  ): Promise<MerchantAgreementViewRecord[]> {
+    return this.merchantAgreementsService.findAllForOrganization(
+      organization.organizationId,
+    );
+  }
+
   @Get('merchants/:merchantId/agreements')
   @ApiOperation({ summary: 'List a merchant agreement history' })
   @ApiOkResponse({ type: MerchantAgreementResponseDto, isArray: true })
@@ -85,13 +102,13 @@ export class MerchantAgreementsController {
 
   @Get('merchant-agreements/:agreementId')
   @ApiOperation({ summary: 'Get a merchant agreement' })
-  @ApiOkResponse({ type: MerchantAgreementResponseDto })
+  @ApiOkResponse({ type: MerchantAgreementViewResponseDto })
   findOne(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('agreementId', new ParseUUIDPipe({ version: '4' }))
     agreementId: string,
-  ): Promise<MerchantAgreementRecord> {
-    return this.merchantAgreementsService.findOne(
+  ): Promise<MerchantAgreementViewRecord> {
+    return this.merchantAgreementsService.findOneView(
       organization.organizationId,
       agreementId,
     );

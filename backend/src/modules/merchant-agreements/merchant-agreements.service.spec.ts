@@ -11,6 +11,7 @@ import {
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { MerchantAgreementsService } from './merchant-agreements.service';
+import { merchantAgreementViewInclude } from './merchant-agreements.types';
 
 describe('MerchantAgreementsService', () => {
   const organizationId = '580c75b7-1050-4a08-a2c2-585171d84dc8';
@@ -93,6 +94,39 @@ describe('MerchantAgreementsService', () => {
       new NotFoundException('Merchant not found'),
     );
     expect(prisma.merchantAgreement.findMany).not.toHaveBeenCalled();
+  });
+
+  it('lists organization agreements with their merchants', async () => {
+    const view = {
+      ...agreement,
+      merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMIHAN' },
+    };
+    prisma.merchantAgreement.findMany.mockResolvedValue([view]);
+
+    await expect(
+      service.findAllForOrganization(organizationId),
+    ).resolves.toEqual([view]);
+    expect(prisma.merchantAgreement.findMany).toHaveBeenCalledWith({
+      where: { organizationId },
+      include: merchantAgreementViewInclude,
+      orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+    });
+  });
+
+  it('gets an organization-scoped agreement view', async () => {
+    const view = {
+      ...agreement,
+      merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMIHAN' },
+    };
+    prisma.merchantAgreement.findFirst.mockResolvedValue(view);
+
+    await expect(
+      service.findOneView(organizationId, agreementId),
+    ).resolves.toEqual(view);
+    expect(prisma.merchantAgreement.findFirst).toHaveBeenCalledWith({
+      where: { id: agreementId, organizationId },
+      include: merchantAgreementViewInclude,
+    });
   });
 
   it('rejects agreement date ranges in reverse order', async () => {

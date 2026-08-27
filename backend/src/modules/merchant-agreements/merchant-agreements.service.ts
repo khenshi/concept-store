@@ -18,7 +18,11 @@ import {
 import type { CreateMerchantAgreementDto } from './dto/create-merchant-agreement.dto';
 import type { EndMerchantAgreementDto } from './dto/end-merchant-agreement.dto';
 import type { UpdateMerchantAgreementDto } from './dto/update-merchant-agreement.dto';
-import type { MerchantAgreementRecord } from './merchant-agreements.types';
+import {
+  merchantAgreementViewInclude,
+  type MerchantAgreementRecord,
+  type MerchantAgreementViewRecord,
+} from './merchant-agreements.types';
 
 @Injectable()
 export class MerchantAgreementsService {
@@ -58,6 +62,28 @@ export class MerchantAgreementsService {
       where: { organizationId, merchantId },
       orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
     });
+  }
+
+  findAllForOrganization(
+    organizationId: string,
+  ): Promise<MerchantAgreementViewRecord[]> {
+    return this.prisma.merchantAgreement.findMany({
+      where: { organizationId },
+      include: merchantAgreementViewInclude,
+      orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
+    });
+  }
+
+  async findOneView(
+    organizationId: string,
+    agreementId: string,
+  ): Promise<MerchantAgreementViewRecord> {
+    const agreement = await this.prisma.merchantAgreement.findFirst({
+      where: { id: agreementId, organizationId },
+      include: merchantAgreementViewInclude,
+    });
+    if (!agreement) throw new NotFoundException('Merchant agreement not found');
+    return agreement;
   }
 
   async findOne(

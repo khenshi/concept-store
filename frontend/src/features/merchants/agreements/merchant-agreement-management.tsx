@@ -98,6 +98,7 @@ export function MerchantAgreementManagement({
   const [editingDraft, setEditingDraft] = useState<MerchantAgreement | null>(
     null,
   );
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -167,6 +168,7 @@ export function MerchantAgreementManagement({
         );
         replaceAgreement(updated);
         setEditingDraft(null);
+        setIsFormOpen(false);
         setSuccessMessage('The draft agreement was updated.');
       } else {
         const created = await createMerchantAgreement(
@@ -176,6 +178,7 @@ export function MerchantAgreementManagement({
           input,
         );
         setAgreements((current) => [created, ...current]);
+        setIsFormOpen(false);
         setSuccessMessage('A draft agreement was created.');
       }
     } catch (cause: unknown) {
@@ -276,11 +279,23 @@ export function MerchantAgreementManagement({
             explicit end dates.
           </p>
         </div>
-        {!isLoading && !loadError ? (
-          <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
-            {agreements.length}
-          </span>
-        ) : null}
+        <div className="flex items-center gap-3">
+          {!isLoading && !loadError ? (
+            <span className="min-w-7 rounded-full bg-emerald-100 px-2 py-1 text-center text-xs font-bold text-emerald-700">
+              {agreements.length}
+            </span>
+          ) : null}
+          <button
+            className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700"
+            type="button"
+            onClick={() => {
+              setEditingDraft(null);
+              setIsFormOpen(true);
+            }}
+          >
+            Add agreement
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -311,14 +326,7 @@ export function MerchantAgreementManagement({
             </p>
           ) : null}
 
-          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(18rem,0.75fr)_minmax(0,1.25fr)]">
-            <AgreementForm
-              key={editingDraft?.id ?? 'new-agreement'}
-              agreement={editingDraft}
-              isSubmitting={pendingAgreementId === (editingDraft?.id ?? 'new')}
-              onCancel={() => setEditingDraft(null)}
-              onSaved={handleSaved}
-            />
+          <div className="mt-6">
             <AgreementHistory
               agreements={agreements}
               pendingAgreementId={pendingAgreementId}
@@ -327,18 +335,46 @@ export function MerchantAgreementManagement({
                 setActionError(null);
                 setSuccessMessage(null);
                 setEditingDraft(agreement);
+                setIsFormOpen(true);
               }}
               onEnd={handleEnd}
             />
           </div>
         </>
       )}
+      {isFormOpen ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={editingDraft ? 'Edit draft agreement' : 'Add agreement'}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !pendingAgreementId) {
+              setEditingDraft(null);
+              setIsFormOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+            <AgreementForm
+              key={editingDraft?.id ?? 'new-agreement'}
+              agreement={editingDraft}
+              isSubmitting={pendingAgreementId === (editingDraft?.id ?? 'new')}
+              onCancel={() => {
+                setEditingDraft(null);
+                setIsFormOpen(false);
+              }}
+              onSaved={handleSaved}
+            />
+          </div>
+        </div>
+      ) : null}
       {confirmationDialog}
     </section>
   );
 }
 
-function AgreementForm({
+export function AgreementForm({
   agreement,
   isSubmitting,
   onSaved,
@@ -470,15 +506,14 @@ function AgreementForm({
                 ? 'Save draft'
                 : 'Create draft'}
           </button>
-          {agreement ? (
-            <button
-              className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold"
-              type="button"
-              onClick={onCancel}
-            >
-              Cancel
-            </button>
-          ) : null}
+          <button
+            className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold"
+            type="button"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
         </div>
       </form>
     </section>
