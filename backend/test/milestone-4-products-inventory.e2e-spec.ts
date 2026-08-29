@@ -56,6 +56,16 @@ describe('Milestone 4 product and inventory access (e2e)', () => {
     [MERCHANT_USER_ID]: OrganizationRole.MERCHANT,
   };
   const prismaService = {
+    user: {
+      findFirst: jest.fn(
+        ({ where }: { where: { id: string; deletedAt: null } }) =>
+          Promise.resolve(
+            rolesByUserId[where.id] && where.deletedAt === null
+              ? { id: where.id }
+              : null,
+          ),
+      ),
+    },
     organizationMembership: {
       findUnique: jest.fn(
         ({

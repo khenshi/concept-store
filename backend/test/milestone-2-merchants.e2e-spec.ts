@@ -45,6 +45,16 @@ describe('Milestone 2 merchant API access (e2e)', () => {
     [MERCHANT_USER_ID]: OrganizationRole.MERCHANT,
   };
   const prismaService = {
+    user: {
+      findFirst: jest.fn(
+        ({ where }: { where: { id: string; deletedAt: null } }) =>
+          Promise.resolve(
+            rolesByUserId[where.id] && where.deletedAt === null
+              ? { id: where.id }
+              : null,
+          ),
+      ),
+    },
     organizationMembership: {
       findUnique: jest.fn(
         ({

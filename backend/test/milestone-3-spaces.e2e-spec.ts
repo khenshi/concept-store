@@ -34,6 +34,16 @@ describe('Milestone 3 space API access (e2e)', () => {
     [CASHIER_ID]: OrganizationRole.CASHIER,
   };
   const prismaService = {
+    user: {
+      findFirst: jest.fn(
+        ({ where }: { where: { id: string; deletedAt: null } }) =>
+          Promise.resolve(
+            rolesByUserId[where.id] && where.deletedAt === null
+              ? { id: where.id }
+              : null,
+          ),
+      ),
+    },
     organizationMembership: {
       findUnique: jest.fn(
         ({

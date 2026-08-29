@@ -36,6 +36,17 @@ describe('Milestone 1 organization access (e2e)', () => {
     remove: jest.fn().mockResolvedValue(undefined),
   };
   const prismaService = {
+    user: {
+      findFirst: jest.fn(
+        ({ where }: { where: { id: string; deletedAt: null } }) =>
+          Promise.resolve(
+            (where.id === OWNER_ID || where.id === CASHIER_ID) &&
+              where.deletedAt === null
+              ? { id: where.id }
+              : null,
+          ),
+      ),
+    },
     organizationMembership: {
       findUnique: jest.fn(
         ({
