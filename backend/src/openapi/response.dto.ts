@@ -4,6 +4,7 @@ import {
   InventoryMovementType,
   MerchantStatus,
   OrganizationRole,
+  PaymentMethod,
   ProductStatus,
   SettlementSchedule,
   SpaceStatus,
@@ -319,6 +320,133 @@ export class PosProductPageResponseDto {
 
   @ApiProperty({ example: 30 })
   limit!: number;
+}
+
+export class SaleBranchResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Makati Main' })
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'MKT-01' })
+  code!: string | null;
+}
+
+export class SaleCashierResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Maria' })
+  firstName!: string;
+
+  @ApiProperty({ example: 'Santos' })
+  lastName!: string;
+
+  @ApiProperty({ format: 'email' })
+  email!: string;
+}
+
+export class SaleItemResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  productId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  merchantId!: string;
+
+  @ApiProperty({ example: 'Handwoven pouch' })
+  productName!: string;
+
+  @ApiProperty({ example: 'AMH-01' })
+  productSku!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: '4801234567890' })
+  productBarcode!: string | null;
+
+  @ApiProperty({ example: 'Amihan Goods' })
+  merchantName!: string;
+
+  @ApiProperty({ example: 2 })
+  quantity!: number;
+
+  @ApiProperty({ type: String, example: '450.00' })
+  unitPrice!: string;
+
+  @ApiProperty({ type: String, example: '900.00' })
+  subtotal!: string;
+
+  @ApiProperty({ type: String, example: '0.00' })
+  discountAmount!: string;
+
+  @ApiProperty({ type: String, example: '900.00' })
+  total!: string;
+}
+
+export class PaymentResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ enum: PaymentMethod })
+  method!: PaymentMethod;
+
+  @ApiProperty({ type: String, example: '900.00' })
+  amount!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'GCASH-10425' })
+  referenceNumber!: string | null;
+
+  @ApiProperty({ format: 'uuid' })
+  confirmedById!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  paidAt!: Date;
+}
+
+export class SaleResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  branchId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  cashierId!: string;
+
+  @ApiProperty({ example: 'S-3380E77A328742F49126BF94C02370BB' })
+  saleNumber!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  clientTransactionId!: string;
+
+  @ApiProperty({ type: String, example: '900.00' })
+  subtotal!: string;
+
+  @ApiProperty({ type: String, example: '0.00' })
+  discountTotal!: string;
+
+  @ApiProperty({ type: String, example: '900.00' })
+  total!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  completedAt!: Date;
+
+  @ApiProperty({ type: SaleBranchResponseDto })
+  branch!: SaleBranchResponseDto;
+
+  @ApiProperty({ type: SaleCashierResponseDto })
+  cashier!: SaleCashierResponseDto;
+
+  @ApiProperty({ type: SaleItemResponseDto, isArray: true })
+  items!: SaleItemResponseDto[];
+
+  @ApiProperty({ type: PaymentResponseDto, isArray: true })
+  payments!: PaymentResponseDto[];
 }
 
 export class InventoryResponseDto {
