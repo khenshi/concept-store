@@ -40,3 +40,42 @@ export interface SaleRecord extends Omit<
   items: SaleItemRecord[];
   payments: PaymentRecord[];
 }
+
+export const saleSummarySelect = {
+  id: true,
+  organizationId: true,
+  branchId: true,
+  cashierId: true,
+  saleNumber: true,
+  subtotal: true,
+  discountTotal: true,
+  total: true,
+  completedAt: true,
+  cashier: {
+    select: { id: true, firstName: true, lastName: true, email: true },
+  },
+  payments: { select: { method: true } },
+  _count: { select: { items: true } },
+} satisfies Prisma.SaleSelect;
+
+export type SaleSummaryRow = Prisma.SaleGetPayload<{
+  select: typeof saleSummarySelect;
+}>;
+
+export interface SaleSummaryRecord extends Omit<
+  SaleSummaryRow,
+  'subtotal' | 'discountTotal' | 'total' | 'payments' | '_count'
+> {
+  subtotal: string;
+  discountTotal: string;
+  total: string;
+  itemCount: number;
+  paymentMethods: SaleSummaryRow['payments'][number]['method'][];
+}
+
+export interface SalePageRecord {
+  items: SaleSummaryRecord[];
+  total: number;
+  offset: number;
+  limit: number;
+}

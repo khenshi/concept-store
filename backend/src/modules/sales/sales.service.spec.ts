@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
@@ -103,7 +104,12 @@ describe('SalesService', () => {
   };
   const prisma = {
     $transaction: jest.fn(),
-    sale: { findFirst: jest.fn() },
+    branch: { findFirst: jest.fn() },
+    sale: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
   };
   let service: SalesService;
 
@@ -111,9 +117,15 @@ describe('SalesService', () => {
     jest.clearAllMocks();
     prisma.sale.findFirst.mockResolvedValue(null);
     prisma.$transaction.mockImplementation(
-      (operation: (client: typeof transaction) => unknown) =>
-        operation(transaction),
+      (
+        operation:
+          ((client: typeof transaction) => unknown) | Promise<unknown>[],
+      ) =>
+        Array.isArray(operation)
+          ? Promise.all(operation)
+          : operation(transaction),
     );
+    prisma.branch.findFirst.mockResolvedValue({ id: branchId });
     transaction.branch.findFirst.mockResolvedValue({ id: branchId });
     transaction.organizationMembership.findUnique.mockResolvedValue({
       role: 'CASHIER',
@@ -283,5 +295,104 @@ describe('SalesService', () => {
         payments: [{ method: PaymentMethod.CASH, amount: '900.00' }],
       }),
     ).resolves.toMatchObject({ id: saleRow.id });
+  });
+
+  it('lists tenant and branch-scoped sales with operational filters', async () => {
+    const summary = {
+      id: saleRow.id,
+      organizationId,
+      branchId,
+      cashierId,
+      saleNumber: saleRow.saleNumber,
+      subtotal: saleRow.subtotal,
+      discountTotal: saleRow.discountTotal,
+      total: saleRow.total,
+      completedAt: saleRow.completedAt,
+      cashier: saleRow.cashier,
+      payments: [
+        { method: PaymentMethod.CASH },
+        { method: PaymentMethod.CASH },
+      ],
+      _count: { items: 1 },
+    };
+    prisma.sale.findMany.mockResolvedValue([summary]);
+    prisma.sale.count.mockResolvedValue(1);
+
+    await expect(
+      service.findAll(organizationId, branchId, {
+        search: '8DA60',
+        cashierId,
+        paymentMethod: PaymentMethod.CASH,
+        completedFrom: '2026-08-01T00:00:00.000Z',
+        completedTo: '2026-08-31T23:59:59.999Z',
+        offset: 0,
+        limit: 30,
+      }),
+    ).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          id: saleRow.id,
+          total: '900.00',
+          itemCount: 1,
+          paymentMethods: [PaymentMethod.CASH],
+        }),
+      ],
+      total: 1,
+      offset: 0,
+      limit: 30,
+    });
+    expect(prisma.sale.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId,
+          branchId,
+          cashierId,
+          saleNumber: { contains: '8DA60', mode: 'insensitive' },
+          completedAt: {
+            gte: new Date('2026-08-01T00:00:00.000Z'),
+            lte: new Date('2026-08-31T23:59:59.999Z'),
+          },
+          payments: { some: { method: PaymentMethod.CASH } },
+        },
+        skip: 0,
+        take: 30,
+      }),
+    );
+  });
+
+  it('rejects an inverted completed date range', async () => {
+    await expect(
+      service.findAll(organizationId, branchId, {
+        completedFrom: '2026-09-01T00:00:00.000Z',
+        completedTo: '2026-08-01T00:00:00.000Z',
+        offset: 0,
+        limit: 30,
+      }),
+    ).rejects.toThrow(
+      new BadRequestException(
+        'completedFrom must be before or equal to completedTo',
+      ),
+    );
+    expect(prisma.sale.findMany).not.toHaveBeenCalled();
+  });
+
+  it('returns a completed sale detail only within its tenant and branch', async () => {
+    prisma.sale.findFirst.mockResolvedValue(saleRow);
+
+    await expect(
+      service.findOne(organizationId, branchId, saleRow.id),
+    ).resolves.toMatchObject({ id: saleRow.id, total: '900.00' });
+    expect(prisma.sale.findFirst).toHaveBeenCalledWith({
+      where: { id: saleRow.id, organizationId, branchId },
+      include: expect.any(Object) as unknown,
+    });
+  });
+
+  it('conceals a missing or cross-tenant sale as not found', async () => {
+    prisma.sale.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.findOne(organizationId, branchId, saleRow.id),
+    ).rejects.toThrow(new NotFoundException('Sale not found'));
   });
 });

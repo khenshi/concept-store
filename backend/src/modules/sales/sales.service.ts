@@ -16,15 +16,83 @@ import {
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { CreateSaleDto, CreateSaleItemDto } from './dto/create-sale.dto';
+import type { ListSalesQueryDto } from './dto/list-sales-query.dto';
 import {
   saleResponseInclude,
+  saleSummarySelect,
+  type SalePageRecord,
   type SaleRecord,
   type SaleResponseRow,
+  type SaleSummaryRecord,
+  type SaleSummaryRow,
 } from './sales.types';
 
 @Injectable()
 export class SalesService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findAll(
+    organizationId: string,
+    branchId: string,
+    query: ListSalesQueryDto,
+  ): Promise<SalePageRecord> {
+    await this.assertBranch(organizationId, branchId);
+    const completedFrom = query.completedFrom
+      ? new Date(query.completedFrom)
+      : undefined;
+    const completedTo = query.completedTo
+      ? new Date(query.completedTo)
+      : undefined;
+    if (completedFrom && completedTo && completedFrom > completedTo) {
+      throw new BadRequestException(
+        'completedFrom must be before or equal to completedTo',
+      );
+    }
+    const where: Prisma.SaleWhereInput = {
+      organizationId,
+      branchId,
+      cashierId: query.cashierId,
+      saleNumber: query.search
+        ? { contains: query.search, mode: 'insensitive' }
+        : undefined,
+      completedAt:
+        completedFrom || completedTo
+          ? { gte: completedFrom, lte: completedTo }
+          : undefined,
+      payments: query.paymentMethod
+        ? { some: { method: query.paymentMethod } }
+        : undefined,
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.sale.findMany({
+        where,
+        select: saleSummarySelect,
+        orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
+        skip: query.offset,
+        take: query.limit,
+      }),
+      this.prisma.sale.count({ where }),
+    ]);
+    return {
+      items: rows.map((row) => this.toSummary(row)),
+      total,
+      offset: query.offset,
+      limit: query.limit,
+    };
+  }
+
+  async findOne(
+    organizationId: string,
+    branchId: string,
+    saleId: string,
+  ): Promise<SaleRecord> {
+    const sale = await this.prisma.sale.findFirst({
+      where: { id: saleId, organizationId, branchId },
+      include: saleResponseInclude,
+    });
+    if (!sale) throw new NotFoundException('Sale not found');
+    return this.toRecord(sale);
+  }
 
   async checkout(
     organizationId: string,
@@ -265,6 +333,34 @@ export class SalesService {
       where: { organizationId, branchId, clientTransactionId },
       include: saleResponseInclude,
     });
+  }
+
+  private async assertBranch(
+    organizationId: string,
+    branchId: string,
+  ): Promise<void> {
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: branchId, organizationId },
+      select: { id: true },
+    });
+    if (!branch) throw new NotFoundException('Branch not found');
+  }
+
+  private toSummary(sale: SaleSummaryRow): SaleSummaryRecord {
+    return {
+      id: sale.id,
+      organizationId: sale.organizationId,
+      branchId: sale.branchId,
+      cashierId: sale.cashierId,
+      saleNumber: sale.saleNumber,
+      completedAt: sale.completedAt,
+      cashier: sale.cashier,
+      subtotal: sale.subtotal.toFixed(2),
+      discountTotal: sale.discountTotal.toFixed(2),
+      total: sale.total.toFixed(2),
+      itemCount: sale._count.items,
+      paymentMethods: [...new Set(sale.payments.map(({ method }) => method))],
+    };
   }
 
   private toRecord(sale: SaleResponseRow): SaleRecord {

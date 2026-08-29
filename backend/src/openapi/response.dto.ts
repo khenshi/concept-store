@@ -449,6 +449,58 @@ export class SaleResponseDto {
   payments!: PaymentResponseDto[];
 }
 
+export class SaleSummaryResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  branchId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  cashierId!: string;
+
+  @ApiProperty({ example: 'S-3380E77A328742F49126BF94C02370BB' })
+  saleNumber!: string;
+
+  @ApiProperty({ type: String, example: '900.00' })
+  subtotal!: string;
+
+  @ApiProperty({ type: String, example: '0.00' })
+  discountTotal!: string;
+
+  @ApiProperty({ type: String, example: '900.00' })
+  total!: string;
+
+  @ApiProperty({ example: 2 })
+  itemCount!: number;
+
+  @ApiProperty({ enum: PaymentMethod, isArray: true })
+  paymentMethods!: PaymentMethod[];
+
+  @ApiProperty({ format: 'date-time' })
+  completedAt!: Date;
+
+  @ApiProperty({ type: SaleCashierResponseDto })
+  cashier!: SaleCashierResponseDto;
+}
+
+export class SalePageResponseDto {
+  @ApiProperty({ type: SaleSummaryResponseDto, isArray: true })
+  items!: SaleSummaryResponseDto[];
+
+  @ApiProperty({ example: 125 })
+  total!: number;
+
+  @ApiProperty({ example: 0 })
+  offset!: number;
+
+  @ApiProperty({ example: 30 })
+  limit!: number;
+}
+
 export class InventoryResponseDto {
   @ApiProperty({ format: 'uuid' })
   organizationId!: string;
