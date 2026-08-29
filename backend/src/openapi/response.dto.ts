@@ -275,6 +275,52 @@ export class ProductResponseDto {
   merchant!: ProductMerchantResponseDto;
 }
 
+export class PosProductResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  branchId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  merchantId!: string;
+
+  @ApiProperty({ example: 'Handwoven pouch' })
+  name!: string;
+
+  @ApiProperty({ example: 'AMH-01' })
+  sku!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: '4801234567890' })
+  barcode!: string | null;
+
+  @ApiProperty({ type: String, example: '450.00' })
+  sellingPrice!: string;
+
+  @ApiProperty({ example: 12 })
+  quantity!: number;
+
+  @ApiProperty({ example: true })
+  available!: boolean;
+
+  @ApiProperty({ type: ProductMerchantResponseDto })
+  merchant!: ProductMerchantResponseDto;
+}
+
+export class PosProductPageResponseDto {
+  @ApiProperty({ type: PosProductResponseDto, isArray: true })
+  items!: PosProductResponseDto[];
+
+  @ApiProperty({ example: 42 })
+  total!: number;
+
+  @ApiProperty({ example: 0 })
+  offset!: number;
+
+  @ApiProperty({ example: 30 })
+  limit!: number;
+}
+
 export class InventoryResponseDto {
   @ApiProperty({ format: 'uuid' })
   organizationId!: string;

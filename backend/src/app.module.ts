@@ -9,6 +9,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { MerchantsModule } from './modules/merchants/merchants.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { ProductsModule } from './modules/products/products.module';
+import { SalesModule } from './modules/sales/sales.module';
 import { SpacesModule } from './modules/spaces/spaces.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { SpacesModule } from './modules/spaces/spaces.module';
     OrganizationsModule,
     MerchantsModule,
     ProductsModule,
+    SalesModule,
     SpacesModule,
   ],
   controllers: [AppController],
