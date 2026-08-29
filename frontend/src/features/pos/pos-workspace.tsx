@@ -1,0 +1,417 @@
+'use client';
+
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { RequestError } from '@/components/ui/request-error';
+import { SelectControl } from '@/components/ui/select-control';
+import { ApiError } from '@/features/auth/auth-client';
+import { useAuth } from '@/features/auth/auth-context';
+import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
+import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
+import { listPosProducts, lookupPosProduct } from './pos-api';
+import type { PosCartLine, PosProduct, PosProductPage } from './pos.types';
+
+const PAGE_SIZE = 30;
+const money = new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+});
+
+function message(cause: unknown): string {
+  return cause instanceof ApiError
+    ? cause.message
+    : 'The POS catalog could not be loaded. Please try again.';
+}
+
+function amount(value: string, quantity = 1): string {
+  return money.format(Number(value) * quantity);
+}
+
+export function PosWorkspace({ organizationId }: { organizationId: string }) {
+  const { request } = useAuth();
+  const {
+    organization,
+    organizationStatus,
+    branches,
+    branchesStatus,
+    loadBranches,
+  } = useOrganizationWorkspaceContext();
+  const [branchId, setBranchId] = useState('');
+  const [page, setPage] = useState<PosProductPage>({
+    items: [],
+    total: 0,
+    offset: 0,
+    limit: PAGE_SIZE,
+  });
+  const [cart, setCart] = useState<PosCartLine[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+
+  const canUsePos =
+    organization?.role === 'OWNER' ||
+    organization?.role === 'MANAGER' ||
+    organization?.role === 'CASHIER';
+
+  useEffect(() => {
+    if (!canUsePos) return;
+    let active = true;
+    void loadBranches()
+      .then(async (items) => {
+        const initialBranchId = items[0]?.id;
+        if (!initialBranchId) return null;
+        const result = await listPosProducts(
+          request,
+          organizationId,
+          initialBranchId,
+          { limit: PAGE_SIZE, offset: 0 },
+        );
+        return { initialBranchId, result };
+      })
+      .then((result) => {
+        if (!active || !result) return;
+        setBranchId(result.initialBranchId);
+        setPage(result.result);
+      })
+      .catch((cause: unknown) => {
+        if (active) setError(message(cause));
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [canUsePos, loadBranches, organizationId, request]);
+
+  const cartTotal = useMemo(
+    () =>
+      cart.reduce(
+        (total, line) =>
+          total + Number(line.product.sellingPrice) * line.quantity,
+        0,
+      ),
+    [cart],
+  );
+
+  async function findProducts(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!branchId) return;
+    const normalized = search.trim();
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (normalized) {
+        try {
+          const exact = await lookupPosProduct(
+            request,
+            organizationId,
+            branchId,
+            normalized,
+          );
+          setPage({ items: [exact], total: 1, offset: 0, limit: PAGE_SIZE });
+          return;
+        } catch (cause: unknown) {
+          if (!(cause instanceof ApiError) || cause.status !== 404) throw cause;
+        }
+      }
+      setPage(
+        await listPosProducts(request, organizationId, branchId, {
+          search: normalized || undefined,
+          limit: PAGE_SIZE,
+          offset: 0,
+        }),
+      );
+    } catch (cause: unknown) {
+      setError(message(cause));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function selectBranch(nextBranchId: string): Promise<void> {
+    setBranchId(nextBranchId);
+    setIsLoading(true);
+    setError(null);
+    try {
+      setPage(
+        await listPosProducts(request, organizationId, nextBranchId, {
+          limit: PAGE_SIZE,
+          offset: 0,
+        }),
+      );
+      setSearch('');
+    } catch (cause: unknown) {
+      setError(message(cause));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function addProduct(product: PosProduct): void {
+    setCart((current) => {
+      const existing = current.find((line) => line.product.id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.quantity) return current;
+        return current.map((line) =>
+          line.product.id === product.id
+            ? { ...line, quantity: line.quantity + 1 }
+            : line,
+        );
+      }
+      return [...current, { product, quantity: 1 }];
+    });
+  }
+
+  function changeQuantity(productId: string, change: number): void {
+    setCart((current) =>
+      current.flatMap((line) => {
+        if (line.product.id !== productId) return [line];
+        const quantity = line.quantity + change;
+        if (quantity <= 0) return [];
+        return [
+          { ...line, quantity: Math.min(quantity, line.product.quantity) },
+        ];
+      }),
+    );
+  }
+
+  if (organizationStatus === 'loading')
+    return <ListSkeleton label="Loading point of sale" />;
+  if (!organization) return null;
+
+  return (
+    <section className="mx-auto mt-7 w-full max-w-[100rem] sm:mt-9">
+      <OrganizationPageHeader
+        organization={organization}
+        title="Point of sale"
+        description="Build a branch sale from active products and current online inventory."
+      />
+      {!canUsePos ? (
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="font-bold text-slate-950">POS access is limited</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Owner, manager, or cashier access is required to use this workspace.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem]">
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <header className="border-b border-slate-200 px-5 py-5 sm:flex sm:items-end sm:justify-between sm:gap-5 sm:px-6">
+              <div>
+                <h2 className="font-bold text-slate-950">Product catalog</h2>
+                <p className="mt-1.5 text-sm text-slate-500">
+                  Search by product name, SKU, or scan a barcode.
+                </p>
+              </div>
+              <label className="mt-4 grid gap-2 text-sm font-bold text-slate-700 sm:mt-0 sm:w-64">
+                Selling branch
+                <SelectControl
+                  value={branchId}
+                  disabled={branchesStatus === 'loading' || cart.length > 0}
+                  onValueChange={(value) => void selectBranch(value)}
+                >
+                  <option value="" disabled>
+                    Select a branch
+                  </option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </SelectControl>
+              </label>
+            </header>
+            <form
+              className="flex gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:px-6"
+              onSubmit={findProducts}
+            >
+              <label className="min-w-0 flex-1">
+                <span className="sr-only">Search products</span>
+                <input
+                  className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3.5 text-slate-950 outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-100"
+                  value={search}
+                  placeholder="Product name, SKU, or barcode"
+                  disabled={!branchId}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </label>
+              <button
+                className="min-h-12 rounded-[0.65rem] border-0 bg-emerald-600 px-5 font-bold text-white disabled:opacity-60"
+                type="submit"
+                disabled={!branchId || isLoading}
+              >
+                {isLoading ? 'Searching…' : 'Search'}
+              </button>
+            </form>
+            {error ? (
+              <div className="p-5 sm:p-6">
+                <RequestError
+                  message={error}
+                  onRetry={() => void selectBranch(branchId)}
+                />
+              </div>
+            ) : null}
+            {isLoading && page.items.length === 0 ? (
+              <ListSkeleton label="Loading sellable products" />
+            ) : page.items.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <h3 className="font-bold text-slate-950">
+                  No sellable products
+                </h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Try another search or confirm this branch has available stock.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-200">
+                {page.items.map((product) => {
+                  const selected = cart.find(
+                    (line) => line.product.id === product.id,
+                  );
+                  return (
+                    <article
+                      className="grid gap-4 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:px-6"
+                      key={product.id}
+                    >
+                      <div className="min-w-0">
+                        <h3 className="truncate font-bold text-slate-950">
+                          {product.name}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {product.sku} · {product.merchant.name}
+                        </p>
+                      </div>
+                      <div className="sm:text-right">
+                        <p className="font-bold text-slate-950">
+                          {amount(product.sellingPrice)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {product.quantity} in stock
+                        </p>
+                      </div>
+                      <button
+                        className="min-h-11 rounded-[0.6rem] border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-400"
+                        type="button"
+                        disabled={
+                          !product.available ||
+                          (selected?.quantity ?? 0) >= product.quantity
+                        }
+                        onClick={() => addProduct(product)}
+                      >
+                        {selected ? 'Add another' : 'Add to cart'}
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <aside className="overflow-hidden rounded-xl border border-slate-200 bg-white xl:sticky xl:top-24">
+            <header className="border-b border-slate-200 px-5 py-5">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="font-bold text-slate-950">Current sale</h2>
+                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+                  {cart.reduce((total, line) => total + line.quantity, 0)} items
+                </span>
+              </div>
+              {cart.length > 0 ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  Clear the cart before switching branches.
+                </p>
+              ) : null}
+            </header>
+            {cart.length === 0 ? (
+              <div className="px-6 py-14 text-center">
+                <h3 className="font-bold text-slate-950">The cart is empty</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Add products from the branch catalog to begin a sale.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-200">
+                {cart.map((line) => (
+                  <div className="px-5 py-4" key={line.product.id}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-950">
+                          {line.product.name}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {amount(line.product.sellingPrice)} each
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-slate-950">
+                        {amount(line.product.sellingPrice, line.quantity)}
+                      </p>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="size-9 rounded-lg border border-slate-200 bg-white font-bold"
+                          type="button"
+                          aria-label={`Decrease ${line.product.name} quantity`}
+                          onClick={() => changeQuantity(line.product.id, -1)}
+                        >
+                          −
+                        </button>
+                        <span className="min-w-8 text-center text-sm font-bold">
+                          {line.quantity}
+                        </span>
+                        <button
+                          className="size-9 rounded-lg border border-slate-200 bg-white font-bold disabled:opacity-40"
+                          type="button"
+                          aria-label={`Increase ${line.product.name} quantity`}
+                          disabled={line.quantity >= line.product.quantity}
+                          onClick={() => changeQuantity(line.product.id, 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button
+                        className="border-0 bg-transparent text-xs font-bold text-rose-700 underline"
+                        type="button"
+                        onClick={() =>
+                          setCart((current) =>
+                            current.filter(
+                              (item) => item.product.id !== line.product.id,
+                            ),
+                          )
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <footer className="border-t border-slate-200 bg-slate-50/60 p-5">
+              <div className="flex items-center justify-between font-bold text-slate-950">
+                <span>Total</span>
+                <span>{money.format(cartTotal)}</span>
+              </div>
+              <button
+                className="mt-4 min-h-12 w-full rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white disabled:opacity-45"
+                type="button"
+                disabled
+              >
+                Checkout coming next
+              </button>
+              {cart.length > 0 ? (
+                <button
+                  className="mt-3 min-h-11 w-full rounded-[0.6rem] border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700"
+                  type="button"
+                  onClick={() => setCart([])}
+                >
+                  Clear cart
+                </button>
+              ) : null}
+            </footer>
+          </aside>
+        </div>
+      )}
+    </section>
+  );
+}

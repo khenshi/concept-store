@@ -9,6 +9,7 @@ export function OrganizationNavigation({
   showMerchants = false,
   showProducts = false,
   showInventory = false,
+  showPos = false,
   showSpaces = false,
   onNavigate,
 }: {
@@ -17,6 +18,7 @@ export function OrganizationNavigation({
   showMerchants?: boolean;
   showProducts?: boolean;
   showInventory?: boolean;
+  showPos?: boolean;
   showSpaces?: boolean;
   onNavigate?(): void;
 }) {
@@ -32,6 +34,12 @@ export function OrganizationNavigation({
     {
       label: 'Operations',
       destinations: [
+        {
+          key: 'pos',
+          label: 'Point of sale',
+          href: `${basePath}/pos`,
+          visible: showPos,
+        },
         {
           key: 'products',
           label: 'Products',

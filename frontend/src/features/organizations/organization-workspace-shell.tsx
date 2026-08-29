@@ -16,6 +16,7 @@ export function OrganizationWorkspaceShell({
     useOrganizationWorkspaceContext();
   const canManage =
     organization?.role === 'OWNER' || organization?.role === 'MANAGER';
+  const canUsePos = canManage || organization?.role === 'CASHIER';
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navigation = organization ? (
@@ -25,6 +26,7 @@ export function OrganizationWorkspaceShell({
       showMerchants={canManage}
       showProducts={canManage}
       showInventory={canManage}
+      showPos={canUsePos}
       showSpaces={canManage}
       onNavigate={() => setIsMenuOpen(false)}
     />
