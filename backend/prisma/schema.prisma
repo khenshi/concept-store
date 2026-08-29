@@ -9,21 +9,23 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   firstName    String
   lastName     String
   phone        String?
-  email        String   @unique
+  email        String    @unique
   passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  organizationMemberships OrganizationMembership[]
-  sentOrganizationInvitations OrganizationInvitation[] @relation("InvitationSender")
+  organizationMemberships         OrganizationMembership[]
+  sentOrganizationInvitations     OrganizationInvitation[] @relation("InvitationSender")
   acceptedOrganizationInvitations OrganizationInvitation[] @relation("InvitationAcceptor")
-  sessions                UserSession[]
-  inventoryMovements      InventoryMovement[]
+  sessions                        UserSession[]
+  inventoryMovements              InventoryMovement[]
+  salesAsCashier                  Sale[]                   @relation("SaleCashier")
+  confirmedPayments               Payment[]                @relation("PaymentConfirmer")
 
   @@index([deletedAt])
 }
@@ -43,8 +45,8 @@ model OrganizationInvitation {
   updatedAt      DateTime         @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  invitedBy     User         @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
-  acceptedBy    User?        @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: Restrict)
+  invitedBy    User         @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedBy   User?        @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: Restrict)
 
   @@index([organizationId, email])
   @@index([organizationId, expiresAt])
@@ -79,7 +81,10 @@ model Organization {
   products           Product[]
   inventory          Inventory[]
   inventoryMovements InventoryMovement[]
-  invitations       OrganizationInvitation[]
+  invitations        OrganizationInvitation[]
+  sales              Sale[]
+  saleItems          SaleItem[]
+  payments           Payment[]
 }
 
 model Branch {
@@ -101,6 +106,7 @@ model Branch {
   spaces       Space[]
   inventory    Inventory[]
   movements    InventoryMovement[]
+  sales        Sale[]
 
   @@unique([organizationId, name])
   @@unique([organizationId, code])
@@ -138,6 +144,7 @@ model Merchant {
   spaceAssignments SpaceAssignment[]
   agreements       MerchantAgreement[]
   products         Product[]
+  saleItems        SaleItem[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -237,6 +244,7 @@ model Product {
   merchant     Merchant            @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
   inventory    Inventory[]
   movements    InventoryMovement[]
+  saleItems    SaleItem[]
 
   @@unique([organizationId, sku])
   @@unique([organizationId, barcode])
@@ -273,6 +281,7 @@ model InventoryMovement {
   referenceId    String?
   note           String?
   createdById    String
+  saleId         String?
   createdAt      DateTime              @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
@@ -280,11 +289,86 @@ model InventoryMovement {
   product      Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
   inventory    Inventory    @relation(fields: [productId, branchId, organizationId], references: [productId, branchId, organizationId], onDelete: Restrict)
   createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  sale         Sale?        @relation(fields: [saleId, organizationId], references: [id, organizationId], onDelete: Restrict)
 
   @@index([organizationId, branchId, createdAt])
   @@index([organizationId, productId, createdAt])
   @@index([createdById, createdAt])
   @@index([referenceId])
+  @@index([saleId])
+}
+
+model Sale {
+  id                  String   @id @default(uuid())
+  organizationId      String
+  branchId            String
+  cashierId           String
+  saleNumber          String
+  clientTransactionId String
+  subtotal            Decimal  @db.Decimal(14, 2)
+  discountTotal       Decimal  @default(0) @db.Decimal(14, 2)
+  total               Decimal  @db.Decimal(14, 2)
+  completedAt         DateTime @default(now())
+  createdAt           DateTime @default(now())
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch             Branch              @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  cashier            User                @relation("SaleCashier", fields: [cashierId], references: [id], onDelete: Restrict)
+  items              SaleItem[]
+  payments           Payment[]
+  inventoryMovements InventoryMovement[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, saleNumber])
+  @@unique([organizationId, clientTransactionId])
+  @@index([organizationId, branchId, completedAt])
+  @@index([organizationId, cashierId, completedAt])
+}
+
+model SaleItem {
+  id             String  @id @default(uuid())
+  organizationId String
+  saleId         String
+  productId      String
+  merchantId     String
+  productName    String
+  productSku     String
+  productBarcode String?
+  merchantName   String
+  quantity       Int
+  unitPrice      Decimal @db.Decimal(14, 2)
+  subtotal       Decimal @db.Decimal(14, 2)
+  discountAmount Decimal @default(0) @db.Decimal(14, 2)
+  total          Decimal @db.Decimal(14, 2)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  sale         Sale         @relation(fields: [saleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  product      Product      @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  merchant     Merchant     @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@index([organizationId, merchantId, saleId])
+  @@index([organizationId, productId, saleId])
+  @@index([saleId])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  organizationId  String
+  saleId          String
+  method          PaymentMethod
+  amount          Decimal       @db.Decimal(14, 2)
+  referenceNumber String?
+  confirmedById   String
+  paidAt          DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  sale         Sale         @relation(fields: [saleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  confirmedBy  User         @relation("PaymentConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, method, paidAt])
+  @@index([saleId])
+  @@index([confirmedById, paidAt])
 }
 
 enum OrganizationRole {
@@ -336,4 +420,12 @@ enum ProductStatus {
 enum InventoryMovementType {
   STOCK_IN
   ADJUSTMENT
+  SALE
+}
+
+enum PaymentMethod {
+  CASH
+  GCASH
+  BANK_TRANSFER
+  OTHER
 }
