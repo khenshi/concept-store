@@ -6,7 +6,9 @@ import {
   OrganizationRole,
   PaymentMethod,
   ProductStatus,
+  PayoutMethod,
   SettlementSchedule,
+  SettlementStatus,
   SpaceStatus,
   SpaceType,
 } from '../generated/prisma/client';
@@ -840,4 +842,217 @@ export class MerchantAgreementMerchantResponseDto {
 export class MerchantAgreementViewResponseDto extends MerchantAgreementResponseDto {
   @ApiProperty({ type: MerchantAgreementMerchantResponseDto })
   merchant!: MerchantAgreementMerchantResponseDto;
+}
+
+export class SettlementMerchantResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Amihan Goods' })
+  name!: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'AMIHAN-01' })
+  code!: string | null;
+}
+
+export class SettlementSummaryResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  organizationId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  merchantId!: string;
+
+  @ApiProperty({ format: 'date', example: '2026-07-01' })
+  periodStart!: Date;
+
+  @ApiProperty({ format: 'date', example: '2026-07-31' })
+  periodEnd!: Date;
+
+  @ApiProperty({ enum: SettlementSchedule })
+  schedule!: SettlementSchedule;
+
+  @ApiProperty({ enum: SettlementStatus })
+  status!: SettlementStatus;
+
+  @ApiProperty({ type: String, example: '50000.00' })
+  grossSales!: string;
+
+  @ApiProperty({ type: String, example: '5000.00' })
+  commissionAmount!: string;
+
+  @ApiProperty({ type: String, example: '2000.00' })
+  fixedRentAmount!: string;
+
+  @ApiProperty({ type: String, example: '0.00' })
+  adjustmentTotal!: string;
+
+  @ApiProperty({ type: String, example: '43000.00' })
+  netPayout!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  calculatedById!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  calculatedAt!: Date;
+
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  reviewedById!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  reviewedAt!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  approvedById!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  approvedAt!: Date | null;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
+
+  @ApiProperty({ type: SettlementMerchantResponseDto })
+  merchant!: SettlementMerchantResponseDto;
+}
+
+export class SettlementPageResponseDto {
+  @ApiProperty({ type: SettlementSummaryResponseDto, isArray: true })
+  items!: SettlementSummaryResponseDto[];
+
+  @ApiProperty({ example: 25 })
+  total!: number;
+
+  @ApiProperty({ example: 0 })
+  offset!: number;
+
+  @ApiProperty({ example: 30 })
+  limit!: number;
+}
+
+export class SettlementTermResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  agreementId!: string;
+
+  @ApiProperty({ format: 'date' })
+  segmentStart!: Date;
+
+  @ApiProperty({ format: 'date' })
+  segmentEnd!: Date;
+
+  @ApiProperty({ enum: SettlementSchedule })
+  schedule!: SettlementSchedule;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  fixedRentRate!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  commissionRate!: string | null;
+
+  @ApiProperty({ type: String })
+  grossSales!: string;
+
+  @ApiProperty({ type: String })
+  commissionAmount!: string;
+
+  @ApiProperty({ type: String })
+  fixedRentAmount!: string;
+}
+
+export class SettlementSaleSourceResponseDto {
+  @ApiProperty({ example: 'Handwoven pouch' })
+  productName!: string;
+
+  @ApiProperty({ example: 'AMH-01' })
+  productSku!: string;
+
+  @ApiProperty({ example: 2 })
+  quantity!: number;
+
+  @ApiProperty({ type: String, example: '900.00' })
+  total!: string;
+
+  @ApiProperty({
+    type: 'object',
+    properties: {
+      saleNumber: { type: 'string' },
+      completedAt: { type: 'string', format: 'date-time' },
+    },
+  })
+  sale!: { saleNumber: string; completedAt: Date };
+}
+
+export class SettlementSaleItemResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  saleItemId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  termSnapshotId!: string;
+
+  @ApiProperty({ type: String })
+  grossAmount!: string;
+
+  @ApiProperty({ type: SettlementSaleSourceResponseDto })
+  saleItem!: SettlementSaleSourceResponseDto;
+}
+
+export class SettlementAdjustmentResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ type: String, example: '-500.00' })
+  amount!: string;
+
+  @ApiProperty({ example: 'Prior balance correction' })
+  reason!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  createdById!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+}
+
+export class MerchantPayoutResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ type: String })
+  amount!: string;
+
+  @ApiProperty({ enum: PayoutMethod })
+  method!: PayoutMethod;
+
+  @ApiPropertyOptional({ nullable: true })
+  referenceNumber!: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  note!: string | null;
+
+  @ApiProperty({ format: 'date-time' })
+  paidAt!: Date;
+
+  @ApiProperty({ format: 'uuid' })
+  recordedById!: string;
+}
+
+export class SettlementResponseDto extends SettlementSummaryResponseDto {
+  @ApiProperty({ type: SettlementTermResponseDto, isArray: true })
+  terms!: SettlementTermResponseDto[];
+
+  @ApiProperty({ type: SettlementSaleItemResponseDto, isArray: true })
+  saleItems!: SettlementSaleItemResponseDto[];
+
+  @ApiProperty({ type: SettlementAdjustmentResponseDto, isArray: true })
+  adjustments!: SettlementAdjustmentResponseDto[];
+
+  @ApiPropertyOptional({ nullable: true, type: MerchantPayoutResponseDto })
+  payout!: MerchantPayoutResponseDto | null;
 }

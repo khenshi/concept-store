@@ -13,7 +13,11 @@ import {
   type MerchantAgreement,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
-import { currentPhilippineBusinessDate } from '../merchant-agreements/dto/agreement-date.validation';
+import {
+  currentPhilippineBusinessDate,
+  parseAgreementDate,
+} from '../merchant-agreements/dto/agreement-date.validation';
+import type { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
 import {
   daysInclusive,
   nextBusinessDate,
@@ -25,7 +29,12 @@ import {
 } from './settlement-period';
 import {
   settlementRecordInclude,
+  settlementSummaryInclude,
+  type SettlementPageRecord,
   type SettlementRecord,
+  type SettlementSummaryRecord,
+  type SettlementSummaryRow,
+  type SettlementViewRecord,
 } from './settlements.types';
 
 interface AgreementSegment {
@@ -55,7 +64,7 @@ export class SettlementsService {
     calculatedById: string,
     periodStart: string,
     periodEnd: string,
-  ): Promise<SettlementRecord> {
+  ): Promise<SettlementViewRecord> {
     const period = parseSettlementPeriod(periodStart, periodEnd);
     if (period.end >= currentPhilippineBusinessDate()) {
       throw new BadRequestException(
@@ -173,16 +182,19 @@ export class SettlementsService {
             });
           }
 
-          return transaction.merchantSettlement.findUniqueOrThrow({
-            where: {
-              id_merchantId_organizationId: {
-                id: settlement.id,
-                merchantId,
-                organizationId,
+          const record = await transaction.merchantSettlement.findUniqueOrThrow(
+            {
+              where: {
+                id_merchantId_organizationId: {
+                  id: settlement.id,
+                  merchantId,
+                  organizationId,
+                },
               },
+              include: settlementRecordInclude,
             },
-            include: settlementRecordInclude,
-          });
+          );
+          return this.toView(record);
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
@@ -199,6 +211,59 @@ export class SettlementsService {
       }
       throw error;
     }
+  }
+
+  async findAll(
+    organizationId: string,
+    query: ListSettlementsQueryDto,
+  ): Promise<SettlementPageRecord> {
+    const periodFrom = query.periodFrom
+      ? parseAgreementDate(query.periodFrom, 'periodFrom')
+      : undefined;
+    const periodTo = query.periodTo
+      ? parseAgreementDate(query.periodTo, 'periodTo')
+      : undefined;
+    if (periodFrom && periodTo && periodFrom > periodTo) {
+      throw new BadRequestException(
+        'periodFrom must be before or equal to periodTo',
+      );
+    }
+
+    const where: Prisma.MerchantSettlementWhereInput = {
+      organizationId,
+      merchantId: query.merchantId,
+      status: query.status,
+      periodStart: periodFrom ? { gte: periodFrom } : undefined,
+      periodEnd: periodTo ? { lte: periodTo } : undefined,
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.merchantSettlement.findMany({
+        where,
+        include: settlementSummaryInclude,
+        orderBy: [{ periodEnd: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+        skip: query.offset,
+        take: query.limit,
+      }),
+      this.prisma.merchantSettlement.count({ where }),
+    ]);
+    return {
+      items: rows.map((row) => this.toSummary(row)),
+      total,
+      offset: query.offset,
+      limit: query.limit,
+    };
+  }
+
+  async findOne(
+    organizationId: string,
+    settlementId: string,
+  ): Promise<SettlementViewRecord> {
+    const settlement = await this.prisma.merchantSettlement.findFirst({
+      where: { id: settlementId, organizationId },
+      include: settlementRecordInclude,
+    });
+    if (!settlement) throw new NotFoundException('Settlement not found');
+    return this.toView(settlement);
   }
 
   private async assertFinanceActor(
@@ -351,5 +416,58 @@ export class SettlementsService {
       (total, value) => total.add(value),
       new Prisma.Decimal(0),
     );
+  }
+
+  private toSummary(settlement: SettlementSummaryRow): SettlementSummaryRecord {
+    return {
+      ...settlement,
+      grossSales: this.money(settlement.grossSales),
+      commissionAmount: this.money(settlement.commissionAmount),
+      fixedRentAmount: this.money(settlement.fixedRentAmount),
+      adjustmentTotal: this.money(settlement.adjustmentTotal),
+      netPayout: this.money(settlement.netPayout),
+    };
+  }
+
+  private toView(settlement: SettlementRecord): SettlementViewRecord {
+    return {
+      ...settlement,
+      grossSales: this.money(settlement.grossSales),
+      commissionAmount: this.money(settlement.commissionAmount),
+      fixedRentAmount: this.money(settlement.fixedRentAmount),
+      adjustmentTotal: this.money(settlement.adjustmentTotal),
+      netPayout: this.money(settlement.netPayout),
+      terms: settlement.terms.map((term) => ({
+        ...term,
+        fixedRentRate: term.fixedRentRate
+          ? this.money(term.fixedRentRate)
+          : null,
+        commissionRate: term.commissionRate
+          ? term.commissionRate.toFixed(2)
+          : null,
+        grossSales: this.money(term.grossSales),
+        commissionAmount: this.money(term.commissionAmount),
+        fixedRentAmount: this.money(term.fixedRentAmount),
+      })),
+      saleItems: settlement.saleItems.map((link) => ({
+        ...link,
+        grossAmount: this.money(link.grossAmount),
+        saleItem: {
+          ...link.saleItem,
+          total: this.money(link.saleItem.total),
+        },
+      })),
+      adjustments: settlement.adjustments.map((adjustment) => ({
+        ...adjustment,
+        amount: this.money(adjustment.amount),
+      })),
+      payout: settlement.payout
+        ? { ...settlement.payout, amount: this.money(settlement.payout.amount) }
+        : null,
+    };
+  }
+
+  private money(value: Prisma.Decimal | string): string {
+    return typeof value === 'string' ? value : value.toFixed(2);
   }
 }

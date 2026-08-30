@@ -10,6 +10,7 @@ import {
   OrganizationRole,
   Prisma,
   SettlementSchedule,
+  SettlementStatus,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { SettlementsService } from './settlements.service';
@@ -109,7 +110,14 @@ describe('SettlementsService', () => {
         >(),
     },
   };
-  const prisma = { $transaction: jest.fn() };
+  const prisma = {
+    $transaction: jest.fn(),
+    merchantSettlement: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+      findFirst: jest.fn(),
+    },
+  };
   let service: SettlementsService;
   let capturedSettlementCreate: SettlementCreateArgument | undefined;
   let capturedSaleItemCreateMany:
@@ -120,8 +128,13 @@ describe('SettlementsService', () => {
     capturedSettlementCreate = undefined;
     capturedSaleItemCreateMany = undefined;
     prisma.$transaction.mockImplementation(
-      (operation: (client: typeof transaction) => unknown) =>
-        operation(transaction),
+      (
+        operation:
+          ((client: typeof transaction) => unknown) | Promise<unknown>[],
+      ) =>
+        Array.isArray(operation)
+          ? Promise.all(operation)
+          : operation(transaction),
     );
     transaction.organizationMembership.findUnique.mockResolvedValue({
       role: OrganizationRole.MANAGER,
@@ -143,6 +156,30 @@ describe('SettlementsService', () => {
     );
     transaction.merchantSettlement.findUniqueOrThrow.mockResolvedValue({
       id: settlementId,
+      organizationId,
+      merchantId,
+      periodStart: new Date('2026-07-01T00:00:00.000Z'),
+      periodEnd: new Date('2026-07-31T00:00:00.000Z'),
+      schedule: SettlementSchedule.MONTHLY,
+      status: SettlementStatus.DRAFT,
+      grossSales: new Prisma.Decimal('3000.00'),
+      commissionAmount: new Prisma.Decimal('200.00'),
+      fixedRentAmount: new Prisma.Decimal('4700.00'),
+      adjustmentTotal: new Prisma.Decimal('0.00'),
+      netPayout: new Prisma.Decimal('-1900.00'),
+      calculatedById: actorId,
+      calculatedAt: createdAt,
+      reviewedById: null,
+      reviewedAt: null,
+      approvedById: null,
+      approvedAt: null,
+      createdAt,
+      updatedAt: createdAt,
+      merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMH' },
+      terms: [],
+      saleItems: [],
+      adjustments: [],
+      payout: null,
     });
 
     const moduleRef = await Test.createTestingModule({
@@ -163,7 +200,11 @@ describe('SettlementsService', () => {
         '2026-07-01',
         '2026-07-31',
       ),
-    ).resolves.toEqual({ id: settlementId });
+    ).resolves.toMatchObject({
+      id: settlementId,
+      grossSales: '3000.00',
+      netPayout: '-1900.00',
+    });
 
     expect(transaction.organizationMembership.findUnique).toHaveBeenCalledWith({
       where: {
@@ -338,4 +379,97 @@ describe('SettlementsService', () => {
       );
     },
   );
+
+  it('lists only tenant-scoped settlements and maps monetary values', async () => {
+    const row = {
+      id: settlementId,
+      organizationId,
+      merchantId,
+      periodStart: new Date('2026-07-01T00:00:00.000Z'),
+      periodEnd: new Date('2026-07-31T00:00:00.000Z'),
+      schedule: SettlementSchedule.MONTHLY,
+      status: SettlementStatus.DRAFT,
+      grossSales: new Prisma.Decimal('3000.00'),
+      commissionAmount: new Prisma.Decimal('200.00'),
+      fixedRentAmount: new Prisma.Decimal('4700.00'),
+      adjustmentTotal: new Prisma.Decimal('0.00'),
+      netPayout: new Prisma.Decimal('-1900.00'),
+      calculatedById: actorId,
+      calculatedAt: createdAt,
+      reviewedById: null,
+      reviewedAt: null,
+      approvedById: null,
+      approvedAt: null,
+      createdAt,
+      updatedAt: createdAt,
+      merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMH' },
+    };
+    prisma.merchantSettlement.findMany.mockResolvedValue([row]);
+    prisma.merchantSettlement.count.mockResolvedValue(1);
+
+    await expect(
+      service.findAll(organizationId, {
+        merchantId,
+        status: SettlementStatus.DRAFT,
+        periodFrom: '2026-01-01',
+        periodTo: '2026-07-31',
+        offset: 0,
+        limit: 30,
+      }),
+    ).resolves.toEqual({
+      items: [
+        {
+          ...row,
+          grossSales: '3000.00',
+          commissionAmount: '200.00',
+          fixedRentAmount: '4700.00',
+          adjustmentTotal: '0.00',
+          netPayout: '-1900.00',
+        },
+      ],
+      total: 1,
+      offset: 0,
+      limit: 30,
+    });
+    expect(prisma.merchantSettlement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId,
+          merchantId,
+          status: SettlementStatus.DRAFT,
+          periodStart: { gte: new Date('2026-01-01T00:00:00.000Z') },
+          periodEnd: { lte: new Date('2026-07-31T00:00:00.000Z') },
+        },
+        skip: 0,
+        take: 30,
+      }),
+    );
+  });
+
+  it('rejects reversed list boundaries before querying finance records', async () => {
+    await expect(
+      service.findAll(organizationId, {
+        periodFrom: '2026-08-01',
+        periodTo: '2026-07-31',
+        offset: 0,
+        limit: 30,
+      }),
+    ).rejects.toThrow(
+      new BadRequestException('periodFrom must be before or equal to periodTo'),
+    );
+    expect(prisma.merchantSettlement.findMany).not.toHaveBeenCalled();
+  });
+
+  it('conceals missing or cross-tenant settlement details', async () => {
+    prisma.merchantSettlement.findFirst.mockResolvedValue(null);
+
+    await expect(service.findOne(organizationId, settlementId)).rejects.toThrow(
+      new NotFoundException('Settlement not found'),
+    );
+    expect(prisma.merchantSettlement.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: settlementId, organizationId },
+      }),
+    );
+  });
 });
