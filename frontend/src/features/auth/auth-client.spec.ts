@@ -223,4 +223,49 @@ describe('AuthClient', () => {
       new ApiError(400, 'email must be an email, password is short'),
     );
   });
+
+  it('does not expose API routes from unmatched backend requests', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(
+        {
+          message:
+            'Cannot GET /organizations/tenant-id/branches/branch-id/unknown',
+        },
+        404,
+      ),
+    );
+    const client = new AuthClient('http://localhost:3000');
+
+    await expect(client.request('/unknown')).rejects.toEqual(
+      new ApiError(404, 'The requested information could not be found.'),
+    );
+  });
+
+  it('uses a plain message for non-JSON and server errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('upstream failure', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    );
+    const client = new AuthClient('http://localhost:3000');
+
+    await expect(client.request('/organizations')).rejects.toEqual(
+      new ApiError(
+        503,
+        'The service is temporarily unavailable. Please try again.',
+      ),
+    );
+  });
+
+  it('preserves concise business messages returned by the backend', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ message: 'Space already has a current assignment' }, 409),
+    );
+    const client = new AuthClient('http://localhost:3000');
+
+    await expect(client.request('/spaces')).rejects.toEqual(
+      new ApiError(409, 'Space already has a current assignment'),
+    );
+  });
 });

@@ -14,6 +14,37 @@ interface ApiErrorBody {
   message?: string | string[];
 }
 
+const TECHNICAL_MESSAGE_PATTERN =
+  /(?:\bCannot\s+(?:GET|POST|PUT|PATCH|DELETE)\s+\/|https?:\/\/|(?:^|\s|["'])\/[a-z][^\s"']*|\b(?:API route|endpoint)\b)/i;
+
+function friendlyRequestMessage(status: number): string {
+  if (status === 400) return 'Please review the information and try again.';
+  if (status === 401)
+    return 'Your session is invalid or has expired. Please sign in again.';
+  if (status === 403)
+    return 'You do not have permission to complete this action.';
+  if (status === 404) return 'The requested information could not be found.';
+  if (status === 409)
+    return 'This action conflicts with the current record. Refresh and try again.';
+  if (status === 429)
+    return 'Too many attempts were made. Please wait and try again.';
+  if (status >= 500)
+    return 'The service is temporarily unavailable. Please try again.';
+  return 'The request could not be completed. Please try again.';
+}
+
+function userFacingMessage(
+  message: string | string[] | undefined,
+  status: number,
+): string {
+  const normalized = Array.isArray(message)
+    ? message.filter(Boolean).join(', ')
+    : message?.trim();
+  if (!normalized || TECHNICAL_MESSAGE_PATTERN.test(normalized))
+    return friendlyRequestMessage(status);
+  return normalized;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -169,10 +200,10 @@ export class AuthClient {
       // A non-JSON upstream error still receives a predictable message.
     }
 
-    const message = Array.isArray(body.message)
-      ? body.message.join(', ')
-      : (body.message ?? `Request failed with status ${response.status}`);
-    return new ApiError(response.status, message);
+    return new ApiError(
+      response.status,
+      userFacingMessage(body.message, response.status),
+    );
   }
 }
 
