@@ -13,7 +13,10 @@ import { SessionService } from './sessions/session.service';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '15m' },
+        signOptions: {
+          expiresIn:
+            configService.getOrThrow<number>('JWT_ACCESS_TTL_MINUTES') * 60,
+        },
       }),
     }),
   ],

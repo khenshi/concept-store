@@ -24,6 +24,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { AUTH_RATE_LIMITS } from '../../config/rate-limit';
 import {
   AuthenticatedUserResponseDto,
   AuthResponseDto,
@@ -52,6 +54,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @Throttle({ default: AUTH_RATE_LIMITS.register })
   @ApiOperation({ summary: 'Register an account and start a session' })
   @ApiCreatedResponse({ type: AuthResponseDto })
   @ApiConflictResponse({ description: 'The email is already registered' })
@@ -66,6 +69,7 @@ export class AuthController {
 
   @HttpCode(HttpStatus.OK)
   @Post('login')
+  @Throttle({ default: AUTH_RATE_LIMITS.login })
   @ApiOperation({ summary: 'Log in and start a session' })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
@@ -80,6 +84,7 @@ export class AuthController {
 
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
+  @Throttle({ default: AUTH_RATE_LIMITS.refresh })
   @ApiCookieAuth('concept_store_refresh')
   @ApiOperation({
     summary: 'Rotate the refresh session and issue an access token',
@@ -101,6 +106,7 @@ export class AuthController {
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post('logout')
+  @Throttle({ default: AUTH_RATE_LIMITS.logout })
   @ApiCookieAuth('concept_store_refresh')
   @ApiOperation({ summary: 'Revoke the refresh session' })
   @ApiNoContentResponse()

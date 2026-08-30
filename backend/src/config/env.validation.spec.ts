@@ -14,6 +14,7 @@ describe('validateEnvironment', () => {
       ...requiredEnvironment,
       NODE_ENV: 'development',
       PORT: 4000,
+      JWT_ACCESS_TTL_MINUTES: 15,
       REFRESH_TOKEN_TTL_DAYS: 30,
       SWAGGER_ENABLED: true,
     });
@@ -39,6 +40,22 @@ describe('validateEnvironment', () => {
         DATABASE_URL: 'mysql://localhost/concept_store',
       }),
     ).toThrow('DATABASE_URL must use the postgresql or postgres protocol');
+  });
+
+  it('accepts a bounded access-token lifetime and rejects unsafe values', () => {
+    expect(
+      validateEnvironment({
+        ...requiredEnvironment,
+        JWT_ACCESS_TTL_MINUTES: '10',
+      }),
+    ).toMatchObject({ JWT_ACCESS_TTL_MINUTES: 10 });
+
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        JWT_ACCESS_TTL_MINUTES: '120',
+      }),
+    ).toThrow('JWT_ACCESS_TTL_MINUTES');
   });
 
   it('reports all invalid required configuration', () => {

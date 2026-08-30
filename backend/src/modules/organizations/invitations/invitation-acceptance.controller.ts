@@ -8,6 +8,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { INVITATION_RATE_LIMITS } from '../../../config/rate-limit';
 import {
   AcceptedOrganizationInvitationResponseDto,
   OrganizationInvitationPreviewResponseDto,
@@ -30,6 +32,7 @@ export class InvitationAcceptanceController {
   ) {}
 
   @Get(':token')
+  @Throttle({ default: INVITATION_RATE_LIMITS.preview })
   @ApiOperation({ summary: 'Preview an organization invitation' })
   @ApiOkResponse({ type: OrganizationInvitationPreviewResponseDto })
   preview(
@@ -40,6 +43,7 @@ export class InvitationAcceptanceController {
 
   @UseGuards(AuthGuard)
   @Post(':token/accept')
+  @Throttle({ default: INVITATION_RATE_LIMITS.accept })
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Accept an organization invitation' })
   @ApiOkResponse({ type: AcceptedOrganizationInvitationResponseDto })

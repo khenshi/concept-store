@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { validateEnvironment } from './config/env.validation';
+import { STANDARD_RATE_LIMIT } from './config/rate-limit';
 import { PrismaModule } from './infrastructure/database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MerchantAgreementsModule } from './modules/merchant-agreements/merchant-agreements.module';
@@ -20,6 +23,7 @@ import { SpacesModule } from './modules/spaces/spaces.module';
       isGlobal: true,
       validate: validateEnvironment,
     }),
+    ThrottlerModule.forRoot([STANDARD_RATE_LIMIT]),
     PrismaModule,
     AuthModule,
     InventoryModule,
@@ -31,5 +35,6 @@ import { SpacesModule } from './modules/spaces/spaces.module';
     SpacesModule,
   ],
   controllers: [AppController],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

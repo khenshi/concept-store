@@ -17,6 +17,8 @@ Milestone 1 passes the security review for the current scope. Authentication, or
 - Global DTO validation strips unknown fields and rejects non-whitelisted input.
 - CORS permits only the configured frontend origin with credentials.
 - Helmet now applies standard HTTP security headers.
+- A global abuse ceiling protects API routes, with tighter per-IP limits on registration, login, refresh, logout, and public invitation operations.
+- Access-token lifetime is configurable through `JWT_ACCESS_TTL_MINUTES`, defaults to 15 minutes, and is bounded to 1–60 minutes.
 - Production defaults disable Swagger unless explicitly enabled.
 
 ## Evidence
@@ -27,7 +29,7 @@ Milestone 1 passes the security review for the current scope. Authentication, or
 
 ## Residual risks
 
-- Login and invitation-preview throttling is not implemented. Add edge or application rate limiting before exposing the API publicly.
 - Access-token revocation is bounded by the configured short token lifetime; refresh sessions are revoked immediately.
 - Production deployment must terminate HTTPS and use a strong, independently managed `JWT_SECRET` and database credentials.
 - `npm audit` reports three high-severity findings in `deepmerge-ts`, reached through the Prisma CLI's `@prisma/config` dependency. The offered automatic fix downgrades Prisma across a breaking major version, so it was not applied. Track the Prisma advisory chain and upgrade when a compatible patched release is available; do not ship development tooling in the production runtime image.
+- The built-in throttle store is process-local. Replace it with a shared store only if the API is deployed with multiple application instances, and configure trusted proxy handling at deployment so client IP tracking remains accurate.
