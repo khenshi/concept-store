@@ -22,12 +22,17 @@ const ORGANIZATION_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OTHER_ORGANIZATION_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const MERCHANT_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const SETTLEMENT_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const ADJUSTMENT_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
 describe('Milestone 6 settlement read and generation API (e2e)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
   const settlementsService = {
     generateDraft: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    recalculateDraft: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    addAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    updateAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    removeAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     findAll: jest
       .fn()
       .mockResolvedValue({ items: [], total: 0, offset: 0, limit: 30 }),
@@ -220,6 +225,91 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     );
   });
 
+  it('recalculates a draft using trusted tenant and actor context', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/recalculate`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
+      )
+      .expect(200, { id: SETTLEMENT_ID });
+    expect(settlementsService.recalculateDraft).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      SETTLEMENT_ID,
+      MANAGER_ID,
+    );
+  });
+
+  it('adds a validated adjustment using the trusted actor', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/adjustments`,
+      )
+      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
+      .send({ amount: ' -500.00 ', reason: '  Prior balance correction  ' })
+      .expect(201, { id: SETTLEMENT_ID });
+    expect(settlementsService.addAdjustment).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      SETTLEMENT_ID,
+      OWNER_ID,
+      { amount: '-500.00', reason: 'Prior balance correction' },
+    );
+  });
+
+  it.each([
+    [{ amount: '0.00', reason: 'No-op adjustment' }],
+    [{ amount: '10.00', reason: '   ' }],
+    [{ amount: '10.00', reason: 'Correction', netPayout: '999.00' }],
+  ])('rejects unsafe adjustment input', async (payload) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/adjustments`,
+      )
+      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
+      .send(payload)
+      .expect(400);
+    expect(settlementsService.addAdjustment).not.toHaveBeenCalled();
+  });
+
+  it('updates an adjustment within the trusted settlement context', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .patch(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/adjustments/${ADJUSTMENT_ID}`,
+      )
+      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
+      .send({ amount: '250.00', reason: 'Approved credit' })
+      .expect(200, { id: SETTLEMENT_ID });
+    expect(settlementsService.updateAdjustment).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      SETTLEMENT_ID,
+      ADJUSTMENT_ID,
+      OWNER_ID,
+      { amount: '250.00', reason: 'Approved credit' },
+    );
+  });
+
+  it('removes an adjustment within the trusted settlement context', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .delete(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/adjustments/${ADJUSTMENT_ID}`,
+      )
+      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
+      .expect(200, { id: SETTLEMENT_ID });
+    expect(settlementsService.removeAdjustment).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      SETTLEMENT_ID,
+      ADJUSTMENT_ID,
+      OWNER_ID,
+    );
+  });
+
   it('publishes settlement routes and response contracts in OpenAPI', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const response = await request(app.getHttpServer())
@@ -230,6 +320,12 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     );
     expect(response.text).toContain(
       '"/organizations/{organizationId}/settlements/{settlementId}"',
+    );
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/settlements/{settlementId}/recalculate"',
+    );
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/settlements/{settlementId}/adjustments/{adjustmentId}"',
     );
     expect(response.text).toContain('"SettlementResponseDto"');
     expect(response.text).toContain('"SettlementPageResponseDto"');

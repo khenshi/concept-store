@@ -100,6 +100,9 @@ describe('SettlementsService', () => {
       create:
         jest.fn<(input: SettlementCreateArgument) => Promise<{ id: string }>>(),
       findUniqueOrThrow: jest.fn(),
+      findFirst: jest.fn(),
+      findFirstOrThrow: jest.fn(),
+      updateMany: jest.fn(),
     },
     settlementSaleItem: {
       createMany:
@@ -108,6 +111,14 @@ describe('SettlementsService', () => {
             input: SettlementSaleItemCreateManyArgument,
           ) => Promise<{ count: number }>
         >(),
+      deleteMany: jest.fn(),
+    },
+    settlementTermSnapshot: { deleteMany: jest.fn(), createMany: jest.fn() },
+    settlementAdjustment: {
+      create: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+      aggregate: jest.fn(),
     },
   };
   const prisma = {
@@ -140,6 +151,30 @@ describe('SettlementsService', () => {
       role: OrganizationRole.MANAGER,
     });
     transaction.merchant.findFirst.mockResolvedValue({ id: merchantId });
+    transaction.merchantSettlement.findFirst.mockResolvedValue({
+      id: settlementId,
+      merchantId,
+      periodStart: new Date('2026-07-01T00:00:00.000Z'),
+      periodEnd: new Date('2026-07-31T00:00:00.000Z'),
+      status: SettlementStatus.DRAFT,
+      grossSales: new Prisma.Decimal('3000.00'),
+      commissionAmount: new Prisma.Decimal('200.00'),
+      fixedRentAmount: new Prisma.Decimal('4700.00'),
+    });
+    transaction.merchantSettlement.updateMany.mockResolvedValue({ count: 1 });
+    transaction.settlementAdjustment.aggregate.mockResolvedValue({
+      _sum: { amount: new Prisma.Decimal('-500.00') },
+    });
+    transaction.settlementAdjustment.create.mockResolvedValue({});
+    transaction.settlementAdjustment.updateMany.mockResolvedValue({ count: 1 });
+    transaction.settlementAdjustment.deleteMany.mockResolvedValue({ count: 1 });
+    transaction.settlementSaleItem.deleteMany.mockResolvedValue({ count: 2 });
+    transaction.settlementTermSnapshot.deleteMany.mockResolvedValue({
+      count: 2,
+    });
+    transaction.settlementTermSnapshot.createMany.mockResolvedValue({
+      count: 2,
+    });
     transaction.merchantAgreement.findMany.mockResolvedValue(agreements);
     transaction.saleItem.findMany.mockResolvedValue(saleItems);
     transaction.merchantSettlement.create.mockImplementation(
@@ -154,7 +189,7 @@ describe('SettlementsService', () => {
         return Promise.resolve({ count: 2 });
       },
     );
-    transaction.merchantSettlement.findUniqueOrThrow.mockResolvedValue({
+    const persistedSettlement = {
       id: settlementId,
       organizationId,
       merchantId,
@@ -180,7 +215,13 @@ describe('SettlementsService', () => {
       saleItems: [],
       adjustments: [],
       payout: null,
-    });
+    };
+    transaction.merchantSettlement.findUniqueOrThrow.mockResolvedValue(
+      persistedSettlement,
+    );
+    transaction.merchantSettlement.findFirstOrThrow.mockResolvedValue(
+      persistedSettlement,
+    );
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -469,6 +510,81 @@ describe('SettlementsService', () => {
     expect(prisma.merchantSettlement.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: settlementId, organizationId },
+      }),
+    );
+  });
+
+  it('adds a draft adjustment and atomically recalculates net payout', async () => {
+    await service.addAdjustment(organizationId, settlementId, actorId, {
+      amount: '-500.00',
+      reason: 'Prior balance',
+    });
+
+    expect(transaction.settlementAdjustment.create).toHaveBeenCalledWith({
+      data: {
+        organizationId,
+        merchantId,
+        settlementId,
+        amount: new Prisma.Decimal('-500.00'),
+        reason: 'Prior balance',
+        createdById: actorId,
+      },
+    });
+    expect(transaction.merchantSettlement.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: settlementId,
+        organizationId,
+        status: SettlementStatus.DRAFT,
+      },
+      data: {
+        adjustmentTotal: new Prisma.Decimal('-500.00'),
+        netPayout: new Prisma.Decimal('-2400.00'),
+      },
+    });
+  });
+
+  it('prevents adjustment changes to finalized settlements', async () => {
+    transaction.merchantSettlement.findFirst.mockResolvedValue({
+      id: settlementId,
+      status: SettlementStatus.APPROVED,
+    });
+
+    await expect(
+      service.removeAdjustment(
+        organizationId,
+        settlementId,
+        '55555555-5555-4555-8555-555555555555',
+        actorId,
+      ),
+    ).rejects.toThrow(
+      new ConflictException('Only draft settlements can be changed'),
+    );
+    expect(transaction.settlementAdjustment.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('recalculates source snapshots while preserving adjustment totals', async () => {
+    await service.recalculateDraft(organizationId, settlementId, actorId);
+
+    expect(transaction.settlementSaleItem.deleteMany).toHaveBeenCalledWith({
+      where: { settlementId },
+    });
+    expect(transaction.settlementTermSnapshot.deleteMany).toHaveBeenCalledWith({
+      where: { settlementId, organizationId },
+    });
+    expect(transaction.merchantSettlement.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: settlementId,
+          organizationId,
+          status: SettlementStatus.DRAFT,
+        },
+        // Jest asymmetric matchers are intentionally untyped at this boundary.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
+          adjustmentTotal: new Prisma.Decimal('-500.00'),
+          netPayout: new Prisma.Decimal('-2400.00'),
+          calculatedById: actorId,
+        }),
       }),
     );
   });

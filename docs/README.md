@@ -101,6 +101,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Merchant finance data model](milestone-6/merchant-finance-data-model.md)
 - [Settlement generation](milestone-6/settlement-generation.md)
 - [Settlement read and generation API](milestone-6/settlement-read-generation-api.md)
+- [Draft adjustments and recalculation](milestone-6/draft-adjustments-recalculation.md)
 
 ## Documentation convention
 

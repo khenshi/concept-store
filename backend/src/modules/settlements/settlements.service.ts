@@ -10,6 +10,7 @@ import {
   AgreementStatus,
   OrganizationRole,
   Prisma,
+  SettlementStatus,
   type MerchantAgreement,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -18,6 +19,7 @@ import {
   parseAgreementDate,
 } from '../merchant-agreements/dto/agreement-date.validation';
 import type { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
+import type { SettlementAdjustmentDto } from './dto/settlement-adjustment.dto';
 import {
   daysInclusive,
   nextBusinessDate,
@@ -54,6 +56,20 @@ interface EligibleSaleItem {
   sale: { completedAt: Date };
 }
 
+interface SaleAssignment {
+  saleItem: EligibleSaleItem;
+  segment: AgreementSegment;
+}
+
+interface SettlementCalculation {
+  schedule: MerchantAgreement['settlementSchedule'];
+  segments: AgreementSegment[];
+  assignments: SaleAssignment[];
+  grossSales: Prisma.Decimal;
+  commissionAmount: Prisma.Decimal;
+  fixedRentAmount: Prisma.Decimal;
+}
+
 @Injectable()
 export class SettlementsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -82,59 +98,15 @@ export class SettlementsService {
           );
           await this.assertMerchant(transaction, organizationId, merchantId);
 
-          const agreements = await transaction.merchantAgreement.findMany({
-            where: {
-              organizationId,
-              merchantId,
-              status: { in: [AgreementStatus.ACTIVE, AgreementStatus.ENDED] },
-              startDate: { lte: period.end },
-              OR: [{ endDate: null }, { endDate: { gte: period.start } }],
-            },
-            orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
-          });
-          if (agreements.length === 0) {
-            throw new ConflictException(
-              'No effective merchant agreement covers this settlement period',
-            );
-          }
-
-          const schedule = agreements[0].settlementSchedule;
-          this.assertNormalPeriod(period, agreements[0]);
-          const segments = this.buildSegments(period, agreements);
-          const saleItems = await transaction.saleItem.findMany({
-            where: {
-              organizationId,
-              merchantId,
-              sale: {
-                completedAt: {
-                  gte: philippineDayStart(period.start),
-                  lt: philippineDayStart(nextBusinessDate(period.end)),
-                },
-              },
-              settlementLinks: { none: {} },
-            },
-            select: {
-              id: true,
-              total: true,
-              sale: { select: { completedAt: true } },
-            },
-            orderBy: [{ sale: { completedAt: 'asc' } }, { id: 'asc' }],
-          });
-          const assignments = this.assignSales(segments, saleItems);
-          this.calculateSegments(segments);
-
-          const grossSales = this.sum(
-            segments.map((segment) => segment.grossSales),
+          const calculation = await this.calculateSources(
+            transaction,
+            organizationId,
+            merchantId,
+            period,
           );
-          const commissionAmount = this.sum(
-            segments.map((segment) => segment.commissionAmount),
-          );
-          const fixedRentAmount = this.sum(
-            segments.map((segment) => segment.fixedRentAmount),
-          );
-          const netPayout = grossSales
-            .sub(commissionAmount)
-            .sub(fixedRentAmount);
+          const netPayout = calculation.grossSales
+            .sub(calculation.commissionAmount)
+            .sub(calculation.fixedRentAmount);
 
           const settlement = await transaction.merchantSettlement.create({
             data: {
@@ -142,36 +114,25 @@ export class SettlementsService {
               merchantId,
               periodStart: period.start,
               periodEnd: period.end,
-              schedule,
-              grossSales,
-              commissionAmount,
-              fixedRentAmount,
+              schedule: calculation.schedule,
+              grossSales: calculation.grossSales,
+              commissionAmount: calculation.commissionAmount,
+              fixedRentAmount: calculation.fixedRentAmount,
               adjustmentTotal: new Prisma.Decimal(0),
               netPayout,
               calculatedById,
               terms: {
-                create: segments.map((segment) => ({
-                  id: segment.id,
-                  organizationId,
-                  merchantId,
-                  agreementId: segment.agreement.id,
-                  segmentStart: segment.start,
-                  segmentEnd: segment.end,
-                  schedule: segment.agreement.settlementSchedule,
-                  fixedRentRate: segment.agreement.fixedRentAmount,
-                  commissionRate: segment.agreement.commissionRate,
-                  grossSales: segment.grossSales,
-                  commissionAmount: segment.commissionAmount,
-                  fixedRentAmount: segment.fixedRentAmount,
-                })),
+                create: calculation.segments.map((segment) =>
+                  this.termData(segment, organizationId, merchantId),
+                ),
               },
             },
             select: { id: true },
           });
 
-          if (assignments.length > 0) {
+          if (calculation.assignments.length > 0) {
             await transaction.settlementSaleItem.createMany({
-              data: assignments.map(({ saleItem, segment }) => ({
+              data: calculation.assignments.map(({ saleItem, segment }) => ({
                 settlementId: settlement.id,
                 termSnapshotId: segment.id,
                 saleItemId: saleItem.id,
@@ -264,6 +225,342 @@ export class SettlementsService {
     });
     if (!settlement) throw new NotFoundException('Settlement not found');
     return this.toView(settlement);
+  }
+
+  async recalculateDraft(
+    organizationId: string,
+    settlementId: string,
+    calculatedById: string,
+  ): Promise<SettlementViewRecord> {
+    return this.runFinanceMutation(async (transaction) => {
+      await this.assertFinanceActor(
+        transaction,
+        organizationId,
+        calculatedById,
+      );
+      const settlement = await this.requireDraft(
+        transaction,
+        organizationId,
+        settlementId,
+      );
+      const period = {
+        start: settlement.periodStart,
+        end: settlement.periodEnd,
+      };
+      const calculation = await this.calculateSources(
+        transaction,
+        organizationId,
+        settlement.merchantId,
+        period,
+        settlementId,
+      );
+      const adjustment = await transaction.settlementAdjustment.aggregate({
+        where: { settlementId, organizationId },
+        _sum: { amount: true },
+      });
+      const adjustmentTotal = adjustment._sum.amount ?? new Prisma.Decimal(0);
+      const netPayout = calculation.grossSales
+        .sub(calculation.commissionAmount)
+        .sub(calculation.fixedRentAmount)
+        .add(adjustmentTotal);
+
+      await transaction.settlementSaleItem.deleteMany({
+        where: { settlementId },
+      });
+      await transaction.settlementTermSnapshot.deleteMany({
+        where: { settlementId, organizationId },
+      });
+      await transaction.settlementTermSnapshot.createMany({
+        data: calculation.segments.map((segment) => ({
+          ...this.termData(segment, organizationId, settlement.merchantId),
+          settlementId,
+        })),
+      });
+      if (calculation.assignments.length > 0) {
+        await transaction.settlementSaleItem.createMany({
+          data: calculation.assignments.map(({ saleItem, segment }) => ({
+            settlementId,
+            termSnapshotId: segment.id,
+            saleItemId: saleItem.id,
+            organizationId,
+            merchantId: settlement.merchantId,
+            grossAmount: saleItem.total,
+          })),
+        });
+      }
+      const updated = await transaction.merchantSettlement.updateMany({
+        where: {
+          id: settlementId,
+          organizationId,
+          status: SettlementStatus.DRAFT,
+        },
+        data: {
+          schedule: calculation.schedule,
+          grossSales: calculation.grossSales,
+          commissionAmount: calculation.commissionAmount,
+          fixedRentAmount: calculation.fixedRentAmount,
+          adjustmentTotal,
+          netPayout,
+          calculatedById,
+          calculatedAt: new Date(),
+        },
+      });
+      if (updated.count !== 1) this.throwDraftConflict();
+      return this.loadView(transaction, organizationId, settlementId);
+    });
+  }
+
+  addAdjustment(
+    organizationId: string,
+    settlementId: string,
+    actorId: string,
+    dto: SettlementAdjustmentDto,
+  ): Promise<SettlementViewRecord> {
+    return this.changeAdjustment(
+      organizationId,
+      settlementId,
+      actorId,
+      async (transaction, merchantId) => {
+        await transaction.settlementAdjustment.create({
+          data: {
+            organizationId,
+            merchantId,
+            settlementId,
+            amount: new Prisma.Decimal(dto.amount),
+            reason: dto.reason,
+            createdById: actorId,
+          },
+        });
+      },
+    );
+  }
+
+  updateAdjustment(
+    organizationId: string,
+    settlementId: string,
+    adjustmentId: string,
+    actorId: string,
+    dto: SettlementAdjustmentDto,
+  ): Promise<SettlementViewRecord> {
+    return this.changeAdjustment(
+      organizationId,
+      settlementId,
+      actorId,
+      async (transaction) => {
+        const updated = await transaction.settlementAdjustment.updateMany({
+          where: { id: adjustmentId, settlementId, organizationId },
+          data: { amount: new Prisma.Decimal(dto.amount), reason: dto.reason },
+        });
+        if (updated.count !== 1) {
+          throw new NotFoundException('Settlement adjustment not found');
+        }
+      },
+    );
+  }
+
+  removeAdjustment(
+    organizationId: string,
+    settlementId: string,
+    adjustmentId: string,
+    actorId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.changeAdjustment(
+      organizationId,
+      settlementId,
+      actorId,
+      async (transaction) => {
+        const removed = await transaction.settlementAdjustment.deleteMany({
+          where: { id: adjustmentId, settlementId, organizationId },
+        });
+        if (removed.count !== 1) {
+          throw new NotFoundException('Settlement adjustment not found');
+        }
+      },
+    );
+  }
+
+  private async changeAdjustment(
+    organizationId: string,
+    settlementId: string,
+    actorId: string,
+    operation: (
+      transaction: Prisma.TransactionClient,
+      merchantId: string,
+    ) => Promise<void>,
+  ): Promise<SettlementViewRecord> {
+    return this.runFinanceMutation(async (transaction) => {
+      await this.assertFinanceActor(transaction, organizationId, actorId);
+      const settlement = await this.requireDraft(
+        transaction,
+        organizationId,
+        settlementId,
+      );
+      await operation(transaction, settlement.merchantId);
+      const aggregate = await transaction.settlementAdjustment.aggregate({
+        where: { settlementId, organizationId },
+        _sum: { amount: true },
+      });
+      const adjustmentTotal = aggregate._sum.amount ?? new Prisma.Decimal(0);
+      const netPayout = settlement.grossSales
+        .sub(settlement.commissionAmount)
+        .sub(settlement.fixedRentAmount)
+        .add(adjustmentTotal);
+      const updated = await transaction.merchantSettlement.updateMany({
+        where: {
+          id: settlementId,
+          organizationId,
+          status: SettlementStatus.DRAFT,
+        },
+        data: { adjustmentTotal, netPayout },
+      });
+      if (updated.count !== 1) this.throwDraftConflict();
+      return this.loadView(transaction, organizationId, settlementId);
+    });
+  }
+
+  private async calculateSources(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    merchantId: string,
+    period: DatePeriod,
+    currentSettlementId?: string,
+  ): Promise<SettlementCalculation> {
+    const agreements = await transaction.merchantAgreement.findMany({
+      where: {
+        organizationId,
+        merchantId,
+        status: { in: [AgreementStatus.ACTIVE, AgreementStatus.ENDED] },
+        startDate: { lte: period.end },
+        OR: [{ endDate: null }, { endDate: { gte: period.start } }],
+      },
+      orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
+    });
+    if (agreements.length === 0) {
+      throw new ConflictException(
+        'No effective merchant agreement covers this settlement period',
+      );
+    }
+    this.assertNormalPeriod(period, agreements[0]);
+    const segments = this.buildSegments(period, agreements);
+    const saleItems = await transaction.saleItem.findMany({
+      where: {
+        organizationId,
+        merchantId,
+        sale: {
+          completedAt: {
+            gte: philippineDayStart(period.start),
+            lt: philippineDayStart(nextBusinessDate(period.end)),
+          },
+        },
+        settlementLinks: currentSettlementId
+          ? { none: { settlementId: { not: currentSettlementId } } }
+          : { none: {} },
+      },
+      select: {
+        id: true,
+        total: true,
+        sale: { select: { completedAt: true } },
+      },
+      orderBy: [{ sale: { completedAt: 'asc' } }, { id: 'asc' }],
+    });
+    const assignments = this.assignSales(segments, saleItems);
+    this.calculateSegments(segments);
+    return {
+      schedule: agreements[0].settlementSchedule,
+      segments,
+      assignments,
+      grossSales: this.sum(segments.map(({ grossSales }) => grossSales)),
+      commissionAmount: this.sum(
+        segments.map(({ commissionAmount }) => commissionAmount),
+      ),
+      fixedRentAmount: this.sum(
+        segments.map(({ fixedRentAmount }) => fixedRentAmount),
+      ),
+    };
+  }
+
+  private async requireDraft(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    settlementId: string,
+  ) {
+    const settlement = await transaction.merchantSettlement.findFirst({
+      where: { id: settlementId, organizationId },
+      select: {
+        id: true,
+        merchantId: true,
+        periodStart: true,
+        periodEnd: true,
+        status: true,
+        grossSales: true,
+        commissionAmount: true,
+        fixedRentAmount: true,
+      },
+    });
+    if (!settlement) throw new NotFoundException('Settlement not found');
+    if (settlement.status !== SettlementStatus.DRAFT) {
+      this.throwDraftConflict();
+    }
+    return settlement;
+  }
+
+  private async loadView(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    settlementId: string,
+  ): Promise<SettlementViewRecord> {
+    const settlement = await transaction.merchantSettlement.findFirstOrThrow({
+      where: { id: settlementId, organizationId },
+      include: settlementRecordInclude,
+    });
+    return this.toView(settlement);
+  }
+
+  private termData(
+    segment: AgreementSegment,
+    organizationId: string,
+    merchantId: string,
+  ) {
+    return {
+      id: segment.id,
+      organizationId,
+      merchantId,
+      agreementId: segment.agreement.id,
+      segmentStart: segment.start,
+      segmentEnd: segment.end,
+      schedule: segment.agreement.settlementSchedule,
+      fixedRentRate: segment.agreement.fixedRentAmount,
+      commissionRate: segment.agreement.commissionRate,
+      grossSales: segment.grossSales,
+      commissionAmount: segment.commissionAmount,
+      fixedRentAmount: segment.fixedRentAmount,
+    };
+  }
+
+  private async runFinanceMutation<T>(
+    operation: (transaction: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await this.prisma.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === 'P2002' ||
+          error.code === 'P2004' ||
+          error.code === 'P2034')
+      ) {
+        throw new ConflictException(
+          'Settlement changed concurrently; reload and retry the request',
+        );
+      }
+      throw error;
+    }
+  }
+
+  private throwDraftConflict(): never {
+    throw new ConflictException('Only draft settlements can be changed');
   }
 
   private async assertFinanceActor(

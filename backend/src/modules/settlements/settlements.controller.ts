@@ -1,9 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -32,6 +36,7 @@ import { CurrentOrganization } from '../organizations/authorization/organization
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
 import { CreateSettlementDto } from './dto/create-settlement.dto';
 import { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
+import { SettlementAdjustmentDto } from './dto/settlement-adjustment.dto';
 import { SettlementsService } from './settlements.service';
 import type {
   SettlementPageRecord,
@@ -90,6 +95,81 @@ export class SettlementsController {
       organization.userId,
       dto.periodStart,
       dto.periodEnd,
+    );
+  }
+
+  @Post(':settlementId/recalculate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Recalculate a draft settlement' })
+  @ApiOkResponse({ type: SettlementResponseDto })
+  @ApiConflictResponse({ description: 'The settlement is not a draft' })
+  recalculate(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.recalculateDraft(
+      organization.organizationId,
+      settlementId,
+      organization.userId,
+    );
+  }
+
+  @Post(':settlementId/adjustments')
+  @ApiOperation({ summary: 'Add a draft settlement adjustment' })
+  @ApiCreatedResponse({ type: SettlementResponseDto })
+  @ApiConflictResponse({ description: 'The settlement is not a draft' })
+  addAdjustment(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+    @Body() dto: SettlementAdjustmentDto,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.addAdjustment(
+      organization.organizationId,
+      settlementId,
+      organization.userId,
+      dto,
+    );
+  }
+
+  @Patch(':settlementId/adjustments/:adjustmentId')
+  @ApiOperation({ summary: 'Edit a draft settlement adjustment' })
+  @ApiOkResponse({ type: SettlementResponseDto })
+  @ApiConflictResponse({ description: 'The settlement is not a draft' })
+  updateAdjustment(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+    @Param('adjustmentId', new ParseUUIDPipe({ version: '4' }))
+    adjustmentId: string,
+    @Body() dto: SettlementAdjustmentDto,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.updateAdjustment(
+      organization.organizationId,
+      settlementId,
+      adjustmentId,
+      organization.userId,
+      dto,
+    );
+  }
+
+  @Delete(':settlementId/adjustments/:adjustmentId')
+  @ApiOperation({ summary: 'Remove a draft settlement adjustment' })
+  @ApiOkResponse({ type: SettlementResponseDto })
+  @ApiConflictResponse({ description: 'The settlement is not a draft' })
+  removeAdjustment(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+    @Param('adjustmentId', new ParseUUIDPipe({ version: '4' }))
+    adjustmentId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.removeAdjustment(
+      organization.organizationId,
+      settlementId,
+      adjustmentId,
+      organization.userId,
     );
   }
 }
