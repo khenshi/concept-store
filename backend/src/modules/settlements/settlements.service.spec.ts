@@ -337,7 +337,7 @@ describe('SettlementsService', () => {
       ),
     ).rejects.toThrow(
       new ForbiddenException(
-        'Your organization role cannot generate settlements',
+        'Your organization role cannot manage settlements',
       ),
     );
     expect(transaction.merchant.findFirst).not.toHaveBeenCalled();
@@ -587,5 +587,120 @@ describe('SettlementsService', () => {
         }),
       }),
     );
+  });
+
+  it('atomically transitions a draft settlement to reviewed', async () => {
+    await service.review(organizationId, settlementId, actorId);
+
+    expect(transaction.merchantSettlement.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: settlementId,
+        organizationId,
+        status: SettlementStatus.DRAFT,
+      },
+      // Jest asymmetric matchers are intentionally untyped at this boundary.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: expect.objectContaining({
+        status: SettlementStatus.REVIEWED,
+        reviewedById: actorId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        reviewedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it('returns a reviewed settlement to an editable draft', async () => {
+    transaction.merchantSettlement.findFirst.mockResolvedValue({
+      status: SettlementStatus.REVIEWED,
+    });
+
+    await service.returnToDraft(organizationId, settlementId, actorId);
+
+    expect(transaction.merchantSettlement.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: settlementId,
+        organizationId,
+        status: SettlementStatus.REVIEWED,
+      },
+      data: {
+        status: SettlementStatus.DRAFT,
+        reviewedById: null,
+        reviewedAt: null,
+        approvedById: null,
+        approvedAt: null,
+      },
+    });
+  });
+
+  it('allows only an owner to approve a reviewed settlement', async () => {
+    transaction.merchantSettlement.findFirst.mockResolvedValue({
+      status: SettlementStatus.REVIEWED,
+    });
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.OWNER,
+    });
+
+    await service.approve(organizationId, settlementId, actorId);
+
+    expect(transaction.merchantSettlement.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: settlementId,
+        organizationId,
+        status: SettlementStatus.REVIEWED,
+      },
+      // Jest asymmetric matchers are intentionally untyped at this boundary.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: expect.objectContaining({
+        status: SettlementStatus.APPROVED,
+        approvedById: actorId,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        approvedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it('rechecks the owner role inside approval transactions', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.MANAGER,
+    });
+
+    await expect(
+      service.approve(organizationId, settlementId, actorId),
+    ).rejects.toThrow(
+      new ForbiddenException(
+        'Your organization role cannot manage settlements',
+      ),
+    );
+    expect(transaction.merchantSettlement.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects skipped or stale lifecycle transitions', async () => {
+    transaction.merchantSettlement.findFirst.mockResolvedValue({
+      status: SettlementStatus.DRAFT,
+    });
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.OWNER,
+    });
+
+    await expect(
+      service.approve(organizationId, settlementId, actorId),
+    ).rejects.toThrow(
+      new ConflictException(
+        'Settlement must be reviewed before it can be approved',
+      ),
+    );
+    expect(transaction.merchantSettlement.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('conceals cross-tenant lifecycle targets', async () => {
+    transaction.merchantSettlement.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.review(organizationId, settlementId, actorId),
+    ).rejects.toThrow(new NotFoundException('Settlement not found'));
+    expect(transaction.merchantSettlement.findFirst).toHaveBeenCalledWith({
+      where: { id: settlementId, organizationId },
+      select: { status: true },
+    });
   });
 });

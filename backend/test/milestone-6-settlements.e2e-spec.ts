@@ -33,6 +33,9 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     addAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     updateAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     removeAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    review: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    returnToDraft: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    approve: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     findAll: jest
       .fn()
       .mockResolvedValue({ items: [], total: 0, offset: 0, limit: 30 }),
@@ -310,6 +313,71 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     );
   });
 
+  it('allows a manager to mark a draft settlement as reviewed', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/review`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
+      )
+      .expect(200, { id: SETTLEMENT_ID });
+    expect(settlementsService.review).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      SETTLEMENT_ID,
+      MANAGER_ID,
+    );
+  });
+
+  it('allows a manager to return a reviewed settlement to draft', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/return-to-draft`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
+      )
+      .expect(200, { id: SETTLEMENT_ID });
+    expect(settlementsService.returnToDraft).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      SETTLEMENT_ID,
+      MANAGER_ID,
+    );
+  });
+
+  it('allows an owner to approve a reviewed settlement', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/approve`,
+      )
+      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
+      .expect(200, { id: SETTLEMENT_ID });
+    expect(settlementsService.approve).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      SETTLEMENT_ID,
+      OWNER_ID,
+    );
+  });
+
+  it('forbids managers from approving settlements at the HTTP boundary', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/approve`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
+      )
+      .expect(403);
+    expect(settlementsService.approve).not.toHaveBeenCalled();
+  });
+
   it('publishes settlement routes and response contracts in OpenAPI', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const response = await request(app.getHttpServer())
@@ -326,6 +394,15 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     );
     expect(response.text).toContain(
       '"/organizations/{organizationId}/settlements/{settlementId}/adjustments/{adjustmentId}"',
+    );
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/settlements/{settlementId}/review"',
+    );
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/settlements/{settlementId}/return-to-draft"',
+    );
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/settlements/{settlementId}/approve"',
     );
     expect(response.text).toContain('"SettlementResponseDto"');
     expect(response.text).toContain('"SettlementPageResponseDto"');

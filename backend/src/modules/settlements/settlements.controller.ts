@@ -133,6 +133,61 @@ export class SettlementsController {
     );
   }
 
+  @Post(':settlementId/review')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark a draft settlement as reviewed' })
+  @ApiOkResponse({ type: SettlementResponseDto })
+  @ApiConflictResponse({ description: 'The settlement is not a draft' })
+  review(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.review(
+      organization.organizationId,
+      settlementId,
+      organization.userId,
+    );
+  }
+
+  @Post(':settlementId/return-to-draft')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Return a reviewed settlement to draft' })
+  @ApiOkResponse({ type: SettlementResponseDto })
+  @ApiConflictResponse({ description: 'The settlement is not reviewed' })
+  returnToDraft(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.returnToDraft(
+      organization.organizationId,
+      settlementId,
+      organization.userId,
+    );
+  }
+
+  @Post(':settlementId/approve')
+  @HttpCode(HttpStatus.OK)
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @ApiOperation({ summary: 'Approve a reviewed settlement' })
+  @ApiOkResponse({ type: SettlementResponseDto })
+  @ApiForbiddenResponse({
+    description: 'Only an owner can approve settlements',
+  })
+  @ApiConflictResponse({ description: 'The settlement is not reviewed' })
+  approve(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.approve(
+      organization.organizationId,
+      settlementId,
+      organization.userId,
+    );
+  }
+
   @Patch(':settlementId/adjustments/:adjustmentId')
   @ApiOperation({ summary: 'Edit a draft settlement adjustment' })
   @ApiOkResponse({ type: SettlementResponseDto })

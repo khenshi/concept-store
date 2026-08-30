@@ -310,6 +310,57 @@ export class SettlementsService {
     });
   }
 
+  review(
+    organizationId: string,
+    settlementId: string,
+    actorId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.transitionSettlement(
+      organizationId,
+      settlementId,
+      actorId,
+      SettlementStatus.DRAFT,
+      SettlementStatus.REVIEWED,
+      (now) => ({ reviewedById: actorId, reviewedAt: now }),
+    );
+  }
+
+  returnToDraft(
+    organizationId: string,
+    settlementId: string,
+    actorId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.transitionSettlement(
+      organizationId,
+      settlementId,
+      actorId,
+      SettlementStatus.REVIEWED,
+      SettlementStatus.DRAFT,
+      () => ({
+        reviewedById: null,
+        reviewedAt: null,
+        approvedById: null,
+        approvedAt: null,
+      }),
+    );
+  }
+
+  approve(
+    organizationId: string,
+    settlementId: string,
+    actorId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.transitionSettlement(
+      organizationId,
+      settlementId,
+      actorId,
+      SettlementStatus.REVIEWED,
+      SettlementStatus.APPROVED,
+      (now) => ({ approvedById: actorId, approvedAt: now }),
+      [OrganizationRole.OWNER],
+    );
+  }
+
   addAdjustment(
     organizationId: string,
     settlementId: string,
@@ -414,6 +465,51 @@ export class SettlementsService {
         data: { adjustmentTotal, netPayout },
       });
       if (updated.count !== 1) this.throwDraftConflict();
+      return this.loadView(transaction, organizationId, settlementId);
+    });
+  }
+
+  private transitionSettlement(
+    organizationId: string,
+    settlementId: string,
+    actorId: string,
+    from: SettlementStatus,
+    to: SettlementStatus,
+    transitionData: (
+      now: Date,
+    ) => Prisma.MerchantSettlementUpdateManyMutationInput,
+    allowedRoles: OrganizationRole[] = [
+      OrganizationRole.OWNER,
+      OrganizationRole.MANAGER,
+    ],
+  ): Promise<SettlementViewRecord> {
+    return this.runFinanceMutation(async (transaction) => {
+      await this.assertFinanceActor(
+        transaction,
+        organizationId,
+        actorId,
+        allowedRoles,
+      );
+      const settlement = await transaction.merchantSettlement.findFirst({
+        where: { id: settlementId, organizationId },
+        select: { status: true },
+      });
+      if (!settlement) throw new NotFoundException('Settlement not found');
+      if (settlement.status !== from) {
+        throw new ConflictException(
+          `Settlement must be ${from.toLowerCase()} before it can be ${to.toLowerCase()}`,
+        );
+      }
+
+      const updated = await transaction.merchantSettlement.updateMany({
+        where: { id: settlementId, organizationId, status: from },
+        data: { status: to, ...transitionData(new Date()) },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictException(
+          'Settlement changed concurrently; reload and retry the request',
+        );
+      }
       return this.loadView(transaction, organizationId, settlementId);
     });
   }
@@ -567,18 +663,18 @@ export class SettlementsService {
     transaction: Prisma.TransactionClient,
     organizationId: string,
     userId: string,
+    allowedRoles: OrganizationRole[] = [
+      OrganizationRole.OWNER,
+      OrganizationRole.MANAGER,
+    ],
   ): Promise<void> {
     const membership = await transaction.organizationMembership.findUnique({
       where: { organizationId_userId: { organizationId, userId } },
       select: { role: true },
     });
-    if (
-      !membership ||
-      (membership.role !== OrganizationRole.OWNER &&
-        membership.role !== OrganizationRole.MANAGER)
-    ) {
+    if (!membership || !allowedRoles.includes(membership.role)) {
       throw new ForbiddenException(
-        'Your organization role cannot generate settlements',
+        'Your organization role cannot manage settlements',
       );
     }
   }
