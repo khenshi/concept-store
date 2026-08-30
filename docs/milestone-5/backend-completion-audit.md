@@ -4,7 +4,7 @@
 
 The backend required for the initial cloud-connected POS is complete and ready for frontend integration.
 
-This audit does not mark the whole milestone complete because the POS frontend has not yet been implemented.
+This document records the backend audit performed before frontend integration. The later full milestone completion audit supersedes its original frontend-pending status.
 
 ## Implemented backend capabilities
 
