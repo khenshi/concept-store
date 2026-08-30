@@ -10,6 +10,7 @@ import { OrganizationPageHeader } from '@/features/organizations/organization-pa
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
 import { CheckoutModal, type CheckoutPayment } from './checkout-modal';
 import { checkoutSale, listPosProducts, lookupPosProduct } from './pos-api';
+import { PosNavigation } from './pos-navigation';
 import { SaleCompleteModal } from './sale-complete-modal';
 import type {
   PosCartLine,
@@ -240,6 +241,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
         title="Point of sale"
         description="Build a branch sale from active products and current online inventory."
       />
+      <PosNavigation organizationId={organizationId} />
       {!canUsePos ? (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
           <h2 className="font-bold text-slate-950">POS access is limited</h2>

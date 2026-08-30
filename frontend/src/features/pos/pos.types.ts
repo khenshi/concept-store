@@ -93,3 +93,35 @@ export interface Sale {
   items: SaleItem[];
   payments: SalePayment[];
 }
+
+export interface SaleSummary {
+  id: string;
+  organizationId: string;
+  branchId: string;
+  cashierId: string;
+  saleNumber: string;
+  subtotal: string;
+  discountTotal: string;
+  total: string;
+  completedAt: string;
+  cashier: Sale['cashier'];
+  itemCount: number;
+  paymentMethods: PaymentMethod[];
+}
+
+export interface SalePage {
+  items: SaleSummary[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface SaleFilters {
+  search?: string;
+  cashierId?: string;
+  paymentMethod?: PaymentMethod;
+  completedFrom?: string;
+  completedTo?: string;
+  offset?: number;
+  limit?: number;
+}

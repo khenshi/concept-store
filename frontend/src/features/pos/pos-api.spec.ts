@@ -1,5 +1,11 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
-import { checkoutSale, listPosProducts, lookupPosProduct } from './pos-api';
+import {
+  checkoutSale,
+  getSale,
+  listPosProducts,
+  listSales,
+  lookupPosProduct,
+} from './pos-api';
 
 describe('POS API', () => {
   const request = vi.fn() as unknown as AuthenticatedRequest;
@@ -38,6 +44,25 @@ describe('POS API', () => {
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization-id/branches/branch-id/pos/sales',
       expect.objectContaining({ method: 'POST', body: JSON.stringify(input) }),
+    );
+  });
+
+  it('lists and retrieves branch sales', async () => {
+    vi.mocked(request).mockResolvedValue({});
+    await listSales(request, 'organization-id', 'branch-id', {
+      search: 'S-ABC',
+      paymentMethod: 'GCASH',
+      completedFrom: '2026-08-01T00:00:00.000Z',
+      offset: 0,
+      limit: 25,
+    });
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization-id/branches/branch-id/pos/sales?search=S-ABC&paymentMethod=GCASH&completedFrom=2026-08-01T00%3A00%3A00.000Z&offset=0&limit=25',
+    );
+
+    await getSale(request, 'organization-id', 'branch-id', 'sale-id');
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/organization-id/branches/branch-id/pos/sales/sale-id',
     );
   });
 });
