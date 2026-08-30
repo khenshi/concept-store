@@ -95,6 +95,10 @@ All project documentation is maintained in this directory and organized by miles
 - [POS sales history](milestone-5/pos-sales-history.md)
 - [Milestone completion audit](milestone-5/completion-audit.md)
 
+## Milestone 6 — Merchant Finance
+
+- [Backend design](milestone-6/backend-design.md)
+
 ## Documentation convention
 
 Each implementation part should document, when applicable:
