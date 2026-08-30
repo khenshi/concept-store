@@ -1102,3 +1102,15 @@ Do not work from:
 ```
 
 When unsure, prefer the smallest design that correctly supports the current milestone without blocking known future requirements.
+
+## Security
+
+Build security into every milestone, not as a final step.
+
+- Enforce authentication, RBAC, tenant isolation, and object-level authorization on the backend.
+- Validate all inputs and enforce database integrity.
+- Protect sensitive data, tokens, financial records, and organization boundaries.
+- Use secure transactions and prevent unauthorized or duplicate operations where applicable.
+- Add security tests for critical flows and cross-tenant access.
+- Never trust frontend-provided roles, prices, totals, organization IDs, or other sensitive values without server-side verification.
+- Apply security improvements without unnecessarily overengineering the current milestone.

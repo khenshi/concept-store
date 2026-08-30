@@ -15,6 +15,7 @@ All project documentation is maintained in this directory and organized by miles
 
 ## Milestone 1 — SaaS / Multi-Tenant Foundation
 
+- [Security audit](milestone-1/security-audit.md)
 - [Backend initialization](milestone-1/backend-initialization.md)
 - [Prisma 7 configuration](milestone-1/prisma-7-configuration.md)
 - [Frontend initialization](milestone-1/frontend-initialization.md)
@@ -36,6 +37,7 @@ All project documentation is maintained in this directory and organized by miles
 
 ## Milestone 2 — Merchant Management
 
+- [Security audit](milestone-2/security-audit.md)
 - [Merchant data model](milestone-2/merchant-data-model.md)
 - [Merchant API](milestone-2/merchant-api.md)
 - [Merchant branch assignments](milestone-2/merchant-branch-assignments.md)
@@ -49,6 +51,7 @@ All project documentation is maintained in this directory and organized by miles
 
 ## Milestone 3 — Spaces and Agreements
 
+- [Security audit](milestone-3/security-audit.md)
 - [Milestone completion](milestone-3/completion.md)
 - [Backend design](milestone-3/backend-design.md)
 - [Space and assignment data model](milestone-3/space-assignment-data-model.md)
@@ -65,6 +68,7 @@ All project documentation is maintained in this directory and organized by miles
 
 ## Milestone 4 — Products and Inventory
 
+- [Security audit](milestone-4/security-audit.md)
 - [Milestone completion](milestone-4/completion.md)
 - [Backend design](milestone-4/backend-design.md)
 - [Product and inventory data model](milestone-4/product-inventory-data-model.md)
@@ -76,6 +80,20 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend product management](milestone-4/frontend-product-management.md)
 - [Frontend inventory management](milestone-4/frontend-inventory-management.md)
 - [Frontend movement history](milestone-4/frontend-movement-history.md)
+
+## Milestone 5 — Online POS
+
+- [Security audit](milestone-5/security-audit.md)
+- [Backend completion audit](milestone-5/backend-completion-audit.md)
+- [Sales and payment data model](milestone-5/sales-payment-data-model.md)
+- [POS product lookup API](milestone-5/pos-product-lookup-api.md)
+- [Online checkout API](milestone-5/online-checkout-api.md)
+- [Sales history API](milestone-5/sales-history-api.md)
+- [POS frontend foundation](milestone-5/pos-frontend-foundation.md)
+- [POS frontend checkout](milestone-5/pos-frontend-checkout.md)
+- [POS receipts](milestone-5/pos-receipts.md)
+- [POS sales history](milestone-5/pos-sales-history.md)
+- [Milestone completion audit](milestone-5/completion-audit.md)
 
 ## Documentation convention
 
