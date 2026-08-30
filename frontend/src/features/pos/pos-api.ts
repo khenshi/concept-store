@@ -1,8 +1,10 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import type {
+  CreateSaleInput,
   PosProduct,
   PosProductFilters,
   PosProductPage,
+  Sale,
 } from './pos.types';
 
 function productPath(organizationId: string, branchId: string): string {
@@ -35,5 +37,21 @@ export function lookupPosProduct(
   const query = new URLSearchParams({ code });
   return request<PosProduct>(
     `${productPath(organizationId, branchId)}/lookup?${query}`,
+  );
+}
+
+export function checkoutSale(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: CreateSaleInput,
+): Promise<Sale> {
+  return request<Sale>(
+    `/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/pos/sales`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    },
   );
 }

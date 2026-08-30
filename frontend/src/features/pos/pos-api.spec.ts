@@ -1,5 +1,5 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
-import { listPosProducts, lookupPosProduct } from './pos-api';
+import { checkoutSale, listPosProducts, lookupPosProduct } from './pos-api';
 
 describe('POS API', () => {
   const request = vi.fn() as unknown as AuthenticatedRequest;
@@ -24,6 +24,20 @@ describe('POS API', () => {
     await lookupPosProduct(request, 'organization-id', 'branch-id', 'AMH-01');
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization-id/branches/branch-id/pos/products/lookup?code=AMH-01',
+    );
+  });
+
+  it('submits a sale to its trusted branch endpoint', async () => {
+    vi.mocked(request).mockResolvedValue({});
+    const input = {
+      clientTransactionId: 'client-transaction-id',
+      items: [{ productId: 'product-id', quantity: 2 }],
+      payments: [{ method: 'CASH' as const, amount: '900.00' }],
+    };
+    await checkoutSale(request, 'organization-id', 'branch-id', input);
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization-id/branches/branch-id/pos/sales',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify(input) }),
     );
   });
 });

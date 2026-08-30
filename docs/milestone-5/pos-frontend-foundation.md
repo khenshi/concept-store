@@ -32,4 +32,4 @@ The frontend exposes POS navigation to `OWNER`, `MANAGER`, and `CASHIER` roles. 
 - sales history and transaction details;
 - offline persistence and synchronization.
 
-Checkout is the next frontend part and will use server-calculated totals rather than trusting the displayed client total.
+Checkout is implemented separately in Part 2 and uses server-calculated totals rather than trusting the displayed client total.

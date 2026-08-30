@@ -8,8 +8,15 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import { listPosProducts, lookupPosProduct } from './pos-api';
-import type { PosCartLine, PosProduct, PosProductPage } from './pos.types';
+import { CheckoutModal, type CheckoutPayment } from './checkout-modal';
+import { checkoutSale, listPosProducts, lookupPosProduct } from './pos-api';
+import { SaleCompleteModal } from './sale-complete-modal';
+import type {
+  PosCartLine,
+  PosProduct,
+  PosProductPage,
+  Sale,
+} from './pos.types';
 
 const PAGE_SIZE = 30;
 const money = new Intl.NumberFormat('en-PH', {
@@ -47,6 +54,10 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [checkoutId, setCheckoutId] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [completedSale, setCompletedSale] = useState<Sale | null>(null);
 
   const canUsePos =
     organization?.role === 'OWNER' ||
@@ -174,6 +185,48 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
         ];
       }),
     );
+  }
+
+  async function completeCheckout(payment: CheckoutPayment): Promise<void> {
+    if (!checkoutId || !branchId || cart.length === 0) return;
+    setIsCheckingOut(true);
+    setCheckoutError(null);
+    try {
+      const sale = await checkoutSale(request, organizationId, branchId, {
+        clientTransactionId: checkoutId,
+        items: cart.map((line) => ({
+          productId: line.product.id,
+          quantity: line.quantity,
+        })),
+        payments: [
+          {
+            method: payment.method,
+            amount: cartTotal.toFixed(2),
+            referenceNumber: payment.referenceNumber,
+          },
+        ],
+      });
+      setCompletedSale(sale);
+      setCheckoutId(null);
+      setCart([]);
+      try {
+        setPage(
+          await listPosProducts(request, organizationId, branchId, {
+            limit: PAGE_SIZE,
+            offset: 0,
+          }),
+        );
+        setSearch('');
+      } catch {
+        setError(
+          'The sale was completed, but current stock could not be refreshed. Reload the catalog before starting another sale.',
+        );
+      }
+    } catch (cause: unknown) {
+      setCheckoutError(message(cause));
+    } finally {
+      setIsCheckingOut(false);
+    }
   }
 
   if (organizationStatus === 'loading')
@@ -395,9 +448,13 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
               <button
                 className="mt-4 min-h-12 w-full rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white disabled:opacity-45"
                 type="button"
-                disabled
+                disabled={cart.length === 0}
+                onClick={() => {
+                  setCheckoutError(null);
+                  setCheckoutId(crypto.randomUUID());
+                }}
               >
-                Checkout coming next
+                Continue to payment
               </button>
               {cart.length > 0 ? (
                 <button
@@ -412,6 +469,28 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
           </aside>
         </div>
       )}
+      {checkoutId ? (
+        <CheckoutModal
+          lines={cart}
+          total={cartTotal}
+          branchName={
+            branches.find((branch) => branch.id === branchId)?.name ?? 'branch'
+          }
+          isSaving={isCheckingOut}
+          requestError={checkoutError}
+          onClose={() => {
+            setCheckoutId(null);
+            setCheckoutError(null);
+          }}
+          onSubmit={completeCheckout}
+        />
+      ) : null}
+      {completedSale ? (
+        <SaleCompleteModal
+          sale={completedSale}
+          onNewSale={() => setCompletedSale(null)}
+        />
+      ) : null}
     </section>
   );
 }
