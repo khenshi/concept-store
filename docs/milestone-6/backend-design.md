@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed for review. No Prisma schema, migration, API, calculation service, or frontend behavior is implemented in this part.
+Approved on August 30, 2026. The persistence foundation is implemented in Part 2; calculation services, APIs, and frontend behavior remain unimplemented.
 
 ## Scope
 
@@ -71,7 +71,7 @@ segment rent = fixed rent × covered calendar days ÷ calendar days in normal pe
 
 Each segment rent is rounded to Philippine peso centavos using decimal half-up rounding. A full-period segment receives the full fixed rent. This prevents two full rent charges when an agreement changes mid-period.
 
-This proration rule is a proposed business decision and must be approved before schema implementation.
+This proration rule is the approved Milestone 6 behavior.
 
 ## Server-authoritative calculation
 
@@ -254,4 +254,3 @@ Before schema implementation, confirm the recommended rules:
 3. managers prepare and review, while only owners approve and record payouts;
 4. negative balances do not carry automatically and require an explicit later adjustment; and
 5. one manual payout is recorded per positive approved settlement.
-

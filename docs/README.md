@@ -98,6 +98,7 @@ All project documentation is maintained in this directory and organized by miles
 ## Milestone 6 — Merchant Finance
 
 - [Backend design](milestone-6/backend-design.md)
+- [Merchant finance data model](milestone-6/merchant-finance-data-model.md)
 
 ## Documentation convention
 
