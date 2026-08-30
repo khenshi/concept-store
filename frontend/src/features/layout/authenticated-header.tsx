@@ -9,7 +9,7 @@ export function AuthenticatedHeader() {
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white print:hidden">
       <div className="flex min-h-17 w-full items-center justify-between gap-6 px-5 lg:px-0">
         <div className="flex min-w-0 items-center gap-5 lg:w-[15.5rem] lg:border-r lg:border-slate-200 lg:px-6">
           <BrandWordmark

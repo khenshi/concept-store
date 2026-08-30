@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
     <AuthGate>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-50 print:bg-white">
         <a
           className="sr-only z-50 rounded-md bg-emerald-600 px-4 py-2 font-bold text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
           href="#main-content"

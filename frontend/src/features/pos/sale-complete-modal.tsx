@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import Link from 'next/link';
 import type { Sale } from './pos.types';
 
 const money = new Intl.NumberFormat('en-PH', {
@@ -60,13 +61,21 @@ export function SaleCompleteModal({
             </dd>
           </div>
         </dl>
-        <button
-          className="mt-6 min-h-12 w-full rounded-[0.65rem] border-0 bg-emerald-600 px-5 font-bold text-white"
-          type="button"
-          onClick={onNewSale}
-        >
-          Start new sale
-        </button>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <Link
+            className="grid min-h-12 place-items-center rounded-[0.6rem] border border-slate-200 bg-white px-5 font-bold text-slate-700 no-underline"
+            href={`/app/organizations/${sale.organizationId}/pos/sales/${sale.id}/receipt?branchId=${encodeURIComponent(sale.branchId)}`}
+          >
+            View receipt
+          </Link>
+          <button
+            className="min-h-12 rounded-[0.65rem] border-0 bg-emerald-600 px-5 font-bold text-white"
+            type="button"
+            onClick={onNewSale}
+          >
+            Start new sale
+          </button>
+        </div>
       </section>
     </div>
   );

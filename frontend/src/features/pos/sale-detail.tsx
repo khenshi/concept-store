@@ -131,9 +131,17 @@ export function SaleDetail({
                   {dateTime.format(new Date(sale.completedAt))}
                 </p>
               </div>
-              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
-                Completed
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+                  Completed
+                </span>
+                <Link
+                  className="grid min-h-10 place-items-center rounded-[0.6rem] border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 no-underline"
+                  href={`/app/organizations/${organizationId}/pos/sales/${sale.id}/receipt?branchId=${encodeURIComponent(sale.branchId)}`}
+                >
+                  Receipt
+                </Link>
+              </div>
             </header>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[44rem] border-collapse text-left text-sm">

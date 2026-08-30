@@ -33,8 +33,8 @@ export function OrganizationWorkspaceShell({
   ) : null;
 
   return (
-    <div className="w-full lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
-      <aside className="hidden min-h-[calc(100vh-4.25rem)] min-w-0 border-r border-slate-200 bg-white px-5 py-6 lg:sticky lg:top-17 lg:block lg:self-start">
+    <div className="w-full print:block lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
+      <aside className="hidden min-h-[calc(100vh-4.25rem)] min-w-0 border-r border-slate-200 bg-white px-5 py-6 print:hidden lg:sticky lg:top-17 lg:block lg:self-start">
         <OrganizationSwitcher
           organizationId={organizationId}
           organizationName={organization?.name}
@@ -50,7 +50,7 @@ export function OrganizationWorkspaceShell({
         )}
       </aside>
       <div className="min-w-0">
-        <div className="border-b border-slate-200 bg-white px-5 py-3 lg:hidden">
+        <div className="border-b border-slate-200 bg-white px-5 py-3 print:hidden lg:hidden">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <OrganizationSwitcher
@@ -74,7 +74,7 @@ export function OrganizationWorkspaceShell({
             <div id="mobile-organization-navigation">{navigation}</div>
           ) : null}
         </div>
-        <div className="min-w-0 px-5 pb-10 sm:px-8 lg:px-8 xl:px-10">
+        <div className="min-w-0 px-5 pb-10 print:p-0 sm:px-8 lg:px-8 xl:px-10">
           {children}
         </div>
       </div>
