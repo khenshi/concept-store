@@ -52,6 +52,20 @@ describe('OrganizationNavigation', () => {
     );
   });
 
+  it('shows reporting only when the organization shell enables it', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/organization-id/reports',
+    );
+    render(
+      <OrganizationNavigation organizationId="organization-id" showReports />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
   it('shows agreements as a permanent business destination', () => {
     vi.mocked(usePathname).mockReturnValue(
       '/app/organizations/organization-id/agreements',

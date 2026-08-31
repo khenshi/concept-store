@@ -12,6 +12,7 @@ export function OrganizationNavigation({
   showPos = false,
   showSpaces = false,
   showFinance = false,
+  showReports = false,
   onNavigate,
 }: {
   organizationId: string;
@@ -22,6 +23,7 @@ export function OrganizationNavigation({
   showPos?: boolean;
   showSpaces?: boolean;
   showFinance?: boolean;
+  showReports?: boolean;
   onNavigate?(): void;
 }) {
   const pathname = usePathname();
@@ -59,6 +61,12 @@ export function OrganizationNavigation({
     {
       label: 'Business',
       destinations: [
+        {
+          key: 'reports',
+          label: 'Reports',
+          href: `${basePath}/reports`,
+          visible: showReports,
+        },
         {
           key: 'merchants',
           label: 'Merchants',

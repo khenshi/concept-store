@@ -6,6 +6,7 @@ import {
   OperationalPanel,
 } from '@/components/ui/operational-page';
 import { OrganizationPageHeader } from './organization-page-header';
+import { OwnerDashboard } from '@/features/reports/owner-dashboard';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
 
 export function OrganizationWorkspace({
@@ -55,6 +56,7 @@ export function OrganizationWorkspace({
 
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
+  if (canManage) return <OwnerDashboard organization={organization} />;
   const groups = [
     {
       title: 'Operations',
