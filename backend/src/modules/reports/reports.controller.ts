@@ -12,6 +12,7 @@ import type { OrganizationContext } from '../organizations/authorization/organiz
 import { CurrentOrganization } from '../organizations/authorization/organization-context.decorator';
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
 import { ReportFiltersDto } from './dto/report-filters.dto';
+import { ReportPageFiltersDto } from './dto/report-page-filters.dto';
 import { ReportsService } from './reports.service';
 import type { ReportsOverviewRecord } from './reports.types';
 
@@ -33,5 +34,32 @@ export class ReportsController {
     @Query() filters: ReportFiltersDto,
   ): Promise<ReportsOverviewRecord> {
     return this.reportsService.overview(organization.organizationId, filters);
+  }
+
+  @Get('sales')
+  @ApiOperation({ summary: 'List merchant-attributed sales report rows' })
+  sales(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() filters: ReportPageFiltersDto,
+  ) {
+    return this.reportsService.sales(organization.organizationId, filters);
+  }
+
+  @Get('inventory')
+  @ApiOperation({ summary: 'List current inventory report rows' })
+  inventory(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() filters: ReportPageFiltersDto,
+  ) {
+    return this.reportsService.inventory(organization.organizationId, filters);
+  }
+
+  @Get('merchants')
+  @ApiOperation({ summary: 'List merchant performance report rows' })
+  merchants(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() filters: ReportPageFiltersDto,
+  ) {
+    return this.reportsService.merchants(organization.organizationId, filters);
   }
 }

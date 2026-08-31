@@ -11,11 +11,21 @@ describe('ReportsService', () => {
   const prisma = {
     branch: { findFirst: jest.fn() },
     merchant: { findFirst: jest.fn() },
-    saleItem: { aggregate: jest.fn() },
+    saleItem: {
+      aggregate: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
+      groupBy: jest.fn(),
+    },
     saleRefundItem: { aggregate: jest.fn() },
     sale: { count: jest.fn(), findMany: jest.fn() },
-    merchantSettlement: { aggregate: jest.fn(), findMany: jest.fn() },
-    inventory: { aggregate: jest.fn(), count: jest.fn() },
+    merchantSettlement: {
+      aggregate: jest.fn(),
+      findMany: jest.fn(),
+      groupBy: jest.fn(),
+    },
+    merchantPayout: { groupBy: jest.fn() },
+    inventory: { aggregate: jest.fn(), count: jest.fn(), findMany: jest.fn() },
   };
   let service: ReportsService;
 
@@ -121,5 +131,48 @@ describe('ReportsService', () => {
       select: { id: true },
     });
     expect(prisma.saleItem.aggregate).not.toHaveBeenCalled();
+  });
+
+  it('returns paginated merchant-attributed sale rows with refunds', async () => {
+    const completedAt = new Date('2026-08-15T04:00:00.000Z');
+    prisma.saleItem.findMany.mockResolvedValue([
+      {
+        id: 'sale-item-id',
+        saleId: 'sale-id',
+        productName: 'Woven pouch',
+        productSku: 'POUCH-1',
+        quantity: 2,
+        total: new Prisma.Decimal('500.00'),
+        merchant: { id: merchantId, name: 'Merchant A' },
+        sale: {
+          saleNumber: 'S-001',
+          completedAt,
+          branch: { id: branchId, name: 'Main', code: 'MAIN' },
+        },
+        refundItems: [{ amount: new Prisma.Decimal('250.00') }],
+      },
+    ]);
+    prisma.saleItem.count.mockResolvedValue(1);
+
+    await expect(
+      service.sales(organizationId, {
+        from: '2026-08-01',
+        to: '2026-08-31',
+        offset: 0,
+        limit: 30,
+      }),
+    ).resolves.toMatchObject({
+      items: [
+        {
+          saleNumber: 'S-001',
+          grossSales: '500.00',
+          refunds: '250.00',
+          netSales: '250.00',
+        },
+      ],
+      total: 1,
+      offset: 0,
+      limit: 30,
+    });
   });
 });

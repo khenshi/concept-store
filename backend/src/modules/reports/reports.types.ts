@@ -46,3 +46,61 @@ export interface ReportsOverviewRecord {
     netPayout: string;
   }>;
 }
+
+export interface SalesReportRecord {
+  items: Array<{
+    id: string;
+    saleId: string;
+    saleNumber: string;
+    completedAt: Date;
+    branch: { id: string; name: string; code: string | null };
+    merchant: { id: string; name: string };
+    productName: string;
+    productSku: string;
+    quantity: number;
+    grossSales: string;
+    refunds: string;
+    netSales: string;
+  }>;
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface InventoryReportRecord {
+  items: Array<{
+    organizationId: string;
+    branchId: string;
+    productId: string;
+    quantity: number;
+    branch: { id: string; name: string; code: string | null };
+    product: {
+      id: string;
+      name: string;
+      sku: string;
+      status: string;
+      sellingPrice: string;
+      merchant: { id: string; name: string };
+    };
+  }>;
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface MerchantReportRecord {
+  items: Array<{
+    id: string;
+    name: string;
+    status: string;
+    grossSales: string;
+    refunds: string;
+    netSales: string;
+    finalizedCommission: string;
+    finalizedRent: string;
+    amountPaid: string;
+  }>;
+  total: number;
+  offset: number;
+  limit: number;
+}

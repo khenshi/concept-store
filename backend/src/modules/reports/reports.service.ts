@@ -6,7 +6,13 @@ import {
 import { Prisma, SettlementStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { ReportFiltersDto } from './dto/report-filters.dto';
-import type { ReportsOverviewRecord } from './reports.types';
+import type { ReportPageFiltersDto } from './dto/report-page-filters.dto';
+import type {
+  InventoryReportRecord,
+  MerchantReportRecord,
+  ReportsOverviewRecord,
+  SalesReportRecord,
+} from './reports.types';
 
 const LOW_STOCK_MAXIMUM = 5;
 const DAY_MS = 86_400_000;
@@ -210,6 +216,258 @@ export class ReportsService {
         status: settlement.status,
         netPayout: settlement.netPayout.toFixed(2),
       })),
+    };
+  }
+
+  async sales(
+    organizationId: string,
+    filters: ReportPageFiltersDto,
+  ): Promise<SalesReportRecord> {
+    const period = this.resolvePeriod(filters.from, filters.to);
+    await this.validateFilters(organizationId, filters);
+    const where: Prisma.SaleItemWhereInput = {
+      organizationId,
+      merchantId: filters.merchantId,
+      sale: {
+        branchId: filters.branchId,
+        completedAt: { gte: period.start, lt: period.endExclusive },
+      },
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.saleItem.findMany({
+        where,
+        select: {
+          id: true,
+          saleId: true,
+          productName: true,
+          productSku: true,
+          quantity: true,
+          total: true,
+          merchant: { select: { id: true, name: true } },
+          sale: {
+            select: {
+              saleNumber: true,
+              completedAt: true,
+              branch: { select: { id: true, name: true, code: true } },
+            },
+          },
+          refundItems: { select: { amount: true } },
+        },
+        orderBy: [{ sale: { completedAt: 'desc' } }, { id: 'desc' }],
+        skip: filters.offset,
+        take: filters.limit,
+      }),
+      this.prisma.saleItem.count({ where }),
+    ]);
+    return {
+      items: rows.map((row) => {
+        const refundTotal = row.refundItems.reduce(
+          (sum, refund) => sum.add(refund.amount),
+          new Prisma.Decimal(0),
+        );
+        return {
+          id: row.id,
+          saleId: row.saleId,
+          saleNumber: row.sale.saleNumber,
+          completedAt: row.sale.completedAt,
+          branch: row.sale.branch,
+          merchant: row.merchant,
+          productName: row.productName,
+          productSku: row.productSku,
+          quantity: row.quantity,
+          grossSales: row.total.toFixed(2),
+          refunds: refundTotal.toFixed(2),
+          netSales: row.total.sub(refundTotal).toFixed(2),
+        };
+      }),
+      total,
+      offset: filters.offset,
+      limit: filters.limit,
+    };
+  }
+
+  async inventory(
+    organizationId: string,
+    filters: ReportPageFiltersDto,
+  ): Promise<InventoryReportRecord> {
+    await this.validateFilters(organizationId, filters);
+    const where: Prisma.InventoryWhereInput = {
+      organizationId,
+      branchId: filters.branchId,
+      product: { merchantId: filters.merchantId },
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.inventory.findMany({
+        where,
+        select: {
+          organizationId: true,
+          branchId: true,
+          productId: true,
+          quantity: true,
+          branch: { select: { id: true, name: true, code: true } },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              status: true,
+              sellingPrice: true,
+              merchant: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: [{ quantity: 'asc' }, { product: { name: 'asc' } }],
+        skip: filters.offset,
+        take: filters.limit,
+      }),
+      this.prisma.inventory.count({ where }),
+    ]);
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        product: {
+          ...row.product,
+          status: row.product.status,
+          sellingPrice: row.product.sellingPrice.toFixed(2),
+        },
+      })),
+      total,
+      offset: filters.offset,
+      limit: filters.limit,
+    };
+  }
+
+  async merchants(
+    organizationId: string,
+    filters: ReportPageFiltersDto,
+  ): Promise<MerchantReportRecord> {
+    const period = this.resolvePeriod(filters.from, filters.to);
+    await this.validateFilters(organizationId, filters);
+    const merchantWhere: Prisma.MerchantWhereInput = {
+      organizationId,
+      id: filters.merchantId,
+      branches: filters.branchId
+        ? { some: { branchId: filters.branchId } }
+        : undefined,
+    };
+    const [merchants, total] = await Promise.all([
+      this.prisma.merchant.findMany({
+        where: merchantWhere,
+        select: { id: true, name: true, status: true },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: filters.offset,
+        take: filters.limit,
+      }),
+      this.prisma.merchant.count({ where: merchantWhere }),
+    ]);
+    const merchantIds = merchants.map((merchant) => merchant.id);
+    if (merchantIds.length === 0) {
+      return { items: [], total, offset: filters.offset, limit: filters.limit };
+    }
+    const settlementActivity = filters.branchId
+      ? {
+          OR: [
+            {
+              saleItems: {
+                some: { saleItem: { sale: { branchId: filters.branchId } } },
+              },
+            },
+            {
+              refundItems: {
+                some: {
+                  refundItem: { refund: { branchId: filters.branchId } },
+                },
+              },
+            },
+          ],
+        }
+      : {};
+    const [sales, refunds, settlements, payouts] = await Promise.all([
+      this.prisma.saleItem.groupBy({
+        by: ['merchantId'],
+        where: {
+          organizationId,
+          merchantId: { in: merchantIds },
+          sale: {
+            branchId: filters.branchId,
+            completedAt: { gte: period.start, lt: period.endExclusive },
+          },
+        },
+        _sum: { total: true },
+      }),
+      this.prisma.saleRefundItem.groupBy({
+        by: ['merchantId'],
+        where: {
+          organizationId,
+          merchantId: { in: merchantIds },
+          refund: {
+            branchId: filters.branchId,
+            completedAt: { gte: period.start, lt: period.endExclusive },
+          },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.merchantSettlement.groupBy({
+        by: ['merchantId'],
+        where: {
+          organizationId,
+          merchantId: { in: merchantIds },
+          periodEnd: { gte: period.dateStart, lte: period.dateEnd },
+          status: { in: [SettlementStatus.APPROVED, SettlementStatus.PAID] },
+          ...settlementActivity,
+        },
+        _sum: { commissionAmount: true, fixedRentAmount: true },
+      }),
+      this.prisma.merchantPayout.groupBy({
+        by: ['merchantId'],
+        where: {
+          organizationId,
+          merchantId: { in: merchantIds },
+          paidAt: { gte: period.start, lt: period.endExclusive },
+          settlement: settlementActivity,
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+    const saleByMerchant = new Map(
+      sales.map((row) => [row.merchantId, row._sum.total]),
+    );
+    const refundByMerchant = new Map(
+      refunds.map((row) => [row.merchantId, row._sum.amount]),
+    );
+    const settlementByMerchant = new Map(
+      settlements.map((row) => [row.merchantId, row._sum]),
+    );
+    const payoutByMerchant = new Map(
+      payouts.map((row) => [row.merchantId, row._sum.amount]),
+    );
+
+    return {
+      items: merchants.map((merchant) => {
+        const gross = saleByMerchant.get(merchant.id) ?? new Prisma.Decimal(0);
+        const refund =
+          refundByMerchant.get(merchant.id) ?? new Prisma.Decimal(0);
+        const finalized = settlementByMerchant.get(merchant.id);
+        return {
+          ...merchant,
+          status: merchant.status,
+          grossSales: gross.toFixed(2),
+          refunds: refund.toFixed(2),
+          netSales: gross.sub(refund).toFixed(2),
+          finalizedCommission: (
+            finalized?.commissionAmount ?? new Prisma.Decimal(0)
+          ).toFixed(2),
+          finalizedRent: (
+            finalized?.fixedRentAmount ?? new Prisma.Decimal(0)
+          ).toFixed(2),
+          amountPaid: (
+            payoutByMerchant.get(merchant.id) ?? new Prisma.Decimal(0)
+          ).toFixed(2),
+        };
+      }),
+      total,
+      offset: filters.offset,
+      limit: filters.limit,
     };
   }
 
