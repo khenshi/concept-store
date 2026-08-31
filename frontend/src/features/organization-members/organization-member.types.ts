@@ -11,6 +11,7 @@ export interface OrganizationMember {
   phone: string | null;
   role: OrganizationRole;
   joinedAt: string;
+  merchantAccount: { merchantId: string; merchantName: string } | null;
 }
 
 export interface AddOrganizationMemberInput {

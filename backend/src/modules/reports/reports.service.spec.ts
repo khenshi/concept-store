@@ -8,6 +8,7 @@ describe('ReportsService', () => {
   const organizationId = '580c75b7-1050-4a08-a2c2-585171d84dc8';
   const branchId = '6b109a2f-142c-4af4-93d8-12941d0685ac';
   const merchantId = '2f671678-91d3-4d04-a8f9-787a2e9f3c1a';
+  const userId = '160872ff-c20b-4cee-a58c-06a5d4431509';
   const prisma = {
     branch: { findFirst: jest.fn() },
     merchant: { findFirst: jest.fn() },
@@ -25,6 +26,7 @@ describe('ReportsService', () => {
       groupBy: jest.fn(),
     },
     merchantPayout: { groupBy: jest.fn() },
+    merchantAccount: { findUnique: jest.fn() },
     inventory: { aggregate: jest.fn(), count: jest.fn(), findMany: jest.fn() },
   };
   let service: ReportsService;
@@ -174,5 +176,13 @@ describe('ReportsService', () => {
       offset: 0,
       limit: 30,
     });
+  });
+
+  it('rejects an unlinked merchant dashboard account', async () => {
+    prisma.merchantAccount.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.merchantDashboard(organizationId, userId, {}),
+    ).rejects.toThrow(new NotFoundException('Merchant account is not linked'));
   });
 });

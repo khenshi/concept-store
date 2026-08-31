@@ -1,6 +1,7 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import {
   getInventoryReport,
+  getMerchantDashboard,
   getMerchantReport,
   getReportsOverview,
   getSalesReport,
@@ -36,5 +37,18 @@ describe('report API', () => {
       expect.stringContaining('/reports/inventory?'),
       expect.stringContaining('/reports/merchants?'),
     ]);
+  });
+
+  it('loads merchant identity from the self-service route', async () => {
+    vi.mocked(request).mockResolvedValue({});
+
+    await getMerchantDashboard(request, 'organization/id', {
+      from: '2026-08-01',
+      to: '2026-08-31',
+    });
+
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%2Fid/reports/merchant-dashboard?from=2026-08-01&to=2026-08-31',
+    );
   });
 });

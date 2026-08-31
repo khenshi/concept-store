@@ -2,6 +2,7 @@ import type { AuthenticatedRequest } from '@/features/organizations/organization
 import type {
   InventoryReport,
   MerchantReport,
+  MerchantDashboardData,
   ReportFilters,
   ReportsOverview,
   SalesReport,
@@ -49,4 +50,14 @@ export function getMerchantReport(
   filters: ReportFilters = {},
 ): Promise<MerchantReport> {
   return request(withFilters(reportPath(organizationId, 'merchants'), filters));
+}
+
+export function getMerchantDashboard(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  filters: Pick<ReportFilters, 'from' | 'to'> = {},
+): Promise<MerchantDashboardData> {
+  return request(
+    withFilters(reportPath(organizationId, 'merchant-dashboard'), filters),
+  );
 }

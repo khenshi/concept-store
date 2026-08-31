@@ -54,3 +54,19 @@ export function removeOrganizationMember(
     { method: 'DELETE' },
   );
 }
+
+export function linkOrganizationMerchantAccount(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  userId: string,
+  merchantId: string,
+): Promise<OrganizationMember> {
+  return request<OrganizationMember>(
+    `${membersPath(organizationId)}/${encodeURIComponent(userId)}/merchant-account`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ merchantId }),
+    },
+  );
+}

@@ -2,6 +2,7 @@ import type { AuthenticatedRequest } from '@/features/organizations/organization
 import {
   addOrganizationMember,
   listOrganizationMembers,
+  linkOrganizationMerchantAccount,
   removeOrganizationMember,
   updateOrganizationMemberRole,
 } from './organization-member-api';
@@ -64,6 +65,25 @@ describe('organization member API', () => {
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%2Fid/members/user%2Fid',
       { method: 'DELETE' },
+    );
+  });
+
+  it('links a merchant-role member through tenant-scoped identifiers', async () => {
+    vi.mocked(request).mockResolvedValue({});
+
+    await linkOrganizationMerchantAccount(
+      request,
+      'organization/id',
+      'user/id',
+      'merchant-id',
+    );
+
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%2Fid/members/user%2Fid/merchant-account',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ merchantId: 'merchant-id' }),
+      }),
     );
   });
 });

@@ -9,6 +9,7 @@ import type { ReportFiltersDto } from './dto/report-filters.dto';
 import type { ReportPageFiltersDto } from './dto/report-page-filters.dto';
 import type {
   InventoryReportRecord,
+  MerchantDashboardRecord,
   MerchantReportRecord,
   ReportsOverviewRecord,
   SalesReportRecord,
@@ -216,6 +217,32 @@ export class ReportsService {
         status: settlement.status,
         netPayout: settlement.netPayout.toFixed(2),
       })),
+    };
+  }
+
+  async merchantDashboard(
+    organizationId: string,
+    userId: string,
+    filters: Pick<ReportFiltersDto, 'from' | 'to'>,
+  ): Promise<MerchantDashboardRecord> {
+    const account = await this.prisma.merchantAccount.findUnique({
+      where: { organizationId_userId: { organizationId, userId } },
+      select: { merchant: { select: { id: true, name: true } } },
+    });
+    if (!account) {
+      throw new NotFoundException('Merchant account is not linked');
+    }
+    const overview = await this.overview(organizationId, {
+      ...filters,
+      merchantId: account.merchant.id,
+    });
+    return {
+      merchant: account.merchant,
+      period: overview.period,
+      sales: overview.sales,
+      settlements: overview.settlements,
+      inventory: overview.inventory,
+      recentSettlements: overview.recentSettlements,
     };
   }
 

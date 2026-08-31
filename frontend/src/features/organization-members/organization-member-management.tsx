@@ -23,6 +23,7 @@ import { OrganizationInvitationModal } from '@/features/organization-invitations
 import type { OrganizationInvitation } from '@/features/organization-invitations/organization-invitation.types';
 import {
   listOrganizationMembers,
+  linkOrganizationMerchantAccount,
   removeOrganizationMember,
   updateOrganizationMemberRole,
 } from './organization-member-api';
@@ -60,6 +61,8 @@ export function OrganizationMemberManagement({
     organizationStatus,
     organizationError,
     refreshOrganization,
+    merchants,
+    loadMerchants,
   } = useOrganizationWorkspaceContext();
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
@@ -124,6 +127,12 @@ export function OrganizationMemberManagement({
     };
   }, [organization, organizationId, request]);
 
+  useEffect(() => {
+    if (organization?.role === 'OWNER') {
+      void loadMerchants().catch(() => undefined);
+    }
+  }, [loadMerchants, organization?.role]);
+
   function replaceMember(updated: OrganizationMember) {
     setMembers((current) =>
       current.map((member) => (member.id === updated.id ? updated : member)),
@@ -180,6 +189,33 @@ export function OrganizationMemberManagement({
         current.filter((candidate) => candidate.id !== member.id),
       );
       setSuccessMessage(`${member.email} was removed from the organization.`);
+    } catch (cause: unknown) {
+      setActionError(errorMessage(cause));
+    } finally {
+      setPendingMemberId(null);
+    }
+  }
+
+  async function handleMerchantLink(
+    member: OrganizationMember,
+    merchantId: string,
+  ) {
+    if (!merchantId || merchantId === member.merchantAccount?.merchantId)
+      return;
+    setActionError(null);
+    setSuccessMessage(null);
+    setPendingMemberId(member.id);
+    try {
+      const updated = await linkOrganizationMerchantAccount(
+        request,
+        organizationId,
+        member.id,
+        merchantId,
+      );
+      replaceMember(updated);
+      setSuccessMessage(
+        `${updated.email} is linked to ${updated.merchantAccount?.merchantName}.`,
+      );
     } catch (cause: unknown) {
       setActionError(errorMessage(cause));
     } finally {
@@ -337,6 +373,9 @@ export function OrganizationMemberManagement({
                           <th className="px-4 py-3.5 font-bold" scope="col">
                             Organization role
                           </th>
+                          <th className="px-4 py-3.5 font-bold" scope="col">
+                            Merchant account
+                          </th>
                           <th
                             className="px-6 py-3.5 text-right font-bold"
                             scope="col"
@@ -398,6 +437,47 @@ export function OrganizationMemberManagement({
                                 <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
                                   {roleLabels[member.role]}
                                 </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-4">
+                              {member.role === 'MERCHANT' ? (
+                                canManageMembers ? (
+                                  <>
+                                    <label
+                                      className="sr-only"
+                                      htmlFor={`merchant-${member.id}`}
+                                    >
+                                      Merchant for {member.email}
+                                    </label>
+                                    <SelectControl
+                                      id={`merchant-${member.id}`}
+                                      value={
+                                        member.merchantAccount?.merchantId ?? ''
+                                      }
+                                      disabled={pendingMemberId === member.id}
+                                      onValueChange={(value) =>
+                                        void handleMerchantLink(member, value)
+                                      }
+                                    >
+                                      <option value="" disabled>
+                                        Link merchant
+                                      </option>
+                                      {merchants.map((merchant) => (
+                                        <option
+                                          key={merchant.id}
+                                          value={merchant.id}
+                                        >
+                                          {merchant.name}
+                                        </option>
+                                      ))}
+                                    </SelectControl>
+                                  </>
+                                ) : (
+                                  (member.merchantAccount?.merchantName ??
+                                  'Not linked')
+                                )
+                              ) : (
+                                <span className="text-slate-400">—</span>
                               )}
                             </td>
                             <td className="px-6 py-4 text-right">

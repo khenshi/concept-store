@@ -36,6 +36,20 @@ export class ReportsController {
     return this.reportsService.overview(organization.organizationId, filters);
   }
 
+  @Get('merchant-dashboard')
+  @OrganizationRoles(OrganizationRole.MERCHANT)
+  @ApiOperation({ summary: 'Get the signed-in merchant reporting dashboard' })
+  merchantDashboard(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() filters: ReportFiltersDto,
+  ) {
+    return this.reportsService.merchantDashboard(
+      organization.organizationId,
+      organization.userId,
+      filters,
+    );
+  }
+
   @Get('sales')
   @ApiOperation({ summary: 'List merchant-attributed sales report rows' })
   sales(

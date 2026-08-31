@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/operational-page';
 import { OrganizationPageHeader } from './organization-page-header';
 import { OwnerDashboard } from '@/features/reports/owner-dashboard';
+import { MerchantDashboard } from '@/features/reports/merchant-dashboard';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
 
 export function OrganizationWorkspace({
@@ -57,6 +58,9 @@ export function OrganizationWorkspace({
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
   if (canManage) return <OwnerDashboard organization={organization} />;
+  if (organization.role === 'MERCHANT') {
+    return <MerchantDashboard organization={organization} />;
+  }
   const groups = [
     {
       title: 'Operations',

@@ -108,3 +108,12 @@ export interface MerchantReport {
   offset: number;
   limit: number;
 }
+
+export interface MerchantDashboardData {
+  merchant: { id: string; name: string };
+  period: { from: string; to: string };
+  sales: ReportsOverview['sales'];
+  settlements: ReportsOverview['settlements'];
+  inventory: ReportsOverview['inventory'];
+  recentSettlements: ReportsOverview['recentSettlements'];
+}

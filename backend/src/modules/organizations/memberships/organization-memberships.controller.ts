@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -31,6 +32,7 @@ import type { OrganizationContext } from '../authorization/organization-authoriz
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
 import { AddOrganizationMemberDto } from './dto/add-organization-member.dto';
+import { LinkMerchantAccountDto } from './dto/link-merchant-account.dto';
 import { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import { OrganizationMembershipsService } from './organization-memberships.service';
 import type { OrganizationMember } from './organization-memberships.types';
@@ -86,6 +88,22 @@ export class OrganizationMembershipsController {
     @Body() dto: UpdateOrganizationMemberRoleDto,
   ): Promise<OrganizationMember> {
     return this.membershipsService.updateRole(
+      organization.organizationId,
+      userId,
+      dto,
+    );
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @Put(':userId/merchant-account')
+  @ApiOperation({ summary: 'Link a merchant member to its merchant record' })
+  @ApiOkResponse({ type: OrganizationMemberResponseDto })
+  linkMerchantAccount(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
+    @Body() dto: LinkMerchantAccountDto,
+  ): Promise<OrganizationMember> {
+    return this.membershipsService.linkMerchantAccount(
       organization.organizationId,
       userId,
       dto,

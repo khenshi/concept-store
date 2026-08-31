@@ -137,8 +137,9 @@ model OrganizationMembership {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchantAccount MerchantAccount?
 
   @@id([organizationId, userId])
   @@index([userId])
@@ -169,11 +170,26 @@ model Merchant {
   payouts               MerchantPayout[]
   refundItems           SaleRefundItem[]
   settlementRefundItems SettlementRefundItem[]
+  account               MerchantAccount?
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
   @@index([organizationId, status])
   @@index([organizationId, name])
+}
+
+model MerchantAccount {
+  organizationId String
+  userId         String
+  merchantId     String
+  createdAt      DateTime @default(now())
+
+  membership OrganizationMembership @relation(fields: [organizationId, userId], references: [organizationId, userId], onDelete: Cascade)
+  merchant   Merchant               @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@id([organizationId, userId])
+  @@unique([merchantId, organizationId])
+  @@index([organizationId, merchantId])
 }
 
 model MerchantBranch {

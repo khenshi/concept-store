@@ -104,3 +104,12 @@ export interface MerchantReportRecord {
   offset: number;
   limit: number;
 }
+
+export interface MerchantDashboardRecord {
+  merchant: { id: string; name: string };
+  period: ReportPeriodRecord;
+  sales: ReportsOverviewRecord['sales'];
+  settlements: ReportsOverviewRecord['settlements'];
+  inventory: ReportsOverviewRecord['inventory'];
+  recentSettlements: ReportsOverviewRecord['recentSettlements'];
+}
