@@ -155,14 +155,11 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     expect(settlementsService.findAll).not.toHaveBeenCalled();
   });
 
-  it('generates a draft with validated dates and the trusted actor', async () => {
+  it('allows an owner to recover a scheduled draft with validated dates', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())
       .post(`/organizations/${ORGANIZATION_ID}/settlements`)
-      .set(
-        'Authorization',
-        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
-      )
+      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
       .send({
         merchantId: MERCHANT_ID,
         periodStart: '2026-07-01',
@@ -172,7 +169,7 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     expect(settlementsService.generateDraft).toHaveBeenCalledWith(
       ORGANIZATION_ID,
       MERCHANT_ID,
-      MANAGER_ID,
+      OWNER_ID,
       '2026-07-01',
       '2026-07-31',
     );
@@ -190,6 +187,23 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
         netPayout: '999999.00',
       })
       .expect(400);
+    expect(settlementsService.generateDraft).not.toHaveBeenCalled();
+  });
+
+  it('forbids managers from using the scheduled recovery endpoint', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(`/organizations/${ORGANIZATION_ID}/settlements`)
+      .set(
+        'Authorization',
+        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
+      )
+      .send({
+        merchantId: MERCHANT_ID,
+        periodStart: '2026-07-01',
+        periodEnd: '2026-07-31',
+      })
+      .expect(403);
     expect(settlementsService.generateDraft).not.toHaveBeenCalled();
   });
 

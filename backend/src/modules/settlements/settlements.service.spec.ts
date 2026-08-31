@@ -124,6 +124,7 @@ describe('SettlementsService', () => {
       aggregate: jest.fn(),
     },
     merchantPayout: { create: jest.fn() },
+    settlementAuditEvent: { create: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(),
@@ -131,6 +132,7 @@ describe('SettlementsService', () => {
       findMany: jest.fn(),
       count: jest.fn(),
       findFirst: jest.fn(),
+      aggregate: jest.fn(),
     },
   };
   let service: SettlementsService;
@@ -175,6 +177,7 @@ describe('SettlementsService', () => {
     transaction.settlementAdjustment.updateMany.mockResolvedValue({ count: 1 });
     transaction.settlementAdjustment.deleteMany.mockResolvedValue({ count: 1 });
     transaction.merchantPayout.create.mockResolvedValue({});
+    transaction.settlementAuditEvent.create.mockResolvedValue({});
     transaction.settlementSaleItem.deleteMany.mockResolvedValue({ count: 2 });
     transaction.settlementRefundItem.deleteMany.mockResolvedValue({ count: 0 });
     transaction.settlementRefundItem.createMany.mockResolvedValue({ count: 0 });
@@ -223,6 +226,8 @@ describe('SettlementsService', () => {
       createdAt,
       updatedAt: createdAt,
       merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMH' },
+      saleItems: [],
+      refundItems: [],
       terms: [],
       saleItems: [],
       adjustments: [],
@@ -332,6 +337,64 @@ describe('SettlementsService', () => {
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
+  });
+
+  it('subtracts refunds before calculating segment commission', async () => {
+    transaction.saleRefundItem.findMany.mockResolvedValue([
+      {
+        id: '55555555-5555-4555-8555-555555555555',
+        amount: new Prisma.Decimal('200.00'),
+        refund: { completedAt: new Date('2026-07-20T05:00:00.000Z') },
+      },
+    ]);
+
+    await service.generateDraft(
+      organizationId,
+      merchantId,
+      actorId,
+      '2026-07-01',
+      '2026-07-31',
+    );
+
+    expect(capturedSettlementCreate?.data).toEqual(
+      expect.objectContaining({
+        grossSales: new Prisma.Decimal('3000.00'),
+        refundTotal: new Prisma.Decimal('200.00'),
+        netSales: new Prisma.Decimal('2800.00'),
+        commissionAmount: new Prisma.Decimal('190.00'),
+        netPayout: new Prisma.Decimal('-2090.00'),
+      }),
+    );
+    expect(transaction.settlementRefundItem.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          refundItemId: '55555555-5555-4555-8555-555555555555',
+          refundAmount: new Prisma.Decimal('200.00'),
+        }),
+      ],
+    });
+  });
+
+  it('allows documented off-cycle drafts without charging fixed rent', async () => {
+    await service.generateDraft(
+      organizationId,
+      merchantId,
+      actorId,
+      '2026-07-10',
+      '2026-07-20',
+      {
+        generationType: 'OFF_CYCLE',
+        generationReason: 'Emergency merchant exit',
+        excludeFixedRent: true,
+      },
+    );
+    expect(capturedSettlementCreate?.data).toEqual(
+      expect.objectContaining({
+        generationType: 'OFF_CYCLE',
+        generationReason: 'Emergency merchant exit',
+        fixedRentAmount: new Prisma.Decimal('0.00'),
+      }),
+    );
   });
 
   it('re-checks the actor role inside the finance transaction', async () => {
@@ -458,9 +521,18 @@ describe('SettlementsService', () => {
       createdAt,
       updatedAt: createdAt,
       merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMH' },
+      saleItems: [],
+      refundItems: [],
     };
     prisma.merchantSettlement.findMany.mockResolvedValue([row]);
     prisma.merchantSettlement.count.mockResolvedValue(1);
+    const {
+      saleItems: _saleItems,
+      refundItems: _refundItems,
+      ...summaryRow
+    } = row;
+    void _saleItems;
+    void _refundItems;
 
     await expect(
       service.findAll(organizationId, {
@@ -474,7 +546,7 @@ describe('SettlementsService', () => {
     ).resolves.toEqual({
       items: [
         {
-          ...row,
+          ...summaryRow,
           grossSales: '3000.00',
           refundTotal: '0.00',
           netSales: '3000.00',
@@ -482,6 +554,7 @@ describe('SettlementsService', () => {
           fixedRentAmount: '4700.00',
           adjustmentTotal: '0.00',
           netPayout: '-1900.00',
+          branches: [],
         },
       ],
       total: 1,
@@ -499,6 +572,47 @@ describe('SettlementsService', () => {
         },
         skip: 0,
         take: 30,
+      }),
+    );
+  });
+
+  it('aggregates exact filtered overview metrics across all settlements', async () => {
+    prisma.merchantSettlement.aggregate.mockResolvedValue({
+      _sum: {
+        grossSales: new Prisma.Decimal('10000.00'),
+        refundTotal: new Prisma.Decimal('500.00'),
+        netSales: new Prisma.Decimal('9500.00'),
+        commissionAmount: new Prisma.Decimal('950.00'),
+        fixedRentAmount: new Prisma.Decimal('2000.00'),
+        adjustmentTotal: new Prisma.Decimal('-100.00'),
+        netPayout: new Prisma.Decimal('6450.00'),
+      },
+      _count: 3,
+    });
+
+    await expect(
+      service.summary(organizationId, {
+        branchId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        offset: 0,
+        limit: 30,
+      }),
+    ).resolves.toEqual({
+      grossSales: '10000.00',
+      refunds: '500.00',
+      netSales: '9500.00',
+      deductions: '3050.00',
+      amountDue: '6450.00',
+      count: 3,
+    });
+    // Jest asymmetric matchers are intentionally untyped at this boundary.
+    expect(prisma.merchantSettlement.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: expect.objectContaining({
+          organizationId,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          OR: expect.any(Array),
+        }),
       }),
     );
   });

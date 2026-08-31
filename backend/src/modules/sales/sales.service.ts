@@ -191,7 +191,6 @@ export class SalesService {
             );
             subtotal = subtotal.add(lineSubtotal);
             return {
-              organizationId,
               productId: inventory.productId,
               merchantId: inventory.product.merchantId,
               productName: inventory.product.name,
@@ -216,7 +215,6 @@ export class SalesService {
               );
             }
             return {
-              organizationId,
               method: payment.method,
               amount: new Prisma.Decimal(payment.amount),
               referenceNumber: payment.referenceNumber,

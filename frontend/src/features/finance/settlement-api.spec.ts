@@ -1,6 +1,9 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import {
   generateSettlement,
+  generateOffCycleSettlement,
+  generateMissingSettlements,
+  getSettlementSummary,
   listSettlements,
   recordPayout,
   settlementAction,
@@ -58,6 +61,35 @@ describe('settlement API', () => {
     expect(request).toHaveBeenLastCalledWith(
       '/organizations/organization-id/settlements/settlement-id/payout',
       expect.objectContaining({ body: JSON.stringify(payout) }),
+    );
+  });
+
+  it('loads filtered metrics and submits documented off-cycle drafts', async () => {
+    vi.mocked(request).mockResolvedValue({});
+    await getSettlementSummary(request, 'organization-id', {
+      branchId: 'branch-id',
+      periodFrom: '2026-08-01',
+    });
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization-id/settlements/summary?branchId=branch-id&periodFrom=2026-08-01',
+    );
+
+    const input = {
+      merchantId: 'merchant-id',
+      periodStart: '2026-08-01',
+      periodEnd: '2026-08-15',
+      reason: 'Merchant exit',
+    };
+    await generateOffCycleSettlement(request, 'organization-id', input);
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/organization-id/settlements/off-cycle',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify(input) }),
+    );
+
+    await generateMissingSettlements(request, 'organization-id');
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/organization-id/settlements/generate-missing',
+      { method: 'POST' },
     );
   });
 });

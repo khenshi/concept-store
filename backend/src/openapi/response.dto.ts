@@ -9,6 +9,7 @@ import {
   PayoutMethod,
   SettlementSchedule,
   SettlementStatus,
+  SettlementGenerationType,
   SpaceStatus,
   SpaceType,
 } from '../generated/prisma/client';
@@ -877,8 +878,17 @@ export class SettlementSummaryResponseDto {
   @ApiProperty({ enum: SettlementStatus })
   status!: SettlementStatus;
 
+  @ApiProperty({ enum: SettlementGenerationType })
+  generationType!: SettlementGenerationType;
+
   @ApiProperty({ type: String, example: '50000.00' })
   grossSales!: string;
+
+  @ApiProperty({ type: String, example: '1000.00' })
+  refundTotal!: string;
+
+  @ApiProperty({ type: String, example: '49000.00' })
+  netSales!: string;
 
   @ApiProperty({ type: String, example: '5000.00' })
   commissionAmount!: string;

@@ -12,6 +12,8 @@ Owners and managers now have a permanent **Settlements** organization destinatio
 - owner-only approval and payout recording; and
 - immutable approved and paid views with recorded payout details.
 
+The revised overview additionally provides summary metrics, merchant/branch/period/status filters, net sales, deductions, amount due, and off-cycle generation. Settlement detail includes attributed refunds and the append-only action history.
+
 The client never submits calculated totals, agreement terms, merchant attribution, payout amount, actor identity, or lifecycle status. Backend responses remain authoritative after every mutation.
 
 ## Authorization behavior

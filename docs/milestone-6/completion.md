@@ -4,6 +4,10 @@
 
 Milestone 6 — Merchant Finance is complete for its approved initial scope.
 
+The current authoritative behavior is documented in [Automatic and Refund-Aware Settlements](automatic-refund-aware-settlements.md). Earlier part documents remain implementation history where their narrower scope or “next part” sections differ from the completed workflow.
+
+The later automatic/refund-aware workflow revision is also implemented: closed scheduled periods are generated automatically with idempotent catch-up, completed item refunds reduce net sales before commission, documented off-cycle drafts are supported, and settlement overview/detail now expose branch activity, summary metrics, refunds, and append-only history.
+
 The application now connects completed merchant-attributed sales to deterministic settlement calculations, explicit deductions and adjustments, controlled review/approval, and one recorded manual payout while preserving immutable financial history.
 
 ## Scope delivered

@@ -220,10 +220,12 @@ export function SettlementDetailPage({
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {[
           ['Gross sales', settlement.grossSales],
+          ['Refunds', `-${settlement.refundTotal}`],
+          ['Net sales', settlement.netSales],
           ['Commission', `-${settlement.commissionAmount}`],
           ['Fixed rent', `-${settlement.fixedRentAmount}`],
           ['Adjustments', settlement.adjustmentTotal],
-          ['Net payout', settlement.netPayout],
+          ['Amount due', settlement.netPayout],
         ].map(([label, value]) => (
           <div
             className="rounded-xl border border-slate-200 bg-white p-5"
@@ -278,6 +280,43 @@ export function SettlementDetailPage({
           ) : (
             <p className="text-sm text-slate-500">No attributed sales.</p>
           )}
+        </Panel>
+      </div>
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <Panel title="Included refunds">
+          {settlement.refundItems.length ? (
+            settlement.refundItems.map((item) => (
+              <div
+                className="flex justify-between gap-4 border-b border-slate-100 py-3 text-sm"
+                key={item.refundItemId}
+              >
+                <span>
+                  <strong>{item.refundItem.saleItem.productName}</strong>
+                  <br />
+                  <span className="text-slate-500">
+                    {item.refundItem.refund.reason}
+                  </span>
+                </span>
+                <strong>-{money.format(Number(item.refundAmount))}</strong>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">No refunds included.</p>
+          )}
+        </Panel>
+        <Panel title="History">
+          {settlement.auditEvents.map((event) => (
+            <div
+              className="border-b border-slate-100 py-3 text-sm"
+              key={event.id}
+            >
+              <strong>{event.type.replaceAll('_', ' ')}</strong>
+              <p className="mt-1 text-slate-500">
+                {new Date(event.createdAt).toLocaleString('en-PH')}
+                {event.reason ? ` · ${event.reason}` : ''}
+              </p>
+            </div>
+          ))}
         </Panel>
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">

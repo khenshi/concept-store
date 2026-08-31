@@ -47,32 +47,32 @@ export class SettlementSchedulerService
     organizationId?: string,
   ): Promise<{ generated: number; skipped: number }> {
     const today = currentPhilippineBusinessDate();
-    const yesterday = new Date(today);
-    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
     const agreements = await this.prisma.merchantAgreement.findMany({
       where: {
         organizationId,
         status: AgreementStatus.ACTIVE,
-        startDate: { lte: yesterday },
+        startDate: { lt: today },
       },
       select: {
         organizationId: true,
         merchantId: true,
         settlementSchedule: true,
+        startDate: true,
       },
       distinct: ['organizationId', 'merchantId'],
     });
     let generated = 0;
     let skipped = 0;
     for (const agreement of agreements) {
-      const period = normalSettlementPeriod(
-        yesterday,
-        agreement.settlementSchedule,
-      );
-      if (period.end.getTime() !== yesterday.getTime()) {
-        skipped += 1;
-        continue;
-      }
+      const latest = await this.prisma.merchantSettlement.findFirst({
+        where: {
+          organizationId: agreement.organizationId,
+          merchantId: agreement.merchantId,
+          generationType: 'SCHEDULED',
+        },
+        select: { periodEnd: true },
+        orderBy: { periodEnd: 'desc' },
+      });
       const owner = await this.prisma.organizationMembership.findFirst({
         where: {
           organizationId: agreement.organizationId,
@@ -84,22 +84,40 @@ export class SettlementSchedulerService
         skipped += 1;
         continue;
       }
-      const start = period.start.toISOString().slice(0, 10);
-      const end = period.end.toISOString().slice(0, 10);
-      try {
-        await this.settlements.generateDraft(
-          agreement.organizationId,
-          agreement.merchantId,
-          owner.userId,
-          start,
-          end,
-          {
-            generationKey: `${agreement.merchantId}:${start}:${end}`,
-          },
+      let cursor = latest
+        ? new Date(latest.periodEnd)
+        : new Date(agreement.startDate);
+      if (latest) cursor.setUTCDate(cursor.getUTCDate() + 1);
+      let attempts = 0;
+      while (attempts < 120) {
+        const period = normalSettlementPeriod(
+          cursor,
+          agreement.settlementSchedule,
         );
-        generated += 1;
-      } catch {
-        skipped += 1;
+        if (period.end >= today) break;
+        const start = period.start.toISOString().slice(0, 10);
+        const end = period.end.toISOString().slice(0, 10);
+        try {
+          await this.settlements.generateDraft(
+            agreement.organizationId,
+            agreement.merchantId,
+            owner.userId,
+            start,
+            end,
+            {
+              generationKey: `${agreement.merchantId}:${start}:${end}`,
+            },
+          );
+          generated += 1;
+        } catch (error: unknown) {
+          skipped += 1;
+          this.logger.warn(
+            `Skipped settlement ${agreement.organizationId}/${agreement.merchantId}/${start}/${end}: ${error instanceof Error ? error.message : 'unknown error'}`,
+          );
+        }
+        cursor = new Date(period.end);
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        attempts += 1;
       }
     }
     return { generated, skipped };

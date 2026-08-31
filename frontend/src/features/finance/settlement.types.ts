@@ -10,7 +10,10 @@ export interface SettlementSummary {
   periodEnd: string;
   schedule: SettlementSchedule;
   status: SettlementStatus;
+  generationType: 'SCHEDULED' | 'OFF_CYCLE';
   grossSales: string;
+  refundTotal: string;
+  netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
   adjustmentTotal: string;
@@ -24,6 +27,7 @@ export interface SettlementSummary {
   createdAt: string;
   updatedAt: string;
   merchant: { id: string; name: string; code: string | null };
+  branches: Array<{ id: string; name: string }>;
 }
 
 export interface SettlementDetail extends SettlementSummary {
@@ -67,6 +71,21 @@ export interface SettlementDetail extends SettlementSummary {
     paidAt: string;
     recordedById: string;
   };
+  refundItems: Array<{
+    refundItemId: string;
+    refundAmount: string;
+    refundItem: {
+      saleItem: { productName: string; productSku: string };
+      refund: { completedAt: string; reason: string; branchId: string };
+    };
+  }>;
+  auditEvents: Array<{
+    id: string;
+    type: string;
+    reason: string | null;
+    actorId: string | null;
+    createdAt: string;
+  }>;
 }
 
 export interface SettlementPage {
@@ -77,12 +96,22 @@ export interface SettlementPage {
 }
 
 export interface SettlementFilters {
+  branchId?: string;
   merchantId?: string;
   status?: SettlementStatus;
   periodFrom?: string;
   periodTo?: string;
   offset?: number;
   limit?: number;
+}
+
+export interface SettlementMetrics {
+  grossSales: string;
+  refunds: string;
+  netSales: string;
+  deductions: string;
+  amountDue: string;
+  count: number;
 }
 
 export interface GenerateSettlementInput {

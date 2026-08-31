@@ -12,6 +12,7 @@ import {
   Prisma,
   SettlementStatus,
   SettlementGenerationType,
+  SettlementAuditEventType,
   type MerchantAgreement,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -176,6 +177,20 @@ export class SettlementsService {
               })),
             });
           }
+          await transaction.settlementAuditEvent.create({
+            data: {
+              organizationId,
+              settlementId: settlement.id,
+              actorId: calculatedById,
+              type:
+                options.generationType === SettlementGenerationType.OFF_CYCLE
+                  ? SettlementAuditEventType.OFF_CYCLE_GENERATED
+                  : options.generationKey
+                    ? SettlementAuditEventType.AUTO_GENERATED
+                    : SettlementAuditEventType.MANUALLY_GENERATED,
+              reason: options.generationReason,
+            },
+          });
 
           const record = await transaction.merchantSettlement.findUniqueOrThrow(
             {
@@ -230,6 +245,20 @@ export class SettlementsService {
       status: query.status,
       periodStart: periodFrom ? { gte: periodFrom } : undefined,
       periodEnd: periodTo ? { lte: periodTo } : undefined,
+      OR: query.branchId
+        ? [
+            {
+              saleItems: {
+                some: { saleItem: { sale: { branchId: query.branchId } } },
+              },
+            },
+            {
+              refundItems: {
+                some: { refundItem: { refund: { branchId: query.branchId } } },
+              },
+            },
+          ]
+        : undefined,
     };
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.merchantSettlement.findMany({
@@ -246,6 +275,70 @@ export class SettlementsService {
       total,
       offset: query.offset,
       limit: query.limit,
+    };
+  }
+
+  async summary(organizationId: string, query: ListSettlementsQueryDto) {
+    const periodFrom = query.periodFrom
+      ? parseAgreementDate(query.periodFrom, 'periodFrom')
+      : undefined;
+    const periodTo = query.periodTo
+      ? parseAgreementDate(query.periodTo, 'periodTo')
+      : undefined;
+    if (periodFrom && periodTo && periodFrom > periodTo)
+      throw new BadRequestException(
+        'periodFrom must be before or equal to periodTo',
+      );
+    const aggregate = await this.prisma.merchantSettlement.aggregate({
+      where: {
+        organizationId,
+        merchantId: query.merchantId,
+        status: query.status,
+        periodStart: periodFrom ? { gte: periodFrom } : undefined,
+        periodEnd: periodTo ? { lte: periodTo } : undefined,
+        OR: query.branchId
+          ? [
+              {
+                saleItems: {
+                  some: { saleItem: { sale: { branchId: query.branchId } } },
+                },
+              },
+              {
+                refundItems: {
+                  some: {
+                    refundItem: { refund: { branchId: query.branchId } },
+                  },
+                },
+              },
+            ]
+          : undefined,
+      },
+      _sum: {
+        grossSales: true,
+        refundTotal: true,
+        netSales: true,
+        commissionAmount: true,
+        fixedRentAmount: true,
+        adjustmentTotal: true,
+        netPayout: true,
+      },
+      _count: true,
+    });
+    const zero = new Prisma.Decimal(0);
+    const totals = {
+      grossSales: aggregate._sum.grossSales ?? zero,
+      refunds: aggregate._sum.refundTotal ?? zero,
+      netSales: aggregate._sum.netSales ?? zero,
+      deductions: (aggregate._sum.commissionAmount ?? zero)
+        .add(aggregate._sum.fixedRentAmount ?? zero)
+        .sub(aggregate._sum.adjustmentTotal ?? zero),
+      amountDue: aggregate._sum.netPayout ?? zero,
+    };
+    return {
+      ...Object.fromEntries(
+        Object.entries(totals).map(([key, value]) => [key, value.toFixed(2)]),
+      ),
+      count: aggregate._count,
     };
   }
 
@@ -357,6 +450,14 @@ export class SettlementsService {
         },
       });
       if (updated.count !== 1) this.throwDraftConflict();
+      await transaction.settlementAuditEvent.create({
+        data: {
+          organizationId,
+          settlementId,
+          actorId: calculatedById,
+          type: SettlementAuditEventType.RECALCULATED,
+        },
+      });
       return this.loadView(transaction, organizationId, settlementId);
     });
   }
@@ -469,6 +570,14 @@ export class SettlementsService {
           recordedById: actorId,
         },
       });
+      await transaction.settlementAuditEvent.create({
+        data: {
+          organizationId,
+          settlementId,
+          actorId,
+          type: SettlementAuditEventType.PAYOUT_RECORDED,
+        },
+      });
       return this.loadView(transaction, organizationId, settlementId);
     });
   }
@@ -494,6 +603,15 @@ export class SettlementsService {
             createdById: actorId,
           },
         });
+        await transaction.settlementAuditEvent.create({
+          data: {
+            organizationId,
+            settlementId,
+            actorId,
+            type: SettlementAuditEventType.ADJUSTMENT_ADDED,
+            reason: dto.reason,
+          },
+        });
       },
     );
   }
@@ -517,6 +635,15 @@ export class SettlementsService {
         if (updated.count !== 1) {
           throw new NotFoundException('Settlement adjustment not found');
         }
+        await transaction.settlementAuditEvent.create({
+          data: {
+            organizationId,
+            settlementId,
+            actorId,
+            type: SettlementAuditEventType.ADJUSTMENT_UPDATED,
+            reason: dto.reason,
+          },
+        });
       },
     );
   }
@@ -538,6 +665,14 @@ export class SettlementsService {
         if (removed.count !== 1) {
           throw new NotFoundException('Settlement adjustment not found');
         }
+        await transaction.settlementAuditEvent.create({
+          data: {
+            organizationId,
+            settlementId,
+            actorId,
+            type: SettlementAuditEventType.ADJUSTMENT_REMOVED,
+          },
+        });
       },
     );
   }
@@ -623,6 +758,15 @@ export class SettlementsService {
           'Settlement changed concurrently; reload and retry the request',
         );
       }
+      const auditType =
+        to === SettlementStatus.REVIEWED
+          ? SettlementAuditEventType.REVIEWED
+          : to === SettlementStatus.DRAFT
+            ? SettlementAuditEventType.RETURNED_TO_DRAFT
+            : SettlementAuditEventType.APPROVED;
+      await transaction.settlementAuditEvent.create({
+        data: { organizationId, settlementId, actorId, type: auditType },
+      });
       return this.loadView(transaction, organizationId, settlementId);
     });
   }
@@ -984,8 +1128,20 @@ export class SettlementsService {
   }
 
   private toSummary(settlement: SettlementSummaryRow): SettlementSummaryRecord {
+    const { saleItems, refundItems, ...summary } = settlement;
+    const branches = new Map<string, { id: string; name: string }>();
+    for (const link of saleItems)
+      branches.set(link.saleItem.sale.branch.id, link.saleItem.sale.branch);
+    for (const link of refundItems)
+      branches.set(
+        link.refundItem.refund.branch.id,
+        link.refundItem.refund.branch,
+      );
     return {
-      ...settlement,
+      ...summary,
+      branches: [...branches.values()].sort((left, right) =>
+        left.name.localeCompare(right.name),
+      ),
       grossSales: this.money(settlement.grossSales),
       refundTotal: this.money(settlement.refundTotal),
       netSales: this.money(settlement.netSales),
@@ -1035,6 +1191,10 @@ export class SettlementsService {
       payout: settlement.payout
         ? { ...settlement.payout, amount: this.money(settlement.payout.amount) }
         : null,
+      refundItems: settlement.refundItems.map((item) => ({
+        ...item,
+        refundAmount: this.money(item.refundAmount),
+      })),
     };
   }
 

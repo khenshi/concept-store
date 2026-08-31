@@ -5,11 +5,43 @@ import type {
   PayoutInput,
   SettlementDetail,
   SettlementFilters,
+  SettlementMetrics,
   SettlementPage,
 } from './settlement.types';
 
 function basePath(organizationId: string): string {
   return `/organizations/${encodeURIComponent(organizationId)}/settlements`;
+}
+
+export function getSettlementSummary(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  filters: SettlementFilters = {},
+): Promise<SettlementMetrics> {
+  const query = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') query.set(key, String(value));
+  });
+  return request(
+    `${basePath(organizationId)}/summary${query.size ? `?${query}` : ''}`,
+  );
+}
+
+export function generateOffCycleSettlement(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  input: GenerateSettlementInput & { reason: string },
+): Promise<SettlementDetail> {
+  return write(request, `${basePath(organizationId)}/off-cycle`, 'POST', input);
+}
+
+export function generateMissingSettlements(
+  request: AuthenticatedRequest,
+  organizationId: string,
+): Promise<{ generated: number; skipped: number }> {
+  return request(`${basePath(organizationId)}/generate-missing`, {
+    method: 'POST',
+  });
 }
 
 function write(

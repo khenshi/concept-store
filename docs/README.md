@@ -108,6 +108,7 @@ All project documentation is maintained in this directory and organized by miles
 - [Settlement review and approval](milestone-6/settlement-review-approval.md)
 - [Payout recording](milestone-6/payout-recording.md)
 - [Frontend completion](milestone-6/frontend-completion.md)
+- [Automatic and refund-aware settlements](milestone-6/automatic-refund-aware-settlements.md)
 
 ## Documentation convention
 

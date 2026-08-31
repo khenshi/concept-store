@@ -16,6 +16,9 @@ The initial Merchant Finance backend passes its security review and is suitable 
 - Conditional lifecycle updates and serializable retry conflicts prevent stale transitions and duplicate payouts.
 - Approved and paid settlements have no edit, recalculate, adjustment, return, or delete path.
 - Monetary values use exact decimals and database checks protect calculation totals and positive payout amounts.
+- Refund quantities and values are derived and validated inside serializable transactions; clients cannot submit refund amounts or merchant attribution.
+- Automatic and off-cycle generation reuse the same tenant-scoped calculation service and source uniqueness protections.
+- Append-only settlement events preserve the actor, action, reason where applicable, and timestamp for financially significant changes.
 
 ## Residual risks
 

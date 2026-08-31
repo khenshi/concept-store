@@ -55,6 +55,9 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [quickCode, setQuickCode] = useState('');
+  const [quickCodeError, setQuickCodeError] = useState<string | null>(null);
+  const [isQuickAdding, setIsQuickAdding] = useState(false);
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -175,6 +178,43 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
     });
   }
 
+  async function quickAddProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!branchId || isQuickAdding) return;
+    const code = quickCode.trim();
+    if (!code) {
+      setQuickCodeError('Enter a SKU or barcode.');
+      return;
+    }
+
+    setIsQuickAdding(true);
+    setQuickCodeError(null);
+    try {
+      const product = await lookupPosProduct(
+        request,
+        organizationId,
+        branchId,
+        code,
+      );
+      const selectedQuantity =
+        cart.find((line) => line.product.id === product.id)?.quantity ?? 0;
+      if (!product.available || selectedQuantity >= product.quantity) {
+        setQuickCodeError(`${product.name} has no remaining stock to add.`);
+        return;
+      }
+      addProduct(product);
+      setQuickCode('');
+    } catch (cause: unknown) {
+      setQuickCodeError(
+        cause instanceof ApiError && cause.status === 404
+          ? `No sellable product matches “${code}”.`
+          : message(cause),
+      );
+    } finally {
+      setIsQuickAdding(false);
+    }
+  }
+
   function changeQuantity(productId: string, change: number): void {
     setCart((current) =>
       current.flatMap((line) => {
@@ -277,6 +317,55 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
                 </SelectControl>
               </label>
             </header>
+            <form
+              className="border-b border-emerald-200 bg-emerald-50/70 px-5 py-4 sm:px-6"
+              onSubmit={quickAddProduct}
+            >
+              <label
+                className="text-sm font-bold text-slate-800"
+                htmlFor="quick-product-code"
+              >
+                Quick add by SKU or barcode
+              </label>
+              <div className="mt-2 flex gap-3">
+                <input
+                  className="min-h-12 min-w-0 flex-1 rounded-[0.6rem] border border-emerald-200 bg-white px-3.5 text-slate-950 outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-100"
+                  id="quick-product-code"
+                  value={quickCode}
+                  placeholder="Enter or scan code, then press Enter"
+                  autoComplete="off"
+                  disabled={!branchId || isQuickAdding}
+                  aria-invalid={Boolean(quickCodeError)}
+                  aria-describedby={
+                    quickCodeError ? 'quick-product-code-error' : undefined
+                  }
+                  onChange={(event) => {
+                    setQuickCode(event.target.value);
+                    setQuickCodeError(null);
+                  }}
+                />
+                <button
+                  className="min-h-12 rounded-[0.65rem] border-0 bg-emerald-700 px-5 font-bold text-white disabled:opacity-60"
+                  type="submit"
+                  disabled={!branchId || isQuickAdding}
+                >
+                  {isQuickAdding ? 'Adding…' : 'Add'}
+                </button>
+              </div>
+              {quickCodeError ? (
+                <p
+                  className="mt-2 text-sm font-semibold text-rose-700"
+                  id="quick-product-code-error"
+                  role="alert"
+                >
+                  {quickCodeError}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-slate-600">
+                  Exact matches are added directly to the current sale.
+                </p>
+              )}
+            </form>
             <form
               className="flex gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:px-6"
               onSubmit={findProducts}

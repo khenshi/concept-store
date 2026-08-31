@@ -18,6 +18,10 @@ export class ListSettlementsQueryDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID('4')
+  branchId?: string;
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID('4')
   merchantId?: string;
 
   @ApiPropertyOptional({ enum: SettlementStatus })

@@ -41,6 +41,24 @@ export type SettlementRecord = Prisma.MerchantSettlementGetPayload<{
 
 export const settlementSummaryInclude = {
   merchant: { select: { id: true, name: true, code: true } },
+  saleItems: {
+    select: {
+      saleItem: {
+        select: {
+          sale: { select: { branch: { select: { id: true, name: true } } } },
+        },
+      },
+    },
+  },
+  refundItems: {
+    select: {
+      refundItem: {
+        select: {
+          refund: { select: { branch: { select: { id: true, name: true } } } },
+        },
+      },
+    },
+  },
 } satisfies Prisma.MerchantSettlementInclude;
 
 export type SettlementSummaryRow = Prisma.MerchantSettlementGetPayload<{
@@ -56,6 +74,8 @@ export interface SettlementSummaryRecord extends Omit<
   | 'fixedRentAmount'
   | 'adjustmentTotal'
   | 'netPayout'
+  | 'saleItems'
+  | 'refundItems'
 > {
   grossSales: string;
   refundTotal: string;
@@ -64,6 +84,7 @@ export interface SettlementSummaryRecord extends Omit<
   fixedRentAmount: string;
   adjustmentTotal: string;
   netPayout: string;
+  branches: Array<{ id: string; name: string }>;
 }
 
 export interface SettlementViewRecord extends Omit<
@@ -79,6 +100,7 @@ export interface SettlementViewRecord extends Omit<
   | 'saleItems'
   | 'adjustments'
   | 'payout'
+  | 'refundItems'
 > {
   grossSales: string;
   refundTotal: string;
@@ -124,6 +146,11 @@ export interface SettlementViewRecord extends Omit<
         amount: string;
       })
     | null;
+  refundItems: Array<
+    Omit<SettlementRecord['refundItems'][number], 'refundAmount'> & {
+      refundAmount: string;
+    }
+  >;
 }
 
 export interface SettlementPageRecord {
