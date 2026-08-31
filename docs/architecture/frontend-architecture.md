@@ -44,6 +44,27 @@ spacing, borders, colors, focus treatment, and responsive behavior. The visual
 language uses restrained emerald accents, slate neutrals, strong headings, and
 compact operational density.
 
+The approved palette is:
+
+| Usage         | Color     |
+| ------------- | --------- |
+| Primary       | `#059669` |
+| Primary dark  | `#047857` |
+| Primary light | `#D1FAE5` |
+| Accent        | `#F59E0B` |
+| Background    | `#F8FAFC` |
+| Surface       | `#FFFFFF` |
+| Text          | `#0F172A` |
+| Muted text    | `#64748B` |
+| Border        | `#E2E8F0` |
+| Success       | `#16A34A` |
+| Warning       | `#F59E0B` |
+| Error         | `#DC2626` |
+
+Typography uses Inter. Avoid gradients, glassmorphism, excessive shadows,
+unnecessary animation, new icon systems, and decorative complexity that reduces
+operational clarity.
+
 ## Data loading
 
 Reusable organization context loaders deduplicate branch, merchant, and product

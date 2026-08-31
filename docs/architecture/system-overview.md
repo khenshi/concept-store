@@ -15,6 +15,11 @@ settlements, and reports.
 - Authentication: short-lived JWT access tokens and rotating refresh sessions
 - API reference: generated Swagger/OpenAPI documentation
 
+NestJS DTOs use `class-validator` and `class-transformer`; environment parsing
+uses Zod. Jest and Supertest cover backend behavior, while Vitest, Testing
+Library, and jsdom cover frontend behavior. ESLint and Prettier are shared
+quality gates.
+
 The repository contains separate `frontend` and `backend` applications. The
 backend is authoritative for authorization, prices, inventory changes,
 financial calculations, and tenant scope.

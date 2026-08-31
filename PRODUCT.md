@@ -42,7 +42,8 @@ The browser-based POS must eventually continue operating during temporary intern
 - The concept store receives the full customer payment, but merchant-owned gross sales and store-earned revenue must remain distinct.
 - Financial calculations must be precise, deterministic, auditable, and server-authoritative.
 - The cloud PostgreSQL database remains authoritative when offline POS functionality is introduced.
-- Current implementation scope remains Milestone 1 until explicitly advanced.
+- Milestones 1–7 are implemented. Milestone 8 offline POS remains the next
+  roadmap boundary unless priorities are explicitly changed.
 - Advanced features and infrastructure must not be introduced before their assigned milestone.
 - Product-specific accessibility requirements remain an open decision.
 
@@ -50,14 +51,20 @@ The browser-based POS must eventually continue operating during temporary intern
 
 The product name is Concept Store Management System.
 
-The approved brand direction is maintained in `docs/milestone-1/brand.md`. Future frontend work must preserve that binding reference and prioritize clear, consistent, usable, fast, professional B2B SaaS experiences.
+The approved brand direction is maintained in
+`docs/architecture/frontend-architecture.md`. Future frontend work must preserve
+that binding reference and prioritize clear, consistent, usable, fast,
+professional B2B SaaS experiences.
 
 ## Evidence on Hand
 
 - The milestone roadmap and confirmed domain rules are documented in `AGENTS.md`.
-- The approved brand commitments are documented in `docs/milestone-1/brand.md`.
-- Milestone implementation records are maintained under `docs/milestone-1/`.
-- The repository contains working backend authentication, organization membership, initial RBAC, and branch foundations, plus frontend authentication and organization-entry flows.
+- The approved brand commitments are documented in
+  `docs/architecture/frontend-architecture.md`.
+- Completed milestone summaries are maintained under `docs/milestones/`.
+- The repository contains working tenant operations from authentication through
+  merchant reporting and payouts. Current behavior is documented under
+  `docs/architecture/` and `docs/workflows/`.
 - No customer testimonials, usage benchmarks, case studies, press coverage, or commercial proof have been provided. Future interfaces must not fabricate them.
 
 ## Product Principles
