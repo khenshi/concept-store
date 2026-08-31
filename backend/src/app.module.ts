@@ -13,6 +13,7 @@ import { MerchantsModule } from './modules/merchants/merchants.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { ProductsModule } from './modules/products/products.module';
 import { RefundsModule } from './modules/refunds/refunds.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { SettlementsModule } from './modules/settlements/settlements.module';
 import { SpacesModule } from './modules/spaces/spaces.module';
@@ -34,6 +35,7 @@ import { SpacesModule } from './modules/spaces/spaces.module';
     MerchantsModule,
     ProductsModule,
     RefundsModule,
+    ReportsModule,
     SalesModule,
     SettlementsModule,
     SpacesModule,
