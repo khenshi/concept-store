@@ -110,6 +110,10 @@ All project documentation is maintained in this directory and organized by miles
 - [Frontend completion](milestone-6/frontend-completion.md)
 - [Automatic and refund-aware settlements](milestone-6/automatic-refund-aware-settlements.md)
 
+## Milestone 7 — Reporting and Dashboards
+
+- [Backend and frontend design](milestone-7/backend-design.md)
+
 ## Documentation convention
 
 Each implementation part should document, when applicable:
