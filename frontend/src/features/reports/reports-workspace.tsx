@@ -127,6 +127,18 @@ export function ReportsWorkspace({
   if (!organization) return null;
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
+  const activeReport =
+    view === 'sales'
+      ? sales
+      : view === 'inventory'
+        ? inventory
+        : merchantReport;
+
+  function movePage(offset: number) {
+    setIsLoading(true);
+    setError(null);
+    setFilters((current) => ({ ...current, offset }));
+  }
 
   return (
     <OperationalPage>
@@ -248,6 +260,45 @@ export function ReportsWorkspace({
           ) : null}
           {!isLoading && !error && view === 'merchants' && merchantReport ? (
             <MerchantTable report={merchantReport} />
+          ) : null}
+          {!isLoading && !error && activeReport && activeReport.total > 0 ? (
+            <div className="flex items-center justify-between gap-4 border-t border-slate-200 px-5 py-4 sm:px-6">
+              <p className="text-sm text-slate-500">
+                {activeReport.offset + 1}–
+                {Math.min(
+                  activeReport.offset + activeReport.limit,
+                  activeReport.total,
+                )}{' '}
+                of {activeReport.total}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className="min-h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold disabled:opacity-40"
+                  type="button"
+                  disabled={activeReport.offset === 0}
+                  onClick={() =>
+                    movePage(
+                      Math.max(0, activeReport.offset - activeReport.limit),
+                    )
+                  }
+                >
+                  Previous
+                </button>
+                <button
+                  className="min-h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold disabled:opacity-40"
+                  type="button"
+                  disabled={
+                    activeReport.offset + activeReport.limit >=
+                    activeReport.total
+                  }
+                  onClick={() =>
+                    movePage(activeReport.offset + activeReport.limit)
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           ) : null}
         </OperationalPanel>
       )}

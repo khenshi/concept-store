@@ -113,6 +113,8 @@ All project documentation is maintained in this directory and organized by miles
 ## Milestone 7 — Reporting and Dashboards
 
 - [Backend and frontend design](milestone-7/backend-design.md)
+- [Milestone completion](milestone-7/completion.md)
+- [Security audit](milestone-7/security-audit.md)
 
 ## Documentation convention
 

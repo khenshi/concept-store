@@ -278,7 +278,14 @@ export class ReportsService {
               branch: { select: { id: true, name: true, code: true } },
             },
           },
-          refundItems: { select: { amount: true } },
+          refundItems: {
+            where: {
+              refund: {
+                completedAt: { gte: period.start, lt: period.endExclusive },
+              },
+            },
+            select: { amount: true },
+          },
         },
         orderBy: [{ sale: { completedAt: 'desc' } }, { id: 'desc' }],
         skip: filters.offset,
