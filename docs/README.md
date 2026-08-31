@@ -97,12 +97,17 @@ All project documentation is maintained in this directory and organized by miles
 
 ## Milestone 6 — Merchant Finance
 
+- [Milestone completion](milestone-6/completion.md)
+- [Security audit](milestone-6/security-audit.md)
+- [Backend completion audit](milestone-6/backend-completion-audit.md)
 - [Backend design](milestone-6/backend-design.md)
 - [Merchant finance data model](milestone-6/merchant-finance-data-model.md)
 - [Settlement generation](milestone-6/settlement-generation.md)
 - [Settlement read and generation API](milestone-6/settlement-read-generation-api.md)
 - [Draft adjustments and recalculation](milestone-6/draft-adjustments-recalculation.md)
 - [Settlement review and approval](milestone-6/settlement-review-approval.md)
+- [Payout recording](milestone-6/payout-recording.md)
+- [Frontend completion](milestone-6/frontend-completion.md)
 
 ## Documentation convention
 

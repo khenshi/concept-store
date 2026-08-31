@@ -32,6 +32,26 @@ describe('OrganizationNavigation', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('shows finance only to roles whose shell enables it', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/organization-id/settlements',
+    );
+    const { rerender } = render(
+      <OrganizationNavigation organizationId="organization-id" />,
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Settlements' }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <OrganizationNavigation organizationId="organization-id" showFinance />,
+    );
+    expect(screen.getByRole('link', { name: 'Settlements' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
   it('shows agreements as a permanent business destination', () => {
     vi.mocked(usePathname).mockReturnValue(
       '/app/organizations/organization-id/agreements',

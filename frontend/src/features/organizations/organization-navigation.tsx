@@ -11,6 +11,7 @@ export function OrganizationNavigation({
   showInventory = false,
   showPos = false,
   showSpaces = false,
+  showFinance = false,
   onNavigate,
 }: {
   organizationId: string;
@@ -20,6 +21,7 @@ export function OrganizationNavigation({
   showInventory?: boolean;
   showPos?: boolean;
   showSpaces?: boolean;
+  showFinance?: boolean;
   onNavigate?(): void;
 }) {
   const pathname = usePathname();
@@ -68,6 +70,12 @@ export function OrganizationNavigation({
           label: 'Agreements',
           href: `${basePath}/agreements`,
           visible: showMerchants,
+        },
+        {
+          key: 'settlements',
+          label: 'Settlements',
+          href: `${basePath}/settlements`,
+          visible: showFinance,
         },
         {
           key: 'branches',

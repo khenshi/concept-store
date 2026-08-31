@@ -19,6 +19,20 @@ export const settlementRecordInclude = {
   },
   adjustments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
   payout: true,
+  refundItems: {
+    include: {
+      refundItem: {
+        include: {
+          refund: {
+            select: { completedAt: true, reason: true, branchId: true },
+          },
+          saleItem: { select: { productName: true, productSku: true } },
+        },
+      },
+    },
+    orderBy: [{ createdAt: 'asc' }, { refundItemId: 'asc' }],
+  },
+  auditEvents: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
 } satisfies Prisma.MerchantSettlementInclude;
 
 export type SettlementRecord = Prisma.MerchantSettlementGetPayload<{
@@ -36,12 +50,16 @@ export type SettlementSummaryRow = Prisma.MerchantSettlementGetPayload<{
 export interface SettlementSummaryRecord extends Omit<
   SettlementSummaryRow,
   | 'grossSales'
+  | 'refundTotal'
+  | 'netSales'
   | 'commissionAmount'
   | 'fixedRentAmount'
   | 'adjustmentTotal'
   | 'netPayout'
 > {
   grossSales: string;
+  refundTotal: string;
+  netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
   adjustmentTotal: string;
@@ -51,6 +69,8 @@ export interface SettlementSummaryRecord extends Omit<
 export interface SettlementViewRecord extends Omit<
   SettlementRecord,
   | 'grossSales'
+  | 'refundTotal'
+  | 'netSales'
   | 'commissionAmount'
   | 'fixedRentAmount'
   | 'adjustmentTotal'
@@ -61,6 +81,8 @@ export interface SettlementViewRecord extends Omit<
   | 'payout'
 > {
   grossSales: string;
+  refundTotal: string;
+  netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
   adjustmentTotal: string;
@@ -71,12 +93,16 @@ export interface SettlementViewRecord extends Omit<
       | 'fixedRentRate'
       | 'commissionRate'
       | 'grossSales'
+      | 'refundTotal'
+      | 'netSales'
       | 'commissionAmount'
       | 'fixedRentAmount'
     > & {
       fixedRentRate: string | null;
       commissionRate: string | null;
       grossSales: string;
+      refundTotal: string;
+      netSales: string;
       commissionAmount: string;
       fixedRentAmount: string;
     }

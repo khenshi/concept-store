@@ -11,6 +11,7 @@ import {
   OrganizationRole,
   Prisma,
   SettlementStatus,
+  SettlementGenerationType,
   type MerchantAgreement,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -19,6 +20,7 @@ import {
   parseAgreementDate,
 } from '../merchant-agreements/dto/agreement-date.validation';
 import type { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
+import type { RecordPayoutDto } from './dto/record-payout.dto';
 import type { SettlementAdjustmentDto } from './dto/settlement-adjustment.dto';
 import {
   daysInclusive,
@@ -46,6 +48,8 @@ interface AgreementSegment {
   end: Date;
   normalPeriod: DatePeriod;
   grossSales: Prisma.Decimal;
+  refundTotal: Prisma.Decimal;
+  netSales: Prisma.Decimal;
   commissionAmount: Prisma.Decimal;
   fixedRentAmount: Prisma.Decimal;
 }
@@ -65,7 +69,10 @@ interface SettlementCalculation {
   schedule: MerchantAgreement['settlementSchedule'];
   segments: AgreementSegment[];
   assignments: SaleAssignment[];
+  refundItems: Array<{ id: string; amount: Prisma.Decimal }>;
   grossSales: Prisma.Decimal;
+  refundTotal: Prisma.Decimal;
+  netSales: Prisma.Decimal;
   commissionAmount: Prisma.Decimal;
   fixedRentAmount: Prisma.Decimal;
 }
@@ -80,6 +87,12 @@ export class SettlementsService {
     calculatedById: string,
     periodStart: string,
     periodEnd: string,
+    options: {
+      generationType?: SettlementGenerationType;
+      generationReason?: string;
+      generationKey?: string;
+      excludeFixedRent?: boolean;
+    } = {},
   ): Promise<SettlementViewRecord> {
     const period = parseSettlementPeriod(periodStart, periodEnd);
     if (period.end >= currentPhilippineBusinessDate()) {
@@ -103,8 +116,12 @@ export class SettlementsService {
             organizationId,
             merchantId,
             period,
+            undefined,
+            options.generationType === SettlementGenerationType.OFF_CYCLE,
+            options.excludeFixedRent,
           );
           const netPayout = calculation.grossSales
+            .sub(calculation.refundTotal)
             .sub(calculation.commissionAmount)
             .sub(calculation.fixedRentAmount);
 
@@ -115,7 +132,13 @@ export class SettlementsService {
               periodStart: period.start,
               periodEnd: period.end,
               schedule: calculation.schedule,
+              generationType:
+                options.generationType ?? SettlementGenerationType.SCHEDULED,
+              generationReason: options.generationReason,
+              generationKey: options.generationKey,
               grossSales: calculation.grossSales,
+              refundTotal: calculation.refundTotal,
+              netSales: calculation.netSales,
               commissionAmount: calculation.commissionAmount,
               fixedRentAmount: calculation.fixedRentAmount,
               adjustmentTotal: new Prisma.Decimal(0),
@@ -139,6 +162,17 @@ export class SettlementsService {
                 organizationId,
                 merchantId,
                 grossAmount: saleItem.total,
+              })),
+            });
+          }
+          if (calculation.refundItems.length > 0) {
+            await transaction.settlementRefundItem.createMany({
+              data: calculation.refundItems.map((item) => ({
+                settlementId: settlement.id,
+                refundItemId: item.id,
+                organizationId,
+                merchantId,
+                refundAmount: item.amount,
               })),
             });
           }
@@ -260,12 +294,16 @@ export class SettlementsService {
       });
       const adjustmentTotal = adjustment._sum.amount ?? new Prisma.Decimal(0);
       const netPayout = calculation.grossSales
+        .sub(calculation.refundTotal)
         .sub(calculation.commissionAmount)
         .sub(calculation.fixedRentAmount)
         .add(adjustmentTotal);
 
       await transaction.settlementSaleItem.deleteMany({
         where: { settlementId },
+      });
+      await transaction.settlementRefundItem.deleteMany({
+        where: { settlementId, organizationId },
       });
       await transaction.settlementTermSnapshot.deleteMany({
         where: { settlementId, organizationId },
@@ -288,6 +326,17 @@ export class SettlementsService {
           })),
         });
       }
+      if (calculation.refundItems.length > 0) {
+        await transaction.settlementRefundItem.createMany({
+          data: calculation.refundItems.map((item) => ({
+            settlementId,
+            refundItemId: item.id,
+            organizationId,
+            merchantId: settlement.merchantId,
+            refundAmount: item.amount,
+          })),
+        });
+      }
       const updated = await transaction.merchantSettlement.updateMany({
         where: {
           id: settlementId,
@@ -297,6 +346,8 @@ export class SettlementsService {
         data: {
           schedule: calculation.schedule,
           grossSales: calculation.grossSales,
+          refundTotal: calculation.refundTotal,
+          netSales: calculation.netSales,
           commissionAmount: calculation.commissionAmount,
           fixedRentAmount: calculation.fixedRentAmount,
           adjustmentTotal,
@@ -359,6 +410,67 @@ export class SettlementsService {
       (now) => ({ approvedById: actorId, approvedAt: now }),
       [OrganizationRole.OWNER],
     );
+  }
+
+  async recordPayout(
+    organizationId: string,
+    settlementId: string,
+    actorId: string,
+    dto: RecordPayoutDto,
+  ): Promise<SettlementViewRecord> {
+    const paidAt = new Date(dto.paidAt);
+    if (paidAt > new Date()) {
+      throw new BadRequestException('Payout date cannot be in the future');
+    }
+
+    return this.runFinanceMutation(async (transaction) => {
+      await this.assertFinanceActor(transaction, organizationId, actorId, [
+        OrganizationRole.OWNER,
+      ]);
+      const settlement = await transaction.merchantSettlement.findFirst({
+        where: { id: settlementId, organizationId },
+        select: { status: true, merchantId: true, netPayout: true },
+      });
+      if (!settlement) throw new NotFoundException('Settlement not found');
+      if (settlement.status !== SettlementStatus.APPROVED) {
+        throw new ConflictException(
+          'Settlement must be approved before it can be paid',
+        );
+      }
+      if (settlement.netPayout.lte(0)) {
+        throw new BadRequestException(
+          'Only settlements with a positive net payout can be paid',
+        );
+      }
+
+      const updated = await transaction.merchantSettlement.updateMany({
+        where: {
+          id: settlementId,
+          organizationId,
+          status: SettlementStatus.APPROVED,
+        },
+        data: { status: SettlementStatus.PAID },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictException(
+          'Settlement changed concurrently; reload and retry the request',
+        );
+      }
+      await transaction.merchantPayout.create({
+        data: {
+          organizationId,
+          merchantId: settlement.merchantId,
+          settlementId,
+          amount: settlement.netPayout,
+          method: dto.method,
+          referenceNumber: dto.referenceNumber,
+          note: dto.note,
+          paidAt,
+          recordedById: actorId,
+        },
+      });
+      return this.loadView(transaction, organizationId, settlementId);
+    });
   }
 
   addAdjustment(
@@ -453,6 +565,7 @@ export class SettlementsService {
       });
       const adjustmentTotal = aggregate._sum.amount ?? new Prisma.Decimal(0);
       const netPayout = settlement.grossSales
+        .sub(settlement.refundTotal)
         .sub(settlement.commissionAmount)
         .sub(settlement.fixedRentAmount)
         .add(adjustmentTotal);
@@ -520,6 +633,8 @@ export class SettlementsService {
     merchantId: string,
     period: DatePeriod,
     currentSettlementId?: string,
+    offCycle = false,
+    excludeFixedRent = false,
   ): Promise<SettlementCalculation> {
     const agreements = await transaction.merchantAgreement.findMany({
       where: {
@@ -536,7 +651,7 @@ export class SettlementsService {
         'No effective merchant agreement covers this settlement period',
       );
     }
-    this.assertNormalPeriod(period, agreements[0]);
+    if (!offCycle) this.assertNormalPeriod(period, agreements[0]);
     const segments = this.buildSegments(period, agreements);
     const saleItems = await transaction.saleItem.findMany({
       where: {
@@ -560,12 +675,57 @@ export class SettlementsService {
       orderBy: [{ sale: { completedAt: 'asc' } }, { id: 'asc' }],
     });
     const assignments = this.assignSales(segments, saleItems);
+    const refundItems = await transaction.saleRefundItem.findMany({
+      where: {
+        organizationId,
+        merchantId,
+        refund: {
+          status: 'COMPLETED',
+          completedAt: {
+            gte: philippineDayStart(period.start),
+            lt: philippineDayStart(nextBusinessDate(period.end)),
+          },
+        },
+        settlementLinks: currentSettlementId
+          ? { none: { settlementId: { not: currentSettlementId } } }
+          : { none: {} },
+      },
+      select: {
+        id: true,
+        amount: true,
+        refund: { select: { completedAt: true } },
+      },
+      orderBy: [{ refund: { completedAt: 'asc' } }, { id: 'asc' }],
+    });
+    for (const refundItem of refundItems) {
+      const completedDate = philippineDate(refundItem.refund.completedAt);
+      const segment = segments.find(
+        ({ start, end }) => completedDate >= start && completedDate <= end,
+      );
+      if (!segment) {
+        throw new ConflictException(
+          'One or more merchant refunds are not covered by an effective agreement',
+        );
+      }
+      segment.refundTotal = segment.refundTotal.add(refundItem.amount);
+    }
     this.calculateSegments(segments);
+    if (excludeFixedRent) {
+      for (const segment of segments)
+        segment.fixedRentAmount = new Prisma.Decimal(0);
+    }
+    const grossSales = this.sum(segments.map(({ grossSales }) => grossSales));
+    const refundTotal = this.sum(
+      segments.map(({ refundTotal }) => refundTotal),
+    );
     return {
       schedule: agreements[0].settlementSchedule,
       segments,
       assignments,
-      grossSales: this.sum(segments.map(({ grossSales }) => grossSales)),
+      refundItems,
+      grossSales,
+      refundTotal,
+      netSales: grossSales.sub(refundTotal),
       commissionAmount: this.sum(
         segments.map(({ commissionAmount }) => commissionAmount),
       ),
@@ -589,6 +749,8 @@ export class SettlementsService {
         periodEnd: true,
         status: true,
         grossSales: true,
+        refundTotal: true,
+        netSales: true,
         commissionAmount: true,
         fixedRentAmount: true,
       },
@@ -628,6 +790,8 @@ export class SettlementsService {
       fixedRentRate: segment.agreement.fixedRentAmount,
       commissionRate: segment.agreement.commissionRate,
       grossSales: segment.grossSales,
+      refundTotal: segment.refundTotal,
+      netSales: segment.netSales,
       commissionAmount: segment.commissionAmount,
       fixedRentAmount: segment.fixedRentAmount,
     };
@@ -748,6 +912,8 @@ export class SettlementsService {
           end,
           normalPeriod,
           grossSales: new Prisma.Decimal(0),
+          refundTotal: new Prisma.Decimal(0),
+          netSales: new Prisma.Decimal(0),
           commissionAmount: new Prisma.Decimal(0),
           fixedRentAmount: new Prisma.Decimal(0),
         });
@@ -779,9 +945,15 @@ export class SettlementsService {
 
   private calculateSegments(segments: AgreementSegment[]): void {
     for (const segment of segments) {
+      segment.netSales = segment.grossSales.sub(segment.refundTotal);
+      if (segment.netSales.lt(0)) {
+        throw new ConflictException(
+          'Refunds cannot exceed gross sales within an agreement segment',
+        );
+      }
       const commissionRate = segment.agreement.commissionRate;
       segment.commissionAmount = commissionRate
-        ? this.roundMoney(segment.grossSales.mul(commissionRate).div(100))
+        ? this.roundMoney(segment.netSales.mul(commissionRate).div(100))
         : new Prisma.Decimal(0);
 
       const fixedRentRate = segment.agreement.fixedRentAmount;
@@ -815,6 +987,8 @@ export class SettlementsService {
     return {
       ...settlement,
       grossSales: this.money(settlement.grossSales),
+      refundTotal: this.money(settlement.refundTotal),
+      netSales: this.money(settlement.netSales),
       commissionAmount: this.money(settlement.commissionAmount),
       fixedRentAmount: this.money(settlement.fixedRentAmount),
       adjustmentTotal: this.money(settlement.adjustmentTotal),
@@ -826,6 +1000,8 @@ export class SettlementsService {
     return {
       ...settlement,
       grossSales: this.money(settlement.grossSales),
+      refundTotal: this.money(settlement.refundTotal),
+      netSales: this.money(settlement.netSales),
       commissionAmount: this.money(settlement.commissionAmount),
       fixedRentAmount: this.money(settlement.fixedRentAmount),
       adjustmentTotal: this.money(settlement.adjustmentTotal),
@@ -839,6 +1015,8 @@ export class SettlementsService {
           ? term.commissionRate.toFixed(2)
           : null,
         grossSales: this.money(term.grossSales),
+        refundTotal: this.money(term.refundTotal),
+        netSales: this.money(term.netSales),
         commissionAmount: this.money(term.commissionAmount),
         fixedRentAmount: this.money(term.fixedRentAmount),
       })),

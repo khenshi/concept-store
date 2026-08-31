@@ -6,6 +6,7 @@ import request from 'supertest';
 import { OPENAPI_JSON_PATH, setupSwagger } from '../src/config/swagger';
 import {
   OrganizationRole,
+  PayoutMethod,
   SettlementStatus,
 } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
@@ -13,6 +14,7 @@ import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
 import { SettlementsController } from '../src/modules/settlements/settlements.controller';
 import { SettlementsService } from '../src/modules/settlements/settlements.service';
+import { SettlementSchedulerService } from '../src/modules/settlements/settlement-scheduler.service';
 
 const OWNER_ID = '11111111-1111-4111-8111-111111111111';
 const MANAGER_ID = '22222222-2222-4222-8222-222222222222';
@@ -36,6 +38,7 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     review: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     returnToDraft: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     approve: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    recordPayout: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     findAll: jest
       .fn()
       .mockResolvedValue({ items: [], total: 0, offset: 0, limit: 30 }),
@@ -94,6 +97,14 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
         Reflector,
         { provide: PrismaService, useValue: prismaService },
         { provide: SettlementsService, useValue: settlementsService },
+        {
+          provide: SettlementSchedulerService,
+          useValue: {
+            generateDue: jest
+              .fn()
+              .mockResolvedValue({ generated: 0, skipped: 0 }),
+          },
+        },
       ],
     }).compile();
     app = moduleRef.createNestApplication();
@@ -378,6 +389,61 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     expect(settlementsService.approve).not.toHaveBeenCalled();
   });
 
+  it('records a validated payout using trusted owner context', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/payout`,
+      )
+      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
+      .send({
+        method: PayoutMethod.GCASH,
+        referenceNumber: '  GCASH-123  ',
+        note: '  August payout  ',
+        paidAt: '2026-08-30T04:00:00.000Z',
+      })
+      .expect(200, { id: SETTLEMENT_ID });
+    expect(settlementsService.recordPayout).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      SETTLEMENT_ID,
+      OWNER_ID,
+      {
+        method: PayoutMethod.GCASH,
+        referenceNumber: 'GCASH-123',
+        note: 'August payout',
+        paidAt: '2026-08-30T04:00:00.000Z',
+      },
+    );
+  });
+
+  it('forbids manager payouts and rejects unsafe payout input', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/payout`,
+      )
+      .set(
+        'Authorization',
+        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
+      )
+      .send({ method: PayoutMethod.CASH, paidAt: '2026-08-30T04:00:00.000Z' })
+      .expect(403);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/payout`,
+      )
+      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
+      .send({
+        method: PayoutMethod.BANK_TRANSFER,
+        paidAt: '2026-08-30T04:00:00.000Z',
+        amount: '1.00',
+      })
+      .expect(400);
+    expect(settlementsService.recordPayout).not.toHaveBeenCalled();
+  });
+
   it('publishes settlement routes and response contracts in OpenAPI', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const response = await request(app.getHttpServer())
@@ -403,6 +469,9 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     );
     expect(response.text).toContain(
       '"/organizations/{organizationId}/settlements/{settlementId}/approve"',
+    );
+    expect(response.text).toContain(
+      '"/organizations/{organizationId}/settlements/{settlementId}/payout"',
     );
     expect(response.text).toContain('"SettlementResponseDto"');
     expect(response.text).toContain('"SettlementPageResponseDto"');

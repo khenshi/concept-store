@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import type { ReactNode } from 'react';
 import { AuthProvider } from '@/features/auth/auth-context';
 import './globals.css';
 
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
     'Manage your concept store organization, branches, team, and merchants in one clear workspace.',
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className={inter.className}>

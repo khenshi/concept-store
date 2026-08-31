@@ -28,6 +28,7 @@ export function OrganizationWorkspaceShell({
       showInventory={canManage}
       showPos={canUsePos}
       showSpaces={canManage}
+      showFinance={canManage}
       onNavigate={() => setIsMenuOpen(false)}
     />
   ) : null;

@@ -24,7 +24,10 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { OrganizationRole } from '../../generated/prisma/client';
+import {
+  OrganizationRole,
+  SettlementGenerationType,
+} from '../../generated/prisma/client';
 import {
   SettlementPageResponseDto,
   SettlementResponseDto,
@@ -34,10 +37,13 @@ import { OrganizationAccessGuard } from '../organizations/authorization/organiza
 import type { OrganizationContext } from '../organizations/authorization/organization-authorization.types';
 import { CurrentOrganization } from '../organizations/authorization/organization-context.decorator';
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
+import { CreateOffCycleSettlementDto } from './dto/create-off-cycle-settlement.dto';
 import { CreateSettlementDto } from './dto/create-settlement.dto';
 import { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
+import { RecordPayoutDto } from './dto/record-payout.dto';
 import { SettlementAdjustmentDto } from './dto/settlement-adjustment.dto';
 import { SettlementsService } from './settlements.service';
+import { SettlementSchedulerService } from './settlement-scheduler.service';
 import type {
   SettlementPageRecord,
   SettlementViewRecord,
@@ -52,7 +58,20 @@ import type {
 @ApiNotFoundResponse({ description: 'Settlement or merchant was not found' })
 @Controller('organizations/:organizationId/settlements')
 export class SettlementsController {
-  constructor(private readonly settlementsService: SettlementsService) {}
+  constructor(
+    private readonly settlementsService: SettlementsService,
+    private readonly settlementScheduler: SettlementSchedulerService,
+  ) {}
+
+  @Post('generate-missing')
+  @HttpCode(HttpStatus.OK)
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @ApiOperation({
+    summary: 'Run settlement generation catch-up for due periods',
+  })
+  generateMissing(@CurrentOrganization() organization: OrganizationContext) {
+    return this.settlementScheduler.generateDue(organization.organizationId);
+  }
 
   @Get()
   @ApiOperation({ summary: 'List organization merchant settlements' })
@@ -95,6 +114,29 @@ export class SettlementsController {
       organization.userId,
       dto.periodStart,
       dto.periodEnd,
+    );
+  }
+
+  @Post('off-cycle')
+  @ApiOperation({
+    summary: 'Generate an exceptional off-cycle settlement draft',
+  })
+  @ApiCreatedResponse({ type: SettlementResponseDto })
+  generateOffCycle(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Body() dto: CreateOffCycleSettlementDto,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.generateDraft(
+      organization.organizationId,
+      dto.merchantId,
+      organization.userId,
+      dto.periodStart,
+      dto.periodEnd,
+      {
+        generationType: SettlementGenerationType.OFF_CYCLE,
+        generationReason: dto.reason,
+        excludeFixedRent: true,
+      },
     );
   }
 
@@ -185,6 +227,34 @@ export class SettlementsController {
       organization.organizationId,
       settlementId,
       organization.userId,
+    );
+  }
+
+  @Post(':settlementId/payout')
+  @HttpCode(HttpStatus.OK)
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @ApiOperation({ summary: 'Record an approved settlement payout' })
+  @ApiOkResponse({ type: SettlementResponseDto })
+  @ApiBadRequestResponse({
+    description: 'Payout details or settlement amount are invalid',
+  })
+  @ApiForbiddenResponse({
+    description: 'Only an owner can record settlement payouts',
+  })
+  @ApiConflictResponse({
+    description: 'The settlement is not approved or changed concurrently',
+  })
+  recordPayout(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+    @Body() dto: RecordPayoutDto,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.recordPayout(
+      organization.organizationId,
+      settlementId,
+      organization.userId,
+      dto,
     );
   }
 

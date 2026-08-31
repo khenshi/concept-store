@@ -8,6 +8,7 @@ import { Test } from '@nestjs/testing';
 import {
   AgreementStatus,
   OrganizationRole,
+  PayoutMethod,
   Prisma,
   SettlementSchedule,
   SettlementStatus,
@@ -96,6 +97,7 @@ describe('SettlementsService', () => {
     merchant: { findFirst: jest.fn() },
     merchantAgreement: { findMany: jest.fn() },
     saleItem: { findMany: jest.fn() },
+    saleRefundItem: { findMany: jest.fn() },
     merchantSettlement: {
       create:
         jest.fn<(input: SettlementCreateArgument) => Promise<{ id: string }>>(),
@@ -113,6 +115,7 @@ describe('SettlementsService', () => {
         >(),
       deleteMany: jest.fn(),
     },
+    settlementRefundItem: { createMany: jest.fn(), deleteMany: jest.fn() },
     settlementTermSnapshot: { deleteMany: jest.fn(), createMany: jest.fn() },
     settlementAdjustment: {
       create: jest.fn(),
@@ -120,6 +123,7 @@ describe('SettlementsService', () => {
       deleteMany: jest.fn(),
       aggregate: jest.fn(),
     },
+    merchantPayout: { create: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(),
@@ -158,6 +162,8 @@ describe('SettlementsService', () => {
       periodEnd: new Date('2026-07-31T00:00:00.000Z'),
       status: SettlementStatus.DRAFT,
       grossSales: new Prisma.Decimal('3000.00'),
+      refundTotal: new Prisma.Decimal('0.00'),
+      netSales: new Prisma.Decimal('3000.00'),
       commissionAmount: new Prisma.Decimal('200.00'),
       fixedRentAmount: new Prisma.Decimal('4700.00'),
     });
@@ -168,7 +174,10 @@ describe('SettlementsService', () => {
     transaction.settlementAdjustment.create.mockResolvedValue({});
     transaction.settlementAdjustment.updateMany.mockResolvedValue({ count: 1 });
     transaction.settlementAdjustment.deleteMany.mockResolvedValue({ count: 1 });
+    transaction.merchantPayout.create.mockResolvedValue({});
     transaction.settlementSaleItem.deleteMany.mockResolvedValue({ count: 2 });
+    transaction.settlementRefundItem.deleteMany.mockResolvedValue({ count: 0 });
+    transaction.settlementRefundItem.createMany.mockResolvedValue({ count: 0 });
     transaction.settlementTermSnapshot.deleteMany.mockResolvedValue({
       count: 2,
     });
@@ -177,6 +186,7 @@ describe('SettlementsService', () => {
     });
     transaction.merchantAgreement.findMany.mockResolvedValue(agreements);
     transaction.saleItem.findMany.mockResolvedValue(saleItems);
+    transaction.saleRefundItem.findMany.mockResolvedValue([]);
     transaction.merchantSettlement.create.mockImplementation(
       (input: SettlementCreateArgument) => {
         capturedSettlementCreate = input;
@@ -198,6 +208,8 @@ describe('SettlementsService', () => {
       schedule: SettlementSchedule.MONTHLY,
       status: SettlementStatus.DRAFT,
       grossSales: new Prisma.Decimal('3000.00'),
+      refundTotal: new Prisma.Decimal('0.00'),
+      netSales: new Prisma.Decimal('3000.00'),
       commissionAmount: new Prisma.Decimal('200.00'),
       fixedRentAmount: new Prisma.Decimal('4700.00'),
       adjustmentTotal: new Prisma.Decimal('0.00'),
@@ -431,6 +443,8 @@ describe('SettlementsService', () => {
       schedule: SettlementSchedule.MONTHLY,
       status: SettlementStatus.DRAFT,
       grossSales: new Prisma.Decimal('3000.00'),
+      refundTotal: new Prisma.Decimal('0.00'),
+      netSales: new Prisma.Decimal('3000.00'),
       commissionAmount: new Prisma.Decimal('200.00'),
       fixedRentAmount: new Prisma.Decimal('4700.00'),
       adjustmentTotal: new Prisma.Decimal('0.00'),
@@ -462,6 +476,8 @@ describe('SettlementsService', () => {
         {
           ...row,
           grossSales: '3000.00',
+          refundTotal: '0.00',
+          netSales: '3000.00',
           commissionAmount: '200.00',
           fixedRentAmount: '4700.00',
           adjustmentTotal: '0.00',
@@ -702,5 +718,116 @@ describe('SettlementsService', () => {
       where: { id: settlementId, organizationId },
       select: { status: true },
     });
+  });
+
+  it('records the exact approved net payout and atomically marks it paid', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.OWNER,
+    });
+    transaction.merchantSettlement.findFirst.mockResolvedValue({
+      status: SettlementStatus.APPROVED,
+      merchantId,
+      netPayout: new Prisma.Decimal('42000.50'),
+    });
+
+    await service.recordPayout(organizationId, settlementId, actorId, {
+      method: PayoutMethod.GCASH,
+      referenceNumber: 'GCASH-123',
+      note: 'August payout',
+      paidAt: '2020-08-30T04:00:00.000Z',
+    });
+
+    expect(transaction.merchantSettlement.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: settlementId,
+        organizationId,
+        status: SettlementStatus.APPROVED,
+      },
+      data: { status: SettlementStatus.PAID },
+    });
+    expect(transaction.merchantPayout.create).toHaveBeenCalledWith({
+      data: {
+        organizationId,
+        merchantId,
+        settlementId,
+        amount: new Prisma.Decimal('42000.50'),
+        method: PayoutMethod.GCASH,
+        referenceNumber: 'GCASH-123',
+        note: 'August payout',
+        paidAt: new Date('2020-08-30T04:00:00.000Z'),
+        recordedById: actorId,
+      },
+    });
+  });
+
+  it('rechecks owner authority and rejects non-positive payouts', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.MANAGER,
+    });
+
+    await expect(
+      service.recordPayout(organizationId, settlementId, actorId, {
+        method: PayoutMethod.CASH,
+        paidAt: '2020-08-30T04:00:00.000Z',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.OWNER,
+    });
+    transaction.merchantSettlement.findFirst.mockResolvedValue({
+      status: SettlementStatus.APPROVED,
+      merchantId,
+      netPayout: new Prisma.Decimal('0.00'),
+    });
+    await expect(
+      service.recordPayout(organizationId, settlementId, actorId, {
+        method: PayoutMethod.CASH,
+        paidAt: '2020-08-30T04:00:00.000Z',
+      }),
+    ).rejects.toThrow(
+      new BadRequestException(
+        'Only settlements with a positive net payout can be paid',
+      ),
+    );
+    expect(transaction.merchantPayout.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects stale, cross-tenant, and future payout attempts', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.OWNER,
+    });
+    transaction.merchantSettlement.findFirst.mockResolvedValue({
+      status: SettlementStatus.REVIEWED,
+      merchantId,
+      netPayout: new Prisma.Decimal('100.00'),
+    });
+    await expect(
+      service.recordPayout(organizationId, settlementId, actorId, {
+        method: PayoutMethod.CASH,
+        paidAt: '2020-08-30T04:00:00.000Z',
+      }),
+    ).rejects.toThrow(
+      new ConflictException(
+        'Settlement must be approved before it can be paid',
+      ),
+    );
+
+    transaction.merchantSettlement.findFirst.mockResolvedValue(null);
+    await expect(
+      service.recordPayout(organizationId, settlementId, actorId, {
+        method: PayoutMethod.CASH,
+        paidAt: '2020-08-30T04:00:00.000Z',
+      }),
+    ).rejects.toThrow(new NotFoundException('Settlement not found'));
+
+    await expect(
+      service.recordPayout(organizationId, settlementId, actorId, {
+        method: PayoutMethod.CASH,
+        paidAt: '2999-01-01T00:00:00.000Z',
+      }),
+    ).rejects.toThrow(
+      new BadRequestException('Payout date cannot be in the future'),
+    );
   });
 });

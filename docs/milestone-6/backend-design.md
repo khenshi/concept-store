@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved on August 30, 2026. The persistence foundation is implemented in Part 2; calculation services, APIs, and frontend behavior remain unimplemented.
+Approved on August 30, 2026. The design is now implemented across the Milestone 6 backend and frontend; see the completion documents for final verification.
 
 ## Scope
 

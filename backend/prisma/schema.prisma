@@ -31,6 +31,8 @@ model User {
   approvedSettlements             MerchantSettlement[]     @relation("SettlementApprover")
   settlementAdjustments           SettlementAdjustment[]   @relation("SettlementAdjustmentCreator")
   recordedPayouts                 MerchantPayout[]         @relation("PayoutRecorder")
+  completedRefunds                SaleRefund[]             @relation("RefundCompleter")
+  settlementAuditEvents           SettlementAuditEvent[]   @relation("SettlementAuditActor")
 
   @@index([deletedAt])
 }
@@ -95,6 +97,10 @@ model Organization {
   settlementSaleItems   SettlementSaleItem[]
   settlementAdjustments SettlementAdjustment[]
   merchantPayouts       MerchantPayout[]
+  saleRefunds           SaleRefund[]
+  saleRefundItems       SaleRefundItem[]
+  settlementRefundItems SettlementRefundItem[]
+  settlementAuditEvents SettlementAuditEvent[]
 }
 
 model Branch {
@@ -117,6 +123,7 @@ model Branch {
   inventory    Inventory[]
   movements    InventoryMovement[]
   sales        Sale[]
+  saleRefunds  SaleRefund[]
 
   @@unique([organizationId, name])
   @@unique([organizationId, code])
@@ -160,6 +167,8 @@ model Merchant {
   settlementSaleItems   SettlementSaleItem[]
   settlementAdjustments SettlementAdjustment[]
   payouts               MerchantPayout[]
+  refundItems           SaleRefundItem[]
+  settlementRefundItems SettlementRefundItem[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -333,6 +342,7 @@ model Sale {
   items              SaleItem[]
   payments           Payment[]
   inventoryMovements InventoryMovement[]
+  refunds            SaleRefund[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, saleNumber])
@@ -362,11 +372,54 @@ model SaleItem {
   product         Product              @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
   merchant        Merchant             @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
   settlementLinks SettlementSaleItem[]
+  refundItems     SaleRefundItem[]
 
   @@unique([id, merchantId, organizationId])
   @@index([organizationId, merchantId, saleId])
   @@index([organizationId, productId, saleId])
   @@index([saleId])
+}
+
+model SaleRefund {
+  id             String       @id @default(uuid())
+  organizationId String
+  branchId       String
+  saleId         String
+  reason         String
+  status         RefundStatus @default(COMPLETED)
+  completedById  String
+  completedAt    DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch           @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sale         Sale             @relation(fields: [saleId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  completedBy  User             @relation("RefundCompleter", fields: [completedById], references: [id], onDelete: Restrict)
+  items        SaleRefundItem[]
+
+  @@unique([id, organizationId])
+  @@index([organizationId, branchId, completedAt])
+  @@index([saleId, completedAt])
+}
+
+model SaleRefundItem {
+  id             String  @id @default(uuid())
+  organizationId String
+  refundId       String
+  saleItemId     String
+  merchantId     String
+  quantity       Int
+  amount         Decimal @db.Decimal(14, 2)
+
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  refund          SaleRefund             @relation(fields: [refundId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  saleItem        SaleItem               @relation(fields: [saleItemId, merchantId, organizationId], references: [id, merchantId, organizationId], onDelete: Restrict)
+  merchant        Merchant               @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  settlementLinks SettlementRefundItem[]
+
+  @@unique([id, merchantId, organizationId])
+  @@index([organizationId, merchantId, refundId])
+  @@index([saleItemId])
 }
 
 model Payment {
@@ -390,26 +443,31 @@ model Payment {
 }
 
 model MerchantSettlement {
-  id               String             @id @default(uuid())
+  id               String                   @id @default(uuid())
   organizationId   String
   merchantId       String
-  periodStart      DateTime           @db.Date
-  periodEnd        DateTime           @db.Date
+  periodStart      DateTime                 @db.Date
+  periodEnd        DateTime                 @db.Date
   schedule         SettlementSchedule
-  status           SettlementStatus   @default(DRAFT)
-  grossSales       Decimal            @default(0) @db.Decimal(14, 2)
-  commissionAmount Decimal            @default(0) @db.Decimal(14, 2)
-  fixedRentAmount  Decimal            @default(0) @db.Decimal(14, 2)
-  adjustmentTotal  Decimal            @default(0) @db.Decimal(14, 2)
-  netPayout        Decimal            @default(0) @db.Decimal(14, 2)
+  status           SettlementStatus         @default(DRAFT)
+  generationType   SettlementGenerationType @default(SCHEDULED)
+  generationKey    String?
+  generationReason String?
+  grossSales       Decimal                  @default(0) @db.Decimal(14, 2)
+  refundTotal      Decimal                  @default(0) @db.Decimal(14, 2)
+  netSales         Decimal                  @default(0) @db.Decimal(14, 2)
+  commissionAmount Decimal                  @default(0) @db.Decimal(14, 2)
+  fixedRentAmount  Decimal                  @default(0) @db.Decimal(14, 2)
+  adjustmentTotal  Decimal                  @default(0) @db.Decimal(14, 2)
+  netPayout        Decimal                  @default(0) @db.Decimal(14, 2)
   calculatedById   String
-  calculatedAt     DateTime           @default(now())
+  calculatedAt     DateTime                 @default(now())
   reviewedById     String?
   reviewedAt       DateTime?
   approvedById     String?
   approvedAt       DateTime?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
   organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   merchant     Merchant                 @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
@@ -420,12 +478,48 @@ model MerchantSettlement {
   saleItems    SettlementSaleItem[]
   adjustments  SettlementAdjustment[]
   payout       MerchantPayout?
+  refundItems  SettlementRefundItem[]
+  auditEvents  SettlementAuditEvent[]
 
   @@unique([id, organizationId])
   @@unique([id, merchantId, organizationId])
   @@unique([organizationId, merchantId, periodStart, periodEnd])
+  @@unique([organizationId, generationKey])
   @@index([organizationId, status, periodEnd])
   @@index([organizationId, merchantId, periodEnd])
+}
+
+model SettlementRefundItem {
+  settlementId   String
+  refundItemId   String   @unique
+  organizationId String
+  merchantId     String
+  refundAmount   Decimal  @db.Decimal(14, 2)
+  createdAt      DateTime @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchant     Merchant           @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  settlement   MerchantSettlement @relation(fields: [settlementId, merchantId, organizationId], references: [id, merchantId, organizationId], onDelete: Restrict)
+  refundItem   SaleRefundItem     @relation(fields: [refundItemId, merchantId, organizationId], references: [id, merchantId, organizationId], onDelete: Restrict)
+
+  @@id([settlementId, refundItemId])
+  @@index([organizationId, merchantId, settlementId])
+}
+
+model SettlementAuditEvent {
+  id             String                   @id @default(uuid())
+  organizationId String
+  settlementId   String
+  actorId        String?
+  type           SettlementAuditEventType
+  reason         String?
+  createdAt      DateTime                 @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  settlement   MerchantSettlement @relation(fields: [settlementId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  actor        User?              @relation("SettlementAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, settlementId, createdAt])
 }
 
 model SettlementTermSnapshot {
@@ -440,6 +534,8 @@ model SettlementTermSnapshot {
   fixedRentRate    Decimal?           @db.Decimal(12, 2)
   commissionRate   Decimal?           @db.Decimal(5, 2)
   grossSales       Decimal            @default(0) @db.Decimal(14, 2)
+  refundTotal      Decimal            @default(0) @db.Decimal(14, 2)
+  netSales         Decimal            @default(0) @db.Decimal(14, 2)
   commissionAmount Decimal            @default(0) @db.Decimal(14, 2)
   fixedRentAmount  Decimal            @default(0) @db.Decimal(14, 2)
   createdAt        DateTime           @default(now())
@@ -591,4 +687,27 @@ enum PayoutMethod {
   GCASH
   BANK_TRANSFER
   OTHER
+}
+
+enum RefundStatus {
+  COMPLETED
+}
+
+enum SettlementGenerationType {
+  SCHEDULED
+  OFF_CYCLE
+}
+
+enum SettlementAuditEventType {
+  AUTO_GENERATED
+  MANUALLY_GENERATED
+  OFF_CYCLE_GENERATED
+  RECALCULATED
+  ADJUSTMENT_ADDED
+  ADJUSTMENT_UPDATED
+  ADJUSTMENT_REMOVED
+  REVIEWED
+  RETURNED_TO_DRAFT
+  APPROVED
+  PAYOUT_RECORDED
 }
