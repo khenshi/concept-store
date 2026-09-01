@@ -1,11 +1,10 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import type {
-  AdjustmentInput,
-  GenerateSettlementInput,
+  FinanceEntryInput,
+  LiveMerchantPayable,
   PayoutInput,
   SettlementDetail,
   SettlementFilters,
-  SettlementMetrics,
   SettlementPage,
 } from './settlement.types';
 
@@ -13,35 +12,43 @@ function basePath(organizationId: string): string {
   return `/organizations/${encodeURIComponent(organizationId)}/settlements`;
 }
 
-export function getSettlementSummary(
+export function listLivePayables(
   request: AuthenticatedRequest,
   organizationId: string,
-  filters: SettlementFilters = {},
-): Promise<SettlementMetrics> {
-  const query = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined && value !== '') query.set(key, String(value));
-  });
+  filters: { merchantId?: string; branchId?: string } = {},
+): Promise<LiveMerchantPayable[]> {
+  const query = new URLSearchParams(filters);
   return request(
-    `${basePath(organizationId)}/summary${query.size ? `?${query}` : ''}`,
+    `${basePath(organizationId)}/payables${query.size ? `?${query}` : ''}`,
   );
 }
 
-export function generateOffCycleSettlement(
+export function closeLivePayable(
   request: AuthenticatedRequest,
   organizationId: string,
-  input: GenerateSettlementInput & { reason: string },
+  merchantId: string,
 ): Promise<SettlementDetail> {
-  return write(request, `${basePath(organizationId)}/off-cycle`, 'POST', input);
+  return write(
+    request,
+    `${basePath(organizationId)}/payables/${merchantId}/close`,
+    'POST',
+  );
 }
 
-export function generateMissingSettlements(
+export function addFinanceEntry(
   request: AuthenticatedRequest,
   organizationId: string,
-): Promise<{ generated: number; skipped: number }> {
-  return request(`${basePath(organizationId)}/generate-missing`, {
-    method: 'POST',
-  });
+  merchantId: string,
+  input: FinanceEntryInput,
+): Promise<LiveMerchantPayable> {
+  return request(
+    `${basePath(organizationId)}/payables/${merchantId}/entries`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 function write(
@@ -81,19 +88,11 @@ export function getSettlement(
   );
 }
 
-export function generateSettlement(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  input: GenerateSettlementInput,
-): Promise<SettlementDetail> {
-  return write(request, basePath(organizationId), 'POST', input);
-}
-
 export function settlementAction(
   request: AuthenticatedRequest,
   organizationId: string,
   settlementId: string,
-  action: 'recalculate' | 'review' | 'return-to-draft' | 'approve',
+  action: 'approve',
 ): Promise<SettlementDetail> {
   return write(
     request,
@@ -102,30 +101,15 @@ export function settlementAction(
   );
 }
 
-export function addAdjustment(
+export function removeFinanceEntry(
   request: AuthenticatedRequest,
   organizationId: string,
-  settlementId: string,
-  input: AdjustmentInput,
-): Promise<SettlementDetail> {
-  return write(
-    request,
-    `${basePath(organizationId)}/${settlementId}/adjustments`,
-    'POST',
-    input,
-  );
-}
-
-export function removeAdjustment(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  settlementId: string,
-  adjustmentId: string,
-): Promise<SettlementDetail> {
-  return write(
-    request,
-    `${basePath(organizationId)}/${settlementId}/adjustments/${adjustmentId}`,
-    'DELETE',
+  merchantId: string,
+  entryId: string,
+): Promise<LiveMerchantPayable> {
+  return request(
+    `${basePath(organizationId)}/payables/${merchantId}/entries/${entryId}`,
+    { method: 'DELETE' },
   );
 }
 

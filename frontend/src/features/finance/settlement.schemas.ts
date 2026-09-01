@@ -11,6 +11,20 @@ export const adjustmentSchema = z.object({
   reason: z.string().trim().min(1, 'Enter a reason.').max(500),
 });
 
+export const financeEntrySchema = adjustmentSchema
+  .extend({
+    type: z.enum(['ADJUSTMENT', 'MERCHANT_PAYMENT']),
+  })
+  .superRefine((value, context) => {
+    if (value.type === 'MERCHANT_PAYMENT' && Number(value.amount) <= 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['amount'],
+        message: 'Merchant payments must be greater than zero.',
+      });
+    }
+  });
+
 export const payoutSchema = z
   .object({
     method: z.enum(['CASH', 'GCASH', 'BANK_TRANSFER', 'OTHER']),

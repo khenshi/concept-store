@@ -8,6 +8,7 @@ export interface SettlementSummary {
   merchantId: string;
   periodStart: string;
   periodEnd: string;
+  scheduledDeadline: string | null;
   schedule: SettlementSchedule;
   status: SettlementStatus;
   generationType: 'SCHEDULED' | 'OFF_CYCLE';
@@ -16,6 +17,7 @@ export interface SettlementSummary {
   netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
+  rentAccruedAmount: string;
   adjustmentTotal: string;
   netPayout: string;
   calculatedById: string;
@@ -42,6 +44,12 @@ export interface SettlementDetail extends SettlementSummary {
     grossSales: string;
     commissionAmount: string;
     fixedRentAmount: string;
+    rentAccruedAmount: string;
+    rentCollectionMethod: 'DEDUCT_FROM_PAYOUT' | 'PAID_SEPARATELY';
+    rentDeductionTiming:
+      | 'FIRST_SETTLEMENT_OF_MONTH'
+      | 'LAST_SETTLEMENT_OF_MONTH'
+      | 'PRORATED_PER_SETTLEMENT';
   }>;
   saleItems: Array<{
     saleItemId: string;
@@ -54,8 +62,9 @@ export interface SettlementDetail extends SettlementSummary {
       sale: { saleNumber: string; completedAt: string };
     };
   }>;
-  adjustments: Array<{
+  financeEntries: Array<{
     id: string;
+    type: 'ADJUSTMENT' | 'MERCHANT_PAYMENT';
     amount: string;
     reason: string;
     createdById: string;
@@ -114,15 +123,41 @@ export interface SettlementMetrics {
   count: number;
 }
 
-export interface GenerateSettlementInput {
-  merchantId: string;
+export interface LiveMerchantPayable {
+  merchant: { id: string; name: string; code: string | null };
   periodStart: string;
-  periodEnd: string;
+  asOf: string;
+  nextSettlementDeadline: string;
+  schedule: SettlementSchedule;
+  grossSales: string;
+  refundTotal: string;
+  netSales: string;
+  commissionAmount: string;
+  fixedRentAmount: string;
+  rentAccruedAmount: string;
+  adjustmentTotal: string;
+  merchantPaymentTotal: string;
+  amountDue: string;
+  branches: Array<{ id: string; name: string }>;
+  pendingSettlement: { id: string; status: SettlementStatus } | null;
+  accountEntries: Array<{
+    id: string;
+    type: 'ADJUSTMENT' | 'MERCHANT_PAYMENT';
+    amount: string;
+    reason: string;
+    occurredAt: string;
+    createdById: string;
+  }>;
 }
 
 export interface AdjustmentInput {
   amount: string;
   reason: string;
+}
+
+export interface FinanceEntryInput extends AdjustmentInput {
+  type: 'ADJUSTMENT' | 'MERCHANT_PAYMENT';
+  occurredAt?: string;
 }
 
 export interface PayoutInput {

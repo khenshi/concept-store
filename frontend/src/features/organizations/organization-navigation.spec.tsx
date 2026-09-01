@@ -46,7 +46,9 @@ describe('OrganizationNavigation', () => {
     rerender(
       <OrganizationNavigation organizationId="organization-id" showFinance />,
     );
-    expect(screen.getByRole('link', { name: 'Settlements' })).toHaveAttribute(
+    expect(
+      screen.getByRole('link', { name: 'Merchant finance' }),
+    ).toHaveAttribute(
       'aria-current',
       'page',
     );

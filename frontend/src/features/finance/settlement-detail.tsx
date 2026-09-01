@@ -8,13 +8,11 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
 import {
-  addAdjustment,
   getSettlement,
   recordPayout,
-  removeAdjustment,
   settlementAction,
 } from './settlement-api';
-import { adjustmentSchema, payoutSchema } from './settlement.schemas';
+import { payoutSchema } from './settlement.schemas';
 import type { SettlementDetail, PayoutMethod } from './settlement.types';
 
 const money = new Intl.NumberFormat('en-PH', {
@@ -62,46 +60,20 @@ export function SettlementDetailPage({
     };
   }, [organizationId, request, settlementId]);
 
-  async function action(
-    kind: 'recalculate' | 'review' | 'return-to-draft' | 'approve',
-  ) {
+  async function approve() {
     const ok = await confirm({
-      title: `${kind.replaceAll('-', ' ')} settlement?`,
+      title: 'Approve and lock this settlement?',
       description:
-        'This changes the settlement lifecycle and will be recorded against your account.',
-      confirmLabel: 'Continue',
+        'The calculation and included financial activity will become immutable. Verify the breakdown before continuing.',
+      confirmLabel: 'Approve and lock',
     });
     if (!ok) return;
     setBusy(true);
     setError(null);
     try {
       setSettlement(
-        await settlementAction(request, organizationId, settlementId, kind),
+        await settlementAction(request, organizationId, settlementId, 'approve'),
       );
-    } catch (cause) {
-      setError(message(cause));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function add(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const parsed = adjustmentSchema.safeParse({
-      amount: form.get('amount'),
-      reason: form.get('reason'),
-    });
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Invalid adjustment.');
-      return;
-    }
-    setBusy(true);
-    try {
-      setSettlement(
-        await addAdjustment(request, organizationId, settlementId, parsed.data),
-      );
-      event.currentTarget.reset();
     } catch (cause) {
       setError(message(cause));
     } finally {
@@ -170,43 +142,17 @@ export function SettlementDetailPage({
             {settlement.periodStart.slice(0, 10)} –{' '}
             {settlement.periodEnd.slice(0, 10)}
           </p>
+          {settlement.scheduledDeadline ? (
+            <p className="mt-1 text-sm text-slate-500">
+              Scheduled deadline: {settlement.scheduledDeadline.slice(0, 10)}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          {settlement.status === 'DRAFT' ? (
-            <>
-              <Action
-                disabled={busy}
-                onClick={() => void action('recalculate')}
-              >
-                Recalculate
-              </Action>
-              <Action
-                primary
-                disabled={busy}
-                onClick={() => void action('review')}
-              >
-                Mark reviewed
-              </Action>
-            </>
-          ) : null}
-          {settlement.status === 'REVIEWED' ? (
-            <>
-              <Action
-                disabled={busy}
-                onClick={() => void action('return-to-draft')}
-              >
-                Return to draft
-              </Action>
-              {owner ? (
-                <Action
-                  primary
-                  disabled={busy}
-                  onClick={() => void action('approve')}
-                >
-                  Approve
-                </Action>
-              ) : null}
-            </>
+          {owner && ['DRAFT', 'REVIEWED'].includes(settlement.status) ? (
+            <Action primary disabled={busy} onClick={() => void approve()}>
+              Approve and lock
+            </Action>
           ) : null}
         </div>
       </div>
@@ -223,7 +169,8 @@ export function SettlementDetailPage({
           ['Refunds', `-${settlement.refundTotal}`],
           ['Net sales', settlement.netSales],
           ['Commission', `-${settlement.commissionAmount}`],
-          ['Fixed rent', `-${settlement.fixedRentAmount}`],
+          ['Rent accrued', settlement.rentAccruedAmount],
+          ['Rent deducted', `-${settlement.fixedRentAmount}`],
           ['Adjustments', settlement.adjustmentTotal],
           ['Amount due', settlement.netPayout],
         ].map(([label, value]) => (
@@ -320,55 +267,24 @@ export function SettlementDetailPage({
         </Panel>
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Panel title="Adjustments">
-          {settlement.adjustments.map((item) => (
+        <Panel title="Adjustments and merchant payments">
+          {settlement.financeEntries.map((item) => (
             <div
               className="flex items-start justify-between gap-3 border-b border-slate-100 py-3 text-sm"
               key={item.id}
             >
               <span>
-                <strong>{money.format(Number(item.amount))}</strong>
+                <strong>
+                  {item.type === 'MERCHANT_PAYMENT' ? 'Payment · ' : 'Adjustment · '}
+                  {money.format(Number(item.amount))}
+                </strong>
                 <br />
                 <span className="text-slate-500">{item.reason}</span>
               </span>
-              {settlement.status === 'DRAFT' ? (
-                <button
-                  className="font-bold text-red-600"
-                  disabled={busy}
-                  onClick={() =>
-                    void removeAdjustment(
-                      request,
-                      organizationId,
-                      settlementId,
-                      item.id,
-                    )
-                      .then(setSettlement)
-                      .catch((cause) => setError(message(cause)))
-                  }
-                >
-                  Remove
-                </button>
-              ) : null}
             </div>
           ))}
-          {settlement.status === 'DRAFT' ? (
-            <form className="mt-4 grid gap-3" onSubmit={add}>
-              <input
-                className="min-h-11 rounded-lg border border-slate-300 px-3"
-                name="amount"
-                placeholder="Signed amount, e.g. -500.00"
-                required
-              />
-              <input
-                className="min-h-11 rounded-lg border border-slate-300 px-3"
-                name="reason"
-                placeholder="Reason"
-                required
-              />
-              <Action primary disabled={busy}>
-                Add adjustment
-              </Action>
-            </form>
+          {!settlement.financeEntries.length ? (
+            <p className="text-sm text-slate-500">No entries captured.</p>
           ) : null}
         </Panel>
         <Panel title="Payout">

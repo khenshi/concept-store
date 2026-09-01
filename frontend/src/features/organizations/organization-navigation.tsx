@@ -81,7 +81,7 @@ export function OrganizationNavigation({
         },
         {
           key: 'settlements',
-          label: 'Settlements',
+          label: 'Merchant finance',
           href: `${basePath}/settlements`,
           visible: showFinance,
         },

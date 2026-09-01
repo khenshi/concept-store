@@ -39,6 +39,16 @@ export const merchantAgreementSchema = z
       'Commission must be greater than 0, no more than 100, and use at most 2 decimal places.',
     ),
     settlementSchedule: z.enum(['WEEKLY', 'SEMI_MONTHLY', 'MONTHLY']),
+    rentCollectionMethod: z
+      .enum(['DEDUCT_FROM_PAYOUT', 'PAID_SEPARATELY'])
+      .default('DEDUCT_FROM_PAYOUT'),
+    rentDeductionTiming: z
+      .enum([
+        'FIRST_SETTLEMENT_OF_MONTH',
+        'LAST_SETTLEMENT_OF_MONTH',
+        'PRORATED_PER_SETTLEMENT',
+      ])
+      .default('FIRST_SETTLEMENT_OF_MONTH'),
   })
   .superRefine((value, context) => {
     if (value.endDate && value.endDate < value.startDate) {

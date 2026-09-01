@@ -4,21 +4,25 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
+import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
 import {
-  generateOffCycleSettlement,
-  generateMissingSettlements,
-  getSettlementSummary,
+  addFinanceEntry,
+  closeLivePayable,
   listSettlements,
+  listLivePayables,
+  removeFinanceEntry,
 } from './settlement-api';
 import type {
   SettlementMetrics,
+  LiveMerchantPayable,
   SettlementPage,
   SettlementStatus,
 } from './settlement.types';
+import { financeEntrySchema } from './settlement.schemas';
 
 const money = new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -55,11 +59,13 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   const [periodFrom, setPeriodFrom] = useState('');
   const [periodTo, setPeriodTo] = useState('');
   const [metrics, setMetrics] = useState<SettlementMetrics | null>(null);
+  const [payables, setPayables] = useState<LiveMerchantPayable[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [catchingUp, setCatchingUp] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [closingMerchantId, setClosingMerchantId] = useState<string | null>(
+    null,
+  );
+  const { confirm, confirmationDialog } = useConfirmationDialog();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,12 +79,16 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
         periodTo: periodTo || undefined,
         limit: 100,
       };
-      const [result, summary] = await Promise.all([
+      const [result, live] = await Promise.all([
         listSettlements(request, organizationId, filters),
-        getSettlementSummary(request, organizationId, filters),
+        listLivePayables(request, organizationId, {
+          merchantId: merchantId || undefined,
+          branchId: branchId || undefined,
+        }),
       ]);
       setPage(result);
-      setMetrics(summary);
+      setMetrics(payableMetrics(live));
+      setPayables(live);
     } catch (cause) {
       setError(message(cause));
     } finally {
@@ -106,12 +116,16 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
     };
     void Promise.all([
       listSettlements(request, organizationId, filters),
-      getSettlementSummary(request, organizationId, filters),
+      listLivePayables(request, organizationId, {
+        merchantId: merchantId || undefined,
+        branchId: branchId || undefined,
+      }),
     ])
-      .then(([result, summary]) => {
+      .then(([result, live]) => {
         if (active) {
           setPage(result);
-          setMetrics(summary);
+          setMetrics(payableMetrics(live));
+          setPayables(live);
         }
       })
       .catch((cause: unknown) => {
@@ -139,41 +153,63 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
     if (branchesStatus === 'idle') void loadBranches().catch(() => undefined);
   }, [branchesStatus, loadBranches]);
 
-  async function create(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setCreating(true);
+  async function close(merchantId: string) {
+    const payable = payables.find((item) => item.merchant.id === merchantId);
+    if (
+      !payable ||
+      !(await confirm({
+        title: `Create settlement for ${payable.merchant.name}?`,
+        description: `This will snapshot ${money.format(Number(payable.amountDue))} through ${payable.asOf}. Review the resulting draft before approving it.`,
+        confirmLabel: 'Create draft settlement',
+      }))
+    )
+      return;
+    setClosingMerchantId(merchantId);
     setError(null);
     try {
-      await generateOffCycleSettlement(request, organizationId, {
-        merchantId: String(form.get('merchantId')),
-        periodStart: String(form.get('periodStart')),
-        periodEnd: String(form.get('periodEnd')),
-        reason: String(form.get('reason')).trim(),
-      });
+      await closeLivePayable(request, organizationId, merchantId);
+      await load();
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setClosingMerchantId(null);
+    }
+  }
+
+  async function addEntry(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const parsed = financeEntrySchema.safeParse({
+      type: form.get('type'),
+      amount: form.get('amount'),
+      reason: form.get('reason'),
+    });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? 'Invalid adjustment.');
+      return;
+    }
+    setError(null);
+    try {
+      await addFinanceEntry(
+        request,
+        organizationId,
+        String(form.get('merchantId')),
+        parsed.data,
+      );
       event.currentTarget.reset();
       await load();
     } catch (cause) {
       setError(message(cause));
-    } finally {
-      setCreating(false);
     }
   }
 
-  async function catchUp() {
-    setCatchingUp(true);
+  async function removeEntry(merchantId: string, entryId: string) {
     setError(null);
-    setNotice(null);
     try {
-      const result = await generateMissingSettlements(request, organizationId);
-      setNotice(
-        `${result.generated} missing draft${result.generated === 1 ? '' : 's'} generated${result.skipped ? `; ${result.skipped} skipped` : ''}.`,
-      );
+      await removeFinanceEntry(request, organizationId, merchantId, entryId);
       await load();
     } catch (cause) {
       setError(message(cause));
-    } finally {
-      setCatchingUp(false);
     }
   }
 
@@ -187,89 +223,180 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
     <section className="mx-auto mt-8 w-full sm:mt-12">
       <OrganizationPageHeader
         organization={organization}
-        title="Settlements"
-        description="Calculate merchant obligations, review deductions, approve them, and record payouts."
+        title="Merchant finance"
+        description="Monitor live merchant balances, close settlements, approve payouts, and keep a complete financial history."
       />
-      <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-5">
-        <div>
-          <h2 className="font-bold">Automatic settlement generation</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Closed periods are generated automatically from each merchant
-            agreement.
-          </p>
-        </div>
-        {organization.role === 'OWNER' ? (
+      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+        <h2 className="font-bold">Live merchant payables</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Accrued unsettled activity as of today. You can close a balance early;
+          its agreement deadline remains on the regular schedule.
+        </p>
+        <form
+          className="mt-4 flex flex-wrap items-end gap-3"
+          onSubmit={addEntry}
+        >
+          <label className="grid gap-1 text-sm font-bold">
+            Merchant
+            <select
+              className="min-h-11 rounded-lg border border-slate-300 px-3"
+              name="merchantId"
+              required
+            >
+              <option value="">Select merchant</option>
+              {payables
+                .filter((item) => !item.pendingSettlement)
+                .map((item) => (
+                  <option key={item.merchant.id} value={item.merchant.id}>
+                    {item.merchant.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            Entry type
+            <select
+              className="min-h-11 rounded-lg border border-slate-300 px-3"
+              name="type"
+            >
+              <option value="ADJUSTMENT">Balance adjustment</option>
+              <option value="MERCHANT_PAYMENT">Merchant payment to store</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-bold">
+            Amount
+            <input
+              className="min-h-11 rounded-lg border border-slate-300 px-3"
+              name="amount"
+              required
+              type="number"
+              step="0.01"
+            />
+          </label>
+          <label className="grid min-w-64 flex-1 gap-1 text-sm font-bold">
+            Documented reason
+            <input
+              className="min-h-11 rounded-lg border border-slate-300 px-3"
+              name="reason"
+              required
+            />
+          </label>
           <button
-            className="min-h-11 rounded-lg border border-slate-300 bg-white px-4 font-bold text-slate-700 disabled:opacity-60"
-            disabled={catchingUp}
-            type="button"
-            onClick={() => void catchUp()}
+            className="min-h-11 rounded-lg border border-slate-300 px-4 font-bold"
+            type="submit"
           >
-            {catchingUp ? 'Checking…' : 'Generate missing drafts'}
+            Record entry
           </button>
+        </form>
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full min-w-[64rem] text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
+                <th className="p-3">Merchant</th>
+                <th className="p-3">Branch</th>
+                <th className="p-3">Accrued period</th>
+                <th className="p-3">Deadline</th>
+                <th className="p-3 text-right">Gross</th>
+                <th className="p-3 text-right">Refunds</th>
+                <th className="p-3 text-right">Commission</th>
+                <th className="p-3 text-right">Rent deducted</th>
+                <th className="p-3 text-right">Adjustments</th>
+                <th className="p-3 text-right">Merchant payments</th>
+                <th className="p-3 text-right">Due</th>
+                <th className="p-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {payables.map((item) => (
+                <tr key={item.merchant.id}>
+                  <td className="p-3 font-bold">{item.merchant.name}</td>
+                  <td className="p-3">
+                    {item.branches.map((branch) => branch.name).join(', ') ||
+                      'No activity'}
+                  </td>
+                  <td className="p-3">
+                    {item.periodStart} – {item.asOf}
+                  </td>
+                  <td className="p-3">{item.nextSettlementDeadline}</td>
+                  {[
+                    item.grossSales,
+                    item.refundTotal,
+                    item.commissionAmount,
+                    item.fixedRentAmount,
+                    item.adjustmentTotal,
+                    item.merchantPaymentTotal,
+                    item.amountDue,
+                  ].map((value, index) => (
+                    <td
+                      className={`p-3 text-right tabular-nums ${index === 6 ? 'font-bold' : ''}`}
+                      key={index}
+                    >
+                      {money.format(Number(value))}
+                    </td>
+                  ))}
+                  <td className="p-3 text-right">
+                    {item.pendingSettlement ? (
+                      <Link
+                        className="font-bold text-emerald-700"
+                        href={`/app/organizations/${organizationId}/settlements/${item.pendingSettlement.id}`}
+                      >
+                        Continue {labels[item.pendingSettlement.status]}
+                      </Link>
+                    ) : (
+                      <button
+                        className="font-bold text-emerald-700 disabled:opacity-60"
+                        disabled={closingMerchantId === item.merchant.id}
+                        onClick={() => void close(item.merchant.id)}
+                        type="button"
+                      >
+                        {closingMerchantId === item.merchant.id
+                          ? 'Closing…'
+                          : 'Settle now'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {payables.some((item) => item.accountEntries.length) ? (
+          <div className="mt-5 rounded-[0.6rem] border border-slate-200 p-4">
+            <h3 className="text-sm font-bold">Unsettled finance entries</h3>
+            <div className="mt-2 divide-y divide-slate-100">
+              {payables.flatMap((item) =>
+                item.accountEntries.map((entry) => (
+                  <div
+                    className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
+                    key={entry.id}
+                  >
+                    <span>
+                      <strong>{item.merchant.name}</strong> ·{' '}
+                      {entry.type === 'MERCHANT_PAYMENT'
+                        ? 'Merchant payment'
+                        : 'Adjustment'}{' '}
+                      · {money.format(Number(entry.amount))}
+                      <span className="ml-2 text-slate-500">{entry.reason}</span>
+                    </span>
+                    {!item.pendingSettlement ? (
+                      <button
+                        className="font-bold text-red-600"
+                        onClick={() =>
+                          void removeEntry(item.merchant.id, entry.id)
+                        }
+                        type="button"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                )),
+              )}
+            </div>
+          </div>
         ) : null}
       </section>
-      {notice ? (
-        <p
-          className="mt-3 text-sm font-semibold text-emerald-700"
-          role="status"
-        >
-          {notice}
-        </p>
-      ) : null}
-      <form
-        className="mt-6 grid gap-4 rounded-xl border border-slate-200 bg-white p-6 md:grid-cols-4"
-        onSubmit={create}
-      >
-        <h2 className="md:col-span-4 text-base font-bold">
-          Create off-cycle settlement
-        </h2>
-        <Field label="Merchant">
-          <select
-            className="min-h-11 rounded-lg border border-slate-300 px-3"
-            name="merchantId"
-            required
-          >
-            <option value="">Select merchant</option>
-            {merchants.map((merchant) => (
-              <option key={merchant.id} value={merchant.id}>
-                {merchant.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Period start">
-          <input
-            className="min-h-11 rounded-lg border border-slate-300 px-3"
-            name="periodStart"
-            type="date"
-            required
-          />
-        </Field>
-        <Field label="Period end">
-          <input
-            className="min-h-11 rounded-lg border border-slate-300 px-3"
-            name="periodEnd"
-            type="date"
-            required
-          />
-        </Field>
-        <Field label="Reason">
-          <input
-            className="min-h-11 rounded-lg border border-slate-300 px-3"
-            name="reason"
-            placeholder="Why is this exceptional settlement needed?"
-            required
-          />
-        </Field>
-        <button
-          className="min-h-11 self-end rounded-lg bg-emerald-600 px-4 font-bold text-white disabled:opacity-60"
-          disabled={creating}
-          type="submit"
-        >
-          {creating ? 'Creating…' : 'Create off-cycle draft'}
-        </button>
-      </form>
+      {confirmationDialog}
       {metrics ? (
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {[
@@ -277,7 +404,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             ['Refunds', metrics.refunds],
             ['Deductions', metrics.deductions],
             ['Amount due', metrics.amountDue],
-            ['Settlements', String(metrics.count)],
+            ['Merchants', String(metrics.count)],
           ].map(([label, value]) => (
             <div
               className="rounded-xl border border-slate-200 bg-white p-4"
@@ -287,7 +414,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 {label}
               </p>
               <p className="mt-2 text-xl font-bold">
-                {label === 'Settlements' ? value : money.format(Number(value))}
+                {label === 'Merchants' ? value : money.format(Number(value))}
               </p>
             </div>
           ))}
@@ -431,17 +558,24 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="grid gap-2 text-sm font-bold">
-      {label}
-      {children}
-    </label>
-  );
+function payableMetrics(items: LiveMerchantPayable[]): SettlementMetrics {
+  const sum = (field: keyof LiveMerchantPayable) =>
+    items.reduce((total, item) => total + Number(item[field]), 0).toFixed(2);
+  return {
+    grossSales: sum('grossSales'),
+    refunds: sum('refundTotal'),
+    netSales: sum('netSales'),
+    deductions: items
+      .reduce(
+        (total, item) =>
+          total +
+          Number(item.commissionAmount) +
+          Number(item.fixedRentAmount) -
+          Number(item.adjustmentTotal),
+        0,
+      )
+      .toFixed(2),
+    amountDue: sum('amountDue'),
+    count: items.length,
+  };
 }
