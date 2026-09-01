@@ -59,6 +59,18 @@ export function nextBusinessDate(date: Date): Date {
   return next;
 }
 
+export function nextScheduledDeadline(
+  deadline: Date,
+  schedule: SettlementSchedule,
+): Date {
+  if (schedule === SettlementSchedule.WEEKLY) {
+    const next = new Date(deadline);
+    next.setUTCDate(next.getUTCDate() + 7);
+    return next;
+  }
+  return normalSettlementPeriod(nextBusinessDate(deadline), schedule).end;
+}
+
 export function philippineDate(value: Date): Date {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila',

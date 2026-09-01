@@ -17,7 +17,7 @@ export const settlementRecordInclude = {
     },
     orderBy: [{ createdAt: 'asc' }, { saleItemId: 'asc' }],
   },
-  adjustments: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+  financeEntries: { orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }] },
   payout: true,
   refundItems: {
     include: {
@@ -72,6 +72,7 @@ export interface SettlementSummaryRecord extends Omit<
   | 'netSales'
   | 'commissionAmount'
   | 'fixedRentAmount'
+  | 'rentAccruedAmount'
   | 'adjustmentTotal'
   | 'netPayout'
   | 'saleItems'
@@ -82,6 +83,7 @@ export interface SettlementSummaryRecord extends Omit<
   netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
+  rentAccruedAmount: string;
   adjustmentTotal: string;
   netPayout: string;
   branches: Array<{ id: string; name: string }>;
@@ -94,11 +96,12 @@ export interface SettlementViewRecord extends Omit<
   | 'netSales'
   | 'commissionAmount'
   | 'fixedRentAmount'
+  | 'rentAccruedAmount'
   | 'adjustmentTotal'
   | 'netPayout'
   | 'terms'
   | 'saleItems'
-  | 'adjustments'
+  | 'financeEntries'
   | 'payout'
   | 'refundItems'
 > {
@@ -107,6 +110,7 @@ export interface SettlementViewRecord extends Omit<
   netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
+  rentAccruedAmount: string;
   adjustmentTotal: string;
   netPayout: string;
   terms: Array<
@@ -119,6 +123,7 @@ export interface SettlementViewRecord extends Omit<
       | 'netSales'
       | 'commissionAmount'
       | 'fixedRentAmount'
+      | 'rentAccruedAmount'
     > & {
       fixedRentRate: string | null;
       commissionRate: string | null;
@@ -127,6 +132,7 @@ export interface SettlementViewRecord extends Omit<
       netSales: string;
       commissionAmount: string;
       fixedRentAmount: string;
+      rentAccruedAmount: string;
     }
   >;
   saleItems: Array<
@@ -138,8 +144,10 @@ export interface SettlementViewRecord extends Omit<
       > & { total: string };
     }
   >;
-  adjustments: Array<
-    Omit<SettlementRecord['adjustments'][number], 'amount'> & { amount: string }
+  financeEntries: Array<
+    Omit<SettlementRecord['financeEntries'][number], 'amount'> & {
+      amount: string;
+    }
   >;
   payout:
     | (Omit<NonNullable<SettlementRecord['payout']>, 'amount'> & {
@@ -158,4 +166,31 @@ export interface SettlementPageRecord {
   total: number;
   offset: number;
   limit: number;
+}
+
+export interface LiveMerchantPayableRecord {
+  merchant: { id: string; name: string; code: string | null };
+  periodStart: string;
+  asOf: string;
+  nextSettlementDeadline: string;
+  schedule: string;
+  grossSales: string;
+  refundTotal: string;
+  netSales: string;
+  commissionAmount: string;
+  fixedRentAmount: string;
+  rentAccruedAmount: string;
+  adjustmentTotal: string;
+  merchantPaymentTotal: string;
+  amountDue: string;
+  branches: Array<{ id: string; name: string }>;
+  pendingSettlement: { id: string; status: string } | null;
+  accountEntries: Array<{
+    id: string;
+    type: string;
+    amount: string;
+    reason: string;
+    occurredAt: Date;
+    createdById: string;
+  }>;
 }

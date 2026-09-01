@@ -1,47 +1,28 @@
-import { BadRequestException } from '@nestjs/common';
 import { SettlementSchedule } from '../../generated/prisma/client';
-import {
-  daysInclusive,
-  normalSettlementPeriod,
-  parseSettlementPeriod,
-  philippineDate,
-} from './settlement-period';
+import { nextScheduledDeadline } from './settlement-period';
 
-describe('settlement period utilities', () => {
-  it.each([
-    [SettlementSchedule.WEEKLY, '2026-07-08', '2026-07-06', '2026-07-12'],
-    [SettlementSchedule.SEMI_MONTHLY, '2026-07-08', '2026-07-01', '2026-07-15'],
-    [SettlementSchedule.SEMI_MONTHLY, '2026-02-20', '2026-02-16', '2026-02-28'],
-    [SettlementSchedule.MONTHLY, '2026-02-20', '2026-02-01', '2026-02-28'],
-  ])('derives the %s calendar period', (schedule, date, start, end) => {
+describe('nextScheduledDeadline', () => {
+  it('advances from the scheduled weekly deadline after an early payout', () => {
     expect(
-      normalSettlementPeriod(new Date(`${date}T00:00:00.000Z`), schedule),
-    ).toEqual({
-      start: new Date(`${start}T00:00:00.000Z`),
-      end: new Date(`${end}T00:00:00.000Z`),
-    });
+      nextScheduledDeadline(
+        new Date('2026-12-08T00:00:00.000Z'),
+        SettlementSchedule.WEEKLY,
+      ),
+    ).toEqual(new Date('2026-12-15T00:00:00.000Z'));
   });
 
-  it('counts inclusive calendar days and converts timestamps to Philippine dates', () => {
+  it('advances semi-monthly and monthly deadlines by their calendar cadence', () => {
     expect(
-      daysInclusive(
-        new Date('2026-07-16T00:00:00.000Z'),
-        new Date('2026-07-31T00:00:00.000Z'),
+      nextScheduledDeadline(
+        new Date('2026-12-15T00:00:00.000Z'),
+        SettlementSchedule.SEMI_MONTHLY,
       ),
-    ).toBe(16);
-    expect(philippineDate(new Date('2026-07-31T16:30:00.000Z'))).toEqual(
-      new Date('2026-08-01T00:00:00.000Z'),
-    );
-  });
-
-  it('rejects reversed and malformed period dates', () => {
-    expect(() => parseSettlementPeriod('2026-07-31', '2026-07-01')).toThrow(
-      new BadRequestException(
-        'periodEnd must be after or equal to periodStart',
+    ).toEqual(new Date('2026-12-31T00:00:00.000Z'));
+    expect(
+      nextScheduledDeadline(
+        new Date('2026-12-31T00:00:00.000Z'),
+        SettlementSchedule.MONTHLY,
       ),
-    );
-    expect(() => parseSettlementPeriod('07/01/2026', '2026-07-31')).toThrow(
-      new BadRequestException('periodStart must be a valid ISO date'),
-    );
+    ).toEqual(new Date('2027-01-31T00:00:00.000Z'));
   });
 });

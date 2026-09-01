@@ -21,7 +21,7 @@ describe('Milestone 6 merchant finance data model', () => {
         MerchantSettlement: 'MerchantSettlement',
         SettlementTermSnapshot: 'SettlementTermSnapshot',
         SettlementSaleItem: 'SettlementSaleItem',
-        SettlementAdjustment: 'SettlementAdjustment',
+        MerchantFinanceEntry: 'MerchantFinanceEntry',
         MerchantPayout: 'MerchantPayout',
       }),
     );

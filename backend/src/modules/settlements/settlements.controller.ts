@@ -7,7 +7,6 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
-  Patch,
   Post,
   Query,
   UseGuards,
@@ -16,7 +15,6 @@ import {
   ApiBearerAuth,
   ApiBadRequestResponse,
   ApiConflictResponse,
-  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -24,10 +22,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import {
-  OrganizationRole,
-  SettlementGenerationType,
-} from '../../generated/prisma/client';
+import { OrganizationRole } from '../../generated/prisma/client';
 import {
   SettlementPageResponseDto,
   SettlementResponseDto,
@@ -37,13 +32,10 @@ import { OrganizationAccessGuard } from '../organizations/authorization/organiza
 import type { OrganizationContext } from '../organizations/authorization/organization-authorization.types';
 import { CurrentOrganization } from '../organizations/authorization/organization-context.decorator';
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
-import { CreateOffCycleSettlementDto } from './dto/create-off-cycle-settlement.dto';
-import { CreateSettlementDto } from './dto/create-settlement.dto';
 import { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
 import { RecordPayoutDto } from './dto/record-payout.dto';
-import { SettlementAdjustmentDto } from './dto/settlement-adjustment.dto';
+import { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
 import { SettlementsService } from './settlements.service';
-import { SettlementSchedulerService } from './settlement-scheduler.service';
 import type {
   SettlementPageRecord,
   SettlementViewRecord,
@@ -58,19 +50,68 @@ import type {
 @ApiNotFoundResponse({ description: 'Settlement or merchant was not found' })
 @Controller('organizations/:organizationId/settlements')
 export class SettlementsController {
-  constructor(
-    private readonly settlementsService: SettlementsService,
-    private readonly settlementScheduler: SettlementSchedulerService,
-  ) {}
+  constructor(private readonly settlementsService: SettlementsService) {}
 
-  @Post('generate-missing')
-  @HttpCode(HttpStatus.OK)
-  @OrganizationRoles(OrganizationRole.OWNER)
+  @Get('payables')
+  @ApiOperation({ summary: 'List live accrued merchant payables' })
+  findLivePayables(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query('merchantId') merchantId?: string,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this.settlementsService.findLivePayables(
+      organization.organizationId,
+      merchantId,
+      branchId,
+    );
+  }
+
+  @Post('payables/:merchantId/close')
   @ApiOperation({
-    summary: 'Run settlement generation catch-up for due periods',
+    summary: 'Close the current live payable into a draft snapshot',
   })
-  generateMissing(@CurrentOrganization() organization: OrganizationContext) {
-    return this.settlementScheduler.generateDue(organization.organizationId);
+  closeLivePayable(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
+    merchantId: string,
+  ) {
+    return this.settlementsService.closeLivePayable(
+      organization.organizationId,
+      merchantId,
+      organization.userId,
+    );
+  }
+
+  @Post('payables/:merchantId/entries')
+  @ApiOperation({ summary: 'Record an adjustment or merchant payment' })
+  addAccountEntry(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
+    merchantId: string,
+    @Body() dto: MerchantAccountEntryDto,
+  ) {
+    return this.settlementsService.addAccountEntry(
+      organization.organizationId,
+      merchantId,
+      organization.userId,
+      dto,
+    );
+  }
+
+  @Delete('payables/:merchantId/entries/:entryId')
+  @ApiOperation({ summary: 'Remove an unsettled merchant account entry' })
+  removeAccountEntry(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
+    merchantId: string,
+    @Param('entryId', new ParseUUIDPipe({ version: '4' })) entryId: string,
+  ) {
+    return this.settlementsService.removeAccountEntry(
+      organization.organizationId,
+      merchantId,
+      entryId,
+      organization.userId,
+    );
   }
 
   @Get()
@@ -106,128 +147,15 @@ export class SettlementsController {
     );
   }
 
-  @Post()
-  @OrganizationRoles(OrganizationRole.OWNER)
-  @ApiOperation({ summary: 'Manually recover a scheduled settlement draft' })
-  @ApiCreatedResponse({ type: SettlementResponseDto })
-  @ApiBadRequestResponse({ description: 'Settlement period is invalid' })
-  @ApiConflictResponse({
-    description: 'Agreement coverage, overlap, or concurrent finance conflict',
-  })
-  generate(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Body() dto: CreateSettlementDto,
-  ): Promise<SettlementViewRecord> {
-    return this.settlementsService.generateDraft(
-      organization.organizationId,
-      dto.merchantId,
-      organization.userId,
-      dto.periodStart,
-      dto.periodEnd,
-    );
-  }
-
-  @Post('off-cycle')
-  @ApiOperation({
-    summary: 'Generate an exceptional off-cycle settlement draft',
-  })
-  @ApiCreatedResponse({ type: SettlementResponseDto })
-  generateOffCycle(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Body() dto: CreateOffCycleSettlementDto,
-  ): Promise<SettlementViewRecord> {
-    return this.settlementsService.generateDraft(
-      organization.organizationId,
-      dto.merchantId,
-      organization.userId,
-      dto.periodStart,
-      dto.periodEnd,
-      {
-        generationType: SettlementGenerationType.OFF_CYCLE,
-        generationReason: dto.reason,
-        excludeFixedRent: true,
-      },
-    );
-  }
-
-  @Post(':settlementId/recalculate')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Recalculate a draft settlement' })
-  @ApiOkResponse({ type: SettlementResponseDto })
-  @ApiConflictResponse({ description: 'The settlement is not a draft' })
-  recalculate(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
-    settlementId: string,
-  ): Promise<SettlementViewRecord> {
-    return this.settlementsService.recalculateDraft(
-      organization.organizationId,
-      settlementId,
-      organization.userId,
-    );
-  }
-
-  @Post(':settlementId/adjustments')
-  @ApiOperation({ summary: 'Add a draft settlement adjustment' })
-  @ApiCreatedResponse({ type: SettlementResponseDto })
-  @ApiConflictResponse({ description: 'The settlement is not a draft' })
-  addAdjustment(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
-    settlementId: string,
-    @Body() dto: SettlementAdjustmentDto,
-  ): Promise<SettlementViewRecord> {
-    return this.settlementsService.addAdjustment(
-      organization.organizationId,
-      settlementId,
-      organization.userId,
-      dto,
-    );
-  }
-
-  @Post(':settlementId/review')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Mark a draft settlement as reviewed' })
-  @ApiOkResponse({ type: SettlementResponseDto })
-  @ApiConflictResponse({ description: 'The settlement is not a draft' })
-  review(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
-    settlementId: string,
-  ): Promise<SettlementViewRecord> {
-    return this.settlementsService.review(
-      organization.organizationId,
-      settlementId,
-      organization.userId,
-    );
-  }
-
-  @Post(':settlementId/return-to-draft')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Return a reviewed settlement to draft' })
-  @ApiOkResponse({ type: SettlementResponseDto })
-  @ApiConflictResponse({ description: 'The settlement is not reviewed' })
-  returnToDraft(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
-    settlementId: string,
-  ): Promise<SettlementViewRecord> {
-    return this.settlementsService.returnToDraft(
-      organization.organizationId,
-      settlementId,
-      organization.userId,
-    );
-  }
-
   @Post(':settlementId/approve')
   @HttpCode(HttpStatus.OK)
   @OrganizationRoles(OrganizationRole.OWNER)
-  @ApiOperation({ summary: 'Approve a reviewed settlement' })
+  @ApiOperation({ summary: 'Approve and lock a draft settlement' })
   @ApiOkResponse({ type: SettlementResponseDto })
   @ApiForbiddenResponse({
     description: 'Only an owner can approve settlements',
   })
-  @ApiConflictResponse({ description: 'The settlement is not reviewed' })
+  @ApiConflictResponse({ description: 'The settlement cannot be approved' })
   approve(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
@@ -265,46 +193,6 @@ export class SettlementsController {
       settlementId,
       organization.userId,
       dto,
-    );
-  }
-
-  @Patch(':settlementId/adjustments/:adjustmentId')
-  @ApiOperation({ summary: 'Edit a draft settlement adjustment' })
-  @ApiOkResponse({ type: SettlementResponseDto })
-  @ApiConflictResponse({ description: 'The settlement is not a draft' })
-  updateAdjustment(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
-    settlementId: string,
-    @Param('adjustmentId', new ParseUUIDPipe({ version: '4' }))
-    adjustmentId: string,
-    @Body() dto: SettlementAdjustmentDto,
-  ): Promise<SettlementViewRecord> {
-    return this.settlementsService.updateAdjustment(
-      organization.organizationId,
-      settlementId,
-      adjustmentId,
-      organization.userId,
-      dto,
-    );
-  }
-
-  @Delete(':settlementId/adjustments/:adjustmentId')
-  @ApiOperation({ summary: 'Remove a draft settlement adjustment' })
-  @ApiOkResponse({ type: SettlementResponseDto })
-  @ApiConflictResponse({ description: 'The settlement is not a draft' })
-  removeAdjustment(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
-    settlementId: string,
-    @Param('adjustmentId', new ParseUUIDPipe({ version: '4' }))
-    adjustmentId: string,
-  ): Promise<SettlementViewRecord> {
-    return this.settlementsService.removeAdjustment(
-      organization.organizationId,
-      settlementId,
-      adjustmentId,
-      organization.userId,
     );
   }
 }

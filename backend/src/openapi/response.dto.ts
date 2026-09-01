@@ -872,6 +872,13 @@ export class SettlementSummaryResponseDto {
   @ApiProperty({ format: 'date', example: '2026-07-31' })
   periodEnd!: Date;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    format: 'date',
+    example: '2026-08-02',
+  })
+  scheduledDeadline!: Date | null;
+
   @ApiProperty({ enum: SettlementSchedule })
   schedule!: SettlementSchedule;
 

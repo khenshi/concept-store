@@ -1,7 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsEnum, IsOptional, Matches } from 'class-validator';
-import { SettlementSchedule } from '../../../generated/prisma/client';
+import {
+  RentCollectionMethod,
+  RentDeductionTiming,
+  SettlementSchedule,
+} from '../../../generated/prisma/client';
 import { trimOptionalDecimal } from './agreement-dto.transforms';
 
 const POSITIVE_MONEY_PATTERN =
@@ -43,6 +47,24 @@ export class CreateMerchantAgreementDto {
   @ApiProperty({ enum: SettlementSchedule })
   @IsEnum(SettlementSchedule)
   settlementSchedule!: SettlementSchedule;
+
+  @ApiPropertyOptional({
+    enum: RentCollectionMethod,
+    default: RentCollectionMethod.DEDUCT_FROM_PAYOUT,
+  })
+  @IsOptional()
+  @IsEnum(RentCollectionMethod)
+  rentCollectionMethod: RentCollectionMethod =
+    RentCollectionMethod.DEDUCT_FROM_PAYOUT;
+
+  @ApiPropertyOptional({
+    enum: RentDeductionTiming,
+    default: RentDeductionTiming.FIRST_SETTLEMENT_OF_MONTH,
+  })
+  @IsOptional()
+  @IsEnum(RentDeductionTiming)
+  rentDeductionTiming: RentDeductionTiming =
+    RentDeductionTiming.FIRST_SETTLEMENT_OF_MONTH;
 }
 
 export { COMMISSION_PATTERN, POSITIVE_MONEY_PATTERN };

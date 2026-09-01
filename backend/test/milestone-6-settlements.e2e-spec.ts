@@ -14,7 +14,6 @@ import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
 import { SettlementsController } from '../src/modules/settlements/settlements.controller';
 import { SettlementsService } from '../src/modules/settlements/settlements.service';
-import { SettlementSchedulerService } from '../src/modules/settlements/settlement-scheduler.service';
 
 const OWNER_ID = '11111111-1111-4111-8111-111111111111';
 const MANAGER_ID = '22222222-2222-4222-8222-222222222222';
@@ -30,8 +29,12 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
   const settlementsService = {
-    generateDraft: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
-    recalculateDraft: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    findLivePayables: jest.fn().mockResolvedValue([]),
+    closeLivePayable: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
+    addLiveAdjustment: jest.fn().mockResolvedValue({ merchantId: MERCHANT_ID }),
+    removeLiveAdjustment: jest
+      .fn()
+      .mockResolvedValue({ merchantId: MERCHANT_ID }),
     addAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     updateAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
     removeAdjustment: jest.fn().mockResolvedValue({ id: SETTLEMENT_ID }),
@@ -97,14 +100,6 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
         Reflector,
         { provide: PrismaService, useValue: prismaService },
         { provide: SettlementsService, useValue: settlementsService },
-        {
-          provide: SettlementSchedulerService,
-          useValue: {
-            generateDue: jest
-              .fn()
-              .mockResolvedValue({ generated: 0, skipped: 0 }),
-          },
-        },
       ],
     }).compile();
     app = moduleRef.createNestApplication();
@@ -155,56 +150,32 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     expect(settlementsService.findAll).not.toHaveBeenCalled();
   });
 
-  it('allows an owner to recover a scheduled draft with validated dates', async () => {
+  it('allows owners and managers to close the live payable early', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())
-      .post(`/organizations/${ORGANIZATION_ID}/settlements`)
+      .post(
+        `/organizations/${ORGANIZATION_ID}/settlements/payables/${MERCHANT_ID}/close`,
+      )
       .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
-      .send({
-        merchantId: MERCHANT_ID,
-        periodStart: '2026-07-01',
-        periodEnd: '2026-07-31',
-      })
       .expect(201, { id: SETTLEMENT_ID });
-    expect(settlementsService.generateDraft).toHaveBeenCalledWith(
+    expect(settlementsService.closeLivePayable).toHaveBeenCalledWith(
       ORGANIZATION_ID,
       MERCHANT_ID,
       OWNER_ID,
-      '2026-07-01',
-      '2026-07-31',
     );
   });
 
-  it('rejects malformed or client-calculated settlement input', async () => {
+  it('lists live payables through trusted tenant context', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())
-      .post(`/organizations/${ORGANIZATION_ID}/settlements`)
+      .get(`/organizations/${ORGANIZATION_ID}/settlements/payables`)
       .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
-      .send({
-        merchantId: MERCHANT_ID,
-        periodStart: '07/01/2026',
-        periodEnd: '2026-07-31',
-        netPayout: '999999.00',
-      })
-      .expect(400);
-    expect(settlementsService.generateDraft).not.toHaveBeenCalled();
-  });
-
-  it('forbids managers from using the scheduled recovery endpoint', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    await request(app.getHttpServer())
-      .post(`/organizations/${ORGANIZATION_ID}/settlements`)
-      .set(
-        'Authorization',
-        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
-      )
-      .send({
-        merchantId: MERCHANT_ID,
-        periodStart: '2026-07-01',
-        periodEnd: '2026-07-31',
-      })
-      .expect(403);
-    expect(settlementsService.generateDraft).not.toHaveBeenCalled();
+      .expect(200, []);
+    expect(settlementsService.findLivePayables).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      undefined,
+      undefined,
+    );
   });
 
   it('validates and forwards organization settlement filters', async () => {
@@ -250,24 +221,6 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
     expect(settlementsService.findOne).toHaveBeenCalledWith(
       ORGANIZATION_ID,
       SETTLEMENT_ID,
-    );
-  });
-
-  it('recalculates a draft using trusted tenant and actor context', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    await request(app.getHttpServer())
-      .post(
-        `/organizations/${ORGANIZATION_ID}/settlements/${SETTLEMENT_ID}/recalculate`,
-      )
-      .set(
-        'Authorization',
-        `Bearer ${token(MANAGER_ID, 'manager@example.com')}`,
-      )
-      .expect(200, { id: SETTLEMENT_ID });
-    expect(settlementsService.recalculateDraft).toHaveBeenCalledWith(
-      ORGANIZATION_ID,
-      SETTLEMENT_ID,
-      MANAGER_ID,
     );
   });
 
@@ -470,7 +423,7 @@ describe('Milestone 6 settlement read and generation API (e2e)', () => {
       '"/organizations/{organizationId}/settlements/{settlementId}"',
     );
     expect(response.text).toContain(
-      '"/organizations/{organizationId}/settlements/{settlementId}/recalculate"',
+      '"/organizations/{organizationId}/settlements/payables/{merchantId}/close"',
     );
     expect(response.text).toContain(
       '"/organizations/{organizationId}/settlements/{settlementId}/adjustments/{adjustmentId}"',
