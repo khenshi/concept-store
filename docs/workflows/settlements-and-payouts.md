@@ -1,20 +1,20 @@
-# Settlements and Payouts
+# Merchant Finance: Live Payables and Payouts
 
 **Status:** Current reference
 
 ## Lifecycle
 
 ```text
-Sales and refunds
-  → settlement period closes
-  → draft generated
-  → owner/manager review and adjustments
+Eligible sales, refunds, and adjustments accrue into a live payable
+  → owner/manager closes the balance on schedule or early
+  → source-linked draft snapshot
   → owner approval and lock
   → payout recorded
   → paid
 ```
 
-Statuses are `DRAFT`, `REVIEWED`, `APPROVED`, and `PAID`.
+The active workflow uses `DRAFT`, `APPROVED`, and `PAID`. Historical
+`REVIEWED` records remain readable and can still be approved.
 
 ## Calculation
 
@@ -23,33 +23,51 @@ Gross sales
 − completed refunds
 = net sales
 − commission
-− fixed rent
+− rent deducted under the agreement policy
 ± documented adjustments
 = amount due
 ```
 
-Commission is calculated from net sales after refunds. Fixed rent is derived
-from agreement segments and prorated where terms cover only part of the period.
-Calculations use server-side decimal arithmetic.
+Commission is calculated from net sales after refunds. Rent accrues daily for
+visibility, while its payout deduction follows the agreement:
 
-## Generation
+- `DEDUCT_FROM_PAYOUT` deducts rent automatically. The agreement selects the
+  first settlement of the month, last settlement of the month, or prorated
+  deduction on every settlement.
+- `PAID_SEPARATELY` shows accrued rent but does not reduce the merchant payout.
 
-Scheduled settlements are generated automatically after weekly, semi-monthly,
-or monthly periods close. Deterministic generation keys make catch-up safe and
-idempotent.
+New agreements default to automatic deduction on the first settlement of the
+month. Calculations use server-side decimal arithmetic.
 
-Owners can recover a missing scheduled draft manually. Exceptional off-cycle
-drafts require a documented reason and do not duplicate normal fixed-rent
-charges.
+## Live payable and closure
 
-## Review and adjustments
+The overview is calculated directly from eligible financial activity that has
+not been included in a paid settlement. It does not depend on a settlement row
+existing. It shows each merchant's gross sales, refunds, commission, prorated
+rent, documented adjustments, amount due, branches with activity, agreement
+schedule, and next deadline.
 
-Draft settlements may be recalculated while preserving explicit adjustments.
-Adjustments are signed amounts with mandatory reasons and actor history. Owners
-and managers can review or return a reviewed settlement to draft.
+Closing the payable creates a source-linked draft snapshot in a serializable
+transaction. Owners and managers may close early. The snapshot records both the
+actual closure date and its scheduled deadline. Until payout, that snapshot
+remains part of the live amount and no second closure is allowed.
 
-Only owners can approve. Approval snapshots and locks the calculation so later
-agreement or transaction edits cannot silently change it.
+After payout, its linked activity is excluded. The next deadline advances from
+the prior scheduled deadline—not the early payout date—so a weekly December 8
+deadline paid on December 5 advances to December 15.
+
+## Adjustments and merchant payments
+
+Adjustments are signed amounts with mandatory reasons and actor history. They
+accrue before closure and are attached atomically to the snapshot.
+
+Merchant payments to the owner are recorded separately for visibility and
+audit. They do not reduce the payout because they settle an obligation outside
+the merchant-owned sales balance.
+
+Owners and managers can inspect and close the live payable. Only owners can
+approve. Approval locks the snapshot so later agreement or transaction edits
+cannot silently change it.
 
 ## Payouts
 
@@ -62,7 +80,8 @@ Automatic bank payouts and accounting integrations are not implemented.
 
 ## Visibility and audit
 
-The settlement overview supports merchant, branch activity, period, and status
-filters with summary metrics. Detail includes calculation breakdown, source
-sales and refunds, agreement snapshots, adjustments, payout information, and an
-append-only lifecycle history.
+The live overview supports merchant and branch filters with live summary
+metrics. Historical snapshots remain in a separate register with period and
+status filters. Detail includes calculation breakdown, source
+sales and refunds, agreement snapshots, finance entries, payout information,
+and an append-only lifecycle history.

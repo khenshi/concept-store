@@ -2,14 +2,16 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   AgreementStatus,
   InventoryMovementType,
+  MerchantAccountEntryType,
   MerchantStatus,
   OrganizationRole,
   PaymentMethod,
   ProductStatus,
   PayoutMethod,
+  RentCollectionMethod,
+  RentDeductionTiming,
   SettlementSchedule,
   SettlementStatus,
-  SettlementGenerationType,
   SpaceStatus,
   SpaceType,
 } from '../generated/prisma/client';
@@ -816,6 +818,12 @@ export class MerchantAgreementResponseDto {
   @ApiPropertyOptional({ nullable: true, type: String, example: '5.00' })
   commissionRate!: string | null;
 
+  @ApiProperty({ enum: RentCollectionMethod })
+  rentCollectionMethod!: RentCollectionMethod;
+
+  @ApiProperty({ enum: RentDeductionTiming })
+  rentDeductionTiming!: RentDeductionTiming;
+
   @ApiProperty({ enum: SettlementSchedule })
   settlementSchedule!: SettlementSchedule;
 
@@ -885,9 +893,6 @@ export class SettlementSummaryResponseDto {
   @ApiProperty({ enum: SettlementStatus })
   status!: SettlementStatus;
 
-  @ApiProperty({ enum: SettlementGenerationType })
-  generationType!: SettlementGenerationType;
-
   @ApiProperty({ type: String, example: '50000.00' })
   grossSales!: string;
 
@@ -903,6 +908,9 @@ export class SettlementSummaryResponseDto {
   @ApiProperty({ type: String, example: '2000.00' })
   fixedRentAmount!: string;
 
+  @ApiProperty({ type: String, example: '2000.00' })
+  rentAccruedAmount!: string;
+
   @ApiProperty({ type: String, example: '0.00' })
   adjustmentTotal!: string;
 
@@ -914,12 +922,6 @@ export class SettlementSummaryResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   calculatedAt!: Date;
-
-  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
-  reviewedById!: string | null;
-
-  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
-  reviewedAt!: Date | null;
 
   @ApiPropertyOptional({ nullable: true, format: 'uuid' })
   approvedById!: string | null;
@@ -967,6 +969,12 @@ export class SettlementTermResponseDto {
   @ApiProperty({ enum: SettlementSchedule })
   schedule!: SettlementSchedule;
 
+  @ApiProperty({ enum: RentCollectionMethod })
+  rentCollectionMethod!: RentCollectionMethod;
+
+  @ApiProperty({ enum: RentDeductionTiming })
+  rentDeductionTiming!: RentDeductionTiming;
+
   @ApiPropertyOptional({ nullable: true, type: String })
   fixedRentRate!: string | null;
 
@@ -981,6 +989,9 @@ export class SettlementTermResponseDto {
 
   @ApiProperty({ type: String })
   fixedRentAmount!: string;
+
+  @ApiProperty({ type: String })
+  rentAccruedAmount!: string;
 }
 
 export class SettlementSaleSourceResponseDto {
@@ -1020,9 +1031,12 @@ export class SettlementSaleItemResponseDto {
   saleItem!: SettlementSaleSourceResponseDto;
 }
 
-export class SettlementAdjustmentResponseDto {
+export class MerchantFinanceEntryResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
+
+  @ApiProperty({ enum: MerchantAccountEntryType })
+  type!: MerchantAccountEntryType;
 
   @ApiProperty({ type: String, example: '-500.00' })
   amount!: string;
@@ -1035,6 +1049,9 @@ export class SettlementAdjustmentResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   createdAt!: Date;
+
+  @ApiProperty({ format: 'date-time' })
+  occurredAt!: Date;
 }
 
 export class MerchantPayoutResponseDto {
@@ -1067,8 +1084,8 @@ export class SettlementResponseDto extends SettlementSummaryResponseDto {
   @ApiProperty({ type: SettlementSaleItemResponseDto, isArray: true })
   saleItems!: SettlementSaleItemResponseDto[];
 
-  @ApiProperty({ type: SettlementAdjustmentResponseDto, isArray: true })
-  adjustments!: SettlementAdjustmentResponseDto[];
+  @ApiProperty({ type: MerchantFinanceEntryResponseDto, isArray: true })
+  financeEntries!: MerchantFinanceEntryResponseDto[];
 
   @ApiPropertyOptional({ nullable: true, type: MerchantPayoutResponseDto })
   payout!: MerchantPayoutResponseDto | null;

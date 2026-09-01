@@ -19,7 +19,8 @@ server-authoritative.
 - Settlement term snapshots preserve the agreements used for each calculation.
 - Approved settlements are locked and are not recomputed from mutable current
   agreements.
-- Adjustments are explicit signed records with documented reasons.
+- Adjustments and merchant payments are explicit records with documented
+  reasons; merchant payments do not alter payout calculations.
 - Refund, approval, payout, and settlement lifecycle actions retain actor and
   timestamp history.
 
@@ -30,7 +31,7 @@ including:
 
 - checkout, payment recording, inventory deduction, and movement creation;
 - refund creation and returned-stock movements;
-- settlement generation and source linking;
+- live payable closure, pending-adjustment capture, and source linking;
 - settlement lifecycle transitions; and
 - payout recording.
 
@@ -42,14 +43,16 @@ could duplicate or invalidate financial state.
 Gross customer sales are not store revenue.
 
 - Merchant gross sales belong to merchants before deductions.
-- Store-earned revenue consists of finalized commission, fixed rent, and the
-  effect of settlement adjustments.
+- Store-earned revenue consists of finalized commission, deducted rent, and the
+  effect of finance adjustments. Separately paid rent is not recognized again
+  through a payout deduction.
 - Reporting recognizes these values from approved or paid settlement snapshots,
-  not from draft or reviewed settlements.
+  not from open live balances or draft settlements.
 
 ## Idempotency and immutability
 
 Online checkout uses a client transaction ID to prevent duplicate sales during
-retries. Scheduled settlement generation uses deterministic keys to prevent
-duplicate periods. Finalized financial records are corrected through explicit
-follow-up actions rather than silent mutation.
+retries. Settlement source links prevent activity from being paid twice, and a
+merchant cannot open another closure while one is unpaid. Finalized financial
+records are corrected through explicit follow-up actions rather than silent
+mutation.

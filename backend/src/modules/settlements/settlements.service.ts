@@ -136,7 +136,6 @@ export class SettlementsService {
       context.periodStart.toISOString().slice(0, 10),
       context.asOf.toISOString().slice(0, 10),
       {
-        generationReason: 'Live payable closure',
         liveClosure: true,
         scheduledDeadline: context.deadline,
       },
@@ -205,7 +204,6 @@ export class SettlementsService {
     periodStart: string,
     periodEnd: string,
     options: {
-      generationReason?: string;
       liveClosure?: boolean;
       scheduledDeadline?: Date;
     } = {},
@@ -271,7 +269,6 @@ export class SettlementsService {
               periodEnd: period.end,
               scheduledDeadline: options.scheduledDeadline ?? period.end,
               schedule: calculation.schedule,
-              generationReason: options.generationReason,
               grossSales: calculation.grossSales,
               refundTotal: calculation.refundTotal,
               netSales: calculation.netSales,
@@ -342,7 +339,7 @@ export class SettlementsService {
               settlementId: settlement.id,
               actorId: calculatedById,
               type: SettlementAuditEventType.MANUALLY_GENERATED,
-              reason: options.generationReason,
+              reason: options.liveClosure ? 'Live payable closure' : undefined,
             },
           });
 

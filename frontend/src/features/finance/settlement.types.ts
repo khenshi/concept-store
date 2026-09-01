@@ -11,7 +11,6 @@ export interface SettlementSummary {
   scheduledDeadline: string | null;
   schedule: SettlementSchedule;
   status: SettlementStatus;
-  generationType: 'SCHEDULED' | 'OFF_CYCLE';
   grossSales: string;
   refundTotal: string;
   netSales: string;
@@ -22,8 +21,6 @@ export interface SettlementSummary {
   netPayout: string;
   calculatedById: string;
   calculatedAt: string;
-  reviewedById: string | null;
-  reviewedAt: string | null;
   approvedById: string | null;
   approvedAt: string | null;
   createdAt: string;

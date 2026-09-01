@@ -4,21 +4,22 @@
 
 ## Goal
 
-Replace manual merchant remittance calculations with scheduled, reviewable,
-auditable settlements and payout recording.
+Replace manual merchant finance tracking with live accrued payables, auditable
+settlement closures, and payout recording.
 
 ## Delivered
 
 - Settlement periods based on merchant agreement schedules.
-- Automatic idempotent generation and missed-period catch-up.
+- Live accrued payables independent of settlement records.
 - Gross sales, completed refunds, net sales, commission, rent, adjustments, and
   amount-due calculations.
 - Agreement-term snapshots and source sale/refund links.
-- Draft recalculation and documented signed adjustments.
-- Draft, reviewed, approved, and paid lifecycle.
+- Early or scheduled closure into source-linked snapshots and documented signed
+  adjustments.
+- Draft, approved, and paid lifecycle. Legacy reviewed records remain readable.
 - Owner-only approval and payout recording.
 - Locked approved settlement history and append-only audit events.
-- Exceptional off-cycle settlements with documented reasons.
+- Deadlines that advance on the agreement cadence even after an early payout.
 - Filtered overview, summary metrics, detailed calculation breakdown, source
   transactions, payout information, and lifecycle history.
 
@@ -33,13 +34,14 @@ agreement segments and is prorated where necessary.
 
 ## Important rules
 
-- Scheduled periods must be closed before generation.
+- A live payable can be closed early; only one unpaid closure may exist per
+  merchant.
 - A source sale or refund item cannot be settled twice.
-- Drafts may change; approved and paid settlements cannot be silently
-  recalculated.
-- Owners and managers review; only owners approve and record payouts.
+- Finance entries may be changed while still live; approved and paid
+  settlements cannot be silently recalculated.
+- Owners and managers inspect and close; only owners approve and record payouts.
 - One payout records the exact approved amount.
-- Off-cycle settlements do not duplicate normal fixed-rent charges.
+- Paid source activity is excluded from subsequent live balances.
 
 ## Security and integrity result
 
