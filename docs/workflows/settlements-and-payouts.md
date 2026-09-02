@@ -43,9 +43,11 @@ month. Calculations use server-side decimal arithmetic.
 
 The overview is calculated directly from eligible financial activity that has
 not been included in a paid settlement. It does not depend on a settlement row
-existing. It shows each merchant's gross sales, refunds, commission, prorated
-rent, documented adjustments, amount due, branches with activity, agreement
-schedule, and next deadline.
+existing. Every active merchant remains visible: ready accounts show their live
+balance, zero-activity accounts remain at zero, and merchants without a current
+agreement show an agreement-required state. The overview shows gross sales,
+refunds, commission, prorated rent, documented adjustments, amount due,
+configured/activity branches, agreement schedule, and next deadline.
 
 Closing the payable creates a source-linked draft snapshot in a serializable
 transaction. Owners and managers may close early. The snapshot records both the

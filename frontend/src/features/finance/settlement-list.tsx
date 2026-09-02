@@ -38,7 +38,7 @@ const labels: Record<SettlementStatus, string> = {
 function message(cause: unknown): string {
   return cause instanceof ApiError
     ? cause.message
-    : 'The settlements could not be loaded.';
+    : 'Merchant finance data could not be loaded.';
 }
 
 export function SettlementList({ organizationId }: { organizationId: string }) {
@@ -70,30 +70,31 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const filters = {
+    const filters = {
+      merchantId: merchantId || undefined,
+      branchId: branchId || undefined,
+      status: (status || undefined) as SettlementStatus | undefined,
+      periodFrom: periodFrom || undefined,
+      periodTo: periodTo || undefined,
+      limit: 100,
+    };
+    const [historyResult, liveResult] = await Promise.allSettled([
+      listSettlements(request, organizationId, filters),
+      listLivePayables(request, organizationId, {
         merchantId: merchantId || undefined,
         branchId: branchId || undefined,
-        status: (status || undefined) as SettlementStatus | undefined,
-        periodFrom: periodFrom || undefined,
-        periodTo: periodTo || undefined,
-        limit: 100,
-      };
-      const [result, live] = await Promise.all([
-        listSettlements(request, organizationId, filters),
-        listLivePayables(request, organizationId, {
-          merchantId: merchantId || undefined,
-          branchId: branchId || undefined,
-        }),
-      ]);
-      setPage(result);
-      setMetrics(payableMetrics(live));
-      setPayables(live);
-    } catch (cause) {
-      setError(message(cause));
-    } finally {
-      setLoading(false);
+      }),
+    ]);
+    if (historyResult.status === 'fulfilled') setPage(historyResult.value);
+    if (liveResult.status === 'fulfilled') {
+      setMetrics(payableMetrics(liveResult.value));
+      setPayables(liveResult.value);
     }
+    const failed = [historyResult, liveResult].find(
+      (result) => result.status === 'rejected',
+    );
+    if (failed?.status === 'rejected') setError(message(failed.reason));
+    setLoading(false);
   }, [
     branchId,
     merchantId,
@@ -105,47 +106,9 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   ]);
 
   useEffect(() => {
-    let active = true;
-    const filters = {
-      merchantId: merchantId || undefined,
-      branchId: branchId || undefined,
-      status: (status || undefined) as SettlementStatus | undefined,
-      periodFrom: periodFrom || undefined,
-      periodTo: periodTo || undefined,
-      limit: 100,
-    };
-    void Promise.all([
-      listSettlements(request, organizationId, filters),
-      listLivePayables(request, organizationId, {
-        merchantId: merchantId || undefined,
-        branchId: branchId || undefined,
-      }),
-    ])
-      .then(([result, live]) => {
-        if (active) {
-          setPage(result);
-          setMetrics(payableMetrics(live));
-          setPayables(live);
-        }
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(message(cause));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [
-    branchId,
-    merchantId,
-    organizationId,
-    periodFrom,
-    periodTo,
-    request,
-    status,
-  ]);
+    const timeout = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timeout);
+  }, [load]);
   useEffect(() => {
     if (merchantsStatus === 'idle') void loadMerchants().catch(() => undefined);
   }, [loadMerchants, merchantsStatus]);
@@ -245,7 +208,11 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             >
               <option value="">Select merchant</option>
               {payables
-                .filter((item) => !item.pendingSettlement)
+                .filter(
+                  (item) =>
+                    item.financeStatus !== 'AGREEMENT_REQUIRED' &&
+                    !item.pendingSettlement,
+                )
                 .map((item) => (
                   <option key={item.merchant.id} value={item.merchant.id}>
                     {item.merchant.name}
@@ -260,7 +227,9 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
               name="type"
             >
               <option value="ADJUSTMENT">Balance adjustment</option>
-              <option value="MERCHANT_PAYMENT">Merchant payment to store</option>
+              <option value="MERCHANT_PAYMENT">
+                Merchant payment to store
+              </option>
             </select>
           </label>
           <label className="grid gap-1 text-sm font-bold">
@@ -309,15 +278,28 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             <tbody className="divide-y divide-slate-200">
               {payables.map((item) => (
                 <tr key={item.merchant.id}>
-                  <td className="p-3 font-bold">{item.merchant.name}</td>
+                  <td className="p-3">
+                    <p className="font-bold">{item.merchant.name}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {item.financeStatus === 'AGREEMENT_REQUIRED'
+                        ? 'Agreement required'
+                        : item.financeStatus === 'NO_ACTIVITY'
+                          ? 'No accrued activity'
+                          : 'Live payable'}
+                    </p>
+                  </td>
                   <td className="p-3">
                     {item.branches.map((branch) => branch.name).join(', ') ||
                       'No activity'}
                   </td>
                   <td className="p-3">
-                    {item.periodStart} – {item.asOf}
+                    {item.periodStart
+                      ? `${item.periodStart} – ${item.asOf}`
+                      : 'Starts after agreement activation'}
                   </td>
-                  <td className="p-3">{item.nextSettlementDeadline}</td>
+                  <td className="p-3">
+                    {item.nextSettlementDeadline ?? 'Not scheduled'}
+                  </td>
                   {[
                     item.grossSales,
                     item.refundTotal,
@@ -342,6 +324,15 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                       >
                         Continue {labels[item.pendingSettlement.status]}
                       </Link>
+                    ) : item.financeStatus === 'AGREEMENT_REQUIRED' ? (
+                      <Link
+                        className="font-bold text-emerald-700"
+                        href={`/app/organizations/${organizationId}/merchants/${item.merchant.id}/agreements`}
+                      >
+                        Set up agreement
+                      </Link>
+                    ) : item.financeStatus === 'NO_ACTIVITY' ? (
+                      <span className="text-slate-400">Nothing to settle</span>
                     ) : (
                       <button
                         className="font-bold text-emerald-700 disabled:opacity-60"
@@ -376,7 +367,9 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                         ? 'Merchant payment'
                         : 'Adjustment'}{' '}
                       · {money.format(Number(entry.amount))}
-                      <span className="ml-2 text-slate-500">{entry.reason}</span>
+                      <span className="ml-2 text-slate-500">
+                        {entry.reason}
+                      </span>
                     </span>
                     {!item.pendingSettlement ? (
                       <button

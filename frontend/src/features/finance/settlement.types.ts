@@ -122,10 +122,11 @@ export interface SettlementMetrics {
 
 export interface LiveMerchantPayable {
   merchant: { id: string; name: string; code: string | null };
-  periodStart: string;
+  financeStatus: 'READY' | 'NO_ACTIVITY' | 'AGREEMENT_REQUIRED';
+  periodStart: string | null;
   asOf: string;
-  nextSettlementDeadline: string;
-  schedule: SettlementSchedule;
+  nextSettlementDeadline: string | null;
+  schedule: SettlementSchedule | null;
   grossSales: string;
   refundTotal: string;
   netSales: string;
