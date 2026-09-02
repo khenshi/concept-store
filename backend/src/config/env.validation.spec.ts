@@ -16,8 +16,26 @@ describe('validateEnvironment', () => {
       PORT: 4000,
       JWT_ACCESS_TTL_MINUTES: 15,
       REFRESH_TOKEN_TTL_DAYS: 30,
+      DB_POOL_MAX: 10,
+      DB_POOL_IDLE_TIMEOUT_MS: 30_000,
+      DB_CONNECTION_TIMEOUT_MS: 10_000,
+      DB_QUERY_TIMEOUT_MS: 30_000,
       SWAGGER_ENABLED: true,
     });
+  });
+
+  it('accepts bounded database pool settings and rejects unsafe values', () => {
+    expect(
+      validateEnvironment({
+        ...requiredEnvironment,
+        DB_POOL_MAX: '20',
+        DB_QUERY_TIMEOUT_MS: '15000',
+      }),
+    ).toMatchObject({ DB_POOL_MAX: 20, DB_QUERY_TIMEOUT_MS: 15_000 });
+
+    expect(() =>
+      validateEnvironment({ ...requiredEnvironment, DB_POOL_MAX: '0' }),
+    ).toThrow('DB_POOL_MAX');
   });
 
   it('disables Swagger by default in production and supports an explicit override', () => {

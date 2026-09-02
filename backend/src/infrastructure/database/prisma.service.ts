@@ -11,6 +11,14 @@ export class PrismaService
   constructor(configService: ConfigService) {
     const adapter = new PrismaPg({
       connectionString: configService.getOrThrow<string>('DATABASE_URL'),
+      max: configService.getOrThrow<number>('DB_POOL_MAX'),
+      idleTimeoutMillis: configService.getOrThrow<number>(
+        'DB_POOL_IDLE_TIMEOUT_MS',
+      ),
+      connectionTimeoutMillis: configService.getOrThrow<number>(
+        'DB_CONNECTION_TIMEOUT_MS',
+      ),
+      query_timeout: configService.getOrThrow<number>('DB_QUERY_TIMEOUT_MS'),
     });
     super({ adapter });
   }

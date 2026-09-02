@@ -264,19 +264,20 @@ export class SalesService {
                 'Inventory changed during checkout; review the cart and retry',
               );
             }
-            await transaction.inventoryMovement.create({
-              data: {
-                organizationId,
-                branchId,
-                productId: item.productId,
-                quantityChange: -item.quantity,
-                type: InventoryMovementType.SALE,
-                referenceId: saleNumber,
-                createdById: cashierId,
-                saleId,
-              },
-            });
           }
+
+          await transaction.inventoryMovement.createMany({
+            data: items.map((item) => ({
+              organizationId,
+              branchId,
+              productId: item.productId,
+              quantityChange: -item.quantity,
+              type: InventoryMovementType.SALE,
+              referenceId: saleNumber,
+              createdById: cashierId,
+              saleId,
+            })),
+          });
 
           return transaction.sale.findUniqueOrThrow({
             where: { id_organizationId: { id: saleId, organizationId } },

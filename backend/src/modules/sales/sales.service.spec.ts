@@ -99,7 +99,7 @@ describe('SalesService', () => {
     organizationMembership: { findUnique: jest.fn() },
     branch: { findFirst: jest.fn() },
     inventory: { findMany: jest.fn(), updateMany: jest.fn() },
-    inventoryMovement: { create: jest.fn() },
+    inventoryMovement: { createMany: jest.fn() },
     sale: { create: jest.fn(), findUniqueOrThrow: jest.fn() },
   };
   const prisma = {
@@ -132,7 +132,7 @@ describe('SalesService', () => {
     });
     transaction.inventory.findMany.mockResolvedValue([inventory]);
     transaction.inventory.updateMany.mockResolvedValue({ count: 1 });
-    transaction.inventoryMovement.create.mockResolvedValue({});
+    transaction.inventoryMovement.createMany.mockResolvedValue({ count: 1 });
     transaction.sale.create.mockResolvedValue({});
     transaction.sale.findUniqueOrThrow.mockResolvedValue(saleRow);
     const moduleRef = await Test.createTestingModule({
@@ -188,15 +188,17 @@ describe('SalesService', () => {
       },
       data: { quantity: { decrement: 2 } },
     });
-    expect(transaction.inventoryMovement.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        organizationId,
-        branchId,
-        productId,
-        quantityChange: -2,
-        type: 'SALE',
-        createdById: cashierId,
-      }) as unknown,
+    expect(transaction.inventoryMovement.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          organizationId,
+          branchId,
+          productId,
+          quantityChange: -2,
+          type: 'SALE',
+          createdById: cashierId,
+        }) as unknown,
+      ],
     });
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,

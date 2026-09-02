@@ -20,6 +20,25 @@ const envSchema = z
         (value) => /^postgres(?:ql)?:\/\//.test(value),
         'DATABASE_URL must use the postgresql or postgres protocol',
       ),
+    DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+    DB_POOL_IDLE_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(300_000)
+      .default(30_000),
+    DB_CONNECTION_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(60_000)
+      .default(10_000),
+    DB_QUERY_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(120_000)
+      .default(30_000),
     JWT_SECRET: z.string().min(32),
     JWT_ACCESS_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),

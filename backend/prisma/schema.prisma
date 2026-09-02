@@ -373,6 +373,7 @@ model Sale {
   @@unique([organizationId, clientTransactionId])
   @@index([organizationId, branchId, completedAt])
   @@index([organizationId, cashierId, completedAt])
+  @@index([organizationId, completedAt])
 }
 
 model SaleItem {
@@ -423,6 +424,7 @@ model SaleRefund {
 
   @@unique([id, organizationId])
   @@index([organizationId, branchId, completedAt])
+  @@index([organizationId, completedAt])
   @@index([saleId, completedAt])
 }
 
@@ -709,6 +711,7 @@ model MerchantPayout {
   @@unique([id, organizationId])
   @@unique([settlementId, merchantId, organizationId])
   @@index([organizationId, merchantId, paidAt])
+  @@index([organizationId, paidAt])
   @@index([recordedById, paidAt])
 }
 
