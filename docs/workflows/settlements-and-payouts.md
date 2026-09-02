@@ -28,8 +28,8 @@ Gross sales
 = amount due
 ```
 
-Commission is calculated from net sales after refunds. Rent accrues daily for
-visibility, while its payout deduction follows the agreement:
+Commission is calculated from net sales after refunds. Fixed rent does not
+accrue or prorate. Its payout deduction follows the agreement:
 
 - `DEDUCT_FROM_PAYOUT` is an explicit opt-in. The fixed monthly rent is charged
   once, direct rent payments and prior deductions for that month are applied,
@@ -47,9 +47,10 @@ The overview is calculated directly from eligible financial activity that has
 not been included in a paid settlement. It does not depend on a settlement row
 existing. Every active merchant remains visible: ready accounts show their live
 balance, zero-activity accounts remain at zero, and merchants without a current
-agreement show an agreement-required state. The overview shows gross sales,
-refunds, commission, prorated rent, documented adjustments, amount due,
-configured/activity branches, agreement schedule, and next deadline.
+agreement show an agreement-required state. The overview keeps scanning simple
+with merchant, branch, period, deadline, amount due, and a link to the merchant
+detail. The detail page contains the calculation breakdown, finance entries,
+agreement state, and settlement action.
 
 Closing the payable creates a source-linked draft snapshot in a serializable
 transaction. Owners and managers may close early. The snapshot records both the
@@ -87,8 +88,8 @@ Automatic bank payouts and accounting integrations are not implemented.
 The live overview supports merchant and branch filters with live summary
 metrics. The Merchant Finance shell separates the live overview and historical
 snapshots into dedicated tabs. Manual adjustments and separately received rent
-payments are entered contextually from a merchant's live row rather
-than presented as a primary workflow. History has period and status filters.
-Detail includes calculation breakdown, source
-sales and refunds, agreement snapshots, finance entries, payout information,
-and an append-only lifecycle history.
+payments are entered from the merchant payable detail rather than presented as
+a primary overview workflow. History has period and status filters. Historical
+settlement detail includes its locked calculation, source sales and refunds,
+agreement snapshot, finance entries, payout information, and append-only
+lifecycle history.
