@@ -46,7 +46,7 @@ existing. Every active merchant remains visible: ready accounts show their live
 balance, zero-activity accounts remain at zero, and merchants without a current
 agreement show an agreement-required state. The overview keeps scanning simple
 with merchant, branch, period, deadline, amount due, and a link to the merchant
-detail. The detail page contains the calculation breakdown, finance entries,
+detail. The detail page contains the calculation breakdown, adjustments,
 agreement state, and settlement action.
 
 Closing the payable creates a source-linked draft snapshot in a serializable
@@ -93,5 +93,30 @@ snapshots into dedicated tabs. Manual adjustments and separately received rent
 payments are entered from the Rent receivables tab; payable corrections remain
 on the merchant payable detail. History has period and status filters. Historical
 settlement detail includes its locked calculation, source sales and refunds,
-agreement snapshot, finance entries, payout information, and append-only
+agreement snapshot, adjustments, payout information, and append-only
 lifecycle history.
+
+## Current data model
+
+- `MerchantSettlement` is created only when a live payable is closed. It stores
+  the immutable financial totals, scheduled deadline, lifecycle actors, and
+  timestamps; it has no automatic-generation metadata or accrued-rent field.
+- `SettlementTermSnapshot` preserves the agreement, effective segment,
+  schedule, commission/rent rates, and sales calculation used by the closure.
+  It does not duplicate rent collection policy or calculated rent accrual.
+- `SettlementAdjustment` stores one documented signed payable correction. A
+  separate type column is unnecessary because this table contains adjustments
+  only.
+- `MerchantReceivable` stores one fixed-rent obligation per merchant and source
+  month. It has no receivable-type column because rent is the only supported
+  receivable in this milestone.
+- `MerchantReceivableTransaction` retains its transaction type because payment,
+  settlement deduction, and documented adjustment have different financial
+  meanings.
+- `SettlementReceivableAllocation` preserves rent selected for a particular
+  settlement and prevents the same available balance from being consumed
+  twice.
+
+Historical settlements, agreement snapshots, payouts, receivable transactions,
+allocations, and audit events remain intact. Obsolete columns were removed only
+after stored data was checked for historical dependencies.

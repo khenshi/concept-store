@@ -11,8 +11,8 @@ settlement closures, and payout recording.
 
 - Settlement periods based on merchant agreement schedules.
 - Live accrued payables independent of settlement records.
-- Gross sales, completed refunds, net sales, commission, rent, adjustments, and
-  amount-due calculations.
+- Gross sales, completed refunds, net sales, commission, adjustments, amount
+  due, and separately tracked rent receivables.
 - Agreement-term snapshots and source sale/refund links.
 - Early or scheduled closure into source-linked snapshots and documented signed
   adjustments.
@@ -39,7 +39,7 @@ receivable and is deducted only when explicitly selected for a settlement.
 - A live payable can be closed early; only one unpaid closure may exist per
   merchant.
 - A source sale or refund item cannot be settled twice.
-- Finance entries may be changed while still live; approved and paid
+- Payable adjustments may be changed while still live; approved and paid
   settlements cannot be silently recalculated.
 - Owners and managers inspect and close; only owners approve and record payouts.
 - One payout records the exact approved amount.
@@ -50,6 +50,11 @@ receivable and is deducted only when explicitly selected for a settlement.
 All calculations are server-authoritative and decimal-safe. Financial lifecycle
 changes use transactions and preserve actors, reasons, timestamps, source
 records, and tenant-scoped relationships.
+
+The completed cleanup removed scheduled-generation metadata and accrued-rent
+columns from settlement snapshots. Rent is represented only by its fixed
+monthly receivable and explicit settlement allocation. The adjustment and rent
+receivable tables also no longer carry single-purpose type columns.
 
 ## Current references
 

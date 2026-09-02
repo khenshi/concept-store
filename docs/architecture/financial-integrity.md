@@ -22,6 +22,9 @@ server-authoritative.
 - Payable adjustments and rent receivable transactions are separate records.
   Rent payments reduce a specific monthly receivable; optional settlement
   offsets are reserved at draft creation and applied only with payout.
+- Fixed rent is not accrued inside a settlement. Its monthly obligation exists
+  only in the rent receivable ledger, avoiding duplicate rent balances and
+  calculation paths.
 - Rent offsets are capped by both the available receivable balance and merchant
   payable, so settlements cannot produce negative payouts.
 - Refund, approval, payout, and settlement lifecycle actions retain actor and
