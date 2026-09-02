@@ -14,7 +14,6 @@ import {
   MerchantStatus,
   OrganizationRole,
   Prisma,
-  RentDeductionTiming,
   SettlementStatus,
   SettlementAuditEventType,
   type MerchantAgreement,
@@ -415,7 +414,6 @@ export class SettlementsService {
               netSales: calculation.netSales,
               commissionAmount: calculation.commissionAmount,
               fixedRentAmount,
-              rentAccruedAmount: new Prisma.Decimal(0),
               adjustmentTotal,
               netPayout,
               calculatedById,
@@ -1245,14 +1243,10 @@ export class SettlementsService {
       schedule: segment.agreement.settlementSchedule,
       fixedRentRate: segment.agreement.fixedRentAmount,
       commissionRate: segment.agreement.commissionRate,
-      rentCollectionMethod: 'PAID_SEPARATELY' as const,
-      rentDeductionTiming: RentDeductionTiming.PRORATED_PER_SETTLEMENT,
       grossSales: segment.grossSales,
       refundTotal: segment.refundTotal,
       netSales: segment.netSales,
       commissionAmount: segment.commissionAmount,
-      fixedRentAmount: segment.fixedRentAmount,
-      rentAccruedAmount: new Prisma.Decimal(0),
     };
   }
 
@@ -1495,13 +1489,7 @@ export class SettlementsService {
   }
 
   private toSummary(settlement: SettlementSummaryRow): SettlementSummaryRecord {
-    const {
-      saleItems,
-      refundItems,
-      rentAccruedAmount: _historicalRentAccrued,
-      ...summary
-    } = settlement;
-    void _historicalRentAccrued;
+    const { saleItems, refundItems, ...summary } = settlement;
     const branches = new Map<string, { id: string; name: string }>();
     for (const link of saleItems)
       branches.set(link.saleItem.sale.branch.id, link.saleItem.sale.branch);
@@ -1526,13 +1514,8 @@ export class SettlementsService {
   }
 
   private toView(settlement: SettlementRecord): SettlementViewRecord {
-    const {
-      rentAccruedAmount: _historicalRentAccrued,
-      terms,
-      receivableAllocations,
-      ...settlementWithoutAccrual
-    } = settlement;
-    void _historicalRentAccrued;
+    const { terms, receivableAllocations, ...settlementWithoutAccrual } =
+      settlement;
     return {
       ...settlementWithoutAccrual,
       grossSales: this.money(settlement.grossSales),
@@ -1543,13 +1526,8 @@ export class SettlementsService {
       adjustmentTotal: this.money(settlement.adjustmentTotal),
       netPayout: this.money(settlement.netPayout),
       terms: terms.map((term) => {
-        const {
-          rentAccruedAmount: _historicalTermRentAccrued,
-          ...termWithoutAccrual
-        } = term;
-        void _historicalTermRentAccrued;
         return {
-          ...termWithoutAccrual,
+          ...term,
           fixedRentRate: term.fixedRentRate
             ? this.money(term.fixedRentRate)
             : null,
@@ -1560,7 +1538,6 @@ export class SettlementsService {
           refundTotal: this.money(term.refundTotal),
           netSales: this.money(term.netSales),
           commissionAmount: this.money(term.commissionAmount),
-          fixedRentAmount: this.money(term.fixedRentAmount),
         };
       }),
       saleItems: settlement.saleItems.map((link) => ({

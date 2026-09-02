@@ -88,7 +88,6 @@ export interface SettlementSummaryRecord extends Omit<
   | 'netSales'
   | 'commissionAmount'
   | 'fixedRentAmount'
-  | 'rentAccruedAmount'
   | 'adjustmentTotal'
   | 'netPayout'
   | 'saleItems'
@@ -111,7 +110,6 @@ export interface SettlementViewRecord extends Omit<
   | 'netSales'
   | 'commissionAmount'
   | 'fixedRentAmount'
-  | 'rentAccruedAmount'
   | 'adjustmentTotal'
   | 'netPayout'
   | 'terms'
@@ -137,8 +135,6 @@ export interface SettlementViewRecord extends Omit<
       | 'refundTotal'
       | 'netSales'
       | 'commissionAmount'
-      | 'fixedRentAmount'
-      | 'rentAccruedAmount'
     > & {
       fixedRentRate: string | null;
       commissionRate: string | null;
@@ -146,7 +142,6 @@ export interface SettlementViewRecord extends Omit<
       refundTotal: string;
       netSales: string;
       commissionAmount: string;
-      fixedRentAmount: string;
     }
   >;
   saleItems: Array<

@@ -13,7 +13,6 @@ import {
   SettlementSchedule,
   SettlementStatus,
   SettlementAuditEventType,
-  RentCollectionMethod,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { MerchantReceivablesService } from '../merchant-receivables/merchant-receivables.service';
@@ -60,7 +59,6 @@ describe('SettlementsService', () => {
     organizationId,
     merchantId,
     settlementSchedule: SettlementSchedule.MONTHLY,
-    rentCollectionMethod: RentCollectionMethod.DEDUCT_FROM_PAYOUT,
     status: AgreementStatus.ENDED,
     createdAt,
     updatedAt: createdAt,
@@ -251,7 +249,6 @@ describe('SettlementsService', () => {
       netSales: new Prisma.Decimal('3000.00'),
       commissionAmount: new Prisma.Decimal('200.00'),
       fixedRentAmount: new Prisma.Decimal('4700.00'),
-      rentAccruedAmount: new Prisma.Decimal('4700.00'),
       adjustmentTotal: new Prisma.Decimal('0.00'),
       netPayout: new Prisma.Decimal('-1900.00'),
       calculatedById: actorId,
@@ -380,12 +377,6 @@ describe('SettlementsService', () => {
     expect(createInput.data.fixedRentAmount.toFixed(2)).toBe('0.00');
     expect(createInput.data.netPayout.toFixed(2)).toBe('2800.00');
     expect(createInput.data.terms.create).toHaveLength(2);
-    expect(
-      createInput.data.terms.create.map(
-        (term: { fixedRentAmount: Prisma.Decimal }) =>
-          term.fixedRentAmount.toFixed(2),
-      ),
-    ).toEqual(['0.00', '0.00']);
     if (!capturedSaleItemCreateMany) {
       throw new Error('Expected settlement sale-item input');
     }
@@ -557,7 +548,6 @@ describe('SettlementsService', () => {
       netSales: new Prisma.Decimal('3000.00'),
       commissionAmount: new Prisma.Decimal('200.00'),
       fixedRentAmount: new Prisma.Decimal('4700.00'),
-      rentAccruedAmount: new Prisma.Decimal('4700.00'),
       adjustmentTotal: new Prisma.Decimal('0.00'),
       netPayout: new Prisma.Decimal('-1900.00'),
       calculatedById: actorId,
@@ -582,11 +572,6 @@ describe('SettlementsService', () => {
     void _saleItems;
     void _refundItems;
 
-    const {
-      rentAccruedAmount: historicalRentAccrued,
-      ...summaryWithoutAccrual
-    } = summaryRow;
-    void historicalRentAccrued;
     await expect(
       service.findAll(organizationId, {
         merchantId,
@@ -599,7 +584,7 @@ describe('SettlementsService', () => {
     ).resolves.toEqual({
       items: [
         {
-          ...summaryWithoutAccrual,
+          ...summaryRow,
           grossSales: '3000.00',
           refundTotal: '0.00',
           netSales: '3000.00',

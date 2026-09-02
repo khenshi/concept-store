@@ -223,8 +223,7 @@ export function SettlementDetailPage({
               </strong>
               <p className="mt-1 text-slate-500">
                 Gross {money.format(Number(term.grossSales))} · Commission{' '}
-                {money.format(Number(term.commissionAmount))} · Rent{' '}
-                {money.format(Number(term.fixedRentAmount))}
+                {money.format(Number(term.commissionAmount))}
               </p>
             </div>
           ))}

@@ -39,12 +39,6 @@ export interface SettlementDetail extends SettlementSummary {
     commissionRate: string | null;
     grossSales: string;
     commissionAmount: string;
-    fixedRentAmount: string;
-    rentCollectionMethod: 'DEDUCT_FROM_PAYOUT' | 'PAID_SEPARATELY';
-    rentDeductionTiming:
-      | 'FIRST_SETTLEMENT_OF_MONTH'
-      | 'LAST_SETTLEMENT_OF_MONTH'
-      | 'PRORATED_PER_SETTLEMENT';
   }>;
   saleItems: Array<{
     saleItemId: string;

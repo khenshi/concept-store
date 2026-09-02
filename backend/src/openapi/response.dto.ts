@@ -8,8 +8,6 @@ import {
   PaymentMethod,
   ProductStatus,
   PayoutMethod,
-  RentCollectionMethod,
-  RentDeductionTiming,
   SettlementSchedule,
   SettlementStatus,
   SpaceStatus,
@@ -960,12 +958,6 @@ export class SettlementTermResponseDto {
   @ApiProperty({ enum: SettlementSchedule })
   schedule!: SettlementSchedule;
 
-  @ApiProperty({ enum: RentCollectionMethod })
-  rentCollectionMethod!: RentCollectionMethod;
-
-  @ApiProperty({ enum: RentDeductionTiming })
-  rentDeductionTiming!: RentDeductionTiming;
-
   @ApiPropertyOptional({ nullable: true, type: String })
   fixedRentRate!: string | null;
 
@@ -977,9 +969,6 @@ export class SettlementTermResponseDto {
 
   @ApiProperty({ type: String })
   commissionAmount!: string;
-
-  @ApiProperty({ type: String })
-  fixedRentAmount!: string;
 }
 
 export class SettlementSaleSourceResponseDto {
