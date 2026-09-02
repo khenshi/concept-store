@@ -16,7 +16,6 @@ export interface SettlementSummary {
   netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
-  rentAccruedAmount: string;
   adjustmentTotal: string;
   netPayout: string;
   calculatedById: string;
@@ -41,7 +40,6 @@ export interface SettlementDetail extends SettlementSummary {
     grossSales: string;
     commissionAmount: string;
     fixedRentAmount: string;
-    rentAccruedAmount: string;
     rentCollectionMethod: 'DEDUCT_FROM_PAYOUT' | 'PAID_SEPARATELY';
     rentDeductionTiming:
       | 'FIRST_SETTLEMENT_OF_MONTH'
@@ -132,7 +130,6 @@ export interface LiveMerchantPayable {
   netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
-  rentAccruedAmount: string;
   rentOutstandingAmount: string;
   adjustmentTotal: string;
   merchantPaymentTotal: string;

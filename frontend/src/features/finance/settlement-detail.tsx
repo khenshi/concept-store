@@ -174,7 +174,6 @@ export function SettlementDetailPage({
           ['Refunds', `-${settlement.refundTotal}`],
           ['Net sales', settlement.netSales],
           ['Commission', `-${settlement.commissionAmount}`],
-          ['Rent accrued', settlement.rentAccruedAmount],
           ['Rent deducted', `-${settlement.fixedRentAmount}`],
           ['Adjustments', settlement.adjustmentTotal],
           ['Amount due', settlement.netPayout],

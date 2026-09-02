@@ -31,9 +31,11 @@ Gross sales
 Commission is calculated from net sales after refunds. Rent accrues daily for
 visibility, while its payout deduction follows the agreement:
 
-- `DEDUCT_FROM_PAYOUT` is an explicit opt-in. On every settlement, direct rent
-  payments are applied first and only the remaining accrued rent is deducted.
-- `PAID_SEPARATELY` shows accrued rent but does not reduce the merchant payout.
+- `DEDUCT_FROM_PAYOUT` is an explicit opt-in. The fixed monthly rent is charged
+  once, direct rent payments and prior deductions for that month are applied,
+  and only the remaining balance is deducted.
+- `PAID_SEPARATELY` tracks the fixed rent balance but does not reduce the
+  merchant payout.
 
 New agreements default to separate rent collection. Commission remains an
 automatic deduction from net sales. Calculations use server-side decimal
@@ -64,7 +66,7 @@ Adjustments are signed amounts with mandatory reasons and actor history. They
 accrue before closure and are attached atomically to the snapshot.
 
 Direct rent payments to the owner are recorded separately for visibility and
-audit. They reduce accrued rent still collectible. When agreement terms opt in
+audit. They reduce fixed rent still collectible. When agreement terms opt in
 to payout deduction, only unpaid rent is deducted from the settlement.
 
 Owners and managers can inspect and close the live payable. Only owners can
