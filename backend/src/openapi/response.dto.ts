@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   AgreementStatus,
   InventoryMovementType,
-  MerchantAccountEntryType,
   MerchantStatus,
   OrganizationRole,
   PaymentMethod,
@@ -1011,9 +1010,6 @@ export class SettlementSaleItemResponseDto {
 export class MerchantFinanceEntryResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
-
-  @ApiProperty({ enum: MerchantAccountEntryType })
-  type!: MerchantAccountEntryType;
 
   @ApiProperty({ type: String, example: '-500.00' })
   amount!: string;

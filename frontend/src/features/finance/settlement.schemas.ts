@@ -11,9 +11,7 @@ export const adjustmentSchema = z.object({
   reason: z.string().trim().min(1, 'Enter a reason.').max(500),
 });
 
-export const financeEntrySchema = adjustmentSchema.extend({
-  type: z.literal('ADJUSTMENT'),
-});
+export const financeEntrySchema = adjustmentSchema;
 
 export const payoutSchema = z
   .object({

@@ -1,7 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import {
   MerchantReceivableStatus,
-  MerchantReceivableType,
   OrganizationRole,
   PaymentMethod,
   Prisma,
@@ -54,7 +53,6 @@ describe('MerchantReceivablesService', () => {
       organizationId: 'organization-1',
       merchantId: 'merchant-1',
       agreementId: 'agreement-1',
-      type: MerchantReceivableType.RENT,
       sourcePeriod: new Date('2026-09-01T00:00:00.000Z'),
       originalAmount: new Prisma.Decimal('2500.00'),
       remainingAmount: new Prisma.Decimal('2500.00'),
@@ -87,7 +85,6 @@ describe('MerchantReceivablesService', () => {
           expect.objectContaining({
             organizationId: 'organization-1',
             merchantId: 'merchant-1',
-            type: MerchantReceivableType.RENT,
             originalAmount: new Prisma.Decimal('2500.00'),
           }),
         ],
@@ -141,7 +138,6 @@ describe('MerchantReceivablesService', () => {
       organizationId: 'organization-1',
       merchantId: 'merchant-1',
       agreementId: 'agreement-1',
-      type: MerchantReceivableType.RENT,
       sourcePeriod: new Date('2026-09-01T00:00:00.000Z'),
       originalAmount: new Prisma.Decimal('2500.00'),
       remainingAmount: new Prisma.Decimal('2500.00'),

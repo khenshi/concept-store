@@ -8,7 +8,6 @@ import {
 import { randomUUID } from 'node:crypto';
 import {
   AgreementStatus,
-  MerchantAccountEntryType,
   MerchantReceivableStatus,
   MerchantReceivableTransactionType,
   MerchantStatus,
@@ -214,7 +213,6 @@ export class SettlementsService {
           organizationId,
           merchantId,
           settlementId: null,
-          type: MerchantAccountEntryType.ADJUSTMENT,
         },
         _sum: { amount: true },
       });
@@ -277,7 +275,6 @@ export class SettlementsService {
         data: {
           organizationId,
           merchantId,
-          type: dto.type,
           amount,
           reason: dto.reason,
           occurredAt: dto.occurredAt ? new Date(dto.occurredAt) : undefined,
@@ -375,7 +372,6 @@ export class SettlementsService {
                   organizationId,
                   merchantId,
                   settlementId: null,
-                  type: MerchantAccountEntryType.ADJUSTMENT,
                 },
                 _sum: { amount: true },
               })
@@ -432,7 +428,6 @@ export class SettlementsService {
                 organizationId,
                 merchantId,
                 settlementId: null,
-                type: MerchantAccountEntryType.ADJUSTMENT,
               },
               data: { settlementId: settlement.id },
             });
@@ -1024,7 +1019,6 @@ export class SettlementsService {
         organizationId,
         merchantId: merchant.id,
         settlementId: null,
-        type: MerchantAccountEntryType.ADJUSTMENT,
       },
       orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
     });
@@ -1040,9 +1034,7 @@ export class SettlementsService {
       calculation?.commissionAmount ?? zero,
     );
     const pendingAdjustments = this.sum(
-      pendingEntries
-        .filter(({ type }) => type === MerchantAccountEntryType.ADJUSTMENT)
-        .map(({ amount }) => amount),
+      pendingEntries.map(({ amount }) => amount),
     );
     const rent = open ? new Prisma.Decimal(open.fixedRentAmount) : zero;
     const rentOutstanding =
@@ -1113,7 +1105,6 @@ export class SettlementsService {
       pendingSettlement: open ? { id: open.id, status: open.status } : null,
       accountEntries: pendingEntries.map((entry) => ({
         id: entry.id,
-        type: entry.type,
         amount: this.money(entry.amount),
         reason: entry.reason,
         occurredAt: entry.occurredAt,

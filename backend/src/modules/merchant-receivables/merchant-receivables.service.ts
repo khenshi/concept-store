@@ -8,7 +8,6 @@ import {
 import {
   AgreementStatus,
   MerchantReceivableStatus,
-  MerchantReceivableType,
   MerchantReceivableTransactionType,
   OrganizationRole,
   Prisma,
@@ -95,7 +94,6 @@ export class MerchantReceivablesService {
         organizationId,
         merchantId: agreement.merchantId,
         agreementId: agreement.id,
-        type: MerchantReceivableType.RENT,
         sourcePeriod,
         originalAmount: agreement.fixedRentAmount!,
         remainingAmount: agreement.fixedRentAmount!,

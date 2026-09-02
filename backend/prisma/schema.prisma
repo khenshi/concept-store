@@ -594,17 +594,16 @@ model SettlementSaleItem {
 }
 
 model MerchantFinanceEntry {
-  id             String                   @id @default(uuid())
+  id             String   @id @default(uuid())
   organizationId String
   merchantId     String
   settlementId   String?
-  type           MerchantAccountEntryType @default(ADJUSTMENT)
-  amount         Decimal                  @db.Decimal(14, 2)
+  amount         Decimal  @db.Decimal(14, 2)
   reason         String
-  occurredAt     DateTime                 @default(now())
+  occurredAt     DateTime @default(now())
   createdById    String
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   merchant     Merchant            @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
@@ -622,7 +621,6 @@ model MerchantReceivable {
   organizationId  String
   merchantId      String
   agreementId     String
-  type            MerchantReceivableType   @default(RENT)
   sourcePeriod    DateTime                 @db.Date
   originalAmount  Decimal                  @db.Decimal(14, 2)
   remainingAmount Decimal                  @db.Decimal(14, 2)
@@ -638,7 +636,7 @@ model MerchantReceivable {
   allocations  SettlementReceivableAllocation[]
 
   @@unique([id, merchantId, organizationId])
-  @@unique([organizationId, merchantId, type, sourcePeriod])
+  @@unique([organizationId, merchantId, sourcePeriod])
   @@index([organizationId, status, dueDate])
   @@index([organizationId, merchantId, sourcePeriod])
 }
@@ -785,15 +783,6 @@ enum PayoutMethod {
   GCASH
   BANK_TRANSFER
   OTHER
-}
-
-enum MerchantAccountEntryType {
-  ADJUSTMENT
-  MERCHANT_PAYMENT
-}
-
-enum MerchantReceivableType {
-  RENT
 }
 
 enum MerchantReceivableStatus {

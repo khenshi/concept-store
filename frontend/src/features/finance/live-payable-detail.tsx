@@ -139,7 +139,6 @@ export function LivePayableDetailPage({
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const parsed = financeEntrySchema.safeParse({
-      type: form.get('type'),
       amount: form.get('amount'),
       reason: form.get('reason'),
     });
@@ -350,7 +349,6 @@ export function LivePayableDetailPage({
             className="mt-4 flex flex-wrap items-end gap-3"
             onSubmit={addEntry}
           >
-            <input name="type" type="hidden" value="ADJUSTMENT" />
             <label className="grid gap-1 text-sm font-bold">
               Amount
               <input

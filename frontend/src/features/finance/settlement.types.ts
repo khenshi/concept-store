@@ -53,7 +53,6 @@ export interface SettlementDetail extends SettlementSummary {
   }>;
   financeEntries: Array<{
     id: string;
-    type: 'ADJUSTMENT' | 'MERCHANT_PAYMENT';
     amount: string;
     reason: string;
     createdById: string;
@@ -148,7 +147,6 @@ export interface LiveMerchantPayable {
   pendingSettlement: { id: string; status: SettlementStatus } | null;
   accountEntries: Array<{
     id: string;
-    type: 'ADJUSTMENT';
     amount: string;
     reason: string;
     occurredAt: string;
@@ -162,7 +160,6 @@ export interface AdjustmentInput {
 }
 
 export interface FinanceEntryInput extends AdjustmentInput {
-  type: 'ADJUSTMENT';
   occurredAt?: string;
 }
 

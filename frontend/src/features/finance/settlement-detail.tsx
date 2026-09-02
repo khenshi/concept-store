@@ -289,7 +289,7 @@ export function SettlementDetailPage({
         </Panel>
       </div>
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Panel title="Adjustments and merchant payments">
+        <Panel title="Adjustments">
           {settlement.financeEntries.map((item) => (
             <div
               className="flex items-start justify-between gap-3 border-b border-slate-100 py-3 text-sm"
@@ -297,10 +297,7 @@ export function SettlementDetailPage({
             >
               <span>
                 <strong>
-                  {item.type === 'MERCHANT_PAYMENT'
-                    ? 'Rent payment · '
-                    : 'Adjustment · '}
-                  {money.format(Number(item.amount))}
+                  Adjustment · {money.format(Number(item.amount))}
                 </strong>
                 <br />
                 <span className="text-slate-500">{item.reason}</span>

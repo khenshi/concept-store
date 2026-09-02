@@ -38,7 +38,6 @@ export const settlementRecordInclude = {
       receivable: {
         select: {
           id: true,
-          type: true,
           sourcePeriod: true,
           originalAmount: true,
           remainingAmount: true,
@@ -210,7 +209,6 @@ export interface LiveMerchantPayableRecord {
   pendingSettlement: { id: string; status: string } | null;
   accountEntries: Array<{
     id: string;
-    type: string;
     amount: string;
     reason: string;
     occurredAt: Date;
