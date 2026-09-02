@@ -62,28 +62,33 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLiveError(null);
-    setHistoryError(null);
-    const filters = {
-      merchantId: merchantId || undefined,
-      branchId: branchId || undefined,
-      status: (status || undefined) as SettlementStatus | undefined,
-      periodFrom: periodFrom || undefined,
-      periodTo: periodTo || undefined,
-      limit: 100,
-    };
-    const [historyResult, liveResult] = await Promise.allSettled([
-      listSettlements(request, organizationId, filters),
-      listLivePayables(request, organizationId),
-    ]);
-    if (historyResult.status === 'fulfilled') setPage(historyResult.value);
-    else setHistoryError(message(historyResult.reason));
-    if (liveResult.status === 'fulfilled') {
-      setMetrics(payableMetrics(liveResult.value));
-      setPayables(liveResult.value);
-    } else setLiveError(message(liveResult.reason));
-    setLoading(false);
+    try {
+      if (activeTab === 'live') {
+        setLiveError(null);
+        const result = await listLivePayables(request, organizationId);
+        setMetrics(payableMetrics(result));
+        setPayables(result);
+      } else if (activeTab === 'history') {
+        setHistoryError(null);
+        setPage(
+          await listSettlements(request, organizationId, {
+            merchantId: merchantId || undefined,
+            branchId: branchId || undefined,
+            status: (status || undefined) as SettlementStatus | undefined,
+            periodFrom: periodFrom || undefined,
+            periodTo: periodTo || undefined,
+            limit: 100,
+          }),
+        );
+      }
+    } catch (cause: unknown) {
+      if (activeTab === 'live') setLiveError(message(cause));
+      if (activeTab === 'history') setHistoryError(message(cause));
+    } finally {
+      setLoading(false);
+    }
   }, [
+    activeTab,
     branchId,
     merchantId,
     organizationId,
@@ -98,11 +103,13 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
     return () => window.clearTimeout(timeout);
   }, [load]);
   useEffect(() => {
-    if (merchantsStatus === 'idle') void loadMerchants().catch(() => undefined);
-  }, [loadMerchants, merchantsStatus]);
+    if (activeTab === 'history' && merchantsStatus === 'idle')
+      void loadMerchants().catch(() => undefined);
+  }, [activeTab, loadMerchants, merchantsStatus]);
   useEffect(() => {
-    if (branchesStatus === 'idle') void loadBranches().catch(() => undefined);
-  }, [branchesStatus, loadBranches]);
+    if (activeTab === 'history' && branchesStatus === 'idle')
+      void loadBranches().catch(() => undefined);
+  }, [activeTab, branchesStatus, loadBranches]);
 
   if (!organization)
     return (

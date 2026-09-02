@@ -7,6 +7,7 @@ import {
 import { Test } from '@nestjs/testing';
 import {
   AgreementStatus,
+  MerchantStatus,
   OrganizationRole,
   PayoutMethod,
   Prisma,
@@ -308,6 +309,24 @@ describe('SettlementsService', () => {
       }),
     ]);
     expect(prisma.merchant.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('filters merchants by branch before calculating live balances', async () => {
+    prisma.merchant.findMany.mockResolvedValue([]);
+
+    await service.findLivePayables(organizationId, undefined, 'branch-id');
+
+    expect(prisma.merchant.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId,
+          status: MerchantStatus.ACTIVE,
+          branches: {
+            some: { organizationId, branchId: 'branch-id' },
+          },
+        }) as unknown,
+      }),
+    );
   });
 
   it('generates a server-authoritative draft with agreement segments', async () => {

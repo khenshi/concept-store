@@ -117,6 +117,7 @@ export class SettlementsService {
         organizationId,
         id: merchantId,
         status: MerchantStatus.ACTIVE,
+        branches: branchId ? { some: { organizationId, branchId } } : undefined,
       },
       select: {
         id: true,
@@ -154,10 +155,7 @@ export class SettlementsService {
           : this.emptyLivePayable(identity, branches, today);
       }),
     );
-    return rows.filter(
-      (row) =>
-        !branchId || row.branches.some((branch) => branch.id === branchId),
-    );
+    return rows;
   }
 
   async closeLivePayable(
@@ -1019,6 +1017,13 @@ export class SettlementsService {
         organizationId,
         merchantId: merchant.id,
         settlementId: null,
+      },
+      select: {
+        id: true,
+        amount: true,
+        reason: true,
+        occurredAt: true,
+        createdById: true,
       },
       orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
     });
