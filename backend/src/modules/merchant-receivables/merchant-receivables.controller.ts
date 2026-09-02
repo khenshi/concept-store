@@ -3,8 +3,10 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Post,
   Query,
   UseGuards,
+  Body,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -21,6 +23,8 @@ import type { OrganizationContext } from '../organizations/authorization/organiz
 import { CurrentOrganization } from '../organizations/authorization/organization-context.decorator';
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
 import { ListMerchantReceivablesQueryDto } from './dto/list-merchant-receivables-query.dto';
+import { RecordReceivablePaymentDto } from './dto/record-receivable-payment.dto';
+import { AdjustReceivableDto } from './dto/adjust-receivable.dto';
 import { MerchantReceivablesService } from './merchant-receivables.service';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
@@ -58,6 +62,38 @@ export class MerchantReceivablesController {
     return this.merchantReceivablesService.findOne(
       organization.organizationId,
       receivableId,
+    );
+  }
+
+  @Post(':receivableId/payments')
+  @ApiOperation({ summary: 'Record a full or partial rent payment' })
+  recordPayment(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('receivableId', new ParseUUIDPipe({ version: '4' }))
+    receivableId: string,
+    @Body() dto: RecordReceivablePaymentDto,
+  ) {
+    return this.merchantReceivablesService.recordPayment(
+      organization.organizationId,
+      receivableId,
+      organization.userId,
+      dto,
+    );
+  }
+
+  @Post(':receivableId/adjustments')
+  @ApiOperation({ summary: 'Record a documented rent balance adjustment' })
+  adjust(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('receivableId', new ParseUUIDPipe({ version: '4' }))
+    receivableId: string,
+    @Body() dto: AdjustReceivableDto,
+  ) {
+    return this.merchantReceivablesService.adjust(
+      organization.organizationId,
+      receivableId,
+      organization.userId,
+      dto,
     );
   }
 }
