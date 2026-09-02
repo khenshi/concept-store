@@ -216,11 +216,6 @@ export interface MerchantReceivablePage {
   limit: number;
 }
 
-export interface ReceivableDeductionInput {
-  receivableId: string;
-  amount: string;
-}
-
 export interface SettlementPreview {
   merchant: { id: string; name: string; code: string | null };
   periodStart: string;

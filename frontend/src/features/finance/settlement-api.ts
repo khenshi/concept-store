@@ -9,7 +9,6 @@ import type {
   SettlementFilters,
   SettlementPage,
   SettlementPreview,
-  ReceivableDeductionInput,
   MerchantReceivable,
   MerchantReceivablePage,
 } from './settlement.types';
@@ -42,13 +41,13 @@ export function closeLivePayable(
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
-  receivableDeductions: ReceivableDeductionInput[] = [],
+  rentDeductionAmount?: string,
 ): Promise<SettlementDetail> {
   return write(
     request,
     `${basePath(organizationId)}/payables/${merchantId}/close`,
     'POST',
-    { receivableDeductions },
+    rentDeductionAmount ? { rentDeductionAmount } : {},
   );
 }
 
@@ -56,12 +55,12 @@ export function previewLivePayable(
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
-  receivableDeductions: ReceivableDeductionInput[] = [],
+  rentDeductionAmount?: string,
 ): Promise<SettlementPreview> {
   return request(`${basePath(organizationId)}/payables/${merchantId}/preview`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ receivableDeductions }),
+    body: JSON.stringify(rentDeductionAmount ? { rentDeductionAmount } : {}),
   });
 }
 

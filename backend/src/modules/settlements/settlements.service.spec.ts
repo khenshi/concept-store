@@ -341,6 +341,59 @@ describe('SettlementsService', () => {
     );
   });
 
+  it('allocates one accumulated rent deduction to oldest balances first', () => {
+    const allocationService = service as unknown as {
+      allocateRentDeduction(
+        requestedAmount: string,
+        available: Array<{
+          id: string;
+          sourcePeriod: Date;
+          dueDate: Date;
+          status: string;
+          remainingAmount: Prisma.Decimal;
+          reservedAmount: Prisma.Decimal;
+          availableAmount: Prisma.Decimal;
+        }>,
+        merchantPayable: Prisma.Decimal,
+      ): Array<{ receivableId: string; amount: Prisma.Decimal }>;
+    };
+
+    const result = allocationService.allocateRentDeduction(
+      '1500.00',
+      [
+        {
+          id: 'oldest-rent',
+          sourcePeriod: new Date('2026-08-01'),
+          dueDate: new Date('2026-08-31'),
+          status: 'OVERDUE',
+          remainingAmount: new Prisma.Decimal('1222.00'),
+          reservedAmount: new Prisma.Decimal(0),
+          availableAmount: new Prisma.Decimal('1222.00'),
+        },
+        {
+          id: 'newer-rent',
+          sourcePeriod: new Date('2026-09-01'),
+          dueDate: new Date('2026-09-30'),
+          status: 'OPEN',
+          remainingAmount: new Prisma.Decimal('1222.00'),
+          reservedAmount: new Prisma.Decimal(0),
+          availableAmount: new Prisma.Decimal('1222.00'),
+        },
+      ],
+      new Prisma.Decimal('1500.00'),
+    );
+
+    expect(
+      result.map(({ receivableId, amount }) => ({
+        receivableId,
+        amount: amount.toFixed(2),
+      })),
+    ).toEqual([
+      { receivableId: 'oldest-rent', amount: '1222.00' },
+      { receivableId: 'newer-rent', amount: '278.00' },
+    ]);
+  });
+
   it('generates a server-authoritative draft with agreement segments', async () => {
     await expect(
       service.generateDraft(

@@ -28,11 +28,12 @@ settlement closures, and payout recording.
 
 ```text
 Gross sales − refunds − commission ± adjustments = live merchant payable
-live merchant payable − selected rent receivable offsets = settlement payout
+live merchant payable − accumulated rent deduction = settlement payout
 ```
 
 Commission is calculated after refunds. Fixed rent creates a separate monthly
-receivable and is deducted only when explicitly selected for a settlement.
+receivable and is deducted only when explicitly enabled for a settlement. The
+deduction is allocated to the oldest outstanding rent periods first.
 
 ## Important rules
 

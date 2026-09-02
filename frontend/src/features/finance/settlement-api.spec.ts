@@ -47,10 +47,18 @@ describe('settlement API', () => {
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization-id/settlements/payables?merchantId=merchant-id&branchId=branch-id&offset=20&limit=20',
     );
-    await closeLivePayable(request, 'organization-id', 'merchant-id');
+    await closeLivePayable(
+      request,
+      'organization-id',
+      'merchant-id',
+      '1222.00',
+    );
     expect(request).toHaveBeenLastCalledWith(
       '/organizations/organization-id/settlements/payables/merchant-id/close',
-      expect.objectContaining({ method: 'POST' }),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ rentDeductionAmount: '1222.00' }),
+      }),
     );
   });
 

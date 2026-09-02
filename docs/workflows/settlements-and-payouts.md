@@ -33,10 +33,11 @@ Optional rent receivable offset
 
 Commission is calculated from net sales after refunds. Fixed monthly rent is a
 separate merchant receivable and never reduces the live payable automatically.
-During settlement preview, an owner or manager may explicitly select rent to
-offset. Selection defaults to off, cannot exceed the available receivable or
-merchant payable, and can never produce a negative payout. Calculations use
-server-side decimal arithmetic.
+During settlement preview, an owner or manager may explicitly choose to deduct
+the accumulated outstanding rent. The choice defaults to off. The backend caps
+the deduction at the available rent balance and merchant payable, then allocates
+it to the oldest rent period first. It can never produce a negative payout.
+Calculations use server-side decimal arithmetic.
 
 ## Live payable and closure
 
@@ -70,10 +71,11 @@ Adjustments are signed amounts with mandatory reasons and actor history. They
 accrue before closure and are attached atomically to the snapshot.
 
 Each monthly rent charge retains its source month, original amount, remaining
-balance, due date, status, source agreement, and transaction history. Direct
-full or partial payments and documented adjustments are recorded against that
-receivable. Settlement offsets are reserved by a draft and applied to the rent
-ledger only when payout is recorded.
+balance, due date, status, source agreement, and transaction history. The UI
+shows these periods as the breakdown beneath one accumulated balance. Direct
+full or partial payments and documented adjustments are recorded against the
+specific receivable. A settlement deduction is allocated oldest-first, reserved
+by the draft, and applied to the rent ledger only when payout is recorded.
 
 Owners and managers can inspect and close the live payable. Only owners can
 approve. Approval locks the snapshot so later agreement or transaction edits

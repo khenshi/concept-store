@@ -17,13 +17,16 @@ import {
 import { financeEntrySchema } from './settlement.schemas';
 import type {
   LiveMerchantPayable,
-  ReceivableDeductionInput,
   SettlementPreview,
 } from './settlement.types';
 
 const money = new Intl.NumberFormat('en-PH', {
   style: 'currency',
   currency: 'PHP',
+});
+const readableDate = new Intl.DateTimeFormat('en-PH', {
+  dateStyle: 'medium',
+  timeZone: 'Asia/Manila',
 });
 
 function errorMessage(cause: unknown): string {
@@ -43,7 +46,9 @@ export function LivePayableDetailPage({
   const router = useRouter();
   const [payable, setPayable] = useState<LiveMerchantPayable | null>(null);
   const [preview, setPreview] = useState<SettlementPreview | null>(null);
-  const [deductions, setDeductions] = useState<ReceivableDeductionInput[]>([]);
+  const [rentDeductionAmount, setRentDeductionAmount] = useState<
+    string | undefined
+  >();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { confirm, confirmationDialog } = useConfirmationDialog();
@@ -63,9 +68,9 @@ export function LivePayableDetailPage({
         !row.pendingSettlement
       ) {
         setPreview(
-          await previewLivePayable(request, organizationId, merchantId, []),
+          await previewLivePayable(request, organizationId, merchantId),
         );
-        setDeductions([]);
+        setRentDeductionAmount(undefined);
       }
       if (!row) setError('This active merchant payable was not found.');
     } catch (cause) {
@@ -93,7 +98,7 @@ export function LivePayableDetailPage({
         request,
         organizationId,
         merchantId,
-        deductions,
+        rentDeductionAmount,
       );
       router.push(
         `/app/organizations/${organizationId}/settlements/${settlement.id}`,
@@ -104,31 +109,22 @@ export function LivePayableDetailPage({
     }
   }
 
-  async function toggleReceivable(receivableId: string, checked: boolean) {
+  async function toggleRentDeduction(checked: boolean) {
     if (!preview) return;
-    const receivable = preview.receivables.find(
-      (item) => item.id === receivableId,
+    const outstanding = preview.receivables.reduce(
+      (total, item) => total + Number(item.availableAmount),
+      0,
     );
-    if (!receivable) return;
     const next = checked
-      ? [
-          ...deductions,
-          {
-            receivableId,
-            amount: Math.min(
-              Number(receivable.availableAmount),
-              Number(preview.finalPayout),
-            ).toFixed(2),
-          },
-        ]
-      : deductions.filter((item) => item.receivableId !== receivableId);
+      ? Math.min(outstanding, Number(preview.merchantPayable)).toFixed(2)
+      : undefined;
     setBusy(true);
     setError(null);
     try {
       setPreview(
         await previewLivePayable(request, organizationId, merchantId, next),
       );
-      setDeductions(next);
+      setRentDeductionAmount(next);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -293,45 +289,69 @@ export function LivePayableDetailPage({
 
       {preview?.receivables.length ? (
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="font-bold">Optional rent deduction</h2>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="font-bold">Accumulated rent</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Outstanding rent is applied oldest-first only when you choose to
+                deduct it from this settlement.
+              </p>
+            </div>
+            <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-bold">
+              <input
+                checked={Boolean(rentDeductionAmount)}
+                disabled={busy || Number(preview.merchantPayable) <= 0}
+                onChange={(event) =>
+                  void toggleRentDeduction(event.target.checked)
+                }
+                type="checkbox"
+              />
+              Deduct outstanding rent
+            </label>
+          </div>
           <p className="mt-1 text-sm text-slate-500">
-            Rent remains separate unless you explicitly select it for this
-            settlement. The final payout cannot fall below zero.
+            Total available:{' '}
+            <strong>
+              {money.format(
+                preview.receivables.reduce(
+                  (total, item) => total + Number(item.availableAmount),
+                  0,
+                ),
+              )}
+            </strong>
           </p>
           <div className="mt-4 divide-y divide-slate-100">
-            {preview.receivables.map((receivable) => {
-              const selected = deductions.some(
-                (item) => item.receivableId === receivable.id,
-              );
-              return (
-                <label
-                  className="flex cursor-pointer items-center justify-between gap-4 py-3"
-                  key={receivable.id}
-                >
-                  <span>
-                    <span className="font-bold">
-                      Rent for {receivable.sourcePeriod.slice(0, 7)}
-                    </span>
-                    <span className="mt-1 block text-sm text-slate-500">
-                      {money.format(Number(receivable.availableAmount))}{' '}
-                      available · due {receivable.dueDate}
-                    </span>
+            {preview.receivables.map((receivable) => (
+              <div
+                className="flex items-center justify-between gap-4 py-3"
+                key={receivable.id}
+              >
+                <span>
+                  <span className="font-bold">
+                    Rent for {receivable.sourcePeriod.slice(0, 7)}
                   </span>
-                  <input
-                    checked={selected}
-                    disabled={
-                      busy || (!selected && Number(preview.finalPayout) <= 0)
-                    }
-                    onChange={(event) =>
-                      void toggleReceivable(receivable.id, event.target.checked)
-                    }
-                    type="checkbox"
-                  />
-                </label>
-              );
-            })}
+                  <span className="mt-1 block text-sm text-slate-500">
+                    Due {readableDate.format(new Date(receivable.dueDate))}
+                  </span>
+                </span>
+                <strong>
+                  {money.format(Number(receivable.availableAmount))}
+                </strong>
+              </div>
+            ))}
           </div>
           <div className="mt-4 flex justify-between border-t border-slate-200 pt-4 font-bold">
+            <div>
+              <span className="block">Rent deduction</span>
+              <span className="mt-1 block text-sm font-normal text-slate-500">
+                Applied to the oldest balance first
+              </span>
+            </div>
+            <span>
+              -{money.format(Number(preview.receivableDeductionTotal))}
+            </span>
+          </div>
+          <div className="mt-3 flex justify-between font-bold">
             <span>Settlement payout</span>
             <span>{money.format(Number(preview.finalPayout))}</span>
           </div>

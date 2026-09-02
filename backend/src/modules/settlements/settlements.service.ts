@@ -26,10 +26,7 @@ import type { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
 import type { ListLivePayablesQueryDto } from './dto/list-live-payables-query.dto';
 import type { RecordPayoutDto } from './dto/record-payout.dto';
 import type { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
-import type {
-  SettlementReceivableDeductionDto,
-  SettlementReceivableDeductionsDto,
-} from './dto/settlement-receivable-deductions.dto';
+import type { SettlementReceivableDeductionsDto } from './dto/settlement-receivable-deductions.dto';
 import { MerchantReceivablesService } from '../merchant-receivables/merchant-receivables.service';
 import {
   nextBusinessDate,
@@ -189,7 +186,7 @@ export class SettlementsService {
       {
         liveClosure: true,
         scheduledDeadline: context.deadline,
-        receivableDeductions: dto.receivableDeductions,
+        rentDeductionAmount: dto.rentDeductionAmount,
       },
     );
   }
@@ -232,8 +229,8 @@ export class SettlementsService {
         organizationId,
         merchantId,
       );
-      const deductions = this.validateReceivableDeductions(
-        dto.receivableDeductions,
+      const deductions = this.allocateRentDeduction(
+        dto.rentDeductionAmount,
         receivables,
         merchantPayable,
       );
@@ -323,7 +320,7 @@ export class SettlementsService {
     options: {
       liveClosure?: boolean;
       scheduledDeadline?: Date;
-      receivableDeductions?: SettlementReceivableDeductionDto[];
+      rentDeductionAmount?: string;
     } = {},
   ): Promise<SettlementViewRecord> {
     const period = parseSettlementPeriod(periodStart, periodEnd);
@@ -394,8 +391,8 @@ export class SettlementsService {
                 merchantId,
               )
             : [];
-          const receivableDeductions = this.validateReceivableDeductions(
-            options.receivableDeductions ?? [],
+          const receivableDeductions = this.allocateRentDeduction(
+            options.rentDeductionAmount,
             receivables,
             merchantPayable,
           );
@@ -1446,8 +1443,8 @@ export class SettlementsService {
     });
   }
 
-  private validateReceivableDeductions(
-    requested: SettlementReceivableDeductionDto[],
+  private allocateRentDeduction(
+    requestedAmount: string | undefined,
     available: AvailableReceivable[],
     merchantPayable: Prisma.Decimal,
   ): Array<{ receivableId: string; amount: Prisma.Decimal }> {
@@ -1456,28 +1453,28 @@ export class SettlementsService {
         'The merchant payable cannot be negative; correct the adjustments before settlement',
       );
     }
-    const unique = new Set(requested.map(({ receivableId }) => receivableId));
-    if (unique.size !== requested.length) {
+    if (!requestedAmount) return [];
+    const requested = new Prisma.Decimal(requestedAmount);
+    const outstanding = this.sum(
+      available.map(({ availableAmount }) => availableAmount),
+    );
+    if (requested.gt(outstanding)) {
       throw new BadRequestException(
-        'Each receivable may be selected only once',
+        'Rent deduction cannot exceed the accumulated available rent balance',
       );
     }
-    const rows = requested.map((deduction) => {
-      const receivable = available.find(
-        ({ id }) => id === deduction.receivableId,
-      );
-      const amount = new Prisma.Decimal(deduction.amount);
-      if (!receivable || amount.gt(receivable.availableAmount)) {
-        throw new BadRequestException(
-          'A selected receivable is unavailable or exceeds its remaining balance',
-        );
-      }
-      return { receivableId: deduction.receivableId, amount };
-    });
-    if (this.sum(rows.map(({ amount }) => amount)).gt(merchantPayable)) {
+    if (requested.gt(merchantPayable)) {
       throw new BadRequestException(
-        'Receivable deductions cannot exceed the merchant payable',
+        'Rent deduction cannot exceed the merchant payable',
       );
+    }
+    let remaining = requested;
+    const rows: Array<{ receivableId: string; amount: Prisma.Decimal }> = [];
+    for (const receivable of available) {
+      if (remaining.isZero()) break;
+      const amount = Prisma.Decimal.min(remaining, receivable.availableAmount);
+      if (amount.gt(0)) rows.push({ receivableId: receivable.id, amount });
+      remaining = remaining.sub(amount);
     }
     return rows;
   }
