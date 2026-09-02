@@ -8,6 +8,7 @@ import { STANDARD_RATE_LIMIT } from './config/rate-limit';
 import { PrismaModule } from './infrastructure/database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { MerchantAgreementsModule } from './modules/merchant-agreements/merchant-agreements.module';
+import { MerchantReceivablesModule } from './modules/merchant-receivables/merchant-receivables.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { MerchantsModule } from './modules/merchants/merchants.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -31,6 +32,7 @@ import { SpacesModule } from './modules/spaces/spaces.module';
     AuthModule,
     InventoryModule,
     MerchantAgreementsModule,
+    MerchantReceivablesModule,
     OrganizationsModule,
     MerchantsModule,
     ProductsModule,
