@@ -33,6 +33,22 @@ export const settlementRecordInclude = {
     orderBy: [{ createdAt: 'asc' }, { refundItemId: 'asc' }],
   },
   auditEvents: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+  receivableAllocations: {
+    include: {
+      receivable: {
+        select: {
+          id: true,
+          type: true,
+          sourcePeriod: true,
+          originalAmount: true,
+          remainingAmount: true,
+          dueDate: true,
+          status: true,
+        },
+      },
+    },
+    orderBy: [{ receivable: { sourcePeriod: 'asc' } }, { receivableId: 'asc' }],
+  },
 } satisfies Prisma.MerchantSettlementInclude;
 
 export type SettlementRecord = Prisma.MerchantSettlementGetPayload<{
@@ -103,6 +119,7 @@ export interface SettlementViewRecord extends Omit<
   | 'financeEntries'
   | 'payout'
   | 'refundItems'
+  | 'receivableAllocations'
 > {
   grossSales: string;
   refundTotal: string;
@@ -156,6 +173,18 @@ export interface SettlementViewRecord extends Omit<
       refundAmount: string;
     }
   >;
+  receivableAllocations: Array<
+    Omit<
+      SettlementRecord['receivableAllocations'][number],
+      'amount' | 'receivable'
+    > & {
+      amount: string;
+      receivable: Omit<
+        SettlementRecord['receivableAllocations'][number]['receivable'],
+        'originalAmount' | 'remainingAmount'
+      > & { originalAmount: string; remainingAmount: string };
+    }
+  >;
 }
 
 export interface SettlementPageRecord {
@@ -191,4 +220,28 @@ export interface LiveMerchantPayableRecord {
     occurredAt: Date;
     createdById: string;
   }>;
+}
+
+export interface SettlementPreviewRecord {
+  merchant: { id: string; name: string; code: string | null };
+  periodStart: string;
+  cutoff: string;
+  scheduledDeadline: string;
+  grossSales: string;
+  refundTotal: string;
+  netSales: string;
+  commissionAmount: string;
+  adjustmentTotal: string;
+  merchantPayable: string;
+  receivables: Array<{
+    id: string;
+    sourcePeriod: Date;
+    dueDate: Date;
+    status: string;
+    remainingAmount: string;
+    reservedAmount: string;
+    availableAmount: string;
+  }>;
+  receivableDeductionTotal: string;
+  finalPayout: string;
 }

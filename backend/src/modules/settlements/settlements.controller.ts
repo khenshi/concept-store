@@ -35,6 +35,7 @@ import { OrganizationRoles } from '../organizations/authorization/organization-r
 import { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
 import { RecordPayoutDto } from './dto/record-payout.dto';
 import { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
+import { SettlementReceivableDeductionsDto } from './dto/settlement-receivable-deductions.dto';
 import { SettlementsService } from './settlements.service';
 import type {
   SettlementPageRecord,
@@ -74,11 +75,30 @@ export class SettlementsController {
     @CurrentOrganization() organization: OrganizationContext,
     @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
     merchantId: string,
+    @Body() dto: SettlementReceivableDeductionsDto,
   ) {
     return this.settlementsService.closeLivePayable(
       organization.organizationId,
       merchantId,
       organization.userId,
+      dto,
+    );
+  }
+
+  @Post('payables/:merchantId/preview')
+  @ApiOperation({
+    summary: 'Preview a live payable with selected rent offsets',
+  })
+  previewLivePayable(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
+    merchantId: string,
+    @Body() dto: SettlementReceivableDeductionsDto,
+  ) {
+    return this.settlementsService.previewLivePayable(
+      organization.organizationId,
+      merchantId,
+      dto,
     );
   }
 

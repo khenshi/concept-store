@@ -15,6 +15,7 @@ import {
   RentCollectionMethod,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { MerchantReceivablesService } from '../merchant-receivables/merchant-receivables.service';
 import { SettlementsService } from './settlements.service';
 
 interface SettlementCreateArgument {
@@ -126,7 +127,23 @@ describe('SettlementsService', () => {
       aggregate: jest.fn(),
     },
     merchantPayout: { create: jest.fn() },
+    merchantReceivable: {
+      aggregate: jest.fn(),
+      findMany: jest.fn(),
+      updateMany: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      update: jest.fn(),
+    },
+    merchantReceivableTransaction: { create: jest.fn() },
+    settlementReceivableAllocation: {
+      createMany: jest.fn(),
+      findMany: jest.fn(),
+      updateMany: jest.fn(),
+    },
     settlementAuditEvent: { create: jest.fn() },
+  };
+  const merchantReceivables = {
+    ensureCurrentRentReceivables: jest.fn(),
   };
   const prisma = {
     $transaction: jest.fn(),
@@ -184,6 +201,17 @@ describe('SettlementsService', () => {
     transaction.merchantFinanceEntry.updateMany.mockResolvedValue({ count: 1 });
     transaction.merchantFinanceEntry.deleteMany.mockResolvedValue({ count: 1 });
     transaction.merchantPayout.create.mockResolvedValue({});
+    transaction.merchantReceivable.aggregate.mockResolvedValue({
+      _sum: { remainingAmount: new Prisma.Decimal(0) },
+    });
+    transaction.merchantReceivable.findMany.mockResolvedValue([]);
+    transaction.settlementReceivableAllocation.createMany.mockResolvedValue({
+      count: 0,
+    });
+    transaction.settlementReceivableAllocation.findMany.mockResolvedValue([]);
+    transaction.settlementReceivableAllocation.updateMany.mockResolvedValue({
+      count: 0,
+    });
     transaction.settlementAuditEvent.create.mockResolvedValue({});
     transaction.settlementSaleItem.deleteMany.mockResolvedValue({ count: 2 });
     transaction.settlementRefundItem.deleteMany.mockResolvedValue({ count: 0 });
@@ -240,6 +268,7 @@ describe('SettlementsService', () => {
       saleItems: [],
       financeEntries: [],
       payout: null,
+      receivableAllocations: [],
     };
     transaction.merchantSettlement.findUniqueOrThrow.mockResolvedValue(
       persistedSettlement,
@@ -252,6 +281,7 @@ describe('SettlementsService', () => {
       providers: [
         SettlementsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: MerchantReceivablesService, useValue: merchantReceivables },
       ],
     }).compile();
     service = moduleRef.get(SettlementsService);
@@ -761,7 +791,7 @@ describe('SettlementsService', () => {
     });
   });
 
-  it('rechecks owner authority and rejects non-positive payouts', async () => {
+  it('rechecks owner authority and rejects negative payouts', async () => {
     transaction.organizationMembership.findUnique.mockResolvedValue({
       role: OrganizationRole.MANAGER,
     });
@@ -779,7 +809,7 @@ describe('SettlementsService', () => {
     transaction.merchantSettlement.findFirst.mockResolvedValue({
       status: SettlementStatus.APPROVED,
       merchantId,
-      netPayout: new Prisma.Decimal('0.00'),
+      netPayout: new Prisma.Decimal('-1.00'),
     });
     await expect(
       service.recordPayout(organizationId, settlementId, actorId, {
@@ -788,7 +818,7 @@ describe('SettlementsService', () => {
       }),
     ).rejects.toThrow(
       new BadRequestException(
-        'Only settlements with a positive net payout can be paid',
+        'A settlement with a negative payout cannot be paid',
       ),
     );
     expect(transaction.merchantPayout.create).not.toHaveBeenCalled();

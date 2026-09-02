@@ -104,6 +104,7 @@ model Organization {
   settlementAuditEvents  SettlementAuditEvent[]
   merchantReceivables    MerchantReceivable[]
   receivableTransactions MerchantReceivableTransaction[]
+  receivableAllocations  SettlementReceivableAllocation[]
 }
 
 model Branch {
@@ -160,7 +161,7 @@ model Merchant {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  organization           Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization           Organization                     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   branches               MerchantBranch[]
   spaceAssignments       SpaceAssignment[]
   agreements             MerchantAgreement[]
@@ -175,6 +176,7 @@ model Merchant {
   settlementRefundItems  SettlementRefundItem[]
   merchantReceivables    MerchantReceivable[]
   receivableTransactions MerchantReceivableTransaction[]
+  receivableAllocations  SettlementReceivableAllocation[]
   account                MerchantAccount?
 
   @@unique([organizationId, code])
@@ -494,11 +496,11 @@ model MerchantSettlement {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 
-  organization           Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  merchant               Merchant                        @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  calculatedBy           User                            @relation("SettlementCalculator", fields: [calculatedById], references: [id], onDelete: Restrict)
-  reviewedBy             User?                           @relation("SettlementReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
-  approvedBy             User?                           @relation("SettlementApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  organization           Organization                     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchant               Merchant                         @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  calculatedBy           User                             @relation("SettlementCalculator", fields: [calculatedById], references: [id], onDelete: Restrict)
+  reviewedBy             User?                            @relation("SettlementReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  approvedBy             User?                            @relation("SettlementApprover", fields: [approvedById], references: [id], onDelete: Restrict)
   terms                  SettlementTermSnapshot[]
   saleItems              SettlementSaleItem[]
   financeEntries         MerchantFinanceEntry[]
@@ -506,6 +508,7 @@ model MerchantSettlement {
   refundItems            SettlementRefundItem[]
   auditEvents            SettlementAuditEvent[]
   receivableTransactions MerchantReceivableTransaction[]
+  receivableAllocations  SettlementReceivableAllocation[]
 
   @@unique([id, organizationId])
   @@unique([id, merchantId, organizationId])
@@ -638,10 +641,11 @@ model MerchantReceivable {
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
 
-  organization Organization                    @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  merchant     Merchant                        @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  agreement    MerchantAgreement               @relation(fields: [agreementId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  organization Organization                     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchant     Merchant                         @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  agreement    MerchantAgreement                @relation(fields: [agreementId, organizationId], references: [id, organizationId], onDelete: Restrict)
   transactions MerchantReceivableTransaction[]
+  allocations  SettlementReceivableAllocation[]
 
   @@unique([id, merchantId, organizationId])
   @@unique([organizationId, merchantId, type, sourcePeriod])
@@ -675,6 +679,25 @@ model MerchantReceivableTransaction {
   @@index([organizationId, merchantId, occurredAt])
   @@index([settlementId])
   @@index([recordedById, occurredAt])
+}
+
+model SettlementReceivableAllocation {
+  settlementId   String
+  receivableId   String
+  organizationId String
+  merchantId     String
+  amount         Decimal   @db.Decimal(14, 2)
+  appliedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchant     Merchant           @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  settlement   MerchantSettlement @relation(fields: [settlementId, merchantId, organizationId], references: [id, merchantId, organizationId], onDelete: Restrict)
+  receivable   MerchantReceivable @relation(fields: [receivableId, merchantId, organizationId], references: [id, merchantId, organizationId], onDelete: Restrict)
+
+  @@id([settlementId, receivableId])
+  @@index([organizationId, merchantId, settlementId])
+  @@index([organizationId, receivableId, appliedAt])
 }
 
 model MerchantPayout {
