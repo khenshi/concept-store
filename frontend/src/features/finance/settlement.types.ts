@@ -90,6 +90,21 @@ export interface SettlementDetail extends SettlementSummary {
     actorId: string | null;
     createdAt: string;
   }>;
+  receivableAllocations: Array<{
+    settlementId: string;
+    receivableId: string;
+    amount: string;
+    appliedAt: string | null;
+    receivable: {
+      id: string;
+      type: 'RENT';
+      sourcePeriod: string;
+      originalAmount: string;
+      remainingAmount: string;
+      dueDate: string;
+      status: MerchantReceivableStatus;
+    };
+  }>;
 }
 
 export interface SettlementPage {
@@ -161,4 +176,72 @@ export interface PayoutInput {
   referenceNumber?: string;
   note?: string;
   paidAt: string;
+}
+
+export type MerchantReceivableStatus =
+  'OPEN' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE';
+
+export interface MerchantReceivable {
+  id: string;
+  merchantId: string;
+  agreementId: string;
+  type: 'RENT';
+  sourcePeriod: string;
+  originalAmount: string;
+  remainingAmount: string;
+  dueDate: string;
+  status: MerchantReceivableStatus;
+  merchant: { id: string; name: string; code: string | null };
+  agreement: {
+    id: string;
+    startDate: string;
+    endDate: string | null;
+    fixedRentAmount: string | null;
+  };
+  transactions: Array<{
+    id: string;
+    type: 'PAYMENT' | 'SETTLEMENT_DEDUCTION' | 'ADJUSTMENT';
+    amount: string;
+    paymentMethod: PayoutMethod | null;
+    referenceNumber: string | null;
+    note: string | null;
+    occurredAt: string;
+    recordedById: string;
+  }>;
+}
+
+export interface MerchantReceivablePage {
+  items: MerchantReceivable[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface ReceivableDeductionInput {
+  receivableId: string;
+  amount: string;
+}
+
+export interface SettlementPreview {
+  merchant: { id: string; name: string; code: string | null };
+  periodStart: string;
+  cutoff: string;
+  scheduledDeadline: string;
+  grossSales: string;
+  refundTotal: string;
+  netSales: string;
+  commissionAmount: string;
+  adjustmentTotal: string;
+  merchantPayable: string;
+  receivables: Array<{
+    id: string;
+    sourcePeriod: string;
+    dueDate: string;
+    status: MerchantReceivableStatus;
+    remainingAmount: string;
+    reservedAmount: string;
+    availableAmount: string;
+  }>;
+  receivableDeductionTotal: string;
+  finalPayout: string;
 }

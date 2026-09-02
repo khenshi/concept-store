@@ -3,9 +3,14 @@ import type {
   FinanceEntryInput,
   LiveMerchantPayable,
   PayoutInput,
+  PayoutMethod,
   SettlementDetail,
   SettlementFilters,
   SettlementPage,
+  SettlementPreview,
+  ReceivableDeductionInput,
+  MerchantReceivable,
+  MerchantReceivablePage,
 } from './settlement.types';
 
 function basePath(organizationId: string): string {
@@ -27,11 +32,76 @@ export function closeLivePayable(
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
+  receivableDeductions: ReceivableDeductionInput[] = [],
 ): Promise<SettlementDetail> {
   return write(
     request,
     `${basePath(organizationId)}/payables/${merchantId}/close`,
     'POST',
+    { receivableDeductions },
+  );
+}
+
+export function previewLivePayable(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  merchantId: string,
+  receivableDeductions: ReceivableDeductionInput[] = [],
+): Promise<SettlementPreview> {
+  return request(`${basePath(organizationId)}/payables/${merchantId}/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ receivableDeductions }),
+  });
+}
+
+function receivablePath(organizationId: string): string {
+  return `/organizations/${encodeURIComponent(organizationId)}/merchant-receivables`;
+}
+
+export function listMerchantReceivables(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  filters: { merchantId?: string; status?: string } = {},
+): Promise<MerchantReceivablePage> {
+  const query = new URLSearchParams(filters);
+  return request(
+    `${receivablePath(organizationId)}${query.size ? `?${query}` : ''}`,
+  );
+}
+
+export function recordReceivablePayment(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  receivableId: string,
+  input: {
+    amount: string;
+    method: PayoutMethod;
+    paidAt: string;
+    referenceNumber?: string;
+    note?: string;
+  },
+): Promise<MerchantReceivable> {
+  return request(`${receivablePath(organizationId)}/${receivableId}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export function adjustMerchantReceivable(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  receivableId: string,
+  input: { amount: string; reason: string },
+): Promise<MerchantReceivable> {
+  return request(
+    `${receivablePath(organizationId)}/${receivableId}/adjustments`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    },
   );
 }
 

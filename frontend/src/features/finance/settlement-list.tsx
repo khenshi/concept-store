@@ -15,6 +15,7 @@ import type {
   SettlementPage,
   SettlementStatus,
 } from './settlement.types';
+import { MerchantReceivables } from './merchant-receivables';
 
 const money = new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -52,7 +53,9 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   const [periodTo, setPeriodTo] = useState('');
   const [metrics, setMetrics] = useState<SettlementMetrics | null>(null);
   const [payables, setPayables] = useState<LiveMerchantPayable[]>([]);
-  const [activeTab, setActiveTab] = useState<'live' | 'history'>('live');
+  const [activeTab, setActiveTab] = useState<
+    'live' | 'history' | 'receivables'
+  >('live');
   const [liveError, setLiveError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,6 +124,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
         {[
           ['live', 'Live payables'],
           ['history', 'Settlement history'],
+          ['receivables', 'Rent receivables'],
         ].map(([value, label]) => (
           <button
             aria-current={activeTab === value ? 'page' : undefined}
@@ -130,7 +134,9 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 : 'border-transparent text-slate-500 hover:text-slate-900'
             }`}
             key={value}
-            onClick={() => setActiveTab(value as 'live' | 'history')}
+            onClick={() =>
+              setActiveTab(value as 'live' | 'history' | 'receivables')
+            }
             type="button"
           >
             {label}
@@ -256,7 +262,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             </div>
           ) : null}
         </>
-      ) : (
+      ) : activeTab === 'history' ? (
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -393,6 +399,8 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             </p>
           )}
         </section>
+      ) : (
+        <MerchantReceivables organizationId={organizationId} />
       )}
     </section>
   );

@@ -11,10 +11,15 @@ import {
   addFinanceEntry,
   closeLivePayable,
   listLivePayables,
+  previewLivePayable,
   removeFinanceEntry,
 } from './settlement-api';
 import { financeEntrySchema } from './settlement.schemas';
-import type { LiveMerchantPayable } from './settlement.types';
+import type {
+  LiveMerchantPayable,
+  ReceivableDeductionInput,
+  SettlementPreview,
+} from './settlement.types';
 
 const money = new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -37,6 +42,8 @@ export function LivePayableDetailPage({
   const { request } = useAuth();
   const router = useRouter();
   const [payable, setPayable] = useState<LiveMerchantPayable | null>(null);
+  const [preview, setPreview] = useState<SettlementPreview | null>(null);
+  const [deductions, setDeductions] = useState<ReceivableDeductionInput[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { confirm, confirmationDialog } = useConfirmationDialog();
@@ -48,6 +55,17 @@ export function LivePayableDetailPage({
         merchantId,
       });
       setPayable(rows[0] ?? null);
+      const row = rows[0];
+      if (
+        row &&
+        row.financeStatus !== 'AGREEMENT_REQUIRED' &&
+        !row.pendingSettlement
+      ) {
+        setPreview(
+          await previewLivePayable(request, organizationId, merchantId, []),
+        );
+        setDeductions([]);
+      }
       if (!rows[0]) setError('This active merchant payable was not found.');
     } catch (cause) {
       setError(errorMessage(cause));
@@ -63,7 +81,7 @@ export function LivePayableDetailPage({
     if (!payable) return;
     const approved = await confirm({
       title: `Create settlement for ${payable.merchant.name}?`,
-      description: `This snapshots ${money.format(Number(payable.amountDue))} through ${payable.asOf} for review and approval.`,
+      description: `This snapshots ${money.format(Number(preview?.finalPayout ?? payable.amountDue))} through ${payable.asOf} for review and approval.`,
       confirmLabel: 'Create draft settlement',
     });
     if (!approved) return;
@@ -74,12 +92,45 @@ export function LivePayableDetailPage({
         request,
         organizationId,
         merchantId,
+        deductions,
       );
       router.push(
         `/app/organizations/${organizationId}/settlements/${settlement.id}`,
       );
     } catch (cause) {
       setError(errorMessage(cause));
+      setBusy(false);
+    }
+  }
+
+  async function toggleReceivable(receivableId: string, checked: boolean) {
+    if (!preview) return;
+    const receivable = preview.receivables.find(
+      (item) => item.id === receivableId,
+    );
+    if (!receivable) return;
+    const next = checked
+      ? [
+          ...deductions,
+          {
+            receivableId,
+            amount: Math.min(
+              Number(receivable.availableAmount),
+              Number(preview.finalPayout),
+            ).toFixed(2),
+          },
+        ]
+      : deductions.filter((item) => item.receivableId !== receivableId);
+    setBusy(true);
+    setError(null);
+    try {
+      setPreview(
+        await previewLivePayable(request, organizationId, merchantId, next),
+      );
+      setDeductions(next);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
       setBusy(false);
     }
   }
@@ -203,8 +254,11 @@ export function LivePayableDetailPage({
           ['Refunds', `-${payable.refundTotal}`],
           ['Net sales', payable.netSales],
           ['Commission', `-${payable.commissionAmount}`],
-          ['Fixed rent balance', payable.rentOutstandingAmount],
-          ['Rent deducted', `-${payable.fixedRentAmount}`],
+          ['Outstanding rent', payable.rentOutstandingAmount],
+          [
+            'Selected rent offset',
+            `-${preview?.receivableDeductionTotal ?? payable.fixedRentAmount}`,
+          ],
           ['Adjustments', payable.adjustmentTotal],
           ['Amount due', payable.amountDue],
         ].map(([label, value]) => (
@@ -221,6 +275,53 @@ export function LivePayableDetailPage({
           </div>
         ))}
       </div>
+
+      {preview?.receivables.length ? (
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+          <h2 className="font-bold">Optional rent deduction</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Rent remains separate unless you explicitly select it for this
+            settlement. The final payout cannot fall below zero.
+          </p>
+          <div className="mt-4 divide-y divide-slate-100">
+            {preview.receivables.map((receivable) => {
+              const selected = deductions.some(
+                (item) => item.receivableId === receivable.id,
+              );
+              return (
+                <label
+                  className="flex cursor-pointer items-center justify-between gap-4 py-3"
+                  key={receivable.id}
+                >
+                  <span>
+                    <span className="font-bold">
+                      Rent for {receivable.sourcePeriod.slice(0, 7)}
+                    </span>
+                    <span className="mt-1 block text-sm text-slate-500">
+                      {money.format(Number(receivable.availableAmount))}{' '}
+                      available · due {receivable.dueDate}
+                    </span>
+                  </span>
+                  <input
+                    checked={selected}
+                    disabled={
+                      busy || (!selected && Number(preview.finalPayout) <= 0)
+                    }
+                    onChange={(event) =>
+                      void toggleReceivable(receivable.id, event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                </label>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex justify-between border-t border-slate-200 pt-4 font-bold">
+            <span>Settlement payout</span>
+            <span>{money.format(Number(preview.finalPayout))}</span>
+          </div>
+        </section>
+      ) : null}
 
       {payable.financeStatus !== 'AGREEMENT_REQUIRED' &&
       !payable.pendingSettlement ? (
