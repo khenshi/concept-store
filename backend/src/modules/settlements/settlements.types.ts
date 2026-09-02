@@ -83,7 +83,6 @@ export interface SettlementSummaryRecord extends Omit<
   netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
-  rentAccruedAmount: string;
   adjustmentTotal: string;
   netPayout: string;
   branches: Array<{ id: string; name: string }>;
@@ -110,7 +109,6 @@ export interface SettlementViewRecord extends Omit<
   netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
-  rentAccruedAmount: string;
   adjustmentTotal: string;
   netPayout: string;
   terms: Array<
@@ -132,7 +130,6 @@ export interface SettlementViewRecord extends Omit<
       netSales: string;
       commissionAmount: string;
       fixedRentAmount: string;
-      rentAccruedAmount: string;
     }
   >;
   saleItems: Array<
@@ -180,7 +177,6 @@ export interface LiveMerchantPayableRecord {
   netSales: string;
   commissionAmount: string;
   fixedRentAmount: string;
-  rentAccruedAmount: string;
   rentOutstandingAmount: string;
   adjustmentTotal: string;
   merchantPaymentTotal: string;

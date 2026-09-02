@@ -282,7 +282,7 @@ describe('SettlementsService', () => {
     expect(prisma.merchant.findMany).toHaveBeenCalledTimes(1);
   });
 
-  it('generates a server-authoritative draft with agreement segments and prorated rent', async () => {
+  it('generates a server-authoritative draft with agreement segments', async () => {
     await expect(
       service.generateDraft(
         organizationId,
@@ -346,15 +346,15 @@ describe('SettlementsService', () => {
     });
     expect(createInput.data.grossSales.toFixed(2)).toBe('3000.00');
     expect(createInput.data.commissionAmount.toFixed(2)).toBe('200.00');
-    expect(createInput.data.fixedRentAmount.toFixed(2)).toBe('4700.00');
-    expect(createInput.data.netPayout.toFixed(2)).toBe('-1900.00');
+    expect(createInput.data.fixedRentAmount.toFixed(2)).toBe('0.00');
+    expect(createInput.data.netPayout.toFixed(2)).toBe('2800.00');
     expect(createInput.data.terms.create).toHaveLength(2);
     expect(
       createInput.data.terms.create.map(
         (term: { fixedRentAmount: Prisma.Decimal }) =>
           term.fixedRentAmount.toFixed(2),
       ),
-    ).toEqual(['1500.00', '3200.00']);
+    ).toEqual(['0.00', '0.00']);
     if (!capturedSaleItemCreateMany) {
       throw new Error('Expected settlement sale-item input');
     }
@@ -400,7 +400,7 @@ describe('SettlementsService', () => {
         refundTotal: new Prisma.Decimal('200.00'),
         netSales: new Prisma.Decimal('2800.00'),
         commissionAmount: new Prisma.Decimal('190.00'),
-        netPayout: new Prisma.Decimal('-2090.00'),
+        netPayout: new Prisma.Decimal('2610.00'),
       }),
     );
     expect(transaction.settlementRefundItem.createMany).toHaveBeenCalledWith({
@@ -551,6 +551,11 @@ describe('SettlementsService', () => {
     void _saleItems;
     void _refundItems;
 
+    const {
+      rentAccruedAmount: historicalRentAccrued,
+      ...summaryWithoutAccrual
+    } = summaryRow;
+    void historicalRentAccrued;
     await expect(
       service.findAll(organizationId, {
         merchantId,
@@ -563,13 +568,12 @@ describe('SettlementsService', () => {
     ).resolves.toEqual({
       items: [
         {
-          ...summaryRow,
+          ...summaryWithoutAccrual,
           grossSales: '3000.00',
           refundTotal: '0.00',
           netSales: '3000.00',
           commissionAmount: '200.00',
           fixedRentAmount: '4700.00',
-          rentAccruedAmount: '4700.00',
           adjustmentTotal: '0.00',
           netPayout: '-1900.00',
           branches: [],

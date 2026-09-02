@@ -27,7 +27,6 @@ import type { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
 import type { RecordPayoutDto } from './dto/record-payout.dto';
 import type { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
 import {
-  daysInclusive,
   nextBusinessDate,
   nextScheduledDeadline,
   normalSettlementPeriod,
@@ -58,7 +57,6 @@ interface AgreementSegment {
   netSales: Prisma.Decimal;
   commissionAmount: Prisma.Decimal;
   fixedRentAmount: Prisma.Decimal;
-  rentAccruedAmount: Prisma.Decimal;
 }
 
 interface EligibleSaleItem {
@@ -82,7 +80,6 @@ interface SettlementCalculation {
   netSales: Prisma.Decimal;
   commissionAmount: Prisma.Decimal;
   fixedRentAmount: Prisma.Decimal;
-  rentAccruedAmount: Prisma.Decimal;
   branches: Array<{ id: string; name: string }>;
 }
 
@@ -281,11 +278,23 @@ export class SettlementsService {
             undefined,
             options.liveClosure,
           );
-          let fixedRentAmount = calculation.fixedRentAmount;
+          const rentBalance = options.liveClosure
+            ? await this.fixedRentBalance(
+                transaction,
+                organizationId,
+                merchantId,
+                period.end,
+              )
+            : null;
+          const fixedRentAmount =
+            rentBalance?.collectionMethod ===
+            RentCollectionMethod.DEDUCT_FROM_PAYOUT
+              ? rentBalance.remaining
+              : new Prisma.Decimal(0);
           let netPayout = calculation.grossSales
             .sub(calculation.refundTotal)
             .sub(calculation.commissionAmount)
-            .sub(calculation.fixedRentAmount);
+            .sub(fixedRentAmount);
 
           const settlement = await transaction.merchantSettlement.create({
             data: {
@@ -299,8 +308,8 @@ export class SettlementsService {
               refundTotal: calculation.refundTotal,
               netSales: calculation.netSales,
               commissionAmount: calculation.commissionAmount,
-              fixedRentAmount: calculation.fixedRentAmount,
-              rentAccruedAmount: calculation.rentAccruedAmount,
+              fixedRentAmount,
+              rentAccruedAmount: new Prisma.Decimal(0),
               adjustmentTotal: new Prisma.Decimal(0),
               netPayout,
               calculatedById,
@@ -314,34 +323,17 @@ export class SettlementsService {
           });
 
           if (options.liveClosure) {
-            const [pending, rentPayments] = await Promise.all([
-              transaction.merchantFinanceEntry.aggregate({
-                where: {
-                  organizationId,
-                  merchantId,
-                  settlementId: null,
-                  type: MerchantAccountEntryType.ADJUSTMENT,
-                },
-                _sum: { amount: true },
-              }),
-              transaction.merchantFinanceEntry.aggregate({
-                where: {
-                  organizationId,
-                  merchantId,
-                  settlementId: null,
-                  type: MerchantAccountEntryType.MERCHANT_PAYMENT,
-                },
-                _sum: { amount: true },
-              }),
-            ]);
+            const pending = await transaction.merchantFinanceEntry.aggregate({
+              where: {
+                organizationId,
+                merchantId,
+                settlementId: null,
+                type: MerchantAccountEntryType.ADJUSTMENT,
+              },
+              _sum: { amount: true },
+            });
             const adjustmentTotal =
               pending._sum.amount ?? new Prisma.Decimal(0);
-            fixedRentAmount = Prisma.Decimal.max(
-              fixedRentAmount.sub(
-                rentPayments._sum.amount ?? new Prisma.Decimal(0),
-              ),
-              0,
-            );
             netPayout = calculation.grossSales
               .sub(calculation.refundTotal)
               .sub(calculation.commissionAmount)
@@ -773,9 +765,6 @@ export class SettlementsService {
       fixedRentAmount: this.sum(
         segments.map(({ fixedRentAmount }) => fixedRentAmount),
       ),
-      rentAccruedAmount: this.sum(
-        segments.map(({ rentAccruedAmount }) => rentAccruedAmount),
-      ),
       branches: [...branches.values()].sort((left, right) =>
         left.name.localeCompare(right.name),
       ),
@@ -800,19 +789,29 @@ export class SettlementsService {
     configuredBranches: Array<{ id: string; name: string }> = [],
   ): Promise<LiveMerchantPayableRecord> {
     const context = await this.liveContext(organizationId, merchant.id);
-    const calculation =
+    const liveCalculation =
       context.periodStart <= context.asOf
         ? await this.prisma.$transaction((transaction) =>
-            this.calculateSources(
-              transaction,
-              organizationId,
-              merchant.id,
-              { start: context.periodStart, end: context.asOf },
-              undefined,
-              true,
-            ),
+            Promise.all([
+              this.calculateSources(
+                transaction,
+                organizationId,
+                merchant.id,
+                { start: context.periodStart, end: context.asOf },
+                undefined,
+                true,
+              ),
+              this.fixedRentBalance(
+                transaction,
+                organizationId,
+                merchant.id,
+                context.asOf,
+              ),
+            ]),
           )
         : null;
+    const calculation = liveCalculation?.[0] ?? null;
+    const rentBalance = liveCalculation?.[1] ?? null;
     const pendingEntries = await this.prisma.merchantFinanceEntry.findMany({
       where: { organizationId, merchantId: merchant.id, settlementId: null },
       orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
@@ -828,12 +827,6 @@ export class SettlementsService {
     const commission = new Prisma.Decimal(open?.commissionAmount ?? zero).add(
       calculation?.commissionAmount ?? zero,
     );
-    const accruedRentDeduction = new Prisma.Decimal(
-      open?.fixedRentAmount ?? zero,
-    ).add(calculation?.fixedRentAmount ?? zero);
-    const rentAccrued = new Prisma.Decimal(open?.rentAccruedAmount ?? zero).add(
-      calculation?.rentAccruedAmount ?? zero,
-    );
     const pendingAdjustments = this.sum(
       pendingEntries
         .filter(({ type }) => type === MerchantAccountEntryType.ADJUSTMENT)
@@ -846,14 +839,13 @@ export class SettlementsService {
         )
         .map(({ amount }) => amount),
     );
-    const rent = Prisma.Decimal.max(
-      accruedRentDeduction.sub(merchantPayments),
-      0,
-    );
-    const rentOutstanding = Prisma.Decimal.max(
-      rentAccrued.sub(merchantPayments),
-      0,
-    );
+    const rent = open
+      ? new Prisma.Decimal(open.fixedRentAmount)
+      : rentBalance?.collectionMethod ===
+          RentCollectionMethod.DEDUCT_FROM_PAYOUT
+        ? rentBalance.remaining
+        : zero;
+    const rentOutstanding = rentBalance?.remaining ?? zero;
     const adjustments = new Prisma.Decimal(open?.adjustmentTotal ?? zero).add(
       pendingAdjustments,
     );
@@ -871,7 +863,7 @@ export class SettlementsService {
       !grossSales.isZero() ||
       !refunds.isZero() ||
       !commission.isZero() ||
-      !rentAccrued.isZero() ||
+      !rentOutstanding.isZero() ||
       !adjustments.isZero() ||
       !merchantPayments.isZero() ||
       Boolean(open);
@@ -887,7 +879,6 @@ export class SettlementsService {
       netSales: this.money(grossSales.sub(refunds)),
       commissionAmount: this.money(commission),
       fixedRentAmount: this.money(rent),
-      rentAccruedAmount: this.money(rentAccrued),
       rentOutstandingAmount: this.money(rentOutstanding),
       adjustmentTotal: this.money(adjustments),
       merchantPaymentTotal: this.money(merchantPayments),
@@ -924,7 +915,6 @@ export class SettlementsService {
       netSales: '0.00',
       commissionAmount: '0.00',
       fixedRentAmount: '0.00',
-      rentAccruedAmount: '0.00',
       rentOutstandingAmount: '0.00',
       adjustmentTotal: '0.00',
       merchantPaymentTotal: '0.00',
@@ -1035,7 +1025,7 @@ export class SettlementsService {
       netSales: segment.netSales,
       commissionAmount: segment.commissionAmount,
       fixedRentAmount: segment.fixedRentAmount,
-      rentAccruedAmount: segment.rentAccruedAmount,
+      rentAccruedAmount: new Prisma.Decimal(0),
     };
   }
 
@@ -1154,7 +1144,6 @@ export class SettlementsService {
           netSales: new Prisma.Decimal(0),
           commissionAmount: new Prisma.Decimal(0),
           fixedRentAmount: new Prisma.Decimal(0),
-          rentAccruedAmount: new Prisma.Decimal(0),
         });
         previousEnd = end;
         cursor = nextBusinessDate(end);
@@ -1191,26 +1180,61 @@ export class SettlementsService {
           ? this.roundMoney(segment.netSales.mul(commissionRate).div(100))
           : new Prisma.Decimal(0);
 
-      const fixedRentRate = segment.agreement.fixedRentAmount;
-      segment.rentAccruedAmount = fixedRentRate
-        ? this.roundMoney(
-            fixedRentRate
-              .mul(daysInclusive(segment.start, segment.end))
-              .div(this.daysInMonth(segment.start)),
-          )
-        : new Prisma.Decimal(0);
-      segment.fixedRentAmount =
-        segment.agreement.rentCollectionMethod ===
-        RentCollectionMethod.DEDUCT_FROM_PAYOUT
-          ? segment.rentAccruedAmount
-          : new Prisma.Decimal(0);
+      segment.fixedRentAmount = new Prisma.Decimal(0);
     }
   }
 
-  private daysInMonth(date: Date): number {
-    return new Date(
-      Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0),
-    ).getUTCDate();
+  private async fixedRentBalance(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    merchantId: string,
+    asOf: Date,
+  ) {
+    const monthStart = new Date(
+      Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), 1),
+    );
+    const nextMonth = new Date(
+      Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth() + 1, 1),
+    );
+    const agreement = await transaction.merchantAgreement.findFirst({
+      where: {
+        organizationId,
+        merchantId,
+        status: AgreementStatus.ACTIVE,
+        startDate: { lte: asOf },
+        OR: [{ endDate: null }, { endDate: { gte: asOf } }],
+      },
+      orderBy: [{ startDate: 'desc' }, { id: 'asc' }],
+    });
+    const payments = await transaction.merchantFinanceEntry.aggregate({
+      where: {
+        organizationId,
+        merchantId,
+        type: MerchantAccountEntryType.MERCHANT_PAYMENT,
+        occurredAt: { gte: monthStart, lt: nextMonth },
+      },
+      _sum: { amount: true },
+    });
+    const deductions = await transaction.merchantSettlement.aggregate({
+      where: {
+        organizationId,
+        merchantId,
+        status: { in: [SettlementStatus.APPROVED, SettlementStatus.PAID] },
+        periodEnd: { gte: monthStart, lt: nextMonth },
+      },
+      _sum: { fixedRentAmount: true },
+    });
+    const fixedRent = agreement?.fixedRentAmount ?? new Prisma.Decimal(0);
+    return {
+      collectionMethod:
+        agreement?.rentCollectionMethod ?? RentCollectionMethod.PAID_SEPARATELY,
+      remaining: Prisma.Decimal.max(
+        fixedRent
+          .sub(payments._sum.amount ?? 0)
+          .sub(deductions._sum.fixedRentAmount ?? 0),
+        0,
+      ),
+    };
   }
 
   private roundMoney(value: Prisma.Decimal): Prisma.Decimal {
@@ -1225,7 +1249,13 @@ export class SettlementsService {
   }
 
   private toSummary(settlement: SettlementSummaryRow): SettlementSummaryRecord {
-    const { saleItems, refundItems, ...summary } = settlement;
+    const {
+      saleItems,
+      refundItems,
+      rentAccruedAmount: _historicalRentAccrued,
+      ...summary
+    } = settlement;
+    void _historicalRentAccrued;
     const branches = new Map<string, { id: string; name: string }>();
     for (const link of saleItems)
       branches.set(link.saleItem.sale.branch.id, link.saleItem.sale.branch);
@@ -1244,38 +1274,48 @@ export class SettlementsService {
       netSales: this.money(settlement.netSales),
       commissionAmount: this.money(settlement.commissionAmount),
       fixedRentAmount: this.money(settlement.fixedRentAmount),
-      rentAccruedAmount: this.money(settlement.rentAccruedAmount),
       adjustmentTotal: this.money(settlement.adjustmentTotal),
       netPayout: this.money(settlement.netPayout),
     };
   }
 
   private toView(settlement: SettlementRecord): SettlementViewRecord {
+    const {
+      rentAccruedAmount: _historicalRentAccrued,
+      terms,
+      ...settlementWithoutAccrual
+    } = settlement;
+    void _historicalRentAccrued;
     return {
-      ...settlement,
+      ...settlementWithoutAccrual,
       grossSales: this.money(settlement.grossSales),
       refundTotal: this.money(settlement.refundTotal),
       netSales: this.money(settlement.netSales),
       commissionAmount: this.money(settlement.commissionAmount),
       fixedRentAmount: this.money(settlement.fixedRentAmount),
-      rentAccruedAmount: this.money(settlement.rentAccruedAmount),
       adjustmentTotal: this.money(settlement.adjustmentTotal),
       netPayout: this.money(settlement.netPayout),
-      terms: settlement.terms.map((term) => ({
-        ...term,
-        fixedRentRate: term.fixedRentRate
-          ? this.money(term.fixedRentRate)
-          : null,
-        commissionRate: term.commissionRate
-          ? term.commissionRate.toFixed(2)
-          : null,
-        grossSales: this.money(term.grossSales),
-        refundTotal: this.money(term.refundTotal),
-        netSales: this.money(term.netSales),
-        commissionAmount: this.money(term.commissionAmount),
-        fixedRentAmount: this.money(term.fixedRentAmount),
-        rentAccruedAmount: this.money(term.rentAccruedAmount),
-      })),
+      terms: terms.map((term) => {
+        const {
+          rentAccruedAmount: _historicalTermRentAccrued,
+          ...termWithoutAccrual
+        } = term;
+        void _historicalTermRentAccrued;
+        return {
+          ...termWithoutAccrual,
+          fixedRentRate: term.fixedRentRate
+            ? this.money(term.fixedRentRate)
+            : null,
+          commissionRate: term.commissionRate
+            ? term.commissionRate.toFixed(2)
+            : null,
+          grossSales: this.money(term.grossSales),
+          refundTotal: this.money(term.refundTotal),
+          netSales: this.money(term.netSales),
+          commissionAmount: this.money(term.commissionAmount),
+          fixedRentAmount: this.money(term.fixedRentAmount),
+        };
+      }),
       saleItems: settlement.saleItems.map((link) => ({
         ...link,
         grossAmount: this.money(link.grossAmount),

@@ -905,9 +905,6 @@ export class SettlementSummaryResponseDto {
   @ApiProperty({ type: String, example: '2000.00' })
   fixedRentAmount!: string;
 
-  @ApiProperty({ type: String, example: '2000.00' })
-  rentAccruedAmount!: string;
-
   @ApiProperty({ type: String, example: '0.00' })
   adjustmentTotal!: string;
 
@@ -986,9 +983,6 @@ export class SettlementTermResponseDto {
 
   @ApiProperty({ type: String })
   fixedRentAmount!: string;
-
-  @ApiProperty({ type: String })
-  rentAccruedAmount!: string;
 }
 
 export class SettlementSaleSourceResponseDto {
