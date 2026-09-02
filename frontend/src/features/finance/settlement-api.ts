@@ -74,7 +74,9 @@ export function listMerchantReceivables(
   organizationId: string,
   filters: { merchantId?: string; status?: string } = {},
 ): Promise<MerchantReceivablePage> {
-  const query = new URLSearchParams(filters);
+  const query = new URLSearchParams();
+  if (filters.merchantId) query.set('merchantId', filters.merchantId);
+  if (filters.status) query.set('status', filters.status);
   return request(
     `${receivablePath(organizationId)}${query.size ? `?${query}` : ''}`,
   );

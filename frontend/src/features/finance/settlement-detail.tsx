@@ -352,7 +352,7 @@ export function SettlementDetailPage({
                 name="note"
                 placeholder="Optional note"
               />
-              <Action primary disabled={busy}>
+              <Action primary disabled={busy} type="submit">
                 Record payout
               </Action>
             </form>

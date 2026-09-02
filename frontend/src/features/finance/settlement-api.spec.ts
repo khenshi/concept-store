@@ -2,6 +2,7 @@ import type { AuthenticatedRequest } from '@/features/organizations/organization
 import {
   closeLivePayable,
   listLivePayables,
+  listMerchantReceivables,
   listSettlements,
   recordPayout,
   settlementAction,
@@ -20,6 +21,18 @@ describe('settlement API', () => {
     });
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%20id/settlements?merchantId=merchant-id&status=APPROVED&limit=30',
+    );
+  });
+
+  it('omits empty rent receivable filters', async () => {
+    vi.mocked(request).mockResolvedValue({});
+
+    await listMerchantReceivables(request, 'organization-id', {
+      status: undefined,
+    });
+
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization-id/merchant-receivables',
     );
   });
 
