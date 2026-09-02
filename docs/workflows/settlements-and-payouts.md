@@ -83,7 +83,10 @@ Automatic bank payouts and accounting integrations are not implemented.
 ## Visibility and audit
 
 The live overview supports merchant and branch filters with live summary
-metrics. Historical snapshots remain in a separate register with period and
-status filters. Detail includes calculation breakdown, source
+metrics. The Merchant Finance shell separates the live overview and historical
+snapshots into dedicated tabs. Manual adjustments and separately received
+merchant payments are entered contextually from a merchant's live row rather
+than presented as a primary workflow. History has period and status filters.
+Detail includes calculation breakdown, source
 sales and refunds, agreement snapshots, finance entries, payout information,
 and an append-only lifecycle history.
