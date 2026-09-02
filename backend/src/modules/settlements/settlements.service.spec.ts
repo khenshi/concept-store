@@ -132,6 +132,7 @@ describe('SettlementsService', () => {
   };
   const prisma = {
     $transaction: jest.fn(),
+    merchant: { findMany: jest.fn() },
     merchantSettlement: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -255,6 +256,31 @@ describe('SettlementsService', () => {
       ],
     }).compile();
     service = moduleRef.get(SettlementsService);
+  });
+
+  it('keeps active merchants without agreements visible in finance', async () => {
+    prisma.merchant.findMany.mockResolvedValue([
+      {
+        id: merchantId,
+        name: 'Amihan Goods',
+        code: 'AMIHAN',
+        agreements: [],
+        branches: [{ branch: { id: 'branch-id', name: 'Main Branch' } }],
+      },
+    ]);
+
+    await expect(service.findLivePayables(organizationId)).resolves.toEqual([
+      expect.objectContaining({
+        merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMIHAN' },
+        financeStatus: 'AGREEMENT_REQUIRED',
+        periodStart: null,
+        nextSettlementDeadline: null,
+        grossSales: '0.00',
+        amountDue: '0.00',
+        branches: [{ id: 'branch-id', name: 'Main Branch' }],
+      }),
+    ]);
+    expect(prisma.merchant.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('generates a server-authoritative draft with agreement segments and prorated rent', async () => {

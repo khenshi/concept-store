@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import {
   AgreementStatus,
   MerchantAccountEntryType,
+  MerchantStatus,
   OrganizationRole,
   Prisma,
   RentCollectionMethod,
@@ -94,23 +95,48 @@ export class SettlementsService {
     merchantId?: string,
     branchId?: string,
   ): Promise<LiveMerchantPayableRecord[]> {
-    const agreements = await this.prisma.merchantAgreement.findMany({
+    const today = currentPhilippineBusinessDate();
+    const merchants = await this.prisma.merchant.findMany({
       where: {
         organizationId,
-        merchantId,
-        status: AgreementStatus.ACTIVE,
-        startDate: { lte: currentPhilippineBusinessDate() },
+        id: merchantId,
+        status: MerchantStatus.ACTIVE,
       },
       select: {
-        merchant: { select: { id: true, name: true, code: true } },
+        id: true,
+        name: true,
+        code: true,
+        agreements: {
+          where: {
+            status: AgreementStatus.ACTIVE,
+            startDate: { lte: today },
+            OR: [{ endDate: null }, { endDate: { gte: today } }],
+          },
+          select: { id: true },
+          take: 1,
+        },
+        branches: {
+          select: { branch: { select: { id: true, name: true } } },
+        },
       },
-      distinct: ['merchantId'],
-      orderBy: [{ merchantId: 'asc' }],
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
     const rows = await Promise.all(
-      agreements.map(({ merchant }) =>
-        this.livePayableForMerchant(organizationId, merchant),
-      ),
+      merchants.map(async (merchant) => {
+        const branches = merchant.branches.map(({ branch }) => branch);
+        const identity = {
+          id: merchant.id,
+          name: merchant.name,
+          code: merchant.code,
+        };
+        return merchant.agreements.length
+          ? await this.livePayableForMerchant(
+              organizationId,
+              identity,
+              branches,
+            )
+          : this.emptyLivePayable(identity, branches, today);
+      }),
     );
     return rows.filter(
       (row) =>
@@ -751,6 +777,7 @@ export class SettlementsService {
   private async livePayableForMerchant(
     organizationId: string,
     merchant: { id: string; name: string; code: string | null },
+    configuredBranches: Array<{ id: string; name: string }> = [],
   ): Promise<LiveMerchantPayableRecord> {
     const context = await this.liveContext(organizationId, merchant.id);
     const calculation =
@@ -804,11 +831,26 @@ export class SettlementsService {
       pendingAdjustments,
     );
     const branches = new Map<string, { id: string; name: string }>();
+    for (const branch of configuredBranches) branches.set(branch.id, branch);
     for (const branch of open?.branches ?? []) branches.set(branch.id, branch);
     for (const branch of calculation?.branches ?? [])
       branches.set(branch.id, branch);
+    const amountDue = grossSales
+      .sub(refunds)
+      .sub(commission)
+      .sub(rent)
+      .add(adjustments);
+    const hasActivity =
+      !grossSales.isZero() ||
+      !refunds.isZero() ||
+      !commission.isZero() ||
+      !rentAccrued.isZero() ||
+      !adjustments.isZero() ||
+      !merchantPayments.isZero() ||
+      Boolean(open);
     return {
       merchant,
+      financeStatus: hasActivity ? 'READY' : 'NO_ACTIVITY',
       periodStart: context.displayPeriodStart.toISOString().slice(0, 10),
       asOf: context.asOf.toISOString().slice(0, 10),
       nextSettlementDeadline: context.deadline.toISOString().slice(0, 10),
@@ -821,9 +863,7 @@ export class SettlementsService {
       rentAccruedAmount: this.money(rentAccrued),
       adjustmentTotal: this.money(adjustments),
       merchantPaymentTotal: this.money(merchantPayments),
-      amountDue: this.money(
-        grossSales.sub(refunds).sub(commission).sub(rent).add(adjustments),
-      ),
+      amountDue: this.money(amountDue),
       branches: [...branches.values()].sort((left, right) =>
         left.name.localeCompare(right.name),
       ),
@@ -836,6 +876,33 @@ export class SettlementsService {
         occurredAt: entry.occurredAt,
         createdById: entry.createdById,
       })),
+    };
+  }
+
+  private emptyLivePayable(
+    merchant: { id: string; name: string; code: string | null },
+    branches: Array<{ id: string; name: string }>,
+    asOf: Date,
+  ): LiveMerchantPayableRecord {
+    return {
+      merchant,
+      financeStatus: 'AGREEMENT_REQUIRED',
+      periodStart: null,
+      asOf: asOf.toISOString().slice(0, 10),
+      nextSettlementDeadline: null,
+      schedule: null,
+      grossSales: '0.00',
+      refundTotal: '0.00',
+      netSales: '0.00',
+      commissionAmount: '0.00',
+      fixedRentAmount: '0.00',
+      rentAccruedAmount: '0.00',
+      adjustmentTotal: '0.00',
+      merchantPaymentTotal: '0.00',
+      amountDue: '0.00',
+      branches,
+      pendingSettlement: null,
+      accountEntries: [],
     };
   }
 

@@ -170,10 +170,11 @@ export interface SettlementPageRecord {
 
 export interface LiveMerchantPayableRecord {
   merchant: { id: string; name: string; code: string | null };
-  periodStart: string;
+  financeStatus: 'READY' | 'NO_ACTIVITY' | 'AGREEMENT_REQUIRED';
+  periodStart: string | null;
   asOf: string;
-  nextSettlementDeadline: string;
-  schedule: string;
+  nextSettlementDeadline: string | null;
+  schedule: string | null;
   grossSales: string;
   refundTotal: string;
   netSales: string;
