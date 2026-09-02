@@ -306,7 +306,7 @@ export class SettlementsService {
               calculatedById,
               terms: {
                 create: calculation.segments.map((segment) =>
-                  this.termData(segment, organizationId, merchantId),
+                  this.termData(segment),
                 ),
               },
             },
@@ -1019,15 +1019,9 @@ export class SettlementsService {
     return this.toView(settlement);
   }
 
-  private termData(
-    segment: AgreementSegment,
-    organizationId: string,
-    merchantId: string,
-  ) {
+  private termData(segment: AgreementSegment) {
     return {
       id: segment.id,
-      organizationId,
-      merchantId,
       agreementId: segment.agreement.id,
       segmentStart: segment.start,
       segmentEnd: segment.end,
