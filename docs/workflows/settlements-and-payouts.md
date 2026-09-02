@@ -31,13 +31,13 @@ Gross sales
 Commission is calculated from net sales after refunds. Rent accrues daily for
 visibility, while its payout deduction follows the agreement:
 
-- `DEDUCT_FROM_PAYOUT` deducts rent automatically. The agreement selects the
-  first settlement of the month, last settlement of the month, or prorated
-  deduction on every settlement.
+- `DEDUCT_FROM_PAYOUT` is an explicit opt-in. On every settlement, direct rent
+  payments are applied first and only the remaining accrued rent is deducted.
 - `PAID_SEPARATELY` shows accrued rent but does not reduce the merchant payout.
 
-New agreements default to automatic deduction on the first settlement of the
-month. Calculations use server-side decimal arithmetic.
+New agreements default to separate rent collection. Commission remains an
+automatic deduction from net sales. Calculations use server-side decimal
+arithmetic.
 
 ## Live payable and closure
 
@@ -58,14 +58,14 @@ After payout, its linked activity is excluded. The next deadline advances from
 the prior scheduled deadline—not the early payout date—so a weekly December 8
 deadline paid on December 5 advances to December 15.
 
-## Adjustments and merchant payments
+## Adjustments and rent payments
 
 Adjustments are signed amounts with mandatory reasons and actor history. They
 accrue before closure and are attached atomically to the snapshot.
 
-Merchant payments to the owner are recorded separately for visibility and
-audit. They do not reduce the payout because they settle an obligation outside
-the merchant-owned sales balance.
+Direct rent payments to the owner are recorded separately for visibility and
+audit. They reduce accrued rent still collectible. When agreement terms opt in
+to payout deduction, only unpaid rent is deducted from the settlement.
 
 Owners and managers can inspect and close the live payable. Only owners can
 approve. Approval locks the snapshot so later agreement or transaction edits
@@ -84,8 +84,8 @@ Automatic bank payouts and accounting integrations are not implemented.
 
 The live overview supports merchant and branch filters with live summary
 metrics. The Merchant Finance shell separates the live overview and historical
-snapshots into dedicated tabs. Manual adjustments and separately received
-merchant payments are entered contextually from a merchant's live row rather
+snapshots into dedicated tabs. Manual adjustments and separately received rent
+payments are entered contextually from a merchant's live row rather
 than presented as a primary workflow. History has period and status filters.
 Detail includes calculation breakdown, source
 sales and refunds, agreement snapshots, finance entries, payout information,

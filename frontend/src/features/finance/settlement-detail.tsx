@@ -72,7 +72,12 @@ export function SettlementDetailPage({
     setError(null);
     try {
       setSettlement(
-        await settlementAction(request, organizationId, settlementId, 'approve'),
+        await settlementAction(
+          request,
+          organizationId,
+          settlementId,
+          'approve',
+        ),
       );
     } catch (cause) {
       setError(message(cause));
@@ -275,7 +280,9 @@ export function SettlementDetailPage({
             >
               <span>
                 <strong>
-                  {item.type === 'MERCHANT_PAYMENT' ? 'Payment · ' : 'Adjustment · '}
+                  {item.type === 'MERCHANT_PAYMENT'
+                    ? 'Rent payment · '
+                    : 'Adjustment · '}
                   {money.format(Number(item.amount))}
                 </strong>
                 <br />

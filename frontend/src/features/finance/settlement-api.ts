@@ -41,14 +41,11 @@ export function addFinanceEntry(
   merchantId: string,
   input: FinanceEntryInput,
 ): Promise<LiveMerchantPayable> {
-  return request(
-    `${basePath(organizationId)}/payables/${merchantId}/entries`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    },
-  );
+  return request(`${basePath(organizationId)}/payables/${merchantId}/entries`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
 }
 
 function write(

@@ -250,9 +250,10 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                     <th className="p-3 text-right">Refunds</th>
                     <th className="p-3 text-right">Net sales</th>
                     <th className="p-3 text-right">Commission</th>
+                    <th className="p-3 text-right">Rent remaining</th>
                     <th className="p-3 text-right">Rent deducted</th>
                     <th className="p-3 text-right">Adjustments</th>
-                    <th className="p-3 text-right">Merchant payments</th>
+                    <th className="p-3 text-right">Rent payments</th>
                     <th className="p-3 text-right">Due</th>
                     <th className="p-3 text-right">Action</th>
                   </tr>
@@ -288,13 +289,14 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                         item.refundTotal,
                         item.netSales,
                         item.commissionAmount,
+                        item.rentOutstandingAmount,
                         item.fixedRentAmount,
                         item.adjustmentTotal,
                         item.merchantPaymentTotal,
                         item.amountDue,
                       ].map((value, index) => (
                         <td
-                          className={`p-3 text-right tabular-nums ${index === 7 ? 'font-bold' : ''}`}
+                          className={`p-3 text-right tabular-nums ${index === 8 ? 'font-bold' : ''}`}
                           key={index}
                         >
                           {money.format(Number(value))}
@@ -352,7 +354,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                     <tr>
                       <td
                         className="p-8 text-center text-slate-500"
-                        colSpan={13}
+                        colSpan={14}
                       >
                         No active merchants were returned. Clear the filters or
                         retry loading live payables.
@@ -378,10 +380,10 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                       }
                     </h3>
                     <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                      Use an adjustment only for a documented correction to the
-                      payable. Record a merchant payment when the merchant paid
-                      the store separately; it is tracked for audit and does not
-                      reduce this payout.
+                      Use an adjustment only for a documented correction. Record
+                      a rent payment when the merchant pays rent directly; it
+                      reduces the rent still collectible before any settlement
+                      deduction.
                     </p>
                   </div>
                   <button
@@ -406,7 +408,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                     >
                       <option value="ADJUSTMENT">Payable adjustment</option>
                       <option value="MERCHANT_PAYMENT">
-                        Separate merchant payment
+                        Rent payment received
                       </option>
                     </select>
                   </label>
@@ -451,7 +453,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                         <span>
                           <strong>{item.merchant.name}</strong> ·{' '}
                           {entry.type === 'MERCHANT_PAYMENT'
-                            ? 'Merchant payment'
+                            ? 'Rent payment'
                             : 'Adjustment'}{' '}
                           · {money.format(Number(entry.amount))}
                           <span className="ml-2 text-slate-500">

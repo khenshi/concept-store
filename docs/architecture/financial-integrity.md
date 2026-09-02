@@ -19,8 +19,9 @@ server-authoritative.
 - Settlement term snapshots preserve the agreements used for each calculation.
 - Approved settlements are locked and are not recomputed from mutable current
   agreements.
-- Adjustments and merchant payments are explicit records with documented
-  reasons; merchant payments do not alter payout calculations.
+- Adjustments and direct rent payments are explicit records with documented
+  reasons. Rent payments reduce the outstanding rent before any opted-in
+  settlement deduction.
 - Refund, approval, payout, and settlement lifecycle actions retain actor and
   timestamp history.
 

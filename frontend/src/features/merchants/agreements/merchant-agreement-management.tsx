@@ -160,7 +160,6 @@ export function MerchantAgreementManagement({
           commissionRate: input.commissionRate ?? null,
           settlementSchedule: input.settlementSchedule,
           rentCollectionMethod: input.rentCollectionMethod,
-          rentDeductionTiming: input.rentDeductionTiming,
         };
         const updated = await updateMerchantAgreement(
           request,
@@ -405,7 +404,6 @@ export function AgreementForm({
       commissionRate: formData.get('commissionRate'),
       settlementSchedule: formData.get('settlementSchedule'),
       rentCollectionMethod: formData.get('rentCollectionMethod'),
-      rentDeductionTiming: formData.get('rentDeductionTiming'),
     });
     setFormError(null);
     if (!result.success) {
@@ -424,7 +422,6 @@ export function AgreementForm({
       commissionRate: result.data.commissionRate || undefined,
       settlementSchedule: result.data.settlementSchedule,
       rentCollectionMethod: result.data.rentCollectionMethod,
-      rentDeductionTiming: result.data.rentDeductionTiming,
     };
     void onSaved(input);
   }
@@ -451,7 +448,7 @@ export function AgreementForm({
             {formError}
           </p>
         ) : null}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4">
           <AgreementField
             name="startDate"
             label="Start date"
@@ -509,28 +506,19 @@ export function AgreementForm({
               className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
               id="rentCollectionMethod"
               name="rentCollectionMethod"
-              defaultValue={agreement?.rentCollectionMethod ?? 'DEDUCT_FROM_PAYOUT'}
+              defaultValue={
+                agreement?.rentCollectionMethod ?? 'PAID_SEPARATELY'
+              }
             >
-              <option value="DEDUCT_FROM_PAYOUT">Deduct from merchant payout</option>
               <option value="PAID_SEPARATELY">Merchant pays separately</option>
-            </SelectControl>
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-bold" htmlFor="rentDeductionTiming">
-              When rent is deducted
-            </label>
-            <SelectControl
-              className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
-              id="rentDeductionTiming"
-              name="rentDeductionTiming"
-              defaultValue={agreement?.rentDeductionTiming ?? 'FIRST_SETTLEMENT_OF_MONTH'}
-            >
-              <option value="FIRST_SETTLEMENT_OF_MONTH">First settlement of the month</option>
-              <option value="LAST_SETTLEMENT_OF_MONTH">Last settlement of the month</option>
-              <option value="PRORATED_PER_SETTLEMENT">Prorate across settlements</option>
+              <option value="DEDUCT_FROM_PAYOUT">
+                Deduct unpaid rent from each settlement
+              </option>
             </SelectControl>
             <p className="text-xs leading-5 text-slate-500">
-              Only applies when rent is deducted from payouts.
+              Rent is separate by default. If deduction is enabled, recorded
+              rent payments are applied first and only the remaining rent is
+              deducted from the settlement.
             </p>
           </div>
         </div>
@@ -620,7 +608,7 @@ function AgreementHistory({
                 <p className="mt-1 text-xs text-slate-500">
                   {agreement.rentCollectionMethod === 'PAID_SEPARATELY'
                     ? 'Rent is paid separately'
-                    : `Rent deducted ${(agreement.rentDeductionTiming ?? 'FIRST_SETTLEMENT_OF_MONTH').replaceAll('_', ' ').toLowerCase()}`}
+                    : 'Unpaid rent deducted from each settlement'}
                 </p>
               ) : null}
               {agreement.status === 'DRAFT' ? (

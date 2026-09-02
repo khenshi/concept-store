@@ -20,7 +20,7 @@ export const financeEntrySchema = adjustmentSchema
       context.addIssue({
         code: 'custom',
         path: ['amount'],
-        message: 'Merchant payments must be greater than zero.',
+        message: 'Rent payments must be greater than zero.',
       });
     }
   });

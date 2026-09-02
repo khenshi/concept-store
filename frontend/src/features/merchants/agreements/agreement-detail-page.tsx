@@ -98,7 +98,6 @@ export function AgreementDetailPage({
       commissionRate: input.commissionRate ?? null,
       settlementSchedule: input.settlementSchedule,
       rentCollectionMethod: input.rentCollectionMethod,
-      rentDeductionTiming: input.rentDeductionTiming,
     };
     setIsSubmitting(true);
     setActionError(null);
@@ -273,12 +272,6 @@ export function AgreementDetailPage({
                       ? 'Merchant pays separately'
                       : 'Deduct from payout'
                   }
-                />
-                <Detail
-                  label="Rent deduction timing"
-                  value={(agreement.rentDeductionTiming ?? 'FIRST_SETTLEMENT_OF_MONTH')
-                    .replaceAll('_', ' ')
-                    .toLowerCase()}
                 />
               </dl>
             </section>

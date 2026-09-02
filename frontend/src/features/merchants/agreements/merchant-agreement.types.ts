@@ -1,10 +1,6 @@
 export type SettlementSchedule = 'WEEKLY' | 'SEMI_MONTHLY' | 'MONTHLY';
 export type AgreementStatus = 'DRAFT' | 'ACTIVE' | 'ENDED';
 export type RentCollectionMethod = 'DEDUCT_FROM_PAYOUT' | 'PAID_SEPARATELY';
-export type RentDeductionTiming =
-  | 'FIRST_SETTLEMENT_OF_MONTH'
-  | 'LAST_SETTLEMENT_OF_MONTH'
-  | 'PRORATED_PER_SETTLEMENT';
 
 export interface MerchantAgreement {
   id: string;
@@ -16,7 +12,6 @@ export interface MerchantAgreement {
   commissionRate: string | null;
   settlementSchedule: SettlementSchedule;
   rentCollectionMethod?: RentCollectionMethod;
-  rentDeductionTiming?: RentDeductionTiming;
   status: AgreementStatus;
   createdAt: string;
   updatedAt: string;
@@ -36,7 +31,6 @@ export interface MerchantAgreementInput {
   commissionRate?: string;
   settlementSchedule: SettlementSchedule;
   rentCollectionMethod?: RentCollectionMethod;
-  rentDeductionTiming?: RentDeductionTiming;
 }
 
 export interface MerchantAgreementUpdateInput {
@@ -46,5 +40,4 @@ export interface MerchantAgreementUpdateInput {
   commissionRate: string | null;
   settlementSchedule: SettlementSchedule;
   rentCollectionMethod?: RentCollectionMethod;
-  rentDeductionTiming?: RentDeductionTiming;
 }
