@@ -44,6 +44,18 @@ including:
 Serializable isolation or concurrency checks are used where competing writes
 could duplicate or invalidate financial state.
 
+## Database connections
+
+The running backend reads `DATABASE_URL` and uses the provider's pooled
+PostgreSQL endpoint with bounded pool and timeout settings. Prisma CLI migration
+commands read `DIRECT_DATABASE_URL` so schema changes use a direct session
+connection. In production, the direct migration credential should be available
+only to the deployment/migration job, not to the long-running API process.
+
+For Neon, the pooled hostname normally contains `-pooler`; the corresponding
+direct hostname does not. Both URLs must target the same database and schema.
+Neither connection string may be exposed to the frontend.
+
 ## Revenue distinction
 
 Gross customer sales are not store revenue.

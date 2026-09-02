@@ -8,6 +8,9 @@
 
 - The application keeps one NestJS-scoped Prisma service and reuses its
   PostgreSQL pool; it does not create a client per request.
+- Runtime traffic uses the pooled `DATABASE_URL`, while Prisma CLI migrations
+  use the direct `DIRECT_DATABASE_URL`. The direct credential can therefore be
+  withheld from the long-running production API.
 - Pool size, idle timeout, connection timeout, and query timeout are now
   explicit, validated environment settings. Defaults are intentionally modest
   for the current Neon-hosted modular monolith and can be tuned per deployment.

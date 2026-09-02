@@ -7,6 +7,8 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    url: env('DATABASE_URL'),
+    // Prisma CLI operations need a direct session connection. The running API
+    // uses the pooled DATABASE_URL through PrismaService instead.
+    url: env('DIRECT_DATABASE_URL'),
   },
 });

@@ -60,6 +60,26 @@ describe('validateEnvironment', () => {
     ).toThrow('DATABASE_URL must use the postgresql or postgres protocol');
   });
 
+  it('validates the optional direct migration connection when provided', () => {
+    expect(
+      validateEnvironment({
+        ...requiredEnvironment,
+        DIRECT_DATABASE_URL:
+          'postgresql://migrator:secret@direct.example.com/concept_store',
+      }),
+    ).toMatchObject({
+      DIRECT_DATABASE_URL:
+        'postgresql://migrator:secret@direct.example.com/concept_store',
+    });
+
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        DIRECT_DATABASE_URL: 'mysql://localhost/concept_store',
+      }),
+    ).toThrow('DIRECT_DATABASE_URL');
+  });
+
   it('accepts a bounded access-token lifetime and rejects unsafe values', () => {
     expect(
       validateEnvironment({

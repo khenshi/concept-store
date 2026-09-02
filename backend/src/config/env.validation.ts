@@ -20,6 +20,14 @@ const envSchema = z
         (value) => /^postgres(?:ql)?:\/\//.test(value),
         'DATABASE_URL must use the postgresql or postgres protocol',
       ),
+    DIRECT_DATABASE_URL: z
+      .string()
+      .url()
+      .refine(
+        (value) => /^postgres(?:ql)?:\/\//.test(value),
+        'DIRECT_DATABASE_URL must use the postgresql or postgres protocol',
+      )
+      .optional(),
     DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
     DB_POOL_IDLE_TIMEOUT_MS: z.coerce
       .number()
