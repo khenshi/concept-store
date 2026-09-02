@@ -144,11 +144,22 @@ export class SalesService {
               branchId,
               productId: { in: items.map((item) => item.productId) },
             },
-            include: {
+            select: {
+              productId: true,
+              quantity: true,
               product: {
-                include: {
+                select: {
+                  id: true,
+                  merchantId: true,
+                  name: true,
+                  sku: true,
+                  barcode: true,
+                  sellingPrice: true,
+                  status: true,
                   merchant: {
-                    include: {
+                    select: {
+                      name: true,
+                      status: true,
                       branches: {
                         where: { organizationId, branchId },
                         select: { branchId: true },

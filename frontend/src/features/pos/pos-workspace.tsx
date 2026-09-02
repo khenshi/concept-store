@@ -116,20 +116,6 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
     setIsLoading(true);
     setError(null);
     try {
-      if (normalized) {
-        try {
-          const exact = await lookupPosProduct(
-            request,
-            organizationId,
-            branchId,
-            normalized,
-          );
-          setPage({ items: [exact], total: 1, offset: 0, limit: PAGE_SIZE });
-          return;
-        } catch (cause: unknown) {
-          if (!(cause instanceof ApiError) || cause.status !== 404) throw cause;
-        }
-      }
       setPage(
         await listPosProducts(request, organizationId, branchId, {
           search: normalized || undefined,
