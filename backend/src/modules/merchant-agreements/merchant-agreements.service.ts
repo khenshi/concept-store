@@ -172,6 +172,27 @@ export class MerchantAgreementsService {
           );
         }
 
+        const historicalOverlap = await transaction.merchantAgreement.findFirst(
+          {
+            where: {
+              organizationId,
+              merchantId: agreement.merchantId,
+              id: { not: agreement.id },
+              status: AgreementStatus.ENDED,
+              startDate: agreement.endDate
+                ? { lte: agreement.endDate }
+                : undefined,
+              endDate: { gte: agreement.startDate },
+            },
+            select: { id: true },
+          },
+        );
+        if (historicalOverlap) {
+          throw new ConflictException(
+            'Agreement dates overlap an ended agreement',
+          );
+        }
+
         const current = await transaction.merchantAgreement.findFirst({
           where: {
             organizationId,

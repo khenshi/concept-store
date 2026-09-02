@@ -215,6 +215,7 @@ describe('MerchantAgreementsService', () => {
     };
     prisma.merchantAgreement.findFirst
       .mockResolvedValueOnce(agreement)
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(current);
     prisma.merchantAgreement.update
       .mockResolvedValueOnce({ ...current, status: AgreementStatus.ENDED })
@@ -234,6 +235,17 @@ describe('MerchantAgreementsService', () => {
       where: { id: agreementId, organizationId },
       data: { status: AgreementStatus.ACTIVE },
     });
+  });
+
+  it('does not activate across an ended agreement period', async () => {
+    prisma.merchantAgreement.findFirst
+      .mockResolvedValueOnce(agreement)
+      .mockResolvedValueOnce({ id: 'ended-agreement-id' });
+
+    await expect(service.activate(organizationId, agreementId)).rejects.toThrow(
+      new ConflictException('Agreement dates overlap an ended agreement'),
+    );
+    expect(prisma.merchantAgreement.update).not.toHaveBeenCalled();
   });
 
   it('ends an active agreement with an effective business date', async () => {
