@@ -821,9 +821,6 @@ export class MerchantAgreementResponseDto {
   @ApiProperty({ enum: RentCollectionMethod })
   rentCollectionMethod!: RentCollectionMethod;
 
-  @ApiProperty({ enum: RentDeductionTiming })
-  rentDeductionTiming!: RentDeductionTiming;
-
   @ApiProperty({ enum: SettlementSchedule })
   settlementSchedule!: SettlementSchedule;
 

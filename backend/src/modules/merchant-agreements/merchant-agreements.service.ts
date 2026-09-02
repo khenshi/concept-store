@@ -50,7 +50,6 @@ export class MerchantAgreementsService {
         commissionRate: this.toDecimal(dto.commissionRate),
         settlementSchedule: dto.settlementSchedule,
         rentCollectionMethod: dto.rentCollectionMethod,
-        rentDeductionTiming: dto.rentDeductionTiming,
       },
     });
   }
@@ -139,7 +138,6 @@ export class MerchantAgreementsService {
             : this.toDecimal(dto.commissionRate),
         settlementSchedule: dto.settlementSchedule,
         rentCollectionMethod: dto.rentCollectionMethod,
-        rentDeductionTiming: dto.rentDeductionTiming,
       },
     });
   }

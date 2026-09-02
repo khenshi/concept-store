@@ -3,7 +3,6 @@ import { Transform } from 'class-transformer';
 import { IsEnum, IsOptional, Matches } from 'class-validator';
 import {
   RentCollectionMethod,
-  RentDeductionTiming,
   SettlementSchedule,
 } from '../../../generated/prisma/client';
 import { trimOptionalDecimal } from './agreement-dto.transforms';
@@ -50,21 +49,12 @@ export class CreateMerchantAgreementDto {
 
   @ApiPropertyOptional({
     enum: RentCollectionMethod,
-    default: RentCollectionMethod.DEDUCT_FROM_PAYOUT,
+    default: RentCollectionMethod.PAID_SEPARATELY,
   })
   @IsOptional()
   @IsEnum(RentCollectionMethod)
   rentCollectionMethod: RentCollectionMethod =
-    RentCollectionMethod.DEDUCT_FROM_PAYOUT;
-
-  @ApiPropertyOptional({
-    enum: RentDeductionTiming,
-    default: RentDeductionTiming.FIRST_SETTLEMENT_OF_MONTH,
-  })
-  @IsOptional()
-  @IsEnum(RentDeductionTiming)
-  rentDeductionTiming: RentDeductionTiming =
-    RentDeductionTiming.FIRST_SETTLEMENT_OF_MONTH;
+    RentCollectionMethod.PAID_SEPARATELY;
 }
 
 export { COMMISSION_PATTERN, POSITIVE_MONEY_PATTERN };

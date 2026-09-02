@@ -183,7 +183,7 @@ export class SettlementsService {
         amount.lte(0)
       ) {
         throw new BadRequestException(
-          'Merchant payment amount must be greater than zero',
+          'Rent payment amount must be greater than zero',
         );
       }
       await transaction.merchantFinanceEntry.create({
@@ -280,8 +280,8 @@ export class SettlementsService {
             period,
             undefined,
             options.liveClosure,
-            options.scheduledDeadline ?? period.end,
           );
+          let fixedRentAmount = calculation.fixedRentAmount;
           let netPayout = calculation.grossSales
             .sub(calculation.refundTotal)
             .sub(calculation.commissionAmount)
@@ -314,25 +314,46 @@ export class SettlementsService {
           });
 
           if (options.liveClosure) {
-            const pending = await transaction.merchantFinanceEntry.aggregate({
-              where: {
-                organizationId,
-                merchantId,
-                settlementId: null,
-                type: MerchantAccountEntryType.ADJUSTMENT,
-              },
-              _sum: { amount: true },
-            });
+            const [pending, rentPayments] = await Promise.all([
+              transaction.merchantFinanceEntry.aggregate({
+                where: {
+                  organizationId,
+                  merchantId,
+                  settlementId: null,
+                  type: MerchantAccountEntryType.ADJUSTMENT,
+                },
+                _sum: { amount: true },
+              }),
+              transaction.merchantFinanceEntry.aggregate({
+                where: {
+                  organizationId,
+                  merchantId,
+                  settlementId: null,
+                  type: MerchantAccountEntryType.MERCHANT_PAYMENT,
+                },
+                _sum: { amount: true },
+              }),
+            ]);
             const adjustmentTotal =
               pending._sum.amount ?? new Prisma.Decimal(0);
-            netPayout = netPayout.add(adjustmentTotal);
+            fixedRentAmount = Prisma.Decimal.max(
+              fixedRentAmount.sub(
+                rentPayments._sum.amount ?? new Prisma.Decimal(0),
+              ),
+              0,
+            );
+            netPayout = calculation.grossSales
+              .sub(calculation.refundTotal)
+              .sub(calculation.commissionAmount)
+              .sub(fixedRentAmount)
+              .add(adjustmentTotal);
             await transaction.merchantFinanceEntry.updateMany({
               where: { organizationId, merchantId, settlementId: null },
               data: { settlementId: settlement.id },
             });
             await transaction.merchantSettlement.update({
               where: { id: settlement.id },
-              data: { adjustmentTotal, netPayout },
+              data: { adjustmentTotal, fixedRentAmount, netPayout },
             });
           }
 
@@ -643,7 +664,6 @@ export class SettlementsService {
     period: DatePeriod,
     currentSettlementId?: string,
     allowPartialPeriod = false,
-    scheduledDeadline?: Date,
   ): Promise<SettlementCalculation> {
     const agreements = await transaction.merchantAgreement.findMany({
       where: {
@@ -728,7 +748,7 @@ export class SettlementsService {
       }
       segment.refundTotal = segment.refundTotal.add(refundItem.amount);
     }
-    this.calculateSegments(segments, scheduledDeadline ?? period.end);
+    this.calculateSegments(segments);
     const grossSales = this.sum(segments.map(({ grossSales }) => grossSales));
     const refundTotal = this.sum(
       segments.map(({ refundTotal }) => refundTotal),
@@ -790,7 +810,6 @@ export class SettlementsService {
               { start: context.periodStart, end: context.asOf },
               undefined,
               true,
-              context.deadline,
             ),
           )
         : null;
@@ -809,9 +828,9 @@ export class SettlementsService {
     const commission = new Prisma.Decimal(open?.commissionAmount ?? zero).add(
       calculation?.commissionAmount ?? zero,
     );
-    const rent = new Prisma.Decimal(open?.fixedRentAmount ?? zero).add(
-      calculation?.fixedRentAmount ?? zero,
-    );
+    const accruedRentDeduction = new Prisma.Decimal(
+      open?.fixedRentAmount ?? zero,
+    ).add(calculation?.fixedRentAmount ?? zero);
     const rentAccrued = new Prisma.Decimal(open?.rentAccruedAmount ?? zero).add(
       calculation?.rentAccruedAmount ?? zero,
     );
@@ -826,6 +845,14 @@ export class SettlementsService {
           ({ type }) => type === MerchantAccountEntryType.MERCHANT_PAYMENT,
         )
         .map(({ amount }) => amount),
+    );
+    const rent = Prisma.Decimal.max(
+      accruedRentDeduction.sub(merchantPayments),
+      0,
+    );
+    const rentOutstanding = Prisma.Decimal.max(
+      rentAccrued.sub(merchantPayments),
+      0,
     );
     const adjustments = new Prisma.Decimal(open?.adjustmentTotal ?? zero).add(
       pendingAdjustments,
@@ -861,6 +888,7 @@ export class SettlementsService {
       commissionAmount: this.money(commission),
       fixedRentAmount: this.money(rent),
       rentAccruedAmount: this.money(rentAccrued),
+      rentOutstandingAmount: this.money(rentOutstanding),
       adjustmentTotal: this.money(adjustments),
       merchantPaymentTotal: this.money(merchantPayments),
       amountDue: this.money(amountDue),
@@ -897,6 +925,7 @@ export class SettlementsService {
       commissionAmount: '0.00',
       fixedRentAmount: '0.00',
       rentAccruedAmount: '0.00',
+      rentOutstandingAmount: '0.00',
       adjustmentTotal: '0.00',
       merchantPaymentTotal: '0.00',
       amountDue: '0.00',
@@ -1006,7 +1035,7 @@ export class SettlementsService {
       fixedRentRate: segment.agreement.fixedRentAmount,
       commissionRate: segment.agreement.commissionRate,
       rentCollectionMethod: segment.agreement.rentCollectionMethod,
-      rentDeductionTiming: segment.agreement.rentDeductionTiming,
+      rentDeductionTiming: RentDeductionTiming.PRORATED_PER_SETTLEMENT,
       grossSales: segment.grossSales,
       refundTotal: segment.refundTotal,
       netSales: segment.netSales,
@@ -1159,10 +1188,7 @@ export class SettlementsService {
     });
   }
 
-  private calculateSegments(
-    segments: AgreementSegment[],
-    scheduledDeadline: Date,
-  ): void {
+  private calculateSegments(segments: AgreementSegment[]): void {
     for (const segment of segments) {
       segment.netSales = segment.grossSales.sub(segment.refundTotal);
       const commissionRate = segment.agreement.commissionRate;
@@ -1179,53 +1205,12 @@ export class SettlementsService {
               .div(this.daysInMonth(segment.start)),
           )
         : new Prisma.Decimal(0);
-      segment.fixedRentAmount = this.rentDeductionForSegment(
-        segment,
-        scheduledDeadline,
-      );
+      segment.fixedRentAmount =
+        segment.agreement.rentCollectionMethod ===
+        RentCollectionMethod.DEDUCT_FROM_PAYOUT
+          ? segment.rentAccruedAmount
+          : new Prisma.Decimal(0);
     }
-  }
-
-  private rentDeductionForSegment(
-    segment: AgreementSegment,
-    scheduledDeadline: Date,
-  ): Prisma.Decimal {
-    const rent = segment.agreement.fixedRentAmount;
-    if (
-      !rent ||
-      scheduledDeadline < segment.start ||
-      scheduledDeadline > segment.end ||
-      segment.agreement.rentCollectionMethod ===
-        RentCollectionMethod.PAID_SEPARATELY
-    ) {
-      return new Prisma.Decimal(0);
-    }
-    if (
-      segment.agreement.rentDeductionTiming ===
-      RentDeductionTiming.PRORATED_PER_SETTLEMENT
-    ) {
-      return segment.rentAccruedAmount;
-    }
-    const day = scheduledDeadline.getUTCDate();
-    const nextWeek = new Date(scheduledDeadline);
-    nextWeek.setUTCDate(day + 7);
-    const lastDay = this.daysInMonth(scheduledDeadline);
-    const firstDeadline =
-      segment.agreement.settlementSchedule === 'WEEKLY'
-        ? day <= 7
-        : segment.agreement.settlementSchedule === 'SEMI_MONTHLY'
-          ? day === 15
-          : day === lastDay;
-    const lastDeadline =
-      segment.agreement.settlementSchedule === 'WEEKLY'
-        ? nextWeek.getUTCMonth() !== scheduledDeadline.getUTCMonth()
-        : day === lastDay;
-    const shouldDeduct =
-      segment.agreement.rentDeductionTiming ===
-      RentDeductionTiming.FIRST_SETTLEMENT_OF_MONTH
-        ? firstDeadline
-        : lastDeadline;
-    return shouldDeduct ? rent : new Prisma.Decimal(0);
   }
 
   private daysInMonth(date: Date): number {

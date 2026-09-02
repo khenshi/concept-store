@@ -181,6 +181,7 @@ export interface LiveMerchantPayableRecord {
   commissionAmount: string;
   fixedRentAmount: string;
   rentAccruedAmount: string;
+  rentOutstandingAmount: string;
   adjustmentTotal: string;
   merchantPaymentTotal: string;
   amountDue: string;

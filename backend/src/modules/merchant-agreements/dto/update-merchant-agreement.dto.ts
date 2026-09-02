@@ -3,7 +3,6 @@ import { Transform } from 'class-transformer';
 import { IsEnum, IsOptional, Matches, ValidateIf } from 'class-validator';
 import {
   RentCollectionMethod,
-  RentDeductionTiming,
   SettlementSchedule,
 } from '../../../generated/prisma/client';
 import { trimOptionalDecimal } from './agreement-dto.transforms';
@@ -57,9 +56,4 @@ export class UpdateMerchantAgreementDto {
   @IsOptional()
   @IsEnum(RentCollectionMethod)
   rentCollectionMethod?: RentCollectionMethod;
-
-  @ApiPropertyOptional({ enum: RentDeductionTiming })
-  @IsOptional()
-  @IsEnum(RentDeductionTiming)
-  rentDeductionTiming?: RentDeductionTiming;
 }

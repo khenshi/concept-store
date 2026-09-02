@@ -13,7 +13,6 @@ import {
   SettlementSchedule,
   SettlementStatus,
   RentCollectionMethod,
-  RentDeductionTiming,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { SettlementsService } from './settlements.service';
@@ -60,7 +59,6 @@ describe('SettlementsService', () => {
     merchantId,
     settlementSchedule: SettlementSchedule.MONTHLY,
     rentCollectionMethod: RentCollectionMethod.DEDUCT_FROM_PAYOUT,
-    rentDeductionTiming: RentDeductionTiming.FIRST_SETTLEMENT_OF_MONTH,
     status: AgreementStatus.ENDED,
     createdAt,
     updatedAt: createdAt,
@@ -175,12 +173,13 @@ describe('SettlementsService', () => {
       fixedRentAmount: new Prisma.Decimal('4700.00'),
     });
     transaction.merchantSettlement.updateMany.mockResolvedValue({ count: 1 });
-    transaction.merchantFinanceEntry.aggregate.mockResolvedValue({
-      _sum: { amount: new Prisma.Decimal('-500.00') },
-    });
-    transaction.merchantFinanceEntry.aggregate.mockResolvedValue({
-      _sum: { amount: new Prisma.Decimal('-500.00') },
-    });
+    transaction.merchantFinanceEntry.aggregate
+      .mockResolvedValueOnce({
+        _sum: { amount: new Prisma.Decimal('-500.00') },
+      })
+      .mockResolvedValueOnce({
+        _sum: { amount: new Prisma.Decimal('0.00') },
+      });
     transaction.merchantFinanceEntry.create.mockResolvedValue({});
     transaction.merchantFinanceEntry.updateMany.mockResolvedValue({ count: 1 });
     transaction.merchantFinanceEntry.deleteMany.mockResolvedValue({ count: 1 });
@@ -347,15 +346,15 @@ describe('SettlementsService', () => {
     });
     expect(createInput.data.grossSales.toFixed(2)).toBe('3000.00');
     expect(createInput.data.commissionAmount.toFixed(2)).toBe('200.00');
-    expect(createInput.data.fixedRentAmount.toFixed(2)).toBe('6200.00');
-    expect(createInput.data.netPayout.toFixed(2)).toBe('-3400.00');
+    expect(createInput.data.fixedRentAmount.toFixed(2)).toBe('4700.00');
+    expect(createInput.data.netPayout.toFixed(2)).toBe('-1900.00');
     expect(createInput.data.terms.create).toHaveLength(2);
     expect(
       createInput.data.terms.create.map(
         (term: { fixedRentAmount: Prisma.Decimal }) =>
           term.fixedRentAmount.toFixed(2),
       ),
-    ).toEqual(['0.00', '6200.00']);
+    ).toEqual(['1500.00', '3200.00']);
     if (!capturedSaleItemCreateMany) {
       throw new Error('Expected settlement sale-item input');
     }
@@ -401,7 +400,7 @@ describe('SettlementsService', () => {
         refundTotal: new Prisma.Decimal('200.00'),
         netSales: new Prisma.Decimal('2800.00'),
         commissionAmount: new Prisma.Decimal('190.00'),
-        netPayout: new Prisma.Decimal('-3590.00'),
+        netPayout: new Prisma.Decimal('-2090.00'),
       }),
     );
     expect(transaction.settlementRefundItem.createMany).toHaveBeenCalledWith({
