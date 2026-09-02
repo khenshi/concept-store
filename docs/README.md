@@ -16,6 +16,7 @@ historical summary for each completed milestone.
 - [Products and inventory](workflows/products-and-inventory.md)
 - [POS, payments, and refunds](workflows/pos-and-refunds.md)
 - [Settlements and payouts](workflows/settlements-and-payouts.md)
+- [Performance and scalability audit](performance-scalability-audit.md)
 - [Reporting and dashboards](workflows/reporting.md)
 
 These documents describe current behavior. Swagger/OpenAPI is the authoritative
