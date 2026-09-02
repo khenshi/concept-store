@@ -86,6 +86,20 @@ export function SettlementDetailPage({
     }
   }
 
+  async function review() {
+    setBusy(true);
+    setError(null);
+    try {
+      setSettlement(
+        await settlementAction(request, organizationId, settlementId, 'review'),
+      );
+    } catch (cause) {
+      setError(message(cause));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function payout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -154,7 +168,12 @@ export function SettlementDetailPage({
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          {owner && ['DRAFT', 'REVIEWED'].includes(settlement.status) ? (
+          {settlement.status === 'DRAFT' ? (
+            <Action primary disabled={busy} onClick={() => void review()}>
+              Mark reviewed
+            </Action>
+          ) : null}
+          {owner && settlement.status === 'REVIEWED' ? (
             <Action primary disabled={busy} onClick={() => void approve()}>
               Approve and lock
             </Action>

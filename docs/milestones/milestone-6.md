@@ -16,7 +16,8 @@ settlement closures, and payout recording.
 - Agreement-term snapshots and source sale/refund links.
 - Early or scheduled closure into source-linked snapshots and documented signed
   adjustments.
-- Draft, approved, and paid lifecycle. Legacy reviewed records remain readable.
+- Draft, reviewed, approved, and paid lifecycle with explicit review before
+  owner-only approval.
 - Owner-only approval and payout recording.
 - Locked approved settlement history and append-only audit events.
 - Deadlines that advance on the agreement cadence even after an early payout.

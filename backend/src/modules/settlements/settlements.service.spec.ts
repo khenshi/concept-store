@@ -12,6 +12,7 @@ import {
   Prisma,
   SettlementSchedule,
   SettlementStatus,
+  SettlementAuditEventType,
   RentCollectionMethod,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -696,7 +697,7 @@ describe('SettlementsService', () => {
     );
   });
 
-  it('allows only an owner to approve and lock a draft settlement', async () => {
+  it('allows only an owner to approve and lock a reviewed settlement', async () => {
     transaction.organizationMembership.findUnique.mockResolvedValue({
       role: OrganizationRole.OWNER,
     });
@@ -707,7 +708,7 @@ describe('SettlementsService', () => {
       where: {
         id: settlementId,
         organizationId,
-        status: { in: [SettlementStatus.DRAFT, SettlementStatus.REVIEWED] },
+        status: SettlementStatus.REVIEWED,
       },
       // Jest asymmetric matchers are intentionally untyped at this boundary.
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -716,6 +717,36 @@ describe('SettlementsService', () => {
         approvedById: actorId,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         approvedAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it('records an explicit review before approval', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.MANAGER,
+    });
+
+    await service.review(organizationId, settlementId, actorId);
+
+    expect(transaction.merchantSettlement.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: settlementId,
+        organizationId,
+        status: SettlementStatus.DRAFT,
+      },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: expect.objectContaining({
+        status: SettlementStatus.REVIEWED,
+        reviewedById: actorId,
+      }),
+    });
+    expect(transaction.settlementAuditEvent.create).toHaveBeenCalledWith({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: expect.objectContaining({
+        organizationId,
+        settlementId,
+        actorId,
+        type: SettlementAuditEventType.REVIEWED,
       }),
     });
   });
@@ -746,7 +777,9 @@ describe('SettlementsService', () => {
     await expect(
       service.approve(organizationId, settlementId, actorId),
     ).rejects.toThrow(
-      new ConflictException('Only a draft settlement can be approved'),
+      new ConflictException(
+        'Settlement must be reviewed before it can be approved',
+      ),
     );
     expect(transaction.merchantSettlement.updateMany).toHaveBeenCalled();
   });

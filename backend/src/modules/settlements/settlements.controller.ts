@@ -188,6 +188,21 @@ export class SettlementsController {
     );
   }
 
+  @Post(':settlementId/review')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark a draft settlement as reviewed' })
+  review(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
+    settlementId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.settlementsService.review(
+      organization.organizationId,
+      settlementId,
+      organization.userId,
+    );
+  }
+
   @Post(':settlementId/payout')
   @HttpCode(HttpStatus.OK)
   @OrganizationRoles(OrganizationRole.OWNER)

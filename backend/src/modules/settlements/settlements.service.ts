@@ -660,7 +660,7 @@ export class SettlementsService {
         where: {
           id: settlementId,
           organizationId,
-          status: { in: [SettlementStatus.DRAFT, SettlementStatus.REVIEWED] },
+          status: SettlementStatus.REVIEWED,
         },
         data: {
           status: SettlementStatus.APPROVED,
@@ -669,13 +669,49 @@ export class SettlementsService {
         },
       });
       if (updated.count !== 1)
-        throw new ConflictException('Only a draft settlement can be approved');
+        throw new ConflictException(
+          'Settlement must be reviewed before it can be approved',
+        );
       await transaction.settlementAuditEvent.create({
         data: {
           organizationId,
           settlementId,
           actorId,
           type: SettlementAuditEventType.APPROVED,
+        },
+      });
+      return this.loadView(transaction, organizationId, settlementId);
+    });
+  }
+
+  review(
+    organizationId: string,
+    settlementId: string,
+    actorId: string,
+  ): Promise<SettlementViewRecord> {
+    return this.runFinanceMutation(async (transaction) => {
+      await this.assertFinanceActor(transaction, organizationId, actorId);
+      const now = new Date();
+      const updated = await transaction.merchantSettlement.updateMany({
+        where: {
+          id: settlementId,
+          organizationId,
+          status: SettlementStatus.DRAFT,
+        },
+        data: {
+          status: SettlementStatus.REVIEWED,
+          reviewedById: actorId,
+          reviewedAt: now,
+        },
+      });
+      if (updated.count !== 1)
+        throw new ConflictException('Only a draft settlement can be reviewed');
+      await transaction.settlementAuditEvent.create({
+        data: {
+          organizationId,
+          settlementId,
+          actorId,
+          type: SettlementAuditEventType.REVIEWED,
         },
       });
       return this.loadView(transaction, organizationId, settlementId);

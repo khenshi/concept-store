@@ -159,7 +159,7 @@ export function settlementAction(
   request: AuthenticatedRequest,
   organizationId: string,
   settlementId: string,
-  action: 'approve',
+  action: 'review' | 'approve',
 ): Promise<SettlementDetail> {
   return write(
     request,

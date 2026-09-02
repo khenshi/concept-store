@@ -8,13 +8,14 @@
 Eligible sales, refunds, and adjustments accrue into a live payable
   → owner/manager closes the balance on schedule or early
   → source-linked draft snapshot
+  → owner/manager records review
   → owner approval and lock
   → payout recorded
   → paid
 ```
 
-The active workflow uses `DRAFT`, `APPROVED`, and `PAID`. Historical
-`REVIEWED` records remain readable and can still be approved.
+The active workflow uses `DRAFT`, `REVIEWED`, `APPROVED`, and `PAID`. Approval
+is owner-only and requires the explicit review step first.
 
 ## Calculation
 
