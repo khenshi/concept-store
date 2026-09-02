@@ -23,6 +23,7 @@ import {
   parseAgreementDate,
 } from '../merchant-agreements/dto/agreement-date.validation';
 import type { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
+import type { ListLivePayablesQueryDto } from './dto/list-live-payables-query.dto';
 import type { RecordPayoutDto } from './dto/record-payout.dto';
 import type { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
 import type {
@@ -48,6 +49,7 @@ import {
   type SettlementSummaryRow,
   type SettlementViewRecord,
   type LiveMerchantPayableRecord,
+  type LiveMerchantPayablePageRecord,
   type SettlementPreviewRecord,
 } from './settlements.types';
 
@@ -107,37 +109,44 @@ export class SettlementsService {
 
   async findLivePayables(
     organizationId: string,
-    merchantId?: string,
-    branchId?: string,
-  ): Promise<LiveMerchantPayableRecord[]> {
+    query: ListLivePayablesQueryDto,
+  ): Promise<LiveMerchantPayablePageRecord> {
     await this.merchantReceivables.ensureCurrentRentReceivables(organizationId);
     const today = currentPhilippineBusinessDate();
-    const merchants = await this.prisma.merchant.findMany({
-      where: {
-        organizationId,
-        id: merchantId,
-        status: MerchantStatus.ACTIVE,
-        branches: branchId ? { some: { organizationId, branchId } } : undefined,
-      },
-      select: {
-        id: true,
-        name: true,
-        code: true,
-        agreements: {
-          where: {
-            status: AgreementStatus.ACTIVE,
-            startDate: { lte: today },
-            OR: [{ endDate: null }, { endDate: { gte: today } }],
+    const where: Prisma.MerchantWhereInput = {
+      organizationId,
+      id: query.merchantId,
+      status: MerchantStatus.ACTIVE,
+      branches: query.branchId
+        ? { some: { organizationId, branchId: query.branchId } }
+        : undefined,
+    };
+    const [merchants, total] = await this.prisma.$transaction([
+      this.prisma.merchant.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          agreements: {
+            where: {
+              status: AgreementStatus.ACTIVE,
+              startDate: { lte: today },
+              OR: [{ endDate: null }, { endDate: { gte: today } }],
+            },
+            select: { id: true },
+            take: 1,
           },
-          select: { id: true },
-          take: 1,
+          branches: {
+            select: { branch: { select: { id: true, name: true } } },
+          },
         },
-        branches: {
-          select: { branch: { select: { id: true, name: true } } },
-        },
-      },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    });
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: query.offset,
+        take: query.limit,
+      }),
+      this.prisma.merchant.count({ where }),
+    ]);
     const rows = await Promise.all(
       merchants.map(async (merchant) => {
         const branches = merchant.branches.map(({ branch }) => branch);
@@ -155,7 +164,7 @@ export class SettlementsService {
           : this.emptyLivePayable(identity, branches, today);
       }),
     );
-    return rows;
+    return { items: rows, total, offset: query.offset, limit: query.limit };
   }
 
   async closeLivePayable(

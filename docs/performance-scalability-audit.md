@@ -60,14 +60,17 @@ idempotency, tenant scope, or transaction atomicity.
   query before any financial calculations. Previously, every active merchant
   was calculated and nonmatching merchants were discarded afterward.
 - Pending adjustments now select only fields used by the live response.
+- Live payables are paginated at the merchant query before calculations begin;
+  the API defaults to 20 merchants and caps requests at 50. Settlement history
+  is also requested 20 rows at a time instead of 100.
 - The Merchant Finance frontend fetches only the active tab. It no longer loads
   settlement history and live payables together or loads history filter options
   before the history tab is opened.
 - Live payable calculations remain server-authoritative and decimal-safe.
 
 Expected impact: branch-scoped finance views avoid expensive work for unrelated
-merchants, and initial/refresh requests transfer and calculate only visible
-finance data.
+merchants, request cost no longer grows without a bound as merchants are added,
+and initial/refresh requests transfer and calculate only visible finance data.
 
 ### Merchants, agreements, spaces, and organization administration
 

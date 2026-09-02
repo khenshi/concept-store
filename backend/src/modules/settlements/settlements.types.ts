@@ -216,6 +216,13 @@ export interface LiveMerchantPayableRecord {
   }>;
 }
 
+export interface LiveMerchantPayablePageRecord {
+  items: LiveMerchantPayableRecord[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
 export interface SettlementPreviewRecord {
   merchant: { id: string; name: string; code: string | null };
   periodStart: string;

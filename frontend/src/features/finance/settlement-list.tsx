@@ -21,6 +21,8 @@ const money = new Intl.NumberFormat('en-PH', {
   style: 'currency',
   currency: 'PHP',
 });
+const LIVE_PAGE_SIZE = 20;
+const HISTORY_PAGE_SIZE = 20;
 const labels: Record<SettlementStatus, string> = {
   DRAFT: 'Draft',
   REVIEWED: 'Reviewed',
@@ -46,6 +48,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
     loadBranches,
   } = useOrganizationWorkspaceContext();
   const [page, setPage] = useState<SettlementPage | null>(null);
+  const [historyOffset, setHistoryOffset] = useState(0);
   const [status, setStatus] = useState('');
   const [merchantId, setMerchantId] = useState('');
   const [branchId, setBranchId] = useState('');
@@ -53,6 +56,8 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   const [periodTo, setPeriodTo] = useState('');
   const [metrics, setMetrics] = useState<SettlementMetrics | null>(null);
   const [payables, setPayables] = useState<LiveMerchantPayable[]>([]);
+  const [liveTotal, setLiveTotal] = useState(0);
+  const [liveOffset, setLiveOffset] = useState(0);
   const [activeTab, setActiveTab] = useState<
     'live' | 'history' | 'receivables'
   >('live');
@@ -65,9 +70,13 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
     try {
       if (activeTab === 'live') {
         setLiveError(null);
-        const result = await listLivePayables(request, organizationId);
-        setMetrics(payableMetrics(result));
-        setPayables(result);
+        const result = await listLivePayables(request, organizationId, {
+          offset: liveOffset,
+          limit: LIVE_PAGE_SIZE,
+        });
+        setMetrics(payableMetrics(result.items));
+        setPayables(result.items);
+        setLiveTotal(result.total);
       } else if (activeTab === 'history') {
         setHistoryError(null);
         setPage(
@@ -77,7 +86,8 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             status: (status || undefined) as SettlementStatus | undefined,
             periodFrom: periodFrom || undefined,
             periodTo: periodTo || undefined,
-            limit: 100,
+            offset: historyOffset,
+            limit: HISTORY_PAGE_SIZE,
           }),
         );
       }
@@ -90,6 +100,8 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   }, [
     activeTab,
     branchId,
+    historyOffset,
+    liveOffset,
     merchantId,
     organizationId,
     periodFrom,
@@ -244,6 +256,41 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 </tbody>
               </table>
             </div>
+            {liveTotal > LIVE_PAGE_SIZE ? (
+              <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
+                <p className="text-sm text-slate-500">
+                  {liveOffset + 1}–
+                  {Math.min(liveOffset + LIVE_PAGE_SIZE, liveTotal)} of{' '}
+                  {liveTotal} merchants
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold disabled:opacity-40"
+                    disabled={liveOffset === 0 || loading}
+                    onClick={() =>
+                      setLiveOffset((current) =>
+                        Math.max(0, current - LIVE_PAGE_SIZE),
+                      )
+                    }
+                    type="button"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold disabled:opacity-40"
+                    disabled={
+                      liveOffset + LIVE_PAGE_SIZE >= liveTotal || loading
+                    }
+                    onClick={() =>
+                      setLiveOffset((current) => current + LIVE_PAGE_SIZE)
+                    }
+                    type="button"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </section>
           {metrics ? (
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -285,7 +332,10 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 aria-label="Filter by merchant"
                 className="min-h-11 rounded-lg border border-slate-300 px-3"
                 value={merchantId}
-                onChange={(event) => setMerchantId(event.target.value)}
+                onChange={(event) => {
+                  setMerchantId(event.target.value);
+                  setHistoryOffset(0);
+                }}
               >
                 <option value="">All merchants</option>
                 {merchants.map((merchant) => (
@@ -298,7 +348,10 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 aria-label="Filter by status"
                 className="min-h-11 rounded-lg border border-slate-300 px-3"
                 value={status}
-                onChange={(event) => setStatus(event.target.value)}
+                onChange={(event) => {
+                  setStatus(event.target.value);
+                  setHistoryOffset(0);
+                }}
               >
                 <option value="">All statuses</option>
                 {Object.entries(labels).map(([value, label]) => (
@@ -311,7 +364,10 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 aria-label="Filter by branch"
                 className="min-h-11 rounded-lg border border-slate-300 px-3"
                 value={branchId}
-                onChange={(event) => setBranchId(event.target.value)}
+                onChange={(event) => {
+                  setBranchId(event.target.value);
+                  setHistoryOffset(0);
+                }}
               >
                 <option value="">All branches</option>
                 {branches.map((branch) => (
@@ -325,14 +381,20 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 className="min-h-11 rounded-lg border border-slate-300 px-3"
                 type="date"
                 value={periodFrom}
-                onChange={(event) => setPeriodFrom(event.target.value)}
+                onChange={(event) => {
+                  setPeriodFrom(event.target.value);
+                  setHistoryOffset(0);
+                }}
               />
               <input
                 aria-label="Period to"
                 className="min-h-11 rounded-lg border border-slate-300 px-3"
                 type="date"
                 value={periodTo}
-                onChange={(event) => setPeriodTo(event.target.value)}
+                onChange={(event) => {
+                  setPeriodTo(event.target.value);
+                  setHistoryOffset(0);
+                }}
               />
             </div>
           </div>
@@ -407,6 +469,38 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
               No settlements match these filters.
             </p>
           )}
+          {page && page.total > HISTORY_PAGE_SIZE ? (
+            <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
+              <p className="text-sm text-slate-500">
+                {page.offset + 1}–
+                {Math.min(page.offset + page.limit, page.total)} of {page.total}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold disabled:opacity-40"
+                  disabled={page.offset === 0 || loading}
+                  onClick={() =>
+                    setHistoryOffset((current) =>
+                      Math.max(0, current - HISTORY_PAGE_SIZE),
+                    )
+                  }
+                  type="button"
+                >
+                  Previous
+                </button>
+                <button
+                  className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold disabled:opacity-40"
+                  disabled={page.offset + page.limit >= page.total || loading}
+                  onClick={() =>
+                    setHistoryOffset((current) => current + HISTORY_PAGE_SIZE)
+                  }
+                  type="button"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
         </section>
       ) : (
         <MerchantReceivables organizationId={organizationId} />

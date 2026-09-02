@@ -51,11 +51,12 @@ export function LivePayableDetailPage({
   const load = useCallback(async () => {
     setError(null);
     try {
-      const rows = await listLivePayables(request, organizationId, {
+      const page = await listLivePayables(request, organizationId, {
         merchantId,
+        limit: 1,
       });
-      setPayable(rows[0] ?? null);
-      const row = rows[0];
+      setPayable(page.items[0] ?? null);
+      const row = page.items[0];
       if (
         row &&
         row.financeStatus !== 'AGREEMENT_REQUIRED' &&
@@ -66,7 +67,7 @@ export function LivePayableDetailPage({
         );
         setDeductions([]);
       }
-      if (!rows[0]) setError('This active merchant payable was not found.');
+      if (!row) setError('This active merchant payable was not found.');
     } catch (cause) {
       setError(errorMessage(cause));
     }

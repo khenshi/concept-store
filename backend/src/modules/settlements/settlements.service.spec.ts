@@ -147,7 +147,7 @@ describe('SettlementsService', () => {
   };
   const prisma = {
     $transaction: jest.fn(),
-    merchant: { findMany: jest.fn() },
+    merchant: { findMany: jest.fn(), count: jest.fn() },
     merchantSettlement: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -296,25 +296,37 @@ describe('SettlementsService', () => {
         branches: [{ branch: { id: 'branch-id', name: 'Main Branch' } }],
       },
     ]);
+    prisma.merchant.count.mockResolvedValue(1);
 
-    await expect(service.findLivePayables(organizationId)).resolves.toEqual([
-      expect.objectContaining({
-        merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMIHAN' },
-        financeStatus: 'AGREEMENT_REQUIRED',
-        periodStart: null,
-        nextSettlementDeadline: null,
-        grossSales: '0.00',
-        amountDue: '0.00',
-        branches: [{ id: 'branch-id', name: 'Main Branch' }],
-      }),
-    ]);
+    await expect(
+      service.findLivePayables(organizationId, { offset: 0, limit: 20 }),
+    ).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMIHAN' },
+          financeStatus: 'AGREEMENT_REQUIRED',
+          periodStart: null,
+          nextSettlementDeadline: null,
+          grossSales: '0.00',
+          amountDue: '0.00',
+          branches: [{ id: 'branch-id', name: 'Main Branch' }],
+        }),
+      ],
+      total: 1,
+      offset: 0,
+      limit: 20,
+    });
     expect(prisma.merchant.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('filters merchants by branch before calculating live balances', async () => {
     prisma.merchant.findMany.mockResolvedValue([]);
 
-    await service.findLivePayables(organizationId, undefined, 'branch-id');
+    await service.findLivePayables(organizationId, {
+      branchId: 'branch-id',
+      offset: 0,
+      limit: 20,
+    });
 
     expect(prisma.merchant.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

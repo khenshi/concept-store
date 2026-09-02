@@ -2,6 +2,7 @@ import type { AuthenticatedRequest } from '@/features/organizations/organization
 import type {
   FinanceEntryInput,
   LiveMerchantPayable,
+  LiveMerchantPayablePage,
   PayoutInput,
   PayoutMethod,
   SettlementDetail,
@@ -20,9 +21,18 @@ function basePath(organizationId: string): string {
 export function listLivePayables(
   request: AuthenticatedRequest,
   organizationId: string,
-  filters: { merchantId?: string; branchId?: string } = {},
-): Promise<LiveMerchantPayable[]> {
-  const query = new URLSearchParams(filters);
+  filters: {
+    merchantId?: string;
+    branchId?: string;
+    offset?: number;
+    limit?: number;
+  } = {},
+): Promise<LiveMerchantPayablePage> {
+  const query = new URLSearchParams();
+  if (filters.merchantId) query.set('merchantId', filters.merchantId);
+  if (filters.branchId) query.set('branchId', filters.branchId);
+  if (filters.offset !== undefined) query.set('offset', String(filters.offset));
+  if (filters.limit !== undefined) query.set('limit', String(filters.limit));
   return request(
     `${basePath(organizationId)}/payables${query.size ? `?${query}` : ''}`,
   );

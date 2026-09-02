@@ -154,6 +154,13 @@ export interface LiveMerchantPayable {
   }>;
 }
 
+export interface LiveMerchantPayablePage {
+  items: LiveMerchantPayable[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
 export interface AdjustmentInput {
   amount: string;
   reason: string;

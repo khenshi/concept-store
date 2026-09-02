@@ -28,9 +28,11 @@ describe('settlement API', () => {
     await listLivePayables(request, 'organization-id', {
       merchantId: 'merchant-id',
       branchId: 'branch-id',
+      offset: 20,
+      limit: 20,
     });
     expect(request).toHaveBeenCalledWith(
-      '/organizations/organization-id/settlements/payables?merchantId=merchant-id&branchId=branch-id',
+      '/organizations/organization-id/settlements/payables?merchantId=merchant-id&branchId=branch-id&offset=20&limit=20',
     );
     await closeLivePayable(request, 'organization-id', 'merchant-id');
     expect(request).toHaveBeenLastCalledWith(

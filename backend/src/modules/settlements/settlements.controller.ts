@@ -33,6 +33,7 @@ import type { OrganizationContext } from '../organizations/authorization/organiz
 import { CurrentOrganization } from '../organizations/authorization/organization-context.decorator';
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
 import { ListSettlementsQueryDto } from './dto/list-settlements-query.dto';
+import { ListLivePayablesQueryDto } from './dto/list-live-payables-query.dto';
 import { RecordPayoutDto } from './dto/record-payout.dto';
 import { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
 import { SettlementReceivableDeductionsDto } from './dto/settlement-receivable-deductions.dto';
@@ -57,13 +58,11 @@ export class SettlementsController {
   @ApiOperation({ summary: 'List live accrued merchant payables' })
   findLivePayables(
     @CurrentOrganization() organization: OrganizationContext,
-    @Query('merchantId') merchantId?: string,
-    @Query('branchId') branchId?: string,
+    @Query() query: ListLivePayablesQueryDto,
   ) {
     return this.settlementsService.findLivePayables(
       organization.organizationId,
-      merchantId,
-      branchId,
+      query,
     );
   }
 
