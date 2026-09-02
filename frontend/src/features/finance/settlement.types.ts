@@ -135,7 +135,7 @@ export interface SettlementMetrics {
 
 export interface LiveMerchantPayable {
   merchant: { id: string; name: string; code: string | null };
-  financeStatus: 'READY' | 'NO_ACTIVITY' | 'AGREEMENT_REQUIRED';
+  financeStatus: 'READY' | 'OVERDUE' | 'NO_ACTIVITY' | 'AGREEMENT_REQUIRED';
   periodStart: string | null;
   asOf: string;
   nextSettlementDeadline: string | null;
@@ -147,13 +147,14 @@ export interface LiveMerchantPayable {
   fixedRentAmount: string;
   rentOutstandingAmount: string;
   adjustmentTotal: string;
-  merchantPaymentTotal: string;
   amountDue: string;
+  overdueAmount: string;
+  newActivityAmount: string;
   branches: Array<{ id: string; name: string }>;
   pendingSettlement: { id: string; status: SettlementStatus } | null;
   accountEntries: Array<{
     id: string;
-    type: 'ADJUSTMENT' | 'MERCHANT_PAYMENT';
+    type: 'ADJUSTMENT';
     amount: string;
     reason: string;
     occurredAt: string;
@@ -167,7 +168,7 @@ export interface AdjustmentInput {
 }
 
 export interface FinanceEntryInput extends AdjustmentInput {
-  type: 'ADJUSTMENT' | 'MERCHANT_PAYMENT';
+  type: 'ADJUSTMENT';
   occurredAt?: string;
 }
 

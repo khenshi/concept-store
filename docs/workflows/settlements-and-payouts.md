@@ -23,23 +23,19 @@ Gross sales
 − completed refunds
 = net sales
 − commission
-− rent deducted under the agreement policy
 ± documented adjustments
-= amount due
+= live merchant payable
+
+Optional rent receivable offset
+= final settlement payout
 ```
 
-Commission is calculated from net sales after refunds. Fixed rent does not
-accrue or prorate. Its payout deduction follows the agreement:
-
-- `DEDUCT_FROM_PAYOUT` is an explicit opt-in. The fixed monthly rent is charged
-  once, direct rent payments and prior deductions for that month are applied,
-  and only the remaining balance is deducted.
-- `PAID_SEPARATELY` tracks the fixed rent balance but does not reduce the
-  merchant payout.
-
-New agreements default to separate rent collection. Commission remains an
-automatic deduction from net sales. Calculations use server-side decimal
-arithmetic.
+Commission is calculated from net sales after refunds. Fixed monthly rent is a
+separate merchant receivable and never reduces the live payable automatically.
+During settlement preview, an owner or manager may explicitly select rent to
+offset. Selection defaults to off, cannot exceed the available receivable or
+merchant payable, and can never produce a negative payout. Calculations use
+server-side decimal arithmetic.
 
 ## Live payable and closure
 
@@ -66,9 +62,11 @@ deadline paid on December 5 advances to December 15.
 Adjustments are signed amounts with mandatory reasons and actor history. They
 accrue before closure and are attached atomically to the snapshot.
 
-Direct rent payments to the owner are recorded separately for visibility and
-audit. They reduce fixed rent still collectible. When agreement terms opt in
-to payout deduction, only unpaid rent is deducted from the settlement.
+Each monthly rent charge retains its source month, original amount, remaining
+balance, due date, status, source agreement, and transaction history. Direct
+full or partial payments and documented adjustments are recorded against that
+receivable. Settlement offsets are reserved by a draft and applied to the rent
+ledger only when payout is recorded.
 
 Owners and managers can inspect and close the live payable. Only owners can
 approve. Approval locks the snapshot so later agreement or transaction edits
@@ -85,11 +83,14 @@ Automatic bank payouts and accounting integrations are not implemented.
 
 ## Visibility and audit
 
+Past deadlines remain overdue until the settlement is paid. Merchant detail
+distinguishes the amount due at the missed deadline from newer activity.
+
 The live overview supports merchant and branch filters with live summary
 metrics. The Merchant Finance shell separates the live overview and historical
 snapshots into dedicated tabs. Manual adjustments and separately received rent
-payments are entered from the merchant payable detail rather than presented as
-a primary overview workflow. History has period and status filters. Historical
+payments are entered from the Rent receivables tab; payable corrections remain
+on the merchant payable detail. History has period and status filters. Historical
 settlement detail includes its locked calculation, source sales and refunds,
 agreement snapshot, finance entries, payout information, and append-only
 lifecycle history.

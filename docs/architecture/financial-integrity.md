@@ -19,9 +19,11 @@ server-authoritative.
 - Settlement term snapshots preserve the agreements used for each calculation.
 - Approved settlements are locked and are not recomputed from mutable current
   agreements.
-- Adjustments and direct rent payments are explicit records with documented
-  reasons. Rent payments reduce the outstanding rent before any opted-in
-  settlement deduction.
+- Payable adjustments and rent receivable transactions are separate records.
+  Rent payments reduce a specific monthly receivable; optional settlement
+  offsets are reserved at draft creation and applied only with payout.
+- Rent offsets are capped by both the available receivable balance and merchant
+  payable, so settlements cannot produce negative payouts.
 - Refund, approval, payout, and settlement lifecycle actions retain actor and
   timestamp history.
 

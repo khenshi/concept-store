@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsDateString,
-  IsEnum,
+  Equals,
   IsOptional,
   IsString,
   Matches,
@@ -18,8 +18,8 @@ const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
 
 export class MerchantAccountEntryDto {
-  @ApiProperty({ enum: MerchantAccountEntryType })
-  @IsEnum(MerchantAccountEntryType)
+  @ApiProperty({ enum: [MerchantAccountEntryType.ADJUSTMENT] })
+  @Equals(MerchantAccountEntryType.ADJUSTMENT)
   type!: MerchantAccountEntryType;
 
   @ApiProperty({ type: String, example: '-500.00' })

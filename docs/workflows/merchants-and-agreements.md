@@ -36,6 +36,10 @@ Agreements contain effective dates, optional fixed rent, optional commission,
 settlement schedule, and lifecycle status. A merchant is not encoded as a
 different type for each commercial model.
 
+Fixed rent creates a separate monthly merchant receivable. Agreements do not
+decide whether rent is deducted from payouts; that is an explicit choice made
+for each settlement preview.
+
 Active agreement periods cannot create ambiguous overlapping commercial terms.
 Historical agreements are retained and settlement calculations snapshot the
 terms that applied to each segment of a period.

@@ -248,6 +248,21 @@ export function LivePayableDetailPage({
         />
       ) : null}
 
+      {payable.financeStatus === 'OVERDUE' ? (
+        <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-bold">
+            {money.format(Number(payable.overdueAmount))} was due on{' '}
+            {payable.nextSettlementDeadline}.
+          </p>
+          {Number(payable.newActivityAmount) !== 0 ? (
+            <p className="mt-1">
+              {money.format(Number(payable.newActivityAmount))} in newer
+              activity is included in the current total.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ['Gross sales', payable.grossSales],
@@ -326,25 +341,16 @@ export function LivePayableDetailPage({
       {payable.financeStatus !== 'AGREEMENT_REQUIRED' &&
       !payable.pendingSettlement ? (
         <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="font-bold">Record a correction or rent payment</h2>
+          <h2 className="font-bold">Record a payable adjustment</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Adjustments change the payable. Direct rent payments reduce the
-            fixed rent balance before any opted-in settlement deduction.
+            Use a signed amount and document why the live merchant payable needs
+            to change. Rent payments belong in Rent receivables.
           </p>
           <form
             className="mt-4 flex flex-wrap items-end gap-3"
             onSubmit={addEntry}
           >
-            <label className="grid gap-1 text-sm font-bold">
-              Type
-              <select
-                className="min-h-11 rounded-lg border border-slate-300 px-3"
-                name="type"
-              >
-                <option value="ADJUSTMENT">Payable adjustment</option>
-                <option value="MERCHANT_PAYMENT">Rent payment received</option>
-              </select>
-            </label>
+            <input name="type" type="hidden" value="ADJUSTMENT" />
             <label className="grid gap-1 text-sm font-bold">
               Amount
               <input
@@ -385,10 +391,7 @@ export function LivePayableDetailPage({
               >
                 <p>
                   <strong>
-                    {entry.type === 'MERCHANT_PAYMENT'
-                      ? 'Rent payment'
-                      : 'Adjustment'}{' '}
-                    · {money.format(Number(entry.amount))}
+                    Adjustment · {money.format(Number(entry.amount))}
                   </strong>
                   <span className="ml-2 text-slate-500">{entry.reason}</span>
                 </p>

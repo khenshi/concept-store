@@ -1,10 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsEnum, IsOptional, Matches, ValidateIf } from 'class-validator';
-import {
-  RentCollectionMethod,
-  SettlementSchedule,
-} from '../../../generated/prisma/client';
+import { SettlementSchedule } from '../../../generated/prisma/client';
 import { trimOptionalDecimal } from './agreement-dto.transforms';
 import {
   COMMISSION_PATTERN,
@@ -51,9 +48,4 @@ export class UpdateMerchantAgreementDto {
   @IsOptional()
   @IsEnum(SettlementSchedule)
   settlementSchedule?: SettlementSchedule;
-
-  @ApiPropertyOptional({ enum: RentCollectionMethod })
-  @IsOptional()
-  @IsEnum(RentCollectionMethod)
-  rentCollectionMethod?: RentCollectionMethod;
 }

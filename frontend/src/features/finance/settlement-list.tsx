@@ -192,7 +192,9 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                             ? 'Agreement required'
                             : item.financeStatus === 'NO_ACTIVITY'
                               ? 'No financial activity'
-                              : 'Live payable'}
+                              : item.financeStatus === 'OVERDUE'
+                                ? 'Settlement overdue'
+                                : 'Live payable'}
                         </p>
                       </td>
                       <td className="p-3">

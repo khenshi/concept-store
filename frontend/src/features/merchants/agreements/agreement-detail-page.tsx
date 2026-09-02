@@ -97,7 +97,6 @@ export function AgreementDetailPage({
       fixedRentAmount: input.fixedRentAmount ?? null,
       commissionRate: input.commissionRate ?? null,
       settlementSchedule: input.settlementSchedule,
-      rentCollectionMethod: input.rentCollectionMethod,
     };
     setIsSubmitting(true);
     setActionError(null);
@@ -264,14 +263,6 @@ export function AgreementDetailPage({
                 <Detail
                   label="Settlement schedule"
                   value={agreement.settlementSchedule.replace('_', '-')}
-                />
-                <Detail
-                  label="Rent collection"
-                  value={
-                    agreement.rentCollectionMethod === 'PAID_SEPARATELY'
-                      ? 'Merchant pays separately'
-                      : 'Deduct from payout'
-                  }
                 />
               </dl>
             </section>

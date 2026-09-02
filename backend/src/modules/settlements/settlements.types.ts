@@ -196,7 +196,7 @@ export interface SettlementPageRecord {
 
 export interface LiveMerchantPayableRecord {
   merchant: { id: string; name: string; code: string | null };
-  financeStatus: 'READY' | 'NO_ACTIVITY' | 'AGREEMENT_REQUIRED';
+  financeStatus: 'READY' | 'OVERDUE' | 'NO_ACTIVITY' | 'AGREEMENT_REQUIRED';
   periodStart: string | null;
   asOf: string;
   nextSettlementDeadline: string | null;
@@ -208,8 +208,9 @@ export interface LiveMerchantPayableRecord {
   fixedRentAmount: string;
   rentOutstandingAmount: string;
   adjustmentTotal: string;
-  merchantPaymentTotal: string;
   amountDue: string;
+  overdueAmount: string;
+  newActivityAmount: string;
   branches: Array<{ id: string; name: string }>;
   pendingSettlement: { id: string; status: string } | null;
   accountEntries: Array<{

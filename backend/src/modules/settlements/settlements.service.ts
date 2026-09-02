@@ -14,7 +14,6 @@ import {
   MerchantStatus,
   OrganizationRole,
   Prisma,
-  RentCollectionMethod,
   RentDeductionTiming,
   SettlementStatus,
   SettlementAuditEventType,
@@ -275,14 +274,6 @@ export class SettlementsService {
       await this.assertFinanceActor(transaction, organizationId, actorId);
       await this.assertMerchant(transaction, organizationId, merchantId);
       const amount = new Prisma.Decimal(dto.amount);
-      if (
-        dto.type === MerchantAccountEntryType.MERCHANT_PAYMENT &&
-        amount.lte(0)
-      ) {
-        throw new BadRequestException(
-          'Rent payment amount must be greater than zero',
-        );
-      }
       await transaction.merchantFinanceEntry.create({
         data: {
           organizationId,
@@ -976,13 +967,31 @@ export class SettlementsService {
                 },
                 _sum: { remainingAmount: true },
               }),
+              !context.openSettlement &&
+              context.deadline < context.asOf &&
+              context.periodStart <= context.deadline
+                ? this.calculateSources(
+                    transaction,
+                    organizationId,
+                    merchant.id,
+                    { start: context.periodStart, end: context.deadline },
+                    undefined,
+                    true,
+                  )
+                : Promise.resolve(null),
             ]),
           )
         : null;
     const calculation = liveCalculation?.[0] ?? null;
     const receivableBalance = liveCalculation?.[1] ?? null;
+    const overdueCalculation = liveCalculation?.[2] ?? null;
     const pendingEntries = await this.prisma.merchantFinanceEntry.findMany({
-      where: { organizationId, merchantId: merchant.id, settlementId: null },
+      where: {
+        organizationId,
+        merchantId: merchant.id,
+        settlementId: null,
+        type: MerchantAccountEntryType.ADJUSTMENT,
+      },
       orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
     });
     const zero = new Prisma.Decimal(0);
@@ -1001,13 +1010,6 @@ export class SettlementsService {
         .filter(({ type }) => type === MerchantAccountEntryType.ADJUSTMENT)
         .map(({ amount }) => amount),
     );
-    const merchantPayments = this.sum(
-      pendingEntries
-        .filter(
-          ({ type }) => type === MerchantAccountEntryType.MERCHANT_PAYMENT,
-        )
-        .map(({ amount }) => amount),
-    );
     const rent = open ? new Prisma.Decimal(open.fixedRentAmount) : zero;
     const rentOutstanding =
       receivableBalance?._sum.remainingAmount ?? new Prisma.Decimal(0);
@@ -1024,17 +1026,39 @@ export class SettlementsService {
       .sub(commission)
       .sub(rent)
       .add(adjustments);
+    const deadlineIsOverdue = context.deadline < context.asOf;
+    const overdueAdjustments = deadlineIsOverdue
+      ? this.sum(
+          pendingEntries
+            .filter(
+              (entry) => philippineDate(entry.occurredAt) <= context.deadline,
+            )
+            .map(({ amount }) => amount),
+        )
+      : zero;
+    const overdueAmount = context.openSettlement
+      ? deadlineIsOverdue
+        ? new Prisma.Decimal(context.openSettlement.netPayout)
+        : zero
+      : overdueCalculation
+        ? overdueCalculation.netSales
+            .sub(overdueCalculation.commissionAmount)
+            .add(overdueAdjustments)
+        : zero;
     const hasActivity =
       !grossSales.isZero() ||
       !refunds.isZero() ||
       !commission.isZero() ||
       !rentOutstanding.isZero() ||
       !adjustments.isZero() ||
-      !merchantPayments.isZero() ||
       Boolean(open);
     return {
       merchant,
-      financeStatus: hasActivity ? 'READY' : 'NO_ACTIVITY',
+      financeStatus: hasActivity
+        ? deadlineIsOverdue
+          ? 'OVERDUE'
+          : 'READY'
+        : 'NO_ACTIVITY',
       periodStart: context.displayPeriodStart.toISOString().slice(0, 10),
       asOf: context.asOf.toISOString().slice(0, 10),
       nextSettlementDeadline: context.deadline.toISOString().slice(0, 10),
@@ -1046,8 +1070,9 @@ export class SettlementsService {
       fixedRentAmount: this.money(rent),
       rentOutstandingAmount: this.money(rentOutstanding),
       adjustmentTotal: this.money(adjustments),
-      merchantPaymentTotal: this.money(merchantPayments),
       amountDue: this.money(amountDue),
+      overdueAmount: this.money(overdueAmount),
+      newActivityAmount: this.money(amountDue.sub(overdueAmount)),
       branches: [...branches.values()].sort((left, right) =>
         left.name.localeCompare(right.name),
       ),
@@ -1082,8 +1107,9 @@ export class SettlementsService {
       fixedRentAmount: '0.00',
       rentOutstandingAmount: '0.00',
       adjustmentTotal: '0.00',
-      merchantPaymentTotal: '0.00',
       amountDue: '0.00',
+      overdueAmount: '0.00',
+      newActivityAmount: '0.00',
       branches,
       pendingSettlement: null,
       accountEntries: [],
@@ -1183,7 +1209,7 @@ export class SettlementsService {
       schedule: segment.agreement.settlementSchedule,
       fixedRentRate: segment.agreement.fixedRentAmount,
       commissionRate: segment.agreement.commissionRate,
-      rentCollectionMethod: segment.agreement.rentCollectionMethod,
+      rentCollectionMethod: 'PAID_SEPARATELY' as const,
       rentDeductionTiming: RentDeductionTiming.PRORATED_PER_SETTLEMENT,
       grossSales: segment.grossSales,
       refundTotal: segment.refundTotal,
@@ -1347,59 +1373,6 @@ export class SettlementsService {
 
       segment.fixedRentAmount = new Prisma.Decimal(0);
     }
-  }
-
-  private async fixedRentBalance(
-    transaction: Prisma.TransactionClient,
-    organizationId: string,
-    merchantId: string,
-    asOf: Date,
-  ) {
-    const monthStart = new Date(
-      Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), 1),
-    );
-    const nextMonth = new Date(
-      Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth() + 1, 1),
-    );
-    const agreement = await transaction.merchantAgreement.findFirst({
-      where: {
-        organizationId,
-        merchantId,
-        status: AgreementStatus.ACTIVE,
-        startDate: { lte: asOf },
-        OR: [{ endDate: null }, { endDate: { gte: asOf } }],
-      },
-      orderBy: [{ startDate: 'desc' }, { id: 'asc' }],
-    });
-    const payments = await transaction.merchantFinanceEntry.aggregate({
-      where: {
-        organizationId,
-        merchantId,
-        type: MerchantAccountEntryType.MERCHANT_PAYMENT,
-        occurredAt: { gte: monthStart, lt: nextMonth },
-      },
-      _sum: { amount: true },
-    });
-    const deductions = await transaction.merchantSettlement.aggregate({
-      where: {
-        organizationId,
-        merchantId,
-        status: { in: [SettlementStatus.APPROVED, SettlementStatus.PAID] },
-        periodEnd: { gte: monthStart, lt: nextMonth },
-      },
-      _sum: { fixedRentAmount: true },
-    });
-    const fixedRent = agreement?.fixedRentAmount ?? new Prisma.Decimal(0);
-    return {
-      collectionMethod:
-        agreement?.rentCollectionMethod ?? RentCollectionMethod.PAID_SEPARATELY,
-      remaining: Prisma.Decimal.max(
-        fixedRent
-          .sub(payments._sum.amount ?? 0)
-          .sub(deductions._sum.fixedRentAmount ?? 0),
-        0,
-      ),
-    };
   }
 
   private async availableReceivables(

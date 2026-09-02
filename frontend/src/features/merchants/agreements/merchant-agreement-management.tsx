@@ -159,7 +159,6 @@ export function MerchantAgreementManagement({
           fixedRentAmount: input.fixedRentAmount ?? null,
           commissionRate: input.commissionRate ?? null,
           settlementSchedule: input.settlementSchedule,
-          rentCollectionMethod: input.rentCollectionMethod,
         };
         const updated = await updateMerchantAgreement(
           request,
@@ -403,7 +402,6 @@ export function AgreementForm({
       fixedRentAmount: formData.get('fixedRentAmount'),
       commissionRate: formData.get('commissionRate'),
       settlementSchedule: formData.get('settlementSchedule'),
-      rentCollectionMethod: formData.get('rentCollectionMethod'),
     });
     setFormError(null);
     if (!result.success) {
@@ -421,7 +419,6 @@ export function AgreementForm({
       fixedRentAmount: result.data.fixedRentAmount || undefined,
       commissionRate: result.data.commissionRate || undefined,
       settlementSchedule: result.data.settlementSchedule,
-      rentCollectionMethod: result.data.rentCollectionMethod,
     };
     void onSaved(input);
   }
@@ -496,31 +493,6 @@ export function AgreementForm({
               </option>
             ))}
           </SelectControl>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="grid gap-2">
-            <label className="text-sm font-bold" htmlFor="rentCollectionMethod">
-              How rent is collected
-            </label>
-            <SelectControl
-              className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
-              id="rentCollectionMethod"
-              name="rentCollectionMethod"
-              defaultValue={
-                agreement?.rentCollectionMethod ?? 'PAID_SEPARATELY'
-              }
-            >
-              <option value="PAID_SEPARATELY">Merchant pays separately</option>
-              <option value="DEDUCT_FROM_PAYOUT">
-                Deduct unpaid rent from each settlement
-              </option>
-            </SelectControl>
-            <p className="text-xs leading-5 text-slate-500">
-              Rent is separate by default. If deduction is enabled, recorded
-              rent payments are applied first and only the remaining rent is
-              deducted from the settlement.
-            </p>
-          </div>
         </div>
         <div className="flex flex-wrap gap-3">
           <button
@@ -604,13 +576,6 @@ function AgreementHistory({
                   ? `${agreement.commissionRate}% commission`
                   : 'No commission'}
               </p>
-              {agreement.fixedRentAmount ? (
-                <p className="mt-1 text-xs text-slate-500">
-                  {agreement.rentCollectionMethod === 'PAID_SEPARATELY'
-                    ? 'Rent is paid separately'
-                    : 'Unpaid rent deducted from each settlement'}
-                </p>
-              ) : null}
               {agreement.status === 'DRAFT' ? (
                 <div className="mt-3 flex flex-wrap gap-4">
                   <button

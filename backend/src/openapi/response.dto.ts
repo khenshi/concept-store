@@ -818,9 +818,6 @@ export class MerchantAgreementResponseDto {
   @ApiPropertyOptional({ nullable: true, type: String, example: '5.00' })
   commissionRate!: string | null;
 
-  @ApiProperty({ enum: RentCollectionMethod })
-  rentCollectionMethod!: RentCollectionMethod;
-
   @ApiProperty({ enum: SettlementSchedule })
   settlementSchedule!: SettlementSchedule;
 

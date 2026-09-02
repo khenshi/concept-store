@@ -26,11 +26,12 @@ settlement closures, and payout recording.
 ## Authoritative calculation
 
 ```text
-Gross sales − refunds − commission − fixed rent ± adjustments = amount due
+Gross sales − refunds − commission ± adjustments = live merchant payable
+live merchant payable − selected rent receivable offsets = settlement payout
 ```
 
-Commission is calculated after refunds. Fixed rent follows the snapshotted
-agreement segments and is prorated where necessary.
+Commission is calculated after refunds. Fixed rent creates a separate monthly
+receivable and is deducted only when explicitly selected for a settlement.
 
 ## Important rules
 
