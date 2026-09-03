@@ -16,6 +16,7 @@
   }
 
   button:not(:disabled) {
+    cursor: pointer;
     transition-property: background-color, border-color, color, filter;
     transition-duration: 150ms;
     transition-timing-function: ease-out;
