@@ -1,10 +1,10 @@
 'use client';
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
-  type FormEvent,
   type ReactNode,
 } from 'react';
 import type { Branch } from '@/features/branches/branch.types';
@@ -58,6 +58,11 @@ export function InventoryMovementHistory({
   const [filters, setFilters] = useState<InventoryMovementFilters>({
     limit: PAGE_SIZE,
   });
+  const [branchId, setBranchId] = useState('');
+  const [productId, setProductId] = useState('');
+  const [movementType, setMovementType] = useState<InventoryMovementType | ''>(
+    '',
+  );
   const [cursorStack, setCursorStack] = useState<Array<string | undefined>>([
     undefined,
   ]);
@@ -65,59 +70,78 @@ export function InventoryMovementHistory({
   const [error, setError] = useState<string | null>(null);
   const filtersRef = useRef(filters);
   const loadedVersionRef = useRef<number | null>(null);
+  const refreshKeyRef = useRef(refreshKey);
+  const filterInitialized = useRef(false);
+  const movementRequestId = useRef(0);
+  refreshKeyRef.current = refreshKey;
 
-  async function load(
-    next: InventoryMovementFilters,
-    stack?: Array<string | undefined>,
-  ): Promise<void> {
-    setIsLoading(true);
-    setError(null);
-    try {
-      setPage(await listInventoryMovements(request, organizationId, next));
+  const load = useCallback(
+    async (
+      next: InventoryMovementFilters,
+      stack?: Array<string | undefined>,
+    ): Promise<void> => {
+      const requestId = ++movementRequestId.current;
+      setIsLoading(true);
+      setError(null);
       setFilters(next);
       filtersRef.current = next;
-      loadedVersionRef.current = refreshKey;
-      if (stack) setCursorStack(stack);
-    } catch (cause: unknown) {
-      setError(message(cause));
-    } finally {
-      setIsLoading(false);
-    }
-  }
+      try {
+        const result = await listInventoryMovements(
+          request,
+          organizationId,
+          next,
+        );
+        if (requestId !== movementRequestId.current) return;
+        setPage(result);
+        loadedVersionRef.current = refreshKeyRef.current;
+        if (stack) setCursorStack(stack);
+      } catch (cause: unknown) {
+        if (requestId === movementRequestId.current) setError(message(cause));
+      } finally {
+        if (requestId === movementRequestId.current) setIsLoading(false);
+      }
+    },
+    [organizationId, request],
+  );
 
   useEffect(() => {
     if (hidden || loadedVersionRef.current === refreshKey) return;
     let active = true;
+    const requestId = ++movementRequestId.current;
     void listInventoryMovements(request, organizationId, filtersRef.current)
       .then((result) => {
-        if (active) {
+        if (active && requestId === movementRequestId.current) {
           setPage(result);
           loadedVersionRef.current = refreshKey;
         }
       })
       .catch((cause: unknown) => {
-        if (active) setError(message(cause));
+        if (active && requestId === movementRequestId.current)
+          setError(message(cause));
       })
       .finally(() => {
-        if (active) setIsLoading(false);
+        if (active && requestId === movementRequestId.current)
+          setIsLoading(false);
       });
     return () => {
       active = false;
     };
   }, [hidden, organizationId, refreshKey, request]);
 
-  function submit(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
+  useEffect(() => {
+    if (hidden) return;
+    if (!filterInitialized.current) {
+      filterInitialized.current = true;
+      return;
+    }
     const next: InventoryMovementFilters = {
-      branchId: String(data.get('branchId') ?? '') || undefined,
-      productId: String(data.get('productId') ?? '') || undefined,
-      type: (String(data.get('type') ?? '') || undefined) as
-        InventoryMovementType | undefined,
+      branchId: branchId || undefined,
+      productId: productId || undefined,
+      type: movementType || undefined,
       limit: PAGE_SIZE,
     };
     void load(next, [undefined]);
-  }
+  }, [branchId, hidden, load, movementType, productId]);
 
   function nextPage(): void {
     if (!page.nextCursor) return;
@@ -143,16 +167,13 @@ export function InventoryMovementHistory({
           Every stock-in and explained adjustment, newest first.
         </p>
       </div>
-      <form
-        className="mt-6 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(10rem,1fr))_auto]"
-        onSubmit={submit}
-      >
+      <div className="mt-6 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(10rem,1fr))_auto]">
         <Filter label="Branch" id="movement-branch">
           <SelectControl
             className={fieldClass}
             id="movement-branch"
-            name="branchId"
-            defaultValue={filters.branchId ?? ''}
+            value={branchId}
+            onValueChange={setBranchId}
           >
             <option value="">All branches</option>
             {branches.map((branch) => (
@@ -166,8 +187,8 @@ export function InventoryMovementHistory({
           <SelectControl
             className={fieldClass}
             id="movement-product"
-            name="productId"
-            defaultValue={filters.productId ?? ''}
+            value={productId}
+            onValueChange={setProductId}
           >
             <option value="">All products</option>
             {products.map((product) => (
@@ -181,21 +202,25 @@ export function InventoryMovementHistory({
           <SelectControl
             className={fieldClass}
             id="movement-type"
-            name="type"
-            defaultValue={filters.type ?? ''}
+            value={movementType}
+            onValueChange={(value) =>
+              setMovementType(value as InventoryMovementType | '')
+            }
           >
             <option value="">All types</option>
             <option value="STOCK_IN">Stock-in</option>
             <option value="ADJUSTMENT">Adjustment</option>
           </SelectControl>
         </Filter>
-        <button
-          className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:opacity-60"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Applying…' : 'Apply'}
-        </button>
-      </form>
+        {isLoading ? (
+          <span
+            className="pb-3 text-sm font-semibold text-slate-500"
+            role="status"
+          >
+            Updating…
+          </span>
+        ) : null}
+      </div>
       {error ? (
         <RequestError
           className="mt-5 rounded-lg border border-red-600 p-3 text-sm text-red-600"

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import {
   FilterField,
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
 import { SelectControl } from '@/components/ui/select-control';
+import { useDebouncedValue } from '@/components/ui/use-debounced-value';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import type { Merchant } from '@/features/merchants/merchant.types';
@@ -77,6 +78,12 @@ export function InventoryOverview({
     limit: PAGE_SIZE,
     offset: 0,
   });
+  const [search, setSearch] = useState('');
+  const [filterBranchId, setFilterBranchId] = useState(initialBranchId ?? '');
+  const [filterMerchantId, setFilterMerchantId] = useState(
+    initialMerchantId ?? '',
+  );
+  const [filterStatus, setFilterStatus] = useState<ProductStatus | ''>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -87,6 +94,9 @@ export function InventoryOverview({
   const [view, setView] = useState<'current' | 'history'>('current');
   const [historyOpened, setHistoryOpened] = useState(false);
   const [historyVersion, setHistoryVersion] = useState(0);
+  const debouncedSearch = useDebouncedValue(search);
+  const filterInitialized = useRef(false);
+  const inventoryRequestId = useRef(0);
 
   useEffect(() => {
     if (
@@ -135,41 +145,53 @@ export function InventoryOverview({
     request,
   ]);
 
-  async function fetchPage(
-    next: InventoryFilters,
-    filtering = false,
-  ): Promise<void> {
-    if (filtering) setIsFiltering(true);
-    else setIsLoading(true);
-    setError(null);
-    try {
-      setPage(await listInventory(request, organizationId, next));
+  const fetchPage = useCallback(
+    async (next: InventoryFilters, filtering = false): Promise<void> => {
+      const requestId = ++inventoryRequestId.current;
       setFilters(next);
-    } catch (cause: unknown) {
-      setError(message(cause));
-    } finally {
-      setIsFiltering(false);
-      setIsLoading(false);
-    }
-  }
+      if (filtering) setIsFiltering(true);
+      else setIsLoading(true);
+      setError(null);
+      try {
+        const result = await listInventory(request, organizationId, next);
+        if (requestId === inventoryRequestId.current) setPage(result);
+      } catch (cause: unknown) {
+        if (requestId === inventoryRequestId.current) setError(message(cause));
+      } finally {
+        if (requestId === inventoryRequestId.current) {
+          setIsFiltering(false);
+          setIsLoading(false);
+        }
+      }
+    },
+    [organizationId, request],
+  );
 
-  function submitFilters(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
+  useEffect(() => {
+    if (!filterInitialized.current) {
+      filterInitialized.current = true;
+      return;
+    }
     void fetchPage(
       {
-        branchId: String(data.get('branchId') ?? '') || undefined,
-        merchantId: String(data.get('merchantId') ?? '') || undefined,
-        productId: filters.productId,
-        status: (String(data.get('status') ?? '') || undefined) as
-          ProductStatus | undefined,
-        search: String(data.get('search') ?? '').trim() || undefined,
+        branchId: filterBranchId || undefined,
+        merchantId: filterMerchantId || undefined,
+        productId: initialProductId,
+        status: filterStatus || undefined,
+        search: debouncedSearch.trim() || undefined,
         offset: 0,
         limit: PAGE_SIZE,
       },
       true,
     );
-  }
+  }, [
+    debouncedSearch,
+    fetchPage,
+    filterBranchId,
+    filterMerchantId,
+    filterStatus,
+    initialProductId,
+  ]);
 
   function mergeOperation(
     result: InventoryOperation,
@@ -312,22 +334,14 @@ export function InventoryOverview({
               }
             >
               <OperationalToolbar>
-                <form
-                  className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_repeat(3,minmax(9rem,0.45fr))_auto]"
-                  onSubmit={submitFilters}
-                >
-                  <input
-                    type="hidden"
-                    name="productId"
-                    value={filters.productId ?? ''}
-                  />
+                <div className="grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_repeat(3,minmax(9rem,0.45fr))_auto]">
                   <FilterField label="Search" id="inventory-search">
                     <input
                       className={fieldClass}
                       id="inventory-search"
-                      name="search"
                       type="search"
-                      defaultValue={filters.search}
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
                       placeholder="Name, SKU, or barcode"
                     />
                   </FilterField>
@@ -335,8 +349,8 @@ export function InventoryOverview({
                     <SelectControl
                       className={fieldClass}
                       id="inventory-branch"
-                      name="branchId"
-                      defaultValue={filters.branchId ?? ''}
+                      value={filterBranchId}
+                      onValueChange={setFilterBranchId}
                     >
                       <option value="">All branches</option>
                       {branches.map((branch) => (
@@ -350,8 +364,8 @@ export function InventoryOverview({
                     <SelectControl
                       className={fieldClass}
                       id="inventory-merchant"
-                      name="merchantId"
-                      defaultValue={filters.merchantId ?? ''}
+                      value={filterMerchantId}
+                      onValueChange={setFilterMerchantId}
                     >
                       <option value="">All merchants</option>
                       {merchants.map((merchant) => (
@@ -365,21 +379,25 @@ export function InventoryOverview({
                     <SelectControl
                       className={fieldClass}
                       id="inventory-status"
-                      name="status"
-                      defaultValue={filters.status ?? ''}
+                      value={filterStatus}
+                      onValueChange={(value) =>
+                        setFilterStatus(value as ProductStatus | '')
+                      }
                     >
                       <option value="">All statuses</option>
                       <option value="ACTIVE">Active</option>
                       <option value="INACTIVE">Inactive</option>
                     </SelectControl>
                   </FilterField>
-                  <button
-                    className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
-                    disabled={isFiltering}
-                  >
-                    {isFiltering ? 'Applying…' : 'Apply'}
-                  </button>
-                </form>
+                  {isFiltering ? (
+                    <span
+                      className="pb-3 text-sm font-semibold text-slate-500"
+                      role="status"
+                    >
+                      Updating…
+                    </span>
+                  ) : null}
+                </div>
               </OperationalToolbar>
               {success ? <StatusNotice>{success}</StatusNotice> : null}
               {error ? (
