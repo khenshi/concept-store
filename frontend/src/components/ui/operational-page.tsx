@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export function OperationalPage({ children }: { children: ReactNode }) {
   return (
-    <section className="mx-auto mt-7 w-full max-w-7xl sm:mt-9">
+    <section className="mx-auto mt-5 w-full max-w-7xl sm:mt-6">
       {children}
     </section>
   );

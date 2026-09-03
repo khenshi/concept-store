@@ -73,7 +73,7 @@ export function SaleDetail({
   if (!organization) return null;
 
   return (
-    <section className="mx-auto mt-7 w-full max-w-[100rem] sm:mt-9">
+    <section className="mx-auto mt-5 w-full max-w-[100rem] sm:mt-6">
       <OrganizationPageHeader
         organization={organization}
         title="Transaction details"

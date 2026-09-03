@@ -146,7 +146,7 @@ export function SalesHistory({
   const to = Math.min(page.offset + page.items.length, page.total);
 
   return (
-    <section className="mx-auto mt-7 w-full max-w-[100rem] sm:mt-9">
+    <section className="mx-auto mt-5 w-full max-w-[100rem] sm:mt-6">
       <OrganizationPageHeader
         organization={organization}
         title="Point of sale"

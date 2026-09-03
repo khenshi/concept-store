@@ -215,7 +215,7 @@ export function SpaceManagement({
   })();
 
   return (
-    <section className="mx-auto mt-8 w-full sm:mt-12">
+    <section className="mx-auto mt-5 w-full sm:mt-6">
       <OrganizationPageHeader
         organization={organization}
         title="Spaces"
