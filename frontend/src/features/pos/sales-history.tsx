@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { SelectControl } from '@/components/ui/select-control';
+import { useDebouncedValue } from '@/components/ui/use-debounced-value';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -61,8 +62,19 @@ export function SalesHistory({
     limit: PAGE_SIZE,
   });
   const [filters, setFilters] = useState<SaleFilters>({ limit: PAGE_SIZE });
+  const [search, setSearch] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>('');
+  const [completedFrom, setCompletedFrom] = useState('');
+  const [completedTo, setCompletedTo] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const debouncedSearch = useDebouncedValue(search);
+  const filterInitialized = useRef(false);
+  const salesRequestId = useRef(0);
+  const dateError =
+    completedFrom && completedTo && completedFrom > completedTo
+      ? 'The start date must be on or before the end date.'
+      : null;
 
   const canUsePos =
     organization?.role === 'OWNER' ||
@@ -72,6 +84,7 @@ export function SalesHistory({
   useEffect(() => {
     if (!canUsePos) return;
     let active = true;
+    let requestId = 0;
     void loadBranches()
       .then(async (items) => {
         const selectedBranchId = items.some(
@@ -80,64 +93,84 @@ export function SalesHistory({
           ? initialBranchId
           : items[0]?.id;
         if (!selectedBranchId) return null;
+        requestId = ++salesRequestId.current;
         const result = await listSales(
           request,
           organizationId,
           selectedBranchId,
           { limit: PAGE_SIZE, offset: 0 },
         );
-        return { selectedBranchId, result };
+        return { selectedBranchId, result, requestId };
       })
       .then((result) => {
-        if (!active || !result) return;
+        if (!active || !result || result.requestId !== salesRequestId.current)
+          return;
         setBranchId(result.selectedBranchId);
         setPage(result.result);
       })
       .catch((cause: unknown) => {
-        if (active) setError(message(cause));
+        if (active && (!requestId || requestId === salesRequestId.current))
+          setError(message(cause));
       })
       .finally(() => {
-        if (active) setIsLoading(false);
+        if (active && (!requestId || requestId === salesRequestId.current))
+          setIsLoading(false);
       });
     return () => {
       active = false;
     };
   }, [canUsePos, initialBranchId, loadBranches, organizationId, request]);
 
-  async function fetchPage(
-    nextBranchId: string,
-    nextFilters: SaleFilters,
-  ): Promise<void> {
-    setIsLoading(true);
-    setError(null);
-    try {
-      setPage(
-        await listSales(request, organizationId, nextBranchId, nextFilters),
-      );
-      setBranchId(nextBranchId);
+  const fetchPage = useCallback(
+    async (nextBranchId: string, nextFilters: SaleFilters): Promise<void> => {
+      const requestId = ++salesRequestId.current;
+      setIsLoading(true);
+      setError(null);
       setFilters(nextFilters);
-    } catch (cause: unknown) {
-      setError(message(cause));
-    } finally {
-      setIsLoading(false);
-    }
-  }
+      try {
+        const result = await listSales(
+          request,
+          organizationId,
+          nextBranchId,
+          nextFilters,
+        );
+        if (requestId === salesRequestId.current) setPage(result);
+      } catch (cause: unknown) {
+        if (requestId === salesRequestId.current) setError(message(cause));
+      } finally {
+        if (requestId === salesRequestId.current) setIsLoading(false);
+      }
+    },
+    [organizationId, request],
+  );
 
-  function submitFilters(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const nextBranchId = String(data.get('branchId') ?? '');
-    if (!nextBranchId) return;
-    void fetchPage(nextBranchId, {
-      search: String(data.get('search') ?? '').trim() || undefined,
-      paymentMethod: (String(data.get('paymentMethod') ?? '') || undefined) as
-        PaymentMethod | undefined,
-      completedFrom: startOfDay(String(data.get('completedFrom') ?? '')),
-      completedTo: endOfDay(String(data.get('completedTo') ?? '')),
-      offset: 0,
-      limit: PAGE_SIZE,
-    });
-  }
+  useEffect(() => {
+    if (!branchId) return;
+    if (!filterInitialized.current) {
+      filterInitialized.current = true;
+      return;
+    }
+    if (dateError) return;
+    const timeoutId = window.setTimeout(() => {
+      void fetchPage(branchId, {
+        search: debouncedSearch.trim() || undefined,
+        paymentMethod: paymentMethod || undefined,
+        completedFrom: startOfDay(completedFrom),
+        completedTo: endOfDay(completedTo),
+        offset: 0,
+        limit: PAGE_SIZE,
+      });
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    branchId,
+    completedFrom,
+    completedTo,
+    dateError,
+    debouncedSearch,
+    fetchPage,
+    paymentMethod,
+  ]);
 
   if (organizationStatus === 'loading')
     return <ListSkeleton label="Loading sales history" />;
@@ -165,27 +198,21 @@ export function SalesHistory({
               {page.total} completed sales in the selected branch
             </p>
           </header>
-          <form
-            className="grid items-end gap-4 border-b border-slate-200 bg-slate-50/60 px-5 py-5 sm:grid-cols-2 sm:px-6 xl:grid-cols-[repeat(2,minmax(10rem,1fr))_repeat(2,minmax(9rem,0.8fr))_minmax(10rem,0.8fr)_auto]"
-            onSubmit={submitFilters}
-          >
+          <div className="grid items-end gap-4 border-b border-slate-200 bg-slate-50/60 px-5 py-5 sm:grid-cols-2 sm:px-6 xl:grid-cols-[repeat(2,minmax(10rem,1fr))_repeat(2,minmax(9rem,0.8fr))_minmax(10rem,0.8fr)_auto]">
             <Field label="Search sale number" id="sales-search">
               <input
                 className="min-h-11 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3"
                 id="sales-search"
-                name="search"
-                defaultValue={filters.search}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
                 placeholder="S-..."
               />
             </Field>
             <Field label="Branch" id="sales-branch">
               <SelectControl
                 id="sales-branch"
-                name="branchId"
                 value={branchId}
-                onValueChange={(value) =>
-                  void fetchPage(value, { limit: PAGE_SIZE, offset: 0 })
-                }
+                onValueChange={setBranchId}
               >
                 <option value="" disabled>
                   Select a branch
@@ -201,20 +228,28 @@ export function SalesHistory({
               <input
                 className="min-h-11 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3"
                 id="sales-from"
-                name="completedFrom"
                 type="date"
+                value={completedFrom}
+                onChange={(event) => setCompletedFrom(event.target.value)}
               />
             </Field>
             <Field label="To" id="sales-to">
               <input
                 className="min-h-11 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3"
                 id="sales-to"
-                name="completedTo"
                 type="date"
+                value={completedTo}
+                onChange={(event) => setCompletedTo(event.target.value)}
               />
             </Field>
             <Field label="Payment" id="sales-payment">
-              <SelectControl id="sales-payment" name="paymentMethod">
+              <SelectControl
+                id="sales-payment"
+                value={paymentMethod}
+                onValueChange={(value) =>
+                  setPaymentMethod(value as PaymentMethod | '')
+                }
+              >
                 <option value="">All methods</option>
                 {Object.entries(paymentLabels).map(([value, label]) => (
                   <option value={value} key={value}>
@@ -223,13 +258,23 @@ export function SalesHistory({
                 ))}
               </SelectControl>
             </Field>
-            <button
-              className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-5 font-bold text-white disabled:opacity-60"
-              disabled={isLoading || !branchId}
-            >
-              Apply
-            </button>
-          </form>
+            {isLoading ? (
+              <span
+                className="pb-3 text-sm font-semibold text-slate-500"
+                role="status"
+              >
+                Updating…
+              </span>
+            ) : null}
+            {dateError ? (
+              <p
+                className="text-sm font-semibold text-rose-700 sm:col-span-2 xl:col-span-6"
+                role="alert"
+              >
+                {dateError}
+              </p>
+            ) : null}
+          </div>
           {error ? (
             <RequestError
               className="p-6"

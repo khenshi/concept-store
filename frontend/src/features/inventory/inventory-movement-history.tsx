@@ -73,7 +73,10 @@ export function InventoryMovementHistory({
   const refreshKeyRef = useRef(refreshKey);
   const filterInitialized = useRef(false);
   const movementRequestId = useRef(0);
-  refreshKeyRef.current = refreshKey;
+
+  useEffect(() => {
+    refreshKeyRef.current = refreshKey;
+  }, [refreshKey]);
 
   const load = useCallback(
     async (

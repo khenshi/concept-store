@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import {
   FilterField,
@@ -71,55 +71,61 @@ export function ReportsWorkspace({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const dateError =
+    !filters.from || !filters.to
+      ? 'Select both a start and end date.'
+      : filters.from > filters.to
+        ? 'The start date must be on or before the end date.'
+        : null;
 
   useEffect(() => {
     void Promise.all([loadBranches(), loadMerchants()]).catch(() => undefined);
   }, [loadBranches, loadMerchants]);
 
   useEffect(() => {
+    if (dateError) return;
     let active = true;
-    const pending =
-      view === 'sales'
-        ? getSalesReport(request, organizationId, filters)
-        : view === 'inventory'
-          ? getInventoryReport(request, organizationId, filters)
-          : getMerchantReport(request, organizationId, filters);
-    void pending
-      .then((result) => {
-        if (!active) return;
-        if (view === 'sales') setSales(result as SalesReport);
-        if (view === 'inventory') setInventory(result as InventoryReport);
-        if (view === 'merchants') setMerchantReport(result as MerchantReport);
-      })
-      .catch((cause: unknown) => {
-        if (!active) return;
-        setError(
-          cause instanceof ApiError
-            ? cause.message
-            : 'The report could not be loaded.',
-        );
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
+    const timeoutId = window.setTimeout(() => {
+      setIsLoading(true);
+      setError(null);
+      const pending =
+        view === 'sales'
+          ? getSalesReport(request, organizationId, filters)
+          : view === 'inventory'
+            ? getInventoryReport(request, organizationId, filters)
+            : getMerchantReport(request, organizationId, filters);
+      void pending
+        .then((result) => {
+          if (!active) return;
+          if (view === 'sales') setSales(result as SalesReport);
+          if (view === 'inventory') setInventory(result as InventoryReport);
+          if (view === 'merchants') setMerchantReport(result as MerchantReport);
+        })
+        .catch((cause: unknown) => {
+          if (!active) return;
+          setError(
+            cause instanceof ApiError
+              ? cause.message
+              : 'The report could not be loaded.',
+          );
+        })
+        .finally(() => {
+          if (active) setIsLoading(false);
+        });
+    }, 0);
     return () => {
       active = false;
+      window.clearTimeout(timeoutId);
     };
-  }, [filters, organizationId, refreshNonce, request, view]);
+  }, [dateError, filters, organizationId, refreshNonce, request, view]);
 
-  function applyFilters(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    setIsLoading(true);
-    setError(null);
-    setFilters({
-      from: String(data.get('from') ?? ''),
-      to: String(data.get('to') ?? ''),
-      branchId: String(data.get('branchId') ?? '') || undefined,
-      merchantId: String(data.get('merchantId') ?? '') || undefined,
+  function updateFilters(change: Partial<ReportFilters>) {
+    setFilters((current) => ({
+      ...current,
+      ...change,
       offset: 0,
       limit: 50,
-    });
+    }));
   }
 
   if (organizationStatus === 'loading')
@@ -179,17 +185,16 @@ export function ReportsWorkspace({
             ))}
           </div>
           <OperationalToolbar>
-            <form
-              className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 xl:items-end"
-              onSubmit={applyFilters}
-            >
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 xl:items-end">
               <FilterField label="From" id="report-from">
                 <input
                   className="min-h-11 rounded-lg border border-slate-200 px-3"
                   id="report-from"
-                  name="from"
                   type="date"
-                  defaultValue={filters.from}
+                  value={filters.from}
+                  onChange={(event) =>
+                    updateFilters({ from: event.target.value })
+                  }
                   required
                 />
               </FilterField>
@@ -197,17 +202,21 @@ export function ReportsWorkspace({
                 <input
                   className="min-h-11 rounded-lg border border-slate-200 px-3"
                   id="report-to"
-                  name="to"
                   type="date"
-                  defaultValue={filters.to}
+                  value={filters.to}
+                  onChange={(event) =>
+                    updateFilters({ to: event.target.value })
+                  }
                   required
                 />
               </FilterField>
               <FilterField label="Branch" id="report-branch">
                 <SelectControl
                   id="report-branch"
-                  name="branchId"
-                  defaultValue={filters.branchId ?? ''}
+                  value={filters.branchId ?? ''}
+                  onValueChange={(value) =>
+                    updateFilters({ branchId: value || undefined })
+                  }
                 >
                   <option value="">All branches</option>
                   {branches.map((branch) => (
@@ -220,8 +229,10 @@ export function ReportsWorkspace({
               <FilterField label="Merchant" id="report-merchant">
                 <SelectControl
                   id="report-merchant"
-                  name="merchantId"
-                  defaultValue={filters.merchantId ?? ''}
+                  value={filters.merchantId ?? ''}
+                  onValueChange={(value) =>
+                    updateFilters({ merchantId: value || undefined })
+                  }
                 >
                   <option value="">All merchants</option>
                   {merchants.map((merchant) => (
@@ -231,13 +242,23 @@ export function ReportsWorkspace({
                   ))}
                 </SelectControl>
               </FilterField>
-              <button
-                className="min-h-11 rounded-lg border-0 bg-emerald-700 px-5 font-bold text-white"
-                type="submit"
-              >
-                Apply filters
-              </button>
-            </form>
+              {isLoading && !dateError ? (
+                <span
+                  className="pb-3 text-sm font-semibold text-slate-500"
+                  role="status"
+                >
+                  Updating…
+                </span>
+              ) : null}
+              {dateError ? (
+                <p
+                  className="text-sm font-semibold text-rose-700 md:col-span-2 xl:col-span-5"
+                  role="alert"
+                >
+                  {dateError}
+                </p>
+              ) : null}
+            </div>
           </OperationalToolbar>
           {error ? (
             <div className="p-5 sm:p-6">
