@@ -11,9 +11,14 @@ The POS catalog is branch-specific. A product is sellable when:
 - a branch inventory record exists; and
 - stock is available for the requested quantity.
 
-Cashiers can browse or search the catalog and can enter or scan an exact SKU or
-barcode to add a product directly to the cart. Invalid, unavailable, or
-out-of-stock codes produce an inline warning.
+The POS does not load the branch catalog on entry or branch selection. The
+primary cashier workflow is entering or scanning an exact SKU/barcode to add a
+product directly to the cart. Invalid, unavailable, or out-of-stock codes
+produce an inline warning.
+
+The product result list is loaded only after a non-empty name, SKU, or barcode
+search is submitted. Clearing or submitting an empty search returns to the
+quick-code-first empty state without making a catalog request.
 
 ## Checkout
 

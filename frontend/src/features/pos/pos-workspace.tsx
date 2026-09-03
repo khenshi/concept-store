@@ -72,21 +72,9 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
     if (!canUsePos) return;
     let active = true;
     void loadBranches()
-      .then(async (items) => {
-        const initialBranchId = items[0]?.id;
-        if (!initialBranchId) return null;
-        const result = await listPosProducts(
-          request,
-          organizationId,
-          initialBranchId,
-          { limit: PAGE_SIZE, offset: 0 },
-        );
-        return { initialBranchId, result };
-      })
-      .then((result) => {
-        if (!active || !result) return;
-        setBranchId(result.initialBranchId);
-        setPage(result.result);
+      .then((items) => {
+        if (!active) return;
+        setBranchId(items[0]?.id ?? '');
       })
       .catch((cause: unknown) => {
         if (active) setError(message(cause));
@@ -113,12 +101,21 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
     event.preventDefault();
     if (!branchId) return;
     const normalized = search.trim();
+    if (!normalized) {
+      setPage({ items: [], total: 0, offset: 0, limit: PAGE_SIZE });
+      setError(null);
+      return;
+    }
+    await searchProducts(normalized);
+  }
+
+  async function searchProducts(normalized: string): Promise<void> {
     setIsLoading(true);
     setError(null);
     try {
       setPage(
         await listPosProducts(request, organizationId, branchId, {
-          search: normalized || undefined,
+          search: normalized,
           limit: PAGE_SIZE,
           offset: 0,
         }),
@@ -130,23 +127,11 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
     }
   }
 
-  async function selectBranch(nextBranchId: string): Promise<void> {
+  function selectBranch(nextBranchId: string): void {
     setBranchId(nextBranchId);
-    setIsLoading(true);
+    setPage({ items: [], total: 0, offset: 0, limit: PAGE_SIZE });
     setError(null);
-    try {
-      setPage(
-        await listPosProducts(request, organizationId, nextBranchId, {
-          limit: PAGE_SIZE,
-          offset: 0,
-        }),
-      );
-      setSearch('');
-    } catch (cause: unknown) {
-      setError(message(cause));
-    } finally {
-      setIsLoading(false);
-    }
+    setSearch('');
   }
 
   function addProduct(product: PosProduct): void {
@@ -369,7 +354,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
               <button
                 className="min-h-12 rounded-[0.65rem] border-0 bg-emerald-600 px-5 font-bold text-white disabled:opacity-60"
                 type="submit"
-                disabled={!branchId || isLoading}
+                disabled={!branchId || !search.trim() || isLoading}
               >
                 {isLoading ? 'Searching…' : 'Search'}
               </button>
@@ -378,12 +363,22 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
               <div className="p-5 sm:p-6">
                 <RequestError
                   message={error}
-                  onRetry={() => void selectBranch(branchId)}
+                  onRetry={() => void searchProducts(search.trim())}
                 />
               </div>
             ) : null}
             {isLoading && page.items.length === 0 ? (
               <ListSkeleton label="Loading sellable products" />
+            ) : page.items.length === 0 && !search.trim() ? (
+              <div className="px-6 py-16 text-center">
+                <h3 className="font-bold text-slate-950">
+                  Enter a product search
+                </h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  The catalog loads only when you search. For normal checkout,
+                  scan or enter a SKU or barcode above to add it directly.
+                </p>
+              </div>
             ) : page.items.length === 0 ? (
               <div className="px-6 py-16 text-center">
                 <h3 className="font-bold text-slate-950">
