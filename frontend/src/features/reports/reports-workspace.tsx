@@ -192,9 +192,12 @@ export function ReportsWorkspace({
                   id="report-from"
                   type="date"
                   value={filters.from}
-                  onChange={(event) =>
-                    updateFilters({ from: event.target.value })
-                  }
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (!value || (filters.to && value > filters.to))
+                      setIsLoading(false);
+                    updateFilters({ from: value });
+                  }}
                   required
                 />
               </FilterField>
@@ -204,9 +207,12 @@ export function ReportsWorkspace({
                   id="report-to"
                   type="date"
                   value={filters.to}
-                  onChange={(event) =>
-                    updateFilters({ to: event.target.value })
-                  }
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (!value || (filters.from && filters.from > value))
+                      setIsLoading(false);
+                    updateFilters({ to: value });
+                  }}
                   required
                 />
               </FilterField>

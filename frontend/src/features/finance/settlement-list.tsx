@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
@@ -64,8 +64,14 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   const [liveError, setLiveError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const financeRequestId = useRef(0);
+  const historyDateError =
+    periodFrom && periodTo && periodFrom > periodTo
+      ? 'The start date must be on or before the end date.'
+      : null;
 
   const load = useCallback(async () => {
+    const requestId = ++financeRequestId.current;
     setLoading(true);
     try {
       if (activeTab === 'live') {
@@ -74,28 +80,30 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
           offset: liveOffset,
           limit: LIVE_PAGE_SIZE,
         });
+        if (requestId !== financeRequestId.current) return;
         setMetrics(payableMetrics(result.items));
         setPayables(result.items);
         setLiveTotal(result.total);
       } else if (activeTab === 'history') {
         setHistoryError(null);
-        setPage(
-          await listSettlements(request, organizationId, {
-            merchantId: merchantId || undefined,
-            branchId: branchId || undefined,
-            status: (status || undefined) as SettlementStatus | undefined,
-            periodFrom: periodFrom || undefined,
-            periodTo: periodTo || undefined,
-            offset: historyOffset,
-            limit: HISTORY_PAGE_SIZE,
-          }),
-        );
+        const result = await listSettlements(request, organizationId, {
+          merchantId: merchantId || undefined,
+          branchId: branchId || undefined,
+          status: (status || undefined) as SettlementStatus | undefined,
+          periodFrom: periodFrom || undefined,
+          periodTo: periodTo || undefined,
+          offset: historyOffset,
+          limit: HISTORY_PAGE_SIZE,
+        });
+        if (requestId === financeRequestId.current) setPage(result);
       }
     } catch (cause: unknown) {
-      if (activeTab === 'live') setLiveError(message(cause));
-      if (activeTab === 'history') setHistoryError(message(cause));
+      if (requestId === financeRequestId.current) {
+        if (activeTab === 'live') setLiveError(message(cause));
+        if (activeTab === 'history') setHistoryError(message(cause));
+      }
     } finally {
-      setLoading(false);
+      if (requestId === financeRequestId.current) setLoading(false);
     }
   }, [
     activeTab,
@@ -111,9 +119,10 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   ]);
 
   useEffect(() => {
+    if (activeTab === 'history' && historyDateError) return;
     const timeout = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timeout);
-  }, [load]);
+  }, [activeTab, historyDateError, load]);
   useEffect(() => {
     if (activeTab === 'history' && merchantsStatus === 'idle')
       void loadMerchants().catch(() => undefined);
@@ -333,6 +342,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 className="min-h-11 rounded-lg border border-slate-300 px-3"
                 value={merchantId}
                 onChange={(event) => {
+                  financeRequestId.current += 1;
                   setMerchantId(event.target.value);
                   setHistoryOffset(0);
                 }}
@@ -349,6 +359,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 className="min-h-11 rounded-lg border border-slate-300 px-3"
                 value={status}
                 onChange={(event) => {
+                  financeRequestId.current += 1;
                   setStatus(event.target.value);
                   setHistoryOffset(0);
                 }}
@@ -365,6 +376,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 className="min-h-11 rounded-lg border border-slate-300 px-3"
                 value={branchId}
                 onChange={(event) => {
+                  financeRequestId.current += 1;
                   setBranchId(event.target.value);
                   setHistoryOffset(0);
                 }}
@@ -382,7 +394,10 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 type="date"
                 value={periodFrom}
                 onChange={(event) => {
-                  setPeriodFrom(event.target.value);
+                  const value = event.target.value;
+                  financeRequestId.current += 1;
+                  if (value && periodTo && value > periodTo) setLoading(false);
+                  setPeriodFrom(value);
                   setHistoryOffset(0);
                 }}
               />
@@ -392,12 +407,32 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 type="date"
                 value={periodTo}
                 onChange={(event) => {
-                  setPeriodTo(event.target.value);
+                  const value = event.target.value;
+                  financeRequestId.current += 1;
+                  if (periodFrom && value && periodFrom > value)
+                    setLoading(false);
+                  setPeriodTo(value);
                   setHistoryOffset(0);
                 }}
               />
+              {loading && !historyDateError ? (
+                <span
+                  className="self-center text-sm font-semibold text-slate-500"
+                  role="status"
+                >
+                  Updating…
+                </span>
+              ) : null}
             </div>
           </div>
+          {historyDateError ? (
+            <p
+              className="mt-3 text-sm font-semibold text-rose-700"
+              role="alert"
+            >
+              {historyDateError}
+            </p>
+          ) : null}
           {historyError ? (
             <RequestError
               className="mt-5"

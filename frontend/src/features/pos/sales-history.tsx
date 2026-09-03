@@ -204,7 +204,10 @@ export function SalesHistory({
                 className="min-h-11 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3"
                 id="sales-search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  salesRequestId.current += 1;
+                  setSearch(event.target.value);
+                }}
                 placeholder="S-..."
               />
             </Field>
@@ -212,7 +215,10 @@ export function SalesHistory({
               <SelectControl
                 id="sales-branch"
                 value={branchId}
-                onValueChange={setBranchId}
+                onValueChange={(value) => {
+                  salesRequestId.current += 1;
+                  setBranchId(value);
+                }}
               >
                 <option value="" disabled>
                   Select a branch
@@ -230,7 +236,13 @@ export function SalesHistory({
                 id="sales-from"
                 type="date"
                 value={completedFrom}
-                onChange={(event) => setCompletedFrom(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  salesRequestId.current += 1;
+                  if (value && completedTo && value > completedTo)
+                    setIsLoading(false);
+                  setCompletedFrom(value);
+                }}
               />
             </Field>
             <Field label="To" id="sales-to">
@@ -239,16 +251,23 @@ export function SalesHistory({
                 id="sales-to"
                 type="date"
                 value={completedTo}
-                onChange={(event) => setCompletedTo(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  salesRequestId.current += 1;
+                  if (completedFrom && value && completedFrom > value)
+                    setIsLoading(false);
+                  setCompletedTo(value);
+                }}
               />
             </Field>
             <Field label="Payment" id="sales-payment">
               <SelectControl
                 id="sales-payment"
                 value={paymentMethod}
-                onValueChange={(value) =>
-                  setPaymentMethod(value as PaymentMethod | '')
-                }
+                onValueChange={(value) => {
+                  salesRequestId.current += 1;
+                  setPaymentMethod(value as PaymentMethod | '');
+                }}
               >
                 <option value="">All methods</option>
                 {Object.entries(paymentLabels).map(([value, label]) => (

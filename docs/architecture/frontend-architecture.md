@@ -31,6 +31,9 @@ Cashiers primarily see POS. Merchant users receive their isolated dashboard.
 - Destructive or access-changing actions require confirmation.
 - Forms validate user input before API submission while treating backend
   validation as authoritative.
+- List and report filters apply automatically. Text searches debounce briefly;
+  discrete selections and valid date ranges update immediately, reset
+  pagination, and ignore stale responses.
 - Tables retain semantic captions, column headers, and row headers.
 - Focus-visible styles, skip navigation, labels, alert roles, and status regions
   support keyboard and assistive-technology use.

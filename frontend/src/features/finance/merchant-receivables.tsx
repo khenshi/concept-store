@@ -1,6 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -40,23 +46,26 @@ export function MerchantReceivables({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const receivablesRequestId = useRef(0);
 
   const load = useCallback(async () => {
+    const requestId = ++receivablesRequestId.current;
     setLoading(true);
     setError(null);
     try {
       const page = await listMerchantReceivables(request, organizationId, {
         status: status || undefined,
       });
-      setItems(page.items);
+      if (requestId === receivablesRequestId.current) setItems(page.items);
     } catch (cause) {
-      setError(
-        cause instanceof ApiError
-          ? cause.message
-          : 'Rent receivables could not be loaded.',
-      );
+      if (requestId === receivablesRequestId.current)
+        setError(
+          cause instanceof ApiError
+            ? cause.message
+            : 'Rent receivables could not be loaded.',
+        );
     } finally {
-      setLoading(false);
+      if (requestId === receivablesRequestId.current) setLoading(false);
     }
   }, [organizationId, request, status]);
 
@@ -110,18 +119,31 @@ export function MerchantReceivables({
             payouts.
           </p>
         </div>
-        <select
-          className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm"
-          onChange={(event) => setStatus(event.target.value)}
-          value={status}
-        >
-          <option value="">All statuses</option>
-          {Object.entries(statusLabel).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-3">
+          <select
+            className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm"
+            onChange={(event) => {
+              receivablesRequestId.current += 1;
+              setStatus(event.target.value);
+            }}
+            value={status}
+          >
+            <option value="">All statuses</option>
+            {Object.entries(statusLabel).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {loading ? (
+            <span
+              className="text-sm font-semibold text-slate-500"
+              role="status"
+            >
+              Updating…
+            </span>
+          ) : null}
+        </div>
       </div>
       {error ? (
         <RequestError

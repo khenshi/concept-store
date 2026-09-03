@@ -341,7 +341,10 @@ export function InventoryOverview({
                       id="inventory-search"
                       type="search"
                       value={search}
-                      onChange={(event) => setSearch(event.target.value)}
+                      onChange={(event) => {
+                        inventoryRequestId.current += 1;
+                        setSearch(event.target.value);
+                      }}
                       placeholder="Name, SKU, or barcode"
                     />
                   </FilterField>
@@ -350,7 +353,10 @@ export function InventoryOverview({
                       className={fieldClass}
                       id="inventory-branch"
                       value={filterBranchId}
-                      onValueChange={setFilterBranchId}
+                      onValueChange={(value) => {
+                        inventoryRequestId.current += 1;
+                        setFilterBranchId(value);
+                      }}
                     >
                       <option value="">All branches</option>
                       {branches.map((branch) => (
@@ -365,7 +371,10 @@ export function InventoryOverview({
                       className={fieldClass}
                       id="inventory-merchant"
                       value={filterMerchantId}
-                      onValueChange={setFilterMerchantId}
+                      onValueChange={(value) => {
+                        inventoryRequestId.current += 1;
+                        setFilterMerchantId(value);
+                      }}
                     >
                       <option value="">All merchants</option>
                       {merchants.map((merchant) => (
@@ -380,9 +389,10 @@ export function InventoryOverview({
                       className={fieldClass}
                       id="inventory-status"
                       value={filterStatus}
-                      onValueChange={(value) =>
-                        setFilterStatus(value as ProductStatus | '')
-                      }
+                      onValueChange={(value) => {
+                        inventoryRequestId.current += 1;
+                        setFilterStatus(value as ProductStatus | '');
+                      }}
                     >
                       <option value="">All statuses</option>
                       <option value="ACTIVE">Active</option>

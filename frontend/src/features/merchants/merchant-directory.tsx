@@ -226,7 +226,10 @@ export function MerchantDirectory({
                   id="merchant-search"
                   type="search"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    filterRequestId.current += 1;
+                    setSearch(event.target.value);
+                  }}
                   placeholder="Name, code, or contact"
                   maxLength={120}
                 />
@@ -236,9 +239,10 @@ export function MerchantDirectory({
                   className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
                   id="merchant-status-filter"
                   value={status}
-                  onValueChange={(value) =>
-                    setStatus(value as MerchantStatus | '')
-                  }
+                  onValueChange={(value) => {
+                    filterRequestId.current += 1;
+                    setStatus(value as MerchantStatus | '');
+                  }}
                 >
                   <option value="">All statuses</option>
                   {Object.entries(statusLabels).map(([value, label]) => (

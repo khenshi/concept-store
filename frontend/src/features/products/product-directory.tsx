@@ -298,7 +298,10 @@ export function ProductDirectory({
                   id="product-search"
                   type="search"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    filterRequestId.current += 1;
+                    setSearch(event.target.value);
+                  }}
                   placeholder="Name, SKU, or barcode"
                   maxLength={160}
                 />
@@ -308,7 +311,10 @@ export function ProductDirectory({
                   className={fieldClass}
                   id="product-merchant"
                   value={merchantId}
-                  onValueChange={setMerchantId}
+                  onValueChange={(value) => {
+                    filterRequestId.current += 1;
+                    setMerchantId(value);
+                  }}
                 >
                   <option value="">All merchants</option>
                   {merchants.map((merchant) => (
@@ -323,9 +329,10 @@ export function ProductDirectory({
                   className={fieldClass}
                   id="product-status"
                   value={status}
-                  onValueChange={(value) =>
-                    setStatus(value as ProductStatus | '')
-                  }
+                  onValueChange={(value) => {
+                    filterRequestId.current += 1;
+                    setStatus(value as ProductStatus | '');
+                  }}
                 >
                   <option value="">All statuses</option>
                   <option value="ACTIVE">Active</option>
