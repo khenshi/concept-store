@@ -271,15 +271,9 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
         </div>
       ) : (
         <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_23rem]">
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-            <header className="border-b border-slate-200 px-5 py-5 sm:flex sm:items-end sm:justify-between sm:gap-5 sm:px-6">
-              <div>
-                <h2 className="font-bold text-slate-950">Product catalog</h2>
-                <p className="mt-1.5 text-sm text-slate-500">
-                  Search by product name, SKU, or scan a barcode.
-                </p>
-              </div>
-              <label className="mt-4 grid gap-2 text-sm font-bold text-slate-700 sm:mt-0 sm:w-64">
+          <section className="space-y-4">
+            <header className="rounded-xl border border-slate-200 bg-white px-5 py-5 sm:px-6">
+              <label className="grid gap-2 text-sm font-bold text-slate-700 sm:w-72">
                 Selling branch
                 <SelectControl
                   value={branchId}
@@ -298,7 +292,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
               </label>
             </header>
             <form
-              className="border-b border-emerald-200 bg-emerald-50/70 px-5 py-4 sm:px-6"
+              className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-5 py-5 sm:px-6"
               onSubmit={quickAddProduct}
             >
               <label
@@ -346,107 +340,112 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
                 </p>
               )}
             </form>
-            <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:px-6">
-              <label className="min-w-0 flex-1">
-                <span className="sr-only">Search products</span>
-                <input
-                  className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3.5 text-slate-950 outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-100"
-                  value={search}
-                  placeholder="Product name, SKU, or barcode"
-                  disabled={!branchId}
-                  onChange={(event) => {
-                    const nextSearch = event.target.value;
-                    catalogRequestId.current += 1;
-                    setSearch(nextSearch);
-                    setError(null);
-                    if (!nextSearch.trim()) {
-                      setPage(EMPTY_PAGE);
-                      setIsLoading(false);
-                    }
-                  }}
-                />
-              </label>
-              {isLoading && search.trim() ? (
-                <span
-                  className="shrink-0 text-sm font-semibold text-slate-500"
-                  role="status"
-                >
-                  Searching…
-                </span>
-              ) : null}
-            </div>
-            {error ? (
-              <div className="p-5 sm:p-6">
-                <RequestError
-                  message={error}
-                  onRetry={() => void searchProducts(search.trim())}
-                />
-              </div>
-            ) : null}
-            {isLoading && page.items.length === 0 ? (
-              <ListSkeleton label="Loading sellable products" />
-            ) : page.items.length === 0 && !search.trim() ? (
-              <div className="px-6 py-16 text-center">
-                <h3 className="font-bold text-slate-950">
-                  Enter a product search
-                </h3>
-                <p className="mt-2 text-sm text-slate-500">
-                  The catalog loads only when you search. For normal checkout,
-                  scan or enter a SKU or barcode above to add it directly.
-                </p>
-              </div>
-            ) : page.items.length === 0 ? (
-              <div className="px-6 py-16 text-center">
-                <h3 className="font-bold text-slate-950">
-                  No sellable products
-                </h3>
-                <p className="mt-2 text-sm text-slate-500">
-                  Try another search or confirm this branch has available stock.
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-200">
-                {page.items.map((product) => {
-                  const selected = cart.find(
-                    (line) => line.product.id === product.id,
-                  );
-                  return (
-                    <article
-                      className="grid gap-4 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:px-6"
-                      key={product.id}
+            <div className="rounded-xl border border-slate-200 bg-white px-5 py-5 sm:px-6">
+              <label className="block text-sm font-bold text-slate-800">
+                Search products
+                <div className="mt-2 flex items-center gap-3">
+                  <input
+                    className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3.5 text-slate-950 outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-100"
+                    value={search}
+                    placeholder="Product name, SKU, or barcode"
+                    disabled={!branchId}
+                    onChange={(event) => {
+                      const nextSearch = event.target.value;
+                      catalogRequestId.current += 1;
+                      setSearch(nextSearch);
+                      setError(null);
+                      if (!nextSearch.trim()) {
+                        setPage(EMPTY_PAGE);
+                        setIsLoading(false);
+                      }
+                    }}
+                  />
+                  {isLoading && search.trim() ? (
+                    <span
+                      className="shrink-0 text-sm font-semibold text-slate-500"
+                      role="status"
                     >
-                      <div className="min-w-0">
-                        <h3 className="truncate font-bold text-slate-950">
-                          {product.name}
-                        </h3>
-                        <p className="mt-1 text-sm text-slate-500">
-                          {product.sku} · {product.merchant.name}
-                        </p>
-                      </div>
-                      <div className="sm:text-right">
-                        <p className="font-bold text-slate-950">
-                          {amount(product.sellingPrice)}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {product.quantity} in stock
-                        </p>
-                      </div>
-                      <button
-                        className="min-h-11 rounded-[0.6rem] border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-400"
-                        type="button"
-                        disabled={
-                          !product.available ||
-                          (selected?.quantity ?? 0) >= product.quantity
-                        }
-                        onClick={() => addProduct(product)}
+                      Searching…
+                    </span>
+                  ) : null}
+                </div>
+              </label>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+              {error ? (
+                <div className="p-5 sm:p-6">
+                  <RequestError
+                    message={error}
+                    onRetry={() => void searchProducts(search.trim())}
+                  />
+                </div>
+              ) : null}
+              {isLoading && page.items.length === 0 ? (
+                <ListSkeleton label="Loading sellable products" />
+              ) : page.items.length === 0 && !search.trim() ? (
+                <div className="px-6 py-16 text-center">
+                  <h3 className="font-bold text-slate-950">
+                    Enter a product search
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    The catalog loads only when you search. For normal checkout,
+                    scan or enter a SKU or barcode above to add it directly.
+                  </p>
+                </div>
+              ) : page.items.length === 0 ? (
+                <div className="px-6 py-16 text-center">
+                  <h3 className="font-bold text-slate-950">
+                    No sellable products
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Try another search or confirm this branch has available
+                    stock.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-200">
+                  {page.items.map((product) => {
+                    const selected = cart.find(
+                      (line) => line.product.id === product.id,
+                    );
+                    return (
+                      <article
+                        className="grid gap-4 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:px-6"
+                        key={product.id}
                       >
-                        {selected ? 'Add another' : 'Add to cart'}
-                      </button>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
+                        <div className="min-w-0">
+                          <h3 className="truncate font-bold text-slate-950">
+                            {product.name}
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {product.sku} · {product.merchant.name}
+                          </p>
+                        </div>
+                        <div className="sm:text-right">
+                          <p className="font-bold text-slate-950">
+                            {amount(product.sellingPrice)}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {product.quantity} in stock
+                          </p>
+                        </div>
+                        <button
+                          className="min-h-11 rounded-[0.6rem] border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 disabled:bg-slate-50 disabled:text-slate-400"
+                          type="button"
+                          disabled={
+                            !product.available ||
+                            (selected?.quantity ?? 0) >= product.quantity
+                          }
+                          onClick={() => addProduct(product)}
+                        >
+                          {selected ? 'Add another' : 'Add to cart'}
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </section>
 
           <aside className="overflow-hidden rounded-xl border border-slate-200 bg-white xl:sticky xl:top-24">
