@@ -16,9 +16,9 @@ primary cashier workflow is entering or scanning an exact SKU/barcode to add a
 product directly to the cart. Invalid, unavailable, or out-of-stock codes
 produce an inline warning.
 
-The product result list is loaded only after a non-empty name, SKU, or barcode
-search is submitted. Clearing or submitting an empty search returns to the
-quick-code-first empty state without making a catalog request.
+The product result list updates automatically after a brief debounce whenever a
+non-empty name, SKU, or barcode search changes. Clearing the search immediately
+returns to the quick-code-first empty state without making a catalog request.
 
 ## Checkout
 

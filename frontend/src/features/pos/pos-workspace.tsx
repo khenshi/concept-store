@@ -1,6 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { SelectControl } from '@/components/ui/select-control';
@@ -20,6 +27,13 @@ import type {
 } from './pos.types';
 
 const PAGE_SIZE = 30;
+const SEARCH_DEBOUNCE_MS = 350;
+const EMPTY_PAGE: PosProductPage = {
+  items: [],
+  total: 0,
+  offset: 0,
+  limit: PAGE_SIZE,
+};
 const money = new Intl.NumberFormat('en-PH', {
   style: 'currency',
   currency: 'PHP',
@@ -45,12 +59,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
     loadBranches,
   } = useOrganizationWorkspaceContext();
   const [branchId, setBranchId] = useState('');
-  const [page, setPage] = useState<PosProductPage>({
-    items: [],
-    total: 0,
-    offset: 0,
-    limit: PAGE_SIZE,
-  });
+  const [page, setPage] = useState<PosProductPage>(EMPTY_PAGE);
   const [cart, setCart] = useState<PosCartLine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +71,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const catalogRequestId = useRef(0);
 
   const canUsePos =
     organization?.role === 'OWNER' ||
@@ -97,39 +107,47 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
     [cart],
   );
 
-  async function findProducts(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!branchId) return;
-    const normalized = search.trim();
-    if (!normalized) {
-      setPage({ items: [], total: 0, offset: 0, limit: PAGE_SIZE });
+  const searchProducts = useCallback(
+    async (normalized: string): Promise<void> => {
+      if (!branchId || !normalized) return;
+      const requestId = ++catalogRequestId.current;
+      setIsLoading(true);
       setError(null);
-      return;
-    }
-    await searchProducts(normalized);
-  }
+      try {
+        const result = await listPosProducts(
+          request,
+          organizationId,
+          branchId,
+          {
+            search: normalized,
+            limit: PAGE_SIZE,
+            offset: 0,
+          },
+        );
+        if (requestId === catalogRequestId.current) setPage(result);
+      } catch (cause: unknown) {
+        if (requestId === catalogRequestId.current) setError(message(cause));
+      } finally {
+        if (requestId === catalogRequestId.current) setIsLoading(false);
+      }
+    },
+    [branchId, organizationId, request],
+  );
 
-  async function searchProducts(normalized: string): Promise<void> {
-    setIsLoading(true);
-    setError(null);
-    try {
-      setPage(
-        await listPosProducts(request, organizationId, branchId, {
-          search: normalized,
-          limit: PAGE_SIZE,
-          offset: 0,
-        }),
-      );
-    } catch (cause: unknown) {
-      setError(message(cause));
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  useEffect(() => {
+    const normalized = search.trim();
+    if (!branchId || !normalized) return;
+    const timeoutId = window.setTimeout(() => {
+      void searchProducts(normalized);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [branchId, search, searchProducts]);
 
   function selectBranch(nextBranchId: string): void {
+    catalogRequestId.current += 1;
     setBranchId(nextBranchId);
-    setPage({ items: [], total: 0, offset: 0, limit: PAGE_SIZE });
+    setPage(EMPTY_PAGE);
+    setIsLoading(false);
     setError(null);
     setSearch('');
   }
@@ -221,19 +239,10 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
       setCompletedSale(sale);
       setCheckoutId(null);
       setCart([]);
-      try {
-        setPage(
-          await listPosProducts(request, organizationId, branchId, {
-            limit: PAGE_SIZE,
-            offset: 0,
-          }),
-        );
-        setSearch('');
-      } catch {
-        setError(
-          'The sale was completed, but current stock could not be refreshed. Reload the catalog before starting another sale.',
-        );
-      }
+      catalogRequestId.current += 1;
+      setSearch('');
+      setPage(EMPTY_PAGE);
+      setError(null);
     } catch (cause: unknown) {
       setCheckoutError(message(cause));
     } finally {
@@ -337,10 +346,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
                 </p>
               )}
             </form>
-            <form
-              className="flex gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:px-6"
-              onSubmit={findProducts}
-            >
+            <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50/60 px-5 py-4 sm:px-6">
               <label className="min-w-0 flex-1">
                 <span className="sr-only">Search products</span>
                 <input
@@ -348,17 +354,27 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
                   value={search}
                   placeholder="Product name, SKU, or barcode"
                   disabled={!branchId}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    const nextSearch = event.target.value;
+                    catalogRequestId.current += 1;
+                    setSearch(nextSearch);
+                    setError(null);
+                    if (!nextSearch.trim()) {
+                      setPage(EMPTY_PAGE);
+                      setIsLoading(false);
+                    }
+                  }}
                 />
               </label>
-              <button
-                className="min-h-12 rounded-[0.65rem] border-0 bg-emerald-600 px-5 font-bold text-white disabled:opacity-60"
-                type="submit"
-                disabled={!branchId || !search.trim() || isLoading}
-              >
-                {isLoading ? 'Searching…' : 'Search'}
-              </button>
-            </form>
+              {isLoading && search.trim() ? (
+                <span
+                  className="shrink-0 text-sm font-semibold text-slate-500"
+                  role="status"
+                >
+                  Searching…
+                </span>
+              ) : null}
+            </div>
             {error ? (
               <div className="p-5 sm:p-6">
                 <RequestError
