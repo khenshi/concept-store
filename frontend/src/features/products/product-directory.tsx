@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import {
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
 import { SelectControl } from '@/components/ui/select-control';
+import { useDebouncedValue } from '@/components/ui/use-debounced-value';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import type { Merchant } from '@/features/merchants/merchant.types';
@@ -70,6 +71,9 @@ export function ProductDirectory({
   const [filters, setFilters] = useState<ProductFilters>({
     merchantId: initialMerchantId,
   });
+  const [search, setSearch] = useState('');
+  const [merchantId, setMerchantId] = useState(initialMerchantId ?? '');
+  const [status, setStatus] = useState<ProductStatus | ''>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -80,6 +84,9 @@ export function ProductDirectory({
   const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const { confirm, confirmationDialog } = useConfirmationDialog();
+  const debouncedSearch = useDebouncedValue(search);
+  const filterInitialized = useRef(false);
+  const filterRequestId = useRef(0);
 
   async function load(selected: ProductFilters = filters): Promise<void> {
     setIsLoading(true);
@@ -132,26 +139,43 @@ export function ProductDirectory({
     request,
   ]);
 
-  async function filter(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
+  useEffect(() => {
+    if (
+      !organization ||
+      (organization.role !== 'OWNER' && organization.role !== 'MANAGER')
+    )
+      return;
+    if (!filterInitialized.current) {
+      filterInitialized.current = true;
+      return;
+    }
     const next: ProductFilters = {
-      search: String(data.get('search') ?? '').trim() || undefined,
-      merchantId: String(data.get('merchantId') ?? '') || undefined,
-      status: (String(data.get('status') ?? '') || undefined) as
-        ProductStatus | undefined,
+      search: debouncedSearch.trim() || undefined,
+      merchantId: merchantId || undefined,
+      status: status || undefined,
     };
     setFilters(next);
     setIsFiltering(true);
     setError(null);
-    try {
-      setProducts(await listProducts(request, organizationId, next));
-    } catch (cause: unknown) {
-      setError(message(cause));
-    } finally {
-      setIsFiltering(false);
-    }
-  }
+    const requestId = ++filterRequestId.current;
+    void listProducts(request, organizationId, next)
+      .then((result) => {
+        if (requestId === filterRequestId.current) setProducts(result);
+      })
+      .catch((cause: unknown) => {
+        if (requestId === filterRequestId.current) setError(message(cause));
+      })
+      .finally(() => {
+        if (requestId === filterRequestId.current) setIsFiltering(false);
+      });
+  }, [
+    debouncedSearch,
+    merchantId,
+    organization,
+    organizationId,
+    request,
+    status,
+  ]);
 
   async function save(input: ProductInput): Promise<void> {
     setIsSaving(true);
@@ -267,17 +291,14 @@ export function ProductDirectory({
             </StatusNotice>
           ) : null}
           <OperationalToolbar>
-            <form
-              className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.5fr)_minmax(9rem,0.4fr)_auto]"
-              onSubmit={(event) => void filter(event)}
-            >
+            <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.5fr)_minmax(9rem,0.4fr)_auto]">
               <FilterField label="Search" id="product-search">
                 <input
                   className={fieldClass}
                   id="product-search"
-                  name="search"
                   type="search"
-                  defaultValue={filters.search}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
                   placeholder="Name, SKU, or barcode"
                   maxLength={160}
                 />
@@ -286,8 +307,8 @@ export function ProductDirectory({
                 <SelectControl
                   className={fieldClass}
                   id="product-merchant"
-                  name="merchantId"
-                  defaultValue={filters.merchantId ?? ''}
+                  value={merchantId}
+                  onValueChange={setMerchantId}
                 >
                   <option value="">All merchants</option>
                   {merchants.map((merchant) => (
@@ -301,21 +322,25 @@ export function ProductDirectory({
                 <SelectControl
                   className={fieldClass}
                   id="product-status"
-                  name="status"
-                  defaultValue={filters.status ?? ''}
+                  value={status}
+                  onValueChange={(value) =>
+                    setStatus(value as ProductStatus | '')
+                  }
                 >
                   <option value="">All statuses</option>
                   <option value="ACTIVE">Active</option>
                   <option value="INACTIVE">Inactive</option>
                 </SelectControl>
               </FilterField>
-              <button
-                className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 font-bold disabled:cursor-wait disabled:opacity-65"
-                disabled={isFiltering}
-              >
-                {isFiltering ? 'Applying…' : 'Apply'}
-              </button>
-            </form>
+              {isFiltering ? (
+                <span
+                  className="pb-3 text-sm font-semibold text-slate-500"
+                  role="status"
+                >
+                  Updating…
+                </span>
+              ) : null}
+            </div>
           </OperationalToolbar>
           {success ? <StatusNotice>{success}</StatusNotice> : null}
           {error ? (

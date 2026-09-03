@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import {
   FilterField,
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/operational-page';
 import { RequestError } from '@/components/ui/request-error';
 import { SelectControl } from '@/components/ui/select-control';
+import { useDebouncedValue } from '@/components/ui/use-debounced-value';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
@@ -63,10 +64,15 @@ export function MerchantDirectory({
   } = useOrganizationWorkspaceContext();
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filters, setFilters] = useState<MerchantFilters>({});
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<MerchantStatus | ''>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const debouncedSearch = useDebouncedValue(search);
+  const filterInitialized = useRef(false);
+  const filterRequestId = useRef(0);
 
   async function load(selectedFilters: MerchantFilters = filters) {
     setIsLoading(true);
@@ -113,27 +119,36 @@ export function MerchantDirectory({
     }
   }, [branchesStatus, loadBranches, organization]);
 
-  async function handleFilter(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const searchValue = String(formData.get('search') ?? '').trim();
-    const statusValue = String(formData.get('status') ?? '') as
-      MerchantStatus | '';
+  useEffect(() => {
+    if (
+      !organization ||
+      (organization.role !== 'OWNER' && organization.role !== 'MANAGER')
+    )
+      return;
+    if (!filterInitialized.current) {
+      filterInitialized.current = true;
+      return;
+    }
     const nextFilters: MerchantFilters = {
-      search: searchValue || undefined,
-      status: statusValue || undefined,
+      search: debouncedSearch.trim() || undefined,
+      status: status || undefined,
     };
     setFilters(nextFilters);
     setIsFiltering(true);
     setLoadError(null);
-    try {
-      setMerchants(await listMerchants(request, organizationId, nextFilters));
-    } catch (cause: unknown) {
-      setLoadError(errorMessage(cause));
-    } finally {
-      setIsFiltering(false);
-    }
-  }
+    const requestId = ++filterRequestId.current;
+    void listMerchants(request, organizationId, nextFilters)
+      .then((result) => {
+        if (requestId === filterRequestId.current) setMerchants(result);
+      })
+      .catch((cause: unknown) => {
+        if (requestId === filterRequestId.current)
+          setLoadError(errorMessage(cause));
+      })
+      .finally(() => {
+        if (requestId === filterRequestId.current) setIsFiltering(false);
+      });
+  }, [debouncedSearch, organization, organizationId, request, status]);
 
   if (organizationStatus === 'loading') {
     return (
@@ -204,17 +219,14 @@ export function MerchantDirectory({
           }
         >
           <OperationalToolbar>
-            <form
-              className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.4fr)_auto]"
-              onSubmit={handleFilter}
-            >
+            <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.4fr)_auto]">
               <FilterField label="Search" id="merchant-search">
                 <input
                   className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
                   id="merchant-search"
-                  name="search"
                   type="search"
-                  defaultValue={filters.search}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
                   placeholder="Name, code, or contact"
                   maxLength={120}
                 />
@@ -223,8 +235,10 @@ export function MerchantDirectory({
                 <SelectControl
                   className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
                   id="merchant-status-filter"
-                  name="status"
-                  defaultValue={filters.status ?? ''}
+                  value={status}
+                  onValueChange={(value) =>
+                    setStatus(value as MerchantStatus | '')
+                  }
                 >
                   <option value="">All statuses</option>
                   {Object.entries(statusLabels).map(([value, label]) => (
@@ -234,14 +248,15 @@ export function MerchantDirectory({
                   ))}
                 </SelectControl>
               </FilterField>
-              <button
-                className="min-h-12 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
-                type="submit"
-                disabled={isFiltering}
-              >
-                {isFiltering ? 'Applying…' : 'Apply filters'}
-              </button>
-            </form>
+              {isFiltering ? (
+                <span
+                  className="pb-3 text-sm font-semibold text-slate-500"
+                  role="status"
+                >
+                  Updating…
+                </span>
+              ) : null}
+            </div>
           </OperationalToolbar>
 
           {loadError ? (
