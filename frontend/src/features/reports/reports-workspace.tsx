@@ -248,14 +248,6 @@ export function ReportsWorkspace({
                   ))}
                 </SelectControl>
               </FilterField>
-              {isLoading && !dateError ? (
-                <span
-                  className="pb-3 text-sm font-semibold text-slate-500"
-                  role="status"
-                >
-                  Updating…
-                </span>
-              ) : null}
               {dateError ? (
                 <p
                   className="text-sm font-semibold text-rose-700 md:col-span-2 xl:col-span-5"

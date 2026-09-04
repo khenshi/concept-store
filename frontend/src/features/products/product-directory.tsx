@@ -339,14 +339,6 @@ export function ProductDirectory({
                   <option value="INACTIVE">Inactive</option>
                 </SelectControl>
               </FilterField>
-              {isFiltering ? (
-                <span
-                  className="pb-3 text-sm font-semibold text-slate-500"
-                  role="status"
-                >
-                  Updating…
-                </span>
-              ) : null}
             </div>
           </OperationalToolbar>
           {success ? <StatusNotice>{success}</StatusNotice> : null}
@@ -466,14 +458,14 @@ function ProductRow({
       <td className="px-6 py-4">
         <div className="flex items-center justify-end gap-4">
           <button
-            className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-emerald-700 underline underline-offset-3"
+            className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-emerald-700"
             type="button"
             onClick={onEdit}
           >
             Edit
           </button>
           <button
-            className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-slate-600 underline underline-offset-3 disabled:cursor-wait disabled:opacity-60"
+            className="cursor-pointer border-0 bg-transparent p-0 text-sm font-bold text-slate-600 disabled:cursor-wait disabled:opacity-60"
             type="button"
             disabled={pending}
             onClick={onToggle}

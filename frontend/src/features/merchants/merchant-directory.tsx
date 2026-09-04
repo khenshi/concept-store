@@ -252,14 +252,6 @@ export function MerchantDirectory({
                   ))}
                 </SelectControl>
               </FilterField>
-              {isFiltering ? (
-                <span
-                  className="pb-3 text-sm font-semibold text-slate-500"
-                  role="status"
-                >
-                  Updating…
-                </span>
-              ) : null}
             </div>
           </OperationalToolbar>
 
@@ -315,7 +307,7 @@ export function MerchantDirectory({
                       {statusLabels[merchant.status]}
                     </span>
                     <Link
-                      className="font-bold text-emerald-700 underline underline-offset-3"
+                      className="font-bold text-emerald-700"
                       href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
                     >
                       View

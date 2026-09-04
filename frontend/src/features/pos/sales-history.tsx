@@ -277,14 +277,6 @@ export function SalesHistory({
                 ))}
               </SelectControl>
             </Field>
-            {isLoading ? (
-              <span
-                className="pb-3 text-sm font-semibold text-slate-500"
-                role="status"
-              >
-                Updating…
-              </span>
-            ) : null}
             {dateError ? (
               <p
                 className="text-sm font-semibold text-rose-700 sm:col-span-2 xl:col-span-6"
@@ -354,7 +346,7 @@ export function SalesHistory({
                       </td>
                       <td className="px-6 py-4 text-right">
                         <Link
-                          className="font-bold text-emerald-700 underline underline-offset-3"
+                          className="font-bold text-emerald-700 "
                           href={`/app/organizations/${organizationId}/pos/sales/${sale.id}?branchId=${encodeURIComponent(branchId)}`}
                         >
                           View

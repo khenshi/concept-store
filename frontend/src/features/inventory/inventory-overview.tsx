@@ -399,14 +399,6 @@ export function InventoryOverview({
                       <option value="INACTIVE">Inactive</option>
                     </SelectControl>
                   </FilterField>
-                  {isFiltering ? (
-                    <span
-                      className="pb-3 text-sm font-semibold text-slate-500"
-                      role="status"
-                    >
-                      Updating…
-                    </span>
-                  ) : null}
                 </div>
               </OperationalToolbar>
               {success ? <StatusNotice>{success}</StatusNotice> : null}
@@ -566,7 +558,7 @@ function InventoryRow({
       </td>
       <td className="px-6 py-4 text-right">
         <button
-          className="border-0 bg-transparent p-0 text-sm font-bold text-emerald-700 underline underline-offset-3"
+          className="border-0 bg-transparent p-0 text-sm font-bold text-emerald-700"
           type="button"
           onClick={onAdjust}
         >

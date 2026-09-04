@@ -215,14 +215,6 @@ export function InventoryMovementHistory({
             <option value="ADJUSTMENT">Adjustment</option>
           </SelectControl>
         </Filter>
-        {isLoading ? (
-          <span
-            className="pb-3 text-sm font-semibold text-slate-500"
-            role="status"
-          >
-            Updating…
-          </span>
-        ) : null}
       </div>
       {error ? (
         <RequestError
