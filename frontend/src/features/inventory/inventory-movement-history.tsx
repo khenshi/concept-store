@@ -63,6 +63,8 @@ export function InventoryMovementHistory({
   const [movementType, setMovementType] = useState<InventoryMovementType | ''>(
     '',
   );
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [cursorStack, setCursorStack] = useState<Array<string | undefined>>([
     undefined,
   ]);
@@ -133,6 +135,7 @@ export function InventoryMovementHistory({
 
   useEffect(() => {
     if (hidden) return;
+    if (dateFrom && dateTo && dateFrom > dateTo) return;
     if (!filterInitialized.current) {
       filterInitialized.current = true;
       return;
@@ -141,10 +144,17 @@ export function InventoryMovementHistory({
       branchId: branchId || undefined,
       productId: productId || undefined,
       type: movementType || undefined,
+      createdFrom: dateFrom ? `${dateFrom}T00:00:00+08:00` : undefined,
+      createdTo: dateTo ? `${dateTo}T23:59:59.999+08:00` : undefined,
       limit: PAGE_SIZE,
     };
     void load(next, [undefined]);
-  }, [branchId, hidden, load, movementType, productId]);
+  }, [branchId, dateFrom, dateTo, hidden, load, movementType, productId]);
+
+  const dateError =
+    dateFrom && dateTo && dateFrom > dateTo
+      ? 'The start date must be on or before the end date.'
+      : null;
 
   function nextPage(): void {
     if (!page.nextCursor) return;
@@ -170,7 +180,7 @@ export function InventoryMovementHistory({
           Every stock-in and explained adjustment, newest first.
         </p>
       </div>
-      <div className="mt-6 grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[repeat(3,minmax(10rem,1fr))_auto]">
+      <div className="mt-6 grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Filter label="Branch" id="movement-branch">
           <SelectControl
             className={fieldClass}
@@ -215,7 +225,30 @@ export function InventoryMovementHistory({
             <option value="ADJUSTMENT">Adjustment</option>
           </SelectControl>
         </Filter>
+        <Filter label="From" id="movement-from">
+          <input
+            className={fieldClass}
+            id="movement-from"
+            type="date"
+            value={dateFrom}
+            onChange={(event) => setDateFrom(event.target.value)}
+          />
+        </Filter>
+        <Filter label="To" id="movement-to">
+          <input
+            className={fieldClass}
+            id="movement-to"
+            type="date"
+            value={dateTo}
+            onChange={(event) => setDateTo(event.target.value)}
+          />
+        </Filter>
       </div>
+      {dateError ? (
+        <p className="mt-3 text-sm font-semibold text-rose-700" role="alert">
+          {dateError}
+        </p>
+      ) : null}
       {error ? (
         <RequestError
           className="mt-5 rounded-lg border border-red-600 p-3 text-sm text-red-600"

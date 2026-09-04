@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -109,11 +110,24 @@ export class InventoryService {
     organizationId: string,
     query: ListInventoryMovementsQueryDto,
   ): Promise<InventoryMovementPageRecord> {
+    const createdFrom = query.createdFrom
+      ? new Date(query.createdFrom)
+      : undefined;
+    const createdTo = query.createdTo ? new Date(query.createdTo) : undefined;
+    if (createdFrom && createdTo && createdFrom > createdTo) {
+      throw new BadRequestException(
+        'createdFrom must be before or equal to createdTo',
+      );
+    }
     const where: Prisma.InventoryMovementWhereInput = {
       organizationId,
       branchId: query.branchId,
       productId: query.productId,
       type: query.type,
+      createdAt:
+        createdFrom || createdTo
+          ? { gte: createdFrom, lte: createdTo }
+          : undefined,
     };
     if (query.cursor) {
       const cursorExists = await this.prisma.inventoryMovement.findFirst({

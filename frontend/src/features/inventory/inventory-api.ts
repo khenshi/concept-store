@@ -39,6 +39,8 @@ export function listInventoryMovements(
   if (filters.branchId) query.set('branchId', filters.branchId);
   if (filters.productId) query.set('productId', filters.productId);
   if (filters.type) query.set('type', filters.type);
+  if (filters.createdFrom) query.set('createdFrom', filters.createdFrom);
+  if (filters.createdTo) query.set('createdTo', filters.createdTo);
   if (filters.cursor) query.set('cursor', filters.cursor);
   if (filters.limit !== undefined) query.set('limit', String(filters.limit));
   const suffix = query.size ? `?${query}` : '';

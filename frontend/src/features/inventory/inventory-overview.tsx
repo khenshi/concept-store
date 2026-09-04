@@ -400,6 +400,9 @@ export function InventoryOverview({
                     </SelectControl>
                   </FilterField>
                 </div>
+                <span className="text-sm text-slate-500" role="status" aria-live="polite">
+                  {isFiltering ? 'Updating…' : ''}
+                </span>
               </OperationalToolbar>
               {success ? <StatusNotice>{success}</StatusNotice> : null}
               {error ? (

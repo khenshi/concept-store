@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 import { InventoryMovementType } from '../../../generated/prisma/client';
 
 export class ListInventoryMovementsQueryDto {
@@ -18,6 +26,16 @@ export class ListInventoryMovementsQueryDto {
   @IsOptional()
   @IsEnum(InventoryMovementType)
   type?: InventoryMovementType;
+
+  @ApiPropertyOptional({ format: 'date-time' })
+  @IsOptional()
+  @IsDateString()
+  createdFrom?: string;
+
+  @ApiPropertyOptional({ format: 'date-time' })
+  @IsOptional()
+  @IsDateString()
+  createdTo?: string;
 
   @ApiPropertyOptional({
     format: 'uuid',

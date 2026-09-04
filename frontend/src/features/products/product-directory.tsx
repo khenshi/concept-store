@@ -38,6 +38,7 @@ const peso = new Intl.NumberFormat('en-PH', {
 });
 const fieldClass =
   'min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5';
+const productDate = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium' });
 
 function message(cause: unknown): string {
   return cause instanceof ApiError
@@ -340,6 +341,13 @@ export function ProductDirectory({
                 </SelectControl>
               </FilterField>
             </div>
+            <span
+              className="text-sm text-slate-500"
+              role="status"
+              aria-live="polite"
+            >
+              {isFiltering ? 'Updating…' : ''}
+            </span>
           </OperationalToolbar>
           {success ? <StatusNotice>{success}</StatusNotice> : null}
           {error ? (
@@ -373,6 +381,9 @@ export function ProductDirectory({
                     </th>
                     <th className="px-4 py-3.5 font-bold" scope="col">
                       Price
+                    </th>
+                    <th className="px-4 py-3.5 font-bold" scope="col">
+                      Added
                     </th>
                     <th className="px-4 py-3.5 font-bold" scope="col">
                       Status
@@ -443,6 +454,9 @@ function ProductRow({
       </td>
       <td className="px-4 py-4 font-bold text-slate-950">
         {peso.format(Number(product.sellingPrice))}
+      </td>
+      <td className="px-4 py-4 text-slate-600">
+        {productDate.format(new Date(product.createdAt))}
       </td>
       <td className="px-4 py-4">
         <span

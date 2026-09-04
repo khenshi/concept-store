@@ -61,6 +61,8 @@ export interface InventoryMovementFilters {
   branchId?: string;
   productId?: string;
   type?: InventoryMovementType;
+  createdFrom?: string;
+  createdTo?: string;
   cursor?: string;
   limit?: number;
 }
