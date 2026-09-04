@@ -41,6 +41,10 @@ describe('BranchesService', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    sale: { aggregate: jest.fn() },
+    inventory: { aggregate: jest.fn(), count: jest.fn() },
+    space: { count: jest.fn() },
+    spaceAssignment: { findMany: jest.fn() },
   };
   let service: BranchesService;
 
@@ -98,6 +102,42 @@ describe('BranchesService', () => {
       where: { id: branchId, organizationId },
       data: { name: 'Makati Main' },
     });
+  });
+
+  it('returns scoped branch operational statistics', async () => {
+    prisma.branch.findFirst.mockResolvedValue(branch);
+    prisma.sale.aggregate.mockResolvedValue({
+      _count: { _all: 3 },
+      _sum: { total: new Prisma.Decimal('1500.00') },
+    });
+    prisma.inventory.aggregate.mockResolvedValue({ _sum: { quantity: 42 } });
+    prisma.inventory.count.mockResolvedValue(2);
+    prisma.space.count.mockResolvedValueOnce(7).mockResolvedValueOnce(5);
+    prisma.spaceAssignment.findMany.mockResolvedValue([
+      { merchantId: 'merchant-1' },
+      { merchantId: 'merchant-2' },
+    ]);
+
+    await expect(service.overview(organizationId, branchId)).resolves.toEqual({
+      branch,
+      statistics: {
+        todaySaleCount: 3,
+        todayGrossSales: '1500.00',
+        inventoryUnits: 42,
+        outOfStockProducts: 2,
+        totalSpaces: 7,
+        occupiedSpaces: 5,
+        vacantSpaces: 2,
+        activeMerchants: 2,
+      },
+    });
+    expect(prisma.sale.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Jest's asymmetric matcher is intentionally untyped here.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: expect.objectContaining({ organizationId, branchId }),
+      }),
+    );
   });
 
   it('rejects an empty update', async () => {

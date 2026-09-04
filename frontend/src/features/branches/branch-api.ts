@@ -1,5 +1,10 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
-import type { Branch, BranchInput, BranchUpdateInput } from './branch.types';
+import type {
+  Branch,
+  BranchInput,
+  BranchOverview,
+  BranchUpdateInput,
+} from './branch.types';
 
 function branchPath(organizationId: string): string {
   return `/organizations/${encodeURIComponent(organizationId)}/branches`;
@@ -22,6 +27,16 @@ export function createBranch(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
+}
+
+export function getBranchOverview(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+): Promise<BranchOverview> {
+  return request<BranchOverview>(
+    `${branchPath(organizationId)}/${encodeURIComponent(branchId)}/overview`,
+  );
 }
 
 export function updateBranch(

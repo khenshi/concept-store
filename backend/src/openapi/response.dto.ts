@@ -182,6 +182,23 @@ export class BranchResponseDto {
   updatedAt!: Date;
 }
 
+export class BranchStatisticsResponseDto {
+  @ApiProperty() todaySaleCount!: number;
+  @ApiProperty({ example: '12500.00', type: String }) todayGrossSales!: string;
+  @ApiProperty() inventoryUnits!: number;
+  @ApiProperty() outOfStockProducts!: number;
+  @ApiProperty() totalSpaces!: number;
+  @ApiProperty() occupiedSpaces!: number;
+  @ApiProperty() vacantSpaces!: number;
+  @ApiProperty() activeMerchants!: number;
+}
+
+export class BranchOverviewResponseDto {
+  @ApiProperty({ type: BranchResponseDto }) branch!: BranchResponseDto;
+  @ApiProperty({ type: BranchStatisticsResponseDto })
+  statistics!: BranchStatisticsResponseDto;
+}
+
 export class MerchantResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;

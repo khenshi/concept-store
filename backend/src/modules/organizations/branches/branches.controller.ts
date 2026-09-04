@@ -19,7 +19,10 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { BranchResponseDto } from '../../../openapi/response.dto';
+import {
+  BranchOverviewResponseDto,
+  BranchResponseDto,
+} from '../../../openapi/response.dto';
 import { OrganizationRole } from '../../../generated/prisma/client';
 import { AuthGuard } from '../../auth/auth.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
@@ -74,6 +77,16 @@ export class BranchesController {
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
   ): Promise<BranchRecord> {
     return this.branchesService.findOne(organization.organizationId, branchId);
+  }
+
+  @Get(':branchId/overview')
+  @ApiOperation({ summary: 'Get branch details and operational statistics' })
+  @ApiOkResponse({ type: BranchOverviewResponseDto })
+  overview(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+  ) {
+    return this.branchesService.overview(organization.organizationId, branchId);
   }
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
