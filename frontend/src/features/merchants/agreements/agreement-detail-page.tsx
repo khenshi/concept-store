@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { RequestError } from '@/components/ui/request-error';
+import { BackLink } from '@/components/ui/back-link';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import {
@@ -180,12 +180,9 @@ export function AgreementDetailPage({
 
   return (
     <section className="mx-auto mt-5 w-full sm:mt-6">
-      <Link
-        className="font-bold text-emerald-700 underline underline-offset-3"
-        href={`/app/organizations/${organizationId}/agreements`}
-      >
-        ← Agreements
-      </Link>
+      <BackLink href={`/app/organizations/${organizationId}/agreements`}>
+        Agreements
+      </BackLink>
       {isLoading ? (
         <div
           className="mt-8 h-96 animate-pulse rounded-xl bg-slate-100"

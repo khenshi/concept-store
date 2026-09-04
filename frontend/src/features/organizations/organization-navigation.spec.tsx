@@ -48,10 +48,7 @@ describe('OrganizationNavigation', () => {
     );
     expect(
       screen.getByRole('link', { name: 'Merchant finance' }),
-    ).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    ).toHaveAttribute('aria-current', 'page');
   });
 
   it('shows reporting only when the organization shell enables it', () => {
@@ -86,5 +83,23 @@ describe('OrganizationNavigation', () => {
     expect(screen.getByRole('link', { name: 'Merchants' })).not.toHaveAttribute(
       'aria-current',
     );
+  });
+
+  it('keeps icon-only collapsed navigation accessible', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/organization-id/inventory',
+    );
+    render(
+      <OrganizationNavigation
+        collapsed
+        organizationId="organization-id"
+        showInventory
+      />,
+    );
+
+    const inventory = screen.getByRole('link', { name: 'Inventory' });
+    expect(inventory).toHaveAttribute('title', 'Inventory');
+    expect(inventory).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByText('Operations')).not.toBeInTheDocument();
   });
 });

@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { RequestError } from '@/components/ui/request-error';
+import { BackLink } from '@/components/ui/back-link';
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -143,12 +143,9 @@ export function SettlementDetailPage({
   const owner = organization?.role === 'OWNER';
   return (
     <section className="mx-auto mt-5 w-full sm:mt-6">
-      <Link
-        className="text-sm font-bold text-emerald-700"
-        href={`/app/organizations/${organizationId}/settlements`}
-      >
-        ← Settlement register
-      </Link>
+      <BackLink href={`/app/organizations/${organizationId}/settlements`}>
+        Settlement register
+      </BackLink>
       <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm font-bold uppercase tracking-wider text-emerald-700">

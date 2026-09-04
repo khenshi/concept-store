@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { OrganizationNavigation } from './organization-navigation';
 import { OrganizationSwitcher } from './organization-switcher';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
@@ -18,29 +18,68 @@ export function OrganizationWorkspaceShell({
     organization?.role === 'OWNER' || organization?.role === 'MANAGER';
   const canUsePos = canManage || organization?.role === 'CASHIER';
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  const navigation = organization ? (
-    <OrganizationNavigation
-      organizationId={organizationId}
-      showMembers={canManage}
-      showMerchants={canManage}
-      showProducts={canManage}
-      showInventory={canManage}
-      showPos={canUsePos}
-      showSpaces={canManage}
-      showFinance={canManage}
-      showReports={canManage}
-      onNavigate={() => setIsMenuOpen(false)}
-    />
-  ) : null;
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setIsSidebarCollapsed(
+        window.localStorage.getItem('kapwesto.sidebar.collapsed') === 'true',
+      );
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  const navigation = (collapsed = false) =>
+    organization ? (
+      <OrganizationNavigation
+        organizationId={organizationId}
+        showMembers={canManage}
+        showMerchants={canManage}
+        showProducts={canManage}
+        showInventory={canManage}
+        showPos={canUsePos}
+        showSpaces={canManage}
+        showFinance={canManage}
+        showReports={canManage}
+        collapsed={collapsed}
+        onNavigate={() => setIsMenuOpen(false)}
+      />
+    ) : null;
+
+  function toggleSidebar() {
+    setIsSidebarCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem('kapwesto.sidebar.collapsed', String(next));
+      return next;
+    });
+  }
 
   return (
-    <div className="w-full print:block lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
-      <aside className="hidden min-h-[calc(100vh-4.25rem)] min-w-0 border-r border-slate-200 bg-white px-5 py-6 print:hidden lg:sticky lg:top-17 lg:block lg:self-start">
-        <OrganizationSwitcher
-          organizationId={organizationId}
-          organizationName={organization?.name}
-        />
+    <div
+      className={`w-full print:block lg:grid ${isSidebarCollapsed ? 'lg:grid-cols-[4.5rem_minmax(0,1fr)]' : 'lg:grid-cols-[15.5rem_minmax(0,1fr)]'}`}
+    >
+      <aside
+        className={`hidden min-h-[calc(100vh-4.25rem)] min-w-0 border-r border-slate-200 bg-white py-6 print:hidden lg:sticky lg:top-17 lg:block lg:self-start ${isSidebarCollapsed ? 'px-3' : 'px-5'}`}
+      >
+        <div className={isSidebarCollapsed ? 'flex justify-center' : ''}>
+          {isSidebarCollapsed ? null : (
+            <OrganizationSwitcher
+              organizationId={organizationId}
+              organizationName={organization?.name}
+            />
+          )}
+          <button
+            aria-label={
+              isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'
+            }
+            className={`${isSidebarCollapsed ? '' : 'mt-4 w-full'} grid min-h-10 place-items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600`}
+            onClick={toggleSidebar}
+            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            type="button"
+          >
+            <span aria-hidden="true">{isSidebarCollapsed ? '›' : '‹'}</span>
+          </button>
+        </div>
         {organizationStatus === 'loading' ? (
           <div
             className="mt-5 h-10 animate-pulse rounded-lg bg-slate-200"
@@ -48,7 +87,7 @@ export function OrganizationWorkspaceShell({
             aria-label="Loading organization navigation"
           />
         ) : (
-          navigation
+          navigation(isSidebarCollapsed)
         )}
       </aside>
       <div className="min-w-0">
@@ -73,7 +112,7 @@ export function OrganizationWorkspaceShell({
             </button>
           </div>
           {isMenuOpen ? (
-            <div id="mobile-organization-navigation">{navigation}</div>
+            <div id="mobile-organization-navigation">{navigation()}</div>
           ) : null}
         </div>
         <div className="min-w-0 px-5 pb-10 print:p-0 sm:px-8 lg:px-8 xl:px-10">

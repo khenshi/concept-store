@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { BackLink } from '@/components/ui/back-link';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
@@ -101,12 +101,11 @@ export function SaleReceipt({
   return (
     <section className="mx-auto w-full max-w-2xl py-8 print:max-w-none print:py-0">
       <div className="mb-5 flex items-center justify-between gap-4 print:hidden">
-        <Link
-          className="text-sm font-bold text-emerald-700 underline underline-offset-3"
+        <BackLink
           href={`/app/organizations/${organizationId}/pos/sales/${sale.id}?branchId=${encodeURIComponent(sale.branchId)}`}
         >
-          ← Back to transaction
-        </Link>
+          Back to transaction
+        </BackLink>
         <button
           className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-5 font-bold text-white"
           type="button"

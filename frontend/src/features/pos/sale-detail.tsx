@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { BackLink } from '@/components/ui/back-link';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -81,12 +82,11 @@ export function SaleDetail({
       />
       <PosNavigation organizationId={organizationId} />
       <div className="mt-6">
-        <Link
-          className="text-sm font-bold text-emerald-700 underline underline-offset-3"
+        <BackLink
           href={`/app/organizations/${organizationId}/pos/sales?branchId=${encodeURIComponent(branchId ?? '')}`}
         >
-          ← Back to sales history
-        </Link>
+          Back to sales history
+        </BackLink>
       </div>
       {!canUsePos ? (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">

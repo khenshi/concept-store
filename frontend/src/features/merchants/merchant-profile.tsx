@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
 import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { OperationalPage } from '@/components/ui/operational-page';
+import { BackLink } from '@/components/ui/back-link';
 import { SelectControl } from '@/components/ui/select-control';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -310,12 +311,9 @@ export function MerchantProfile({
 
   return (
     <OperationalPage>
-      <Link
-        className="p-0 font-bold text-emerald-700 underline underline-offset-3"
-        href={`/app/organizations/${organizationId}/merchants`}
-      >
-        ← Merchant directory
-      </Link>
+      <BackLink href={`/app/organizations/${organizationId}/merchants`}>
+        Merchant directory
+      </BackLink>
       <div className="mt-8">
         {merchant ? (
           <MerchantProfileHeader
