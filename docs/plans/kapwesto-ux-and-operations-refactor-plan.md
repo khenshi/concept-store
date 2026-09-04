@@ -96,7 +96,74 @@ coupled to financially sensitive sale and agreement changes.
   settlement details, and live-payable details. Exclude ordinary inline links and
   retry actions.
 
-## Part 2 — POS and Sales
+## Part 2 — Branches, Spaces, and Assignments
+
+### Branch directory
+
+- Replace the stacked branch cards with one responsive table/list containing a
+  single header row and one branch per row. Columns are **Branch**, **Code**,
+  **Address**, and **Action**; the full address remains readable without repeating
+  labels inside every row.
+- Replace **Open workspace** with a **View** link to
+  `/app/organizations/[organizationId]/branches/[branchId]` and remove the branch
+  workspace drawer and its open/close state.
+- Add automatically applied search across name, code, and address, plus a
+  city/province location filter derived from the loaded branches. These filters
+  are client-side because branch collections are organization-scoped and expected
+  to remain small; text search uses the shared debounce convention.
+- Move Add branch into an accessible modal. Remove the beside-the-list form layout
+  and reuse the existing branch schema, API, authorization, success handling, and
+  context upsert behavior inside the modal.
+- Keep Edit out of directory rows. The only directory action is View.
+
+### Branch detail page
+
+- Add a tenant-scoped branch detail route with the shared button-styled Back to
+  branches link, complete branch identity/address information, and quick links to
+  branch-filtered Spaces, Inventory, and POS sales history.
+- Add a compact branch overview endpoint returning the authorized branch and only
+  these useful statistics: today’s completed sale count and gross sales, total
+  inventory units and out-of-stock product count, total/occupied/vacant spaces,
+  and active merchants currently assigned to its spaces.
+- Calculate statistics server-side with organization and branch constraints. Use
+  precise decimals for money, exclude voided sales once sale voiding exists, and
+  avoid loading transaction or inventory row details just to count them.
+- Put **Edit branch** on this page and open the same branch form as a modal. Update
+  the page data and shared branch context after saving without navigating away.
+- Provide separate skeleton, not-found, forbidden, and retry states. Guessed IDs
+  must never reveal cross-organization branch existence.
+
+### Space directory
+
+- Replace the stacked space list with one responsive table containing a header and
+  one space per row. Columns are **Space**, **Code**, **Type**, **Merchant**,
+  **Status**, and **Action**.
+- Preserve the existing branch selector and automatic search/type/status/merchant
+  filters. Keep Add and Edit space in their existing modal workflow.
+- Use an em dash for unassigned merchants and vertically center badges/actions so
+  each row remains visually consistent.
+
+### Assignment management
+
+- Keep the assignment register table and filters, but open **Manage** and **Assign**
+  in a centered accessible modal instead of rendering the management widget below
+  the table.
+- The modal owns focus trapping, Escape/backdrop close when idle, pending-state
+  close protection, and focus return to the triggering row action.
+- Preserve the current create/end assignment validation, exclusivity rules,
+  history, tenant checks, and post-save refresh. Remove the old bottom-widget
+  container after modal parity is verified.
+
+### Merchant directory rows
+
+- Replace the current stacked merchant list presentation with one responsive table
+  containing a single header row and one merchant per row. Columns are
+  **Merchant**, **Code**, **Contact**, **Branches**, **Status**, and **Action**.
+- Keep search/status filters and Add merchant behavior unchanged. Vertically center
+  status and View, and keep View as the only row action; editing remains on the
+  merchant detail page.
+
+## Part 3 — POS and Sales
 
 ### New sale
 
@@ -132,13 +199,13 @@ coupled to financially sensitive sale and agreement changes.
 - Add indexes only for demonstrated status/date query patterns; preserve all
   original sale, item, payment, and merchant snapshots.
 
-## Part 3 — Products and Inventory
+## Part 4 — Products and Inventory
 
 ### List presentation
 
 - Use table-shaped loading skeletons matching Sales History for Products,
-  Inventory, and Merchants. Skeletons must preserve approximate column widths and
-  row heights to reduce layout shift.
+  Inventory, Branches, Spaces, and Merchants. Skeletons must preserve approximate
+  column widths and row heights to reduce layout shift.
 - Add product creation date to product rows using the existing `createdAt`; no
   schema change is required.
 - Vertically center merchant status and View actions within each merchant row.
@@ -177,7 +244,7 @@ coupled to financially sensitive sale and agreement changes.
 - Require the existing documented reason in both modes. Display the projected new
   stock before submission and reject a result below zero.
 
-## Part 4 — Merchant Profile and Agreements
+## Part 5 — Merchant Profile and Agreements
 
 ### Merchant details layout
 
@@ -225,6 +292,9 @@ coupled to financially sensitive sale and agreement changes.
 - Product creation remains backward-compatible because `initialStock` is optional.
 - Inventory adjustment remains backward-compatible with `quantityChange`; the new
   total mode is additive.
+- The branch detail route and overview response are additive. Existing branch list,
+  create, and update contracts remain compatible; the drawer has no persisted data
+  and can be removed without migration.
 
 ## Testing and Acceptance
 
@@ -237,6 +307,20 @@ coupled to financially sensitive sale and agreement changes.
   authenticated layouts.
 - Verify every detail-page back action is visibly button-like and routes to the
   correct tenant-scoped parent page.
+
+### Branches, spaces, and assignments
+
+- Verify branch search/location filters, table headers and rows, modal create/edit
+  focus behavior, detail routing, context refresh, responsive overflow, and removal
+  of the workspace drawer.
+- Test branch overview statistics with no activity, sales across midnight in the
+  Manila business timezone, voided sales, empty inventory, occupied/vacant spaces,
+  and cross-tenant branch IDs.
+- Verify space and merchant tables preserve all displayed data and automatic
+  filters on desktop and narrow screens.
+- Verify assignment Manage/Assign opens in a modal, returns focus on close, blocks
+  accidental closure while saving, refreshes the register after success, and
+  preserves assignment history/exclusivity.
 
 ### POS and sale integrity
 
@@ -273,16 +357,19 @@ coupled to financially sensitive sale and agreement changes.
 
 1. `chore(brand): introduce Kapwesto identity and brand assets`
 2. `feat(navigation): add collapsible icon sidebar and back buttons`
-3. `refactor(pos): improve new-sale and sales-history interactions`
-4. `feat(sales): add auditable sale void workflow`
-5. `refactor(catalog): improve product merchant and inventory loading states`
-6. `feat(products): support transactional initial stock`
-7. `feat(inventory): add movement dates and set-total adjustments`
-8. `refactor(merchants): streamline profile editing and status changes`
-9. `fix(agreements): require commercial terms on every agreement`
-10. `refactor(agreements): consolidate details into list modal`
-11. `refactor(reports): move merchant activity into finance`
-12. `docs: update Kapwesto workflows and architecture`
+3. `refactor(branches): use directory rows and modal creation`
+4. `feat(branches): add branch details and operational statistics`
+5. `refactor(spaces): standardize space rows and assignment modal`
+6. `refactor(pos): improve new-sale and sales-history interactions`
+7. `feat(sales): add auditable sale void workflow`
+8. `refactor(catalog): improve product merchant and inventory loading states`
+9. `feat(products): support transactional initial stock`
+10. `feat(inventory): add movement dates and set-total adjustments`
+11. `refactor(merchants): streamline directory and profile workflows`
+12. `fix(agreements): require commercial terms on every agreement`
+13. `refactor(agreements): consolidate details into list modal`
+14. `refactor(reports): move merchant activity into finance`
+15. `docs: update Kapwesto workflows and architecture`
 
 ## Out of Scope
 

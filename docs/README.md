@@ -22,6 +22,14 @@ historical summary for each completed milestone.
 These documents describe current behavior. Swagger/OpenAPI is the authoritative
 endpoint-level reference when the backend is running with documentation enabled.
 
+## Active plans
+
+- [Kapwesto UX and operations refactor](plans/kapwesto-ux-and-operations-refactor-plan.md)
+- [Settlement and merchant receivables refactor](plans/concept-store-settlement-receivables-plan.md)
+
+Plans describe proposed work and are not current system behavior until their
+changes are implemented and moved into the relevant workflow references.
+
 ## Completed milestones
 
 - [Milestone 1 — SaaS and Multi-Tenant Foundation](milestones/milestone-1.md)
