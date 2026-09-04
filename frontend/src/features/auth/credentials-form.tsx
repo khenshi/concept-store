@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
+import { BrandWordmark } from '@/components/brand-wordmark';
 import { ApiError } from './auth-client';
 import { useAuth } from './auth-context';
 import {
@@ -24,7 +25,7 @@ const content = {
     title: 'Sign in to your workspace.',
     submit: 'Sign in',
     submitting: 'Signing in…',
-    alternate: 'New to Concept Store?',
+    alternate: 'New to Kapwesto?',
     alternateLink: 'Create an account',
     alternateHref: '/register',
   },
@@ -124,6 +125,7 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
       >
         <span aria-hidden="true">←</span> Back to home
       </Link>
+      <BrandWordmark className="mt-8 text-slate-950" showTagline />
       <div className="mt-10">
         <p className="mb-4 text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
           {copy.eyebrow}

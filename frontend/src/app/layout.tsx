@@ -10,9 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Concept Store | Clear operations for multi-merchant retail',
+  title: 'Kapwesto | Connecting Spaces, Brands, and Business',
   description:
-    'Manage your concept store organization, branches, team, and merchants in one clear workspace.',
+    'Kapwesto connects concept store spaces, independent brands, and daily business operations in one clear workspace.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

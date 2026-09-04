@@ -6,9 +6,9 @@ export const OPENAPI_JSON_PATH = 'docs/openapi.json';
 
 export function setupSwagger(app: INestApplication): void {
   const config = new DocumentBuilder()
-    .setTitle('Concept Store Management System API')
+    .setTitle('Kapwesto API')
     .setDescription(
-      'API documentation for the multi-tenant Concept Store Management System.',
+      'API documentation for the multi-tenant Kapwesto concept store management system.',
     )
     .setVersion('1.0')
     .addBearerAuth(
@@ -32,7 +32,7 @@ export function setupSwagger(app: INestApplication): void {
     app,
     () => SwaggerModule.createDocument(app, config),
     {
-      customSiteTitle: 'Concept Store API Documentation',
+      customSiteTitle: 'Kapwesto API Documentation',
       jsonDocumentUrl: OPENAPI_JSON_PATH,
       raw: ['json'],
     },

@@ -2,7 +2,7 @@
   "name": "concept-store-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "Backend API for the Concept Store Management System",
+  "description": "Backend API for Kapwesto",
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { CredentialsForm } from '@/features/auth/credentials-form';
 
-export const metadata: Metadata = { title: 'Sign in | Concept Store' };
+export const metadata: Metadata = { title: 'Sign in | Kapwesto' };
 
 export default function LoginPage() {
   return (

@@ -348,9 +348,8 @@ export default function Home() {
               From merchant onboarding to payout.
             </h2>
             <p className="mt-5 leading-7 text-slate-500">
-              Concept Store is being built around the full operating
-              relationship, so each future step has a clear place in the same
-              system.
+              Kapwesto is built around the full operating relationship, so each
+              future step has a clear place in the same system.
             </p>
           </div>
           <ol className="mt-16 grid grid-cols-2 gap-y-6 p-0 sm:grid-cols-3 lg:grid-cols-6">
@@ -395,7 +394,7 @@ export default function Home() {
       <footer className="mx-auto grid w-[min(calc(100%_-_3rem),72rem)] grid-cols-[1fr_auto] items-center gap-8 border-t border-slate-200 py-8 sm:grid-cols-[1fr_auto_1fr]">
         <BrandWordmark />
         <p className="hidden text-center text-xs text-slate-500 sm:block">
-          Clear operations for multi-merchant retail.
+          Connecting Spaces, Brands, and Business.
         </p>
         <Link
           className="justify-self-end text-sm font-semibold text-slate-700 no-underline hover:text-emerald-700"
