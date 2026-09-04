@@ -253,6 +253,13 @@ export function MerchantDirectory({
                 </SelectControl>
               </FilterField>
             </div>
+            <span
+              className="text-sm text-slate-500"
+              role="status"
+              aria-live="polite"
+            >
+              {isFiltering ? 'Updating…' : ''}
+            </span>
           </OperationalToolbar>
 
           {loadError ? (
@@ -273,49 +280,61 @@ export function MerchantDirectory({
               </p>
             </div>
           ) : (
-            <ul className="list-none px-5 py-1 sm:px-6">
-              {merchants.map((merchant) => (
-                <li
-                  className="flex items-start justify-between gap-4 border-b border-slate-200 py-4 last:border-b-0 max-sm:grid max-sm:items-stretch"
-                  key={merchant.id}
-                >
-                  <div className="grid gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <strong>{merchant.name}</strong>
-                      {merchant.code ? (
-                        <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
-                          {merchant.code}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[64rem] border-collapse text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-6 py-3">Merchant</th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3">Email / Phone</th>
+                    <th className="px-4 py-3">Branches</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-6 py-3 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {merchants.map((merchant) => (
+                    <tr key={merchant.id}>
+                      <td className="px-6 py-4">
+                        <strong>{merchant.name}</strong>
+                        {merchant.code ? (
+                          <span className="ml-2 rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                            {merchant.code}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-4 text-slate-600">
+                        {merchant.contactName}
+                      </td>
+                      <td className="px-4 py-4 text-slate-600">
+                        <span className="block">{merchant.email}</span>
+                        <span className="block">{merchant.phone}</span>
+                      </td>
+                      <td className="px-4 py-4 text-slate-600">
+                        {merchant.branches
+                          .map((branch) => branch.name)
+                          .join(', ') || '—'}
+                      </td>
+                      <td className="px-4 py-4 text-center align-middle">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[merchant.status]}`}
+                        >
+                          {statusLabels[merchant.status]}
                         </span>
-                      ) : null}
-                    </div>
-                    <p className="m-0 text-sm text-slate-600">
-                      {merchant.contactName}
-                    </p>
-                    <small className="text-slate-500">
-                      {merchant.email} · {merchant.phone}
-                    </small>
-                    <small className="text-slate-500">
-                      {merchant.branches
-                        .map((branch) => branch.name)
-                        .join(', ')}
-                    </small>
-                  </div>
-                  <div className="flex items-center gap-4 max-sm:justify-between">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[merchant.status]}`}
-                    >
-                      {statusLabels[merchant.status]}
-                    </span>
-                    <Link
-                      className="font-bold text-emerald-700"
-                      href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
-                    >
-                      View
-                    </Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      </td>
+                      <td className="px-6 py-4 text-center align-middle">
+                        <Link
+                          className="font-bold text-emerald-700 no-underline hover:text-emerald-800"
+                          href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </OperationalPanel>
       )}

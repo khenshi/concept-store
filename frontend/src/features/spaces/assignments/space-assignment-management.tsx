@@ -65,7 +65,12 @@ export function SpaceAssignmentManagement({
 
   useEffect(() => {
     headingRef.current?.focus();
-  }, []);
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !isSubmitting) onClose();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSubmitting, onClose]);
 
   const eligibleMerchants = useMemo(
     () =>
@@ -223,87 +228,97 @@ export function SpaceAssignmentManagement({
   }
 
   return (
-    <section
-      className="mt-5 rounded-xl border border-slate-200 bg-white p-6"
-      aria-labelledby="assignment-title"
+    <div
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-4"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isSubmitting) onClose();
+      }}
     >
-      <div className="flex items-start justify-between gap-4 max-sm:grid">
-        <div>
-          <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
-            {space.code}
-          </p>
-          <h2
-            className="mt-1 text-lg font-bold"
-            id="assignment-title"
-            ref={headingRef}
-            tabIndex={-1}
-          >
-            {space.name} occupancy
-          </h2>
-          <p className="mt-2 leading-7 text-slate-500">
-            Assign one participating merchant at a time and preserve previous
-            occupancy.
-          </p>
-        </div>
-        <button
-          className="w-fit cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
-          type="button"
-          onClick={onClose}
-        >
-          Close
-        </button>
-      </div>
-
-      {isLoading ? (
-        <ListSkeleton label="Loading space assignment history" />
-      ) : loadError ? (
-        <RequestError
-          className="mt-5"
-          title="Assignment history unavailable"
-          message={loadError}
-          onRetry={() => void load()}
-        />
-      ) : (
-        <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(18rem,0.75fr)_minmax(0,1.25fr)]">
-          <div className="grid gap-5">
-            {successMessage ? (
-              <p
-                className="rounded-lg border border-green-600 bg-white px-4 py-3"
-                role="status"
-              >
-                {successMessage}
-              </p>
-            ) : null}
-            {actionError ? (
-              <p
-                className="rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
-                role="alert"
-              >
-                {actionError}
-              </p>
-            ) : null}
-
-            {currentAssignment ? (
-              <CurrentAssignment
-                assignment={currentAssignment}
-                isSubmitting={isSubmitting}
-                onSubmit={handleEnd}
-              />
-            ) : (
-              <AssignmentForm
-                merchants={eligibleMerchants}
-                spaceIsActive={space.status === 'ACTIVE'}
-                isSubmitting={isSubmitting}
-                onSubmit={handleAssign}
-              />
-            )}
+      <section
+        className="my-auto max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+        aria-labelledby="assignment-title"
+        aria-modal="true"
+        role="dialog"
+      >
+        <div className="flex items-start justify-between gap-4 max-sm:grid">
+          <div>
+            <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
+              {space.code}
+            </p>
+            <h2
+              className="mt-1 text-lg font-bold"
+              id="assignment-title"
+              ref={headingRef}
+              tabIndex={-1}
+            >
+              {space.name} occupancy
+            </h2>
+            <p className="mt-2 leading-7 text-slate-500">
+              Assign one participating merchant at a time and preserve previous
+              occupancy.
+            </p>
           </div>
-
-          <AssignmentHistory assignments={assignments} />
+          <button
+            className="w-fit cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
+            type="button"
+            onClick={onClose}
+          >
+            Close
+          </button>
         </div>
-      )}
-      {confirmationDialog}
-    </section>
+
+        {isLoading ? (
+          <ListSkeleton label="Loading space assignment history" />
+        ) : loadError ? (
+          <RequestError
+            className="mt-5"
+            title="Assignment history unavailable"
+            message={loadError}
+            onRetry={() => void load()}
+          />
+        ) : (
+          <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(18rem,0.75fr)_minmax(0,1.25fr)]">
+            <div className="grid gap-5">
+              {successMessage ? (
+                <p
+                  className="rounded-lg border border-green-600 bg-white px-4 py-3"
+                  role="status"
+                >
+                  {successMessage}
+                </p>
+              ) : null}
+              {actionError ? (
+                <p
+                  className="rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+                  role="alert"
+                >
+                  {actionError}
+                </p>
+              ) : null}
+
+              {currentAssignment ? (
+                <CurrentAssignment
+                  assignment={currentAssignment}
+                  isSubmitting={isSubmitting}
+                  onSubmit={handleEnd}
+                />
+              ) : (
+                <AssignmentForm
+                  merchants={eligibleMerchants}
+                  spaceIsActive={space.status === 'ACTIVE'}
+                  isSubmitting={isSubmitting}
+                  onSubmit={handleAssign}
+                />
+              )}
+            </div>
+
+            <AssignmentHistory assignments={assignments} />
+          </div>
+        )}
+        {confirmationDialog}
+      </section>
+    </div>
   );
 }
 

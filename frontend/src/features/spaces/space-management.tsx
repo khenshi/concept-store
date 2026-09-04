@@ -450,49 +450,61 @@ export function SpaceManagement({
                     </p>
                   </div>
                 ) : (
-                  <ul className="mt-5 list-none divide-y divide-slate-200 p-0">
-                    {filteredSpaces.map((space) => (
-                      <li
-                        className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0 max-sm:grid"
-                        key={space.id}
-                      >
-                        <div className="grid gap-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <strong>{space.name}</strong>
-                            <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                  <div className="mt-5 overflow-x-auto">
+                    <table className="w-full min-w-[46rem] border-collapse text-left text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3">Space</th>
+                          <th className="px-4 py-3">Code</th>
+                          <th className="px-4 py-3">Type</th>
+                          <th className="px-4 py-3">Merchant</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {filteredSpaces.map((space) => (
+                          <tr key={space.id}>
+                            <td className="px-4 py-4 font-bold">
+                              {space.name}
+                            </td>
+                            <td className="px-4 py-4 text-slate-600">
                               {space.code}
-                            </span>
-                          </div>
-                          <p className="m-0 text-sm text-slate-500">
-                            {space.type === 'CUSTOM'
-                              ? space.customType
-                              : typeLabels[space.type]}
-                          </p>
-                          <p className="m-0 text-sm font-semibold text-slate-700">
-                            {space.currentAssignment?.merchant.name ?? ''}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-4 max-sm:justify-between">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[space.status]}`}
-                          >
-                            {statusLabels[space.status]}
-                          </span>
-                          <button
-                            className="cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-emerald-700 underline underline-offset-3"
-                            type="button"
-                            onClick={() => {
-                              setSuccessMessage(null);
-                              setEditingSpace(space);
-                              setIsSpaceFormOpen(true);
-                            }}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                            </td>
+                            <td className="px-4 py-4 text-slate-600">
+                              {space.type === 'CUSTOM'
+                                ? space.customType
+                                : typeLabels[space.type]}
+                            </td>
+                            <td className="px-4 py-4 text-slate-700">
+                              {space.currentAssignment?.merchant.name ??
+                                'Unassigned'}
+                            </td>
+                            <td className="px-4 py-4">
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[space.status]}`}
+                              >
+                                {statusLabels[space.status]}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <button
+                                className="cursor-pointer border-0 bg-transparent p-0 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+                                type="button"
+                                onClick={() => {
+                                  setSuccessMessage(null);
+                                  setEditingSpace(space);
+                                  setIsSpaceFormOpen(true);
+                                }}
+                              >
+                                Edit
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </section>
             </div>
