@@ -277,6 +277,19 @@ export function SalesHistory({
                 ))}
               </SelectControl>
             </Field>
+            <button
+              className="min-h-11 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-4 font-bold text-slate-700 hover:bg-slate-100"
+              type="button"
+              onClick={() => {
+                salesRequestId.current += 1;
+                setSearch('');
+                setCompletedFrom('');
+                setCompletedTo('');
+                setPaymentMethod('');
+              }}
+            >
+              Clear filters
+            </button>
             {dateError ? (
               <p
                 className="text-sm font-semibold text-rose-700 sm:col-span-2 xl:col-span-6"

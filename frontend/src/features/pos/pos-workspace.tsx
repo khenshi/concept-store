@@ -72,6 +72,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const catalogRequestId = useRef(0);
+  const quickCodeRef = useRef<HTMLInputElement>(null);
 
   const canUsePos =
     organization?.role === 'OWNER' ||
@@ -96,6 +97,10 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
       active = false;
     };
   }, [canUsePos, loadBranches, organizationId, request]);
+
+  useEffect(() => {
+    if (branchId) quickCodeRef.current?.focus();
+  }, [branchId]);
 
   const cartTotal = useMemo(
     () =>
@@ -303,6 +308,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
               </label>
               <div className="mt-2 flex gap-3">
                 <input
+                  ref={quickCodeRef}
                   className="min-h-12 min-w-0 flex-1 rounded-[0.6rem] border border-emerald-200 bg-white px-3.5 text-slate-950 outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-100"
                   id="quick-product-code"
                   value={quickCode}
@@ -340,7 +346,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
                 </p>
               )}
             </form>
-            <div className="rounded-xl border border-slate-200 bg-white px-5 py-5 sm:px-6">
+            <div className="rounded-t-xl border border-b-0 border-slate-200 bg-white px-5 py-5 pb-3 sm:px-6">
               <label className="block text-sm font-bold text-slate-800">
                 Search products
                 <div className="mt-2 flex items-center gap-3">
@@ -371,7 +377,7 @@ export function PosWorkspace({ organizationId }: { organizationId: string }) {
                 </div>
               </label>
             </div>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="-mt-4 overflow-hidden rounded-b-xl border border-t-0 border-slate-200 bg-white">
               {error ? (
                 <div className="p-5 sm:p-6">
                   <RequestError

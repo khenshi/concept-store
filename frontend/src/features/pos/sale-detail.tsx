@@ -136,10 +136,10 @@ export function SaleDetail({
                   Completed
                 </span>
                 <Link
-                  className="grid min-h-10 place-items-center rounded-[0.6rem] border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 no-underline"
+                  className="grid min-h-10 place-items-center rounded-[0.6rem] border border-emerald-600 bg-emerald-600 px-4 text-sm font-bold text-white no-underline hover:bg-emerald-700"
                   href={`/app/organizations/${organizationId}/pos/sales/${sale.id}/receipt?branchId=${encodeURIComponent(sale.branchId)}`}
                 >
-                  Receipt
+                  View receipt
                 </Link>
               </div>
             </header>
