@@ -56,7 +56,11 @@ export class ProductsController {
     @CurrentOrganization() organization: OrganizationContext,
     @Body() dto: CreateProductDto,
   ): Promise<ProductRecord> {
-    return this.productsService.create(organization.organizationId, dto);
+    return this.productsService.create(
+      organization.organizationId,
+      organization.userId,
+      dto,
+    );
   }
 
   @Get()

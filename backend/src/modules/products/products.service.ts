@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client';
+import { InventoryMovementType, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { CreateProductDto } from './dto/create-product.dto';
 import type { ListProductsQueryDto } from './dto/list-products-query.dto';
@@ -26,6 +26,7 @@ export class ProductsService {
 
   async create(
     organizationId: string,
+    createdById: string,
     dto: CreateProductDto,
   ): Promise<ProductRecord> {
     await this.assertMerchantBelongsToOrganization(
@@ -34,16 +35,56 @@ export class ProductsService {
     );
 
     try {
-      const product = await this.prisma.product.create({
-        data: {
-          organizationId,
-          merchantId: dto.merchantId,
-          name: dto.name,
-          sku: dto.sku,
-          barcode: dto.barcode,
-          sellingPrice: dto.sellingPrice,
-        },
-        include: productMerchantInclude,
+      const product = await this.prisma.$transaction(async (transaction) => {
+        if (dto.initialStock) {
+          const participation = await transaction.merchantBranch.findFirst({
+            where: {
+              organizationId,
+              merchantId: dto.merchantId,
+              branchId: dto.initialStock.branchId,
+            },
+            select: { branchId: true },
+          });
+          if (!participation) {
+            throw new BadRequestException(
+              'Initial stock branch must belong to the organization and merchant',
+            );
+          }
+        }
+        const created = await transaction.product.create({
+          data: {
+            organizationId,
+            merchantId: dto.merchantId,
+            name: dto.name,
+            sku: dto.sku,
+            barcode: dto.barcode,
+            sellingPrice: dto.sellingPrice,
+          },
+          include: productMerchantInclude,
+        });
+        if (dto.initialStock) {
+          await transaction.inventory.create({
+            data: {
+              organizationId,
+              branchId: dto.initialStock.branchId,
+              productId: created.id,
+              quantity: dto.initialStock.quantity,
+            },
+          });
+          await transaction.inventoryMovement.create({
+            data: {
+              organizationId,
+              branchId: dto.initialStock.branchId,
+              productId: created.id,
+              quantityChange: dto.initialStock.quantity,
+              type: InventoryMovementType.STOCK_IN,
+              note: dto.initialStock.note,
+              referenceId: dto.initialStock.referenceId,
+              createdById,
+            },
+          });
+        }
+        return created;
       });
       return this.toRecord(product);
     } catch (error: unknown) {

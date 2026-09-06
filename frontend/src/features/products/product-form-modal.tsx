@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { SelectControl } from '@/components/ui/select-control';
+import type { Branch } from '@/features/branches/branch.types';
 import type { Merchant } from '@/features/merchants/merchant.types';
 import { productSchema } from './product.schemas';
 import type { Product, ProductInput } from './product.types';
@@ -10,6 +11,7 @@ type FieldName = keyof ProductInput;
 
 export function ProductFormModal({
   merchants,
+  branches,
   product,
   isSaving,
   requestError,
@@ -17,6 +19,7 @@ export function ProductFormModal({
   onSave,
 }: {
   merchants: Merchant[];
+  branches: Branch[];
   product: Product | null;
   isSaving: boolean;
   requestError: string | null;
@@ -25,6 +28,8 @@ export function ProductFormModal({
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
+  const [merchantId, setMerchantId] = useState('');
+  const [includeInitialStock, setIncludeInitialStock] = useState(false);
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -39,6 +44,15 @@ export function ProductFormModal({
       sku: data.get('sku'),
       barcode: data.get('barcode'),
       sellingPrice: data.get('sellingPrice'),
+      initialStock:
+        !product && includeInitialStock
+          ? {
+              branchId: data.get('initialStock.branchId'),
+              quantity: data.get('initialStock.quantity'),
+              referenceId: data.get('initialStock.referenceId'),
+              note: data.get('initialStock.note'),
+            }
+          : undefined,
     });
     if (!parsed.success) {
       const next: Partial<Record<FieldName, string>> = {};
@@ -116,6 +130,8 @@ export function ProductFormModal({
                 id="merchantId"
                 name="merchantId"
                 defaultValue=""
+                value={merchantId}
+                onValueChange={setMerchantId}
                 aria-invalid={Boolean(errors.merchantId)}
               >
                 <option value="" disabled>
@@ -153,6 +169,97 @@ export function ProductFormModal({
               />
             </Field>
           </div>
+          {!product ? (
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <label className="flex cursor-pointer items-center gap-3 font-bold">
+                <input
+                  type="checkbox"
+                  checked={includeInitialStock}
+                  onChange={(event) =>
+                    setIncludeInitialStock(event.target.checked)
+                  }
+                />
+                Add initial stock
+              </label>
+              {includeInitialStock ? (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <label
+                      className="text-sm font-bold"
+                      htmlFor="initial-stock-branch"
+                    >
+                      Branch
+                    </label>
+                    <SelectControl
+                      className={fieldClass}
+                      id="initial-stock-branch"
+                      name="initialStock.branchId"
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Select a branch
+                      </option>
+                      {branches
+                        .filter((branch) =>
+                          merchants
+                            .find((merchant) => merchant.id === merchantId)
+                            ?.branches.some((item) => item.id === branch.id),
+                        )
+                        .map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))}
+                    </SelectControl>
+                  </div>
+                  <div className="grid gap-2">
+                    <label
+                      className="text-sm font-bold"
+                      htmlFor="initial-stock-quantity"
+                    >
+                      Quantity
+                    </label>
+                    <input
+                      className={fieldClass}
+                      id="initial-stock-quantity"
+                      name="initialStock.quantity"
+                      type="number"
+                      min="1"
+                      step="1"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label
+                      className="text-sm font-bold"
+                      htmlFor="initial-stock-reference"
+                    >
+                      Reference (optional)
+                    </label>
+                    <input
+                      className={fieldClass}
+                      id="initial-stock-reference"
+                      name="initialStock.referenceId"
+                      maxLength={120}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label
+                      className="text-sm font-bold"
+                      htmlFor="initial-stock-note"
+                    >
+                      Note (optional)
+                    </label>
+                    <input
+                      className={fieldClass}
+                      id="initial-stock-note"
+                      name="initialStock.note"
+                      maxLength={500}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
               label="Barcode (optional)"

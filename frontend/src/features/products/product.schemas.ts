@@ -28,4 +28,20 @@ export const productSchema = z.object({
     .string()
     .trim()
     .regex(pricePattern, 'Enter a positive price with at most 2 decimals.'),
+  initialStock: z
+    .object({
+      branchId: z.string().uuid('Select a branch.'),
+      quantity: z.coerce.number().int().min(1).max(1_000_000_000),
+      referenceId: z
+        .string()
+        .trim()
+        .max(120)
+        .transform((value) => value || undefined),
+      note: z
+        .string()
+        .trim()
+        .max(500)
+        .transform((value) => value || undefined),
+    })
+    .optional(),
 });

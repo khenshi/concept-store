@@ -65,6 +65,8 @@ export function ProductDirectory({
     organizationStatus,
     loadMerchants,
     loadProducts,
+    branches,
+    loadBranches,
     upsertProduct,
   } = useOrganizationWorkspaceContext();
   const [products, setProducts] = useState<Product[]>([]);
@@ -115,6 +117,7 @@ export function ProductDirectory({
           })
         : loadProducts(),
       loadMerchants(),
+      loadBranches(),
     ])
       .then(([catalog, activeMerchants]) => {
         if (active) {
@@ -134,6 +137,7 @@ export function ProductDirectory({
   }, [
     initialMerchantId,
     loadMerchants,
+    loadBranches,
     loadProducts,
     organization,
     organizationId,
@@ -415,6 +419,7 @@ export function ProductDirectory({
       {formOpen ? (
         <ProductFormModal
           merchants={merchants}
+          branches={branches}
           product={editing}
           isSaving={isSaving}
           requestError={formError}

@@ -32,6 +32,12 @@ export interface ProductInput {
   sku: string;
   barcode?: string | null;
   sellingPrice: string;
+  initialStock?: {
+    branchId: string;
+    quantity: number;
+    referenceId?: string;
+    note?: string;
+  };
 }
 
 export type ProductUpdateInput = Omit<ProductInput, 'merchantId'>;

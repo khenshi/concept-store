@@ -1,12 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsOptional,
+  IsInt,
   IsString,
   IsUUID,
   Length,
   Matches,
   MaxLength,
+  Min,
+  Max,
+  ValidateNested,
 } from 'class-validator';
 import {
   normalizeNullableBarcode,
@@ -17,6 +21,32 @@ import {
   PRODUCT_PRICE_PATTERN,
   PRODUCT_SKU_PATTERN,
 } from './product-validation.constants';
+
+export class InitialProductStockDto {
+  @ApiProperty({ format: 'uuid' })
+  @IsUUID('4')
+  branchId!: string;
+
+  @ApiProperty({ minimum: 1, maximum: 1000000000 })
+  @IsInt()
+  @Min(1)
+  @Max(1_000_000_000)
+  quantity!: number;
+
+  @ApiPropertyOptional({ maxLength: 120 })
+  @Transform(trimRequiredString)
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  referenceId?: string;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @Transform(trimRequiredString)
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
 
 export class CreateProductDto {
   @ApiProperty({ format: 'uuid' })
@@ -51,4 +81,10 @@ export class CreateProductDto {
     message: 'sellingPrice must be positive with at most 2 decimals',
   })
   sellingPrice!: string;
+
+  @ApiPropertyOptional({ type: InitialProductStockDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InitialProductStockDto)
+  initialStock?: InitialProductStockDto;
 }

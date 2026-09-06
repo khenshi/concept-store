@@ -10,6 +10,7 @@ import { ProductsService } from './products.service';
 
 describe('ProductsService', () => {
   const organizationId = '580c75b7-1050-4a08-a2c2-585171d84dc8';
+  const userId = '03fb89d4-93de-49ec-9027-2c1d48cc9df9';
   const merchantId = '2f671678-91d3-4d04-a8f9-787a2e9f3c1a';
   const productId = '84f45f0b-b07b-430d-9a62-5c96030c762a';
   const merchant = { id: merchantId, name: 'Amihan Goods', code: 'AMH' };
@@ -35,11 +36,18 @@ describe('ProductsService', () => {
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    merchantBranch: { findFirst: jest.fn() },
+    inventory: { create: jest.fn() },
+    inventoryMovement: { create: jest.fn() },
+    $transaction: jest.fn(),
   };
   let service: ProductsService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation(
+      (callback: (transaction: typeof prisma) => unknown) => callback(prisma),
+    );
     const moduleRef = await Test.createTestingModule({
       providers: [
         ProductsService,
@@ -54,7 +62,7 @@ describe('ProductsService', () => {
     prisma.product.create.mockResolvedValue(product);
 
     await expect(
-      service.create(organizationId, {
+      service.create(organizationId, userId, {
         merchantId,
         name: product.name,
         sku: product.sku,
@@ -85,7 +93,7 @@ describe('ProductsService', () => {
     prisma.merchant.findFirst.mockResolvedValue(null);
 
     await expect(
-      service.create(organizationId, {
+      service.create(organizationId, userId, {
         merchantId,
         name: product.name,
         sku: product.sku,
@@ -191,7 +199,7 @@ describe('ProductsService', () => {
     );
 
     await expect(
-      service.create(organizationId, {
+      service.create(organizationId, userId, {
         merchantId,
         name: product.name,
         sku: product.sku,
