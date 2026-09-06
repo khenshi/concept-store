@@ -44,6 +44,10 @@ export function InventoryOperationModal({
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [productId, setProductId] = useState('');
+  const [adjustmentMode, setAdjustmentMode] = useState<'delta' | 'total'>(
+    'delta',
+  );
+  const [adjustmentValue, setAdjustmentValue] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => {
     headingRef.current?.focus();
@@ -67,7 +71,12 @@ export function InventoryOperationModal({
         ? {
             productId: operation.item.productId,
             branchId: operation.item.branchId,
-            quantityChange: data.get('quantityChange'),
+            quantityChange:
+              adjustmentMode === 'delta'
+                ? data.get('quantityChange')
+                : undefined,
+            newQuantity:
+              adjustmentMode === 'total' ? data.get('newQuantity') : undefined,
             note: data.get('note'),
             referenceId: data.get('referenceId'),
           }
@@ -101,6 +110,13 @@ export function InventoryOperationModal({
   const inputClass =
     'min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-emerald-600 focus:ring-3 focus:ring-emerald-100';
   const adjusting = operation.mode === 'adjust';
+  const numericAdjustment = Number(adjustmentValue);
+  const projectedQuantity =
+    adjusting && adjustmentValue !== '' && Number.isInteger(numericAdjustment)
+      ? adjustmentMode === 'delta'
+        ? operation.item.quantity + numericAdjustment
+        : numericAdjustment
+      : null;
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/35 p-4"
@@ -115,7 +131,7 @@ export function InventoryOperationModal({
         aria-modal="true"
         aria-labelledby="inventory-operation-title"
       >
-        <div>
+        <div className="flex items-start justify-between gap-5">
           <div>
             <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
               Inventory operation
@@ -134,6 +150,16 @@ export function InventoryOperationModal({
                 : 'Add stock only to a branch where the product merchant operates.'}
             </p>
           </div>
+          {adjusting ? (
+            <div className="shrink-0 rounded-xl bg-emerald-50 px-5 py-3 text-right">
+              <span className="block text-xs font-bold uppercase text-emerald-700">
+                On hand
+              </span>
+              <strong className="text-2xl text-slate-950">
+                {operation.item.quantity}
+              </strong>
+            </div>
+          ) : null}
         </div>
         <form
           className="mt-6 grid gap-5"
@@ -178,19 +204,81 @@ export function InventoryOperationModal({
               </Field>
             </div>
           ) : null}
+          {adjusting ? (
+            <Field label="Adjustment method" id="adjustment-mode">
+              <SelectControl
+                className={inputClass}
+                id="adjustment-mode"
+                value={adjustmentMode}
+                onValueChange={(value) => {
+                  setAdjustmentMode(value as 'delta' | 'total');
+                  setAdjustmentValue('');
+                  setErrors({});
+                }}
+              >
+                <option value="delta">Change by amount</option>
+                <option value="total">Set new stock total</option>
+              </SelectControl>
+            </Field>
+          ) : null}
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
-              label={adjusting ? 'Quantity change' : 'Quantity received'}
-              id={adjusting ? 'quantityChange' : 'quantity'}
-              error={errors[adjusting ? 'quantityChange' : 'quantity']}
+              label={
+                adjusting
+                  ? adjustmentMode === 'delta'
+                    ? 'Quantity change'
+                    : 'New stock total'
+                  : 'Quantity received'
+              }
+              id={
+                adjusting
+                  ? adjustmentMode === 'delta'
+                    ? 'quantityChange'
+                    : 'newQuantity'
+                  : 'quantity'
+              }
+              error={
+                errors[
+                  adjusting
+                    ? adjustmentMode === 'delta'
+                      ? 'quantityChange'
+                      : 'newQuantity'
+                    : 'quantity'
+                ]
+              }
             >
               <input
                 className={inputClass}
-                id={adjusting ? 'quantityChange' : 'quantity'}
-                name={adjusting ? 'quantityChange' : 'quantity'}
+                id={
+                  adjusting
+                    ? adjustmentMode === 'delta'
+                      ? 'quantityChange'
+                      : 'newQuantity'
+                    : 'quantity'
+                }
+                name={
+                  adjusting
+                    ? adjustmentMode === 'delta'
+                      ? 'quantityChange'
+                      : 'newQuantity'
+                    : 'quantity'
+                }
                 type="number"
                 step="1"
-                placeholder={adjusting ? '-2 or 3' : '12'}
+                min={adjusting && adjustmentMode === 'total' ? 0 : undefined}
+                placeholder={
+                  adjusting
+                    ? adjustmentMode === 'delta'
+                      ? '-2 or 3'
+                      : '24'
+                    : '12'
+                }
+                value={adjusting ? adjustmentValue : undefined}
+                onChange={
+                  adjusting
+                    ? (event) => setAdjustmentValue(event.target.value)
+                    : undefined
+                }
               />
             </Field>
             <Field
@@ -207,6 +295,13 @@ export function InventoryOperationModal({
               />
             </Field>
           </div>
+          {adjusting && projectedQuantity !== null ? (
+            <p
+              className={`text-sm font-bold ${projectedQuantity < 0 ? 'text-rose-700' : 'text-emerald-700'}`}
+            >
+              Projected stock: {projectedQuantity}
+            </p>
+          ) : null}
           <Field
             label={adjusting ? 'Reason for adjustment' : 'Note (optional)'}
             id="note"

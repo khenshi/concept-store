@@ -19,19 +19,52 @@ export const stockInSchema = z.object({
   note: optionalText(500),
 });
 
-export const inventoryAdjustmentSchema = z.object({
-  productId: z.string().uuid(),
-  branchId: z.string().uuid(),
-  quantityChange: z.coerce
-    .number()
-    .int('Quantity change must be a whole number.')
-    .min(-1_000_000_000, 'Quantity change is too small.')
-    .max(1_000_000_000, 'Quantity change is too large.')
-    .refine((value) => value !== 0, 'Quantity change cannot be zero.'),
-  note: z
-    .string()
-    .trim()
-    .min(1, 'Explain why the inventory is being adjusted.')
-    .max(500, 'Note must contain 500 characters or fewer.'),
-  referenceId: optionalText(120),
-});
+const optionalInteger = z.preprocess(
+  (value) => (value === '' || value === null ? undefined : value),
+  z.coerce.number().int('Quantity must be a whole number.').optional(),
+);
+
+export const inventoryAdjustmentSchema = z
+  .object({
+    productId: z.string().uuid(),
+    branchId: z.string().uuid(),
+    quantityChange: optionalInteger,
+    newQuantity: optionalInteger,
+    note: z
+      .string()
+      .trim()
+      .min(1, 'Explain why the inventory is being adjusted.')
+      .max(500, 'Note must contain 500 characters or fewer.'),
+    referenceId: optionalText(120),
+  })
+  .superRefine((value, context) => {
+    const hasDelta = value.quantityChange !== undefined;
+    const hasTotal = value.newQuantity !== undefined;
+    if (hasDelta === hasTotal) {
+      context.addIssue({
+        code: 'custom',
+        path: ['quantityChange'],
+        message: 'Enter either a quantity change or a new stock total.',
+      });
+    } else if (
+      hasDelta &&
+      (value.quantityChange === 0 ||
+        Math.abs(value.quantityChange!) > 1_000_000_000)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['quantityChange'],
+        message:
+          'Quantity change must be non-zero and within the allowed range.',
+      });
+    } else if (
+      hasTotal &&
+      (value.newQuantity! < 0 || value.newQuantity! > 1_000_000_000)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['newQuantity'],
+        message: 'New stock total must be between 0 and 1,000,000,000.',
+      });
+    }
+  });

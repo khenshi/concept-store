@@ -78,7 +78,8 @@ export interface StockInInput {
 export interface InventoryAdjustmentInput {
   productId: string;
   branchId: string;
-  quantityChange: number;
+  quantityChange?: number;
+  newQuantity?: number;
   note: string;
   referenceId?: string;
 }

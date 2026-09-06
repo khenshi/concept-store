@@ -10,6 +10,7 @@ import {
   Min,
   MinLength,
   NotEquals,
+  ValidateIf,
 } from 'class-validator';
 import {
   trimOptionalString,
@@ -25,12 +26,26 @@ export class AdjustInventoryDto {
   @IsUUID('4')
   branchId!: string;
 
-  @ApiProperty({ example: -2, minimum: -1000000000, maximum: 1000000000 })
+  @ApiPropertyOptional({
+    example: -2,
+    minimum: -1000000000,
+    maximum: 1000000000,
+  })
+  @ValidateIf((input: AdjustInventoryDto) => input.newQuantity === undefined)
+  @IsOptional()
   @IsInt()
   @Min(-1_000_000_000)
   @Max(1_000_000_000)
   @NotEquals(0)
-  quantityChange!: number;
+  quantityChange?: number;
+
+  @ApiPropertyOptional({ example: 24, minimum: 0, maximum: 1000000000 })
+  @ValidateIf((input: AdjustInventoryDto) => input.quantityChange === undefined)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000_000)
+  newQuantity?: number;
 
   @ApiProperty({ example: 'Physical count correction', maxLength: 500 })
   @Transform(trimRequiredString)

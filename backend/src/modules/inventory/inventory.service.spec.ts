@@ -110,7 +110,10 @@ describe('InventoryService', () => {
   });
 
   it('increments existing inventory during stock-in', async () => {
-    transaction.inventory.findUnique.mockResolvedValue({ productId });
+    transaction.inventory.findUnique.mockResolvedValue({
+      productId,
+      quantity: 12,
+    });
     transaction.inventory.update.mockResolvedValue({
       ...inventory,
       quantity: 20,
@@ -138,14 +141,17 @@ describe('InventoryService', () => {
   });
 
   it('applies a signed adjustment and records the explanation', async () => {
-    transaction.inventory.findUnique.mockResolvedValue({ productId });
+    transaction.inventory.findUnique.mockResolvedValue({
+      productId,
+      quantity: 12,
+    });
     transaction.inventory.update.mockResolvedValue({
       ...inventory,
-      quantity: -2,
+      quantity: 10,
     });
     const adjustment = {
       ...movement,
-      quantityChange: -14,
+      quantityChange: -2,
       type: InventoryMovementType.ADJUSTMENT,
       note: 'Physical count correction',
       referenceId: null,
@@ -156,15 +162,15 @@ describe('InventoryService', () => {
       service.adjust(organizationId, userId, {
         productId,
         branchId,
-        quantityChange: -14,
+        quantityChange: -2,
         note: 'Physical count correction',
       }),
     ).resolves.toMatchObject({
-      inventory: { quantity: -2 },
+      inventory: { quantity: 10 },
       movement: adjustment,
     });
     expect(transaction.inventory.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { quantity: { increment: -14 } } }),
+      expect.objectContaining({ data: { quantity: { increment: -2 } } }),
     );
   });
 

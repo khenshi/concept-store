@@ -259,7 +259,11 @@ export function InventoryOverview({
     try {
       const result = await adjustInventory(request, organizationId, input);
       mergeOperation(result, operation);
-      setSuccess(`Inventory was adjusted by ${input.quantityChange}.`);
+      setSuccess(
+        input.newQuantity !== undefined
+          ? `Inventory was set to ${input.newQuantity}.`
+          : `Inventory was adjusted by ${input.quantityChange}.`,
+      );
       setHistoryVersion((version) => version + 1);
       setOperation(null);
     } catch (cause: unknown) {
@@ -400,7 +404,11 @@ export function InventoryOverview({
                     </SelectControl>
                   </FilterField>
                 </div>
-                <span className="text-sm text-slate-500" role="status" aria-live="polite">
+                <span
+                  className="text-sm text-slate-500"
+                  role="status"
+                  aria-live="polite"
+                >
                   {isFiltering ? 'Updating…' : ''}
                 </span>
               </OperationalToolbar>

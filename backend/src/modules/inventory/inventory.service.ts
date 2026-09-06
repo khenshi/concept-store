@@ -51,16 +51,24 @@ export class InventoryService {
     createdById: string,
     dto: AdjustInventoryDto,
   ): Promise<InventoryOperationRecord> {
+    const hasDelta = dto.quantityChange !== undefined;
+    const hasTotal = dto.newQuantity !== undefined;
+    if (hasDelta === hasTotal) {
+      throw new BadRequestException(
+        'Provide exactly one of quantityChange or newQuantity',
+      );
+    }
     return this.changeQuantity(
       organizationId,
       createdById,
       dto.productId,
       dto.branchId,
-      dto.quantityChange,
+      dto.quantityChange ?? 0,
       InventoryMovementType.ADJUSTMENT,
       dto.note,
       dto.referenceId,
       false,
+      dto.newQuantity,
     );
   }
 
@@ -165,6 +173,7 @@ export class InventoryService {
     note: string | undefined,
     referenceId: string | undefined,
     allowCreate: boolean,
+    newQuantity?: number,
   ): Promise<InventoryOperationRecord> {
     try {
       return await this.prisma.$transaction(
@@ -186,23 +195,37 @@ export class InventoryService {
           };
           const existingInventory = await transaction.inventory.findUnique({
             where: key,
-            select: { productId: true },
+            select: { productId: true, quantity: true },
           });
           if (!allowCreate && !existingInventory) {
             throw new NotFoundException('Inventory record not found');
           }
 
+          const effectiveChange =
+            newQuantity === undefined
+              ? quantityChange
+              : newQuantity - (existingInventory?.quantity ?? 0);
+          if ((existingInventory?.quantity ?? 0) + effectiveChange < 0) {
+            throw new ConflictException(
+              'Inventory quantity cannot be negative',
+            );
+          }
+          if (effectiveChange === 0) {
+            throw new BadRequestException(
+              'Inventory adjustment must change the quantity',
+            );
+          }
           const inventory = existingInventory
             ? await transaction.inventory.update({
                 where: key,
-                data: { quantity: { increment: quantityChange } },
+                data: { quantity: { increment: effectiveChange } },
               })
             : await transaction.inventory.create({
                 data: {
                   organizationId,
                   branchId,
                   productId,
-                  quantity: quantityChange,
+                  quantity: effectiveChange,
                 },
               });
           const movement = await transaction.inventoryMovement.create({
@@ -210,7 +233,7 @@ export class InventoryService {
               organizationId,
               branchId,
               productId,
-              quantityChange,
+              quantityChange: effectiveChange,
               type,
               note,
               referenceId,
