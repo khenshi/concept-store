@@ -120,12 +120,15 @@ export class MerchantReceivablesService {
         organizationId,
         receivableId,
       );
-      if (receivable.availableAmount.lte(0)) {
+      if (receivable.reservedAmount.gt(0)) {
         throw new BadRequestException(
-          'This rent receivable has no unreserved balance available for payment',
+          'This rent receivable is reserved by an unpaid settlement; clear the settlement before recording payment',
         );
       }
-      const amount = receivable.availableAmount;
+      const amount = receivable.remainingAmount;
+      if (amount.lte(0)) {
+        throw new BadRequestException('This rent receivable is already paid');
+      }
       const remainingAmount = new Prisma.Decimal(0);
       await transaction.merchantReceivable.update({
         where: { id: receivableId },

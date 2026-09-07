@@ -145,7 +145,7 @@ describe('MerchantReceivablesService', () => {
       status: MerchantReceivableStatus.OPEN,
       createdAt: new Date(),
       updatedAt: new Date(),
-      allocations: [{ amount: new Prisma.Decimal('500.00') }],
+      allocations: [],
     };
     prisma.merchantReceivable.findFirst
       .mockResolvedValueOnce(row)
@@ -184,7 +184,7 @@ describe('MerchantReceivablesService', () => {
         merchantId: 'merchant-1',
         receivableId: 'receivable-1',
         type: 'PAYMENT',
-        amount: new Prisma.Decimal('2000.00'),
+        amount: new Prisma.Decimal('2500.00'),
         paymentMethod: PaymentMethod.CASH,
         referenceNumber: undefined,
         note: undefined,
@@ -194,7 +194,7 @@ describe('MerchantReceivablesService', () => {
     });
   });
 
-  it('rejects a payment when the entire receivable is reserved', async () => {
+  it('rejects a payment when any part of the receivable is reserved', async () => {
     prisma.merchantReceivable.findFirst.mockResolvedValue({
       id: 'receivable-1',
       organizationId: 'organization-1',
@@ -202,7 +202,7 @@ describe('MerchantReceivablesService', () => {
       originalAmount: new Prisma.Decimal('2500.00'),
       remainingAmount: new Prisma.Decimal('2500.00'),
       dueDate: new Date('2026-09-30T00:00:00.000Z'),
-      allocations: [{ amount: new Prisma.Decimal('2500.00') }],
+      allocations: [{ amount: new Prisma.Decimal('2000.00') }],
     });
 
     await expect(
@@ -210,9 +210,7 @@ describe('MerchantReceivablesService', () => {
         method: PaymentMethod.CASH,
         paidAt: '2026-09-02T00:00:00.000Z',
       }),
-    ).rejects.toThrow(
-      'This rent receivable has no unreserved balance available for payment',
-    );
+    ).rejects.toThrow('reserved by an unpaid settlement');
     expect(prisma.merchantReceivableTransaction.create).not.toHaveBeenCalled();
   });
 });
