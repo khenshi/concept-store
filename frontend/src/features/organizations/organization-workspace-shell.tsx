@@ -40,7 +40,6 @@ export function OrganizationWorkspaceShell({
         showPos={canUsePos}
         showSpaces={canManage}
         showFinance={canManage}
-        showReports={canManage}
         collapsed={collapsed}
         onNavigate={() => setIsMenuOpen(false)}
       />

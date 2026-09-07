@@ -16,6 +16,7 @@ import type {
   SettlementStatus,
 } from './settlement.types';
 import { MerchantReceivables } from './merchant-receivables';
+import { MerchantActivity } from './merchant-activity';
 
 const money = new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -59,7 +60,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
   const [liveTotal, setLiveTotal] = useState(0);
   const [liveOffset, setLiveOffset] = useState(0);
   const [activeTab, setActiveTab] = useState<
-    'live' | 'history' | 'receivables'
+    'live' | 'history' | 'receivables' | 'activity'
   >('live');
   const [liveError, setLiveError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -153,6 +154,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
           ['live', 'Live payables'],
           ['history', 'Settlement history'],
           ['receivables', 'Rent receivables'],
+          ['activity', 'Merchant activity'],
         ].map(([value, label]) => (
           <button
             aria-current={activeTab === value ? 'page' : undefined}
@@ -163,7 +165,9 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             }`}
             key={value}
             onClick={() =>
-              setActiveTab(value as 'live' | 'history' | 'receivables')
+              setActiveTab(
+                value as 'live' | 'history' | 'receivables' | 'activity',
+              )
             }
             type="button"
           >
@@ -537,8 +541,10 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             </div>
           ) : null}
         </section>
-      ) : (
+      ) : activeTab === 'receivables' ? (
         <MerchantReceivables organizationId={organizationId} />
+      ) : (
+        <MerchantActivity organizationId={organizationId} />
       )}
     </section>
   );

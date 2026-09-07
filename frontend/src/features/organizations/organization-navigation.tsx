@@ -12,7 +12,6 @@ export function OrganizationNavigation({
   showPos = false,
   showSpaces = false,
   showFinance = false,
-  showReports = false,
   collapsed = false,
   onNavigate,
 }: {
@@ -24,7 +23,6 @@ export function OrganizationNavigation({
   showPos?: boolean;
   showSpaces?: boolean;
   showFinance?: boolean;
-  showReports?: boolean;
   collapsed?: boolean;
   onNavigate?(): void;
 }) {
@@ -63,12 +61,6 @@ export function OrganizationNavigation({
     {
       label: 'Business',
       destinations: [
-        {
-          key: 'reports',
-          label: 'Reports',
-          href: `${basePath}/reports`,
-          visible: showReports,
-        },
         {
           key: 'merchants',
           label: 'Merchants',

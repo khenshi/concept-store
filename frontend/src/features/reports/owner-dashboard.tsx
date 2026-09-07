@@ -103,9 +103,9 @@ export function OwnerDashboard({
               action={
                 <Link
                   className="text-sm font-bold text-emerald-700"
-                  href={`/app/organizations/${organization.id}/reports`}
+                  href={`/app/organizations/${organization.id}/pos/sales`}
                 >
-                  View reports
+                  View sales history
                 </Link>
               }
             >
