@@ -1,12 +1,14 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import type {
   CreateSaleInput,
+  CreateRefundInput,
   PosProduct,
   PosProductFilters,
   PosProductPage,
   Sale,
   SaleFilters,
   SalePage,
+  SaleRefund,
 } from './pos.types';
 
 function productPath(organizationId: string, branchId: string): string {
@@ -104,6 +106,23 @@ export function voidSale(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
+    },
+  );
+}
+
+export function refundSale(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  saleId: string,
+  input: CreateRefundInput,
+): Promise<SaleRefund> {
+  return request<SaleRefund>(
+    `${salesPath(organizationId, branchId)}/${encodeURIComponent(saleId)}/refunds`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     },
   );
 }

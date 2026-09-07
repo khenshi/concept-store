@@ -427,6 +427,7 @@ export class ReportsService {
           merchantId: { in: merchantIds },
           sale: {
             branchId: filters.branchId,
+            status: 'COMPLETED',
             completedAt: { gte: period.start, lt: period.endExclusive },
           },
         },

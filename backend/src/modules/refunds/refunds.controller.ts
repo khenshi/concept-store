@@ -13,6 +13,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { SaleRefundResponseDto } from '../../openapi/response.dto';
 import { OrganizationRole } from '../../generated/prisma/client';
 import { AuthGuard } from '../auth/auth.guard';
 import { OrganizationAccessGuard } from '../organizations/authorization/organization-access.guard';
@@ -34,7 +35,7 @@ export class RefundsController {
 
   @Post()
   @ApiOperation({ summary: 'Record a completed item refund' })
-  @ApiCreatedResponse({ description: 'Refund recorded' })
+  @ApiCreatedResponse({ type: SaleRefundResponseDto })
   @ApiConflictResponse({
     description: 'Quantity was already refunded or changed concurrently',
   })

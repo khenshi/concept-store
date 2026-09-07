@@ -424,6 +424,43 @@ export class PaymentResponseDto {
   paidAt!: Date;
 }
 
+export class SaleRefundItemResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  saleItemId!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  merchantId!: string;
+
+  @ApiProperty({ example: 1 })
+  quantity!: number;
+
+  @ApiProperty({ type: String, example: '450.00' })
+  amount!: string;
+}
+
+export class SaleRefundResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  saleId!: string;
+
+  @ApiProperty({ maxLength: 500 })
+  reason!: string;
+
+  @ApiProperty({ format: 'uuid' })
+  completedById!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  completedAt!: Date;
+
+  @ApiProperty({ type: SaleRefundItemResponseDto, isArray: true })
+  items!: SaleRefundItemResponseDto[];
+}
+
 export class SaleResponseDto {
   @ApiProperty({ format: 'uuid' })
   id!: string;
@@ -466,6 +503,9 @@ export class SaleResponseDto {
 
   @ApiProperty({ type: PaymentResponseDto, isArray: true })
   payments!: PaymentResponseDto[];
+
+  @ApiProperty({ type: SaleRefundResponseDto, isArray: true })
+  refunds!: SaleRefundResponseDto[];
 }
 
 export class SaleSummaryResponseDto {

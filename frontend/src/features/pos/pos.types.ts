@@ -96,6 +96,29 @@ export interface Sale {
   };
   items: SaleItem[];
   payments: SalePayment[];
+  refunds: SaleRefund[];
+}
+
+export interface SaleRefundItem {
+  id: string;
+  saleItemId: string;
+  merchantId: string;
+  quantity: number;
+  amount: string;
+}
+
+export interface SaleRefund {
+  id: string;
+  saleId: string;
+  reason: string;
+  completedById: string;
+  completedAt: string;
+  items: SaleRefundItem[];
+}
+
+export interface CreateRefundInput {
+  reason: string;
+  items: { saleItemId: string; quantity: number }[];
 }
 
 export interface SaleSummary {

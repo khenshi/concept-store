@@ -9,7 +9,7 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import { getSale, voidSale } from './pos-api';
+import { getSale, refundSale, voidSale } from './pos-api';
 import { PosNavigation } from './pos-navigation';
 import type { PaymentMethod, Sale } from './pos.types';
 
@@ -53,12 +53,20 @@ export function SaleDetail({
   const [voidReason, setVoidReason] = useState('');
   const [isVoiding, setIsVoiding] = useState(false);
   const [voidError, setVoidError] = useState<string | null>(null);
+  const [showRefund, setShowRefund] = useState(false);
+  const [refundReason, setRefundReason] = useState('');
+  const [refundQuantities, setRefundQuantities] = useState<
+    Record<string, number>
+  >({});
+  const [isRefunding, setIsRefunding] = useState(false);
+  const [refundError, setRefundError] = useState<string | null>(null);
   const canUsePos =
     organization?.role === 'OWNER' ||
     organization?.role === 'MANAGER' ||
     organization?.role === 'CASHIER';
   const canVoid =
     organization?.role === 'OWNER' || organization?.role === 'MANAGER';
+  const canRefund = canVoid;
 
   async function handleVoid() {
     if (!sale || !branchId || !voidReason.trim()) return;
@@ -80,6 +88,60 @@ export function SaleDetail({
       setVoidError(message(cause));
     } finally {
       setIsVoiding(false);
+    }
+  }
+
+  function refundedQuantity(saleItemId: string): number {
+    return (
+      sale?.refunds.reduce(
+        (total, refund) =>
+          total +
+          refund.items
+            .filter((item) => item.saleItemId === saleItemId)
+            .reduce((subtotal, item) => subtotal + item.quantity, 0),
+        0,
+      ) ?? 0
+    );
+  }
+
+  function openRefund(): void {
+    setRefundError(null);
+    setRefundReason('');
+    setRefundQuantities({});
+    setShowRefund(true);
+  }
+
+  async function handleRefund(): Promise<void> {
+    if (!sale || !branchId || !refundReason.trim()) return;
+    const items = sale.items
+      .map((item) => ({
+        saleItemId: item.id,
+        quantity: refundQuantities[item.id] ?? 0,
+      }))
+      .filter((item) => item.quantity > 0);
+    if (!items.length) {
+      setRefundError('Select at least one item quantity to refund.');
+      return;
+    }
+    setIsRefunding(true);
+    setRefundError(null);
+    try {
+      await refundSale(request, organizationId, branchId, sale.id, {
+        reason: refundReason.trim(),
+        items,
+      });
+      setShowRefund(false);
+      setRefundReason('');
+      setRefundQuantities({});
+      setVersion((current) => current + 1);
+    } catch (cause: unknown) {
+      setRefundError(
+        cause instanceof ApiError
+          ? cause.message
+          : 'The refund could not be recorded. Please try again.',
+      );
+    } finally {
+      setIsRefunding(false);
     }
   }
 
@@ -175,6 +237,19 @@ export function SaleDetail({
                     Void sale
                   </button>
                 ) : null}
+                {canRefund &&
+                sale.status === 'COMPLETED' &&
+                sale.items.some(
+                  (item) => refundedQuantity(item.id) < item.quantity,
+                ) ? (
+                  <button
+                    className="min-h-10 cursor-pointer rounded-[0.6rem] border border-amber-300 bg-white px-4 text-sm font-bold text-amber-800 hover:bg-amber-50"
+                    type="button"
+                    onClick={openRefund}
+                  >
+                    Record refund
+                  </button>
+                ) : null}
                 <Link
                   className="grid min-h-10 place-items-center rounded-[0.6rem] border border-emerald-600 bg-emerald-600 px-4 text-sm font-bold text-white no-underline hover:bg-emerald-700"
                   href={`/app/organizations/${organizationId}/pos/sales/${sale.id}/receipt?branchId=${encodeURIComponent(sale.branchId)}`}
@@ -213,6 +288,11 @@ export function SaleDetail({
                       </td>
                       <td className="px-4 py-4 text-right text-slate-600">
                         {item.quantity}
+                        {refundedQuantity(item.id) ? (
+                          <span className="mt-1 block text-xs text-amber-700">
+                            {refundedQuantity(item.id)} refunded
+                          </span>
+                        ) : null}
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-slate-950">
                         {money.format(Number(item.total))}
@@ -327,6 +407,107 @@ export function SaleDetail({
                 onClick={() => void handleVoid()}
               >
                 {isVoiding ? 'Voiding…' : 'Void sale'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {showRefund && sale ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4"
+          role="presentation"
+        >
+          <section
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="refund-sale-title"
+          >
+            <h2 className="text-xl font-bold" id="refund-sale-title">
+              Record refund
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Select returned quantities. Inventory will be restored and the
+              merchant balance will be updated.
+            </p>
+            <div className="mt-5 overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full min-w-[32rem] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="p-3">Product</th>
+                    <th className="p-3 text-right">Remaining</th>
+                    <th className="p-3 text-right">Return quantity</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {sale.items.map((item) => {
+                    const remaining = item.quantity - refundedQuantity(item.id);
+                    return (
+                      <tr key={item.id}>
+                        <td className="p-3">
+                          <strong>{item.productName}</strong>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {item.productSku}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">{remaining}</td>
+                        <td className="p-3 text-right">
+                          <input
+                            aria-label={`Refund quantity for ${item.productName}`}
+                            className="min-h-10 w-28 rounded-lg border border-slate-200 px-3 text-right"
+                            disabled={remaining === 0 || isRefunding}
+                            max={remaining}
+                            min={0}
+                            onChange={(event) =>
+                              setRefundQuantities((current) => ({
+                                ...current,
+                                [item.id]: Number(event.target.value),
+                              }))
+                            }
+                            type="number"
+                            value={refundQuantities[item.id] ?? 0}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <label
+              className="mt-5 block text-sm font-bold"
+              htmlFor="refund-reason"
+            >
+              Documented reason
+            </label>
+            <textarea
+              className="mt-2 min-h-24 w-full rounded-lg border border-slate-200 p-3"
+              id="refund-reason"
+              value={refundReason}
+              maxLength={500}
+              onChange={(event) => setRefundReason(event.target.value)}
+            />
+            {refundError ? (
+              <p className="mt-3 text-sm text-rose-700" role="alert">
+                {refundError}
+              </p>
+            ) : null}
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                className="min-h-11 cursor-pointer rounded-lg border border-slate-200 bg-white px-4 font-bold hover:bg-slate-100"
+                type="button"
+                disabled={isRefunding}
+                onClick={() => setShowRefund(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="min-h-11 cursor-pointer rounded-lg border-0 bg-amber-600 px-4 font-bold text-white hover:bg-amber-700 disabled:opacity-60"
+                type="button"
+                disabled={isRefunding || !refundReason.trim()}
+                onClick={() => void handleRefund()}
+              >
+                {isRefunding ? 'Recording…' : 'Confirm refund'}
               </button>
             </div>
           </section>

@@ -772,6 +772,7 @@ enum InventoryMovementType {
   ADJUSTMENT
   SALE
   VOID
+  RETURN
 }
 
 enum SaleStatus {

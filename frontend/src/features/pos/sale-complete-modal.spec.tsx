@@ -50,6 +50,7 @@ const sale: Sale = {
       paidAt: '2026-08-30T02:00:00.000Z',
     },
   ],
+  refunds: [],
 };
 
 describe('SaleCompleteModal', () => {

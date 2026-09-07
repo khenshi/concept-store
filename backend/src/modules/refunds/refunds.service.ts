@@ -4,7 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { OrganizationRole, Prisma } from '../../generated/prisma/client';
+import { randomUUID } from 'node:crypto';
+import {
+  InventoryMovementType,
+  OrganizationRole,
+  Prisma,
+} from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { CreateRefundDto } from './dto/create-refund.dto';
 
@@ -38,12 +43,18 @@ export class RefundsService {
             );
           }
           const sale = await tx.sale.findFirst({
-            where: { id: saleId, organizationId, branchId },
+            where: {
+              id: saleId,
+              organizationId,
+              branchId,
+              status: 'COMPLETED',
+            },
             select: {
               id: true,
               items: {
                 select: {
                   id: true,
+                  productId: true,
                   merchantId: true,
                   quantity: true,
                   total: true,
@@ -91,8 +102,10 @@ export class RefundsService {
               amount,
             };
           });
-          return tx.saleRefund.create({
+          const refundId = randomUUID();
+          await tx.saleRefund.create({
             data: {
+              id: refundId,
               organizationId,
               branchId,
               saleId,
@@ -100,6 +113,39 @@ export class RefundsService {
               completedById: actorId,
               items: { create: itemData },
             },
+          });
+          for (const item of itemData) {
+            const restored = await tx.inventory.updateMany({
+              where: {
+                organizationId,
+                branchId,
+                productId: sale.items.find(({ id }) => id === item.saleItemId)!
+                  .productId,
+              },
+              data: { quantity: { increment: item.quantity } },
+            });
+            if (restored.count !== 1) {
+              throw new ConflictException(
+                'Inventory could not be restored for the refunded item',
+              );
+            }
+          }
+          await tx.inventoryMovement.createMany({
+            data: itemData.map((item) => ({
+              organizationId,
+              branchId,
+              productId: sale.items.find(({ id }) => id === item.saleItemId)!
+                .productId,
+              quantityChange: item.quantity,
+              type: InventoryMovementType.RETURN,
+              referenceId: refundId,
+              note: dto.reason,
+              createdById: actorId,
+              saleId,
+            })),
+          });
+          return tx.saleRefund.findUniqueOrThrow({
+            where: { id_organizationId: { id: refundId, organizationId } },
             include: { items: true },
           });
         },

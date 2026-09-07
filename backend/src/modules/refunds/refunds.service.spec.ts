@@ -9,7 +9,9 @@ describe('RefundsService', () => {
     organizationMembership: { findUnique: jest.fn() },
     sale: { findFirst: jest.fn() },
     saleRefundItem: { groupBy: jest.fn() },
-    saleRefund: { create: jest.fn() },
+    saleRefund: { create: jest.fn(), findUniqueOrThrow: jest.fn() },
+    inventory: { updateMany: jest.fn() },
+    inventoryMovement: { createMany: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(
@@ -28,6 +30,7 @@ describe('RefundsService', () => {
       items: [
         {
           id: 'item',
+          productId: 'product',
           merchantId: 'merchant',
           quantity: 4,
           total: new Prisma.Decimal('1000.00'),
@@ -38,6 +41,12 @@ describe('RefundsService', () => {
       { saleItemId: 'item', _sum: { quantity: 1 } },
     ]);
     tx.saleRefund.create.mockResolvedValue({ id: 'refund', items: [] });
+    tx.inventory.updateMany.mockResolvedValue({ count: 1 });
+    tx.inventoryMovement.createMany.mockResolvedValue({ count: 1 });
+    tx.saleRefund.findUniqueOrThrow.mockResolvedValue({
+      id: 'refund',
+      items: [],
+    });
     const module = await Test.createTestingModule({
       providers: [RefundsService, { provide: PrismaService, useValue: prisma }],
     }).compile();
@@ -67,7 +76,14 @@ describe('RefundsService', () => {
           ],
         },
       }),
-      include: { items: true },
+    });
+    expect(tx.inventory.updateMany).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'organization',
+        branchId: 'branch',
+        productId: 'product',
+      },
+      data: { quantity: { increment: 2 } },
     });
   });
 

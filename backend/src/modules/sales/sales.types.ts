@@ -7,6 +7,10 @@ export const saleResponseInclude = {
   },
   items: { orderBy: [{ id: 'asc' as const }] },
   payments: { orderBy: [{ paidAt: 'asc' as const }, { id: 'asc' as const }] },
+  refunds: {
+    orderBy: [{ completedAt: 'asc' as const }, { id: 'asc' as const }],
+    include: { items: { orderBy: [{ id: 'asc' as const }] } },
+  },
 } satisfies Prisma.SaleInclude;
 
 export type SaleResponseRow = Prisma.SaleGetPayload<{
@@ -30,15 +34,30 @@ export interface PaymentRecord extends Omit<
   amount: string;
 }
 
+export interface RefundItemRecord extends Omit<
+  SaleResponseRow['refunds'][number]['items'][number],
+  'amount'
+> {
+  amount: string;
+}
+
+export interface RefundRecord extends Omit<
+  SaleResponseRow['refunds'][number],
+  'items'
+> {
+  items: RefundItemRecord[];
+}
+
 export interface SaleRecord extends Omit<
   SaleResponseRow,
-  'subtotal' | 'discountTotal' | 'total' | 'items' | 'payments'
+  'subtotal' | 'discountTotal' | 'total' | 'items' | 'payments' | 'refunds'
 > {
   subtotal: string;
   discountTotal: string;
   total: string;
   items: SaleItemRecord[];
   payments: PaymentRecord[];
+  refunds: RefundRecord[];
 }
 
 export const saleSummarySelect = {

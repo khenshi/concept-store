@@ -480,6 +480,13 @@ export class SalesService {
         ...payment,
         amount: payment.amount.toFixed(2),
       })),
+      refunds: (sale.refunds ?? []).map((refund) => ({
+        ...refund,
+        items: refund.items.map((item) => ({
+          ...item,
+          amount: item.amount.toFixed(2),
+        })),
+      })),
     };
   }
 }
