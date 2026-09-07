@@ -23,7 +23,7 @@ The authenticated shell provides:
   confirmation dialogs; and
 - loading, empty, error, success, and pending states.
 
-Owner and manager navigation exposes administration, finance, and reports.
+Owner and manager navigation exposes administration and merchant finance.
 Cashiers primarily see POS. Merchant users receive their isolated dashboard.
 
 ## Interaction conventions
@@ -71,8 +71,8 @@ operational clarity.
 ## Data loading
 
 Reusable organization context loaders deduplicate branch, merchant, and product
-requests. Feature pages own their specific filters and mutation state. Reports
-load one active dataset at a time to avoid unnecessary remote database work.
+requests. Feature pages own their specific filters and mutation state. Reporting
+views remain embedded in the workflow that owns their data.
 
 ## Future offline boundary
 

@@ -13,6 +13,8 @@ contains name, SKU, optional barcode, selling price, and active/inactive status.
 - Product ownership and tenant scope cannot be reassigned through arbitrary
   client identifiers.
 - Advanced variants, purchasing, suppliers, and warehouses are not included.
+- Product creation may optionally record initial stock for a participating branch;
+  product, inventory, and the first `STOCK_IN` movement are created atomically.
 
 ## Branch inventory
 
@@ -22,7 +24,7 @@ quantity physically available in that branch.
 Owners and managers can:
 
 - stock in a positive quantity;
-- apply a signed adjustment with an explanation;
+- apply a signed adjustment or set a new stock total with an explanation;
 - view current quantities; and
 - inspect movement history.
 
@@ -32,17 +34,18 @@ branch.
 ## Audit trail
 
 Every quantity change creates an `InventoryMovement` containing the signed
-change, movement type, actor, timestamp, and optional note/reference. Sale and
-refund movements also reference their source transaction.
+change, movement type, actor, timestamp, and optional note/reference. Sale,
+void, and refund movements also reference their source transaction.
 
 The current quantity is optimized for operational reads; movement history
-explains how it was reached. Adjustments may produce negative inventory when a
-physical count requires it. POS checkout separately prevents online sales from
-exceeding current available stock.
+explains how it was reached. Adjustments cannot produce negative inventory. When
+setting a total, the backend calculates and records the exact signed delta inside
+the inventory transaction.
 
 ## Views and reporting
 
 Current inventory supports branch, merchant, product, status, and search
-filters. Movement history uses bounded pagination. Reporting presents current
+filters. Movement history uses bounded pagination and automatic From/To date
+filters with Philippine business-day boundaries. Reporting presents current
 stock and low-stock counts as present-time values, not historical period
 balances.

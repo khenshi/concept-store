@@ -43,9 +43,14 @@ integrate a payment gateway or automatically verify external transfers.
 
 ## History and receipts
 
-Completed sales can be filtered and opened from branch sales history. Details
-show the immutable item and payment snapshots. Receipts provide a print-focused
+Completed and voided sales can be filtered and opened from branch sales history.
+Details show immutable item and payment snapshots. Receipts provide a print-focused
 representation without changing transaction records.
+
+Owners and managers may void an eligible completed sale with a documented reason.
+Voiding preserves the original transaction, restores inventory, records `VOID`
+movements, and excludes the sale from merchant finance. Refunded, settled, or
+already voided sales cannot be voided. Cashiers cannot void sales.
 
 ## Refunds
 

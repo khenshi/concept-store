@@ -74,3 +74,9 @@ retries. Settlement source links prevent activity from being paid twice, and a
 merchant cannot open another closure while one is unpaid. Finalized financial
 records are corrected through explicit follow-up actions rather than silent
 mutation.
+
+Completed sales are never edited. An owner or manager may void an eligible sale
+with a reason; one serializable transaction restores inventory, records reversal
+movements, and writes the immutable void audit fields. Refunded or settlement-
+linked sales are rejected, and all live financial calculations exclude voided
+activity.

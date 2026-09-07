@@ -13,14 +13,15 @@ The organization overview presents:
 - current stock and low-stock counts; and
 - recent sales and settlements.
 
-The Reports workspace provides paginated sales attribution, current inventory,
-and merchant performance tables. Reports support period, branch, and merchant
-filters where meaningful.
+Operational history remains beside its source workflow: sales in POS and
+movements in Inventory. Merchant performance is available as the **Merchant
+activity** tab inside Merchant Finance, with period, branch, and merchant filters.
+There is no separate Reports navigation page.
 
 ## Reporting definitions
 
 - Dates are Philippine business dates converted to explicit backend boundaries.
-- Gross sales come from immutable completed sale items.
+- Gross sales come from immutable completed, non-voided sale items.
 - Refunds come from completed refund items in the selected activity period.
 - Net sales equal gross sales minus refunds.
 - Store revenue uses approved or paid settlement snapshots only.

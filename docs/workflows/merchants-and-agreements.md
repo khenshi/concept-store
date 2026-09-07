@@ -33,7 +33,8 @@ Agreements describe how the store earns from a merchant. Supported terms are:
 - fixed rent plus commission.
 
 Agreements contain effective dates, optional fixed rent, optional commission,
-settlement schedule, and lifecycle status. A merchant is not encoded as a
+settlement schedule, and lifecycle status. Every agreement, including a draft,
+must contain at least one positive fixed-rent or commission term. A merchant is not encoded as a
 different type for each commercial model.
 
 Fixed rent creates a separate monthly merchant receivable. Agreements do not
@@ -43,6 +44,10 @@ for each settlement preview.
 Active agreement periods cannot create ambiguous overlapping commercial terms.
 Historical agreements are retained and settlement calculations snapshot the
 terms that applied to each segment of a period.
+
+The organization agreement register shows exact commercial terms. Creation and
+draft editing use modals; activation and ending remain in the merchant agreement
+workspace. The redundant agreement-only detail route has been removed.
 
 ## Settlement schedules
 
