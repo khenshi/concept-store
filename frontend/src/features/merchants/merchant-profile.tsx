@@ -35,13 +35,6 @@ const statusLabels: Record<MerchantStatus, string> = {
   ENDED: 'Ended',
 };
 
-const statusStyles: Record<MerchantStatus, string> = {
-  ACTIVE: 'bg-emerald-100 text-emerald-700',
-  INACTIVE: 'bg-slate-100 text-slate-600',
-  SUSPENDED: 'bg-amber-100 text-amber-800',
-  ENDED: 'bg-slate-200 text-slate-700',
-};
-
 function errorMessage(cause: unknown): string {
   return cause instanceof ApiError
     ? cause.message
@@ -226,20 +219,15 @@ export function MerchantProfile({
     }
   }
 
-  async function handleStatusSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleStatusChange(status: MerchantStatus) {
     if (!merchant) return;
-    const formData = new FormData(event.currentTarget);
-    const status = String(formData.get('status')) as MerchantStatus;
     if (status === merchant.status) return;
     if (
-      status === 'ENDED' &&
       !(await confirm({
-        title: `End ${merchant.name}?`,
-        description:
-          'The merchant will remain available in historical records, but its lifecycle status will be ended.',
-        confirmLabel: 'End merchant',
-        tone: 'danger',
+        title: `Change ${merchant.name}'s status?`,
+        description: `Change the merchant status from ${statusLabels[merchant.status]} to ${statusLabels[status]}.`,
+        confirmLabel: 'Change status',
+        tone: status === 'ENDED' ? 'danger' : 'primary',
       }))
     ) {
       return;
@@ -329,14 +317,6 @@ export function MerchantProfile({
           />
         )}
       </div>
-      {merchant ? (
-        <span
-          className={`mt-5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusStyles[merchant.status]}`}
-        >
-          {statusLabels[merchant.status]}
-        </span>
-      ) : null}
-
       {loadError && canManage ? (
         <section
           className="mt-6 rounded-xl border border-slate-200 bg-white p-6"
@@ -426,6 +406,13 @@ export function MerchantProfile({
               />
             </section>
           ) : null}
+          {merchant ? (
+            <MerchantAgreementSummary
+              organizationId={organizationId}
+              merchantId={merchant.id}
+              merchantName={merchant.name}
+            />
+          ) : null}
           <div className="mt-6 grid items-start gap-5 md:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)]">
             {!merchant && branches.length === 0 ? (
               <section className="rounded-xl border border-slate-200 bg-white p-6 md:col-span-2">
@@ -442,9 +429,11 @@ export function MerchantProfile({
                 </Link>
               </section>
             ) : null}
-            {merchant && !isEditingProfile ? (
+            {merchant ? (
               <MerchantProfileDetails
                 merchant={merchant}
+                isUpdatingStatus={isUpdatingStatus}
+                onStatusChange={(status) => void handleStatusChange(status)}
                 onEdit={() => {
                   setSubmissionError(null);
                   setSuccessMessage(null);
@@ -464,67 +453,31 @@ export function MerchantProfile({
               />
             )}
             {merchant ? (
-              <div className="grid gap-5">
-                <BranchAssignmentForm
-                  key={merchant.id}
-                  branches={branches}
-                  merchant={merchant}
-                  isSubmitting={isUpdatingBranches}
-                  onSubmit={handleBranchesSubmit}
-                />
-                <section
-                  className="rounded-xl border border-slate-200 bg-white p-6"
-                  aria-labelledby="status-title"
-                >
-                  <h2 className="m-0 text-base font-bold" id="status-title">
-                    Lifecycle status
-                  </h2>
-                  <p className="mt-3 leading-7 text-slate-500">
-                    Ended merchants remain available for historical records.
-                  </p>
-                  <form
-                    className="mt-5 grid gap-4"
-                    onSubmit={handleStatusSubmit}
-                  >
-                    <div className="grid gap-2">
-                      <label
-                        className="text-sm font-bold"
-                        htmlFor="merchant-status"
-                      >
-                        Status
-                      </label>
-                      <SelectControl
-                        className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
-                        id="merchant-status"
-                        name="status"
-                        key={merchant.status}
-                        defaultValue={merchant.status}
-                      >
-                        {Object.entries(statusLabels).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </SelectControl>
-                    </div>
-                    <button
-                      className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3.5 py-2.5 font-bold disabled:cursor-wait disabled:opacity-65"
-                      type="submit"
-                      disabled={isUpdatingStatus}
-                    >
-                      {isUpdatingStatus ? 'Updating status…' : 'Update status'}
-                    </button>
-                  </form>
-                </section>
-              </div>
+              <BranchAssignmentForm
+                key={merchant.id}
+                branches={branches}
+                merchant={merchant}
+                isSubmitting={isUpdatingBranches}
+                onSubmit={handleBranchesSubmit}
+              />
             ) : null}
           </div>
-          {merchant ? (
-            <MerchantAgreementSummary
-              organizationId={organizationId}
-              merchantId={merchant.id}
-              merchantName={merchant.name}
-            />
+          {merchant && isEditingProfile ? (
+            <div
+              className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-4"
+              role="presentation"
+            >
+              <div className="my-auto w-full max-w-3xl">
+                <MerchantForm
+                  merchant={merchant}
+                  branches={branches}
+                  fieldErrors={fieldErrors}
+                  isSubmitting={isSubmitting}
+                  onSubmit={handleProfileSubmit}
+                  onCancel={() => setIsEditingProfile(false)}
+                />
+              </div>
+            </div>
           ) : null}
         </>
       )}
@@ -570,9 +523,13 @@ function MerchantProfileHeader({
 function MerchantProfileDetails({
   merchant,
   onEdit,
+  isUpdatingStatus,
+  onStatusChange,
 }: {
   merchant: Merchant;
   onEdit(): void;
+  isUpdatingStatus: boolean;
+  onStatusChange(status: MerchantStatus): void;
 }) {
   const details = [
     ['Merchant name', merchant.name],
@@ -614,6 +571,24 @@ function MerchantProfileDetails({
           </div>
         ))}
       </dl>
+      <div className="mt-4 grid gap-2 border-t border-slate-200 pt-4">
+        <label className="text-sm font-bold" htmlFor="merchant-status">
+          Status
+        </label>
+        <SelectControl
+          className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
+          id="merchant-status"
+          value={merchant.status}
+          disabled={isUpdatingStatus}
+          onValueChange={(value) => onStatusChange(value as MerchantStatus)}
+        >
+          {Object.entries(statusLabels).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </SelectControl>
+      </div>
     </section>
   );
 }
