@@ -26,6 +26,9 @@ There is no separate Reports navigation page.
 - Net sales equal gross sales minus refunds.
 - Store revenue uses approved or paid settlement snapshots only.
 - Draft and reviewed settlements are excluded from finalized revenue.
+- Rent reporting keeps accrued charges, collected payments/deductions, and
+  outstanding balances separate. A payout deduction is recognized only when the
+  settlement payout is recorded; an unpaid draft does not count as collected.
 - Current inventory is a present-time snapshot.
 
 ## Merchant dashboard

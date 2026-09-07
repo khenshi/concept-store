@@ -315,6 +315,16 @@ describe('SettlementsService', () => {
       total: 1,
       offset: 0,
       limit: 20,
+      summary: {
+        grossSales: '0.00',
+        refunds: '0.00',
+        netSales: '0.00',
+        commission: '0.00',
+        adjustments: '0.00',
+        deductions: '0.00',
+        amountDue: '0.00',
+        merchantCount: 1,
+      },
     });
     expect(prisma.merchant.findMany).toHaveBeenCalledTimes(1);
   });

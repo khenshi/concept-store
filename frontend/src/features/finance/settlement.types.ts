@@ -121,9 +121,11 @@ export interface SettlementMetrics {
   grossSales: string;
   refunds: string;
   netSales: string;
+  commission: string;
+  adjustments: string;
   deductions: string;
   amountDue: string;
-  count: number;
+  merchantCount: number;
 }
 
 export interface LiveMerchantPayable {
@@ -159,6 +161,7 @@ export interface LiveMerchantPayablePage {
   total: number;
   offset: number;
   limit: number;
+  summary: SettlementMetrics;
 }
 
 export interface AdjustmentInput {

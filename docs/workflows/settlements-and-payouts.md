@@ -51,11 +51,11 @@ with merchant, branch, period, deadline, amount due, and a link to the merchant
 detail. The detail page contains the calculation breakdown, adjustments,
 agreement state, and settlement action.
 
-The live overview is paginated and calculates only the visible merchant page.
-The default page size is 20 and the API caps it at 50. Settlement history is
-also shown 20 rows at a time. This keeps overview requests bounded while the
-merchant detail route performs the complete single-merchant calculation needed
-for review and closure.
+The live overview returns 20 merchant rows at a time (the API caps pages at 50)
+and includes a server-calculated summary for every merchant matching the active
+filters. Settlement history, rent receivables, and Merchant Activity are also
+shown 20 rows at a time. The merchant detail route performs the complete
+single-merchant calculation needed for review and closure.
 
 Closing the payable creates a source-linked draft snapshot in a serializable
 transaction. Owners and managers may close early. The snapshot records both the

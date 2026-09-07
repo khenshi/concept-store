@@ -139,8 +139,6 @@ export class SettlementsService {
           },
         },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        skip: query.offset,
-        take: query.limit,
       }),
       this.prisma.merchant.count({ where }),
     ]);
@@ -161,7 +159,46 @@ export class SettlementsService {
           : this.emptyLivePayable(identity, branches, today);
       }),
     );
-    return { items: rows, total, offset: query.offset, limit: query.limit };
+    const summary = rows.reduce(
+      (totals, row) => {
+        totals.grossSales = totals.grossSales.add(row.grossSales);
+        totals.refunds = totals.refunds.add(row.refundTotal);
+        totals.netSales = totals.netSales.add(row.netSales);
+        totals.commission = totals.commission.add(row.commissionAmount);
+        totals.adjustments = totals.adjustments.add(row.adjustmentTotal);
+        totals.deductions = totals.deductions
+          .add(row.commissionAmount)
+          .add(row.fixedRentAmount)
+          .sub(row.adjustmentTotal);
+        totals.amountDue = totals.amountDue.add(row.amountDue);
+        return totals;
+      },
+      {
+        grossSales: new Prisma.Decimal(0),
+        refunds: new Prisma.Decimal(0),
+        netSales: new Prisma.Decimal(0),
+        commission: new Prisma.Decimal(0),
+        adjustments: new Prisma.Decimal(0),
+        deductions: new Prisma.Decimal(0),
+        amountDue: new Prisma.Decimal(0),
+      },
+    );
+    return {
+      items: rows.slice(query.offset, query.offset + query.limit),
+      total,
+      offset: query.offset,
+      limit: query.limit,
+      summary: {
+        grossSales: this.money(summary.grossSales),
+        refunds: this.money(summary.refunds),
+        netSales: this.money(summary.netSales),
+        commission: this.money(summary.commission),
+        adjustments: this.money(summary.adjustments),
+        deductions: this.money(summary.deductions),
+        amountDue: this.money(summary.amountDue),
+        merchantCount: rows.length,
+      },
+    };
   }
 
   async closeLivePayable(

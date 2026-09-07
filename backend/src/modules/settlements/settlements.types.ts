@@ -221,6 +221,16 @@ export interface LiveMerchantPayablePageRecord {
   total: number;
   offset: number;
   limit: number;
+  summary: {
+    grossSales: string;
+    refunds: string;
+    netSales: string;
+    commission: string;
+    adjustments: string;
+    deductions: string;
+    amountDue: string;
+    merchantCount: number;
+  };
 }
 
 export interface SettlementPreviewRecord {

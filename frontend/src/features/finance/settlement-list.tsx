@@ -78,11 +78,13 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
       if (activeTab === 'live') {
         setLiveError(null);
         const result = await listLivePayables(request, organizationId, {
+          merchantId: merchantId || undefined,
+          branchId: branchId || undefined,
           offset: liveOffset,
           limit: LIVE_PAGE_SIZE,
         });
         if (requestId !== financeRequestId.current) return;
-        setMetrics(payableMetrics(result.items));
+        setMetrics(result.summary);
         setPayables(result.items);
         setLiveTotal(result.total);
       } else if (activeTab === 'history') {
@@ -125,11 +127,17 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
     return () => window.clearTimeout(timeout);
   }, [activeTab, historyDateError, load]);
   useEffect(() => {
-    if (activeTab === 'history' && merchantsStatus === 'idle')
+    if (
+      (activeTab === 'history' || activeTab === 'live') &&
+      merchantsStatus === 'idle'
+    )
       void loadMerchants().catch(() => undefined);
   }, [activeTab, loadMerchants, merchantsStatus]);
   useEffect(() => {
-    if (activeTab === 'history' && branchesStatus === 'idle')
+    if (
+      (activeTab === 'history' || activeTab === 'live') &&
+      branchesStatus === 'idle'
+    )
       void loadBranches().catch(() => undefined);
   }, [activeTab, branchesStatus, loadBranches]);
 
@@ -202,6 +210,51 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 onRetry={() => void load()}
               />
             ) : null}
+            <div className="mt-5 flex flex-wrap items-end gap-3">
+              <label className="grid gap-1 text-sm font-bold">
+                Merchant
+                <select
+                  className="min-h-11 rounded-lg border border-slate-300 px-3"
+                  value={merchantId}
+                  onChange={(event) => {
+                    financeRequestId.current += 1;
+                    setMerchantId(event.target.value);
+                    setLiveOffset(0);
+                  }}
+                >
+                  <option value="">All merchants</option>
+                  {merchants.map((merchant) => (
+                    <option key={merchant.id} value={merchant.id}>
+                      {merchant.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm font-bold">
+                Branch
+                <select
+                  className="min-h-11 rounded-lg border border-slate-300 px-3"
+                  value={branchId}
+                  onChange={(event) => {
+                    financeRequestId.current += 1;
+                    setBranchId(event.target.value);
+                    setLiveOffset(0);
+                  }}
+                >
+                  <option value="">All branches</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {loading ? (
+                <span className="pb-2 text-sm text-slate-500" role="status">
+                  Updating…
+                </span>
+              ) : null}
+            </div>
             <div className="mt-5 overflow-x-auto">
               <table className="w-full min-w-[48rem] text-left text-sm">
                 <thead>
@@ -312,7 +365,7 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 ['Refunds', metrics.refunds],
                 ['Deductions', metrics.deductions],
                 ['Amount due', metrics.amountDue],
-                ['Merchants', String(metrics.count)],
+                ['Merchants', String(metrics.merchantCount)],
               ].map(([label, value]) => (
                 <div
                   className="rounded-xl border border-slate-200 bg-white p-4"
@@ -548,26 +601,4 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
       )}
     </section>
   );
-}
-
-function payableMetrics(items: LiveMerchantPayable[]): SettlementMetrics {
-  const sum = (field: keyof LiveMerchantPayable) =>
-    items.reduce((total, item) => total + Number(item[field]), 0).toFixed(2);
-  return {
-    grossSales: sum('grossSales'),
-    refunds: sum('refundTotal'),
-    netSales: sum('netSales'),
-    deductions: items
-      .reduce(
-        (total, item) =>
-          total +
-          Number(item.commissionAmount) +
-          Number(item.fixedRentAmount) -
-          Number(item.adjustmentTotal),
-        0,
-      )
-      .toFixed(2),
-    amountDue: sum('amountDue'),
-    count: items.length,
-  };
 }

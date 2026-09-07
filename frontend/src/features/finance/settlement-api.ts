@@ -73,11 +73,17 @@ function receivablePath(organizationId: string): string {
 export function listMerchantReceivables(
   request: AuthenticatedRequest,
   organizationId: string,
-  filters: { merchantId?: string; status?: string } = {},
+  filters: {
+    merchantId?: string;
+    status?: string;
+    offset?: number;
+    limit?: number;
+  } = {},
 ): Promise<MerchantReceivablePage> {
   const query = new URLSearchParams();
-  if (filters.merchantId) query.set('merchantId', filters.merchantId);
-  if (filters.status) query.set('status', filters.status);
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') query.set(key, String(value));
+  });
   return request(
     `${receivablePath(organizationId)}${query.size ? `?${query}` : ''}`,
   );

@@ -32,6 +32,7 @@ const statusLabel: Record<MerchantReceivableStatus, string> = {
   PAID: 'Paid',
   OVERDUE: 'Overdue',
 };
+const PAGE_SIZE = 20;
 
 export function MerchantReceivables({
   organizationId,
@@ -41,6 +42,8 @@ export function MerchantReceivables({
   const { request } = useAuth();
   const [items, setItems] = useState<MerchantReceivable[]>([]);
   const [status, setStatus] = useState('');
+  const [offset, setOffset] = useState(0);
+  const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [mode, setMode] = useState<'payment' | 'adjustment'>('payment');
   const [loading, setLoading] = useState(true);
@@ -55,8 +58,13 @@ export function MerchantReceivables({
     try {
       const page = await listMerchantReceivables(request, organizationId, {
         status: status || undefined,
+        offset,
+        limit: PAGE_SIZE,
       });
-      if (requestId === receivablesRequestId.current) setItems(page.items);
+      if (requestId === receivablesRequestId.current) {
+        setItems(page.items);
+        setTotal(page.total);
+      }
     } catch (cause) {
       if (requestId === receivablesRequestId.current)
         setError(
@@ -67,7 +75,7 @@ export function MerchantReceivables({
     } finally {
       if (requestId === receivablesRequestId.current) setLoading(false);
     }
-  }, [organizationId, request, status]);
+  }, [offset, organizationId, request, status]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -124,6 +132,7 @@ export function MerchantReceivables({
             onChange={(event) => {
               receivablesRequestId.current += 1;
               setStatus(event.target.value);
+              setOffset(0);
             }}
             value={status}
           >
@@ -202,6 +211,34 @@ export function MerchantReceivables({
           </tbody>
         </table>
       </div>
+      {total > PAGE_SIZE ? (
+        <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
+          <p className="text-sm text-slate-500">
+            {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}{' '}
+            receivables
+          </p>
+          <div className="flex gap-2">
+            <button
+              className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold disabled:opacity-40"
+              disabled={offset === 0 || loading}
+              onClick={() =>
+                setOffset((current) => Math.max(0, current - PAGE_SIZE))
+              }
+              type="button"
+            >
+              Previous
+            </button>
+            <button
+              className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold disabled:opacity-40"
+              disabled={offset + PAGE_SIZE >= total || loading}
+              onClick={() => setOffset((current) => current + PAGE_SIZE)}
+              type="button"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
       {selected ? (
         <form
           className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4"
@@ -229,8 +266,8 @@ export function MerchantReceivables({
                 Full payment amount:{' '}
                 {money.format(
                   Number(
-                    items.find((item) => item.id === selected)?.remainingAmount ??
-                      0,
+                    items.find((item) => item.id === selected)
+                      ?.remainingAmount ?? 0,
                   ),
                 )}
               </p>

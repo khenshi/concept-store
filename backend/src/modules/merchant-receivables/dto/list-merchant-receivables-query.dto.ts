@@ -20,10 +20,10 @@ export class ListMerchantReceivablesQueryDto {
   @Min(0)
   offset = 0;
 
-  @ApiPropertyOptional({ default: 30, minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 50 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
-  limit = 30;
+  @Max(50)
+  limit = 20;
 }

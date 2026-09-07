@@ -13,6 +13,7 @@ const money = new Intl.NumberFormat('en-PH', {
   style: 'currency',
   currency: 'PHP',
 });
+const PAGE_SIZE = 20;
 
 export function MerchantActivity({
   organizationId,
@@ -27,6 +28,7 @@ export function MerchantActivity({
   const [to, setTo] = useState(today);
   const [merchantId, setMerchantId] = useState('');
   const [branchId, setBranchId] = useState('');
+  const [offset, setOffset] = useState(0);
   const [report, setReport] = useState<MerchantReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +52,8 @@ export function MerchantActivity({
         to,
         merchantId: merchantId || undefined,
         branchId: branchId || undefined,
-        offset: 0,
-        limit: 100,
+        offset,
+        limit: PAGE_SIZE,
       })
         .then((value) => {
           if (active) setReport(value);
@@ -73,6 +75,7 @@ export function MerchantActivity({
     from,
     merchantId,
     organizationId,
+    offset,
     refreshNonce,
     request,
     to,
@@ -90,7 +93,10 @@ export function MerchantActivity({
             className="min-h-11 rounded-lg border border-slate-200 px-3"
             type="date"
             value={from}
-            onChange={(event) => setFrom(event.target.value)}
+            onChange={(event) => {
+              setFrom(event.target.value);
+              setOffset(0);
+            }}
           />
         </Field>
         <Field label="To">
@@ -98,11 +104,20 @@ export function MerchantActivity({
             className="min-h-11 rounded-lg border border-slate-200 px-3"
             type="date"
             value={to}
-            onChange={(event) => setTo(event.target.value)}
+            onChange={(event) => {
+              setTo(event.target.value);
+              setOffset(0);
+            }}
           />
         </Field>
         <Field label="Merchant">
-          <SelectControl value={merchantId} onValueChange={setMerchantId}>
+          <SelectControl
+            value={merchantId}
+            onValueChange={(value) => {
+              setMerchantId(value);
+              setOffset(0);
+            }}
+          >
             <option value="">All merchants</option>
             {merchants.map((item) => (
               <option key={item.id} value={item.id}>
@@ -112,7 +127,13 @@ export function MerchantActivity({
           </SelectControl>
         </Field>
         <Field label="Branch">
-          <SelectControl value={branchId} onValueChange={setBranchId}>
+          <SelectControl
+            value={branchId}
+            onValueChange={(value) => {
+              setBranchId(value);
+              setOffset(0);
+            }}
+          >
             <option value="">All branches</option>
             {branches.map((item) => (
               <option key={item.id} value={item.id}>
@@ -184,6 +205,35 @@ export function MerchantActivity({
           ) : null}
         </div>
       )}
+      {report && report.total > PAGE_SIZE ? (
+        <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200 pt-4">
+          <p className="text-sm text-slate-500">
+            {report.offset + 1}–
+            {Math.min(report.offset + PAGE_SIZE, report.total)} of{' '}
+            {report.total} merchants
+          </p>
+          <div className="flex gap-2">
+            <button
+              className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold disabled:opacity-40"
+              disabled={report.offset === 0 || loading}
+              onClick={() =>
+                setOffset((current) => Math.max(0, current - PAGE_SIZE))
+              }
+              type="button"
+            >
+              Previous
+            </button>
+            <button
+              className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-bold disabled:opacity-40"
+              disabled={report.offset + PAGE_SIZE >= report.total || loading}
+              onClick={() => setOffset((current) => current + PAGE_SIZE)}
+              type="button"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
