@@ -64,7 +64,6 @@ export function ProductDirectory({
     organization,
     organizationStatus,
     loadMerchants,
-    loadProducts,
     branches,
     loadBranches,
     upsertProduct,
@@ -73,10 +72,11 @@ export function ProductDirectory({
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filters, setFilters] = useState<ProductFilters>({
     merchantId: initialMerchantId,
+    status: 'ACTIVE',
   });
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState(initialMerchantId ?? '');
-  const [status, setStatus] = useState<ProductStatus | ''>('');
+  const [view, setView] = useState<ProductStatus>('ACTIVE');
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -111,11 +111,10 @@ export function ProductDirectory({
       return;
     let active = true;
     void Promise.all([
-      initialMerchantId
-        ? listProducts(request, organizationId, {
-            merchantId: initialMerchantId,
-          })
-        : loadProducts(),
+      listProducts(request, organizationId, {
+        merchantId: initialMerchantId,
+        status: 'ACTIVE',
+      }),
       loadMerchants(),
       loadBranches(),
     ])
@@ -138,7 +137,6 @@ export function ProductDirectory({
     initialMerchantId,
     loadMerchants,
     loadBranches,
-    loadProducts,
     organization,
     organizationId,
     request,
@@ -157,7 +155,7 @@ export function ProductDirectory({
     const next: ProductFilters = {
       search: debouncedSearch.trim() || undefined,
       merchantId: merchantId || undefined,
-      status: status || undefined,
+      status: view,
     };
     setFilters(next);
     setIsFiltering(true);
@@ -179,7 +177,7 @@ export function ProductDirectory({
     organization,
     organizationId,
     request,
-    status,
+    view,
   ]);
 
   async function save(input: ProductInput): Promise<void> {
@@ -195,7 +193,9 @@ export function ProductDirectory({
           })
         : await createProduct(request, organizationId, input);
       setProducts((current) =>
-        sorted([...current.filter((item) => item.id !== saved.id), saved]),
+        saved.status === view
+          ? sorted([...current.filter((item) => item.id !== saved.id), saved])
+          : current.filter((item) => item.id !== saved.id),
       );
       upsertProduct(saved);
       setSuccess(
@@ -237,9 +237,7 @@ export function ProductDirectory({
         product.id,
         status,
       );
-      setProducts((current) =>
-        current.map((item) => (item.id === saved.id ? saved : item)),
-      );
+      setProducts((current) => current.filter((item) => item.id !== saved.id));
       upsertProduct(saved);
       setSuccess(`${saved.name} was ${action}d.`);
     } catch (cause: unknown) {
@@ -295,8 +293,34 @@ export function ProductDirectory({
               Add a merchant before creating products.
             </StatusNotice>
           ) : null}
+          <div
+            className="flex gap-1 border-b border-slate-200 px-5 sm:px-6"
+            role="tablist"
+            aria-label="Product views"
+          >
+            {(
+              [
+                ['ACTIVE', 'Active products'],
+                ['INACTIVE', 'Archived'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                className={`cursor-pointer border-x-0 border-t-0 bg-transparent px-4 py-3 text-sm font-bold ${view === value ? 'border-b-2 border-emerald-600 text-emerald-700' : 'border-b-2 border-transparent text-slate-500 hover:text-slate-900'}`}
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={view === value}
+                onClick={() => {
+                  filterRequestId.current += 1;
+                  setView(value);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <OperationalToolbar>
-            <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.5fr)_minmax(9rem,0.4fr)_auto]">
+            <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.5fr)]">
               <FilterField label="Search" id="product-search">
                 <input
                   className={fieldClass}
@@ -329,29 +353,7 @@ export function ProductDirectory({
                   ))}
                 </SelectControl>
               </FilterField>
-              <FilterField label="Status" id="product-status">
-                <SelectControl
-                  className={fieldClass}
-                  id="product-status"
-                  value={status}
-                  onValueChange={(value) => {
-                    filterRequestId.current += 1;
-                    setStatus(value as ProductStatus | '');
-                  }}
-                >
-                  <option value="">All statuses</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </SelectControl>
-              </FilterField>
             </div>
-            <span
-              className="text-sm text-slate-500"
-              role="status"
-              aria-live="polite"
-            >
-              {isFiltering ? 'Updating…' : ''}
-            </span>
           </OperationalToolbar>
           {success ? <StatusNotice>{success}</StatusNotice> : null}
           {error ? (
@@ -361,10 +363,15 @@ export function ProductDirectory({
               onRetry={() => void load()}
             />
           ) : null}
-          {isLoading ? (
-            <ListSkeleton label="Loading products" rowClassName="h-24" />
+          {isLoading || isFiltering ? (
+            <ListSkeleton
+              className="px-5 py-4 sm:px-6"
+              label={isFiltering ? 'Updating products' : 'Loading products'}
+              rows={5}
+              rowClassName="h-16"
+            />
           ) : products.length === 0 ? (
-            <Empty />
+            <Empty archived={view === 'INACTIVE'} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[58rem] border-collapse text-left text-sm">
@@ -512,12 +519,16 @@ function Limited() {
     </section>
   );
 }
-function Empty() {
+function Empty({ archived }: { archived: boolean }) {
   return (
     <div className="py-10 text-center">
-      <h3 className="text-base font-bold">No products found</h3>
+      <h3 className="text-base font-bold">
+        {archived ? 'No archived products' : 'No active products found'}
+      </h3>
       <p className="mt-2 text-slate-500">
-        Adjust the filters or add the first product.
+        {archived
+          ? 'Products you deactivate will appear here.'
+          : 'Adjust the filters or add the first product.'}
       </p>
     </div>
   );

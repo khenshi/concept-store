@@ -7,6 +7,11 @@
 Products belong to one organization and one merchant. The initial product model
 contains name, SKU, optional barcode, selling price, and active/inactive status.
 
+The product directory opens on **Active products**. Deactivated products are
+kept out of the operational list and remain available in the **Archived** tab,
+where they can be reviewed or reactivated. Filtering replaces the current rows
+with a compact loading skeleton while the updated result is requested.
+
 - SKU is unique within an organization.
 - Barcode is unique within an organization when present.
 - Selling price must be positive and uses decimal storage.
