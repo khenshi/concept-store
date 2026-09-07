@@ -10,6 +10,7 @@ import {
   PaymentMethod,
   Prisma,
   ProductStatus,
+  SaleStatus,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { SalesService } from './sales.service';
@@ -54,6 +55,10 @@ describe('SalesService', () => {
     subtotal: new Prisma.Decimal('900.00'),
     discountTotal: new Prisma.Decimal('0.00'),
     total: new Prisma.Decimal('900.00'),
+    status: SaleStatus.COMPLETED,
+    voidedAt: null,
+    voidedById: null,
+    voidReason: null,
     completedAt: new Date('2026-08-29T00:00:00.000Z'),
     createdAt: new Date('2026-08-29T00:00:00.000Z'),
     branch: { id: branchId, name: 'Makati Main', code: 'MKT' },
@@ -100,7 +105,12 @@ describe('SalesService', () => {
     branch: { findFirst: jest.fn() },
     inventory: { findMany: jest.fn(), updateMany: jest.fn() },
     inventoryMovement: { createMany: jest.fn() },
-    sale: { create: jest.fn(), findUniqueOrThrow: jest.fn() },
+    sale: {
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      updateMany: jest.fn(),
+    },
   };
   const prisma = {
     $transaction: jest.fn(),
@@ -135,6 +145,7 @@ describe('SalesService', () => {
     transaction.inventoryMovement.createMany.mockResolvedValue({ count: 1 });
     transaction.sale.create.mockResolvedValue({});
     transaction.sale.findUniqueOrThrow.mockResolvedValue(saleRow);
+    transaction.sale.updateMany.mockResolvedValue({ count: 1 });
     const moduleRef = await Test.createTestingModule({
       providers: [SalesService, { provide: PrismaService, useValue: prisma }],
     }).compile();
@@ -396,5 +407,38 @@ describe('SalesService', () => {
     await expect(
       service.findOne(organizationId, branchId, saleRow.id),
     ).rejects.toThrow(new NotFoundException('Sale not found'));
+  });
+
+  it('voids an eligible sale and restores inventory atomically', async () => {
+    transaction.sale.findFirst.mockResolvedValue({
+      ...saleRow,
+      refunds: [],
+      items: saleRow.items.map((item) => ({ ...item, settlementLinks: [] })),
+    });
+    transaction.sale.findUniqueOrThrow.mockResolvedValue({
+      ...saleRow,
+      status: SaleStatus.VOIDED,
+      voidedAt: new Date(),
+      voidedById: cashierId,
+      voidReason: 'Duplicate sale',
+    });
+
+    await expect(
+      service.voidSale(
+        organizationId,
+        branchId,
+        saleRow.id,
+        cashierId,
+        'Duplicate sale',
+      ),
+    ).resolves.toMatchObject({ status: SaleStatus.VOIDED });
+    expect(transaction.inventory.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { quantity: { increment: 2 } } }),
+    );
+    expect(transaction.inventoryMovement.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [expect.objectContaining({ type: 'VOID', quantityChange: 2 })],
+      }),
+    );
   });
 });

@@ -115,6 +115,11 @@ export function SaleReceipt({
         </button>
       </div>
       <article className="rounded-xl border border-slate-200 bg-white p-6 print:rounded-none print:border-0 print:p-0 sm:p-8">
+        {sale.status === 'VOIDED' ? (
+          <div className="mb-5 border-2 border-rose-600 p-3 text-center font-black tracking-[0.2em] text-rose-700">
+            VOIDED
+          </div>
+        ) : null}
         <header className="border-b border-slate-300 pb-6 text-center">
           <p className="text-xs font-bold tracking-[0.14em] text-emerald-700 uppercase">
             Sales receipt

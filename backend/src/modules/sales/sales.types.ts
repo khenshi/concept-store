@@ -50,6 +50,9 @@ export const saleSummarySelect = {
   subtotal: true,
   discountTotal: true,
   total: true,
+  status: true,
+  voidedAt: true,
+  voidReason: true,
   completedAt: true,
   cashier: {
     select: { id: true, firstName: true, lastName: true, email: true },

@@ -25,6 +25,7 @@ model User {
   sessions                        UserSession[]
   inventoryMovements              InventoryMovement[]
   salesAsCashier                  Sale[]                          @relation("SaleCashier")
+  voidedSales                     Sale[]                          @relation("SaleVoider")
   confirmedPayments               Payment[]                       @relation("PaymentConfirmer")
   calculatedSettlements           MerchantSettlement[]            @relation("SettlementCalculator")
   reviewedSettlements             MerchantSettlement[]            @relation("SettlementReviewer")
@@ -348,21 +349,26 @@ model InventoryMovement {
 }
 
 model Sale {
-  id                  String   @id @default(uuid())
+  id                  String     @id @default(uuid())
   organizationId      String
   branchId            String
   cashierId           String
   saleNumber          String
   clientTransactionId String
-  subtotal            Decimal  @db.Decimal(14, 2)
-  discountTotal       Decimal  @default(0) @db.Decimal(14, 2)
-  total               Decimal  @db.Decimal(14, 2)
-  completedAt         DateTime @default(now())
-  createdAt           DateTime @default(now())
+  subtotal            Decimal    @db.Decimal(14, 2)
+  discountTotal       Decimal    @default(0) @db.Decimal(14, 2)
+  total               Decimal    @db.Decimal(14, 2)
+  status              SaleStatus @default(COMPLETED)
+  voidedAt            DateTime?
+  voidedById          String?
+  voidReason          String?
+  completedAt         DateTime   @default(now())
+  createdAt           DateTime   @default(now())
 
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   branch             Branch              @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
   cashier            User                @relation("SaleCashier", fields: [cashierId], references: [id], onDelete: Restrict)
+  voidedBy           User?               @relation("SaleVoider", fields: [voidedById], references: [id], onDelete: Restrict)
   items              SaleItem[]
   payments           Payment[]
   inventoryMovements InventoryMovement[]
@@ -765,6 +771,12 @@ enum InventoryMovementType {
   STOCK_IN
   ADJUSTMENT
   SALE
+  VOID
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
 }
 
 enum PaymentMethod {

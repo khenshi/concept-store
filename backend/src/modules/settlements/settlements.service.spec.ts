@@ -425,6 +425,7 @@ describe('SettlementsService', () => {
         merchantId,
         settlementLinks: { none: {} },
         sale: {
+          status: 'COMPLETED',
           completedAt: {
             gte: new Date('2026-06-30T16:00:00.000Z'),
             lt: new Date('2026-07-31T16:00:00.000Z'),

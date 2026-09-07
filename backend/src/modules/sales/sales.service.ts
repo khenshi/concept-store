@@ -13,6 +13,7 @@ import {
   PaymentMethod,
   Prisma,
   ProductStatus,
+  SaleStatus,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { CreateSaleDto, CreateSaleItemDto } from './dto/create-sale.dto';
@@ -317,6 +318,92 @@ export class SalesService {
     }
   }
 
+  async voidSale(
+    organizationId: string,
+    branchId: string,
+    saleId: string,
+    actorId: string,
+    reason: string,
+  ): Promise<SaleRecord> {
+    return this.prisma
+      .$transaction(
+        async (transaction) => {
+          const sale = await transaction.sale.findFirst({
+            where: { id: saleId, organizationId, branchId },
+            include: {
+              items: {
+                include: {
+                  settlementLinks: { select: { settlementId: true } },
+                },
+              },
+              refunds: { select: { id: true } },
+            },
+          });
+          if (!sale) throw new NotFoundException('Sale not found');
+          if (sale.status === SaleStatus.VOIDED) {
+            throw new ConflictException('Sale is already voided');
+          }
+          if (sale.refunds.length > 0) {
+            throw new ConflictException('A refunded sale cannot be voided');
+          }
+          if (sale.items.some((item) => item.settlementLinks.length > 0)) {
+            throw new ConflictException('A settled sale cannot be voided');
+          }
+
+          for (const item of sale.items) {
+            const restored = await transaction.inventory.updateMany({
+              where: {
+                organizationId,
+                branchId,
+                productId: item.productId,
+              },
+              data: { quantity: { increment: item.quantity } },
+            });
+            if (restored.count !== 1) {
+              throw new ConflictException(
+                'Sale inventory could not be restored',
+              );
+            }
+          }
+          await transaction.inventoryMovement.createMany({
+            data: sale.items.map((item) => ({
+              organizationId,
+              branchId,
+              productId: item.productId,
+              quantityChange: item.quantity,
+              type: InventoryMovementType.VOID,
+              referenceId: sale.saleNumber,
+              note: reason,
+              createdById: actorId,
+              saleId: sale.id,
+            })),
+          });
+          const changed = await transaction.sale.updateMany({
+            where: {
+              id: sale.id,
+              organizationId,
+              branchId,
+              status: SaleStatus.COMPLETED,
+            },
+            data: {
+              status: SaleStatus.VOIDED,
+              voidedAt: new Date(),
+              voidedById: actorId,
+              voidReason: reason,
+            },
+          });
+          if (changed.count !== 1)
+            throw new ConflictException('Sale is already voided');
+          return transaction.sale.findUniqueOrThrow({
+            where: { id_organizationId: { id: sale.id, organizationId } },
+            include: saleResponseInclude,
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+      .then((sale) => this.toRecord(sale));
+  }
+
   private aggregateItems(items: CreateSaleItemDto[]): CreateSaleItemDto[] {
     const quantities = new Map<string, number>();
     for (const item of items) {
@@ -368,6 +455,9 @@ export class SalesService {
       subtotal: sale.subtotal.toFixed(2),
       discountTotal: sale.discountTotal.toFixed(2),
       total: sale.total.toFixed(2),
+      status: sale.status,
+      voidedAt: sale.voidedAt,
+      voidReason: sale.voidReason,
       itemCount: sale._count.items,
       paymentMethods: [...new Set(sale.payments.map(({ method }) => method))],
     };

@@ -870,6 +870,7 @@ export class SettlementsService {
         organizationId,
         merchantId,
         sale: {
+          status: 'COMPLETED',
           completedAt: {
             gte: philippineDayStart(period.start),
             lt: philippineDayStart(nextBusinessDate(period.end)),

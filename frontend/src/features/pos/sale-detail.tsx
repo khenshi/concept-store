@@ -9,7 +9,7 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import { getSale } from './pos-api';
+import { getSale, voidSale } from './pos-api';
 import { PosNavigation } from './pos-navigation';
 import type { PaymentMethod, Sale } from './pos.types';
 
@@ -49,10 +49,39 @@ export function SaleDetail({
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  const [showVoid, setShowVoid] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
+  const [isVoiding, setIsVoiding] = useState(false);
+  const [voidError, setVoidError] = useState<string | null>(null);
   const canUsePos =
     organization?.role === 'OWNER' ||
     organization?.role === 'MANAGER' ||
     organization?.role === 'CASHIER';
+  const canVoid =
+    organization?.role === 'OWNER' || organization?.role === 'MANAGER';
+
+  async function handleVoid() {
+    if (!sale || !branchId || !voidReason.trim()) return;
+    setIsVoiding(true);
+    setVoidError(null);
+    try {
+      setSale(
+        await voidSale(
+          request,
+          organizationId,
+          branchId,
+          sale.id,
+          voidReason.trim(),
+        ),
+      );
+      setShowVoid(false);
+      setVoidReason('');
+    } catch (cause: unknown) {
+      setVoidError(message(cause));
+    } finally {
+      setIsVoiding(false);
+    }
+  }
 
   useEffect(() => {
     if (!branchId || !canUsePos) return;
@@ -122,7 +151,7 @@ export function SaleDetail({
             <header className="flex flex-wrap items-start justify-between gap-5 border-b border-slate-200 px-5 py-5 sm:px-6">
               <div>
                 <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
-                  Completed sale
+                  {sale.status === 'VOIDED' ? 'Voided sale' : 'Completed sale'}
                 </p>
                 <h2 className="mt-2 text-xl font-bold text-slate-950">
                   {sale.saleNumber}
@@ -132,9 +161,20 @@ export function SaleDetail({
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
-                  Completed
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${sale.status === 'VOIDED' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}
+                >
+                  {sale.status === 'VOIDED' ? 'Voided' : 'Completed'}
                 </span>
+                {canVoid && sale.status === 'COMPLETED' ? (
+                  <button
+                    className="min-h-10 cursor-pointer rounded-[0.6rem] border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700 hover:bg-rose-50"
+                    type="button"
+                    onClick={() => setShowVoid(true)}
+                  >
+                    Void sale
+                  </button>
+                ) : null}
                 <Link
                   className="grid min-h-10 place-items-center rounded-[0.6rem] border border-emerald-600 bg-emerald-600 px-4 text-sm font-bold text-white no-underline hover:bg-emerald-700"
                   href={`/app/organizations/${organizationId}/pos/sales/${sale.id}/receipt?branchId=${encodeURIComponent(sale.branchId)}`}
@@ -230,6 +270,68 @@ export function SaleDetail({
           </aside>
         </div>
       )}
+      {sale?.status === 'VOIDED' && sale.voidReason ? (
+        <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <strong>Void reason:</strong> {sale.voidReason}
+        </p>
+      ) : null}
+      {showVoid ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4"
+          role="presentation"
+        >
+          <section
+            className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="void-sale-title"
+          >
+            <h2 className="text-xl font-bold" id="void-sale-title">
+              Void this sale?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Inventory will be restored and the sale will be excluded from
+              merchant balances. Its original record remains in history.
+            </p>
+            <label
+              className="mt-5 block text-sm font-bold"
+              htmlFor="void-reason"
+            >
+              Documented reason
+            </label>
+            <textarea
+              className="mt-2 min-h-28 w-full rounded-lg border border-slate-200 p-3"
+              id="void-reason"
+              value={voidReason}
+              maxLength={500}
+              onChange={(event) => setVoidReason(event.target.value)}
+            />
+            {voidError ? (
+              <p className="mt-3 text-sm text-rose-700" role="alert">
+                {voidError}
+              </p>
+            ) : null}
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                className="min-h-11 cursor-pointer rounded-lg border border-slate-200 bg-white px-4 font-bold hover:bg-slate-100"
+                type="button"
+                disabled={isVoiding}
+                onClick={() => setShowVoid(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="min-h-11 cursor-pointer rounded-lg border-0 bg-rose-600 px-4 font-bold text-white hover:bg-rose-700 disabled:opacity-60"
+                type="button"
+                disabled={isVoiding || !voidReason.trim()}
+                onClick={() => void handleVoid()}
+              >
+                {isVoiding ? 'Voiding…' : 'Void sale'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

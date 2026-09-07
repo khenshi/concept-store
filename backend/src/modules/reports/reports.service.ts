@@ -34,6 +34,7 @@ export class ReportsService {
       merchantId: filters.merchantId,
       sale: {
         branchId: filters.branchId,
+        status: 'COMPLETED',
         completedAt: { gte: period.start, lt: period.endExclusive },
       },
     };
@@ -77,6 +78,7 @@ export class ReportsService {
     const saleWhere: Prisma.SaleWhereInput = {
       organizationId,
       branchId: filters.branchId,
+      status: 'COMPLETED',
       completedAt: { gte: period.start, lt: period.endExclusive },
       items: filters.merchantId
         ? { some: { merchantId: filters.merchantId } }
@@ -257,6 +259,7 @@ export class ReportsService {
       merchantId: filters.merchantId,
       sale: {
         branchId: filters.branchId,
+        status: 'COMPLETED',
         completedAt: { gte: period.start, lt: period.endExclusive },
       },
     };

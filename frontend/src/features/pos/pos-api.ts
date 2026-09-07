@@ -90,3 +90,20 @@ export function getSale(
     `${salesPath(organizationId, branchId)}/${encodeURIComponent(saleId)}`,
   );
 }
+
+export function voidSale(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  saleId: string,
+  reason: string,
+): Promise<Sale> {
+  return request<Sale>(
+    `${salesPath(organizationId, branchId)}/${encodeURIComponent(saleId)}/void`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    },
+  );
+}

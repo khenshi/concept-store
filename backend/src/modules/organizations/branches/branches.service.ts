@@ -93,6 +93,7 @@ export class BranchesService {
         where: {
           organizationId,
           branchId,
+          status: 'COMPLETED',
           completedAt: { gte: start, lt: end },
         },
         _count: { _all: true },

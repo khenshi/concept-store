@@ -12,6 +12,10 @@ const sale: Sale = {
   subtotal: '900.00',
   discountTotal: '0.00',
   total: '900.00',
+  status: 'COMPLETED',
+  voidedAt: null,
+  voidedById: null,
+  voidReason: null,
   completedAt: '2026-08-30T02:00:00.000Z',
   branch: { id: 'branch-id', name: 'Makati Main', code: 'MKT' },
   cashier: {

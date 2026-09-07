@@ -34,6 +34,7 @@ import { CurrentOrganization } from '../organizations/authorization/organization
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { ListSalesQueryDto } from './dto/list-sales-query.dto';
+import { VoidSaleDto } from './dto/void-sale.dto';
 import { SalesService } from './sales.service';
 import type { SalePageRecord, SaleRecord } from './sales.types';
 
@@ -102,6 +103,30 @@ export class SalesController {
       branchId,
       organization.userId,
       dto,
+    );
+  }
+
+  @Post(':saleId/void')
+  @HttpCode(HttpStatus.OK)
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+  @ApiOperation({ summary: 'Void a completed sale and restore its inventory' })
+  @ApiOkResponse({ type: SaleResponseDto })
+  @ApiConflictResponse({
+    description:
+      'Sale is already voided, refunded, settled, or cannot be restored',
+  })
+  voidSale(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Param('saleId', new ParseUUIDPipe({ version: '4' })) saleId: string,
+    @Body() dto: VoidSaleDto,
+  ): Promise<SaleRecord> {
+    return this.salesService.voidSale(
+      organization.organizationId,
+      branchId,
+      saleId,
+      organization.userId,
+      dto.reason,
     );
   }
 }

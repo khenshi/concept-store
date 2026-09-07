@@ -82,6 +82,10 @@ export interface Sale {
   subtotal: string;
   discountTotal: string;
   total: string;
+  status: 'COMPLETED' | 'VOIDED';
+  voidedAt: string | null;
+  voidedById: string | null;
+  voidReason: string | null;
   completedAt: string;
   branch: { id: string; name: string; code: string | null };
   cashier: {
@@ -103,6 +107,9 @@ export interface SaleSummary {
   subtotal: string;
   discountTotal: string;
   total: string;
+  status: 'COMPLETED' | 'VOIDED';
+  voidedAt: string | null;
+  voidReason: string | null;
   completedAt: string;
   cashier: Sale['cashier'];
   itemCount: number;
