@@ -8,6 +8,7 @@ import {
   type FormEvent,
 } from 'react';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
+import { useConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -51,6 +52,7 @@ export function MerchantReceivables({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const receivablesRequestId = useRef(0);
+  const { confirm, confirmationDialog } = useConfirmationDialog();
 
   const load = useCallback(async () => {
     const requestId = ++receivablesRequestId.current;
@@ -91,6 +93,14 @@ export function MerchantReceivables({
     setError(null);
     try {
       if (mode === 'payment') {
+        const receivable = items.find((item) => item.id === selected);
+        const amount = receivable?.outstandingAmount ?? '0.00';
+        const approved = await confirm({
+          title: 'Record the full rent payment?',
+          description: `This records ${money.format(Number(amount))} and clears the receivable in full.`,
+          confirmLabel: 'Record full payment',
+        });
+        if (!approved) return;
         await recordReceivablePayment(request, organizationId, selected, {
           method: String(form.get('method')) as PayoutMethod,
           paidAt: new Date().toISOString(),
@@ -345,6 +355,7 @@ export function MerchantReceivables({
           </div>
         </form>
       ) : null}
+      {confirmationDialog}
     </section>
   );
 }
