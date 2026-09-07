@@ -247,6 +247,8 @@ export function OrganizationAgreementsPage({
                 <tr className="border-b border-slate-200 text-xs text-slate-500 uppercase">
                   <th className="px-3 py-3">Merchant</th>
                   <th className="px-3 py-3">Type</th>
+                  <th className="px-3 py-3">Fixed rent</th>
+                  <th className="px-3 py-3">Commission</th>
                   <th className="px-3 py-3">Term</th>
                   <th className="px-3 py-3">Schedule</th>
                   <th className="px-3 py-3">Status</th>
@@ -266,6 +268,16 @@ export function OrganizationAgreementsPage({
                     <td className="px-3 py-4">
                       {typeLabels[agreementType(agreement)]}
                     </td>
+                    <td className="px-3 py-4">
+                      {agreement.fixedRentAmount
+                        ? `₱${Number(agreement.fixedRentAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+                        : '—'}
+                    </td>
+                    <td className="px-3 py-4">
+                      {agreement.commissionRate
+                        ? `${agreement.commissionRate}%`
+                        : '—'}
+                    </td>
                     <td className="px-3 py-4 text-slate-600">
                       {displayDate(agreement.startDate)} –{' '}
                       {agreement.endDate
@@ -284,10 +296,10 @@ export function OrganizationAgreementsPage({
                     </td>
                     <td className="px-3 py-4 text-right">
                       <Link
-                        className="font-bold text-emerald-700 underline underline-offset-3"
-                        href={`/app/organizations/${organizationId}/agreements/${agreement.id}`}
+                        className="font-bold text-emerald-700 no-underline hover:text-emerald-800"
+                        href={`/app/organizations/${organizationId}/merchants/${agreement.merchantId}/agreements`}
                       >
-                        View
+                        Manage
                       </Link>
                     </td>
                   </tr>
