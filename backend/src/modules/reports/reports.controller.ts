@@ -50,24 +50,6 @@ export class ReportsController {
     );
   }
 
-  @Get('sales')
-  @ApiOperation({ summary: 'List merchant-attributed sales report rows' })
-  sales(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Query() filters: ReportPageFiltersDto,
-  ) {
-    return this.reportsService.sales(organization.organizationId, filters);
-  }
-
-  @Get('inventory')
-  @ApiOperation({ summary: 'List current inventory report rows' })
-  inventory(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Query() filters: ReportPageFiltersDto,
-  ) {
-    return this.reportsService.inventory(organization.organizationId, filters);
-  }
-
   @Get('merchants')
   @ApiOperation({ summary: 'List merchant performance report rows' })
   merchants(

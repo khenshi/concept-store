@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
-import type { AddOrganizationMemberDto } from './dto/add-organization-member.dto';
 import type { LinkMerchantAccountDto } from './dto/link-merchant-account.dto';
 import type { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import type { OrganizationMember } from './organization-memberships.types';
@@ -47,49 +46,6 @@ export class OrganizationMembershipsService {
           }
         : null,
     }));
-  }
-
-  async add(
-    organizationId: string,
-    dto: AddOrganizationMemberDto,
-  ): Promise<OrganizationMember> {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    try {
-      const membership = await this.prisma.organizationMembership.create({
-        data: { organizationId, userId: user.id, role: dto.role },
-        select: { role: true, createdAt: true },
-      });
-
-      return {
-        ...user,
-        role: membership.role,
-        joinedAt: membership.createdAt,
-        merchantAccount: null,
-      };
-    } catch (error: unknown) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('User is already an organization member');
-      }
-
-      throw error;
-    }
   }
 
   updateRole(

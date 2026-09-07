@@ -1,11 +1,9 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import type {
-  InventoryReport,
   MerchantReport,
   MerchantDashboardData,
   ReportFilters,
   ReportsOverview,
-  SalesReport,
 } from './report.types';
 
 function reportPath(organizationId: string, report: string): string {
@@ -26,22 +24,6 @@ export function getReportsOverview(
   filters: ReportFilters = {},
 ): Promise<ReportsOverview> {
   return request(withFilters(reportPath(organizationId, 'overview'), filters));
-}
-
-export function getSalesReport(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  filters: ReportFilters = {},
-): Promise<SalesReport> {
-  return request(withFilters(reportPath(organizationId, 'sales'), filters));
-}
-
-export function getInventoryReport(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  filters: ReportFilters = {},
-): Promise<InventoryReport> {
-  return request(withFilters(reportPath(organizationId, 'inventory'), filters));
 }
 
 export function getMerchantReport(

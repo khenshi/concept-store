@@ -52,19 +52,6 @@ export class MerchantReceivablesController {
     );
   }
 
-  @Get(':receivableId')
-  @ApiOperation({ summary: 'Get a merchant rent receivable and its history' })
-  findOne(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('receivableId', new ParseUUIDPipe({ version: '4' }))
-    receivableId: string,
-  ) {
-    return this.merchantReceivablesService.findOne(
-      organization.organizationId,
-      receivableId,
-    );
-  }
-
   @Post(':receivableId/payments')
   @ApiOperation({ summary: 'Record a full rent payment' })
   recordPayment(

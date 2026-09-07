@@ -8,14 +8,12 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
-  Post,
   Put,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiConflictResponse,
-  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
@@ -31,7 +29,6 @@ import { OrganizationAccessGuard } from '../authorization/organization-access.gu
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
-import { AddOrganizationMemberDto } from './dto/add-organization-member.dto';
 import { LinkMerchantAccountDto } from './dto/link-merchant-account.dto';
 import { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import { OrganizationMembershipsService } from './organization-memberships.service';
@@ -59,19 +56,6 @@ export class OrganizationMembershipsController {
     @CurrentOrganization() organization: OrganizationContext,
   ): Promise<OrganizationMember[]> {
     return this.membershipsService.findAll(organization.organizationId);
-  }
-
-  @OrganizationRoles(OrganizationRole.OWNER)
-  @Post()
-  @ApiOperation({ summary: 'Add a registered user to the organization' })
-  @ApiCreatedResponse({ type: OrganizationMemberResponseDto })
-  @ApiForbiddenResponse({ description: 'Only owners can add members' })
-  @ApiConflictResponse({ description: 'The user is already a member' })
-  add(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Body() dto: AddOrganizationMemberDto,
-  ): Promise<OrganizationMember> {
-    return this.membershipsService.add(organization.organizationId, dto);
   }
 
   @OrganizationRoles(OrganizationRole.OWNER)

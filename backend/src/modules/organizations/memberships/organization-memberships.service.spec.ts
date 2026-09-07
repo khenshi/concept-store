@@ -93,45 +93,6 @@ describe('OrganizationMembershipsService', () => {
     });
   });
 
-  it('adds an existing user to the organization', async () => {
-    prisma.user.findUnique.mockResolvedValue(user);
-    prisma.organizationMembership.create.mockResolvedValue({
-      role: OrganizationRole.CASHIER,
-      createdAt: joinedAt,
-    });
-
-    await expect(
-      service.add(organizationId, {
-        email: user.email,
-        role: OrganizationRole.CASHIER,
-      }),
-    ).resolves.toEqual({
-      ...user,
-      role: OrganizationRole.CASHIER,
-      joinedAt,
-      merchantAccount: null,
-    });
-    expect(prisma.organizationMembership.create).toHaveBeenCalledWith({
-      data: {
-        organizationId,
-        userId: user.id,
-        role: OrganizationRole.CASHIER,
-      },
-      select: { role: true, createdAt: true },
-    });
-  });
-
-  it('does not add an email without an existing user account', async () => {
-    prisma.user.findUnique.mockResolvedValue(null);
-
-    await expect(
-      service.add(organizationId, {
-        email: 'missing@example.com',
-        role: OrganizationRole.MANAGER,
-      }),
-    ).rejects.toThrow(new NotFoundException('User not found'));
-  });
-
   it('updates a member role in a serializable transaction', async () => {
     transaction.organizationMembership.findUnique.mockResolvedValue({
       user,

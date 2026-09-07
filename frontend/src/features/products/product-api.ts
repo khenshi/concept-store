@@ -24,25 +24,6 @@ export function listProducts(
   return request<Product[]>(`${productPath(organizationId)}${suffix}`);
 }
 
-export function lookupProduct(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  code: string,
-): Promise<Product> {
-  const query = new URLSearchParams({ code });
-  return request<Product>(`${productPath(organizationId)}/lookup?${query}`);
-}
-
-export function getProduct(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  productId: string,
-): Promise<Product> {
-  return request<Product>(
-    `${productPath(organizationId)}/${encodeURIComponent(productId)}`,
-  );
-}
-
 export function createProduct(
   request: AuthenticatedRequest,
   organizationId: string,

@@ -14,9 +14,4 @@ export interface OrganizationMember {
   merchantAccount: { merchantId: string; merchantName: string } | null;
 }
 
-export interface AddOrganizationMemberInput {
-  email: string;
-  role: OrganizationRole;
-}
-
 export type { AuthenticatedRequest };

@@ -135,49 +135,6 @@ describe('ReportsService', () => {
     expect(prisma.saleItem.aggregate).not.toHaveBeenCalled();
   });
 
-  it('returns paginated merchant-attributed sale rows with refunds', async () => {
-    const completedAt = new Date('2026-08-15T04:00:00.000Z');
-    prisma.saleItem.findMany.mockResolvedValue([
-      {
-        id: 'sale-item-id',
-        saleId: 'sale-id',
-        productName: 'Woven pouch',
-        productSku: 'POUCH-1',
-        quantity: 2,
-        total: new Prisma.Decimal('500.00'),
-        merchant: { id: merchantId, name: 'Merchant A' },
-        sale: {
-          saleNumber: 'S-001',
-          completedAt,
-          branch: { id: branchId, name: 'Main', code: 'MAIN' },
-        },
-        refundItems: [{ amount: new Prisma.Decimal('250.00') }],
-      },
-    ]);
-    prisma.saleItem.count.mockResolvedValue(1);
-
-    await expect(
-      service.sales(organizationId, {
-        from: '2026-08-01',
-        to: '2026-08-31',
-        offset: 0,
-        limit: 30,
-      }),
-    ).resolves.toMatchObject({
-      items: [
-        {
-          saleNumber: 'S-001',
-          grossSales: '500.00',
-          refunds: '250.00',
-          netSales: '250.00',
-        },
-      ],
-      total: 1,
-      offset: 0,
-      limit: 30,
-    });
-  });
-
   it('rejects an unlinked merchant dashboard account', async () => {
     prisma.merchantAccount.findUnique.mockResolvedValue(null);
 

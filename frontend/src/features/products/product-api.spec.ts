@@ -2,7 +2,6 @@ import type { AuthenticatedRequest } from '@/features/organizations/organization
 import {
   createProduct,
   listProducts,
-  lookupProduct,
   updateProductStatus,
 } from './product-api';
 
@@ -20,14 +19,6 @@ describe('product API', () => {
     });
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%2Fid/products?search=woven+pouch&merchantId=merchant-id&status=ACTIVE',
-    );
-  });
-
-  it('looks up an exact SKU or barcode', async () => {
-    vi.mocked(request).mockResolvedValue({});
-    await lookupProduct(request, 'organization-id', 'AMH/01');
-    expect(request).toHaveBeenCalledWith(
-      '/organizations/organization-id/products/lookup?code=AMH%2F01',
     );
   });
 

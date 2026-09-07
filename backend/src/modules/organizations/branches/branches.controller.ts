@@ -69,16 +69,6 @@ export class BranchesController {
     return this.branchesService.findAll(organization.organizationId);
   }
 
-  @Get(':branchId')
-  @ApiOperation({ summary: 'Get a branch in the organization' })
-  @ApiOkResponse({ type: BranchResponseDto })
-  findOne(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
-  ): Promise<BranchRecord> {
-    return this.branchesService.findOne(organization.organizationId, branchId);
-  }
-
   @Get(':branchId/overview')
   @ApiOperation({ summary: 'Get branch details and operational statistics' })
   @ApiOkResponse({ type: BranchOverviewResponseDto })

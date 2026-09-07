@@ -77,16 +77,6 @@ export class SpacesController {
     return this.spacesService.findAll(organization.organizationId, branchId);
   }
 
-  @Get('spaces/:spaceId')
-  @ApiOperation({ summary: 'Get a physical space in the organization' })
-  @ApiOkResponse({ type: SpaceResponseDto })
-  findOne(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('spaceId', new ParseUUIDPipe({ version: '4' })) spaceId: string,
-  ): Promise<SpaceRecord> {
-    return this.spacesService.findOne(organization.organizationId, spaceId);
-  }
-
   @Patch('spaces/:spaceId')
   @ApiOperation({ summary: 'Update a physical space' })
   @ApiOkResponse({ type: SpaceResponseDto })

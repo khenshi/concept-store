@@ -143,15 +143,6 @@ export class SettlementsController {
     return this.settlementsService.findAll(organization.organizationId, query);
   }
 
-  @Get('summary')
-  @ApiOperation({ summary: 'Get filtered settlement summary metrics' })
-  summary(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Query() query: ListSettlementsQueryDto,
-  ) {
-    return this.settlementsService.summary(organization.organizationId, query);
-  }
-
   @Get(':settlementId')
   @ApiOperation({ summary: 'Get a merchant settlement and its sources' })
   @ApiOkResponse({ type: SettlementResponseDto })

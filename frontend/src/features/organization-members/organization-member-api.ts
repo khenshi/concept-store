@@ -1,5 +1,4 @@
 import type {
-  AddOrganizationMemberInput,
   AuthenticatedRequest,
   OrganizationMember,
 } from './organization-member.types';
@@ -14,18 +13,6 @@ export function listOrganizationMembers(
   organizationId: string,
 ): Promise<OrganizationMember[]> {
   return request<OrganizationMember[]>(membersPath(organizationId));
-}
-
-export function addOrganizationMember(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  input: AddOrganizationMemberInput,
-): Promise<OrganizationMember> {
-  return request<OrganizationMember>(membersPath(organizationId), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
 }
 
 export function updateOrganizationMemberRole(

@@ -128,21 +128,6 @@ export class ProductsService {
     return this.toRecord(product);
   }
 
-  async findByCode(
-    organizationId: string,
-    code: string,
-  ): Promise<ProductRecord> {
-    const product = await this.prisma.product.findFirst({
-      where: {
-        organizationId,
-        OR: [{ sku: { equals: code, mode: 'insensitive' } }, { barcode: code }],
-      },
-      include: productMerchantInclude,
-    });
-    if (!product) throw new NotFoundException('Product not found');
-    return this.toRecord(product);
-  }
-
   async update(
     organizationId: string,
     productId: string,

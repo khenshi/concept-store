@@ -51,47 +51,6 @@ export interface ReportsOverview {
   }>;
 }
 
-export interface SalesReport {
-  items: Array<{
-    id: string;
-    saleId: string;
-    saleNumber: string;
-    completedAt: string;
-    branch: { id: string; name: string; code: string | null };
-    merchant: { id: string; name: string };
-    productName: string;
-    productSku: string;
-    quantity: number;
-    grossSales: string;
-    refunds: string;
-    netSales: string;
-  }>;
-  total: number;
-  offset: number;
-  limit: number;
-}
-
-export interface InventoryReport {
-  items: Array<{
-    organizationId: string;
-    branchId: string;
-    productId: string;
-    quantity: number;
-    branch: { id: string; name: string; code: string | null };
-    product: {
-      id: string;
-      name: string;
-      sku: string;
-      status: string;
-      sellingPrice: string;
-      merchant: { id: string; name: string };
-    };
-  }>;
-  total: number;
-  offset: number;
-  limit: number;
-}
-
 export interface MerchantReport {
   items: Array<{
     id: string;

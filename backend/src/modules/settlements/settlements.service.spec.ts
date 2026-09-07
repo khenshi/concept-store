@@ -747,47 +747,6 @@ describe('SettlementsService', () => {
     );
   });
 
-  it('aggregates exact filtered overview metrics across all settlements', async () => {
-    prisma.merchantSettlement.aggregate.mockResolvedValue({
-      _sum: {
-        grossSales: new Prisma.Decimal('10000.00'),
-        refundTotal: new Prisma.Decimal('500.00'),
-        netSales: new Prisma.Decimal('9500.00'),
-        commissionAmount: new Prisma.Decimal('950.00'),
-        fixedRentAmount: new Prisma.Decimal('2000.00'),
-        adjustmentTotal: new Prisma.Decimal('-100.00'),
-        netPayout: new Prisma.Decimal('6450.00'),
-      },
-      _count: 3,
-    });
-
-    await expect(
-      service.summary(organizationId, {
-        branchId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-        offset: 0,
-        limit: 30,
-      }),
-    ).resolves.toEqual({
-      grossSales: '10000.00',
-      refunds: '500.00',
-      netSales: '9500.00',
-      deductions: '3050.00',
-      amountDue: '6450.00',
-      count: 3,
-    });
-    // Jest asymmetric matchers are intentionally untyped at this boundary.
-    expect(prisma.merchantSettlement.aggregate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        where: expect.objectContaining({
-          organizationId,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          OR: expect.any(Array),
-        }),
-      }),
-    );
-  });
-
   it('rejects reversed list boundaries before querying finance records', async () => {
     await expect(
       service.findAll(organizationId, {

@@ -135,26 +135,6 @@ describe('ProductsService', () => {
     });
   });
 
-  it('looks up an exact tenant-scoped SKU or barcode', async () => {
-    prisma.product.findFirst.mockResolvedValue(product);
-
-    await expect(service.findByCode(organizationId, 'amh-01')).resolves.toEqual(
-      expected,
-    );
-    expect(prisma.product.findFirst).toHaveBeenCalledWith({
-      where: {
-        organizationId,
-        OR: [
-          { sku: { equals: 'amh-01', mode: 'insensitive' } },
-          { barcode: 'amh-01' },
-        ],
-      },
-      include: {
-        merchant: { select: { id: true, name: true, code: true } },
-      },
-    });
-  });
-
   it('does not reveal a product outside the organization', async () => {
     prisma.product.findFirst.mockResolvedValue(null);
 

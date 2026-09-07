@@ -29,7 +29,6 @@ import { CurrentOrganization } from '../organizations/authorization/organization
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ListProductsQueryDto } from './dto/list-products-query.dto';
-import { LookupProductQueryDto } from './dto/lookup-product-query.dto';
 import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import type { ProductRecord } from './product.types';
@@ -71,29 +70,6 @@ export class ProductsController {
     @Query() query: ListProductsQueryDto,
   ): Promise<ProductRecord[]> {
     return this.productsService.findAll(organization.organizationId, query);
-  }
-
-  @Get('lookup')
-  @ApiOperation({ summary: 'Find a product by exact SKU or barcode' })
-  @ApiOkResponse({ type: ProductResponseDto })
-  findByCode(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Query() query: LookupProductQueryDto,
-  ): Promise<ProductRecord> {
-    return this.productsService.findByCode(
-      organization.organizationId,
-      query.code,
-    );
-  }
-
-  @Get(':productId')
-  @ApiOperation({ summary: 'Get a product in the organization' })
-  @ApiOkResponse({ type: ProductResponseDto })
-  findOne(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('productId', new ParseUUIDPipe({ version: '4' })) productId: string,
-  ): Promise<ProductRecord> {
-    return this.productsService.findOne(organization.organizationId, productId);
   }
 
   @Patch(':productId')

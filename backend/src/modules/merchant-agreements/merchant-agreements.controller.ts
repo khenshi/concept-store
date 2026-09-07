@@ -100,20 +100,6 @@ export class MerchantAgreementsController {
     );
   }
 
-  @Get('merchant-agreements/:agreementId')
-  @ApiOperation({ summary: 'Get a merchant agreement' })
-  @ApiOkResponse({ type: MerchantAgreementViewResponseDto })
-  findOne(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('agreementId', new ParseUUIDPipe({ version: '4' }))
-    agreementId: string,
-  ): Promise<MerchantAgreementViewRecord> {
-    return this.merchantAgreementsService.findOneView(
-      organization.organizationId,
-      agreementId,
-    );
-  }
-
   @Patch('merchant-agreements/:agreementId')
   @ApiOperation({ summary: 'Update a draft merchant agreement' })
   @ApiOkResponse({ type: MerchantAgreementResponseDto })

@@ -28,16 +28,6 @@ export function listOrganizationAgreements(
   );
 }
 
-export function getMerchantAgreement(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  agreementId: string,
-): Promise<MerchantAgreement> {
-  return request<MerchantAgreement>(
-    `${organizationPath(organizationId)}/merchant-agreements/${encodeURIComponent(agreementId)}`,
-  );
-}
-
 export function createMerchantAgreement(
   request: AuthenticatedRequest,
   organizationId: string,

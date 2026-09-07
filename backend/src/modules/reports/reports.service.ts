@@ -8,11 +8,9 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type { ReportFiltersDto } from './dto/report-filters.dto';
 import type { ReportPageFiltersDto } from './dto/report-page-filters.dto';
 import type {
-  InventoryReportRecord,
   MerchantDashboardRecord,
   MerchantReportRecord,
   ReportsOverviewRecord,
-  SalesReportRecord,
 } from './reports.types';
 
 const LOW_STOCK_MAXIMUM = 5;
@@ -245,132 +243,6 @@ export class ReportsService {
       settlements: overview.settlements,
       inventory: overview.inventory,
       recentSettlements: overview.recentSettlements,
-    };
-  }
-
-  async sales(
-    organizationId: string,
-    filters: ReportPageFiltersDto,
-  ): Promise<SalesReportRecord> {
-    const period = this.resolvePeriod(filters.from, filters.to);
-    await this.validateFilters(organizationId, filters);
-    const where: Prisma.SaleItemWhereInput = {
-      organizationId,
-      merchantId: filters.merchantId,
-      sale: {
-        branchId: filters.branchId,
-        status: 'COMPLETED',
-        completedAt: { gte: period.start, lt: period.endExclusive },
-      },
-    };
-    const [rows, total] = await Promise.all([
-      this.prisma.saleItem.findMany({
-        where,
-        select: {
-          id: true,
-          saleId: true,
-          productName: true,
-          productSku: true,
-          quantity: true,
-          total: true,
-          merchant: { select: { id: true, name: true } },
-          sale: {
-            select: {
-              saleNumber: true,
-              completedAt: true,
-              branch: { select: { id: true, name: true, code: true } },
-            },
-          },
-          refundItems: {
-            where: {
-              refund: {
-                completedAt: { gte: period.start, lt: period.endExclusive },
-              },
-            },
-            select: { amount: true },
-          },
-        },
-        orderBy: [{ sale: { completedAt: 'desc' } }, { id: 'desc' }],
-        skip: filters.offset,
-        take: filters.limit,
-      }),
-      this.prisma.saleItem.count({ where }),
-    ]);
-    return {
-      items: rows.map((row) => {
-        const refundTotal = row.refundItems.reduce(
-          (sum, refund) => sum.add(refund.amount),
-          new Prisma.Decimal(0),
-        );
-        return {
-          id: row.id,
-          saleId: row.saleId,
-          saleNumber: row.sale.saleNumber,
-          completedAt: row.sale.completedAt,
-          branch: row.sale.branch,
-          merchant: row.merchant,
-          productName: row.productName,
-          productSku: row.productSku,
-          quantity: row.quantity,
-          grossSales: row.total.toFixed(2),
-          refunds: refundTotal.toFixed(2),
-          netSales: row.total.sub(refundTotal).toFixed(2),
-        };
-      }),
-      total,
-      offset: filters.offset,
-      limit: filters.limit,
-    };
-  }
-
-  async inventory(
-    organizationId: string,
-    filters: ReportPageFiltersDto,
-  ): Promise<InventoryReportRecord> {
-    await this.validateFilters(organizationId, filters);
-    const where: Prisma.InventoryWhereInput = {
-      organizationId,
-      branchId: filters.branchId,
-      product: { merchantId: filters.merchantId },
-    };
-    const [rows, total] = await Promise.all([
-      this.prisma.inventory.findMany({
-        where,
-        select: {
-          organizationId: true,
-          branchId: true,
-          productId: true,
-          quantity: true,
-          branch: { select: { id: true, name: true, code: true } },
-          product: {
-            select: {
-              id: true,
-              name: true,
-              sku: true,
-              status: true,
-              sellingPrice: true,
-              merchant: { select: { id: true, name: true } },
-            },
-          },
-        },
-        orderBy: [{ quantity: 'asc' }, { product: { name: 'asc' } }],
-        skip: filters.offset,
-        take: filters.limit,
-      }),
-      this.prisma.inventory.count({ where }),
-    ]);
-    return {
-      items: rows.map((row) => ({
-        ...row,
-        product: {
-          ...row.product,
-          status: row.product.status,
-          sellingPrice: row.product.sellingPrice.toFixed(2),
-        },
-      })),
-      total,
-      offset: filters.offset,
-      limit: filters.limit,
     };
   }
 

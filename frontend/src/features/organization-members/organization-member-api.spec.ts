@@ -1,6 +1,5 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import {
-  addOrganizationMember,
   listOrganizationMembers,
   linkOrganizationMerchantAccount,
   removeOrganizationMember,
@@ -19,22 +18,6 @@ describe('organization member API', () => {
 
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%2Fid/members',
-    );
-  });
-
-  it('adds an existing user with a role', async () => {
-    vi.mocked(request).mockResolvedValue({});
-    const input = { email: 'manager@example.com', role: 'MANAGER' as const };
-
-    await addOrganizationMember(request, 'organization-id', input);
-
-    expect(request).toHaveBeenCalledWith(
-      '/organizations/organization-id/members',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-      },
     );
   });
 
