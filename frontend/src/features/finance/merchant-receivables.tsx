@@ -168,8 +168,9 @@ export function MerchantReceivables({
             <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
               <th className="p-3">Merchant</th>
               <th className="p-3">Period</th>
-              <th className="p-3 text-right">Original</th>
-              <th className="p-3 text-right">Remaining</th>
+              <th className="p-3 text-right">Accrued</th>
+              <th className="p-3 text-right">Collected</th>
+              <th className="p-3 text-right">Outstanding</th>
               <th className="p-3">Due date</th>
               <th className="p-3">Status</th>
               <th className="p-3 text-right">Action</th>
@@ -181,10 +182,13 @@ export function MerchantReceivables({
                 <td className="p-3 font-bold">{item.merchant.name}</td>
                 <td className="p-3">{item.sourcePeriod.slice(0, 7)}</td>
                 <td className="p-3 text-right tabular-nums">
-                  {money.format(Number(item.originalAmount))}
+                  {money.format(Number(item.accruedAmount))}
+                </td>
+                <td className="p-3 text-right tabular-nums">
+                  {money.format(Number(item.collectedAmount))}
                 </td>
                 <td className="p-3 text-right font-bold tabular-nums">
-                  {money.format(Number(item.remainingAmount))}
+                  {money.format(Number(item.outstandingAmount))}
                 </td>
                 <td className="p-3">{item.dueDate}</td>
                 <td className="p-3">{statusLabel[item.status]}</td>
@@ -205,7 +209,7 @@ export function MerchantReceivables({
             ))}
             {!loading && !items.length ? (
               <tr>
-                <td className="p-8 text-center text-slate-500" colSpan={7}>
+                <td className="p-8 text-center text-slate-500" colSpan={8}>
                   No rent receivables match this filter.
                 </td>
               </tr>
@@ -269,7 +273,7 @@ export function MerchantReceivables({
                 {money.format(
                   Number(
                     items.find((item) => item.id === selected)
-                      ?.remainingAmount ?? 0,
+                      ?.outstandingAmount ?? 0,
                   ),
                 )}
               </p>

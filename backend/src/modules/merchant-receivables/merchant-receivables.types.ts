@@ -25,6 +25,9 @@ export interface MerchantReceivableRecord extends Omit<
 > {
   originalAmount: string;
   remainingAmount: string;
+  accruedAmount: string;
+  collectedAmount: string;
+  outstandingAmount: string;
   agreement: Omit<MerchantReceivableRow['agreement'], 'fixedRentAmount'> & {
     fixedRentAmount: string | null;
   };

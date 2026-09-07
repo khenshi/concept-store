@@ -191,6 +191,9 @@ export interface MerchantReceivable {
   sourcePeriod: string;
   originalAmount: string;
   remainingAmount: string;
+  accruedAmount: string;
+  collectedAmount: string;
+  outstandingAmount: string;
   dueDate: string;
   status: MerchantReceivableStatus;
   merchant: { id: string; name: string; code: string | null };

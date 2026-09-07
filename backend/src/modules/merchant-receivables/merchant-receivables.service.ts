@@ -300,10 +300,24 @@ export class MerchantReceivablesService {
       include: typeof merchantReceivableInclude;
     }>,
   ): MerchantReceivableRecord {
+    const collectedAmount = item.transactions
+      .filter(
+        (transaction) =>
+          transaction.type === MerchantReceivableTransactionType.PAYMENT ||
+          transaction.type ===
+            MerchantReceivableTransactionType.SETTLEMENT_DEDUCTION,
+      )
+      .reduce(
+        (total, transaction) => total.add(transaction.amount),
+        new Prisma.Decimal(0),
+      );
     return {
       ...item,
       originalAmount: item.originalAmount.toFixed(2),
       remainingAmount: item.remainingAmount.toFixed(2),
+      accruedAmount: item.originalAmount.toFixed(2),
+      collectedAmount: collectedAmount.toFixed(2),
+      outstandingAmount: item.remainingAmount.toFixed(2),
       agreement: {
         ...item.agreement,
         fixedRentAmount: item.agreement.fixedRentAmount?.toFixed(2) ?? null,
