@@ -58,20 +58,33 @@ export function OrganizationWorkspaceShell({
       className={`w-full print:block lg:grid ${isSidebarCollapsed ? 'lg:grid-cols-[4.5rem_minmax(0,1fr)]' : 'lg:grid-cols-[15.5rem_minmax(0,1fr)]'}`}
     >
       <aside
-        className={`hidden min-h-[calc(100vh-4.25rem)] min-w-0 border-r border-slate-200 bg-white py-6 print:hidden lg:sticky lg:top-17 lg:block lg:self-start ${isSidebarCollapsed ? 'px-3' : 'px-5'}`}
+        className={`hidden min-w-0 border-r border-slate-200 bg-white print:hidden lg:sticky lg:top-17 lg:flex lg:h-[calc(100vh-4.25rem)] lg:flex-col lg:self-start lg:overflow-hidden ${isSidebarCollapsed ? 'px-3' : 'px-5'}`}
       >
-        <div className={isSidebarCollapsed ? 'flex justify-center' : ''}>
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pt-6 pb-4 ${isSidebarCollapsed ? '' : 'pr-1'}`}
+        >
           {isSidebarCollapsed ? null : (
             <OrganizationSwitcher
               organizationId={organizationId}
               organizationName={organization?.name}
             />
           )}
+          {organizationStatus === 'loading' ? (
+            <div
+              className="mt-5 h-10 animate-pulse rounded-lg bg-slate-200"
+              role="status"
+              aria-label="Loading organization navigation"
+            />
+          ) : (
+            navigation(isSidebarCollapsed)
+          )}
+        </div>
+        <div className="sticky bottom-0 shrink-0 border-t border-slate-200 bg-white py-4">
           <button
             aria-label={
               isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'
             }
-            className={`${isSidebarCollapsed ? '' : 'mt-4 w-full'} grid min-h-10 place-items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600`}
+            className="grid min-h-10 w-full cursor-pointer place-items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-600 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
             onClick={toggleSidebar}
             title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             type="button"
@@ -79,15 +92,6 @@ export function OrganizationWorkspaceShell({
             <span aria-hidden="true">{isSidebarCollapsed ? '›' : '‹'}</span>
           </button>
         </div>
-        {organizationStatus === 'loading' ? (
-          <div
-            className="mt-5 h-10 animate-pulse rounded-lg bg-slate-200"
-            role="status"
-            aria-label="Loading organization navigation"
-          />
-        ) : (
-          navigation(isSidebarCollapsed)
-        )}
       </aside>
       <div className="min-w-0">
         <div className="border-b border-slate-200 bg-white px-5 py-3 print:hidden lg:hidden">

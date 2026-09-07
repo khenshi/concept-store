@@ -1,12 +1,25 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { BrandWordmark } from '@/components/brand-wordmark';
 import { useAuth } from '@/features/auth/auth-context';
 import { LogoutButton } from '@/features/auth/logout-button';
 
 export function AuthenticatedHeader() {
   const { user } = useAuth();
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const updateClock = () => setNow(new Date());
+    const timeoutId = window.setTimeout(updateClock, 0);
+    const intervalId = window.setInterval(updateClock, 30_000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white print:hidden">
@@ -18,12 +31,19 @@ export function AuthenticatedHeader() {
           />
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-3 px-0 sm:gap-4 lg:px-7">
-          <Link
-            className="mr-auto hidden text-sm font-semibold text-slate-500 no-underline hover:text-emerald-700 md:block"
-            href="/app"
+          <time
+            className="mr-auto hidden text-sm font-semibold text-slate-500 md:block"
+            dateTime={now?.toISOString()}
+            title="Philippine Standard Time"
           >
-            All organizations
-          </Link>
+            {now
+              ? new Intl.DateTimeFormat('en-PH', {
+                  dateStyle: 'medium',
+                  timeStyle: 'short',
+                  timeZone: 'Asia/Manila',
+                }).format(now)
+              : '\u00a0'}
+          </time>
           {user ? (
             <Link
               className="hidden max-w-64 text-right no-underline md:grid"

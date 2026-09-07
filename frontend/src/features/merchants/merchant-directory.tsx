@@ -219,7 +219,7 @@ export function MerchantDirectory({
           }
         >
           <OperationalToolbar>
-            <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.4fr)_auto]">
+            <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.4fr)]">
               <FilterField label="Search" id="merchant-search">
                 <input
                   className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2.5"
@@ -253,13 +253,6 @@ export function MerchantDirectory({
                 </SelectControl>
               </FilterField>
             </div>
-            <span
-              className="text-sm text-slate-500"
-              role="status"
-              aria-live="polite"
-            >
-              {isFiltering ? 'Updating…' : ''}
-            </span>
           </OperationalToolbar>
 
           {loadError ? (
@@ -270,7 +263,7 @@ export function MerchantDirectory({
             />
           ) : null}
 
-          {isLoading ? (
+          {isLoading || isFiltering ? (
             <ListSkeleton label="Loading merchants" rowClassName="h-20" />
           ) : merchants.length === 0 ? (
             <div className="py-10 text-center">
