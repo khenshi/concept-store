@@ -26,6 +26,7 @@ endpoint-level reference when the backend is running with documentation enabled.
 
 - [Kapwesto UX and operations refactor](plans/kapwesto-ux-and-operations-refactor-plan.md)
 - [Settlement and merchant receivables refactor](plans/concept-store-settlement-receivables-plan.md)
+- [API route and workflow alignment](plans/api-route-and-workflow-alignment-plan.md)
 
 Plans preserve design decisions and implementation sequencing. Current workflow
 references remain authoritative for behavior already released.
