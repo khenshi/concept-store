@@ -3,6 +3,9 @@
 **Status:** Planned  
 **Scope:** Existing Milestones 1–7 only  
 **Audit baseline:** September 2026
+**Implementation status:** Parts 1–6 implemented September 7, 2026; the
+remaining notes below document the decisions and verification scope that led to
+the current contracts.
 
 ## Goal
 

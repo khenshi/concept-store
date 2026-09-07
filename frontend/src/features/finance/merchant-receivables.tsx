@@ -7,6 +7,7 @@ import {
   useState,
   type FormEvent,
 } from 'react';
+import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
@@ -160,7 +161,8 @@ export function MerchantReceivables({
           onRetry={() => void load()}
         />
       ) : null}
-      <div className="mt-5 overflow-x-auto">
+      {loading ? <ListSkeleton label="Loading rent receivables" /> : null}
+      <div className={`${loading ? 'sr-only' : ''} mt-5 overflow-x-auto`}>
         <table className="w-full min-w-[52rem] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">

@@ -319,7 +319,6 @@ Possible owner actions:
 
 - Deduct from a future settlement
 - Record separate payment
-- Partial payment
 - Waive / adjust with documented reason
 - Suspend merchant agreement manually if necessary
 
@@ -338,9 +337,9 @@ Possible methods:
 - Bank transfer
 - Other manual method
 
-A receivable payment should store:
+A receivable payment should store the server-derived full unreserved amount,
+plus:
 
-- Amount
 - Payment date
 - Payment method
 - Reference number
@@ -348,7 +347,10 @@ A receivable payment should store:
 - Recording user
 - Timestamp
 
-Partial payments should reduce the remaining receivable balance.
+New direct payments are all-or-nothing: the selected receivable's full
+unreserved balance is paid in one transaction. Historical partial transactions
+may remain in the ledger, and documented adjustments can still produce a
+`PARTIALLY_PAID` historical status.
 
 ---
 
@@ -572,8 +574,10 @@ Financial state changes should happen transactionally where appropriate.
 - Use decimal-safe arithmetic.
 - Merchant payable and merchant receivables must remain separate concepts.
 - Never allow merchant payout below zero.
-- A settlement may offset receivables only up to the merchant payable amount.
-- A receivable may be partially paid.
+- A settlement may offset receivables only when the merchant payable covers the
+  complete available balance; it allocates whole receivables oldest-first.
+- New direct rent payments must clear the selected receivable's full unreserved
+  balance. Historical partial transactions remain immutable for audit history.
 - Historical receivable periods must remain identifiable.
 - Prevent duplicate settlement inclusion.
 - Prevent deductions from reducing the same receivable twice.

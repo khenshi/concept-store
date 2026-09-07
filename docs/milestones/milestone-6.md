@@ -33,7 +33,8 @@ live merchant payable − accumulated rent deduction = settlement payout
 
 Commission is calculated after refunds. Fixed rent creates a separate monthly
 receivable and is deducted only when explicitly enabled for a settlement. The
-deduction is allocated to the oldest outstanding rent periods first.
+deduction is enabled only when the payout can cover the complete outstanding
+balance; whole receivables are allocated oldest-first.
 
 ## Important rules
 
@@ -45,6 +46,8 @@ deduction is allocated to the oldest outstanding rent periods first.
 - Owners and managers inspect and close; only owners approve and record payouts.
 - One payout records the exact approved amount.
 - Paid source activity is excluded from subsequent live balances.
+- Direct rent payments always clear a receivable's full unreserved balance;
+  historical partial records remain supported for audit history.
 
 ## Security and integrity result
 
