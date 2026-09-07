@@ -41,6 +41,13 @@ export const merchantAgreementSchema = z
     settlementSchedule: z.enum(['WEEKLY', 'SEMI_MONTHLY', 'MONTHLY']),
   })
   .superRefine((value, context) => {
+    if (!value.fixedRentAmount && !value.commissionRate) {
+      context.addIssue({
+        code: 'custom',
+        path: ['fixedRentAmount'],
+        message: 'Enter fixed rent, commission, or both.',
+      });
+    }
     if (value.endDate && value.endDate < value.startDate) {
       context.addIssue({
         code: 'custom',

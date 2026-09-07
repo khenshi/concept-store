@@ -136,6 +136,7 @@ describe('MerchantAgreementsService', () => {
       service.create(organizationId, merchantId, {
         startDate: '2026-02-01',
         endDate: '2026-01-31',
+        fixedRentAmount: '2500.00',
         settlementSchedule: SettlementSchedule.MONTHLY,
       }),
     ).rejects.toThrow(
@@ -188,7 +189,7 @@ describe('MerchantAgreementsService', () => {
 
     await expect(service.activate(organizationId, agreementId)).rejects.toThrow(
       new BadRequestException(
-        'An active agreement requires fixed rent, commission, or both',
+        'An agreement requires fixed rent, commission, or both',
       ),
     );
   });

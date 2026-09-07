@@ -34,12 +34,16 @@ export class MerchantAgreementsService {
     dto: CreateMerchantAgreementDto,
   ): Promise<MerchantAgreementRecord> {
     await this.requireMerchant(organizationId, merchantId);
+    if (!dto.fixedRentAmount && !dto.commissionRate) {
+      throw new BadRequestException(
+        'An agreement requires fixed rent, commission, or both',
+      );
+    }
     const startDate = parseAgreementDate(dto.startDate, 'startDate');
     const endDate = dto.endDate
       ? parseAgreementDate(dto.endDate, 'endDate')
       : null;
     this.validateDateOrder(startDate, endDate);
-
     return this.prisma.merchantAgreement.create({
       data: {
         organizationId,
@@ -121,6 +125,19 @@ export class MerchantAgreementsService {
           ? null
           : parseAgreementDate(dto.endDate, 'endDate');
     this.validateDateOrder(startDate, endDate);
+    const fixedRentAmount =
+      dto.fixedRentAmount === undefined
+        ? agreement.fixedRentAmount
+        : this.toDecimal(dto.fixedRentAmount);
+    const commissionRate =
+      dto.commissionRate === undefined
+        ? agreement.commissionRate
+        : this.toDecimal(dto.commissionRate);
+    if (fixedRentAmount === null && commissionRate === null) {
+      throw new BadRequestException(
+        'An agreement requires fixed rent, commission, or both',
+      );
+    }
 
     return this.prisma.merchantAgreement.update({
       where: { id: agreementId, organizationId },
@@ -128,13 +145,9 @@ export class MerchantAgreementsService {
         startDate: dto.startDate === undefined ? undefined : startDate,
         endDate: dto.endDate === undefined ? undefined : endDate,
         fixedRentAmount:
-          dto.fixedRentAmount === undefined
-            ? undefined
-            : this.toDecimal(dto.fixedRentAmount),
+          dto.fixedRentAmount === undefined ? undefined : fixedRentAmount,
         commissionRate:
-          dto.commissionRate === undefined
-            ? undefined
-            : this.toDecimal(dto.commissionRate),
+          dto.commissionRate === undefined ? undefined : commissionRate,
         settlementSchedule: dto.settlementSchedule,
       },
     });
@@ -291,7 +304,7 @@ export class MerchantAgreementsService {
       agreement.commissionRate === null
     ) {
       throw new BadRequestException(
-        'An active agreement requires fixed rent, commission, or both',
+        'An agreement requires fixed rent, commission, or both',
       );
     }
   }

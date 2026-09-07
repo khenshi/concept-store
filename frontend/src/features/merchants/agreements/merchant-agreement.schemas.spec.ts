@@ -12,7 +12,7 @@ const validDraft = {
 };
 
 describe('merchant agreement schemas', () => {
-  it('accepts fixed rent, commission, hybrid, and incomplete draft terms', () => {
+  it('accepts commercial terms and rejects an agreement without terms', () => {
     expect(merchantAgreementSchema.safeParse(validDraft).success).toBe(true);
     expect(
       merchantAgreementSchema.safeParse({
@@ -26,7 +26,7 @@ describe('merchant agreement schemas', () => {
         fixedRentAmount: '',
         commissionRate: '',
       }).success,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('rejects invalid money, commission, and date ranges', () => {
