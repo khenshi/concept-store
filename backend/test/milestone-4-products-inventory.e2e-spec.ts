@@ -169,13 +169,18 @@ describe('Milestone 4 product and inventory access (e2e)', () => {
         sellingPrice: ' 450.00 ',
       })
       .expect(201, { id: PRODUCT_ID });
-    expect(productsService.create).toHaveBeenCalledWith(ORGANIZATION_ID, {
-      merchantId: MERCHANT_ID,
-      name: 'Handwoven pouch',
-      sku: 'AMH-01',
-      barcode: '4801234567890',
-      sellingPrice: '450.00',
-    });
+    expect(productsService.create).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      OWNER_ID,
+      {
+        merchantId: MERCHANT_ID,
+        name: 'Handwoven pouch',
+        sku: 'AMH-01',
+        barcode: '4801234567890',
+        sellingPrice: '450.00',
+        initialStock: undefined,
+      },
+    );
   });
 
   it('passes the trusted actor to stock-in and validates quantities', async () => {

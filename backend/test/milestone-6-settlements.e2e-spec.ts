@@ -127,11 +127,12 @@ describe('Milestone 6 merchant finance API (e2e)', () => {
       .get(`/organizations/${ORGANIZATION_ID}/settlements/payables`)
       .set('Authorization', `Bearer ${token(MANAGER_ID)}`)
       .expect(200, []);
-    expect(finance.findLivePayables).toHaveBeenCalledWith(
-      ORGANIZATION_ID,
-      undefined,
-      undefined,
-    );
+    expect(finance.findLivePayables).toHaveBeenCalledWith(ORGANIZATION_ID, {
+      branchId: undefined,
+      merchantId: undefined,
+      offset: 0,
+      limit: 20,
+    });
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())
       .post(
@@ -143,12 +144,12 @@ describe('Milestone 6 merchant finance API (e2e)', () => {
       ORGANIZATION_ID,
       MERCHANT_ID,
       MANAGER_ID,
+      {},
     );
   });
 
   it('validates explicit merchant finance entries', async () => {
     const entry = {
-      type: 'MERCHANT_PAYMENT',
       amount: '2500.00',
       reason: 'December rent payment',
     };

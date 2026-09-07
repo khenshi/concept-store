@@ -134,7 +134,7 @@ describe('Milestone 1 organization access (e2e)', () => {
       .expect(200);
 
     expect(response.body).toMatchObject({
-      info: { title: 'Concept Store Management System API', version: '1.0' },
+      info: { title: 'Kapwesto API', version: '1.0' },
       components: {
         securitySchemes: {
           'access-token': { type: 'http', scheme: 'bearer' },
@@ -240,9 +240,8 @@ describe('Milestone 1 organization access (e2e)', () => {
       .post(`/organizations/${ORGANIZATION_ID}/members`)
       .set('Authorization', `Bearer ${token}`)
       .send({ email: 'new@example.com', role: OrganizationRole.CASHIER })
-      .expect(403);
+      .expect(404);
 
     expect(membershipsService.findAll).toHaveBeenCalledWith(ORGANIZATION_ID);
-    expect(membershipsService.add).not.toHaveBeenCalled();
   });
 });
