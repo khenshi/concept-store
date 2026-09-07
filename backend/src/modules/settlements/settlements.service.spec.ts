@@ -341,10 +341,10 @@ describe('SettlementsService', () => {
     );
   });
 
-  it('allocates one accumulated rent deduction to oldest balances first', () => {
+  it('allocates the complete outstanding rent balance oldest-first', () => {
     const allocationService = service as unknown as {
       allocateRentDeduction(
-        requestedAmount: string,
+        shouldDeduct: boolean,
         available: Array<{
           id: string;
           sourcePeriod: Date;
@@ -359,7 +359,7 @@ describe('SettlementsService', () => {
     };
 
     const result = allocationService.allocateRentDeduction(
-      '1500.00',
+      true,
       [
         {
           id: 'oldest-rent',
@@ -380,7 +380,7 @@ describe('SettlementsService', () => {
           availableAmount: new Prisma.Decimal('1222.00'),
         },
       ],
-      new Prisma.Decimal('1500.00'),
+      new Prisma.Decimal('3000.00'),
     );
 
     expect(
@@ -390,8 +390,46 @@ describe('SettlementsService', () => {
       })),
     ).toEqual([
       { receivableId: 'oldest-rent', amount: '1222.00' },
-      { receivableId: 'newer-rent', amount: '278.00' },
+      { receivableId: 'newer-rent', amount: '1222.00' },
     ]);
+  });
+
+  it('rejects an outstanding rent deduction when the payout cannot cover it in full', () => {
+    const allocationService = service as unknown as {
+      allocateRentDeduction: (
+        shouldDeduct: boolean,
+        available: Array<{
+          id: string;
+          sourcePeriod: Date;
+          dueDate: Date;
+          status: string;
+          remainingAmount: Prisma.Decimal;
+          reservedAmount: Prisma.Decimal;
+          availableAmount: Prisma.Decimal;
+        }>,
+        merchantPayable: Prisma.Decimal,
+      ) => Array<{ receivableId: string; amount: Prisma.Decimal }>;
+    };
+
+    expect(() =>
+      allocationService.allocateRentDeduction(
+        true,
+        [
+          {
+            id: 'rent',
+            sourcePeriod: new Date('2026-09-01'),
+            dueDate: new Date('2026-09-30'),
+            status: 'OPEN',
+            remainingAmount: new Prisma.Decimal('2000.00'),
+            reservedAmount: new Prisma.Decimal(0),
+            availableAmount: new Prisma.Decimal('2000.00'),
+          },
+        ],
+        new Prisma.Decimal('1999.99'),
+      ),
+    ).toThrow(
+      'Payout is not enough to clear the full outstanding rent balance',
+    );
   });
 
   it('generates a server-authoritative draft with agreement segments', async () => {

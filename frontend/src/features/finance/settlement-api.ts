@@ -41,13 +41,13 @@ export function closeLivePayable(
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
-  rentDeductionAmount?: string,
+  deductOutstandingRent?: boolean,
 ): Promise<SettlementDetail> {
   return write(
     request,
     `${basePath(organizationId)}/payables/${merchantId}/close`,
     'POST',
-    rentDeductionAmount ? { rentDeductionAmount } : {},
+    deductOutstandingRent ? { deductOutstandingRent: true } : {},
   );
 }
 
@@ -55,12 +55,14 @@ export function previewLivePayable(
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
-  rentDeductionAmount?: string,
+  deductOutstandingRent?: boolean,
 ): Promise<SettlementPreview> {
   return request(`${basePath(organizationId)}/payables/${merchantId}/preview`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(rentDeductionAmount ? { rentDeductionAmount } : {}),
+    body: JSON.stringify(
+      deductOutstandingRent ? { deductOutstandingRent: true } : {},
+    ),
   });
 }
 
@@ -86,7 +88,6 @@ export function recordReceivablePayment(
   organizationId: string,
   receivableId: string,
   input: {
-    amount: string;
     method: PayoutMethod;
     paidAt: string;
     referenceNumber?: string;

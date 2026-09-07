@@ -51,13 +51,13 @@ describe('settlement API', () => {
       request,
       'organization-id',
       'merchant-id',
-      '1222.00',
+      true,
     );
     expect(request).toHaveBeenLastCalledWith(
       '/organizations/organization-id/settlements/payables/merchant-id/close',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ rentDeductionAmount: '1222.00' }),
+        body: JSON.stringify({ deductOutstandingRent: true }),
       }),
     );
   });

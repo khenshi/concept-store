@@ -83,7 +83,6 @@ export function MerchantReceivables({
     try {
       if (mode === 'payment') {
         await recordReceivablePayment(request, organizationId, selected, {
-          amount: String(form.get('amount')),
           method: String(form.get('method')) as PayoutMethod,
           paidAt: new Date().toISOString(),
           referenceNumber:
@@ -225,16 +224,28 @@ export function MerchantReceivables({
             </button>
           </div>
           <div className="mt-4 flex flex-wrap items-end gap-3">
-            <label className="grid gap-1 text-sm font-bold">
-              Amount
-              <input
-                className="min-h-11 rounded-lg border border-slate-300 px-3"
-                name="amount"
-                required
-                step="0.01"
-                type="number"
-              />
-            </label>
+            {mode === 'payment' ? (
+              <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">
+                Full payment amount:{' '}
+                {money.format(
+                  Number(
+                    items.find((item) => item.id === selected)?.remainingAmount ??
+                      0,
+                  ),
+                )}
+              </p>
+            ) : (
+              <label className="grid gap-1 text-sm font-bold">
+                Amount
+                <input
+                  className="min-h-11 rounded-lg border border-slate-300 px-3"
+                  name="amount"
+                  required
+                  step="0.01"
+                  type="number"
+                />
+              </label>
+            )}
             {mode === 'payment' ? (
               <>
                 <label className="grid gap-1 text-sm font-bold">

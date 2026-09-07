@@ -186,7 +186,7 @@ export class SettlementsService {
       {
         liveClosure: true,
         scheduledDeadline: context.deadline,
-        rentDeductionAmount: dto.rentDeductionAmount,
+        deductOutstandingRent: dto.deductOutstandingRent,
       },
     );
   }
@@ -229,8 +229,12 @@ export class SettlementsService {
         organizationId,
         merchantId,
       );
+      const rentDeductionEligible = this.rentDeductionEligible(
+        receivables,
+        merchantPayable,
+      );
       const deductions = this.allocateRentDeduction(
-        dto.rentDeductionAmount,
+        dto.deductOutstandingRent,
         receivables,
         merchantPayable,
       );
@@ -261,6 +265,8 @@ export class SettlementsService {
         })),
         receivableDeductionTotal: this.money(deductionTotal),
         finalPayout: this.money(merchantPayable.sub(deductionTotal)),
+        rentDeductionEligible: rentDeductionEligible.eligible,
+        rentDeductionReason: rentDeductionEligible.reason,
       };
     });
   }
@@ -320,7 +326,7 @@ export class SettlementsService {
     options: {
       liveClosure?: boolean;
       scheduledDeadline?: Date;
-      rentDeductionAmount?: string;
+      deductOutstandingRent?: boolean;
     } = {},
   ): Promise<SettlementViewRecord> {
     const period = parseSettlementPeriod(periodStart, periodEnd);
@@ -392,7 +398,7 @@ export class SettlementsService {
               )
             : [];
           const receivableDeductions = this.allocateRentDeduction(
-            options.rentDeductionAmount,
+            options.deductOutstandingRent,
             receivables,
             merchantPayable,
           );
@@ -1445,7 +1451,7 @@ export class SettlementsService {
   }
 
   private allocateRentDeduction(
-    requestedAmount: string | undefined,
+    shouldDeduct: boolean | undefined,
     available: AvailableReceivable[],
     merchantPayable: Prisma.Decimal,
   ): Array<{ receivableId: string; amount: Prisma.Decimal }> {
@@ -1454,30 +1460,45 @@ export class SettlementsService {
         'The merchant payable cannot be negative; correct the adjustments before settlement',
       );
     }
-    if (!requestedAmount) return [];
-    const requested = new Prisma.Decimal(requestedAmount);
+    if (!shouldDeduct) return [];
     const outstanding = this.sum(
       available.map(({ availableAmount }) => availableAmount),
     );
-    if (requested.gt(outstanding)) {
+    if (outstanding.isZero()) return [];
+    if (merchantPayable.lt(outstanding)) {
       throw new BadRequestException(
-        'Rent deduction cannot exceed the accumulated available rent balance',
+        'Payout is not enough to clear the full outstanding rent balance',
       );
     }
-    if (requested.gt(merchantPayable)) {
-      throw new BadRequestException(
-        'Rent deduction cannot exceed the merchant payable',
-      );
+    return available
+      .filter(({ availableAmount }) => availableAmount.gt(0))
+      .map(({ id, availableAmount }) => ({
+        receivableId: id,
+        amount: availableAmount,
+      }));
+  }
+
+  private rentDeductionEligible(
+    available: AvailableReceivable[],
+    merchantPayable: Prisma.Decimal,
+  ): { eligible: boolean; reason: string | null } {
+    const outstanding = this.sum(
+      available.map(({ availableAmount }) => availableAmount),
+    );
+    if (outstanding.isZero()) {
+      return {
+        eligible: false,
+        reason: 'There is no outstanding rent to deduct.',
+      };
     }
-    let remaining = requested;
-    const rows: Array<{ receivableId: string; amount: Prisma.Decimal }> = [];
-    for (const receivable of available) {
-      if (remaining.isZero()) break;
-      const amount = Prisma.Decimal.min(remaining, receivable.availableAmount);
-      if (amount.gt(0)) rows.push({ receivableId: receivable.id, amount });
-      remaining = remaining.sub(amount);
+    if (merchantPayable.lt(outstanding)) {
+      return {
+        eligible: false,
+        reason:
+          'The payout is not enough to pay the full outstanding rent balance.',
+      };
     }
-    return rows;
+    return { eligible: true, reason: null };
   }
 
   private roundMoney(value: Prisma.Decimal): Prisma.Decimal {

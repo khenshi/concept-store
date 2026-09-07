@@ -66,7 +66,7 @@ export class MerchantReceivablesController {
   }
 
   @Post(':receivableId/payments')
-  @ApiOperation({ summary: 'Record a full or partial rent payment' })
+  @ApiOperation({ summary: 'Record a full rent payment' })
   recordPayment(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('receivableId', new ParseUUIDPipe({ version: '4' }))

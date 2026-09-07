@@ -132,7 +132,7 @@ describe('MerchantReceivablesService', () => {
     );
   });
 
-  it('records a partial manual payment against only the unreserved balance', async () => {
+  it('records a full manual payment against the unreserved balance', async () => {
     const row = {
       id: 'receivable-1',
       organizationId: 'organization-1',
@@ -167,7 +167,6 @@ describe('MerchantReceivablesService', () => {
     prisma.merchantReceivable.updateMany.mockResolvedValue({ count: 0 });
 
     await service.recordPayment('organization-1', 'receivable-1', 'actor-1', {
-      amount: '1000.00',
       method: PaymentMethod.CASH,
       paidAt: '2026-09-02T00:00:00.000Z',
     });
@@ -175,8 +174,8 @@ describe('MerchantReceivablesService', () => {
     expect(prisma.merchantReceivable.update).toHaveBeenCalledWith({
       where: { id: 'receivable-1' },
       data: {
-        remainingAmount: new Prisma.Decimal('1500.00'),
-        status: MerchantReceivableStatus.PARTIALLY_PAID,
+        remainingAmount: new Prisma.Decimal('0'),
+        status: MerchantReceivableStatus.PAID,
       },
     });
     expect(prisma.merchantReceivableTransaction.create).toHaveBeenCalledWith({
@@ -185,7 +184,7 @@ describe('MerchantReceivablesService', () => {
         merchantId: 'merchant-1',
         receivableId: 'receivable-1',
         type: 'PAYMENT',
-        amount: new Prisma.Decimal('1000.00'),
+        amount: new Prisma.Decimal('2000.00'),
         paymentMethod: PaymentMethod.CASH,
         referenceNumber: undefined,
         note: undefined,
@@ -195,7 +194,7 @@ describe('MerchantReceivablesService', () => {
     });
   });
 
-  it('rejects a payment that would consume a reserved settlement offset', async () => {
+  it('rejects a payment when the entire receivable is reserved', async () => {
     prisma.merchantReceivable.findFirst.mockResolvedValue({
       id: 'receivable-1',
       organizationId: 'organization-1',
@@ -203,16 +202,17 @@ describe('MerchantReceivablesService', () => {
       originalAmount: new Prisma.Decimal('2500.00'),
       remainingAmount: new Prisma.Decimal('2500.00'),
       dueDate: new Date('2026-09-30T00:00:00.000Z'),
-      allocations: [{ amount: new Prisma.Decimal('2000.00') }],
+      allocations: [{ amount: new Prisma.Decimal('2500.00') }],
     });
 
     await expect(
       service.recordPayment('organization-1', 'receivable-1', 'actor-1', {
-        amount: '600.00',
         method: PaymentMethod.CASH,
         paidAt: '2026-09-02T00:00:00.000Z',
       }),
-    ).rejects.toThrow('Payment exceeds the unreserved receivable balance');
+    ).rejects.toThrow(
+      'This rent receivable has no unreserved balance available for payment',
+    );
     expect(prisma.merchantReceivableTransaction.create).not.toHaveBeenCalled();
   });
 });

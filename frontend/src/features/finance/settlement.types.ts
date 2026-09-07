@@ -238,4 +238,6 @@ export interface SettlementPreview {
   }>;
   receivableDeductionTotal: string;
   finalPayout: string;
+  rentDeductionEligible: boolean;
+  rentDeductionReason: string | null;
 }

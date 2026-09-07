@@ -47,9 +47,7 @@ export function LivePayableDetailPage({
   const router = useRouter();
   const [payable, setPayable] = useState<LiveMerchantPayable | null>(null);
   const [preview, setPreview] = useState<SettlementPreview | null>(null);
-  const [rentDeductionAmount, setRentDeductionAmount] = useState<
-    string | undefined
-  >();
+  const [deductOutstandingRent, setDeductOutstandingRent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { confirm, confirmationDialog } = useConfirmationDialog();
@@ -71,7 +69,7 @@ export function LivePayableDetailPage({
         setPreview(
           await previewLivePayable(request, organizationId, merchantId),
         );
-        setRentDeductionAmount(undefined);
+        setDeductOutstandingRent(false);
       }
       if (!row) setError('This active merchant payable was not found.');
     } catch (cause) {
@@ -99,7 +97,7 @@ export function LivePayableDetailPage({
         request,
         organizationId,
         merchantId,
-        rentDeductionAmount,
+        deductOutstandingRent,
       );
       router.push(
         `/app/organizations/${organizationId}/settlements/${settlement.id}`,
@@ -112,20 +110,18 @@ export function LivePayableDetailPage({
 
   async function toggleRentDeduction(checked: boolean) {
     if (!preview) return;
-    const outstanding = preview.receivables.reduce(
-      (total, item) => total + Number(item.availableAmount),
-      0,
-    );
-    const next = checked
-      ? Math.min(outstanding, Number(preview.merchantPayable)).toFixed(2)
-      : undefined;
     setBusy(true);
     setError(null);
     try {
       setPreview(
-        await previewLivePayable(request, organizationId, merchantId, next),
+        await previewLivePayable(
+          request,
+          organizationId,
+          merchantId,
+          checked,
+        ),
       );
-      setRentDeductionAmount(next);
+      setDeductOutstandingRent(checked);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -297,8 +293,8 @@ export function LivePayableDetailPage({
             </div>
             <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-bold">
               <input
-                checked={Boolean(rentDeductionAmount)}
-                disabled={busy || Number(preview.merchantPayable) <= 0}
+                checked={deductOutstandingRent}
+                disabled={busy || !preview.rentDeductionEligible}
                 onChange={(event) =>
                   void toggleRentDeduction(event.target.checked)
                 }
@@ -318,6 +314,11 @@ export function LivePayableDetailPage({
               )}
             </strong>
           </p>
+          {!preview.rentDeductionEligible && preview.rentDeductionReason ? (
+            <p className="mt-2 text-sm text-amber-700">
+              {preview.rentDeductionReason}
+            </p>
+          ) : null}
           <div className="mt-4 divide-y divide-slate-100">
             {preview.receivables.map((receivable) => (
               <div

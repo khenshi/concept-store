@@ -120,22 +120,18 @@ export class MerchantReceivablesService {
         organizationId,
         receivableId,
       );
-      const amount = new Prisma.Decimal(dto.amount);
-      if (amount.gt(receivable.availableAmount)) {
+      if (receivable.availableAmount.lte(0)) {
         throw new BadRequestException(
-          'Payment exceeds the unreserved receivable balance',
+          'This rent receivable has no unreserved balance available for payment',
         );
       }
-      const remainingAmount = receivable.remainingAmount.sub(amount);
+      const amount = receivable.availableAmount;
+      const remainingAmount = new Prisma.Decimal(0);
       await transaction.merchantReceivable.update({
         where: { id: receivableId },
         data: {
           remainingAmount,
-          status: this.statusFor(
-            remainingAmount,
-            receivable.originalAmount,
-            receivable.dueDate,
-          ),
+          status: MerchantReceivableStatus.PAID,
         },
       });
       await transaction.merchantReceivableTransaction.create({

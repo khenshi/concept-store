@@ -5,15 +5,11 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
   MinLength,
   ValidateIf,
 } from 'class-validator';
 import { PaymentMethod } from '../../../generated/prisma/client';
-
-const POSITIVE_MONEY_PATTERN =
-  /^(?:0\.(?:0[1-9]|[1-9]\d?)|[1-9]\d{0,11}(?:\.\d{1,2})?)$/;
 const trimOptional = ({ value }: { value: unknown }): unknown => {
   if (typeof value !== 'string') return value;
   const trimmed = value.trim();
@@ -21,11 +17,6 @@ const trimOptional = ({ value }: { value: unknown }): unknown => {
 };
 
 export class RecordReceivablePaymentDto {
-  @ApiProperty({ type: String, example: '2500.00' })
-  @IsString()
-  @Matches(POSITIVE_MONEY_PATTERN)
-  amount!: string;
-
   @ApiProperty({ enum: PaymentMethod })
   @IsEnum(PaymentMethod)
   method!: PaymentMethod;
