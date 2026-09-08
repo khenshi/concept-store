@@ -16,6 +16,7 @@ import {
   SaleStatus,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { MerchantFinanceAccrualService } from '../merchant-finance-accrual/merchant-finance-accrual.service';
 import type { CreateSaleDto, CreateSaleItemDto } from './dto/create-sale.dto';
 import type { ListSalesQueryDto } from './dto/list-sales-query.dto';
 import {
@@ -30,7 +31,10 @@ import {
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly financeAccrual: MerchantFinanceAccrualService,
+  ) {}
 
   async findAll(
     organizationId: string,
@@ -243,6 +247,16 @@ export class SalesService {
             );
           }
 
+          const completedAt = new Date();
+          const accrualBuckets = await this.financeAccrual.prepareCompletedSale(
+            transaction,
+            organizationId,
+            completedAt,
+            itemData.map((item) => ({
+              merchantId: item.merchantId,
+              amount: item.total,
+            })),
+          );
           const saleId = randomUUID();
           const saleNumber = `S-${saleId.replaceAll('-', '').toUpperCase()}`;
           await transaction.sale.create({
@@ -256,6 +270,7 @@ export class SalesService {
               subtotal,
               discountTotal: new Prisma.Decimal(0),
               total: subtotal,
+              completedAt,
               items: { create: itemData },
               payments: { create: paymentData },
             },
@@ -290,6 +305,11 @@ export class SalesService {
               saleId,
             })),
           });
+
+          await this.financeAccrual.addCompletedSale(
+            transaction,
+            accrualBuckets,
+          );
 
           return transaction.sale.findUniqueOrThrow({
             where: { id_organizationId: { id: saleId, organizationId } },
@@ -333,7 +353,10 @@ export class SalesService {
             include: {
               items: {
                 include: {
-                  settlementLinks: { select: { settlementId: true } },
+                  settlementLinks: {
+                    where: { releasedAt: null },
+                    select: { settlementId: true },
+                  },
                 },
               },
               refunds: { select: { id: true } },
@@ -349,6 +372,15 @@ export class SalesService {
           if (sale.items.some((item) => item.settlementLinks.length > 0)) {
             throw new ConflictException('A settled sale cannot be voided');
           }
+          const accrualBuckets = await this.financeAccrual.prepareSaleReversal(
+            transaction,
+            organizationId,
+            sale.completedAt,
+            sale.items.map((item) => ({
+              merchantId: item.merchantId,
+              amount: item.total,
+            })),
+          );
 
           for (const item of sale.items) {
             const restored = await transaction.inventory.updateMany({
@@ -394,6 +426,10 @@ export class SalesService {
           });
           if (changed.count !== 1)
             throw new ConflictException('Sale is already voided');
+          await this.financeAccrual.removeCompletedSale(
+            transaction,
+            accrualBuckets,
+          );
           return transaction.sale.findUniqueOrThrow({
             where: { id_organizationId: { id: sale.id, organizationId } },
             include: saleResponseInclude,

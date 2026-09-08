@@ -106,6 +106,7 @@ model Organization {
   merchantReceivables    MerchantReceivable[]
   receivableTransactions MerchantReceivableTransaction[]
   receivableAllocations  SettlementReceivableAllocation[]
+  financeAccruals        MerchantFinanceAccrual[]
 }
 
 model Branch {
@@ -178,6 +179,7 @@ model Merchant {
   merchantReceivables    MerchantReceivable[]
   receivableTransactions MerchantReceivableTransaction[]
   receivableAllocations  SettlementReceivableAllocation[]
+  financeAccruals        MerchantFinanceAccrual[]
   account                MerchantAccount?
 
   @@unique([organizationId, code])
@@ -278,6 +280,7 @@ model MerchantAgreement {
   merchant        Merchant                 @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
   settlementTerms SettlementTermSnapshot[]
   rentReceivables MerchantReceivable[]
+  financeAccruals MerchantFinanceAccrual[]
 
   @@unique([id, organizationId])
   @@index([organizationId, merchantId, status])
@@ -646,6 +649,32 @@ model MerchantFinanceEntry {
   @@map("SettlementAdjustment")
 }
 
+model MerchantFinanceAccrual {
+  id               String                     @id @default(uuid())
+  organizationId   String
+  merchantId       String
+  agreementId      String
+  periodStart      DateTime                   @db.Date
+  periodEnd        DateTime                   @db.Date
+  schedule         SettlementSchedule
+  kind             MerchantFinanceAccrualKind @default(EARNED_ACTIVITY)
+  commissionRate   Decimal?                   @db.Decimal(5, 2)
+  grossSales       Decimal                    @default(0) @db.Decimal(14, 2)
+  refundTotal      Decimal                    @default(0) @db.Decimal(14, 2)
+  commissionAmount Decimal                    @default(0) @db.Decimal(14, 2)
+  revision         BigInt                     @default(0)
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchant     Merchant          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  agreement    MerchantAgreement @relation(fields: [agreementId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([organizationId, merchantId, agreementId, periodStart, periodEnd, kind], name: "bucket", map: "MerchantFinanceAccrual_bucket_key")
+  @@index([organizationId, merchantId, periodEnd], map: "MerchantFinanceAccrual_merchant_period_idx")
+  @@index([organizationId, periodEnd], map: "MerchantFinanceAccrual_organization_period_idx")
+}
+
 model MerchantReceivable {
   id              String                   @id @default(uuid())
   organizationId  String
@@ -840,6 +869,11 @@ enum MerchantReceivableTransactionType {
   PAYMENT
   SETTLEMENT_DEDUCTION
   ADJUSTMENT
+}
+
+enum MerchantFinanceAccrualKind {
+  EARNED_ACTIVITY
+  POST_SETTLEMENT_REFUND
 }
 
 enum RefundStatus {

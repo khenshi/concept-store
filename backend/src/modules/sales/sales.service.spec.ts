@@ -13,6 +13,7 @@ import {
   SaleStatus,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { MerchantFinanceAccrualService } from '../merchant-finance-accrual/merchant-finance-accrual.service';
 import { SalesService } from './sales.service';
 
 describe('SalesService', () => {
@@ -121,6 +122,12 @@ describe('SalesService', () => {
       count: jest.fn(),
     },
   };
+  const financeAccrual = {
+    prepareCompletedSale: jest.fn(),
+    addCompletedSale: jest.fn(),
+    prepareSaleReversal: jest.fn(),
+    removeCompletedSale: jest.fn(),
+  };
   let service: SalesService;
 
   beforeEach(async () => {
@@ -146,8 +153,19 @@ describe('SalesService', () => {
     transaction.sale.create.mockResolvedValue({});
     transaction.sale.findUniqueOrThrow.mockResolvedValue(saleRow);
     transaction.sale.updateMany.mockResolvedValue({ count: 1 });
+    financeAccrual.prepareCompletedSale.mockResolvedValue([]);
+    financeAccrual.addCompletedSale.mockResolvedValue(undefined);
+    financeAccrual.prepareSaleReversal.mockResolvedValue([]);
+    financeAccrual.removeCompletedSale.mockResolvedValue(undefined);
     const moduleRef = await Test.createTestingModule({
-      providers: [SalesService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        SalesService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: MerchantFinanceAccrualService,
+          useValue: financeAccrual,
+        },
+      ],
     }).compile();
     service = moduleRef.get(SalesService);
   });
@@ -211,6 +229,16 @@ describe('SalesService', () => {
         }) as unknown,
       ],
     });
+    expect(financeAccrual.prepareCompletedSale).toHaveBeenCalledWith(
+      transaction,
+      organizationId,
+      expect.any(Date),
+      [{ merchantId, amount: new Prisma.Decimal('900.00') }],
+    );
+    expect(financeAccrual.addCompletedSale).toHaveBeenCalledWith(
+      transaction,
+      [],
+    );
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
@@ -227,6 +255,7 @@ describe('SalesService', () => {
       }),
     ).resolves.toMatchObject({ id: saleRow.id, total: '900.00' });
     expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(financeAccrual.addCompletedSale).not.toHaveBeenCalled();
   });
 
   it('rejects a payment total that differs from server pricing', async () => {
@@ -308,6 +337,22 @@ describe('SalesService', () => {
         payments: [{ method: PaymentMethod.CASH, amount: '900.00' }],
       }),
     ).resolves.toMatchObject({ id: saleRow.id });
+  });
+
+  it('fails the checkout transaction when projection maintenance fails', async () => {
+    financeAccrual.addCompletedSale.mockRejectedValue(
+      new Error('projection write failed'),
+    );
+
+    await expect(
+      service.checkout(organizationId, branchId, cashierId, {
+        clientTransactionId,
+        items: [{ productId, quantity: 2 }],
+        payments: [{ method: PaymentMethod.CASH, amount: '900.00' }],
+      }),
+    ).rejects.toThrow('projection write failed');
+    expect(transaction.sale.create).toHaveBeenCalled();
+    expect(transaction.sale.findUniqueOrThrow).not.toHaveBeenCalled();
   });
 
   it('lists tenant and branch-scoped sales with operational filters', async () => {
@@ -438,6 +483,32 @@ describe('SalesService', () => {
     expect(transaction.inventoryMovement.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: [expect.objectContaining({ type: 'VOID', quantityChange: 2 })],
+      }),
+    );
+    expect(financeAccrual.prepareSaleReversal).toHaveBeenCalledWith(
+      transaction,
+      organizationId,
+      saleRow.completedAt,
+      [{ merchantId, amount: new Prisma.Decimal('900.00') }],
+    );
+    expect(financeAccrual.removeCompletedSale).toHaveBeenCalledWith(
+      transaction,
+      [],
+    );
+    expect(transaction.sale.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Jest asymmetric matchers are intentionally untyped at this boundary.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        include: expect.objectContaining({
+          items: {
+            include: {
+              settlementLinks: {
+                where: { releasedAt: null },
+                select: { settlementId: true },
+              },
+            },
+          },
+        }),
       }),
     );
   });
