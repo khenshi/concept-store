@@ -26,9 +26,9 @@ const LIVE_PAGE_SIZE = 20;
 const HISTORY_PAGE_SIZE = 20;
 const labels: Record<SettlementStatus, string> = {
   DRAFT: 'Draft',
-  REVIEWED: 'Reviewed',
   APPROVED: 'Approved',
   PAID: 'Paid',
+  CANCELLED: 'Cancelled',
 };
 
 function message(cause: unknown): string {
@@ -359,7 +359,15 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
             ) : null}
           </section>
           {metrics ? (
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <section className="mt-6">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-bold">Organization-wide summary</h2>
+                <p className="text-sm text-slate-500">
+                  Global totals include all merchants and branches; filters only
+                  change the rows above.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               {[
                 ['Net sales', metrics.netSales],
                 ['Refunds', metrics.refunds],
@@ -381,7 +389,8 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                   </p>
                 </div>
               ))}
-            </div>
+              </div>
+            </section>
           ) : null}
         </>
       ) : activeTab === 'history' ? (

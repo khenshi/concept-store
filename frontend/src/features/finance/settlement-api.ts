@@ -41,13 +41,26 @@ export function closeLivePayable(
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
-  deductOutstandingRent?: boolean,
+  options:
+    | boolean
+    | {
+        deductOutstandingRent?: boolean;
+        rentApplications?: Array<{ receivableId: string; amount: string }>;
+        previewRevision?: string;
+        requestId?: string;
+      } = false,
 ): Promise<SettlementDetail> {
+  const input =
+    typeof options === 'boolean'
+      ? options
+        ? { deductOutstandingRent: true }
+        : {}
+      : options;
   return write(
     request,
     `${basePath(organizationId)}/payables/${merchantId}/close`,
     'POST',
-    deductOutstandingRent ? { deductOutstandingRent: true } : {},
+    input,
   );
 }
 
@@ -55,14 +68,23 @@ export function previewLivePayable(
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
-  deductOutstandingRent?: boolean,
+  options:
+    | boolean
+    | {
+        deductOutstandingRent?: boolean;
+        rentApplications?: Array<{ receivableId: string; amount: string }>;
+      } = false,
 ): Promise<SettlementPreview> {
+  const input =
+    typeof options === 'boolean'
+      ? options
+        ? { deductOutstandingRent: true }
+        : {}
+      : options;
   return request(`${basePath(organizationId)}/payables/${merchantId}/preview`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(
-      deductOutstandingRent ? { deductOutstandingRent: true } : {},
-    ),
+    body: JSON.stringify(input),
   });
 }
 
@@ -95,9 +117,11 @@ export function recordReceivablePayment(
   receivableId: string,
   input: {
     method: PayoutMethod;
+    amount?: string;
     paidAt: string;
     referenceNumber?: string;
     note?: string;
+    requestId?: string;
   },
 ): Promise<MerchantReceivable> {
   return request(`${receivablePath(organizationId)}/${receivableId}/payments`, {
@@ -177,12 +201,26 @@ export function settlementAction(
   request: AuthenticatedRequest,
   organizationId: string,
   settlementId: string,
-  action: 'review' | 'approve',
+  action: 'approve',
 ): Promise<SettlementDetail> {
   return write(
     request,
     `${basePath(organizationId)}/${encodeURIComponent(settlementId)}/${action}`,
     'POST',
+  );
+}
+
+export function cancelSettlement(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  settlementId: string,
+  reason: string,
+): Promise<SettlementDetail> {
+  return write(
+    request,
+    `${basePath(organizationId)}/${encodeURIComponent(settlementId)}/cancel`,
+    'POST',
+    { reason },
   );
 }
 

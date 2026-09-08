@@ -93,20 +93,21 @@ export function MerchantReceivables({
     setError(null);
     try {
       if (mode === 'payment') {
-        const receivable = items.find((item) => item.id === selected);
-        const amount = receivable?.outstandingAmount ?? '0.00';
+        const amount = String(form.get('amount') || '0');
         const approved = await confirm({
-          title: 'Record the full rent payment?',
-          description: `This records ${money.format(Number(amount))} and clears the receivable in full.`,
-          confirmLabel: 'Record full payment',
+          title: 'Record this rent payment?',
+          description: `This records ${money.format(Number(amount))}. Any remaining balance stays open for a later payment.`,
+          confirmLabel: 'Record payment',
         });
         if (!approved) return;
         await recordReceivablePayment(request, organizationId, selected, {
           method: String(form.get('method')) as PayoutMethod,
+          amount,
           paidAt: new Date().toISOString(),
           referenceNumber:
             String(form.get('referenceNumber') || '') || undefined,
           note: String(form.get('note') || '') || undefined,
+          requestId: crypto.randomUUID(),
         });
       } else {
         await adjustMerchantReceivable(request, organizationId, selected, {
@@ -258,6 +259,7 @@ export function MerchantReceivables({
       {selected ? (
         <form
           className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4"
+          key={selected}
           onSubmit={submit}
         >
           <div className="flex gap-2">
@@ -278,15 +280,23 @@ export function MerchantReceivables({
           </div>
           <div className="mt-4 flex flex-wrap items-end gap-3">
             {mode === 'payment' ? (
-              <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">
-                Full payment amount:{' '}
-                {money.format(
-                  Number(
-                    items.find((item) => item.id === selected)
-                      ?.outstandingAmount ?? 0,
-                  ),
-                )}
-              </p>
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">
+                Available balance:{' '}
+                {money.format(Number(items.find((item) => item.id === selected)?.outstandingAmount ?? 0))}
+                <label className="ml-4 inline-flex items-center gap-2 font-normal">
+                  Apply amount
+                  <input
+                    className="min-h-11 w-32 rounded-lg border border-slate-300 px-3 text-right"
+                    defaultValue={items.find((item) => item.id === selected)?.outstandingAmount ?? '0.00'}
+                    max={items.find((item) => item.id === selected)?.outstandingAmount}
+                    min="0.01"
+                    name="amount"
+                    required
+                    step="0.01"
+                    type="number"
+                  />
+                </label>
+              </div>
             ) : (
               <label className="grid gap-1 text-sm font-bold">
                 Amount

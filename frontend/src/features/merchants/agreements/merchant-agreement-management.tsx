@@ -66,18 +66,6 @@ function displayDate(value: string): string {
   );
 }
 
-function philippineToday(): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Manila',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((candidate) => candidate.type === type)?.value ?? '';
-  return `${part('year')}-${part('month')}-${part('day')}`;
-}
-
 function peso(value: string): string {
   const [whole, fraction = ''] = value.split('.');
   const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -154,6 +142,7 @@ export function MerchantAgreementManagement({
     try {
       if (editingDraft) {
         const update: MerchantAgreementUpdateInput = {
+          durationMonths: input.durationMonths,
           startDate: input.startDate,
           endDate: input.endDate ?? null,
           fixedRentAmount: input.fixedRentAmount ?? null,
@@ -222,22 +211,18 @@ export function MerchantAgreementManagement({
     event.preventDefault();
     const form = event.currentTarget;
     const result = endMerchantAgreementSchema.safeParse({
-      endDate: new FormData(form).get('endDate'),
+      reason: String(new FormData(form).get('reason') || ''),
     });
     setActionError(null);
     setSuccessMessage(null);
     if (!result.success) {
-      setActionError(result.error.issues[0]?.message ?? 'Enter an end date.');
-      return;
-    }
-    if (result.data.endDate < dateOnly(agreement.startDate)) {
-      setActionError('End date cannot be earlier than the start date.');
+      setActionError(result.error.issues[0]?.message ?? 'Review the reason.');
       return;
     }
     if (
       !(await confirm({
         title: 'End the active agreement?',
-        description: `End the active agreement for ${merchantName} on the selected date. Its history will be preserved.`,
+        description: `End the active agreement for ${merchantName} today. The current monthly period remains due because it has started. Its history will be preserved.`,
         confirmLabel: 'End agreement',
         tone: 'danger',
       }))
@@ -250,11 +235,11 @@ export function MerchantAgreementManagement({
         request,
         organizationId,
         agreement.id,
-        result.data.endDate,
+        result.data.reason,
       );
       replaceAgreement(ended);
       setSuccessMessage(
-        `The agreement ended on ${displayDate(ended.endDate ?? result.data.endDate)}.`,
+        `The agreement ended on ${displayDate(ended.endDate ?? new Date().toISOString())}.`,
       );
       form.reset();
     } catch (cause: unknown) {
@@ -397,11 +382,12 @@ export function AgreementForm({
     const form = event.currentTarget;
     const formData = new FormData(form);
     const result = merchantAgreementSchema.safeParse({
-      startDate: formData.get('startDate'),
-      endDate: formData.get('endDate'),
-      fixedRentAmount: formData.get('fixedRentAmount'),
-      commissionRate: formData.get('commissionRate'),
-      settlementSchedule: formData.get('settlementSchedule'),
+      durationMonths: formData.get('durationMonths') || undefined,
+      startDate: String(formData.get('startDate') || ''),
+      endDate: String(formData.get('endDate') || ''),
+      fixedRentAmount: String(formData.get('fixedRentAmount') || ''),
+      commissionRate: String(formData.get('commissionRate') || ''),
+      settlementSchedule: String(formData.get('settlementSchedule') || ''),
     });
     setFormError(null);
     if (!result.success) {
@@ -414,7 +400,8 @@ export function AgreementForm({
       return;
     }
     const input: MerchantAgreementInput = {
-      startDate: result.data.startDate,
+      durationMonths: result.data.durationMonths,
+      startDate: result.data.startDate || undefined,
       endDate: result.data.endDate || undefined,
       fixedRentAmount: result.data.fixedRentAmount || undefined,
       commissionRate: result.data.commissionRate || undefined,
@@ -434,7 +421,8 @@ export function AgreementForm({
         {agreement ? 'Edit draft agreement' : 'New draft agreement'}
       </h3>
       <p className="mt-2 text-sm leading-6 text-slate-500">
-        Drafts may omit commercial terms until they are ready for activation.
+        Activation starts today. Set a fixed monthly term from 1 to 60 months;
+        active agreements can only be ended explicitly.
       </p>
       <form className="mt-4 grid gap-4" onSubmit={handleSubmit} noValidate>
         {formError ? (
@@ -445,22 +433,16 @@ export function AgreementForm({
             {formError}
           </p>
         ) : null}
-        <div className="grid gap-4">
-          <AgreementField
-            name="startDate"
-            label="Start date"
-            type="date"
-            defaultValue={agreement ? dateOnly(agreement.startDate) : ''}
-            required
-          />
-          <AgreementField
-            name="endDate"
-            label="End date"
-            type="date"
-            defaultValue={agreement?.endDate ? dateOnly(agreement.endDate) : ''}
-            hint="Optional"
-          />
-        </div>
+        <AgreementField
+          name="durationMonths"
+          label="Agreement duration (months)"
+          type="number"
+          min="1"
+          max="60"
+          defaultValue={agreement?.durationMonths ?? 12}
+          hint="1–60 months; the first month starts when you activate it"
+          required
+        />
         <AgreementField
           name="fixedRentAmount"
           label="Fixed rent (PHP)"
@@ -559,6 +541,9 @@ function AgreementHistory({
                     {agreement.endDate
                       ? displayDate(agreement.endDate)
                       : 'Open-ended'}
+                    {agreement.durationMonths
+                      ? ` · ${agreement.durationMonths} month${agreement.durationMonths === 1 ? '' : 's'}`
+                      : ''}
                   </p>
                 </div>
                 <span
@@ -602,12 +587,9 @@ function AgreementHistory({
                   onSubmit={(event) => void onEnd(agreement, event)}
                 >
                   <AgreementField
-                    name="endDate"
-                    label="Effective end date"
-                    type="date"
-                    min={dateOnly(agreement.startDate)}
-                    max={philippineToday()}
-                    required
+                    name="reason"
+                    label="Reason (optional)"
+                    type="text"
                     compact
                   />
                   <button
@@ -641,10 +623,16 @@ function AgreementField({
   required = false,
   compact = false,
 }: {
-  name: 'startDate' | 'endDate' | 'fixedRentAmount' | 'commissionRate';
+  name:
+    | 'startDate'
+    | 'endDate'
+    | 'fixedRentAmount'
+    | 'commissionRate'
+    | 'durationMonths'
+    | 'reason';
   label: string;
-  type: 'date' | 'text';
-  defaultValue?: string;
+  type: 'date' | 'text' | 'number';
+  defaultValue?: string | number;
   hint?: string;
   inputMode?: 'decimal';
   min?: string;

@@ -75,14 +75,18 @@ export function endMerchantAgreement(
   request: AuthenticatedRequest,
   organizationId: string,
   agreementId: string,
-  endDate: string,
+  reason?: string,
 ): Promise<MerchantAgreement> {
   return request<MerchantAgreement>(
     `${organizationPath(organizationId)}/merchant-agreements/${encodeURIComponent(agreementId)}/end`,
     {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endDate }),
+      body: JSON.stringify(
+        reason && /^\d{4}-\d{2}-\d{2}$/.test(reason)
+          ? { endDate: reason }
+          : { reason },
+      ),
     },
   );
 }

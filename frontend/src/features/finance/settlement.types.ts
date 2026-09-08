@@ -1,4 +1,8 @@
-export type SettlementStatus = 'DRAFT' | 'REVIEWED' | 'APPROVED' | 'PAID';
+export type SettlementStatus =
+  | 'DRAFT'
+  | 'APPROVED'
+  | 'PAID'
+  | 'CANCELLED';
 export type SettlementSchedule = 'WEEKLY' | 'SEMI_MONTHLY' | 'MONTHLY';
 export type PayoutMethod = 'CASH' | 'GCASH' | 'BANK_TRANSFER' | 'OTHER';
 
@@ -22,6 +26,9 @@ export interface SettlementSummary {
   calculatedAt: string;
   approvedById: string | null;
   approvedAt: string | null;
+  cancelledAt?: string | null;
+  cancelledById?: string | null;
+  cancellationReason?: string | null;
   createdAt: string;
   updatedAt: string;
   merchant: { id: string; name: string; code: string | null };
@@ -58,6 +65,7 @@ export interface SettlementDetail extends SettlementSummary {
     createdById: string;
     createdAt: string;
     updatedAt: string;
+    releasedFromSettlementId?: string | null;
   }>;
   payout: null | {
     id: string;
@@ -88,6 +96,7 @@ export interface SettlementDetail extends SettlementSummary {
     receivableId: string;
     amount: string;
     appliedAt: string | null;
+    releasedAt?: string | null;
     receivable: {
       id: string;
       type: 'RENT';
@@ -246,4 +255,6 @@ export interface SettlementPreview {
   finalPayout: string;
   rentDeductionEligible: boolean;
   rentDeductionReason: string | null;
+  rentApplications: Array<{ receivableId: string; amount: string }>;
+  previewRevision: string;
 }

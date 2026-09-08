@@ -23,7 +23,8 @@ const optionalDecimal = (pattern: RegExp, message: string) =>
 
 export const merchantAgreementSchema = z
   .object({
-    startDate: z.string().refine(isBusinessDate, 'Enter a valid start date.'),
+    durationMonths: z.coerce.number().int().min(1).max(60).optional(),
+    startDate: z.string().optional(),
     endDate: z
       .string()
       .refine(
@@ -41,6 +42,20 @@ export const merchantAgreementSchema = z
     settlementSchedule: z.enum(['WEEKLY', 'SEMI_MONTHLY', 'MONTHLY']),
   })
   .superRefine((value, context) => {
+    if (!value.durationMonths && !value.startDate) {
+      context.addIssue({
+        code: 'custom',
+        path: ['durationMonths'],
+        message: 'Enter an agreement duration from 1 to 60 months.',
+      });
+    }
+    if (value.startDate && !isBusinessDate(value.startDate)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['startDate'],
+        message: 'Enter a valid start date.',
+      });
+    }
     if (!value.fixedRentAmount && !value.commissionRate) {
       context.addIssue({
         code: 'custom',
@@ -48,7 +63,7 @@ export const merchantAgreementSchema = z
         message: 'Enter fixed rent, commission, or both.',
       });
     }
-    if (value.endDate && value.endDate < value.startDate) {
+    if (value.endDate && value.startDate && value.endDate < value.startDate) {
       context.addIssue({
         code: 'custom',
         path: ['endDate'],
@@ -58,5 +73,12 @@ export const merchantAgreementSchema = z
   });
 
 export const endMerchantAgreementSchema = z.object({
-  endDate: z.string().refine(isBusinessDate, 'Enter a valid end date.'),
+  reason: z.string().trim().max(500).optional(),
+  endDate: z
+    .string()
+    .refine(
+      (value) => value === '' || isBusinessDate(value),
+      'Enter a valid end date.',
+    )
+    .optional(),
 });

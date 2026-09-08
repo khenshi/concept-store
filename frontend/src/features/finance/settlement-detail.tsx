@@ -8,6 +8,7 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
 import {
+  cancelSettlement,
   getSettlement,
   recordPayout,
   settlementAction,
@@ -86,12 +87,32 @@ export function SettlementDetailPage({
     }
   }
 
-  async function review() {
+  async function cancel() {
+    const reason = window.prompt(
+      'Enter a reason for cancelling this draft settlement:',
+      '',
+    );
+    if (reason === null || !reason.trim()) {
+      setError('A cancellation reason is required.');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Cancel this draft settlement?',
+      description:
+        `Its sales, adjustments, and rent reservations will be released so the payable can be reviewed again. Reason: ${reason.trim()}`,
+      confirmLabel: 'Cancel draft',
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
       setSettlement(
-        await settlementAction(request, organizationId, settlementId, 'review'),
+        await cancelSettlement(
+          request,
+          organizationId,
+          settlementId,
+          reason.trim(),
+        ),
       );
     } catch (cause) {
       setError(message(cause));
@@ -163,16 +184,22 @@ export function SettlementDetailPage({
               Scheduled deadline: {settlement.scheduledDeadline.slice(0, 10)}
             </p>
           ) : null}
+          {settlement.cancellationReason ? (
+            <p className="mt-2 text-sm text-red-700">
+              Cancellation reason: {settlement.cancellationReason}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          {settlement.status === 'DRAFT' ? (
-            <Action primary disabled={busy} onClick={() => void review()}>
-              Mark reviewed
-            </Action>
-          ) : null}
-          {owner && settlement.status === 'REVIEWED' ? (
+          {owner &&
+          settlement.status === 'DRAFT' ? (
             <Action primary disabled={busy} onClick={() => void approve()}>
               Approve and lock
+            </Action>
+          ) : null}
+          {settlement.status === 'DRAFT' ? (
+            <Action disabled={busy} onClick={() => void cancel()}>
+              Cancel draft
             </Action>
           ) : null}
         </div>
@@ -298,12 +325,43 @@ export function SettlementDetailPage({
                 </strong>
                 <br />
                 <span className="text-slate-500">{item.reason}</span>
+                {item.releasedFromSettlementId ? (
+                  <span className="mt-1 block text-amber-700">
+                    Released after draft cancellation
+                  </span>
+                ) : null}
               </span>
             </div>
           ))}
           {!settlement.financeEntries.length ? (
             <p className="text-sm text-slate-500">No entries captured.</p>
           ) : null}
+        </Panel>
+        <Panel title="Rent applications">
+          {settlement.receivableAllocations.length ? (
+            settlement.receivableAllocations.map((allocation) => (
+              <div
+                className="flex items-start justify-between gap-3 border-b border-slate-100 py-3 text-sm"
+                key={allocation.receivableId}
+              >
+                <span>
+                  <strong>
+                    Rent · {allocation.receivable.sourcePeriod.slice(0, 10)}
+                  </strong>
+                  <span className="mt-1 block text-slate-500">
+                    {allocation.releasedAt
+                      ? 'Released with cancelled draft'
+                      : allocation.appliedAt
+                        ? 'Applied to receivable'
+                        : 'Reserved in draft'}
+                  </span>
+                </span>
+                <strong>-{money.format(Number(allocation.amount))}</strong>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-slate-500">No rent applied.</p>
+          )}
         </Panel>
         <Panel title="Payout">
           {settlement.payout ? (
@@ -321,9 +379,7 @@ export function SettlementDetailPage({
                 </p>
               ) : null}
             </div>
-          ) : owner &&
-            settlement.status === 'APPROVED' &&
-            Number(settlement.netPayout) > 0 ? (
+          ) : owner && settlement.status === 'APPROVED' ? (
             <form className="grid gap-3" onSubmit={payout}>
               <select
                 className="min-h-11 rounded-lg border border-slate-300 px-3"

@@ -47,7 +47,10 @@ export function LivePayableDetailPage({
   const router = useRouter();
   const [payable, setPayable] = useState<LiveMerchantPayable | null>(null);
   const [preview, setPreview] = useState<SettlementPreview | null>(null);
-  const [deductOutstandingRent, setDeductOutstandingRent] = useState(false);
+  const [rentApplications, setRentApplications] = useState<
+    Record<string, string>
+  >({});
+  const [closeRequestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const { confirm, confirmationDialog } = useConfirmationDialog();
@@ -66,10 +69,20 @@ export function LivePayableDetailPage({
         row.financeStatus !== 'AGREEMENT_REQUIRED' &&
         !row.pendingSettlement
       ) {
-        setPreview(
-          await previewLivePayable(request, organizationId, merchantId),
+        const nextPreview = await previewLivePayable(
+          request,
+          organizationId,
+          merchantId,
         );
-        setDeductOutstandingRent(false);
+        setPreview(nextPreview);
+        setRentApplications(
+          Object.fromEntries(
+            (nextPreview.rentApplications ?? []).map((item) => [
+              item.receivableId,
+              item.amount,
+            ]),
+          ),
+        );
       }
       if (!row) setError('This active merchant payable was not found.');
     } catch (cause) {
@@ -97,7 +110,13 @@ export function LivePayableDetailPage({
         request,
         organizationId,
         merchantId,
-        deductOutstandingRent,
+        {
+          rentApplications: Object.entries(rentApplications)
+            .filter(([, amount]) => Number(amount) > 0)
+            .map(([receivableId, amount]) => ({ receivableId, amount })),
+          previewRevision: preview?.previewRevision,
+          requestId: closeRequestId,
+        },
       );
       router.push(
         `/app/organizations/${organizationId}/settlements/${settlement.id}`,
@@ -108,20 +127,19 @@ export function LivePayableDetailPage({
     }
   }
 
-  async function toggleRentDeduction(checked: boolean) {
+  async function refreshRentPreview(next: Record<string, string>) {
     if (!preview) return;
     setBusy(true);
     setError(null);
     try {
       setPreview(
-        await previewLivePayable(
-          request,
-          organizationId,
-          merchantId,
-          checked,
-        ),
+        await previewLivePayable(request, organizationId, merchantId, {
+          rentApplications: Object.entries(next)
+            .filter(([, amount]) => Number(amount) > 0)
+            .map(([receivableId, amount]) => ({ receivableId, amount })),
+        }),
       );
-      setDeductOutstandingRent(checked);
+      setRentApplications(next);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -287,21 +305,14 @@ export function LivePayableDetailPage({
             <div>
               <h2 className="font-bold">Accumulated rent</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Outstanding rent is applied oldest-first only when you choose to
-                deduct it from this settlement.
+                The list is sorted oldest-first for convenience. You can apply
+                any available amount to any receivable.
               </p>
             </div>
-            <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-4 text-sm font-bold">
-              <input
-                checked={deductOutstandingRent}
-                disabled={busy || !preview.rentDeductionEligible}
-                onChange={(event) =>
-                  void toggleRentDeduction(event.target.checked)
-                }
-                type="checkbox"
-              />
-              Deduct outstanding rent
-            </label>
+            <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+              Enter an amount for each receivable to apply. Any unapplied rent
+              remains outstanding.
+            </p>
           </div>
           <p className="mt-1 text-sm text-slate-500">
             Total available:{' '}
@@ -314,7 +325,7 @@ export function LivePayableDetailPage({
               )}
             </strong>
           </p>
-          {!preview.rentDeductionEligible && preview.rentDeductionReason ? (
+          {preview.rentDeductionReason ? (
             <p className="mt-2 text-sm text-amber-700">
               {preview.rentDeductionReason}
             </p>
@@ -333,9 +344,27 @@ export function LivePayableDetailPage({
                     Due {readableDate.format(new Date(receivable.dueDate))}
                   </span>
                 </span>
-                <strong>
-                  {money.format(Number(receivable.availableAmount))}
-                </strong>
+                <label className="grid gap-1 text-right text-xs font-bold uppercase text-slate-500">
+                  Apply now
+                  <input
+                    className="min-h-11 w-36 rounded-lg border border-slate-300 px-3 text-right text-base text-slate-900"
+                    disabled={busy}
+                    max={receivable.availableAmount}
+                    min="0"
+                    onChange={(event) =>
+                      setRentApplications((current) => ({
+                        ...current,
+                        [receivable.id]: event.target.value,
+                      }))
+                    }
+                    step="0.01"
+                    type="number"
+                    value={rentApplications[receivable.id] ?? ''}
+                  />
+                  <span className="font-normal normal-case text-slate-500">
+                    Available {money.format(Number(receivable.availableAmount))}
+                  </span>
+                </label>
               </div>
             ))}
           </div>
@@ -343,7 +372,7 @@ export function LivePayableDetailPage({
             <div>
               <span className="block">Rent deduction</span>
               <span className="mt-1 block text-sm font-normal text-slate-500">
-                Applied to the oldest balance first
+                Applied to the selected receivables
               </span>
             </div>
             <span>
@@ -354,6 +383,14 @@ export function LivePayableDetailPage({
             <span>Settlement payout</span>
             <span>{money.format(Number(preview.finalPayout))}</span>
           </div>
+          <button
+            className="mt-4 min-h-11 rounded-lg border border-emerald-600 px-4 font-bold text-emerald-700 disabled:opacity-60"
+            disabled={busy}
+            onClick={() => void refreshRentPreview(rentApplications)}
+            type="button"
+          >
+            Recalculate selected rent
+          </button>
         </section>
       ) : null}
 

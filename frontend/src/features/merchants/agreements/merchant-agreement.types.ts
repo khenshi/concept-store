@@ -7,6 +7,9 @@ export interface MerchantAgreement {
   merchantId: string;
   startDate: string;
   endDate: string | null;
+  durationMonths: number | null;
+  activatedAt?: string | null;
+  scheduledEndDate?: string | null;
   fixedRentAmount: string | null;
   commissionRate: string | null;
   settlementSchedule: SettlementSchedule;
@@ -23,7 +26,8 @@ export interface MerchantAgreement {
 export type AgreementType = 'FIXED_RENT' | 'COMMISSION' | 'HYBRID' | 'UNSET';
 
 export interface MerchantAgreementInput {
-  startDate: string;
+  durationMonths?: number;
+  startDate?: string;
   endDate?: string;
   fixedRentAmount?: string;
   commissionRate?: string;
@@ -31,8 +35,9 @@ export interface MerchantAgreementInput {
 }
 
 export interface MerchantAgreementUpdateInput {
-  startDate: string;
-  endDate: string | null;
+  durationMonths?: number;
+  startDate?: string;
+  endDate?: string | null;
   fixedRentAmount: string | null;
   commissionRate: string | null;
   settlementSchedule: SettlementSchedule;
