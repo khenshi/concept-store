@@ -13,7 +13,6 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import {
   currentPhilippineBusinessDate,
   parseAgreementDate,
-  previousBusinessDate,
 } from './dto/agreement-date.validation';
 import type { CreateMerchantAgreementDto } from './dto/create-merchant-agreement.dto';
 import type { EndMerchantAgreementDto } from './dto/end-merchant-agreement.dto';
@@ -39,22 +38,34 @@ export class MerchantAgreementsService {
         'An agreement requires fixed rent, commission, or both',
       );
     }
-    const startDate = parseAgreementDate(dto.startDate, 'startDate');
-    const endDate = dto.endDate
-      ? parseAgreementDate(dto.endDate, 'endDate')
-      : null;
-    this.validateDateOrder(startDate, endDate);
-    return this.prisma.merchantAgreement.create({
-      data: {
-        organizationId,
-        merchantId,
+    if (!dto.durationMonths && !dto.startDate) {
+      throw new BadRequestException('durationMonths is required');
+    }
+    const startDate = dto.durationMonths
+      ? currentPhilippineBusinessDate()
+      : parseAgreementDate(dto.startDate!, 'startDate');
+    if (!dto.durationMonths && dto.endDate) {
+      this.validateDateOrder(
         startDate,
-        endDate,
-        fixedRentAmount: this.toDecimal(dto.fixedRentAmount),
-        commissionRate: this.toDecimal(dto.commissionRate),
-        settlementSchedule: dto.settlementSchedule,
-      },
-    });
+        parseAgreementDate(dto.endDate, 'endDate'),
+      );
+    }
+    const durationMonths = dto.durationMonths ?? this.legacyDuration(dto);
+    const data = {
+      organizationId,
+      merchantId,
+      startDate,
+      endDate: dto.durationMonths
+        ? null
+        : dto.endDate
+          ? parseAgreementDate(dto.endDate, 'endDate')
+          : null,
+      fixedRentAmount: this.toDecimal(dto.fixedRentAmount),
+      commissionRate: this.toDecimal(dto.commissionRate),
+      settlementSchedule: dto.settlementSchedule,
+      ...(durationMonths == null ? {} : { durationMonths }),
+    };
+    return this.prisma.merchantAgreement.create({ data });
   }
 
   async findAll(
@@ -149,6 +160,7 @@ export class MerchantAgreementsService {
         commissionRate:
           dto.commissionRate === undefined ? undefined : commissionRate,
         settlementSchedule: dto.settlementSchedule,
+        durationMonths: dto.durationMonths,
       },
     });
   }
@@ -170,66 +182,86 @@ export class MerchantAgreementsService {
         this.validateCompleteTerms(agreement);
 
         const today = currentPhilippineBusinessDate();
-        if (agreement.startDate > today) {
-          throw new ConflictException(
-            'Agreement cannot be activated before its startDate',
-          );
-        }
-        if (agreement.endDate && agreement.endDate < today) {
-          throw new ConflictException(
-            'An expired agreement cannot be activated',
-          );
-        }
-
-        const historicalOverlap = await transaction.merchantAgreement.findFirst(
-          {
+        await transaction.merchantAgreement.updateMany({
+          where: {
+            organizationId,
+            merchantId: agreement.merchantId,
+            status: AgreementStatus.ACTIVE,
+            endDate: { lt: today },
+          },
+          data: {
+            status: AgreementStatus.ENDED,
+            endedAt: new Date(),
+            endReason: 'Agreement term completed',
+          },
+        });
+        const agreementEndingToday =
+          await transaction.merchantAgreement.findFirst({
             where: {
               organizationId,
               merchantId: agreement.merchantId,
-              id: { not: agreement.id },
               status: AgreementStatus.ENDED,
-              startDate: agreement.endDate
-                ? { lte: agreement.endDate }
-                : undefined,
-              endDate: { gte: agreement.startDate },
+              endDate: { gte: today },
             },
+            orderBy: [{ endDate: 'desc' }, { id: 'asc' }],
             select: { id: true },
-          },
-        );
-        if (historicalOverlap) {
+          });
+        if (agreementEndingToday) {
           throw new ConflictException(
-            'Agreement dates overlap an ended agreement',
+            'A previous agreement covers today; activate the replacement on the next business date',
           );
         }
-
         const current = await transaction.merchantAgreement.findFirst({
           where: {
             organizationId,
             merchantId: agreement.merchantId,
             status: AgreementStatus.ACTIVE,
+            OR: [{ endDate: null }, { endDate: { gte: today } }],
           },
         });
         if (current) {
-          if (agreement.startDate <= current.startDate) {
-            throw new ConflictException(
-              'A replacement agreement must start after the active agreement',
-            );
-          }
-          const replacementBoundary = previousBusinessDate(agreement.startDate);
-          const currentEndDate =
-            current.endDate && current.endDate < replacementBoundary
-              ? current.endDate
-              : replacementBoundary;
-          await transaction.merchantAgreement.update({
-            where: { id: current.id, organizationId },
-            data: { status: AgreementStatus.ENDED, endDate: currentEndDate },
-          });
+          throw new ConflictException(
+            'End the active agreement explicitly before activating a replacement',
+          );
         }
 
-        return transaction.merchantAgreement.update({
+        const durationMonths = agreement.durationMonths ?? 1;
+        const scheduledEndDate = addMonthsAnchored(today, durationMonths);
+        const endDate = previousDate(scheduledEndDate);
+
+        const activated = await transaction.merchantAgreement.update({
           where: { id: agreementId, organizationId },
-          data: { status: AgreementStatus.ACTIVE },
+          data: {
+            status: AgreementStatus.ACTIVE,
+            startDate: today,
+            endDate,
+            durationMonths,
+            activatedAt: new Date(),
+            scheduledEndDate,
+          },
         });
+        if (activated.fixedRentAmount && transaction.merchantReceivable) {
+          const existing = await transaction.merchantReceivable.findFirst({
+            where: { organizationId, agreementId, cycleNumber: 1 },
+          });
+          if (!existing) {
+            await transaction.merchantReceivable.create({
+              data: {
+                organizationId,
+                merchantId: activated.merchantId,
+                agreementId,
+                sourcePeriod: today,
+                periodStart: today,
+                periodEnd: previousDate(addMonthsAnchored(today, 1)),
+                cycleNumber: 1,
+                originalAmount: activated.fixedRentAmount,
+                remainingAmount: activated.fixedRentAmount,
+                dueDate: today,
+              },
+            });
+          }
+        }
+        return activated;
       });
     } catch (error: unknown) {
       this.rethrowActivationConflict(error);
@@ -240,17 +272,15 @@ export class MerchantAgreementsService {
     organizationId: string,
     agreementId: string,
     dto: EndMerchantAgreementDto,
+    actorId?: string,
   ): Promise<MerchantAgreementRecord> {
     const agreement = await this.findOne(organizationId, agreementId);
     if (agreement.status !== AgreementStatus.ACTIVE) {
       throw new ConflictException('Only active agreements can be ended');
     }
 
-    const endDate = parseAgreementDate(dto.endDate, 'endDate');
+    const endDate = currentPhilippineBusinessDate();
     this.validateDateOrder(agreement.startDate, endDate);
-    if (endDate > currentPhilippineBusinessDate()) {
-      throw new BadRequestException('endDate cannot be in the future');
-    }
 
     const result = await this.prisma.merchantAgreement.updateMany({
       where: {
@@ -258,7 +288,13 @@ export class MerchantAgreementsService {
         organizationId,
         status: AgreementStatus.ACTIVE,
       },
-      data: { status: AgreementStatus.ENDED, endDate },
+      data: {
+        status: AgreementStatus.ENDED,
+        endDate,
+        endedAt: new Date(),
+        endedById: actorId,
+        endReason: dto.reason,
+      },
     });
     if (result.count !== 1) {
       throw new ConflictException('Only active agreements can be ended');
@@ -322,4 +358,33 @@ export class MerchantAgreementsService {
     }
     throw error;
   }
+
+  private legacyDuration(dto: CreateMerchantAgreementDto): number | null {
+    if (!dto.startDate || !dto.endDate) return null;
+    const start = parseAgreementDate(dto.startDate, 'startDate');
+    const end = parseAgreementDate(dto.endDate, 'endDate');
+    const months =
+      (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+      end.getUTCMonth() -
+      start.getUTCMonth() +
+      1;
+    return Math.min(Math.max(months, 1), 60);
+  }
+}
+
+function previousDate(date: Date): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() - 1);
+  return result;
+}
+
+function addMonthsAnchored(anchor: Date, months: number): Date {
+  const result = new Date(
+    Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + months, 1),
+  );
+  const lastDay = new Date(
+    Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  result.setUTCDate(Math.min(anchor.getUTCDate(), lastDay));
+  return result;
 }

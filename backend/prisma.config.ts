@@ -5,6 +5,7 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+    seed: 'npm run prisma:seed:demo',
   },
   datasource: {
     // Prisma CLI operations need a direct session connection. The running API

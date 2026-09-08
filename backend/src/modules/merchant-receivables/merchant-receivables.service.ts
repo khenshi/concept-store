@@ -23,8 +23,29 @@ import {
   type MerchantReceivableRecord,
 } from './merchant-receivables.types';
 
+function previousDate(date: Date): Date {
+  const result = new Date(date);
+  result.setUTCDate(result.getUTCDate() - 1);
+  return result;
+}
+
+function addMonthsAnchored(anchor: Date, months: number): Date {
+  const year = anchor.getUTCFullYear();
+  const month = anchor.getUTCMonth() + months;
+  const day = anchor.getUTCDate();
+  const result = new Date(Date.UTC(year, month, 1));
+  const lastDay = new Date(
+    Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
+}
+
 @Injectable()
 export class MerchantReceivablesService {
+  private readonly rentGenerationByOrganization = new Map<string, string>();
+  private readonly overdueMarkByOrganization = new Map<string, string>();
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(
@@ -72,35 +93,103 @@ export class MerchantReceivablesService {
 
   async ensureCurrentRentReceivables(organizationId: string): Promise<void> {
     const today = currentPhilippineBusinessDate();
-    const sourcePeriod = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1),
-    );
-    const dueDate = new Date(
-      Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0),
-    );
+    const dayKey = today.toISOString().slice(0, 10);
+    if (this.rentGenerationByOrganization.get(organizationId) === dayKey) {
+      return;
+    }
     const agreements = await this.prisma.merchantAgreement.findMany({
       where: {
         organizationId,
-        status: AgreementStatus.ACTIVE,
+        status: { in: [AgreementStatus.ACTIVE, AgreementStatus.ENDED] },
         fixedRentAmount: { not: null },
         startDate: { lte: today },
-        OR: [{ endDate: null }, { endDate: { gte: sourcePeriod } }],
       },
-      select: { id: true, merchantId: true, fixedRentAmount: true },
+      select: {
+        id: true,
+        merchantId: true,
+        fixedRentAmount: true,
+        startDate: true,
+        endDate: true,
+        scheduledEndDate: true,
+        durationMonths: true,
+      },
     });
-    if (!agreements.length) return;
-    await this.prisma.merchantReceivable.createMany({
-      data: agreements.map((agreement) => ({
-        organizationId,
-        merchantId: agreement.merchantId,
-        agreementId: agreement.id,
-        sourcePeriod,
-        originalAmount: agreement.fixedRentAmount!,
-        remainingAmount: agreement.fixedRentAmount!,
-        dueDate,
-      })),
-      skipDuplicates: true,
-    });
+    for (const agreement of agreements) {
+      if (!agreement.startDate) {
+        const sourcePeriod = new Date(
+          Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1),
+        );
+        const dueDate = new Date(
+          Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 0),
+        );
+        await this.prisma.merchantReceivable.createMany({
+          data: [
+            {
+              organizationId,
+              merchantId: agreement.merchantId,
+              agreementId: agreement.id,
+              sourcePeriod,
+              periodStart: sourcePeriod,
+              periodEnd: dueDate,
+              cycleNumber: 1,
+              originalAmount: agreement.fixedRentAmount!,
+              remainingAmount: agreement.fixedRentAmount!,
+              dueDate,
+            },
+          ],
+          skipDuplicates: true,
+        });
+        continue;
+      }
+      const durationMonths = agreement.durationMonths ?? 1;
+      const agreementEnd =
+        agreement.endDate ??
+        (agreement.scheduledEndDate
+          ? previousDate(agreement.scheduledEndDate)
+          : null);
+      const rows: Array<{
+        organizationId: string;
+        merchantId: string;
+        agreementId: string;
+        sourcePeriod: Date;
+        periodStart: Date;
+        periodEnd: Date;
+        cycleNumber: number;
+        originalAmount: Prisma.Decimal;
+        remainingAmount: Prisma.Decimal;
+        dueDate: Date;
+      }> = [];
+      for (let cycle = 0; cycle < durationMonths; cycle += 1) {
+        const periodStart = addMonthsAnchored(agreement.startDate, cycle);
+        if (periodStart > today) break;
+        const nextPeriodStart = addMonthsAnchored(
+          agreement.startDate,
+          cycle + 1,
+        );
+        let periodEnd = previousDate(nextPeriodStart);
+        if (agreementEnd && periodEnd > agreementEnd) periodEnd = agreementEnd;
+        if (periodEnd < periodStart) break;
+        rows.push({
+          organizationId,
+          merchantId: agreement.merchantId,
+          agreementId: agreement.id,
+          sourcePeriod: periodStart,
+          periodStart,
+          periodEnd,
+          cycleNumber: cycle + 1,
+          originalAmount: agreement.fixedRentAmount!,
+          remainingAmount: agreement.fixedRentAmount!,
+          dueDate: periodStart,
+        });
+      }
+      if (rows.length) {
+        await this.prisma.merchantReceivable.createMany({
+          data: rows,
+          skipDuplicates: true,
+        });
+      }
+    }
+    this.rentGenerationByOrganization.set(organizationId, dayKey);
   }
 
   async recordPayment(
@@ -115,26 +204,51 @@ export class MerchantReceivablesService {
     }
     await this.runMutation(async (transaction) => {
       await this.assertFinanceActor(transaction, organizationId, actorId);
+      if (dto.requestId) {
+        const prior = await transaction.merchantReceivableTransaction.findFirst(
+          {
+            where: { organizationId, requestId: dto.requestId },
+            select: { receivableId: true },
+          },
+        );
+        if (prior && prior.receivableId !== receivableId) {
+          throw new ConflictException(
+            'This payment request was already used for another receivable',
+          );
+        }
+        if (prior) return;
+      }
       const receivable = await this.requireAvailableReceivable(
         transaction,
         organizationId,
         receivableId,
       );
-      if (receivable.reservedAmount.gt(0)) {
+      if (receivable.reservedAmount.gt(0) && !dto.amount) {
         throw new BadRequestException(
-          'This rent receivable is reserved by an unpaid settlement; clear the settlement before recording payment',
+          'This rent receivable is reserved by an unpaid settlement; enter an explicit amount from the unreserved balance',
         );
       }
-      const amount = receivable.remainingAmount;
+      const amount = dto.amount
+        ? new Prisma.Decimal(dto.amount)
+        : receivable.availableAmount;
       if (amount.lte(0)) {
         throw new BadRequestException('This rent receivable is already paid');
       }
-      const remainingAmount = new Prisma.Decimal(0);
+      if (amount.gt(receivable.availableAmount)) {
+        throw new BadRequestException(
+          'Payment amount cannot exceed the available receivable balance',
+        );
+      }
+      const remainingAmount = receivable.remainingAmount.sub(amount);
       await transaction.merchantReceivable.update({
         where: { id: receivableId },
         data: {
           remainingAmount,
-          status: MerchantReceivableStatus.PAID,
+          status: this.statusFor(
+            remainingAmount,
+            receivable.originalAmount,
+            receivable.dueDate,
+          ),
         },
       });
       await transaction.merchantReceivableTransaction.create({
@@ -147,6 +261,7 @@ export class MerchantReceivablesService {
           paymentMethod: dto.method,
           referenceNumber: dto.referenceNumber,
           note: dto.note,
+          ...(dto.requestId ? { requestId: dto.requestId } : {}),
           occurredAt: paidAt,
           recordedById: actorId,
         },
@@ -209,7 +324,10 @@ export class MerchantReceivablesService {
     const receivable = await transaction.merchantReceivable.findFirst({
       where: { id: receivableId, organizationId },
       include: {
-        allocations: { where: { appliedAt: null }, select: { amount: true } },
+        allocations: {
+          where: { appliedAt: null, releasedAt: null },
+          select: { amount: true },
+        },
       },
     });
     if (!receivable)
@@ -279,6 +397,8 @@ export class MerchantReceivablesService {
   }
 
   private async markOverdue(organizationId: string): Promise<void> {
+    const dayKey = currentPhilippineBusinessDate().toISOString().slice(0, 10);
+    if (this.overdueMarkByOrganization.get(organizationId) === dayKey) return;
     await this.prisma.merchantReceivable.updateMany({
       where: {
         organizationId,
@@ -293,6 +413,7 @@ export class MerchantReceivablesService {
       },
       data: { status: MerchantReceivableStatus.OVERDUE },
     });
+    this.overdueMarkByOrganization.set(organizationId, dayKey);
   }
 
   private toRecord(
@@ -300,7 +421,8 @@ export class MerchantReceivablesService {
       include: typeof merchantReceivableInclude;
     }>,
   ): MerchantReceivableRecord {
-    const collectedAmount = item.transactions
+    const transactions = item.transactions ?? [];
+    const collectedAmount = transactions
       .filter(
         (transaction) =>
           transaction.type === MerchantReceivableTransactionType.PAYMENT ||
@@ -318,11 +440,13 @@ export class MerchantReceivablesService {
       accruedAmount: item.originalAmount.toFixed(2),
       collectedAmount: collectedAmount.toFixed(2),
       outstandingAmount: item.remainingAmount.toFixed(2),
-      agreement: {
-        ...item.agreement,
-        fixedRentAmount: item.agreement.fixedRentAmount?.toFixed(2) ?? null,
-      },
-      transactions: item.transactions.map((transaction) => ({
+      agreement: item.agreement
+        ? {
+            ...item.agreement,
+            fixedRentAmount: item.agreement.fixedRentAmount?.toFixed(2) ?? null,
+          }
+        : item.agreement,
+      transactions: transactions.map((transaction) => ({
         ...transaction,
         amount: transaction.amount.toFixed(2),
       })),

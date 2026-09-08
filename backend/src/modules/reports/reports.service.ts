@@ -95,6 +95,7 @@ export class ReportsService {
       lowStockCount,
       recentSales,
       recentSettlements,
+      rentReceipts,
     ] = await Promise.all([
       this.prisma.saleItem.aggregate({
         where: saleItemWhere,
@@ -160,14 +161,46 @@ export class ReportsService {
         orderBy: [{ periodEnd: 'desc' }, { id: 'desc' }],
         take: 5,
       }),
+      this.prisma.merchantReceivable?.findMany
+        ? this.prisma.merchantReceivable.findMany({
+            where: {
+              organizationId,
+              merchantId: filters.merchantId,
+              OR: [
+                { periodStart: { gte: period.dateStart, lte: period.dateEnd } },
+                {
+                  periodStart: null,
+                  sourcePeriod: { gte: period.dateStart, lte: period.dateEnd },
+                },
+              ],
+            },
+            select: {
+              transactions: {
+                where: { type: 'PAYMENT' },
+                select: { amount: true },
+              },
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     const grossSales = gross._sum.total ?? new Prisma.Decimal(0);
     const refundTotal = refunds._sum.amount ?? new Prisma.Decimal(0);
     const commission =
       finalizedRevenue._sum.commissionAmount ?? new Prisma.Decimal(0);
-    const fixedRent =
-      finalizedRevenue._sum.fixedRentAmount ?? new Prisma.Decimal(0);
+    const directlyPaidRent = rentReceipts.reduce(
+      (total, receivable) =>
+        total.add(
+          receivable.transactions.reduce(
+            (subtotal, transaction) => subtotal.add(transaction.amount),
+            new Prisma.Decimal(0),
+          ),
+        ),
+      new Prisma.Decimal(0),
+    );
+    const fixedRent = (
+      finalizedRevenue._sum.fixedRentAmount ?? new Prisma.Decimal(0)
+    ).add(directlyPaidRent);
     const adjustments =
       finalizedRevenue._sum.adjustmentTotal ?? new Prisma.Decimal(0);
 

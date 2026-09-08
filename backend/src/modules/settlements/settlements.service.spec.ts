@@ -13,7 +13,6 @@ import {
   Prisma,
   SettlementSchedule,
   SettlementStatus,
-  SettlementAuditEventType,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { MerchantReceivablesService } from '../merchant-receivables/merchant-receivables.service';
@@ -32,11 +31,18 @@ interface SettlementCreateArgument {
     adjustmentTotal: Prisma.Decimal;
     netPayout: Prisma.Decimal;
     calculatedById: string;
-    terms: {
-      create: Array<{ fixedRentAmount: Prisma.Decimal }>;
-    };
   };
   select: { id: true };
+}
+
+interface SettlementTermSnapshotCreateManyArgument {
+  data: Array<{
+    id: string;
+    organizationId: string;
+    merchantId: string;
+    settlementId: string;
+    agreementId: string;
+  }>;
 }
 
 interface SettlementSaleItemCreateManyArgument {
@@ -157,12 +163,15 @@ describe('SettlementsService', () => {
   };
   let service: SettlementsService;
   let capturedSettlementCreate: SettlementCreateArgument | undefined;
+  let capturedTermSnapshotCreateMany:
+    SettlementTermSnapshotCreateManyArgument | undefined;
   let capturedSaleItemCreateMany:
     SettlementSaleItemCreateManyArgument | undefined;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     capturedSettlementCreate = undefined;
+    capturedTermSnapshotCreateMany = undefined;
     capturedSaleItemCreateMany = undefined;
     prisma.$transaction.mockImplementation(
       (
@@ -231,6 +240,12 @@ describe('SettlementsService', () => {
         return Promise.resolve({ id: settlementId });
       },
     );
+    transaction.settlementTermSnapshot.createMany.mockImplementation(
+      (input: SettlementTermSnapshotCreateManyArgument) => {
+        capturedTermSnapshotCreateMany = input;
+        return Promise.resolve({ count: input.data.length });
+      },
+    );
     transaction.settlementSaleItem.createMany.mockImplementation(
       (input: SettlementSaleItemCreateManyArgument) => {
         capturedSaleItemCreateMany = input;
@@ -264,7 +279,6 @@ describe('SettlementsService', () => {
       saleItems: [],
       refundItems: [],
       terms: [],
-      saleItems: [],
       financeEntries: [],
       payout: null,
       receivableAllocations: [],
@@ -471,7 +485,7 @@ describe('SettlementsService', () => {
       where: {
         organizationId,
         merchantId,
-        settlementLinks: { none: {} },
+        settlementLinks: { none: { releasedAt: null } },
         sale: {
           status: 'COMPLETED',
           completedAt: {
@@ -509,7 +523,26 @@ describe('SettlementsService', () => {
     expect(createInput.data.commissionAmount.toFixed(2)).toBe('200.00');
     expect(createInput.data.fixedRentAmount.toFixed(2)).toBe('0.00');
     expect(createInput.data.netPayout.toFixed(2)).toBe('2800.00');
-    expect(createInput.data.terms.create).toHaveLength(2);
+    if (!capturedTermSnapshotCreateMany) {
+      throw new Error('Expected settlement term snapshot input');
+    }
+    expect(capturedTermSnapshotCreateMany.data).toHaveLength(2);
+    expect(capturedTermSnapshotCreateMany.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          settlementId,
+          organizationId,
+          merchantId,
+          agreementId: agreements[0].id,
+        }),
+        expect.objectContaining({
+          settlementId,
+          organizationId,
+          merchantId,
+          agreementId: agreements[1].id,
+        }),
+      ]),
+    );
     if (!capturedSaleItemCreateMany) {
       throw new Error('Expected settlement sale-item input');
     }
@@ -774,7 +807,7 @@ describe('SettlementsService', () => {
     );
   });
 
-  it('allows only an owner to approve and lock a reviewed settlement', async () => {
+  it('allows only an owner to approve and lock a draft settlement', async () => {
     transaction.organizationMembership.findUnique.mockResolvedValue({
       role: OrganizationRole.OWNER,
     });
@@ -785,7 +818,7 @@ describe('SettlementsService', () => {
       where: {
         id: settlementId,
         organizationId,
-        status: SettlementStatus.REVIEWED,
+        status: { in: [SettlementStatus.DRAFT] },
       },
       // Jest asymmetric matchers are intentionally untyped at this boundary.
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -794,36 +827,6 @@ describe('SettlementsService', () => {
         approvedById: actorId,
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         approvedAt: expect.any(Date),
-      }),
-    });
-  });
-
-  it('records an explicit review before approval', async () => {
-    transaction.organizationMembership.findUnique.mockResolvedValue({
-      role: OrganizationRole.MANAGER,
-    });
-
-    await service.review(organizationId, settlementId, actorId);
-
-    expect(transaction.merchantSettlement.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: settlementId,
-        organizationId,
-        status: SettlementStatus.DRAFT,
-      },
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      data: expect.objectContaining({
-        status: SettlementStatus.REVIEWED,
-        reviewedById: actorId,
-      }),
-    });
-    expect(transaction.settlementAuditEvent.create).toHaveBeenCalledWith({
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      data: expect.objectContaining({
-        organizationId,
-        settlementId,
-        actorId,
-        type: SettlementAuditEventType.REVIEWED,
       }),
     });
   });
@@ -854,9 +857,7 @@ describe('SettlementsService', () => {
     await expect(
       service.approve(organizationId, settlementId, actorId),
     ).rejects.toThrow(
-      new ConflictException(
-        'Settlement must be reviewed before it can be approved',
-      ),
+      new ConflictException('Only a draft settlement can be approved'),
     );
     expect(transaction.merchantSettlement.updateMany).toHaveBeenCalled();
   });
@@ -939,7 +940,7 @@ describe('SettlementsService', () => {
       role: OrganizationRole.OWNER,
     });
     transaction.merchantSettlement.findFirst.mockResolvedValue({
-      status: SettlementStatus.REVIEWED,
+      status: SettlementStatus.DRAFT,
       merchantId,
       netPayout: new Prisma.Decimal('100.00'),
     });

@@ -37,6 +37,7 @@ import { ListLivePayablesQueryDto } from './dto/list-live-payables-query.dto';
 import { RecordPayoutDto } from './dto/record-payout.dto';
 import { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
 import { SettlementReceivableDeductionsDto } from './dto/settlement-receivable-deductions.dto';
+import { CancelSettlementDto } from './dto/cancel-settlement.dto';
 import { SettlementsService } from './settlements.service';
 import type {
   SettlementPageRecord,
@@ -178,18 +179,21 @@ export class SettlementsController {
     );
   }
 
-  @Post(':settlementId/review')
+  @Post(':settlementId/cancel')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Mark a draft settlement as reviewed' })
-  review(
+  @ApiOperation({ summary: 'Cancel an unpaid draft settlement' })
+  @ApiOkResponse({ type: SettlementResponseDto })
+  cancel(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('settlementId', new ParseUUIDPipe({ version: '4' }))
     settlementId: string,
+    @Body() dto: CancelSettlementDto,
   ): Promise<SettlementViewRecord> {
-    return this.settlementsService.review(
+    return this.settlementsService.cancel(
       organization.organizationId,
       settlementId,
       organization.userId,
+      dto,
     );
   }
 

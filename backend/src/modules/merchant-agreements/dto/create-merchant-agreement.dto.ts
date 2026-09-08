@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsEnum, IsOptional, Matches } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
 import { SettlementSchedule } from '../../../generated/prisma/client';
 import { trimOptionalDecimal } from './agreement-dto.transforms';
 
@@ -10,11 +10,19 @@ const COMMISSION_PATTERN =
   /^(?:100(?:\.0{1,2})?|[1-9]\d?(?:\.\d{1,2})?|0\.(?:0[1-9]|[1-9]\d?))$/;
 
 export class CreateMerchantAgreementDto {
+  @ApiProperty({ minimum: 1, maximum: 60, example: 12 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  durationMonths?: number;
+
   @ApiProperty({ format: 'date', example: '2026-09-01' })
+  @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
     message: 'startDate must use YYYY-MM-DD format',
   })
-  startDate!: string;
+  startDate?: string;
 
   @ApiPropertyOptional({ format: 'date', example: '2027-08-31' })
   @IsOptional()

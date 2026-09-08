@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsEnum, IsOptional, Matches, ValidateIf } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  Matches,
+  Max,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { SettlementSchedule } from '../../../generated/prisma/client';
 import { trimOptionalDecimal } from './agreement-dto.transforms';
 import {
@@ -9,6 +17,14 @@ import {
 } from './create-merchant-agreement.dto';
 
 export class UpdateMerchantAgreementDto {
+  @ApiPropertyOptional({ minimum: 1, maximum: 60, example: 12 })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  durationMonths?: number;
+
   @ApiPropertyOptional({ format: 'date', example: '2026-09-01' })
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {

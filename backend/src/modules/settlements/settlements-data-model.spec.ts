@@ -14,6 +14,13 @@ describe('Milestone 6 merchant finance data model', () => {
     ),
     'utf8',
   );
+  const hardeningMigration = readFileSync(
+    join(
+      process.cwd(),
+      'prisma/migrations/20260907120000_finance_workflow_hardening/migration.sql',
+    ),
+    'utf8',
+  );
 
   it('generates the settlement persistence entities', () => {
     expect(Prisma.ModelName).toEqual(
@@ -30,9 +37,9 @@ describe('Milestone 6 merchant finance data model', () => {
   it('uses the approved settlement lifecycle and manual payout methods', () => {
     expect(Object.values(SettlementStatus)).toEqual([
       'DRAFT',
-      'REVIEWED',
       'APPROVED',
       'PAID',
+      'CANCELLED',
     ]);
     expect(Object.values(PayoutMethod)).toEqual([
       'CASH',
@@ -55,5 +62,22 @@ describe('Milestone 6 merchant finance data model', () => {
     expect(migration).toContain('MerchantSettlement_total_check');
     expect(migration).toContain('MerchantSettlement_lifecycle_check');
     expect(migration).toContain('MerchantPayout_non_cash_reference_check');
+  });
+
+  it('migrates the simplified lifecycle and preserves only unreleased source uniqueness', () => {
+    expect(hardeningMigration).toContain('WHERE "status" = \'REVIEWED\'');
+    expect(hardeningMigration).toContain(
+      "WHERE \"status\" IN ('DRAFT', 'APPROVED')",
+    );
+    expect(hardeningMigration).toContain(
+      'SettlementSaleItem_active_source_key',
+    );
+    expect(hardeningMigration).toContain(
+      'SettlementReceivableAllocation_active_key',
+    );
+    expect(hardeningMigration).toContain('ALTER TABLE "SettlementAdjustment"');
+    expect(hardeningMigration).not.toContain(
+      'ALTER TABLE "MerchantFinanceEntry"',
+    );
   });
 });

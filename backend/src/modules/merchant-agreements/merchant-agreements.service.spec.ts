@@ -45,7 +45,7 @@ describe('MerchantAgreementsService', () => {
   let service: MerchantAgreementsService;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     prisma.$transaction.mockImplementation(
       (operation: (transaction: typeof prisma) => unknown) => operation(prisma),
     );
@@ -194,20 +194,23 @@ describe('MerchantAgreementsService', () => {
     );
   });
 
-  it('does not activate a future-dated draft early', async () => {
-    prisma.merchantAgreement.findFirst.mockResolvedValue({
-      ...agreement,
-      startDate: new Date('2099-01-01T00:00:00.000Z'),
-    });
+  it('rejects activation when an effective agreement already exists', async () => {
+    prisma.merchantAgreement.findFirst
+      .mockResolvedValueOnce(agreement)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        ...agreement,
+        status: AgreementStatus.ACTIVE,
+      });
 
     await expect(service.activate(organizationId, agreementId)).rejects.toThrow(
       new ConflictException(
-        'Agreement cannot be activated before its startDate',
+        'End the active agreement explicitly before activating a replacement',
       ),
     );
   });
 
-  it('atomically ends the current agreement at a replacement boundary', async () => {
+  it('requires an active agreement to be ended before replacement activation', async () => {
     const current = {
       ...agreement,
       id: '31e323bc-5f7c-4a5f-952e-33042d53cbf3',
@@ -218,35 +221,26 @@ describe('MerchantAgreementsService', () => {
       .mockResolvedValueOnce(agreement)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(current);
-    prisma.merchantAgreement.update
-      .mockResolvedValueOnce({ ...current, status: AgreementStatus.ENDED })
-      .mockResolvedValueOnce({ ...agreement, status: AgreementStatus.ACTIVE });
-
-    await service.activate(organizationId, agreementId);
-
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.merchantAgreement.update).toHaveBeenNthCalledWith(1, {
-      where: { id: current.id, organizationId },
-      data: {
-        status: AgreementStatus.ENDED,
-        endDate: new Date('2025-12-31T00:00:00.000Z'),
-      },
-    });
-    expect(prisma.merchantAgreement.update).toHaveBeenNthCalledWith(2, {
-      where: { id: agreementId, organizationId },
-      data: { status: AgreementStatus.ACTIVE },
-    });
-  });
-
-  it('does not activate across an ended agreement period', async () => {
-    prisma.merchantAgreement.findFirst
-      .mockResolvedValueOnce(agreement)
-      .mockResolvedValueOnce({ id: 'ended-agreement-id' });
-
     await expect(service.activate(organizationId, agreementId)).rejects.toThrow(
-      new ConflictException('Agreement dates overlap an ended agreement'),
+      'End the active agreement explicitly before activating a replacement',
     );
     expect(prisma.merchantAgreement.update).not.toHaveBeenCalled();
+  });
+
+  it('activates a draft from the current business date', async () => {
+    prisma.merchantAgreement.findFirst
+      .mockResolvedValueOnce({ ...agreement, durationMonths: 12 })
+      .mockResolvedValueOnce(null);
+    prisma.merchantAgreement.update.mockResolvedValue({
+      ...agreement,
+      status: AgreementStatus.ACTIVE,
+    });
+
+    await expect(
+      service.activate(organizationId, agreementId),
+    ).resolves.toEqual(
+      expect.objectContaining({ status: AgreementStatus.ACTIVE }),
+    );
   });
 
   it('ends an active agreement with an effective business date', async () => {
@@ -262,18 +256,26 @@ describe('MerchantAgreementsService', () => {
     prisma.merchantAgreement.updateMany.mockResolvedValue({ count: 1 });
     prisma.merchantAgreement.findFirstOrThrow.mockResolvedValue(endedAgreement);
 
-    await service.end(organizationId, agreementId, { endDate: '2026-08-25' });
-
-    expect(prisma.merchantAgreement.updateMany).toHaveBeenCalledWith({
-      where: {
-        id: agreementId,
-        organizationId,
-        status: AgreementStatus.ACTIVE,
-      },
-      data: {
-        status: AgreementStatus.ENDED,
-        endDate: new Date('2026-08-25T00:00:00.000Z'),
-      },
+    await service.end(organizationId, agreementId, {
+      reason: 'Merchant requested closure',
     });
+
+    const updateManyMock = prisma.merchantAgreement.updateMany as jest.Mock<
+      unknown,
+      [unknown]
+    >;
+    const updateCall = updateManyMock.mock.calls[0]?.[0];
+    expect(updateCall).toBeDefined();
+    const update = updateCall as {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    };
+    expect(update.where).toEqual({
+      id: agreementId,
+      organizationId,
+      status: AgreementStatus.ACTIVE,
+    });
+    expect(update.data.status).toBe(AgreementStatus.ENDED);
+    expect(update.data.endDate).toBeInstanceOf(Date);
   });
 });

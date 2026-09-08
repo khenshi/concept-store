@@ -12,6 +12,7 @@ import {
   MerchantReceivableTransactionType,
   MerchantStatus,
   OrganizationRole,
+  PayoutMethod,
   Prisma,
   SettlementStatus,
   SettlementAuditEventType,
@@ -27,6 +28,7 @@ import type { ListLivePayablesQueryDto } from './dto/list-live-payables-query.dt
 import type { RecordPayoutDto } from './dto/record-payout.dto';
 import type { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
 import type { SettlementReceivableDeductionsDto } from './dto/settlement-receivable-deductions.dto';
+import type { CancelSettlementDto } from './dto/cancel-settlement.dto';
 import { MerchantReceivablesService } from '../merchant-receivables/merchant-receivables.service';
 import {
   nextBusinessDate,
@@ -97,6 +99,11 @@ interface AvailableReceivable {
   availableAmount: Prisma.Decimal;
 }
 
+interface RequestedRentApplication {
+  receivableId: string;
+  amount: string;
+}
+
 @Injectable()
 export class SettlementsService {
   constructor(
@@ -139,11 +146,50 @@ export class SettlementsService {
           },
         },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: query.offset,
+        take: query.limit,
       }),
       this.prisma.merchant.count({ where }),
     ]);
-    const rows = await Promise.all(
-      merchants.map(async (merchant) => {
+    let summaryMerchants = merchants;
+    if (query.merchantId || query.branchId || total > merchants.length) {
+      summaryMerchants =
+        (await this.prisma.merchant.findMany({
+          where: { organizationId, status: MerchantStatus.ACTIVE },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            agreements: {
+              where: {
+                status: AgreementStatus.ACTIVE,
+                startDate: { lte: today },
+                OR: [{ endDate: null }, { endDate: { gte: today } }],
+              },
+              select: { id: true },
+              take: 1,
+            },
+            branches: {
+              select: { branch: { select: { id: true, name: true } } },
+            },
+          },
+          orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        })) ?? merchants;
+    }
+    const rows = await this.mapInBatches(merchants, async (merchant) => {
+      const branches = merchant.branches.map(({ branch }) => branch);
+      const identity = {
+        id: merchant.id,
+        name: merchant.name,
+        code: merchant.code,
+      };
+      return merchant.agreements.length
+        ? await this.livePayableForMerchant(organizationId, identity, branches)
+        : this.emptyLivePayable(identity, branches, today);
+    });
+    const summaryRows = await this.mapInBatches(
+      summaryMerchants,
+      async (merchant) => {
         const branches = merchant.branches.map(({ branch }) => branch);
         const identity = {
           id: merchant.id,
@@ -151,15 +197,11 @@ export class SettlementsService {
           code: merchant.code,
         };
         return merchant.agreements.length
-          ? await this.livePayableForMerchant(
-              organizationId,
-              identity,
-              branches,
-            )
+          ? this.livePayableForMerchant(organizationId, identity, branches)
           : this.emptyLivePayable(identity, branches, today);
-      }),
+      },
     );
-    const summary = rows.reduce(
+    const summary = summaryRows.reduce(
       (totals, row) => {
         totals.grossSales = totals.grossSales.add(row.grossSales);
         totals.refunds = totals.refunds.add(row.refundTotal);
@@ -184,7 +226,7 @@ export class SettlementsService {
       },
     );
     return {
-      items: rows.slice(query.offset, query.offset + query.limit),
+      items: rows,
       total,
       offset: query.offset,
       limit: query.limit,
@@ -196,7 +238,7 @@ export class SettlementsService {
         adjustments: this.money(summary.adjustments),
         deductions: this.money(summary.deductions),
         amountDue: this.money(summary.amountDue),
-        merchantCount: rows.length,
+        merchantCount: summaryRows.length,
       },
     };
   }
@@ -208,24 +250,53 @@ export class SettlementsService {
     dto: SettlementReceivableDeductionsDto,
   ): Promise<SettlementViewRecord> {
     await this.merchantReceivables.ensureCurrentRentReceivables(organizationId);
+    if (dto.requestId) {
+      const prior = await this.prisma.merchantSettlement.findFirst({
+        where: {
+          organizationId,
+          merchantId,
+          closureRequestId: dto.requestId,
+        },
+        select: { id: true },
+      });
+      if (prior) return this.findOne(organizationId, prior.id);
+    }
     const context = await this.liveContext(organizationId, merchantId);
     if (context.openSettlement) {
       throw new ConflictException(
         'Finish the existing settlement before closing this live balance',
       );
     }
-    return this.generateDraft(
-      organizationId,
-      merchantId,
-      actorId,
-      context.periodStart.toISOString().slice(0, 10),
-      context.asOf.toISOString().slice(0, 10),
-      {
-        liveClosure: true,
-        scheduledDeadline: context.deadline,
-        deductOutstandingRent: dto.deductOutstandingRent,
-      },
-    );
+    try {
+      return await this.generateDraft(
+        organizationId,
+        merchantId,
+        actorId,
+        context.periodStart.toISOString().slice(0, 10),
+        context.asOf.toISOString().slice(0, 10),
+        {
+          liveClosure: true,
+          scheduledDeadline: context.deadline,
+          deductOutstandingRent: dto.deductOutstandingRent,
+          rentApplications: dto.rentApplications,
+          requestId: dto.requestId,
+          previewRevision: dto.previewRevision,
+        },
+      );
+    } catch (error: unknown) {
+      if (dto.requestId && error instanceof ConflictException) {
+        const prior = await this.prisma.merchantSettlement.findFirst({
+          where: {
+            organizationId,
+            merchantId,
+            closureRequestId: dto.requestId,
+          },
+          select: { id: true },
+        });
+        if (prior) return this.findOne(organizationId, prior.id);
+      }
+      throw error;
+    }
   }
 
   async previewLivePayable(
@@ -254,6 +325,7 @@ export class SettlementsService {
           organizationId,
           merchantId,
           settlementId: null,
+          voidedAt: null,
         },
         _sum: { amount: true },
       });
@@ -274,6 +346,7 @@ export class SettlementsService {
         dto.deductOutstandingRent,
         receivables,
         merchantPayable,
+        dto.rentApplications,
       );
       const deductionTotal = this.sum(deductions.map(({ amount }) => amount));
       const merchant = await transaction.merchant.findFirstOrThrow({
@@ -304,6 +377,15 @@ export class SettlementsService {
         finalPayout: this.money(merchantPayable.sub(deductionTotal)),
         rentDeductionEligible: rentDeductionEligible.eligible,
         rentDeductionReason: rentDeductionEligible.reason,
+        rentApplications: deductions.map((deduction) => ({
+          receivableId: deduction.receivableId,
+          amount: this.money(deduction.amount),
+        })),
+        previewRevision: this.previewRevision(
+          calculation,
+          adjustmentTotal,
+          receivables,
+        ),
       };
     });
   }
@@ -340,12 +422,18 @@ export class SettlementsService {
   ): Promise<LiveMerchantPayableRecord> {
     await this.runFinanceMutation(async (transaction) => {
       await this.assertFinanceActor(transaction, organizationId, actorId);
-      const removed = await transaction.merchantFinanceEntry.deleteMany({
+      const removed = await transaction.merchantFinanceEntry.updateMany({
         where: {
           id: adjustmentId,
           organizationId,
           merchantId,
           settlementId: null,
+          voidedAt: null,
+        },
+        data: {
+          voidedAt: new Date(),
+          voidedById: actorId,
+          voidReason: 'Removed from live payable',
         },
       });
       if (removed.count !== 1)
@@ -364,6 +452,9 @@ export class SettlementsService {
       liveClosure?: boolean;
       scheduledDeadline?: Date;
       deductOutstandingRent?: boolean;
+      rentApplications?: RequestedRentApplication[];
+      requestId?: string;
+      previewRevision?: string;
     } = {},
   ): Promise<SettlementViewRecord> {
     const period = parseSettlementPeriod(periodStart, periodEnd);
@@ -383,6 +474,18 @@ export class SettlementsService {
           );
           await this.assertMerchant(transaction, organizationId, merchantId);
 
+          if (options.requestId) {
+            const prior = await transaction.merchantSettlement.findFirst({
+              where: {
+                organizationId,
+                merchantId,
+                closureRequestId: options.requestId,
+              },
+              include: settlementRecordInclude,
+            });
+            if (prior) return this.toView(prior);
+          }
+
           if (options.liveClosure) {
             const openSettlement =
               await transaction.merchantSettlement.findFirst({
@@ -390,11 +493,7 @@ export class SettlementsService {
                   organizationId,
                   merchantId,
                   status: {
-                    in: [
-                      SettlementStatus.DRAFT,
-                      SettlementStatus.REVIEWED,
-                      SettlementStatus.APPROVED,
-                    ],
+                    in: [SettlementStatus.DRAFT, SettlementStatus.APPROVED],
                   },
                 },
                 select: { id: true },
@@ -419,6 +518,7 @@ export class SettlementsService {
                   organizationId,
                   merchantId,
                   settlementId: null,
+                  voidedAt: null,
                 },
                 _sum: { amount: true },
               })
@@ -438,11 +538,25 @@ export class SettlementsService {
             options.deductOutstandingRent,
             receivables,
             merchantPayable,
+            options.rentApplications,
           );
           const fixedRentAmount = this.sum(
             receivableDeductions.map(({ amount }) => amount),
           );
           const netPayout = merchantPayable.sub(fixedRentAmount);
+
+          if (options.previewRevision) {
+            const expected = this.previewRevision(
+              calculation,
+              adjustmentTotal,
+              receivables,
+            );
+            if (expected !== options.previewRevision) {
+              throw new ConflictException(
+                'The live payable changed after preview; refresh and review it again',
+              );
+            }
+          }
 
           const settlement = await transaction.merchantSettlement.create({
             data: {
@@ -460,13 +574,18 @@ export class SettlementsService {
               adjustmentTotal,
               netPayout,
               calculatedById,
-              terms: {
-                create: calculation.segments.map((segment) =>
-                  this.termData(segment),
-                ),
-              },
+              closureRequestId: options.requestId,
             },
             select: { id: true },
+          });
+
+          await transaction.settlementTermSnapshot.createMany({
+            data: calculation.segments.map((segment) => ({
+              ...this.termData(segment),
+              settlementId: settlement.id,
+              organizationId,
+              merchantId,
+            })),
           });
 
           if (options.liveClosure) {
@@ -475,6 +594,7 @@ export class SettlementsService {
                 organizationId,
                 merchantId,
                 settlementId: null,
+                voidedAt: null,
               },
               data: { settlementId: settlement.id },
             });
@@ -636,7 +756,9 @@ export class SettlementsService {
         where: {
           id: settlementId,
           organizationId,
-          status: SettlementStatus.REVIEWED,
+          status: {
+            in: [SettlementStatus.DRAFT],
+          },
         },
         data: {
           status: SettlementStatus.APPROVED,
@@ -645,9 +767,7 @@ export class SettlementsService {
         },
       });
       if (updated.count !== 1)
-        throw new ConflictException(
-          'Settlement must be reviewed before it can be approved',
-        );
+        throw new ConflictException('Only a draft settlement can be approved');
       await transaction.settlementAuditEvent.create({
         data: {
           organizationId,
@@ -660,10 +780,11 @@ export class SettlementsService {
     });
   }
 
-  review(
+  cancel(
     organizationId: string,
     settlementId: string,
     actorId: string,
+    dto: CancelSettlementDto,
   ): Promise<SettlementViewRecord> {
     return this.runFinanceMutation(async (transaction) => {
       await this.assertFinanceActor(transaction, organizationId, actorId);
@@ -672,22 +793,48 @@ export class SettlementsService {
         where: {
           id: settlementId,
           organizationId,
-          status: SettlementStatus.DRAFT,
+          status: { in: [SettlementStatus.DRAFT] },
         },
         data: {
-          status: SettlementStatus.REVIEWED,
-          reviewedById: actorId,
-          reviewedAt: now,
+          status: SettlementStatus.CANCELLED,
+          cancelledAt: now,
+          cancelledById: actorId,
+          cancellationReason: dto.reason,
         },
       });
-      if (updated.count !== 1)
-        throw new ConflictException('Only a draft settlement can be reviewed');
+      if (updated.count !== 1) {
+        throw new ConflictException(
+          'Only an unpaid draft settlement can be cancelled',
+        );
+      }
+      await transaction.settlementReceivableAllocation.updateMany({
+        where: {
+          organizationId,
+          settlementId,
+          appliedAt: null,
+          releasedAt: null,
+        },
+        data: { releasedAt: now },
+      });
+      await transaction.settlementSaleItem.updateMany({
+        where: { organizationId, settlementId, releasedAt: null },
+        data: { releasedAt: now },
+      });
+      await transaction.settlementRefundItem.updateMany({
+        where: { organizationId, settlementId, releasedAt: null },
+        data: { releasedAt: now },
+      });
+      await transaction.merchantFinanceEntry.updateMany({
+        where: { organizationId, settlementId },
+        data: { settlementId: null, releasedFromSettlementId: settlementId },
+      });
       await transaction.settlementAuditEvent.create({
         data: {
           organizationId,
           settlementId,
           actorId,
-          type: SettlementAuditEventType.REVIEWED,
+          type: SettlementAuditEventType.CANCELLED,
+          reason: dto.reason,
         },
       });
       return this.loadView(transaction, organizationId, settlementId);
@@ -727,7 +874,12 @@ export class SettlementsService {
 
       const allocations =
         await transaction.settlementReceivableAllocation.findMany({
-          where: { organizationId, settlementId, appliedAt: null },
+          where: {
+            organizationId,
+            settlementId,
+            appliedAt: null,
+            releasedAt: null,
+          },
         });
       const appliedAt = new Date();
       for (const allocation of allocations) {
@@ -776,7 +928,12 @@ export class SettlementsService {
       }
       if (allocations.length) {
         await transaction.settlementReceivableAllocation.updateMany({
-          where: { organizationId, settlementId, appliedAt: null },
+          where: {
+            organizationId,
+            settlementId,
+            appliedAt: null,
+            releasedAt: null,
+          },
           data: { appliedAt },
         });
       }
@@ -800,9 +957,14 @@ export class SettlementsService {
           merchantId: settlement.merchantId,
           settlementId,
           amount: settlement.netPayout,
-          method: dto.method,
+          method: settlement.netPayout.isZero()
+            ? PayoutMethod.OTHER
+            : dto.method,
           referenceNumber: dto.referenceNumber,
-          note: dto.note,
+          note: settlement.netPayout.isZero()
+            ? (dto.note ??
+              'No funds transferred; rent application consumed the full merchant payable.')
+            : dto.note,
           paidAt,
           recordedById: actorId,
         },
@@ -833,7 +995,6 @@ export class SettlementsService {
         merchantId,
         status: { in: [AgreementStatus.ACTIVE, AgreementStatus.ENDED] },
         startDate: { lte: period.end },
-        OR: [{ endDate: null }, { endDate: { gte: period.start } }],
       },
       orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
     });
@@ -842,7 +1003,14 @@ export class SettlementsService {
         'No effective merchant agreement covers this settlement period',
       );
     }
-    if (!allowPartialPeriod) this.assertNormalPeriod(period, agreements[0]);
+    if (!allowPartialPeriod) {
+      const effectiveAgreement =
+        agreements.find(
+          (agreement) =>
+            !agreement.endDate || agreement.endDate >= period.start,
+        ) ?? agreements[agreements.length - 1];
+      this.assertNormalPeriod(period, effectiveAgreement);
+    }
     const segments = this.buildSegments(period, agreements);
     const saleItems = await transaction.saleItem.findMany({
       where: {
@@ -856,8 +1024,13 @@ export class SettlementsService {
           },
         },
         settlementLinks: currentSettlementId
-          ? { none: { settlementId: { not: currentSettlementId } } }
-          : { none: {} },
+          ? {
+              none: {
+                releasedAt: null,
+                settlementId: { not: currentSettlementId },
+              },
+            }
+          : { none: { releasedAt: null } },
       },
       select: {
         id: true,
@@ -884,8 +1057,13 @@ export class SettlementsService {
           },
         },
         settlementLinks: currentSettlementId
-          ? { none: { settlementId: { not: currentSettlementId } } }
-          : { none: {} },
+          ? {
+              none: {
+                releasedAt: null,
+                settlementId: { not: currentSettlementId },
+              },
+            }
+          : { none: { releasedAt: null } },
       },
       select: {
         id: true,
@@ -896,11 +1074,17 @@ export class SettlementsService {
             branch: { select: { id: true, name: true } },
           },
         },
+        saleItem: { select: { sale: { select: { completedAt: true } } } },
       },
       orderBy: [{ refund: { completedAt: 'asc' } }, { id: 'asc' }],
     });
+    let originalAgreementCommissionReversal = new Prisma.Decimal(0);
+    let refundOutsideCurrentSegments = new Prisma.Decimal(0);
     for (const refundItem of refundItems) {
       const completedDate = philippineDate(refundItem.refund.completedAt);
+      const originalSaleDate = philippineDate(
+        refundItem.saleItem?.sale?.completedAt ?? refundItem.refund.completedAt,
+      );
       const segment = segments.find(
         ({ start, end }) => completedDate >= start && completedDate <= end,
       );
@@ -909,13 +1093,40 @@ export class SettlementsService {
           'One or more merchant refunds are not covered by an effective agreement',
         );
       }
-      segment.refundTotal = segment.refundTotal.add(refundItem.amount);
+      const originalAgreement = agreements.find(
+        (agreement) =>
+          originalSaleDate >= agreement.startDate &&
+          (!agreement.endDate || originalSaleDate <= agreement.endDate),
+      );
+      const originalSegment = segments.find(
+        ({ start, end }) =>
+          originalSaleDate >= start && originalSaleDate <= end,
+      );
+      if (originalSegment) {
+        originalSegment.refundTotal = originalSegment.refundTotal.add(
+          refundItem.amount,
+        );
+      } else {
+        refundOutsideCurrentSegments = refundOutsideCurrentSegments.add(
+          refundItem.amount,
+        );
+        if (originalAgreement?.commissionRate) {
+          originalAgreementCommissionReversal =
+            originalAgreementCommissionReversal.add(
+              this.roundMoney(
+                refundItem.amount
+                  .mul(originalAgreement.commissionRate)
+                  .div(100),
+              ),
+            );
+        }
+      }
     }
     this.calculateSegments(segments);
     const grossSales = this.sum(segments.map(({ grossSales }) => grossSales));
     const refundTotal = this.sum(
       segments.map(({ refundTotal }) => refundTotal),
-    );
+    ).add(refundOutsideCurrentSegments);
     const branches = new Map<string, { id: string; name: string }>();
     for (const item of saleItems)
       if (item.sale.branch) branches.set(item.sale.branch.id, item.sale.branch);
@@ -930,8 +1141,11 @@ export class SettlementsService {
       grossSales,
       refundTotal,
       netSales: grossSales.sub(refundTotal),
-      commissionAmount: this.sum(
-        segments.map(({ commissionAmount }) => commissionAmount),
+      commissionAmount: Prisma.Decimal.max(
+        this.sum(segments.map(({ commissionAmount }) => commissionAmount)).sub(
+          originalAgreementCommissionReversal,
+        ),
+        0,
       ),
       fixedRentAmount: this.sum(
         segments.map(({ fixedRentAmount }) => fixedRentAmount),
@@ -1003,6 +1217,7 @@ export class SettlementsService {
         organizationId,
         merchantId: merchant.id,
         settlementId: null,
+        voidedAt: null,
       },
       select: {
         id: true,
@@ -1142,6 +1357,7 @@ export class SettlementsService {
             merchantId,
             status: AgreementStatus.ACTIVE,
             startDate: { lte: today },
+            OR: [{ endDate: null }, { endDate: { gte: today } }],
           },
           orderBy: [{ startDate: 'desc' }, { id: 'asc' }],
         }),
@@ -1163,11 +1379,7 @@ export class SettlementsService {
             organizationId,
             merchantId,
             status: {
-              in: [
-                SettlementStatus.DRAFT,
-                SettlementStatus.REVIEWED,
-                SettlementStatus.APPROVED,
-              ],
+              in: [SettlementStatus.DRAFT, SettlementStatus.APPROVED],
             },
           },
           include: settlementSummaryInclude,
@@ -1400,7 +1612,10 @@ export class SettlementsService {
         status: { not: MerchantReceivableStatus.PAID },
       },
       include: {
-        allocations: { where: { appliedAt: null }, select: { amount: true } },
+        allocations: {
+          where: { appliedAt: null, releasedAt: null },
+          select: { amount: true },
+        },
       },
       orderBy: [{ sourcePeriod: 'asc' }, { dueDate: 'asc' }, { id: 'asc' }],
     });
@@ -1427,28 +1642,86 @@ export class SettlementsService {
     shouldDeduct: boolean | undefined,
     available: AvailableReceivable[],
     merchantPayable: Prisma.Decimal,
+    applications?: RequestedRentApplication[],
   ): Array<{ receivableId: string; amount: Prisma.Decimal }> {
     if (merchantPayable.lt(0)) {
       throw new BadRequestException(
         'The merchant payable cannot be negative; correct the adjustments before settlement',
       );
     }
+    if (applications) {
+      const availableById = new Map(available.map((row) => [row.id, row]));
+      const seen = new Set<string>();
+      const allocations = applications.map(({ receivableId, amount }) => {
+        if (seen.has(receivableId)) {
+          throw new BadRequestException(
+            'Each rent receivable can only be selected once',
+          );
+        }
+        seen.add(receivableId);
+        const row = availableById.get(receivableId);
+        if (!row) {
+          throw new BadRequestException(
+            'One or more selected rent receivables are no longer available',
+          );
+        }
+        const requested = new Prisma.Decimal(amount);
+        if (requested.lte(0) || requested.gt(row.availableAmount)) {
+          throw new BadRequestException(
+            'Rent application must be greater than zero and no more than the available receivable balance',
+          );
+        }
+        return { receivableId, amount: requested };
+      });
+      const total = this.sum(allocations.map(({ amount }) => amount));
+      if (total.gt(merchantPayable)) {
+        throw new BadRequestException(
+          'Rent applications cannot exceed the merchant payable',
+        );
+      }
+      return allocations;
+    }
     if (!shouldDeduct) return [];
     const outstanding = this.sum(
       available.map(({ availableAmount }) => availableAmount),
     );
-    if (outstanding.isZero()) return [];
     if (merchantPayable.lt(outstanding)) {
       throw new BadRequestException(
         'Payout is not enough to clear the full outstanding rent balance',
       );
     }
-    return available
-      .filter(({ availableAmount }) => availableAmount.gt(0))
-      .map(({ id, availableAmount }) => ({
-        receivableId: id,
-        amount: availableAmount,
-      }));
+    let remainingPayable = merchantPayable;
+    const allocations: Array<{ receivableId: string; amount: Prisma.Decimal }> =
+      [];
+    for (const row of available) {
+      if (remainingPayable.isZero()) break;
+      const amount = Prisma.Decimal.min(row.availableAmount, remainingPayable);
+      if (amount.gt(0)) {
+        allocations.push({ receivableId: row.id, amount });
+        remainingPayable = remainingPayable.sub(amount);
+      }
+    }
+    return allocations;
+  }
+
+  private previewRevision(
+    calculation: SettlementCalculation,
+    adjustmentTotal: Prisma.Decimal,
+    receivables: AvailableReceivable[],
+  ): string {
+    return [
+      calculation.grossSales.toFixed(2),
+      calculation.refundTotal.toFixed(2),
+      calculation.commissionAmount.toFixed(2),
+      adjustmentTotal.toFixed(2),
+      ...receivables.map((row) =>
+        [
+          row.id,
+          row.remainingAmount.toFixed(2),
+          row.reservedAmount.toFixed(2),
+        ].join(':'),
+      ),
+    ].join('|');
   }
 
   private rentDeductionEligible(
@@ -1464,14 +1737,36 @@ export class SettlementsService {
         reason: 'There is no outstanding rent to deduct.',
       };
     }
-    if (merchantPayable.lt(outstanding)) {
+    if (merchantPayable.isZero()) {
       return {
         eligible: false,
+        reason: 'The merchant payable is zero, so no rent can be applied.',
+      };
+    }
+    if (merchantPayable.lt(outstanding)) {
+      return {
+        eligible: true,
         reason:
-          'The payout is not enough to pay the full outstanding rent balance.',
+          'The full rent balance exceeds this payable; partial applications are available.',
       };
     }
     return { eligible: true, reason: null };
+  }
+
+  private async mapInBatches<T, R>(
+    items: T[],
+    mapper: (item: T) => Promise<R>,
+    batchSize = 8,
+  ): Promise<R[]> {
+    const results: R[] = [];
+    for (let index = 0; index < items.length; index += batchSize) {
+      results.push(
+        ...(await Promise.all(
+          items.slice(index, index + batchSize).map(mapper),
+        )),
+      );
+    }
+    return results;
   }
 
   private roundMoney(value: Prisma.Decimal): Prisma.Decimal {
@@ -1511,8 +1806,20 @@ export class SettlementsService {
   }
 
   private toView(settlement: SettlementRecord): SettlementViewRecord {
-    const { terms, receivableAllocations, ...settlementWithoutAccrual } =
-      settlement;
+    const {
+      terms,
+      receivableAllocations,
+      releasedFinanceEntries,
+      ...settlementWithoutAccrual
+    } = settlement;
+    const financeEntries = [
+      ...settlement.financeEntries,
+      ...(releasedFinanceEntries ?? []),
+    ].sort(
+      (left, right) =>
+        left.occurredAt.getTime() - right.occurredAt.getTime() ||
+        left.id.localeCompare(right.id),
+    );
     return {
       ...settlementWithoutAccrual,
       grossSales: this.money(settlement.grossSales),
@@ -1545,7 +1852,7 @@ export class SettlementsService {
           total: this.money(link.saleItem.total),
         },
       })),
-      financeEntries: settlement.financeEntries.map((entry) => ({
+      financeEntries: financeEntries.map((entry) => ({
         ...entry,
         amount: this.money(entry.amount),
       })),

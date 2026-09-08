@@ -149,6 +149,7 @@ export class MerchantAgreementsController {
       organization.organizationId,
       agreementId,
       dto,
+      organization.userId,
     );
   }
 }

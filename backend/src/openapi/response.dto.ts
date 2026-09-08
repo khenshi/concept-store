@@ -866,6 +866,21 @@ export class MerchantAgreementResponseDto {
   })
   endDate!: Date | null;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: 60, nullable: true })
+  durationMonths!: number | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  activatedAt!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  scheduledEndDate!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  endedAt!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, maxLength: 500 })
+  endReason!: string | null;
+
   @ApiPropertyOptional({ nullable: true, type: String, example: '2500.00' })
   fixedRentAmount!: string | null;
 
@@ -973,6 +988,15 @@ export class SettlementSummaryResponseDto {
 
   @ApiPropertyOptional({ nullable: true, format: 'date-time' })
   approvedAt!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  cancelledAt!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  cancelledById!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, maxLength: 500 })
+  cancellationReason!: string | null;
 
   @ApiProperty({ format: 'date-time' })
   createdAt!: Date;
@@ -1082,6 +1106,9 @@ export class MerchantFinanceEntryResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   occurredAt!: Date;
+
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  releasedFromSettlementId?: string | null;
 }
 
 export class MerchantPayoutResponseDto {
@@ -1107,6 +1134,40 @@ export class MerchantPayoutResponseDto {
   recordedById!: string;
 }
 
+export class SettlementReceivableAllocationResponseDto {
+  @ApiProperty({ format: 'uuid' })
+  receivableId!: string;
+
+  @ApiProperty({ type: String, example: '1250.00' })
+  amount!: string;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  appliedAt!: Date | null;
+
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  releasedAt!: Date | null;
+
+  @ApiProperty({
+    type: 'object',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      sourcePeriod: { type: 'string', format: 'date' },
+      originalAmount: { type: 'string' },
+      remainingAmount: { type: 'string' },
+      dueDate: { type: 'string', format: 'date' },
+      status: { type: 'string' },
+    },
+  })
+  receivable!: {
+    id: string;
+    sourcePeriod: Date;
+    originalAmount: string;
+    remainingAmount: string;
+    dueDate: Date;
+    status: string;
+  };
+}
+
 export class SettlementResponseDto extends SettlementSummaryResponseDto {
   @ApiProperty({ type: SettlementTermResponseDto, isArray: true })
   terms!: SettlementTermResponseDto[];
@@ -1119,4 +1180,10 @@ export class SettlementResponseDto extends SettlementSummaryResponseDto {
 
   @ApiPropertyOptional({ nullable: true, type: MerchantPayoutResponseDto })
   payout!: MerchantPayoutResponseDto | null;
+
+  @ApiProperty({
+    type: SettlementReceivableAllocationResponseDto,
+    isArray: true,
+  })
+  receivableAllocations!: SettlementReceivableAllocationResponseDto[];
 }

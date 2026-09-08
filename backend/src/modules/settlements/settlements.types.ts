@@ -18,6 +18,9 @@ export const settlementRecordInclude = {
     orderBy: [{ createdAt: 'asc' }, { saleItemId: 'asc' }],
   },
   financeEntries: { orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }] },
+  releasedFinanceEntries: {
+    orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
+  },
   payout: true,
   refundItems: {
     include: {
@@ -114,6 +117,7 @@ export interface SettlementViewRecord extends Omit<
   | 'terms'
   | 'saleItems'
   | 'financeEntries'
+  | 'releasedFinanceEntries'
   | 'payout'
   | 'refundItems'
   | 'receivableAllocations'
@@ -257,4 +261,6 @@ export interface SettlementPreviewRecord {
   finalPayout: string;
   rentDeductionEligible: boolean;
   rentDeductionReason: string | null;
+  rentApplications: Array<{ receivableId: string; amount: string }>;
+  previewRevision: string;
 }
