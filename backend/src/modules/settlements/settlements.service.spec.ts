@@ -138,6 +138,7 @@ describe('SettlementsService', () => {
       deleteMany: jest.fn(),
       aggregate: jest.fn(),
     },
+    merchantFinanceAccrual: { aggregate: jest.fn() },
     merchantPayout: { create: jest.fn() },
     merchantReceivable: {
       aggregate: jest.fn(),
@@ -161,6 +162,10 @@ describe('SettlementsService', () => {
   const prisma = {
     $transaction: jest.fn(),
     merchant: { findMany: jest.fn(), count: jest.fn() },
+    merchantAgreement: { findFirst: jest.fn() },
+    merchantFinanceAccrual: { aggregate: jest.fn(), groupBy: jest.fn() },
+    merchantFinanceEntry: { aggregate: jest.fn(), findMany: jest.fn() },
+    merchantReceivable: { groupBy: jest.fn() },
     merchantSettlement: {
       findMany: jest.fn(),
       count: jest.fn(),
@@ -213,6 +218,41 @@ describe('SettlementsService', () => {
       .mockResolvedValueOnce({
         _sum: { amount: new Prisma.Decimal('0.00') },
       });
+    transaction.merchantFinanceAccrual.aggregate.mockResolvedValue({
+      _sum: {
+        grossSales: new Prisma.Decimal('3000.00'),
+        refundTotal: new Prisma.Decimal('0.00'),
+        commissionAmount: new Prisma.Decimal('200.00'),
+        revision: 3n,
+      },
+      _max: { updatedAt: createdAt },
+    });
+    prisma.merchantFinanceAccrual.aggregate.mockResolvedValue({
+      _sum: {
+        grossSales: new Prisma.Decimal(0),
+        refundTotal: new Prisma.Decimal(0),
+        commissionAmount: new Prisma.Decimal(0),
+      },
+    });
+    prisma.merchantFinanceAccrual.groupBy.mockResolvedValue([]);
+    prisma.merchantReceivable.groupBy.mockResolvedValue([]);
+    prisma.merchantFinanceEntry.findMany.mockResolvedValue([]);
+    prisma.merchantFinanceEntry.aggregate.mockResolvedValue({
+      _sum: { amount: new Prisma.Decimal(0) },
+    });
+    prisma.merchantSettlement.aggregate.mockResolvedValue({
+      _sum: {
+        grossSales: new Prisma.Decimal(0),
+        refundTotal: new Prisma.Decimal(0),
+        commissionAmount: new Prisma.Decimal(0),
+        fixedRentAmount: new Prisma.Decimal(0),
+        adjustmentTotal: new Prisma.Decimal(0),
+        netPayout: new Prisma.Decimal(0),
+      },
+    });
+    prisma.merchantAgreement.findFirst
+      .mockResolvedValueOnce(agreements[1])
+      .mockResolvedValueOnce(agreements[0]);
     transaction.merchantFinanceEntry.create.mockResolvedValue({});
     transaction.merchantFinanceEntry.updateMany.mockResolvedValue({ count: 1 });
     transaction.merchantFinanceEntry.deleteMany.mockResolvedValue({ count: 1 });
@@ -374,6 +414,85 @@ describe('SettlementsService', () => {
         }) as unknown,
       }),
     );
+    expect(prisma.merchantFinanceAccrual.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId,
+          merchant: { status: MerchantStatus.ACTIVE },
+        },
+      }),
+    );
+  });
+
+  it('builds live rows from grouped projections without scanning source items', async () => {
+    prisma.merchant.findMany.mockResolvedValue([
+      {
+        id: merchantId,
+        name: 'Amihan Goods',
+        code: 'AMIHAN',
+        agreements: [{ id: agreements[1].id }],
+        branches: [],
+      },
+    ]);
+    prisma.merchant.count.mockResolvedValue(1);
+    prisma.merchantSettlement.findFirst.mockResolvedValue(null);
+    prisma.merchantFinanceAccrual.groupBy.mockResolvedValue([
+      {
+        merchantId,
+        _sum: {
+          grossSales: new Prisma.Decimal('1000.00'),
+          refundTotal: new Prisma.Decimal('100.00'),
+          commissionAmount: new Prisma.Decimal('45.00'),
+          revision: 4n,
+        },
+      },
+    ]);
+
+    const page = await service.findLivePayables(organizationId, {
+      offset: 0,
+      limit: 20,
+    });
+
+    expect(page.items[0]).toMatchObject({
+      grossSales: '1000.00',
+      refundTotal: '100.00',
+      netSales: '900.00',
+      commissionAmount: '45.00',
+      amountDue: '855.00',
+    });
+    expect(transaction.saleItem.findMany).not.toHaveBeenCalled();
+    expect(transaction.saleRefundItem.findMany).not.toHaveBeenCalled();
+    expect(prisma.merchantFinanceAccrual.groupBy).toHaveBeenCalledTimes(1);
+  });
+
+  it('repairs projection drift and rejects a stale live closure', async () => {
+    prisma.merchantSettlement.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    transaction.merchantSettlement.findFirst.mockResolvedValue(null);
+    transaction.merchantFinanceAccrual.aggregate.mockResolvedValue({
+      _sum: {
+        grossSales: new Prisma.Decimal('2999.00'),
+        refundTotal: new Prisma.Decimal('0.00'),
+        commissionAmount: new Prisma.Decimal('200.00'),
+        revision: 2n,
+      },
+      _max: { updatedAt: createdAt },
+    });
+
+    await expect(
+      service.closeLivePayable(organizationId, merchantId, actorId, {}),
+    ).rejects.toThrow(
+      new ConflictException(
+        'The live payable projection was repaired; refresh the preview before closing',
+      ),
+    );
+    expect(financeAccrual.rebuildMerchant).toHaveBeenCalledWith(
+      transaction,
+      organizationId,
+      merchantId,
+    );
+    expect(transaction.merchantSettlement.create).not.toHaveBeenCalled();
   });
 
   it('allocates the complete outstanding rent balance oldest-first', () => {

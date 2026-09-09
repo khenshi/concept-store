@@ -143,6 +143,10 @@ the original sale agreement's commission rate in a separate
 `POST_SETTLEMENT_REFUND` bucket, so prior settlement history is not rewritten.
 Approval, payout recording, and rent payment do not change sales accruals.
 
-Live Finance reads still use the source calculation during the current shadow
-and reconciliation phase. See the reconciliation runbook in
+Live Finance rows and the unfiltered organization-wide summary read the
+projection rather than rescanning historical sale/refund items. Listed-row
+branch and merchant filters do not change the global summary. Closure preview
+uses projection revisions together with adjustments and rent reservations;
+closure itself rechecks raw sources and repairs/rejects stale projections before
+creating a draft. See the reconciliation runbook in
 `architecture/financial-integrity.md`.

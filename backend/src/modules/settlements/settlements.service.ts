@@ -105,6 +105,28 @@ interface RequestedRentApplication {
   amount: string;
 }
 
+interface ProjectedPayableCalculation {
+  grossSales: Prisma.Decimal;
+  refundTotal: Prisma.Decimal;
+  netSales: Prisma.Decimal;
+  commissionAmount: Prisma.Decimal;
+  revision: string;
+}
+
+interface PrefetchedLivePayable {
+  calculation: ProjectedPayableCalculation;
+  rentOutstanding: Prisma.Decimal;
+  entries: Array<{
+    id: string;
+    amount: Prisma.Decimal;
+    reason: string;
+    occurredAt: Date;
+    createdById: string;
+  }>;
+}
+
+class PayableProjectionMismatchError extends Error {}
+
 @Injectable()
 export class SettlementsService {
   constructor(
@@ -153,45 +175,12 @@ export class SettlementsService {
       }),
       this.prisma.merchant.count({ where }),
     ]);
-    let summaryMerchants = merchants;
-    if (query.merchantId || query.branchId || total > merchants.length) {
-      summaryMerchants =
-        (await this.prisma.merchant.findMany({
-          where: { organizationId, status: MerchantStatus.ACTIVE },
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            agreements: {
-              where: {
-                status: AgreementStatus.ACTIVE,
-                startDate: { lte: today },
-                OR: [{ endDate: null }, { endDate: { gte: today } }],
-              },
-              select: { id: true },
-              take: 1,
-            },
-            branches: {
-              select: { branch: { select: { id: true, name: true } } },
-            },
-          },
-          orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        })) ?? merchants;
-    }
-    const rows = await this.mapInBatches(merchants, async (merchant) => {
-      const branches = merchant.branches.map(({ branch }) => branch);
-      const identity = {
-        id: merchant.id,
-        name: merchant.name,
-        code: merchant.code,
-      };
-      return merchant.agreements.length
-        ? await this.livePayableForMerchant(organizationId, identity, branches)
-        : this.emptyLivePayable(identity, branches, today);
-    });
-    const summaryRows = await this.mapInBatches(
-      summaryMerchants,
-      async (merchant) => {
+    const prefetched = await this.prefetchLivePayables(
+      organizationId,
+      merchants.map(({ id }) => id),
+    );
+    const [rows, summary] = await Promise.all([
+      this.mapInBatches(merchants, async (merchant) => {
         const branches = merchant.branches.map(({ branch }) => branch);
         const identity = {
           id: merchant.id,
@@ -199,34 +188,16 @@ export class SettlementsService {
           code: merchant.code,
         };
         return merchant.agreements.length
-          ? this.livePayableForMerchant(organizationId, identity, branches)
+          ? await this.livePayableForMerchant(
+              organizationId,
+              identity,
+              branches,
+              prefetched.get(merchant.id),
+            )
           : this.emptyLivePayable(identity, branches, today);
-      },
-    );
-    const summary = summaryRows.reduce(
-      (totals, row) => {
-        totals.grossSales = totals.grossSales.add(row.grossSales);
-        totals.refunds = totals.refunds.add(row.refundTotal);
-        totals.netSales = totals.netSales.add(row.netSales);
-        totals.commission = totals.commission.add(row.commissionAmount);
-        totals.adjustments = totals.adjustments.add(row.adjustmentTotal);
-        totals.deductions = totals.deductions
-          .add(row.commissionAmount)
-          .add(row.fixedRentAmount)
-          .sub(row.adjustmentTotal);
-        totals.amountDue = totals.amountDue.add(row.amountDue);
-        return totals;
-      },
-      {
-        grossSales: new Prisma.Decimal(0),
-        refunds: new Prisma.Decimal(0),
-        netSales: new Prisma.Decimal(0),
-        commission: new Prisma.Decimal(0),
-        adjustments: new Prisma.Decimal(0),
-        deductions: new Prisma.Decimal(0),
-        amountDue: new Prisma.Decimal(0),
-      },
-    );
+      }),
+      this.globalLiveSummary(organizationId),
+    ]);
     return {
       items: rows,
       total,
@@ -240,7 +211,7 @@ export class SettlementsService {
         adjustments: this.money(summary.adjustments),
         deductions: this.money(summary.deductions),
         amountDue: this.money(summary.amountDue),
-        merchantCount: summaryRows.length,
+        merchantCount: summary.merchantCount,
       },
     };
   }
@@ -286,6 +257,20 @@ export class SettlementsService {
         },
       );
     } catch (error: unknown) {
+      if (error instanceof PayableProjectionMismatchError) {
+        await this.runSerializableTransaction(
+          (transaction) =>
+            this.financeAccrual.rebuildMerchant(
+              transaction,
+              organizationId,
+              merchantId,
+            ),
+          3,
+        );
+        throw new ConflictException(
+          'The live payable projection was repaired; refresh the preview before closing',
+        );
+      }
       if (dto.requestId && error instanceof ConflictException) {
         const prior = await this.prisma.merchantSettlement.findFirst({
           where: {
@@ -314,13 +299,10 @@ export class SettlementsService {
       );
     }
     return this.prisma.$transaction(async (transaction) => {
-      const calculation = await this.calculateSources(
+      const calculation = await this.projectedCalculation(
         transaction,
         organizationId,
         merchantId,
-        { start: context.periodStart, end: context.asOf },
-        undefined,
-        true,
       );
       const pending = await transaction.merchantFinanceEntry.aggregate({
         where: {
@@ -387,6 +369,7 @@ export class SettlementsService {
           calculation,
           adjustmentTotal,
           receivables,
+          calculation.revision,
         ),
       };
     });
@@ -514,6 +497,13 @@ export class SettlementsService {
           undefined,
           options.liveClosure,
         );
+        const projected = options.liveClosure
+          ? await this.projectedCalculation(
+              transaction,
+              organizationId,
+              merchantId,
+            )
+          : null;
         const pending = options.liveClosure
           ? await transaction.merchantFinanceEntry.aggregate({
               where: {
@@ -549,15 +539,26 @@ export class SettlementsService {
 
         if (options.previewRevision) {
           const expected = this.previewRevision(
-            calculation,
+            projected ?? calculation,
             adjustmentTotal,
             receivables,
+            projected?.revision,
           );
           if (expected !== options.previewRevision) {
             throw new ConflictException(
               'The live payable changed after preview; refresh and review it again',
             );
           }
+        }
+        if (
+          projected &&
+          (!projected.grossSales.eq(calculation.grossSales) ||
+            !projected.refundTotal.eq(calculation.refundTotal) ||
+            !projected.commissionAmount.eq(calculation.commissionAmount))
+        ) {
+          throw new PayableProjectionMismatchError(
+            'Projected payable does not match authoritative sources',
+          );
         }
 
         const settlement = await transaction.merchantSettlement.create({
@@ -1154,12 +1155,9 @@ export class SettlementsService {
       grossSales,
       refundTotal,
       netSales: grossSales.sub(refundTotal),
-      commissionAmount: Prisma.Decimal.max(
-        this.sum(segments.map(({ commissionAmount }) => commissionAmount)).sub(
-          originalAgreementCommissionReversal,
-        ),
-        0,
-      ),
+      commissionAmount: this.sum(
+        segments.map(({ commissionAmount }) => commissionAmount),
+      ).sub(originalAgreementCommissionReversal),
       fixedRentAmount: this.sum(
         segments.map(({ fixedRentAmount }) => fixedRentAmount),
       ),
@@ -1185,38 +1183,40 @@ export class SettlementsService {
     organizationId: string,
     merchant: { id: string; name: string; code: string | null },
     configuredBranches: Array<{ id: string; name: string }> = [],
+    prefetched?: PrefetchedLivePayable,
   ): Promise<LiveMerchantPayableRecord> {
     const context = await this.liveContext(organizationId, merchant.id);
     const liveCalculation =
       context.periodStart <= context.asOf
         ? await this.prisma.$transaction((transaction) =>
             Promise.all([
-              this.calculateSources(
-                transaction,
-                organizationId,
-                merchant.id,
-                { start: context.periodStart, end: context.asOf },
-                undefined,
-                true,
-              ),
-              transaction.merchantReceivable.aggregate({
-                where: {
-                  organizationId,
-                  merchantId: merchant.id,
-                  remainingAmount: { gt: 0 },
-                },
-                _sum: { remainingAmount: true },
-              }),
-              !context.openSettlement &&
-              context.deadline < context.asOf &&
-              context.periodStart <= context.deadline
-                ? this.calculateSources(
+              prefetched
+                ? Promise.resolve(prefetched.calculation)
+                : this.projectedCalculation(
                     transaction,
                     organizationId,
                     merchant.id,
-                    { start: context.periodStart, end: context.deadline },
-                    undefined,
-                    true,
+                  ),
+              prefetched
+                ? Promise.resolve({
+                    _sum: { remainingAmount: prefetched.rentOutstanding },
+                  })
+                : transaction.merchantReceivable.aggregate({
+                    where: {
+                      organizationId,
+                      merchantId: merchant.id,
+                      remainingAmount: { gt: 0 },
+                    },
+                    _sum: { remainingAmount: true },
+                  }),
+              !context.openSettlement &&
+              context.deadline < context.asOf &&
+              context.periodStart <= context.deadline
+                ? this.projectedCalculation(
+                    transaction,
+                    organizationId,
+                    merchant.id,
+                    context.deadline,
                   )
                 : Promise.resolve(null),
             ]),
@@ -1225,22 +1225,24 @@ export class SettlementsService {
     const calculation = liveCalculation?.[0] ?? null;
     const receivableBalance = liveCalculation?.[1] ?? null;
     const overdueCalculation = liveCalculation?.[2] ?? null;
-    const pendingEntries = await this.prisma.merchantFinanceEntry.findMany({
-      where: {
-        organizationId,
-        merchantId: merchant.id,
-        settlementId: null,
-        voidedAt: null,
-      },
-      select: {
-        id: true,
-        amount: true,
-        reason: true,
-        occurredAt: true,
-        createdById: true,
-      },
-      orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
-    });
+    const pendingEntries =
+      prefetched?.entries ??
+      (await this.prisma.merchantFinanceEntry.findMany({
+        where: {
+          organizationId,
+          merchantId: merchant.id,
+          settlementId: null,
+          voidedAt: null,
+        },
+        select: {
+          id: true,
+          amount: true,
+          reason: true,
+          occurredAt: true,
+          createdById: true,
+        },
+        orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
+      }));
     const zero = new Prisma.Decimal(0);
     const open = context.openSettlement;
     const grossSales = new Prisma.Decimal(open?.grossSales ?? zero).add(
@@ -1264,8 +1266,6 @@ export class SettlementsService {
     const branches = new Map<string, { id: string; name: string }>();
     for (const branch of configuredBranches) branches.set(branch.id, branch);
     for (const branch of open?.branches ?? []) branches.set(branch.id, branch);
-    for (const branch of calculation?.branches ?? [])
-      branches.set(branch.id, branch);
     const amountDue = grossSales
       .sub(refunds)
       .sub(commission)
@@ -1329,6 +1329,197 @@ export class SettlementsService {
         occurredAt: entry.occurredAt,
         createdById: entry.createdById,
       })),
+    };
+  }
+
+  private async prefetchLivePayables(
+    organizationId: string,
+    merchantIds: string[],
+  ): Promise<Map<string, PrefetchedLivePayable>> {
+    if (merchantIds.length === 0) return new Map();
+    const [accruals, rents, entries] = await this.prisma.$transaction([
+      this.prisma.merchantFinanceAccrual.groupBy({
+        by: ['merchantId'],
+        orderBy: { merchantId: 'asc' },
+        where: { organizationId, merchantId: { in: merchantIds } },
+        _sum: {
+          grossSales: true,
+          refundTotal: true,
+          commissionAmount: true,
+          revision: true,
+        },
+      }),
+      this.prisma.merchantReceivable.groupBy({
+        by: ['merchantId'],
+        orderBy: { merchantId: 'asc' },
+        where: {
+          organizationId,
+          merchantId: { in: merchantIds },
+          remainingAmount: { gt: 0 },
+        },
+        _sum: { remainingAmount: true },
+      }),
+      this.prisma.merchantFinanceEntry.findMany({
+        where: {
+          organizationId,
+          merchantId: { in: merchantIds },
+          settlementId: null,
+          voidedAt: null,
+        },
+        select: {
+          id: true,
+          merchantId: true,
+          amount: true,
+          reason: true,
+          occurredAt: true,
+          createdById: true,
+        },
+        orderBy: [{ merchantId: 'asc' }, { occurredAt: 'asc' }, { id: 'asc' }],
+      }),
+    ]);
+    const zero = new Prisma.Decimal(0);
+    const accrualByMerchant = new Map(
+      accruals.map((row) => [row.merchantId, row]),
+    );
+    const rentByMerchant = new Map(
+      rents.map((row) => [row.merchantId, row._sum?.remainingAmount ?? zero]),
+    );
+    const entriesByMerchant = new Map<
+      string,
+      PrefetchedLivePayable['entries']
+    >();
+    for (const { merchantId, ...entry } of entries) {
+      const merchantEntries = entriesByMerchant.get(merchantId) ?? [];
+      merchantEntries.push(entry);
+      entriesByMerchant.set(merchantId, merchantEntries);
+    }
+    return new Map(
+      merchantIds.map((merchantId) => {
+        const row = accrualByMerchant.get(merchantId);
+        const grossSales = row?._sum?.grossSales ?? zero;
+        const refundTotal = row?._sum?.refundTotal ?? zero;
+        const commissionAmount = row?._sum?.commissionAmount ?? zero;
+        return [
+          merchantId,
+          {
+            calculation: {
+              grossSales,
+              refundTotal,
+              netSales: grossSales.sub(refundTotal),
+              commissionAmount,
+              revision: row?._sum?.revision?.toString() ?? '0',
+            },
+            rentOutstanding: rentByMerchant.get(merchantId) ?? zero,
+            entries: entriesByMerchant.get(merchantId) ?? [],
+          },
+        ];
+      }),
+    );
+  }
+
+  private async projectedCalculation(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    merchantId: string,
+    throughPeriodEnd?: Date,
+  ): Promise<ProjectedPayableCalculation> {
+    const aggregate = await transaction.merchantFinanceAccrual.aggregate({
+      where: {
+        organizationId,
+        merchantId,
+        periodEnd: throughPeriodEnd ? { lte: throughPeriodEnd } : undefined,
+      },
+      _sum: {
+        grossSales: true,
+        refundTotal: true,
+        commissionAmount: true,
+        revision: true,
+      },
+      _max: { updatedAt: true },
+    });
+    const zero = new Prisma.Decimal(0);
+    const grossSales = aggregate._sum.grossSales ?? zero;
+    const refundTotal = aggregate._sum.refundTotal ?? zero;
+    const commissionAmount = aggregate._sum.commissionAmount ?? zero;
+    return {
+      grossSales,
+      refundTotal,
+      netSales: grossSales.sub(refundTotal),
+      commissionAmount,
+      revision: [
+        aggregate._sum.revision?.toString() ?? '0',
+        aggregate._max.updatedAt?.toISOString() ?? 'none',
+      ].join(':'),
+    };
+  }
+
+  private async globalLiveSummary(organizationId: string) {
+    const activeMerchant = { status: MerchantStatus.ACTIVE } as const;
+    const [projection, settlements, adjustments, merchantCount] =
+      await this.prisma.$transaction([
+        this.prisma.merchantFinanceAccrual.aggregate({
+          where: { organizationId, merchant: activeMerchant },
+          _sum: {
+            grossSales: true,
+            refundTotal: true,
+            commissionAmount: true,
+          },
+        }),
+        this.prisma.merchantSettlement.aggregate({
+          where: {
+            organizationId,
+            merchant: activeMerchant,
+            status: { in: [SettlementStatus.DRAFT, SettlementStatus.APPROVED] },
+          },
+          _sum: {
+            grossSales: true,
+            refundTotal: true,
+            commissionAmount: true,
+            fixedRentAmount: true,
+            adjustmentTotal: true,
+            netPayout: true,
+          },
+        }),
+        this.prisma.merchantFinanceEntry.aggregate({
+          where: {
+            organizationId,
+            merchant: activeMerchant,
+            settlementId: null,
+            voidedAt: null,
+          },
+          _sum: { amount: true },
+        }),
+        this.prisma.merchant.count({
+          where: { organizationId, status: MerchantStatus.ACTIVE },
+        }),
+      ]);
+    const zero = new Prisma.Decimal(0);
+    const grossSales = new Prisma.Decimal(
+      projection._sum.grossSales ?? zero,
+    ).add(settlements._sum.grossSales ?? zero);
+    const refunds = new Prisma.Decimal(projection._sum.refundTotal ?? zero).add(
+      settlements._sum.refundTotal ?? zero,
+    );
+    const commission = new Prisma.Decimal(
+      projection._sum.commissionAmount ?? zero,
+    ).add(settlements._sum.commissionAmount ?? zero);
+    const adjustmentsTotal = new Prisma.Decimal(
+      settlements._sum.adjustmentTotal ?? zero,
+    ).add(adjustments._sum.amount ?? zero);
+    const rent = settlements._sum.fixedRentAmount ?? zero;
+    return {
+      grossSales,
+      refunds,
+      netSales: grossSales.sub(refunds),
+      commission,
+      adjustments: adjustmentsTotal,
+      deductions: commission.add(rent).sub(adjustmentsTotal),
+      amountDue: grossSales
+        .sub(refunds)
+        .sub(commission)
+        .sub(rent)
+        .add(adjustmentsTotal),
+      merchantCount,
     };
   }
 
@@ -1735,11 +1926,16 @@ export class SettlementsService {
   }
 
   private previewRevision(
-    calculation: SettlementCalculation,
+    calculation: Pick<
+      SettlementCalculation,
+      'grossSales' | 'refundTotal' | 'commissionAmount'
+    >,
     adjustmentTotal: Prisma.Decimal,
     receivables: AvailableReceivable[],
+    projectionRevision = 'raw',
   ): string {
     return [
+      projectionRevision,
       calculation.grossSales.toFixed(2),
       calculation.refundTotal.toFixed(2),
       calculation.commissionAmount.toFixed(2),

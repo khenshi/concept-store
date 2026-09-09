@@ -95,9 +95,11 @@ maintain the affected buckets inside their existing serializable transactions.
 Paid settlement source links remain boundaries and are never reopened by a
 backfill.
 
-The Finance API continues to use the raw authoritative calculation until the
-projection-read rollout is completed. Projection maintenance therefore cannot
-silently change current Finance responses during backfill validation.
+Finance live rows, organization-wide summary, and closure previews read these
+bounded projection buckets. Draft closure recalculates the linked sale/refund
+sources authoritatively inside its serializable transaction. If those totals do
+not match the projection, the backend rebuilds that merchant's projection and
+returns a stale-preview conflict instead of creating a settlement.
 
 Run reconciliation from `backend/`:
 

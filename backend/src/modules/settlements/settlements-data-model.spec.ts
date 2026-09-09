@@ -21,6 +21,13 @@ describe('Milestone 6 merchant finance data model', () => {
     ),
     'utf8',
   );
+  const commissionReversalMigration = readFileSync(
+    join(
+      process.cwd(),
+      'prisma/migrations/20260909120000_allow_settlement_commission_reversals/migration.sql',
+    ),
+    'utf8',
+  );
 
   it('generates the settlement persistence entities', () => {
     expect(Prisma.ModelName).toEqual(
@@ -78,6 +85,15 @@ describe('Milestone 6 merchant finance data model', () => {
     expect(hardeningMigration).toContain('ALTER TABLE "SettlementAdjustment"');
     expect(hardeningMigration).not.toContain(
       'ALTER TABLE "MerchantFinanceEntry"',
+    );
+  });
+
+  it('allows bounded commission reversals for post-settlement refunds', () => {
+    expect(commissionReversalMigration).toContain(
+      '"commissionAmount" >= -"refundTotal"',
+    );
+    expect(commissionReversalMigration).toContain(
+      '"commissionAmount" <= "grossSales"',
     );
   });
 });
