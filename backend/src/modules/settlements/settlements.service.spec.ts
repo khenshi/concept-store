@@ -16,6 +16,7 @@ import {
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { MerchantReceivablesService } from '../merchant-receivables/merchant-receivables.service';
+import { MerchantFinanceAccrualService } from '../merchant-finance-accrual/merchant-finance-accrual.service';
 import { SettlementsService } from './settlements.service';
 
 interface SettlementCreateArgument {
@@ -123,8 +124,13 @@ describe('SettlementsService', () => {
           ) => Promise<{ count: number }>
         >(),
       deleteMany: jest.fn(),
+      updateMany: jest.fn(),
     },
-    settlementRefundItem: { createMany: jest.fn(), deleteMany: jest.fn() },
+    settlementRefundItem: {
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
+      updateMany: jest.fn(),
+    },
     settlementTermSnapshot: { deleteMany: jest.fn(), createMany: jest.fn() },
     merchantFinanceEntry: {
       create: jest.fn(),
@@ -151,6 +157,7 @@ describe('SettlementsService', () => {
   const merchantReceivables = {
     ensureCurrentRentReceivables: jest.fn(),
   };
+  const financeAccrual = { rebuildMerchant: jest.fn() };
   const prisma = {
     $transaction: jest.fn(),
     merchant: { findMany: jest.fn(), count: jest.fn() },
@@ -295,6 +302,10 @@ describe('SettlementsService', () => {
         SettlementsService,
         { provide: PrismaService, useValue: prisma },
         { provide: MerchantReceivablesService, useValue: merchantReceivables },
+        {
+          provide: MerchantFinanceAccrualService,
+          useValue: financeAccrual,
+        },
       ],
     }).compile();
     service = moduleRef.get(SettlementsService);
@@ -560,6 +571,11 @@ describe('SettlementsService', () => {
       organizationId,
       merchantId,
     });
+    expect(financeAccrual.rebuildMerchant).toHaveBeenCalledWith(
+      transaction,
+      organizationId,
+      merchantId,
+    );
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
@@ -844,6 +860,28 @@ describe('SettlementsService', () => {
       ),
     );
     expect(transaction.merchantSettlement.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('releases draft sources and rebuilds the merchant projection on cancellation', async () => {
+    await service.cancel(organizationId, settlementId, actorId, {
+      reason: 'Draft needs correction',
+    });
+
+    expect(transaction.settlementSaleItem.updateMany).toHaveBeenCalledWith({
+      where: { organizationId, settlementId, releasedAt: null },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: { releasedAt: expect.any(Date) },
+    });
+    expect(transaction.settlementRefundItem.updateMany).toHaveBeenCalledWith({
+      where: { organizationId, settlementId, releasedAt: null },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: { releasedAt: expect.any(Date) },
+    });
+    expect(financeAccrual.rebuildMerchant).toHaveBeenCalledWith(
+      transaction,
+      organizationId,
+      merchantId,
+    );
   });
 
   it('rejects skipped or stale lifecycle transitions', async () => {

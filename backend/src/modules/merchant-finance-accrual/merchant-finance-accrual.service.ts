@@ -28,8 +28,159 @@ interface MerchantSaleAmount {
   amount: Prisma.Decimal;
 }
 
+export interface CompletedRefundAccrualItem {
+  merchantId: string;
+  amount: Prisma.Decimal;
+  originalSaleCompletedAt: Date;
+  originalSaleCaptured: boolean;
+}
+
 @Injectable()
 export class MerchantFinanceAccrualService {
+  async addCompletedRefund(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    completedAt: Date,
+    items: CompletedRefundAccrualItem[],
+  ): Promise<void> {
+    const buckets = await this.prepareRefundBuckets(
+      transaction,
+      organizationId,
+      completedAt,
+      items,
+    );
+    await this.addRefundBuckets(transaction, buckets);
+  }
+
+  async rebuildMerchant(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    merchantId: string,
+  ): Promise<void> {
+    // Serialize rebuilds for one tenant/merchant and take locks in a stable order.
+    await transaction.$executeRaw(Prisma.sql`
+      SELECT "id" FROM "Merchant"
+      WHERE "organizationId" = ${organizationId} AND "id" = ${merchantId}
+      FOR UPDATE
+    `);
+    const [agreements, saleItems, refundItems, currentRevision] =
+      await Promise.all([
+        transaction.merchantAgreement.findMany({
+          where: {
+            organizationId,
+            merchantId,
+            status: { in: [AgreementStatus.ACTIVE, AgreementStatus.ENDED] },
+          },
+          orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
+        }),
+        transaction.saleItem.findMany({
+          where: {
+            organizationId,
+            merchantId,
+            sale: { status: 'COMPLETED' },
+            settlementLinks: { none: { releasedAt: null } },
+          },
+          select: { total: true, sale: { select: { completedAt: true } } },
+          orderBy: [{ sale: { completedAt: 'asc' } }, { id: 'asc' }],
+        }),
+        transaction.saleRefundItem.findMany({
+          where: {
+            organizationId,
+            merchantId,
+            refund: { status: 'COMPLETED' },
+            settlementLinks: { none: { releasedAt: null } },
+          },
+          select: {
+            amount: true,
+            refund: { select: { completedAt: true } },
+            saleItem: {
+              select: {
+                sale: { select: { completedAt: true } },
+                settlementLinks: {
+                  where: { releasedAt: null },
+                  select: { settlementId: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+          orderBy: [{ refund: { completedAt: 'asc' } }, { id: 'asc' }],
+        }),
+        transaction.merchantFinanceAccrual.aggregate({
+          where: { organizationId, merchantId },
+          _max: { revision: true },
+        }),
+      ]);
+
+    const buckets = new Map<
+      string,
+      SaleAccrualBucket & { refundTotal: Prisma.Decimal }
+    >();
+    const add = (
+      activityAt: Date,
+      agreement: MerchantAgreement,
+      kind: MerchantFinanceAccrualKind,
+      gross: Prisma.Decimal,
+      refund: Prisma.Decimal,
+    ) => {
+      const bucket = this.bucketFor(
+        organizationId,
+        merchantId,
+        agreement,
+        activityAt,
+        kind,
+        kind === MerchantFinanceAccrualKind.EARNED_ACTIVITY,
+      );
+      const key = this.bucketKey(bucket);
+      const current = buckets.get(key);
+      if (current) {
+        current.grossSales = current.grossSales.add(gross);
+        current.refundTotal = current.refundTotal.add(refund);
+      } else {
+        buckets.set(key, { ...bucket, grossSales: gross, refundTotal: refund });
+      }
+    };
+    for (const item of saleItems) {
+      const agreement = this.effectiveAgreement(
+        agreements,
+        item.sale.completedAt,
+      );
+      add(
+        item.sale.completedAt,
+        agreement,
+        MerchantFinanceAccrualKind.EARNED_ACTIVITY,
+        item.total,
+        new Prisma.Decimal(0),
+      );
+    }
+    for (const item of refundItems) {
+      const originalAt = item.saleItem.sale.completedAt;
+      const agreement = this.effectiveAgreement(agreements, originalAt);
+      const captured = item.saleItem.settlementLinks.length > 0;
+      add(
+        captured ? item.refund.completedAt : originalAt,
+        agreement,
+        captured
+          ? MerchantFinanceAccrualKind.POST_SETTLEMENT_REFUND
+          : MerchantFinanceAccrualKind.EARNED_ACTIVITY,
+        new Prisma.Decimal(0),
+        item.amount,
+      );
+    }
+
+    await transaction.merchantFinanceAccrual.deleteMany({
+      where: { organizationId, merchantId },
+    });
+    for (const bucket of [...buckets.values()].sort((a, b) =>
+      this.bucketKey(a).localeCompare(this.bucketKey(b)),
+    )) {
+      await this.insertRebuiltBucket(
+        transaction,
+        bucket,
+        (currentRevision._max.revision ?? 0n) + 1n,
+      );
+    }
+  }
   prepareCompletedSale(
     transaction: Prisma.TransactionClient,
     organizationId: string,
@@ -64,6 +215,7 @@ export class MerchantFinanceAccrualService {
     transaction: Prisma.TransactionClient,
     buckets: SaleAccrualBucket[],
   ): Promise<void> {
+    await this.lockMerchants(transaction, buckets);
     for (const bucket of this.sorted(buckets)) {
       const commissionAmount = this.commissionFor(
         bucket.grossSales,
@@ -132,6 +284,7 @@ export class MerchantFinanceAccrualService {
     transaction: Prisma.TransactionClient,
     buckets: SaleAccrualBucket[],
   ): Promise<void> {
+    await this.lockMerchants(transaction, buckets);
     for (const bucket of this.sorted(buckets)) {
       const existing = await transaction.merchantFinanceAccrual.findUnique({
         where: {
@@ -252,6 +405,205 @@ export class MerchantFinanceAccrualService {
         grossSales: amountByMerchant.get(merchantId)!,
       };
     });
+  }
+
+  private async prepareRefundBuckets(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    completedAt: Date,
+    items: CompletedRefundAccrualItem[],
+  ): Promise<Array<SaleAccrualBucket & { refundTotal: Prisma.Decimal }>> {
+    const merchantIds = [
+      ...new Set(items.map(({ merchantId }) => merchantId)),
+    ].sort();
+    const agreements = await transaction.merchantAgreement.findMany({
+      where: {
+        organizationId,
+        merchantId: { in: merchantIds },
+        status: { in: [AgreementStatus.ACTIVE, AgreementStatus.ENDED] },
+      },
+      orderBy: [{ merchantId: 'asc' }, { startDate: 'asc' }, { id: 'asc' }],
+    });
+    const buckets = new Map<
+      string,
+      SaleAccrualBucket & { refundTotal: Prisma.Decimal }
+    >();
+    for (const item of items) {
+      const agreement = this.effectiveAgreement(
+        agreements.filter(({ merchantId }) => merchantId === item.merchantId),
+        item.originalSaleCompletedAt,
+      );
+      const kind = item.originalSaleCaptured
+        ? MerchantFinanceAccrualKind.POST_SETTLEMENT_REFUND
+        : MerchantFinanceAccrualKind.EARNED_ACTIVITY;
+      const bucket = this.bucketFor(
+        organizationId,
+        item.merchantId,
+        agreement,
+        item.originalSaleCaptured ? completedAt : item.originalSaleCompletedAt,
+        kind,
+        !item.originalSaleCaptured,
+      );
+      const key = this.bucketKey(bucket);
+      const current = buckets.get(key);
+      if (current) current.refundTotal = current.refundTotal.add(item.amount);
+      else buckets.set(key, { ...bucket, refundTotal: item.amount });
+    }
+    return [...buckets.values()].sort((a, b) =>
+      this.bucketKey(a).localeCompare(this.bucketKey(b)),
+    );
+  }
+
+  private async addRefundBuckets(
+    transaction: Prisma.TransactionClient,
+    buckets: Array<SaleAccrualBucket & { refundTotal: Prisma.Decimal }>,
+  ): Promise<void> {
+    await this.lockMerchants(transaction, buckets);
+    for (const bucket of buckets) {
+      const commissionAmount = this.refundCommission(
+        bucket.refundTotal,
+        bucket.commissionRate,
+      );
+      await transaction.$executeRaw(Prisma.sql`
+        INSERT INTO "MerchantFinanceAccrual" (
+          "id", "organizationId", "merchantId", "agreementId", "periodStart",
+          "periodEnd", "schedule", "kind", "commissionRate", "grossSales",
+          "refundTotal", "commissionAmount", "revision", "createdAt", "updatedAt"
+        ) VALUES (
+          ${randomUUID()}, ${bucket.organizationId}, ${bucket.merchantId},
+          ${bucket.agreementId}, ${bucket.periodStart}, ${bucket.periodEnd},
+          ${bucket.schedule}::"SettlementSchedule",
+          ${bucket.kind}::"MerchantFinanceAccrualKind", ${bucket.commissionRate},
+          0, ${bucket.refundTotal}, ${commissionAmount}, 1,
+          CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (
+          "organizationId", "merchantId", "agreementId", "periodStart", "periodEnd", "kind"
+        ) DO UPDATE SET
+          "refundTotal" = "MerchantFinanceAccrual"."refundTotal" + EXCLUDED."refundTotal",
+          "commissionAmount" = CASE
+            WHEN "MerchantFinanceAccrual"."kind" = 'POST_SETTLEMENT_REFUND'::"MerchantFinanceAccrualKind"
+              THEN -ROUND(("MerchantFinanceAccrual"."refundTotal" + EXCLUDED."refundTotal")
+                * COALESCE("MerchantFinanceAccrual"."commissionRate", 0) / 100, 2)
+            ELSE ROUND(GREATEST("MerchantFinanceAccrual"."grossSales"
+                - "MerchantFinanceAccrual"."refundTotal" - EXCLUDED."refundTotal", 0)
+                * COALESCE("MerchantFinanceAccrual"."commissionRate", 0) / 100, 2)
+          END,
+          "revision" = "MerchantFinanceAccrual"."revision" + 1,
+          "updatedAt" = CURRENT_TIMESTAMP
+      `);
+    }
+  }
+
+  private async insertRebuiltBucket(
+    transaction: Prisma.TransactionClient,
+    bucket: SaleAccrualBucket & { refundTotal: Prisma.Decimal },
+    revision: bigint,
+  ): Promise<void> {
+    const commissionAmount =
+      bucket.kind === MerchantFinanceAccrualKind.POST_SETTLEMENT_REFUND
+        ? this.refundCommission(bucket.refundTotal, bucket.commissionRate)
+        : this.commissionFor(
+            bucket.grossSales.sub(bucket.refundTotal),
+            bucket.commissionRate,
+          );
+    await transaction.merchantFinanceAccrual.create({
+      data: { ...bucket, commissionAmount, revision },
+    });
+  }
+
+  private effectiveAgreement(
+    agreements: MerchantAgreement[],
+    activityAt: Date,
+  ): MerchantAgreement {
+    const date = philippineDate(activityAt);
+    const matches = agreements.filter(
+      ({ startDate, endDate }) =>
+        startDate <= date && (!endDate || endDate >= date),
+    );
+    if (matches.length !== 1) {
+      throw new ConflictException(
+        matches.length === 0
+          ? 'The original sale is not covered by an effective merchant agreement'
+          : 'Merchant agreement dates overlap; correct them before updating finance',
+      );
+    }
+    return matches[0];
+  }
+
+  private bucketFor(
+    organizationId: string,
+    merchantId: string,
+    agreement: MerchantAgreement,
+    activityAt: Date,
+    kind: MerchantFinanceAccrualKind,
+    clampToAgreement: boolean,
+  ): SaleAccrualBucket {
+    const period = normalSettlementPeriod(
+      philippineDate(activityAt),
+      agreement.settlementSchedule,
+    );
+    return {
+      organizationId,
+      merchantId,
+      agreementId: agreement.id,
+      periodStart:
+        clampToAgreement && agreement.startDate > period.start
+          ? agreement.startDate
+          : period.start,
+      periodEnd:
+        clampToAgreement && agreement.endDate && agreement.endDate < period.end
+          ? agreement.endDate
+          : period.end,
+      schedule: agreement.settlementSchedule,
+      kind,
+      commissionRate: agreement.commissionRate,
+      grossSales: new Prisma.Decimal(0),
+    };
+  }
+
+  private bucketKey(bucket: SaleAccrualBucket): string {
+    return [
+      bucket.organizationId,
+      bucket.merchantId,
+      bucket.agreementId,
+      bucket.periodStart.toISOString(),
+      bucket.periodEnd.toISOString(),
+      bucket.kind,
+    ].join(':');
+  }
+
+  private async lockMerchants(
+    transaction: Prisma.TransactionClient,
+    buckets: SaleAccrualBucket[],
+  ): Promise<void> {
+    const targets = [
+      ...new Map(
+        buckets.map(({ organizationId, merchantId }) => [
+          `${organizationId}:${merchantId}`,
+          { organizationId, merchantId },
+        ]),
+      ).values(),
+    ].sort((left, right) =>
+      `${left.organizationId}:${left.merchantId}`.localeCompare(
+        `${right.organizationId}:${right.merchantId}`,
+      ),
+    );
+    for (const target of targets) {
+      await transaction.$executeRaw(Prisma.sql`
+        SELECT "id" FROM "Merchant"
+        WHERE "organizationId" = ${target.organizationId}
+          AND "id" = ${target.merchantId}
+        FOR UPDATE
+      `);
+    }
+  }
+
+  private refundCommission(
+    refund: Prisma.Decimal,
+    commissionRate: Prisma.Decimal | null,
+  ): Prisma.Decimal {
+    return this.commissionFor(refund, commissionRate).negated();
   }
 
   private commissionFor(

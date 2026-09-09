@@ -30,6 +30,7 @@ import type { MerchantAccountEntryDto } from './dto/merchant-account-entry.dto';
 import type { SettlementReceivableDeductionsDto } from './dto/settlement-receivable-deductions.dto';
 import type { CancelSettlementDto } from './dto/cancel-settlement.dto';
 import { MerchantReceivablesService } from '../merchant-receivables/merchant-receivables.service';
+import { MerchantFinanceAccrualService } from '../merchant-finance-accrual/merchant-finance-accrual.service';
 import {
   nextBusinessDate,
   nextScheduledDeadline,
@@ -109,6 +110,7 @@ export class SettlementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly merchantReceivables: MerchantReceivablesService,
+    private readonly financeAccrual: MerchantFinanceAccrualService,
   ) {}
 
   async findLivePayables(
@@ -465,201 +467,202 @@ export class SettlementsService {
     }
 
     try {
-      return await this.prisma.$transaction(
-        async (transaction) => {
-          await this.assertFinanceActor(
-            transaction,
-            organizationId,
-            calculatedById,
-          );
-          await this.assertMerchant(transaction, organizationId, merchantId);
+      return await this.runSerializableTransaction(async (transaction) => {
+        await this.assertFinanceActor(
+          transaction,
+          organizationId,
+          calculatedById,
+        );
+        await this.assertMerchant(transaction, organizationId, merchantId);
 
-          if (options.requestId) {
-            const prior = await transaction.merchantSettlement.findFirst({
+        if (options.requestId) {
+          const prior = await transaction.merchantSettlement.findFirst({
+            where: {
+              organizationId,
+              merchantId,
+              closureRequestId: options.requestId,
+            },
+            include: settlementRecordInclude,
+          });
+          if (prior) return this.toView(prior);
+        }
+
+        if (options.liveClosure) {
+          const openSettlement = await transaction.merchantSettlement.findFirst(
+            {
               where: {
                 organizationId,
                 merchantId,
-                closureRequestId: options.requestId,
+                status: {
+                  in: [SettlementStatus.DRAFT, SettlementStatus.APPROVED],
+                },
               },
-              include: settlementRecordInclude,
-            });
-            if (prior) return this.toView(prior);
-          }
-
-          if (options.liveClosure) {
-            const openSettlement =
-              await transaction.merchantSettlement.findFirst({
-                where: {
-                  organizationId,
-                  merchantId,
-                  status: {
-                    in: [SettlementStatus.DRAFT, SettlementStatus.APPROVED],
-                  },
-                },
-                select: { id: true },
-              });
-            if (openSettlement)
-              throw new ConflictException(
-                'Finish the existing settlement before closing this live balance',
-              );
-          }
-
-          const calculation = await this.calculateSources(
-            transaction,
-            organizationId,
-            merchantId,
-            period,
-            undefined,
-            options.liveClosure,
-          );
-          const pending = options.liveClosure
-            ? await transaction.merchantFinanceEntry.aggregate({
-                where: {
-                  organizationId,
-                  merchantId,
-                  settlementId: null,
-                  voidedAt: null,
-                },
-                _sum: { amount: true },
-              })
-            : null;
-          const adjustmentTotal = pending?._sum.amount ?? new Prisma.Decimal(0);
-          const merchantPayable = calculation.netSales
-            .sub(calculation.commissionAmount)
-            .add(adjustmentTotal);
-          const receivables = options.liveClosure
-            ? await this.availableReceivables(
-                transaction,
-                organizationId,
-                merchantId,
-              )
-            : [];
-          const receivableDeductions = this.allocateRentDeduction(
-            options.deductOutstandingRent,
-            receivables,
-            merchantPayable,
-            options.rentApplications,
-          );
-          const fixedRentAmount = this.sum(
-            receivableDeductions.map(({ amount }) => amount),
-          );
-          const netPayout = merchantPayable.sub(fixedRentAmount);
-
-          if (options.previewRevision) {
-            const expected = this.previewRevision(
-              calculation,
-              adjustmentTotal,
-              receivables,
-            );
-            if (expected !== options.previewRevision) {
-              throw new ConflictException(
-                'The live payable changed after preview; refresh and review it again',
-              );
-            }
-          }
-
-          const settlement = await transaction.merchantSettlement.create({
-            data: {
-              organizationId,
-              merchantId,
-              periodStart: period.start,
-              periodEnd: period.end,
-              scheduledDeadline: options.scheduledDeadline ?? period.end,
-              schedule: calculation.schedule,
-              grossSales: calculation.grossSales,
-              refundTotal: calculation.refundTotal,
-              netSales: calculation.netSales,
-              commissionAmount: calculation.commissionAmount,
-              fixedRentAmount,
-              adjustmentTotal,
-              netPayout,
-              calculatedById,
-              closureRequestId: options.requestId,
+              select: { id: true },
             },
-            select: { id: true },
-          });
+          );
+          if (openSettlement)
+            throw new ConflictException(
+              'Finish the existing settlement before closing this live balance',
+            );
+        }
 
-          await transaction.settlementTermSnapshot.createMany({
-            data: calculation.segments.map((segment) => ({
-              ...this.termData(segment),
-              settlementId: settlement.id,
-              organizationId,
-              merchantId,
-            })),
-          });
-
-          if (options.liveClosure) {
-            await transaction.merchantFinanceEntry.updateMany({
+        const calculation = await this.calculateSources(
+          transaction,
+          organizationId,
+          merchantId,
+          period,
+          undefined,
+          options.liveClosure,
+        );
+        const pending = options.liveClosure
+          ? await transaction.merchantFinanceEntry.aggregate({
               where: {
                 organizationId,
                 merchantId,
                 settlementId: null,
                 voidedAt: null,
               },
-              data: { settlementId: settlement.id },
-            });
-            if (receivableDeductions.length) {
-              await transaction.settlementReceivableAllocation.createMany({
-                data: receivableDeductions.map((deduction) => ({
-                  organizationId,
-                  merchantId,
-                  settlementId: settlement.id,
-                  receivableId: deduction.receivableId,
-                  amount: deduction.amount,
-                })),
-              });
-            }
-          }
-
-          if (calculation.assignments.length > 0) {
-            await transaction.settlementSaleItem.createMany({
-              data: calculation.assignments.map(({ saleItem, segment }) => ({
-                settlementId: settlement.id,
-                termSnapshotId: segment.id,
-                saleItemId: saleItem.id,
-                organizationId,
-                merchantId,
-                grossAmount: saleItem.total,
-              })),
-            });
-          }
-          if (calculation.refundItems.length > 0) {
-            await transaction.settlementRefundItem.createMany({
-              data: calculation.refundItems.map((item) => ({
-                settlementId: settlement.id,
-                refundItemId: item.id,
-                organizationId,
-                merchantId,
-                refundAmount: item.amount,
-              })),
-            });
-          }
-          await transaction.settlementAuditEvent.create({
-            data: {
+              _sum: { amount: true },
+            })
+          : null;
+        const adjustmentTotal = pending?._sum.amount ?? new Prisma.Decimal(0);
+        const merchantPayable = calculation.netSales
+          .sub(calculation.commissionAmount)
+          .add(adjustmentTotal);
+        const receivables = options.liveClosure
+          ? await this.availableReceivables(
+              transaction,
               organizationId,
-              settlementId: settlement.id,
-              actorId: calculatedById,
-              type: SettlementAuditEventType.MANUALLY_GENERATED,
-              reason: options.liveClosure ? 'Live payable closure' : undefined,
-            },
-          });
+              merchantId,
+            )
+          : [];
+        const receivableDeductions = this.allocateRentDeduction(
+          options.deductOutstandingRent,
+          receivables,
+          merchantPayable,
+          options.rentApplications,
+        );
+        const fixedRentAmount = this.sum(
+          receivableDeductions.map(({ amount }) => amount),
+        );
+        const netPayout = merchantPayable.sub(fixedRentAmount);
 
-          const record = await transaction.merchantSettlement.findUniqueOrThrow(
-            {
-              where: {
-                id_merchantId_organizationId: {
-                  id: settlement.id,
-                  merchantId,
-                  organizationId,
-                },
-              },
-              include: settlementRecordInclude,
-            },
+        if (options.previewRevision) {
+          const expected = this.previewRevision(
+            calculation,
+            adjustmentTotal,
+            receivables,
           );
-          return this.toView(record);
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      );
+          if (expected !== options.previewRevision) {
+            throw new ConflictException(
+              'The live payable changed after preview; refresh and review it again',
+            );
+          }
+        }
+
+        const settlement = await transaction.merchantSettlement.create({
+          data: {
+            organizationId,
+            merchantId,
+            periodStart: period.start,
+            periodEnd: period.end,
+            scheduledDeadline: options.scheduledDeadline ?? period.end,
+            schedule: calculation.schedule,
+            grossSales: calculation.grossSales,
+            refundTotal: calculation.refundTotal,
+            netSales: calculation.netSales,
+            commissionAmount: calculation.commissionAmount,
+            fixedRentAmount,
+            adjustmentTotal,
+            netPayout,
+            calculatedById,
+            closureRequestId: options.requestId,
+          },
+          select: { id: true },
+        });
+
+        await transaction.settlementTermSnapshot.createMany({
+          data: calculation.segments.map((segment) => ({
+            ...this.termData(segment),
+            settlementId: settlement.id,
+            organizationId,
+            merchantId,
+          })),
+        });
+
+        if (options.liveClosure) {
+          await transaction.merchantFinanceEntry.updateMany({
+            where: {
+              organizationId,
+              merchantId,
+              settlementId: null,
+              voidedAt: null,
+            },
+            data: { settlementId: settlement.id },
+          });
+          if (receivableDeductions.length) {
+            await transaction.settlementReceivableAllocation.createMany({
+              data: receivableDeductions.map((deduction) => ({
+                organizationId,
+                merchantId,
+                settlementId: settlement.id,
+                receivableId: deduction.receivableId,
+                amount: deduction.amount,
+              })),
+            });
+          }
+        }
+
+        if (calculation.assignments.length > 0) {
+          await transaction.settlementSaleItem.createMany({
+            data: calculation.assignments.map(({ saleItem, segment }) => ({
+              settlementId: settlement.id,
+              termSnapshotId: segment.id,
+              saleItemId: saleItem.id,
+              organizationId,
+              merchantId,
+              grossAmount: saleItem.total,
+            })),
+          });
+        }
+        if (calculation.refundItems.length > 0) {
+          await transaction.settlementRefundItem.createMany({
+            data: calculation.refundItems.map((item) => ({
+              settlementId: settlement.id,
+              refundItemId: item.id,
+              organizationId,
+              merchantId,
+              refundAmount: item.amount,
+            })),
+          });
+        }
+        await this.financeAccrual.rebuildMerchant(
+          transaction,
+          organizationId,
+          merchantId,
+        );
+        await transaction.settlementAuditEvent.create({
+          data: {
+            organizationId,
+            settlementId: settlement.id,
+            actorId: calculatedById,
+            type: SettlementAuditEventType.MANUALLY_GENERATED,
+            reason: options.liveClosure ? 'Live payable closure' : undefined,
+          },
+        });
+
+        const record = await transaction.merchantSettlement.findUniqueOrThrow({
+          where: {
+            id_merchantId_organizationId: {
+              id: settlement.id,
+              merchantId,
+              organizationId,
+            },
+          },
+          include: settlementRecordInclude,
+        });
+        return this.toView(record);
+      }, 3);
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -788,6 +791,11 @@ export class SettlementsService {
   ): Promise<SettlementViewRecord> {
     return this.runFinanceMutation(async (transaction) => {
       await this.assertFinanceActor(transaction, organizationId, actorId);
+      const settlement = await transaction.merchantSettlement.findFirst({
+        where: { id: settlementId, organizationId },
+        select: { merchantId: true },
+      });
+      if (!settlement) throw new NotFoundException('Settlement not found');
       const now = new Date();
       const updated = await transaction.merchantSettlement.updateMany({
         where: {
@@ -828,6 +836,11 @@ export class SettlementsService {
         where: { organizationId, settlementId },
         data: { settlementId: null, releasedFromSettlementId: settlementId },
       });
+      await this.financeAccrual.rebuildMerchant(
+        transaction,
+        organizationId,
+        settlement.merchantId,
+      );
       await transaction.settlementAuditEvent.create({
         data: {
           organizationId,
@@ -1448,9 +1461,7 @@ export class SettlementsService {
     operation: (transaction: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
     try {
-      return await this.prisma.$transaction(operation, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      });
+      return await this.runSerializableTransaction(operation, 3);
     } catch (error: unknown) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -1464,6 +1475,25 @@ export class SettlementsService {
       }
       throw error;
     }
+  }
+
+  private async runSerializableTransaction<T>(
+    operation: (transaction: Prisma.TransactionClient) => Promise<T>,
+    maxAttempts: number,
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(operation, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        });
+      } catch (error: unknown) {
+        const retryable =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2034';
+        if (!retryable || attempt === maxAttempts) throw error;
+      }
+    }
+    throw new ConflictException('Finance operation could not be completed');
   }
 
   private async assertFinanceActor(

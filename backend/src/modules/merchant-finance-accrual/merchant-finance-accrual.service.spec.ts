@@ -33,7 +33,14 @@ describe('MerchantFinanceAccrualService', () => {
   };
   const transaction = {
     merchantAgreement: { findMany: jest.fn() },
-    merchantFinanceAccrual: { findUnique: jest.fn() },
+    merchantFinanceAccrual: {
+      findUnique: jest.fn(),
+      deleteMany: jest.fn(),
+      create: jest.fn(),
+      aggregate: jest.fn(),
+    },
+    saleItem: { findMany: jest.fn() },
+    saleRefundItem: { findMany: jest.fn() },
     $executeRaw: jest.fn(),
   };
   let service: MerchantFinanceAccrualService;
@@ -43,6 +50,15 @@ describe('MerchantFinanceAccrualService', () => {
     service = new MerchantFinanceAccrualService();
     transaction.merchantAgreement.findMany.mockResolvedValue([agreement]);
     transaction.$executeRaw.mockResolvedValue(1);
+    transaction.merchantFinanceAccrual.aggregate.mockResolvedValue({
+      _max: { revision: 4n },
+    });
+    transaction.merchantFinanceAccrual.deleteMany.mockResolvedValue({
+      count: 0,
+    });
+    transaction.merchantFinanceAccrual.create.mockResolvedValue({});
+    transaction.saleItem.findMany.mockResolvedValue([]);
+    transaction.saleRefundItem.findMany.mockResolvedValue([]);
   });
 
   it('aggregates sale lines into one tenant-scoped agreement-period bucket', async () => {
@@ -147,7 +163,7 @@ describe('MerchantFinanceAccrualService', () => {
     const calls = transaction.$executeRaw.mock.calls as unknown as [
       [Prisma.Sql],
     ];
-    expect(calls[0][0].values[9]).toEqual(new Prisma.Decimal('17.50'));
+    expect(calls.at(-1)![0].values[9]).toEqual(new Prisma.Decimal('17.50'));
   });
 
   it('writes a completed rent-only sale with zero commission', async () => {
@@ -168,11 +184,113 @@ describe('MerchantFinanceAccrualService', () => {
       [bucket],
     );
 
-    expect(transaction.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(transaction.$executeRaw).toHaveBeenCalledTimes(2);
     const calls = transaction.$executeRaw.mock.calls as unknown as [
       [Prisma.Sql],
     ];
-    expect(calls[0][0].values[9]).toEqual(new Prisma.Decimal(0));
+    expect(calls.at(-1)![0].values[9]).toEqual(new Prisma.Decimal(0));
+  });
+
+  it('reduces an open sale bucket using the original sale agreement rate', async () => {
+    await service.addCompletedRefund(
+      transaction as unknown as Prisma.TransactionClient,
+      organizationId,
+      new Date('2026-10-08T04:00:00.000Z'),
+      [
+        {
+          merchantId,
+          amount: new Prisma.Decimal('100.00'),
+          originalSaleCompletedAt: completedAt,
+          originalSaleCaptured: false,
+        },
+      ],
+    );
+
+    const calls = transaction.$executeRaw.mock.calls as unknown as [
+      [Prisma.Sql],
+    ];
+    const sql = calls.at(-1)![0];
+    expect(sql.values).toEqual(
+      expect.arrayContaining([
+        MerchantFinanceAccrualKind.EARNED_ACTIVITY,
+        new Prisma.Decimal('100.00'),
+        new Prisma.Decimal('5.00'),
+      ]),
+    );
+  });
+
+  it('places a refund after capture in a separate current-period bucket', async () => {
+    await service.addCompletedRefund(
+      transaction as unknown as Prisma.TransactionClient,
+      organizationId,
+      new Date('2026-10-08T04:00:00.000Z'),
+      [
+        {
+          merchantId,
+          amount: new Prisma.Decimal('100.00'),
+          originalSaleCompletedAt: completedAt,
+          originalSaleCaptured: true,
+        },
+      ],
+    );
+
+    const calls = transaction.$executeRaw.mock.calls as unknown as [
+      [Prisma.Sql],
+    ];
+    const sql = calls.at(-1)![0];
+    expect(sql.values).toEqual(
+      expect.arrayContaining([
+        MerchantFinanceAccrualKind.POST_SETTLEMENT_REFUND,
+        new Date('2026-10-01T00:00:00.000Z'),
+        new Date('2026-10-31T00:00:00.000Z'),
+        new Prisma.Decimal('-5.00'),
+      ]),
+    );
+  });
+
+  it('rebuilds only unreleased merchant activity and advances its revision', async () => {
+    transaction.saleItem.findMany.mockResolvedValue([
+      { total: new Prisma.Decimal('500.00'), sale: { completedAt } },
+    ]);
+    transaction.saleRefundItem.findMany.mockResolvedValue([
+      {
+        amount: new Prisma.Decimal('100.00'),
+        refund: { completedAt: new Date('2026-09-09T04:00:00.000Z') },
+        saleItem: {
+          sale: { completedAt },
+          settlementLinks: [],
+        },
+      },
+    ]);
+
+    await service.rebuildMerchant(
+      transaction as unknown as Prisma.TransactionClient,
+      organizationId,
+      merchantId,
+    );
+
+    expect(transaction.saleItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: expect.objectContaining({
+          organizationId,
+          merchantId,
+          settlementLinks: { none: { releasedAt: null } },
+        }),
+      }),
+    );
+    expect(transaction.merchantFinanceAccrual.deleteMany).toHaveBeenCalledWith({
+      where: { organizationId, merchantId },
+    });
+    expect(transaction.merchantFinanceAccrual.create).toHaveBeenCalledWith({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: expect.objectContaining({
+        grossSales: new Prisma.Decimal('500.00'),
+        refundTotal: new Prisma.Decimal('100.00'),
+        commissionAmount: new Prisma.Decimal('20.00'),
+        revision: 5n,
+      }),
+    });
   });
 
   it('allows a pre-backfill sale void when no projection bucket exists', async () => {
@@ -195,7 +313,7 @@ describe('MerchantFinanceAccrualService', () => {
       ],
     );
 
-    expect(transaction.$executeRaw).not.toHaveBeenCalled();
+    expect(transaction.$executeRaw).toHaveBeenCalledTimes(1);
   });
 
   it('rejects a void that exceeds the projected gross balance', async () => {

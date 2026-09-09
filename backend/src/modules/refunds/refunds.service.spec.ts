@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { OrganizationRole, Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { MerchantFinanceAccrualService } from '../merchant-finance-accrual/merchant-finance-accrual.service';
 import { RefundsService } from './refunds.service';
 
 describe('RefundsService', () => {
@@ -18,6 +19,7 @@ describe('RefundsService', () => {
       (operation: (client: typeof tx) => Promise<unknown>) => operation(tx),
     ),
   };
+  const financeAccrual = { addCompletedRefund: jest.fn() };
   let service: RefundsService;
 
   beforeEach(async () => {
@@ -27,6 +29,7 @@ describe('RefundsService', () => {
     });
     tx.sale.findFirst.mockResolvedValue({
       id: 'sale',
+      completedAt: new Date('2026-09-01T04:00:00.000Z'),
       items: [
         {
           id: 'item',
@@ -34,6 +37,7 @@ describe('RefundsService', () => {
           merchantId: 'merchant',
           quantity: 4,
           total: new Prisma.Decimal('1000.00'),
+          settlementLinks: [],
         },
       ],
     });
@@ -48,7 +52,14 @@ describe('RefundsService', () => {
       items: [],
     });
     const module = await Test.createTestingModule({
-      providers: [RefundsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        RefundsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: MerchantFinanceAccrualService,
+          useValue: financeAccrual,
+        },
+      ],
     }).compile();
     service = module.get(RefundsService);
   });
@@ -85,6 +96,48 @@ describe('RefundsService', () => {
       },
       data: { quantity: { increment: 2 } },
     });
+    expect(financeAccrual.addCompletedRefund).toHaveBeenCalledWith(
+      tx,
+      'organization',
+      expect.any(Date),
+      [
+        expect.objectContaining({
+          merchantId: 'merchant',
+          amount: new Prisma.Decimal('500.00'),
+          originalSaleCompletedAt: new Date('2026-09-01T04:00:00.000Z'),
+          originalSaleCaptured: false,
+        }),
+      ],
+    );
+  });
+
+  it('marks refunds of captured sales as post-settlement activity', async () => {
+    tx.sale.findFirst.mockResolvedValue({
+      id: 'sale',
+      completedAt: new Date('2026-09-01T04:00:00.000Z'),
+      items: [
+        {
+          id: 'item',
+          productId: 'product',
+          merchantId: 'merchant',
+          quantity: 4,
+          total: new Prisma.Decimal('1000.00'),
+          settlementLinks: [{ settlementId: 'draft' }],
+        },
+      ],
+    });
+
+    await service.create('organization', 'branch', 'sale', 'owner', {
+      reason: 'Returned after settlement draft',
+      items: [{ saleItemId: 'item', quantity: 1 }],
+    });
+
+    expect(financeAccrual.addCompletedRefund).toHaveBeenCalledWith(
+      tx,
+      'organization',
+      expect.any(Date),
+      [expect.objectContaining({ originalSaleCaptured: true })],
+    );
   });
 
   it('rejects over-refunds and stale roles', async () => {
