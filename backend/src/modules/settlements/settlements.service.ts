@@ -1477,7 +1477,6 @@ export class SettlementsService {
             commissionAmount: true,
             fixedRentAmount: true,
             adjustmentTotal: true,
-            netPayout: true,
           },
         }),
         this.prisma.merchantFinanceEntry.aggregate({

@@ -25,10 +25,9 @@ server-authoritative.
 - Fixed rent is not accrued inside a settlement. Its monthly obligation exists
   only in the rent receivable ledger, avoiding duplicate rent balances and
   calculation paths.
-- Direct rent payments always clear the full unreserved balance of one monthly
-  receivable; partial payment requests are not accepted. A settlement may
-  deduct accumulated rent only when the payout can cover the complete available
-  balance, allocating whole receivables oldest-first.
+- Direct rent payments may record a full or partial amount against one monthly
+  receivable. A settlement may apply an explicit full or partial amount to each
+  available receivable, up to its unreserved balance and the merchant payable.
 - Accrued rent is the sum of original monthly receivable charges, collected rent
   is full `PAYMENT` plus applied settlement deductions, and outstanding rent is
   the remaining receivable balance. These views are kept separate.

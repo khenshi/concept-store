@@ -110,7 +110,7 @@ replacement can be activated on the next business date. If the intended policy
 is same-day handover, choose whether the old agreement owns that day’s sales or
 the replacement owns them; that requires an explicit timestamp/boundary rule.
 
-## 3. Current Implementation Assessment
+## 3. Pre-implementation Assessment (September 7, 2026)
 
 ### Existing strengths to preserve
 
@@ -131,7 +131,7 @@ the replacement owns them; that requires an explicit timestamp/boundary rule.
 - Rent selected by a draft is reserved and is applied to the receivable ledger
   only when the payout is recorded.
 
-### Correctness and workflow gaps
+### Correctness and workflow gaps identified for this plan
 
 - Rent selection is currently a single all-or-nothing boolean.
 - A preview can become stale before close; close recalculates but does not
@@ -153,7 +153,7 @@ the replacement owns them; that requires an explicit timestamp/boundary rule.
 - A refund is currently assigned to terms based on its refund date. That can
   reverse a different commission rate from the original sale.
 
-### Performance gaps
+### Performance gaps identified for this plan
 
 - The live-payables endpoint loads every matching merchant, calculates every
   balance, builds global summary totals, and only then slices the requested

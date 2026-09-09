@@ -8,14 +8,14 @@
 Eligible sales, refunds, and adjustments accrue into a live payable
   → owner/manager closes the balance on schedule or early
   → source-linked draft snapshot
-  → owner/manager records review
   → owner approval and lock
   → payout recorded
   → paid
 ```
 
-The active workflow uses `DRAFT`, `REVIEWED`, `APPROVED`, and `PAID`. Approval
-is owner-only and requires the explicit review step first.
+The active workflow uses `DRAFT`, `APPROVED`, `PAID`, and terminal
+`CANCELLED`. Owners and managers create and may cancel drafts. Approval and
+payout recording are owner-only; there is no separate reviewed state.
 
 ## Calculation
 
@@ -33,27 +33,28 @@ Optional rent receivable offset
 
 Commission is calculated from net sales after refunds. Fixed monthly rent is a
 separate merchant receivable and never reduces the live payable automatically.
-During settlement preview, an owner or manager may explicitly choose to deduct
-the accumulated outstanding rent. The choice defaults to off. The backend only
-enables it when the payout can cover the complete available rent balance, then
-allocates every available rent period oldest-first. It never creates a partial
-rent deduction or a negative payout.
+During settlement preview, an owner or manager may enter a full or partial
+amount for each available rent receivable. The choice defaults to off. Each
+amount must be positive and no greater than that receivable's unreserved
+balance, and the combined rent application cannot exceed the merchant payable.
+Rent may consume the full payable, producing an auditable zero payout.
 Calculations use server-side decimal arithmetic.
 
 ## Live payable and closure
 
-The overview is calculated directly from eligible financial activity that has
-not been included in a paid settlement. It does not depend on a settlement row
-existing. Every active merchant remains visible: ready accounts show their live
-balance, zero-activity accounts remain at zero, and merchants without a current
+The overview reads backend-maintained period projections of eligible financial
+activity not captured by an active settlement, plus any pending settlement
+snapshot. It does not depend on a paid settlement carrying a balance. Every
+active merchant remains visible: ready accounts show their live balance,
+zero-activity accounts remain at zero, and merchants without a current
 agreement show an agreement-required state. The overview keeps scanning simple
 with merchant, branch, period, deadline, amount due, and a link to the merchant
 detail. The detail page contains the calculation breakdown, adjustments,
 agreement state, and settlement action.
 
 The live overview returns 20 merchant rows at a time (the API caps pages at 50)
-and includes a server-calculated summary for every merchant matching the active
-filters. Settlement history, rent receivables, and Merchant Activity are also
+and includes a clearly labelled organization-wide summary across all active
+merchants regardless of row filters. Settlement history, rent receivables, and Merchant Activity are also
 shown 20 rows at a time. The merchant detail route performs the complete
 single-merchant calculation needed for review and closure.
 
@@ -74,9 +75,9 @@ accrue before closure and are attached atomically to the snapshot.
 Each monthly rent charge retains its source month, original amount, remaining
 balance, due date, status, source agreement, and transaction history. The UI
 shows these periods as the breakdown beneath one accumulated balance. Direct
-full payments and documented adjustments are recorded against the specific
-receivable. A settlement deduction is allocated oldest-first, reserved
-by the draft, and applied to the rent ledger only when payout is recorded.
+full or partial payments and documented adjustments are recorded against the
+specific receivable. A selected settlement deduction is reserved by the draft
+and applied to the rent ledger only when payout is recorded.
 
 Owners and managers can inspect and close the live payable. Only owners can
 approve. Approval locks the snapshot so later agreement or transaction edits
