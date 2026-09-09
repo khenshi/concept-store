@@ -26,6 +26,16 @@ function businessDate(value: string): string {
   );
 }
 
+function isCurrentAssignment(assignment: SpaceAssignment): boolean {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+  }).format(new Date());
+  return (
+    assignment.startDate.slice(0, 10) <= today &&
+    (!assignment.endDate || assignment.endDate.slice(0, 10) >= today)
+  );
+}
+
 export function SpaceAssignmentWorkspace({
   organizationId,
   branchId,
@@ -90,7 +100,7 @@ export function SpaceAssignmentWorkspace({
     () =>
       new Set(
         assignments
-          .filter((assignment) => assignment.endDate === null)
+          .filter(isCurrentAssignment)
           .map((assignment) => assignment.spaceId),
       ),
     [assignments],
@@ -103,8 +113,8 @@ export function SpaceAssignmentWorkspace({
       return (
         view !== 'unassigned' &&
         (view === 'all' ||
-          (view === 'current' && assignment.endDate === null) ||
-          (view === 'history' && assignment.endDate !== null)) &&
+          (view === 'current' && isCurrentAssignment(assignment)) ||
+          (view === 'history' && !isCurrentAssignment(assignment))) &&
         (!merchantId || assignment.merchantId === merchantId) &&
         (!spaceId || assignment.spaceId === spaceId) &&
         (!query ||
@@ -269,7 +279,7 @@ export function SpaceAssignmentWorkspace({
                       </td>
                       <td className="px-3 py-4">
                         <AssignmentBadge
-                          current={assignment.endDate === null}
+                          current={isCurrentAssignment(assignment)}
                         />
                       </td>
                       <td className="px-3 py-4 text-right">
@@ -303,7 +313,7 @@ export function SpaceAssignmentWorkspace({
                         type="button"
                         onClick={() => setSelectedSpace(space)}
                       >
-                        Assign
+                        View history
                       </button>
                     </td>
                   </tr>

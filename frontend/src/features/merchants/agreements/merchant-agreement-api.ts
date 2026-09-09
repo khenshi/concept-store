@@ -3,39 +3,111 @@ import type {
   MerchantAgreement,
   MerchantAgreementInput,
   MerchantAgreementUpdateInput,
+  PrepaymentKind,
+  SpaceAvailability,
 } from './merchant-agreement.types';
 
-function organizationPath(organizationId: string): string {
-  return `/organizations/${encodeURIComponent(organizationId)}`;
-}
+const base = (organizationId: string) =>
+  `/organizations/${encodeURIComponent(organizationId)}`;
+const agreementPath = (organizationId: string, agreementId: string) =>
+  `${base(organizationId)}/merchant-agreements/${encodeURIComponent(agreementId)}`;
 
-export function listMerchantAgreements(
+export const listMerchantAgreements = (
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
-): Promise<MerchantAgreement[]> {
-  return request<MerchantAgreement[]>(
-    `${organizationPath(organizationId)}/merchants/${encodeURIComponent(merchantId)}/agreements`,
+) =>
+  request<MerchantAgreement[]>(
+    `${base(organizationId)}/merchants/${encodeURIComponent(merchantId)}/agreements`,
   );
-}
-
-export function listOrganizationAgreements(
+export const listOrganizationAgreements = (
   request: AuthenticatedRequest,
   organizationId: string,
-): Promise<MerchantAgreement[]> {
-  return request<MerchantAgreement[]>(
-    `${organizationPath(organizationId)}/merchant-agreements`,
-  );
-}
-
-export function createMerchantAgreement(
+) =>
+  request<MerchantAgreement[]>(`${base(organizationId)}/merchant-agreements`);
+export const createMerchantAgreement = (
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
   input: MerchantAgreementInput,
-): Promise<MerchantAgreement> {
+) =>
+  request<MerchantAgreement>(
+    `${base(organizationId)}/merchants/${encodeURIComponent(merchantId)}/agreements`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+  );
+export const updateMerchantAgreement = (
+  request: AuthenticatedRequest,
+  organizationId: string,
+  agreementId: string,
+  input: MerchantAgreementUpdateInput,
+) =>
+  request<MerchantAgreement>(agreementPath(organizationId, agreementId), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+export function transitionAgreement(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  agreementId: string,
+  action:
+    | 'submit'
+    | 'withdraw'
+    | 'return-to-draft'
+    | 'approve'
+    | 'activate'
+    | 'discard'
+    | 'suspend',
+  body?: object,
+) {
   return request<MerchantAgreement>(
-    `${organizationPath(organizationId)}/merchants/${encodeURIComponent(merchantId)}/agreements`,
+    `${agreementPath(organizationId, agreementId)}/${action}`,
+    {
+      method: action === 'submit' ? 'POST' : 'PATCH',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    },
+  );
+}
+
+export function listSpaceAvailability(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  activationAt: string,
+  durationMonths: number,
+  excludeAgreementId?: string,
+) {
+  const query = new URLSearchParams({
+    activationAt,
+    durationMonths: String(durationMonths),
+  });
+  if (excludeAgreementId) query.set('excludeAgreementId', excludeAgreementId);
+  return request<SpaceAvailability[]>(
+    `${base(organizationId)}/spaces/availability?${query}`,
+  );
+}
+
+export interface CollectionInput {
+  amount: string;
+  method: string;
+  referenceNumber?: string;
+  occurredAt: string;
+  requestId: string;
+}
+export function collectAgreementPrepayment(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  agreementId: string,
+  kind: PrepaymentKind,
+  input: CollectionInput,
+) {
+  return request(
+    `${agreementPath(organizationId, agreementId)}/prepayments/${kind}/collections`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -44,49 +116,36 @@ export function createMerchantAgreement(
   );
 }
 
-export function updateMerchantAgreement(
+export function refundAgreementPrepayment(
   request: AuthenticatedRequest,
   organizationId: string,
   agreementId: string,
-  input: MerchantAgreementUpdateInput,
-): Promise<MerchantAgreement> {
-  return request<MerchantAgreement>(
-    `${organizationPath(organizationId)}/merchant-agreements/${encodeURIComponent(agreementId)}`,
+  kind: PrepaymentKind,
+  input: CollectionInput & { reason: string },
+) {
+  return request(
+    `${agreementPath(organizationId, agreementId)}/prepayments/${kind}/refunds`,
     {
-      method: 'PATCH',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     },
   );
 }
 
-export function activateMerchantAgreement(
+export function deductSecurityDeposit(
   request: AuthenticatedRequest,
   organizationId: string,
   agreementId: string,
-): Promise<MerchantAgreement> {
-  return request<MerchantAgreement>(
-    `${organizationPath(organizationId)}/merchant-agreements/${encodeURIComponent(agreementId)}/activate`,
-    { method: 'PATCH' },
-  );
-}
-
-export function endMerchantAgreement(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  agreementId: string,
-  reason?: string,
-): Promise<MerchantAgreement> {
-  return request<MerchantAgreement>(
-    `${organizationPath(organizationId)}/merchant-agreements/${encodeURIComponent(agreementId)}/end`,
+  amount: string,
+  reason: string,
+) {
+  return request(
+    `${agreementPath(organizationId, agreementId)}/security-deposit/deductions`,
     {
-      method: 'PATCH',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(
-        reason && /^\d{4}-\d{2}-\d{2}$/.test(reason)
-          ? { endDate: reason }
-          : { reason },
-      ),
+      body: JSON.stringify({ amount, reason, requestId: crypto.randomUUID() }),
     },
   );
 }

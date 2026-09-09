@@ -61,6 +61,7 @@ export function MerchantDirectory({
     branches,
     branchesStatus,
     loadBranches,
+    upsertMerchant,
   } = useOrganizationWorkspaceContext();
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filters, setFilters] = useState<MerchantFilters>({});
@@ -337,6 +338,7 @@ export function MerchantDirectory({
           branches={branches}
           onCancel={() => setIsCreateOpen(false)}
           onCreated={(merchant) => {
+            upsertMerchant(merchant);
             setIsCreateOpen(false);
             router.push(
               `/app/organizations/${organizationId}/merchants/${merchant.id}`,

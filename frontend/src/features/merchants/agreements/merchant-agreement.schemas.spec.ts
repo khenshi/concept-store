@@ -1,61 +1,62 @@
 import {
-  endMerchantAgreementSchema,
   merchantAgreementSchema,
+  reasonSchema,
 } from './merchant-agreement.schemas';
 
-const validDraft = {
-  startDate: '2026-09-01',
-  endDate: '',
+const validAgreement = {
+  activationAt: '2026-09-10',
+  durationMonths: 12,
+  spaceIds: ['11111111-1111-4111-8111-111111111111'],
   fixedRentAmount: '2500.00',
-  commissionRate: '5.00',
+  commissionRate: '',
+  securityDepositAmount: '5000.00',
+  firstRentPaymentRequired: true,
+  rentDueWeek: 'LAST',
+  rentDueWeekday: 'FRIDAY',
   settlementSchedule: 'MONTHLY',
-};
+} as const;
 
-describe('merchant agreement schemas', () => {
-  it('accepts commercial terms and rejects an agreement without terms', () => {
-    expect(merchantAgreementSchema.safeParse(validDraft).success).toBe(true);
+describe('merchant agreement schema', () => {
+  it('accepts an agreement-led rental draft', () => {
+    expect(merchantAgreementSchema.safeParse(validAgreement).success).toBe(
+      true,
+    );
+  });
+
+  it('requires at least one space and one commercial term', () => {
+    const result = merchantAgreementSchema.safeParse({
+      ...validAgreement,
+      spaceIds: [],
+      fixedRentAmount: '',
+      commissionRate: '',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.flatten().fieldErrors.spaceIds).toBeDefined();
+      expect(result.error.flatten().fieldErrors.fixedRentAmount).toContain(
+        'Enter rent, commission, or both.',
+      );
+    }
+  });
+
+  it('requires rent timing and disallows first-rent prepayment without rent', () => {
     expect(
       merchantAgreementSchema.safeParse({
-        ...validDraft,
-        commissionRate: '',
+        ...validAgreement,
+        rentDueWeek: '',
       }).success,
-    ).toBe(true);
+    ).toBe(false);
     expect(
       merchantAgreementSchema.safeParse({
-        ...validDraft,
+        ...validAgreement,
         fixedRentAmount: '',
-        commissionRate: '',
+        commissionRate: '8.5',
       }).success,
     ).toBe(false);
   });
 
-  it('rejects invalid money, commission, and date ranges', () => {
-    expect(
-      merchantAgreementSchema.safeParse({
-        ...validDraft,
-        fixedRentAmount: '0',
-      }).success,
-    ).toBe(false);
-    expect(
-      merchantAgreementSchema.safeParse({
-        ...validDraft,
-        commissionRate: '100.01',
-      }).success,
-    ).toBe(false);
-    expect(
-      merchantAgreementSchema.safeParse({
-        ...validDraft,
-        endDate: '2026-08-31',
-      }).success,
-    ).toBe(false);
-  });
-
-  it('validates agreement end dates', () => {
-    expect(
-      endMerchantAgreementSchema.safeParse({ endDate: '2026-09-30' }).success,
-    ).toBe(true);
-    expect(
-      endMerchantAgreementSchema.safeParse({ endDate: '2026-02-30' }).success,
-    ).toBe(false);
+  it('requires lifecycle reasons', () => {
+    expect(reasonSchema.safeParse('  ').success).toBe(false);
+    expect(reasonSchema.parse('Needs correction')).toBe('Needs correction');
   });
 });

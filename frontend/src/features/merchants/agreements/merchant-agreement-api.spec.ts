@@ -1,88 +1,62 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import {
-  activateMerchantAgreement,
-  createMerchantAgreement,
-  endMerchantAgreement,
-  listOrganizationAgreements,
-  listMerchantAgreements,
-  updateMerchantAgreement,
+  collectAgreementPrepayment,
+  listSpaceAvailability,
+  transitionAgreement,
 } from './merchant-agreement-api';
 
 describe('merchant agreement API', () => {
   const request = vi.fn() as unknown as AuthenticatedRequest;
+
   beforeEach(() => vi.clearAllMocks());
 
-  it('lists and creates agreements through the merchant path', async () => {
+  it('requests advisory availability with the agreement period', async () => {
     vi.mocked(request).mockResolvedValue([]);
-    await listMerchantAgreements(request, 'organization/id', 'merchant/id');
-    expect(request).toHaveBeenCalledWith(
-      '/organizations/organization%2Fid/merchants/merchant%2Fid/agreements',
-    );
-
-    const input = {
-      startDate: '2026-09-01',
-      settlementSchedule: 'MONTHLY' as const,
-    };
-    await createMerchantAgreement(
+    await listSpaceAvailability(
       request,
-      'organization-id',
-      'merchant-id',
+      'organization id',
+      '2026-09-10',
+      12,
+      '11111111-1111-4111-8111-111111111111',
+    );
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%20id/spaces/availability?activationAt=2026-09-10&durationMonths=12&excludeAgreementId=11111111-1111-4111-8111-111111111111',
+    );
+  });
+
+  it('uses POST only for submission and PATCH for later transitions', async () => {
+    vi.mocked(request).mockResolvedValue({});
+    await transitionAgreement(request, 'org', 'agreement', 'submit');
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/org/merchant-agreements/agreement/submit',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    await transitionAgreement(request, 'org', 'agreement', 'approve');
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/org/merchant-agreements/agreement/approve',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
+  });
+
+  it('sends idempotent pending collection details', async () => {
+    vi.mocked(request).mockResolvedValue({});
+    const input = {
+      amount: '2500.00',
+      method: 'GCASH',
+      referenceNumber: 'PAY-1',
+      occurredAt: '2026-09-10T01:00:00.000Z',
+      requestId: '22222222-2222-4222-8222-222222222222',
+    };
+    await collectAgreementPrepayment(
+      request,
+      'org',
+      'agreement',
+      'FIRST_RENT',
       input,
     );
-    expect(request).toHaveBeenLastCalledWith(
-      '/organizations/organization-id/merchants/merchant-id/agreements',
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/org/merchant-agreements/agreement/prepayments/FIRST_RENT/collections',
       expect.objectContaining({ method: 'POST', body: JSON.stringify(input) }),
-    );
-  });
-
-  it('lists organization agreements', async () => {
-    vi.mocked(request).mockResolvedValue([]);
-    await listOrganizationAgreements(request, 'organization/id');
-    expect(request).toHaveBeenLastCalledWith(
-      '/organizations/organization%2Fid/merchant-agreements',
-    );
-  });
-
-  it('updates, activates, and ends through the agreement path', async () => {
-    vi.mocked(request).mockResolvedValue({});
-    const update = {
-      startDate: '2026-09-01',
-      endDate: null,
-      fixedRentAmount: '2500.00',
-      commissionRate: null,
-      settlementSchedule: 'MONTHLY' as const,
-    };
-    await updateMerchantAgreement(
-      request,
-      'organization-id',
-      'agreement/id',
-      update,
-    );
-    expect(request).toHaveBeenLastCalledWith(
-      '/organizations/organization-id/merchant-agreements/agreement%2Fid',
-      expect.objectContaining({
-        method: 'PATCH',
-        body: JSON.stringify(update),
-      }),
-    );
-
-    await activateMerchantAgreement(request, 'organization-id', 'agreement/id');
-    expect(request).toHaveBeenLastCalledWith(
-      '/organizations/organization-id/merchant-agreements/agreement%2Fid/activate',
-      { method: 'PATCH' },
-    );
-
-    await endMerchantAgreement(
-      request,
-      'organization-id',
-      'agreement/id',
-      '2026-09-30',
-    );
-    expect(request).toHaveBeenLastCalledWith(
-      '/organizations/organization-id/merchant-agreements/agreement%2Fid/end',
-      expect.objectContaining({
-        body: JSON.stringify({ endDate: '2026-09-30' }),
-      }),
     );
   });
 });

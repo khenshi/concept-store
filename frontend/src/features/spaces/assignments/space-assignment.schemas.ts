@@ -15,11 +15,6 @@ const businessDateSchema = z
   .string()
   .refine(isBusinessDate, 'Enter a valid date.');
 
-export const createSpaceAssignmentSchema = z.object({
-  merchantId: z.string().uuid('Select a merchant.'),
-  startDate: businessDateSchema,
-});
-
 export const endSpaceAssignmentSchema = z.object({
   endDate: businessDateSchema,
 });

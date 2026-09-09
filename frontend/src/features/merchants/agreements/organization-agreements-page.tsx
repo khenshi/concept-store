@@ -10,22 +10,20 @@ import { ApiError } from '@/features/auth/auth-client';
 import { useAuth } from '@/features/auth/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import {
-  createMerchantAgreement,
-  listOrganizationAgreements,
-} from './merchant-agreement-api';
-import { AgreementForm } from './merchant-agreement-management';
+import { listOrganizationAgreements } from './merchant-agreement-api';
 import type {
   AgreementStatus,
   AgreementType,
   MerchantAgreement,
-  MerchantAgreementInput,
 } from './merchant-agreement.types';
 
 const statusLabels: Record<AgreementStatus, string> = {
   DRAFT: 'Draft',
+  PENDING: 'Pending review',
+  APPROVED: 'Approved',
   ACTIVE: 'Active',
   ENDED: 'Ended',
+  SUSPENDED: 'Suspended',
 };
 
 function agreementType(agreement: MerchantAgreement): AgreementType {
@@ -78,10 +76,6 @@ export function OrganizationAgreementsPage({
   const [type, setType] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [newMerchantId, setNewMerchantId] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -131,30 +125,6 @@ export function OrganizationAgreementsPage({
     [agreements, fromDate, merchantId, status, toDate, type],
   );
 
-  async function handleCreate(input: MerchantAgreementInput) {
-    if (!newMerchantId) {
-      setActionError('Select a merchant for this agreement.');
-      return;
-    }
-    setIsSaving(true);
-    setActionError(null);
-    try {
-      await createMerchantAgreement(
-        request,
-        organizationId,
-        newMerchantId,
-        input,
-      );
-      setIsFormOpen(false);
-      setNewMerchantId('');
-      await load();
-    } catch (cause: unknown) {
-      setActionError(errorMessage(cause));
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
   if (organizationStatus === 'loading' || !organization) {
     return (
       <p className="mt-12" role="status">
@@ -178,13 +148,12 @@ export function OrganizationAgreementsPage({
               {visibleAgreements.length} matching agreements
             </p>
           </div>
-          <button
+          <Link
             className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white"
-            type="button"
-            onClick={() => setIsFormOpen(true)}
+            href={`/app/organizations/${organizationId}/agreements/new`}
           >
             Add agreement
-          </button>
+          </Link>
         </div>
 
         <div className="mt-5 grid items-end gap-4 border-y border-slate-200 bg-slate-50/60 py-5 sm:grid-cols-2 xl:grid-cols-5">
@@ -297,7 +266,7 @@ export function OrganizationAgreementsPage({
                     <td className="px-3 py-4 text-right">
                       <Link
                         className="font-bold text-emerald-700 no-underline hover:text-emerald-800"
-                        href={`/app/organizations/${organizationId}/merchants/${agreement.merchantId}/agreements`}
+                        href={`/app/organizations/${organizationId}/agreements/${agreement.id}`}
                       >
                         Manage
                       </Link>
@@ -309,57 +278,6 @@ export function OrganizationAgreementsPage({
           </div>
         )}
       </section>
-
-      {isFormOpen ? (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/45 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Add agreement"
-        >
-          <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
-            {actionError ? (
-              <p
-                className="mb-4 rounded-lg border border-red-600 p-3 text-sm text-red-600"
-                role="alert"
-              >
-                {actionError}
-              </p>
-            ) : null}
-            <div className="mb-5 grid gap-2">
-              <label
-                className="text-sm font-bold"
-                htmlFor="new-agreement-merchant"
-              >
-                Merchant
-              </label>
-              <SelectControl
-                id="new-agreement-merchant"
-                value={newMerchantId}
-                onValueChange={setNewMerchantId}
-              >
-                <option value="" disabled>
-                  Select a merchant
-                </option>
-                {merchants.map((merchant) => (
-                  <option key={merchant.id} value={merchant.id}>
-                    {merchant.name}
-                  </option>
-                ))}
-              </SelectControl>
-            </div>
-            <AgreementForm
-              agreement={null}
-              isSubmitting={isSaving}
-              onSaved={handleCreate}
-              onCancel={() => {
-                setActionError(null);
-                setIsFormOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }

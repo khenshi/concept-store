@@ -1,84 +1,57 @@
 import { z } from 'zod';
 
-const moneyPattern = /^(?:0\.(?:0[1-9]|[1-9]\d?)|[1-9]\d{0,9}(?:\.\d{1,2})?)$/;
-const commissionPattern =
-  /^(?:100(?:\.0{1,2})?|[1-9]\d?(?:\.\d{1,2})?|0\.(?:0[1-9]|[1-9]\d?))$/;
-
-function isBusinessDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
-
-const optionalDecimal = (pattern: RegExp, message: string) =>
-  z
-    .string()
-    .trim()
-    .refine((value) => value === '' || pattern.test(value), message);
+const money = z
+  .string()
+  .trim()
+  .regex(/^(?:0\.(?:0[1-9]|[1-9]\d?)|[1-9]\d{0,9}(?:\.\d{1,2})?)$/)
+  .or(z.literal(''));
 
 export const merchantAgreementSchema = z
   .object({
-    durationMonths: z.coerce.number().int().min(1).max(60).optional(),
-    startDate: z.string().optional(),
-    endDate: z
+    activationAt: z
       .string()
-      .refine(
-        (value) => value === '' || isBusinessDate(value),
-        'Enter a valid end date.',
-      ),
-    fixedRentAmount: optionalDecimal(
-      moneyPattern,
-      'Fixed rent must be positive and use at most 2 decimal places.',
-    ),
-    commissionRate: optionalDecimal(
-      commissionPattern,
-      'Commission must be greater than 0, no more than 100, and use at most 2 decimal places.',
-    ),
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose an activation date.'),
+    durationMonths: z.coerce.number().int().min(1).max(60),
+    spaceIds: z.array(z.string().uuid()).min(1, 'Select at least one space.'),
+    fixedRentAmount: money,
+    commissionRate: money,
+    securityDepositAmount: money,
+    firstRentPaymentRequired: z.boolean(),
+    rentDueWeek: z
+      .enum(['FIRST', 'SECOND', 'THIRD', 'FOURTH', 'LAST'])
+      .or(z.literal('')),
+    rentDueWeekday: z
+      .enum([
+        'MONDAY',
+        'TUESDAY',
+        'WEDNESDAY',
+        'THURSDAY',
+        'FRIDAY',
+        'SATURDAY',
+        'SUNDAY',
+      ])
+      .or(z.literal('')),
     settlementSchedule: z.enum(['WEEKLY', 'SEMI_MONTHLY', 'MONTHLY']),
   })
   .superRefine((value, context) => {
-    if (!value.durationMonths && !value.startDate) {
-      context.addIssue({
-        code: 'custom',
-        path: ['durationMonths'],
-        message: 'Enter an agreement duration from 1 to 60 months.',
-      });
-    }
-    if (value.startDate && !isBusinessDate(value.startDate)) {
-      context.addIssue({
-        code: 'custom',
-        path: ['startDate'],
-        message: 'Enter a valid start date.',
-      });
-    }
-    if (!value.fixedRentAmount && !value.commissionRate) {
+    if (!value.fixedRentAmount && !value.commissionRate)
       context.addIssue({
         code: 'custom',
         path: ['fixedRentAmount'],
-        message: 'Enter fixed rent, commission, or both.',
+        message: 'Enter rent, commission, or both.',
       });
-    }
-    if (value.endDate && value.startDate && value.endDate < value.startDate) {
+    if (value.fixedRentAmount && (!value.rentDueWeek || !value.rentDueWeekday))
       context.addIssue({
         code: 'custom',
-        path: ['endDate'],
-        message: 'End date cannot be earlier than the start date.',
+        path: ['rentDueWeek'],
+        message: 'Choose the rent collection week and weekday.',
       });
-    }
+    if (!value.fixedRentAmount && value.firstRentPaymentRequired)
+      context.addIssue({
+        code: 'custom',
+        path: ['firstRentPaymentRequired'],
+        message: 'First-rent prepayment requires fixed rent.',
+      });
   });
 
-export const endMerchantAgreementSchema = z.object({
-  reason: z.string().trim().max(500).optional(),
-  endDate: z
-    .string()
-    .refine(
-      (value) => value === '' || isBusinessDate(value),
-      'Enter a valid end date.',
-    )
-    .optional(),
-});
+export const reasonSchema = z.string().trim().min(1).max(500);

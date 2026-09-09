@@ -1,6 +1,5 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
 import type {
-  CreateSpaceAssignmentInput,
   EndSpaceAssignmentInput,
   SpaceAssignment,
 } from './space-assignment.types';
@@ -26,22 +25,6 @@ export function listBranchSpaceAssignments(
 ): Promise<SpaceAssignment[]> {
   return request<SpaceAssignment[]>(
     `${organizationPath(organizationId)}/branches/${encodeURIComponent(branchId)}/space-assignments`,
-  );
-}
-
-export function createSpaceAssignment(
-  request: AuthenticatedRequest,
-  organizationId: string,
-  spaceId: string,
-  input: CreateSpaceAssignmentInput,
-): Promise<SpaceAssignment> {
-  return request<SpaceAssignment>(
-    `${organizationPath(organizationId)}/spaces/${encodeURIComponent(spaceId)}/assignments`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    },
   );
 }
 

@@ -37,6 +37,7 @@ interface OrganizationWorkspaceContextValue {
   merchants: Merchant[];
   merchantsStatus: LoadStatus;
   loadMerchants(options?: { refresh?: boolean }): Promise<Merchant[]>;
+  upsertMerchant(merchant: Merchant): void;
   products: Product[];
   productsStatus: LoadStatus;
   loadProducts(options?: { refresh?: boolean }): Promise<Product[]>;
@@ -200,6 +201,17 @@ export function OrganizationWorkspaceProvider({
     [organizationId, request],
   );
 
+  const upsertMerchant = useCallback((merchant: Merchant) => {
+    const next = [
+      ...merchantsRef.current.filter((item) => item.id !== merchant.id),
+      merchant,
+    ].sort((left, right) => left.name.localeCompare(right.name));
+    merchantsRef.current = next;
+    merchantsStatusRef.current = 'ready';
+    setMerchants(next);
+    setMerchantsStatus('ready');
+  }, []);
+
   const loadProducts = useCallback(
     async (options?: { refresh?: boolean }) => {
       if (!options?.refresh) {
@@ -255,6 +267,7 @@ export function OrganizationWorkspaceProvider({
       merchants,
       merchantsStatus,
       loadMerchants,
+      upsertMerchant,
       products,
       productsStatus,
       loadProducts,
@@ -275,6 +288,7 @@ export function OrganizationWorkspaceProvider({
       merchants,
       merchantsStatus,
       loadMerchants,
+      upsertMerchant,
       products,
       productsStatus,
       loadProducts,
