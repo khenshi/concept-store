@@ -1,6 +1,6 @@
 # Finance Manager Workflow, Partial Rent, and Scalability Plan
 
-**Status:** Core workflow implemented, migrated, seeded, and verified; projection phase pending  
+**Status:** Implemented, migrated, backfilled, reconciled, and verified  
 **Created:** September 7, 2026  
 **Implementation authorization:** Approved by the product owner in this session
 
@@ -20,9 +20,9 @@ practical changes needed to support manual partial rent application, partial
 direct rent payments, safer retries and concurrency, a clearer manager
 interface, and scalable live calculations.
 
-The current implementation follows the approved decisions below. Remaining
-scalability work is intentionally staged behind the correctness changes so the
-raw calculation path remains available for parity checks during rollout.
+The current implementation follows the approved decisions below. Live reads use
+the reconciled projection, while settlement close retains the raw calculation
+as the authoritative parity check and repair boundary.
 
 ### Implementation progress
 
@@ -42,11 +42,15 @@ raw calculation path remains available for parity checks during rollout.
   active UI/API lifecycle is now only draft → approved → paid.
 - Updated the Finance and agreement interfaces to expose the new manager
   workflow and organization-wide summary labels.
-- Original-sale refund commission reversal is implemented; the accrual
-  projection/read-model phase remains follow-up work before high-volume
-  production rollout.
+- Added the transactionally maintained accrual projection, completed-sale and
+  refund synchronization, settlement capture/cancellation rebuilds, report-first
+  reconciliation and repair tooling, and projection-backed live Finance reads.
+- Live settlement close recalculates raw sources, repairs projection drift, and
+  rejects stale previews before creating a financial snapshot.
 - The Finance hardening migration and deterministic demo seed were applied to
   the configured development database on September 8, 2026.
+- Projection migrations and the development-data backfill were applied and
+  reconciled to zero drift on September 9, 2026.
 
 ## 2. Confirmed Product Decisions
 
