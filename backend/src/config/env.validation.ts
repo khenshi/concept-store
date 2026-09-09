@@ -47,6 +47,21 @@ const envSchema = z
       .min(1_000)
       .max(120_000)
       .default(30_000),
+    LOG_LEVEL: z
+      .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
+      .optional(),
+    LOG_HTTP_REQUESTS: z
+      .union([z.boolean(), z.enum(['true', 'false'])])
+      .transform((value) => value === true || value === 'true')
+      .optional(),
+    LOG_DB_QUERIES: z
+      .union([z.boolean(), z.enum(['true', 'false'])])
+      .transform((value) => value === true || value === 'true')
+      .optional(),
+    LOG_DB_QUERY_PARAMETERS: z
+      .union([z.boolean(), z.enum(['true', 'false'])])
+      .transform((value) => value === true || value === 'true')
+      .default(false),
     JWT_SECRET: z.string().min(32),
     JWT_ACCESS_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
@@ -71,6 +86,13 @@ export function validateEnvironment(
 
   return {
     ...result.data,
+    LOG_LEVEL:
+      result.data.LOG_LEVEL ??
+      (result.data.NODE_ENV === 'development' ? 'debug' : 'info'),
+    LOG_HTTP_REQUESTS:
+      result.data.LOG_HTTP_REQUESTS ?? result.data.NODE_ENV === 'development',
+    LOG_DB_QUERIES:
+      result.data.LOG_DB_QUERIES ?? result.data.NODE_ENV === 'development',
     SWAGGER_ENABLED:
       result.data.SWAGGER_ENABLED ?? result.data.NODE_ENV !== 'production',
   };

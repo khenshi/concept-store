@@ -21,6 +21,10 @@ describe('validateEnvironment', () => {
       DB_CONNECTION_TIMEOUT_MS: 10_000,
       DB_QUERY_TIMEOUT_MS: 30_000,
       SWAGGER_ENABLED: true,
+      LOG_LEVEL: 'debug',
+      LOG_HTTP_REQUESTS: true,
+      LOG_DB_QUERIES: true,
+      LOG_DB_QUERY_PARAMETERS: false,
     });
   });
 
@@ -49,6 +53,33 @@ describe('validateEnvironment', () => {
         SWAGGER_ENABLED: 'true',
       }),
     ).toMatchObject({ SWAGGER_ENABLED: true });
+  });
+
+  it('uses quiet production logging defaults and supports explicit overrides', () => {
+    expect(
+      validateEnvironment({ ...requiredEnvironment, NODE_ENV: 'production' }),
+    ).toMatchObject({
+      LOG_LEVEL: 'info',
+      LOG_HTTP_REQUESTS: false,
+      LOG_DB_QUERIES: false,
+      LOG_DB_QUERY_PARAMETERS: false,
+    });
+
+    expect(
+      validateEnvironment({
+        ...requiredEnvironment,
+        NODE_ENV: 'production',
+        LOG_LEVEL: 'warn',
+        LOG_HTTP_REQUESTS: 'true',
+        LOG_DB_QUERIES: 'true',
+        LOG_DB_QUERY_PARAMETERS: 'true',
+      }),
+    ).toMatchObject({
+      LOG_LEVEL: 'warn',
+      LOG_HTTP_REQUESTS: true,
+      LOG_DB_QUERIES: true,
+      LOG_DB_QUERY_PARAMETERS: true,
+    });
   });
 
   it('rejects a non-PostgreSQL database URL', () => {

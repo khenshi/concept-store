@@ -14,6 +14,7 @@ settlements, and reports.
 - Database: PostgreSQL through Prisma
 - Authentication: short-lived JWT access tokens and rotating refresh sessions
 - API reference: generated Swagger/OpenAPI documentation
+- Runtime logging: Pino through `nestjs-pino`, with Prisma query events
 
 NestJS DTOs use `class-validator` and `class-transformer`; environment parsing
 uses Zod. Jest and Supertest cover backend behavior, while Vitest, Testing
@@ -61,3 +62,31 @@ event streaming, or separate databases per tenant. Infrastructure should be
 introduced only when a concrete operational requirement justifies it.
 
 Offline POS and SaaS billing remain future roadmap milestones.
+
+## Development request and query logs
+
+Starting the backend with `npm run start:dev` prints each completed HTTP request
+and each Prisma query to the same terminal by default in development. HTTP logs
+include a request ID, method, sanitized URL, response status, and elapsed time.
+Database logs include SQL, execution time, and the database target. Query
+parameters are deliberately excluded because they may contain credentials,
+personal data, or financial input.
+
+The behavior is controlled through these backend environment variables:
+
+```text
+LOG_LEVEL=debug
+LOG_HTTP_REQUESTS=true
+LOG_DB_QUERIES=true
+LOG_DB_QUERY_PARAMETERS=false
+```
+
+Set either request or query logging to `false` when the output is too noisy.
+Only enable `LOG_DB_QUERY_PARAMETERS` temporarily against safe development data;
+never enable it for production or shared logs. Production defaults request and
+query logging to off unless explicitly configured, and emits structured JSON
+instead of development pretty-printing when logging is enabled.
+
+Clients may send `X-Request-Id` to correlate a request with application logs.
+Missing or excessively long IDs are replaced by a generated UUID. Sensitive URL
+parameters and standard authentication fields are redacted from request logs.
