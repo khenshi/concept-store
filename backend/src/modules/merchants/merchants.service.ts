@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { currentPhilippineBusinessDate } from '../merchant-agreements/dto/agreement-date.validation';
 import type { CreateMerchantDto } from './dto/create-merchant.dto';
 import type { ListMerchantsQueryDto } from './dto/list-merchants-query.dto';
 import type { UpdateMerchantStatusDto } from './dto/update-merchant-status.dto';
@@ -164,10 +165,22 @@ export class MerchantsService {
             organizationId,
             merchantId,
             branchId: { notIn: dto.branchIds },
-            endDate: null,
+            OR: [
+              { endDate: null },
+              { endDate: { gte: currentPhilippineBusinessDate() } },
+            ],
           },
         });
-        if (currentAssignmentCount > 0) {
+        const reservedSpaceCount =
+          await transaction.merchantAgreementSpace.count({
+            where: {
+              organizationId,
+              agreement: { merchantId },
+              branchId: { notIn: dto.branchIds },
+              releasedAt: null,
+            },
+          });
+        if (currentAssignmentCount > 0 || reservedSpaceCount > 0) {
           throw new ConflictException(
             'End current space assignments before removing their branches',
           );

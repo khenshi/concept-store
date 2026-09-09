@@ -1,6 +1,6 @@
 # Milestone 3 — Spaces and Agreements
 
-**Status:** Completed historical summary
+**Status:** Completed and extended
 
 ## Goal
 
@@ -11,24 +11,31 @@ rent, commission, or both.
 
 - Branch-owned physical spaces with standard and custom types.
 - Space lifecycle management for owners and managers.
-- Dated merchant-to-space assignment history.
-- Exclusive active-space assignment enforcement.
-- Merchant agreements with effective dates and lifecycle state.
+- Agreement-selected, dated space reservations and assignment history.
+- Exclusive date-range occupancy enforcement, including legacy assignments.
+- Draft, submission, approval, activation, ending, and suspension lifecycle.
+- Five draft slots, one pending agreement, and one active agreement per merchant.
+- Philippine activation scheduling and automatic lifecycle reconciliation.
+- Optional security-deposit and first-rent approval prerequisites with
+  append-only ledgers.
+- Configurable monthly rent collection week and weekday.
 - Fixed-rent, commission-only, and hybrid commercial terms.
 - Weekly, semi-monthly, and monthly settlement schedules.
-- Contextual branch and merchant workflows for spaces, assignments, and
-  agreements.
+- An organization agreement register and guided agreement workflow.
 - Authenticated frontend navigation and operational layout refinement.
 
 ## Important rules
 
 - A space belongs to exactly one organization branch.
-- A space has at most one active assignment at a time.
+- Agreements are the only source of new space assignments.
+- Pending, approved, and active reservations cannot overlap on a space.
 - A merchant may occupy multiple spaces and branches.
 - Assigned merchants must participate in the selected branch.
-- Assignment and agreement history is ended, not overwritten or deleted.
+- Legacy manual assignments are read-only history with an end action.
+- Submitted commercial terms are immutable.
 - An agreement must define fixed rent, commission, or both.
-- Effective agreement periods cannot create ambiguous active terms.
+- Approval is blocked until enabled deposit and first-rent prerequisites are
+  fully collected.
 
 ## Security and integrity result
 

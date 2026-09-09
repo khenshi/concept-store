@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, SpaceType } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { currentPhilippineBusinessDate } from '../merchant-agreements/dto/agreement-date.validation';
 import type { CreateSpaceDto } from './dto/create-space.dto';
 import type { UpdateSpaceDto } from './dto/update-space.dto';
 import type { SpaceListRecord, SpaceRecord } from './spaces.types';
@@ -44,12 +45,16 @@ export class SpacesService {
     branchId: string,
   ): Promise<SpaceListRecord[]> {
     await this.requireBranch(organizationId, branchId);
+    const today = currentPhilippineBusinessDate();
     const spaces = await this.prisma.space.findMany({
       where: { organizationId, branchId },
       orderBy: [{ name: 'asc' }, { code: 'asc' }, { id: 'asc' }],
       include: {
         assignments: {
-          where: { endDate: null },
+          where: {
+            startDate: { lte: today },
+            OR: [{ endDate: null }, { endDate: { gte: today } }],
+          },
           orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
           take: 1,
           select: {

@@ -2,28 +2,32 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseEnumPipe,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBadRequestResponse,
   ApiBearerAuth,
-  ApiConflictResponse,
   ApiCreatedResponse,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { OrganizationRole } from '../../generated/prisma/client';
 import {
-  MerchantAgreementResponseDto,
-  MerchantAgreementViewResponseDto,
+  AgreementPrepaymentKind,
+  OrganizationRole,
+} from '../../generated/prisma/client';
+import {
+  AgreementPrepaymentResponseDto,
+  AgreementPrepaymentTransactionResponseDto,
+  MerchantAgreementWorkflowResponseDto,
+  SpaceAvailabilityResponseDto,
 } from '../../openapi/response.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { OrganizationAccessGuard } from '../organizations/authorization/organization-access.guard';
@@ -31,125 +35,197 @@ import type { OrganizationContext } from '../organizations/authorization/organiz
 import { CurrentOrganization } from '../organizations/authorization/organization-context.decorator';
 import { OrganizationRoles } from '../organizations/authorization/organization-roles.decorator';
 import { CreateMerchantAgreementDto } from './dto/create-merchant-agreement.dto';
-import { EndMerchantAgreementDto } from './dto/end-merchant-agreement.dto';
 import { UpdateMerchantAgreementDto } from './dto/update-merchant-agreement.dto';
+import {
+  AgreementReasonDto,
+  CancelAgreementDto,
+  RecordDepositDeductionDto,
+  RecordPrepaymentCollectionDto,
+  RecordPrepaymentRefundDto,
+} from './dto/agreement-transition.dto';
+import { SpaceAvailabilityQueryDto } from './dto/space-availability-query.dto';
 import { MerchantAgreementsService } from './merchant-agreements.service';
-import type {
-  MerchantAgreementRecord,
-  MerchantAgreementViewRecord,
-} from './merchant-agreements.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
 @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
 @ApiTags('merchant agreements')
 @ApiBearerAuth('access-token')
-@ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
-@ApiForbiddenResponse({
-  description: 'The organization role cannot manage merchant agreements',
-})
-@ApiNotFoundResponse({
-  description: 'Organization, merchant, or agreement was not found',
-})
 @Controller('organizations/:organizationId')
 export class MerchantAgreementsController {
-  constructor(
-    private readonly merchantAgreementsService: MerchantAgreementsService,
-  ) {}
+  constructor(private readonly service: MerchantAgreementsService) {}
 
   @Post('merchants/:merchantId/agreements')
-  @ApiOperation({ summary: 'Create a draft merchant agreement' })
-  @ApiCreatedResponse({ type: MerchantAgreementResponseDto })
-  @ApiBadRequestResponse({
-    description: 'Agreement terms or dates are invalid',
-  })
+  @ApiOperation({ summary: 'Create a merchant agreement draft' })
+  @ApiCreatedResponse({ type: MerchantAgreementWorkflowResponseDto })
   create(
-    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentOrganization() org: OrganizationContext,
     @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
     merchantId: string,
     @Body() dto: CreateMerchantAgreementDto,
-  ): Promise<MerchantAgreementRecord> {
-    return this.merchantAgreementsService.create(
-      organization.organizationId,
-      merchantId,
-      dto,
-    );
+  ) {
+    return this.service.create(org.organizationId, merchantId, dto);
   }
-
   @Get('merchant-agreements')
-  @ApiOperation({ summary: 'List all merchant agreements in an organization' })
-  @ApiOkResponse({ type: MerchantAgreementViewResponseDto, isArray: true })
-  findAllForOrganization(
-    @CurrentOrganization() organization: OrganizationContext,
-  ): Promise<MerchantAgreementViewRecord[]> {
-    return this.merchantAgreementsService.findAllForOrganization(
-      organization.organizationId,
-    );
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto, isArray: true })
+  findAllForOrganization(@CurrentOrganization() org: OrganizationContext) {
+    return this.service.findAllForOrganization(org.organizationId);
   }
-
   @Get('merchants/:merchantId/agreements')
-  @ApiOperation({ summary: 'List a merchant agreement history' })
-  @ApiOkResponse({ type: MerchantAgreementResponseDto, isArray: true })
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto, isArray: true })
   findAll(
-    @CurrentOrganization() organization: OrganizationContext,
+    @CurrentOrganization() org: OrganizationContext,
     @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
     merchantId: string,
-  ): Promise<MerchantAgreementRecord[]> {
-    return this.merchantAgreementsService.findAll(
-      organization.organizationId,
-      merchantId,
-    );
+  ) {
+    return this.service.findAll(org.organizationId, merchantId);
   }
-
+  @Get('merchant-agreements/:agreementId')
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
+  findOne(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.findOneView(org.organizationId, id);
+  }
   @Patch('merchant-agreements/:agreementId')
-  @ApiOperation({ summary: 'Update a draft merchant agreement' })
-  @ApiOkResponse({ type: MerchantAgreementResponseDto })
-  @ApiConflictResponse({ description: 'The agreement is not a draft' })
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
   update(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('agreementId', new ParseUUIDPipe({ version: '4' }))
-    agreementId: string,
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: UpdateMerchantAgreementDto,
-  ): Promise<MerchantAgreementRecord> {
-    return this.merchantAgreementsService.update(
-      organization.organizationId,
-      agreementId,
-      dto,
+  ) {
+    return this.service.update(org.organizationId, id, dto);
+  }
+  @Post('merchant-agreements/:agreementId/submit')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
+  submit(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.submit(org.organizationId, id, org.userId);
+  }
+  @Patch('merchant-agreements/:agreementId/withdraw')
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
+  withdraw(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: AgreementReasonDto,
+  ) {
+    return this.service.withdraw(
+      org.organizationId,
+      id,
+      org.userId,
+      dto.reason,
     );
   }
-
+  @Patch('merchant-agreements/:agreementId/return-to-draft')
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
+  returnToDraft(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: AgreementReasonDto,
+  ) {
+    return this.service.returnToDraft(
+      org.organizationId,
+      id,
+      org.userId,
+      dto.reason,
+    );
+  }
+  @Patch('merchant-agreements/:agreementId/approve')
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
+  approve(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.approve(org.organizationId, id, org.userId);
+  }
   @Patch('merchant-agreements/:agreementId/activate')
-  @ApiOperation({ summary: 'Activate a draft merchant agreement' })
-  @ApiOkResponse({ type: MerchantAgreementResponseDto })
-  @ApiConflictResponse({
-    description: 'The agreement cannot be activated in its current state',
-  })
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
   activate(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('agreementId', new ParseUUIDPipe({ version: '4' }))
-    agreementId: string,
-  ): Promise<MerchantAgreementRecord> {
-    return this.merchantAgreementsService.activate(
-      organization.organizationId,
-      agreementId,
-    );
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.activate(org.organizationId, id, org.userId);
   }
-
-  @Patch('merchant-agreements/:agreementId/end')
-  @ApiOperation({ summary: 'End an active merchant agreement' })
-  @ApiOkResponse({ type: MerchantAgreementResponseDto })
-  @ApiBadRequestResponse({ description: 'The end date is invalid' })
-  @ApiConflictResponse({ description: 'The agreement is not active' })
-  end(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('agreementId', new ParseUUIDPipe({ version: '4' }))
-    agreementId: string,
-    @Body() dto: EndMerchantAgreementDto,
-  ): Promise<MerchantAgreementRecord> {
-    return this.merchantAgreementsService.end(
-      organization.organizationId,
-      agreementId,
-      dto,
-      organization.userId,
-    );
+  @Patch('merchant-agreements/:agreementId/cancel')
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
+  cancel(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: CancelAgreementDto,
+  ) {
+    return this.service.cancel(org.organizationId, id, org.userId, dto);
+  }
+  @Patch('merchant-agreements/:agreementId/suspend')
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
+  suspend(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: AgreementReasonDto,
+  ) {
+    return this.service.suspend(org.organizationId, id, org.userId, dto.reason);
+  }
+  @Patch('merchant-agreements/:agreementId/discard')
+  @ApiOkResponse({ type: MerchantAgreementWorkflowResponseDto })
+  discard(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: AgreementReasonDto,
+  ) {
+    return this.service.discard(org.organizationId, id, org.userId, dto.reason);
+  }
+  @Get('merchant-agreements/:agreementId/prepayments')
+  @ApiOkResponse({ type: AgreementPrepaymentResponseDto, isArray: true })
+  prepayments(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.listPrepayments(org.organizationId, id);
+  }
+  @Post('merchant-agreements/:agreementId/prepayments/:kind/collections')
+  @ApiCreatedResponse({ type: AgreementPrepaymentTransactionResponseDto })
+  collect(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('kind', new ParseEnumPipe(AgreementPrepaymentKind))
+    kind: AgreementPrepaymentKind,
+    @Body() dto: RecordPrepaymentCollectionDto,
+  ) {
+    return this.service.collect(org.organizationId, id, kind, org.userId, dto);
+  }
+  @Post('merchant-agreements/:agreementId/prepayments/:kind/refunds')
+  @ApiCreatedResponse({ type: AgreementPrepaymentTransactionResponseDto })
+  refund(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Param('kind', new ParseEnumPipe(AgreementPrepaymentKind))
+    kind: AgreementPrepaymentKind,
+    @Body() dto: RecordPrepaymentRefundDto,
+  ) {
+    return this.service.refund(org.organizationId, id, kind, org.userId, dto);
+  }
+  @Post('merchant-agreements/:agreementId/security-deposit/deductions')
+  @ApiCreatedResponse({ type: AgreementPrepaymentTransactionResponseDto })
+  deduct(
+    @CurrentOrganization() org: OrganizationContext,
+    @Param('agreementId', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: RecordDepositDeductionDto,
+  ) {
+    return this.service.deductDeposit(org.organizationId, id, org.userId, dto);
+  }
+  @Get('spaces/availability')
+  @ApiOkResponse({ type: SpaceAvailabilityResponseDto, isArray: true })
+  availability(
+    @CurrentOrganization() org: OrganizationContext,
+    @Query() query: SpaceAvailabilityQueryDto,
+  ) {
+    return this.service.availability(org.organizationId, query);
   }
 }

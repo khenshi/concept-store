@@ -33,6 +33,12 @@ server-authoritative.
   the remaining receivable balance. These views are kept separate.
 - Refund, approval, payout, and settlement lifecycle actions retain actor and
   timestamp history.
+- Agreement deposits and first-rent prepayments use tenant-scoped append-only
+  transaction ledgers. Required balances must be fully collected before
+  approval, cannot be over-collected, and cannot be refunded, retained, applied,
+  or deducted beyond the held balance.
+- Applying prepaid first rent creates a paid first receivable and one explicit
+  application ledger entry; it does not count the same cash twice.
 
 ## Transaction boundaries
 
@@ -43,7 +49,9 @@ including:
 - refund creation and returned-stock movements;
 - live payable closure, pending-adjustment capture, and source linking;
 - settlement lifecycle transitions; and
-- payout recording.
+- payout recording; and
+- agreement submission/reservation, activation/assignment creation, and
+  prepayment resolution.
 
 Serializable isolation or concurrency checks are used where competing writes
 could duplicate or invalidate financial state.

@@ -1,44 +1,30 @@
-import {
-  BadRequestException,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
+  AgreementPrepaymentKind,
+  AgreementPrepaymentTransactionType,
   AgreementStatus,
+  PaymentMethod,
   Prisma,
   SettlementSchedule,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { MerchantAgreementsService } from './merchant-agreements.service';
-import { merchantAgreementViewInclude } from './merchant-agreements.types';
 
-describe('MerchantAgreementsService', () => {
-  const organizationId = '580c75b7-1050-4a08-a2c2-585171d84dc8';
-  const merchantId = '44c7fe4b-9342-4bf7-9d72-33842ac5ca80';
-  const agreementId = 'cad19536-c64f-4595-9529-40e1f6b0523e';
-  const agreement = {
-    id: agreementId,
-    organizationId,
-    merchantId,
-    startDate: new Date('2026-01-01T00:00:00.000Z'),
-    endDate: null,
-    fixedRentAmount: new Prisma.Decimal('2500.00'),
-    commissionRate: new Prisma.Decimal('5.00'),
-    settlementSchedule: SettlementSchedule.MONTHLY,
-    status: AgreementStatus.DRAFT,
-    createdAt: new Date('2026-01-01T00:00:00.000Z'),
-    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
-  };
+describe('MerchantAgreementsService approval workflow', () => {
   const prisma = {
     merchant: { findFirst: jest.fn() },
     merchantAgreement: {
-      create: jest.fn(),
       findFirst: jest.fn(),
       findMany: jest.fn(),
-      update: jest.fn(),
       updateMany: jest.fn(),
-      findFirstOrThrow: jest.fn(),
+    },
+    space: { findMany: jest.fn() },
+    merchantBranch: { count: jest.fn() },
+    agreementPrepayment: { findFirst: jest.fn() },
+    agreementPrepaymentTransaction: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
     },
     $transaction: jest.fn(),
   };
@@ -47,235 +33,177 @@ describe('MerchantAgreementsService', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     prisma.$transaction.mockImplementation(
-      (operation: (transaction: typeof prisma) => unknown) => operation(prisma),
+      (operation: (tx: typeof prisma) => unknown) => operation(prisma),
     );
-    const moduleRef = await Test.createTestingModule({
+    const module = await Test.createTestingModule({
       providers: [
         MerchantAgreementsService,
         { provide: PrismaService, useValue: prisma },
       ],
     }).compile();
-    service = moduleRef.get(MerchantAgreementsService);
+    service = module.get(MerchantAgreementsService);
   });
 
-  it('creates a tenant-scoped draft with precise decimal values', async () => {
-    prisma.merchant.findFirst.mockResolvedValue({ id: merchantId });
-    prisma.merchantAgreement.create.mockResolvedValue(agreement);
-
+  it('requires a commercial term before creating a draft', async () => {
     await expect(
-      service.create(organizationId, merchantId, {
-        startDate: '2026-01-01',
-        fixedRentAmount: '2500.00',
-        commissionRate: '5.00',
-        settlementSchedule: SettlementSchedule.MONTHLY,
-      }),
-    ).resolves.toEqual(agreement);
-    expect(prisma.merchant.findFirst).toHaveBeenCalledWith({
-      where: { id: merchantId, organizationId },
-      select: { id: true },
-    });
-    expect(prisma.merchantAgreement.create).toHaveBeenCalledWith({
-      data: {
-        organizationId,
-        merchantId,
-        startDate: new Date('2026-01-01T00:00:00.000Z'),
-        endDate: null,
-        fixedRentAmount: new Prisma.Decimal('2500.00'),
-        commissionRate: new Prisma.Decimal('5.00'),
-        settlementSchedule: SettlementSchedule.MONTHLY,
-      },
-    });
-  });
-
-  it('conceals a merchant outside the organization', async () => {
-    prisma.merchant.findFirst.mockResolvedValue(null);
-
-    await expect(service.findAll(organizationId, merchantId)).rejects.toThrow(
-      new NotFoundException('Merchant not found'),
-    );
-    expect(prisma.merchantAgreement.findMany).not.toHaveBeenCalled();
-  });
-
-  it('lists organization agreements with their merchants', async () => {
-    const view = {
-      ...agreement,
-      merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMIHAN' },
-    };
-    prisma.merchantAgreement.findMany.mockResolvedValue([view]);
-
-    await expect(
-      service.findAllForOrganization(organizationId),
-    ).resolves.toEqual([view]);
-    expect(prisma.merchantAgreement.findMany).toHaveBeenCalledWith({
-      where: { organizationId },
-      include: merchantAgreementViewInclude,
-      orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }, { id: 'asc' }],
-    });
-  });
-
-  it('gets an organization-scoped agreement view', async () => {
-    const view = {
-      ...agreement,
-      merchant: { id: merchantId, name: 'Amihan Goods', code: 'AMIHAN' },
-    };
-    prisma.merchantAgreement.findFirst.mockResolvedValue(view);
-
-    await expect(
-      service.findOneView(organizationId, agreementId),
-    ).resolves.toEqual(view);
-    expect(prisma.merchantAgreement.findFirst).toHaveBeenCalledWith({
-      where: { id: agreementId, organizationId },
-      include: merchantAgreementViewInclude,
-    });
-  });
-
-  it('rejects agreement date ranges in reverse order', async () => {
-    prisma.merchant.findFirst.mockResolvedValue({ id: merchantId });
-
-    await expect(
-      service.create(organizationId, merchantId, {
-        startDate: '2026-02-01',
-        endDate: '2026-01-31',
-        fixedRentAmount: '2500.00',
+      service.create('organization', 'merchant', {
+        activationAt: '2026-09-09',
+        durationMonths: 12,
+        spaceIds: ['00000000-0000-4000-8000-000000000001'],
         settlementSchedule: SettlementSchedule.MONTHLY,
       }),
     ).rejects.toThrow(
-      new BadRequestException('endDate cannot be earlier than startDate'),
-    );
-  });
-
-  it('updates only a draft and permits clearing an optional term', async () => {
-    prisma.merchantAgreement.findFirst.mockResolvedValue(agreement);
-    prisma.merchantAgreement.update.mockResolvedValue({
-      ...agreement,
-      commissionRate: null,
-    });
-
-    await service.update(organizationId, agreementId, { commissionRate: null });
-
-    expect(prisma.merchantAgreement.update).toHaveBeenCalledWith({
-      where: { id: agreementId, organizationId },
-      data: {
-        startDate: undefined,
-        endDate: undefined,
-        fixedRentAmount: undefined,
-        commissionRate: null,
-        settlementSchedule: undefined,
-      },
-    });
-  });
-
-  it('keeps active and ended agreement terms immutable', async () => {
-    prisma.merchantAgreement.findFirst.mockResolvedValue({
-      ...agreement,
-      status: AgreementStatus.ACTIVE,
-    });
-
-    await expect(
-      service.update(organizationId, agreementId, {
-        fixedRentAmount: '3000.00',
-      }),
-    ).rejects.toThrow(
-      new ConflictException('Only draft agreements can be edited'),
-    );
-  });
-
-  it('requires complete commercial terms before activation', async () => {
-    prisma.merchantAgreement.findFirst.mockResolvedValue({
-      ...agreement,
-      fixedRentAmount: null,
-      commissionRate: null,
-    });
-
-    await expect(service.activate(organizationId, agreementId)).rejects.toThrow(
       new BadRequestException(
         'An agreement requires fixed rent, commission, or both',
       ),
     );
   });
 
-  it('rejects activation when an effective agreement already exists', async () => {
-    prisma.merchantAgreement.findFirst
-      .mockResolvedValueOnce(agreement)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        ...agreement,
-        status: AgreementStatus.ACTIVE,
-      });
-
-    await expect(service.activate(organizationId, agreementId)).rejects.toThrow(
-      new ConflictException(
-        'End the active agreement explicitly before activating a replacement',
-      ),
-    );
-  });
-
-  it('requires an active agreement to be ended before replacement activation', async () => {
-    const current = {
-      ...agreement,
-      id: '31e323bc-5f7c-4a5f-952e-33042d53cbf3',
-      startDate: new Date('2025-01-01T00:00:00.000Z'),
-      status: AgreementStatus.ACTIVE,
-    };
-    prisma.merchantAgreement.findFirst
-      .mockResolvedValueOnce(agreement)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(current);
-    await expect(service.activate(organizationId, agreementId)).rejects.toThrow(
-      'End the active agreement explicitly before activating a replacement',
-    );
-    expect(prisma.merchantAgreement.update).not.toHaveBeenCalled();
-  });
-
-  it('activates a draft from the current business date', async () => {
-    prisma.merchantAgreement.findFirst
-      .mockResolvedValueOnce({ ...agreement, durationMonths: 12 })
-      .mockResolvedValueOnce(null);
-    prisma.merchantAgreement.update.mockResolvedValue({
-      ...agreement,
-      status: AgreementStatus.ACTIVE,
-    });
-
-    await expect(
-      service.activate(organizationId, agreementId),
-    ).resolves.toEqual(
-      expect.objectContaining({ status: AgreementStatus.ACTIVE }),
-    );
-  });
-
-  it('ends an active agreement with an effective business date', async () => {
+  it('requires approval before activation', async () => {
     prisma.merchantAgreement.findFirst.mockResolvedValue({
-      ...agreement,
-      status: AgreementStatus.ACTIVE,
+      id: 'agreement',
+      organizationId: 'organization',
+      merchantId: 'merchant',
+      status: AgreementStatus.PENDING,
+      prepayments: [],
+      spaceReservations: [],
     });
-    const endedAgreement = {
-      ...agreement,
-      status: AgreementStatus.ENDED,
-      endDate: new Date('2026-08-25T00:00:00.000Z'),
-    };
-    prisma.merchantAgreement.updateMany.mockResolvedValue({ count: 1 });
-    prisma.merchantAgreement.findFirstOrThrow.mockResolvedValue(endedAgreement);
+    await expect(service.activate('organization', 'agreement')).rejects.toThrow(
+      new ConflictException('Only approved agreements can be activated'),
+    );
+  });
 
-    await service.end(organizationId, agreementId, {
-      reason: 'Merchant requested closure',
-    });
+  it('tenant-scopes organization agreement lists', async () => {
+    prisma.merchantAgreement.findMany.mockResolvedValue([]);
+    await expect(
+      service.findAllForOrganization('organization'),
+    ).resolves.toEqual([]);
+    expect(prisma.merchantAgreement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { organizationId: 'organization' } }),
+    );
+  });
 
-    const updateManyMock = prisma.merchantAgreement.updateMany as jest.Mock<
-      unknown,
-      [unknown]
-    >;
-    const updateCall = updateManyMock.mock.calls[0]?.[0];
-    expect(updateCall).toBeDefined();
-    const update = updateCall as {
-      where: Record<string, unknown>;
-      data: Record<string, unknown>;
-    };
-    expect(update.where).toEqual({
-      id: agreementId,
-      organizationId,
-      status: AgreementStatus.ACTIVE,
+  it('enforces the five-draft limit', async () => {
+    prisma.merchant.findFirst.mockResolvedValue({ id: 'merchant' });
+    prisma.merchantAgreement.findMany.mockResolvedValue(
+      [1, 2, 3, 4, 5].map((draftSlot) => ({ draftSlot })),
+    );
+    await expect(
+      service.create('organization', 'merchant', {
+        activationAt: '2026-09-09',
+        durationMonths: 12,
+        spaceIds: ['00000000-0000-4000-8000-000000000001'],
+        fixedRentAmount: '2500.00',
+        rentDueWeek: 'FIRST',
+        rentDueWeekday: 'MONDAY',
+        settlementSchedule: SettlementSchedule.MONTHLY,
+      }),
+    ).rejects.toThrow(
+      new ConflictException('The merchant already has five drafts'),
+    );
+  });
+
+  it('blocks approval while a prerequisite is only partly collected', async () => {
+    prisma.merchantAgreement.findFirst.mockResolvedValue({
+      id: 'agreement',
+      organizationId: 'organization',
+      merchantId: 'merchant',
+      status: AgreementStatus.PENDING,
+      prepayments: [
+        {
+          kind: AgreementPrepaymentKind.SECURITY_DEPOSIT,
+          requiredAmount: new Prisma.Decimal('5000.00'),
+          transactions: [
+            {
+              type: AgreementPrepaymentTransactionType.COLLECTION,
+              amount: new Prisma.Decimal('1000.00'),
+            },
+          ],
+        },
+      ],
+      spaceReservations: [],
     });
-    expect(update.data.status).toBe(AgreementStatus.ENDED);
-    expect(update.data.endDate).toBeInstanceOf(Date);
+    await expect(
+      service.approve('organization', 'agreement', 'owner'),
+    ).rejects.toThrow(
+      'SECURITY_DEPOSIT must be fully collected before approval',
+    );
+  });
+
+  it('rejects returning a non-pending agreement to draft', async () => {
+    prisma.merchantAgreement.findFirst.mockResolvedValue({
+      id: 'agreement',
+      status: AgreementStatus.APPROVED,
+    });
+    await expect(
+      service.withdraw('organization', 'agreement', 'manager', 'Rework'),
+    ).rejects.toThrow('Only pending agreements can return to draft');
+  });
+
+  it('blocks activation when the merchant already has an active agreement', async () => {
+    prisma.merchantAgreement.findFirst
+      .mockResolvedValueOnce({
+        id: 'agreement',
+        organizationId: 'organization',
+        merchantId: 'merchant',
+        status: AgreementStatus.APPROVED,
+        prepayments: [],
+        spaceReservations: [],
+      })
+      .mockResolvedValueOnce({ id: 'active-agreement' });
+    await expect(service.activate('organization', 'agreement')).rejects.toThrow(
+      'The merchant already has an active agreement',
+    );
+  });
+
+  it('returns the original ledger row for an idempotent collection retry', async () => {
+    const prior = { id: 'transaction' };
+    prisma.agreementPrepaymentTransaction.findFirst.mockResolvedValue(prior);
+    await expect(
+      service.collect(
+        'organization',
+        'agreement',
+        AgreementPrepaymentKind.SECURITY_DEPOSIT,
+        'manager',
+        {
+          amount: '1000.00',
+          method: PaymentMethod.CASH,
+          occurredAt: '2026-09-09T10:00:00+08:00',
+          requestId: '00000000-0000-4000-8000-000000000002',
+        },
+      ),
+    ).resolves.toBe(prior);
+    expect(prisma.merchantAgreement.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('rejects collection above the remaining required balance', async () => {
+    prisma.agreementPrepaymentTransaction.findFirst.mockResolvedValue(null);
+    prisma.merchantAgreement.findFirst.mockResolvedValue({
+      id: 'agreement',
+      status: AgreementStatus.PENDING,
+    });
+    prisma.agreementPrepayment.findFirst.mockResolvedValue({
+      requiredAmount: new Prisma.Decimal('5000.00'),
+      transactions: [
+        {
+          type: AgreementPrepaymentTransactionType.COLLECTION,
+          amount: new Prisma.Decimal('4500.00'),
+        },
+      ],
+    });
+    await expect(
+      service.collect(
+        'organization',
+        'agreement',
+        AgreementPrepaymentKind.SECURITY_DEPOSIT,
+        'manager',
+        {
+          amount: '1000.00',
+          method: PaymentMethod.CASH,
+          occurredAt: '2026-09-09T10:00:00+08:00',
+          requestId: '00000000-0000-4000-8000-000000000003',
+        },
+      ),
+    ).rejects.toThrow('Collection exceeds the required amount');
   });
 });

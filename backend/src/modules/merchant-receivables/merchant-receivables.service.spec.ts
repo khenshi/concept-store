@@ -4,9 +4,14 @@ import {
   OrganizationRole,
   PaymentMethod,
   Prisma,
+  RentDueWeek,
+  RentDueWeekday,
 } from '../../generated/prisma/client';
 import type { PrismaService } from '../../infrastructure/database/prisma.service';
-import { MerchantReceivablesService } from './merchant-receivables.service';
+import {
+  MerchantReceivablesService,
+  rentDueDate,
+} from './merchant-receivables.service';
 import { merchantReceivableInclude } from './merchant-receivables.types';
 
 describe('MerchantReceivablesService', () => {
@@ -212,5 +217,49 @@ describe('MerchantReceivablesService', () => {
       }),
     ).rejects.toThrow('reserved by an unpaid settlement');
     expect(prisma.merchantReceivableTransaction.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('rentDueDate', () => {
+  const expectedWeekday: Record<RentDueWeekday, number> = {
+    MONDAY: 1,
+    TUESDAY: 2,
+    WEDNESDAY: 3,
+    THURSDAY: 4,
+    FRIDAY: 5,
+    SATURDAY: 6,
+    SUNDAY: 0,
+  };
+
+  it.each(
+    Object.values(RentDueWeek).flatMap((week) =>
+      Object.values(RentDueWeekday).map((weekday) => [week, weekday] as const),
+    ),
+  )('calculates %s %s across month boundaries', (week, weekday) => {
+    const due = rentDueDate(
+      new Date('2026-01-31T00:00:00.000Z'),
+      1,
+      week,
+      weekday,
+    );
+    expect(due.getUTCFullYear()).toBe(2026);
+    expect(due.getUTCMonth()).toBe(1);
+    expect(due.getUTCDay()).toBe(expectedWeekday[weekday]);
+    const day = due.getUTCDate();
+    if (week === RentDueWeek.FIRST) expect(day).toBeLessThanOrEqual(7);
+    if (week === RentDueWeek.SECOND) expect(day).toBeGreaterThanOrEqual(8);
+    if (week === RentDueWeek.SECOND) expect(day).toBeLessThanOrEqual(14);
+    if (week === RentDueWeek.THIRD) expect(day).toBeGreaterThanOrEqual(15);
+    if (week === RentDueWeek.THIRD) expect(day).toBeLessThanOrEqual(21);
+    if (week === RentDueWeek.FOURTH) expect(day).toBeGreaterThanOrEqual(22);
+    if (week === RentDueWeek.FOURTH) expect(day).toBeLessThanOrEqual(28);
+    if (week === RentDueWeek.LAST) expect(day + 7).toBeGreaterThan(28);
+  });
+
+  it('keeps the first rent due on activation', () => {
+    const activation = new Date('2026-01-31T00:00:00.000Z');
+    expect(
+      rentDueDate(activation, 0, RentDueWeek.FIRST, RentDueWeekday.MONDAY),
+    ).toEqual(activation);
   });
 });

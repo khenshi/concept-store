@@ -5,14 +5,12 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
-  Post,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
-  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -30,7 +28,6 @@ import { OrganizationAccessGuard } from '../../organizations/authorization/organ
 import type { OrganizationContext } from '../../organizations/authorization/organization-authorization.types';
 import { CurrentOrganization } from '../../organizations/authorization/organization-context.decorator';
 import { OrganizationRoles } from '../../organizations/authorization/organization-roles.decorator';
-import { CreateSpaceAssignmentDto } from './dto/create-space-assignment.dto';
 import { EndSpaceAssignmentDto } from './dto/end-space-assignment.dto';
 import { SpaceAssignmentsService } from './space-assignments.service';
 import type {
@@ -55,24 +52,6 @@ export class SpaceAssignmentsController {
   constructor(
     private readonly spaceAssignmentsService: SpaceAssignmentsService,
   ) {}
-
-  @Post('spaces/:spaceId/assignments')
-  @ApiOperation({ summary: 'Assign a branch merchant to a physical space' })
-  @ApiCreatedResponse({ type: SpaceAssignmentResponseDto })
-  @ApiConflictResponse({
-    description: 'The space is inactive or already has a current assignment',
-  })
-  create(
-    @CurrentOrganization() organization: OrganizationContext,
-    @Param('spaceId', new ParseUUIDPipe({ version: '4' })) spaceId: string,
-    @Body() dto: CreateSpaceAssignmentDto,
-  ): Promise<SpaceAssignmentRecord> {
-    return this.spaceAssignmentsService.create(
-      organization.organizationId,
-      spaceId,
-      dto,
-    );
-  }
 
   @Get('spaces/:spaceId/assignments')
   @ApiOperation({ summary: 'List current and historical space assignments' })

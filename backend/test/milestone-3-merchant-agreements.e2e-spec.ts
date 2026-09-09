@@ -27,10 +27,22 @@ describe('Milestone 3 merchant agreement API access (e2e)', () => {
   const service = {
     create: jest.fn().mockResolvedValue({ id: AGREEMENT_ID }),
     findAll: jest.fn().mockResolvedValue([]),
-    findOne: jest.fn().mockResolvedValue({ id: AGREEMENT_ID }),
+    findAllForOrganization: jest.fn().mockResolvedValue([]),
+    findOneView: jest.fn().mockResolvedValue({ id: AGREEMENT_ID }),
     update: jest.fn().mockResolvedValue({ id: AGREEMENT_ID }),
+    submit: jest.fn().mockResolvedValue({ id: AGREEMENT_ID }),
+    withdraw: jest.fn(),
+    returnToDraft: jest.fn(),
+    approve: jest.fn(),
     activate: jest.fn().mockResolvedValue({ id: AGREEMENT_ID }),
-    end: jest.fn().mockResolvedValue({ id: AGREEMENT_ID }),
+    cancel: jest.fn(),
+    suspend: jest.fn(),
+    discard: jest.fn(),
+    listPrepayments: jest.fn(),
+    collect: jest.fn(),
+    refund: jest.fn(),
+    deductDeposit: jest.fn(),
+    availability: jest.fn(),
   };
   const rolesByUserId: Record<string, OrganizationRole> = {
     [OWNER_ID]: OrganizationRole.OWNER,
@@ -137,16 +149,24 @@ describe('Milestone 3 merchant agreement API access (e2e)', () => {
       )
       .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
       .send({
-        startDate: '2026-09-01',
+        activationAt: '2026-09-01',
+        durationMonths: 12,
+        spaceIds: ['eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'],
         fixedRentAmount: ' 2500.00 ',
         commissionRate: ' 5.00 ',
+        rentDueWeek: 'FIRST',
+        rentDueWeekday: 'MONDAY',
         settlementSchedule: SettlementSchedule.MONTHLY,
       })
       .expect(201, { id: AGREEMENT_ID });
     expect(service.create).toHaveBeenCalledWith(ORGANIZATION_ID, MERCHANT_ID, {
-      startDate: '2026-09-01',
+      activationAt: '2026-09-01',
+      durationMonths: 12,
+      spaceIds: ['eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'],
       fixedRentAmount: '2500.00',
       commissionRate: '5.00',
+      rentDueWeek: 'FIRST',
+      rentDueWeekday: 'MONDAY',
       settlementSchedule: SettlementSchedule.MONTHLY,
     });
   });
@@ -159,7 +179,9 @@ describe('Milestone 3 merchant agreement API access (e2e)', () => {
       )
       .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
       .send({
-        startDate: '2026-09-01',
+        activationAt: '2026-09-01',
+        durationMonths: 12,
+        spaceIds: ['eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'],
         fixedRentAmount: '0.00',
         commissionRate: '100.01',
         settlementSchedule: SettlementSchedule.MONTHLY,
@@ -180,21 +202,23 @@ describe('Milestone 3 merchant agreement API access (e2e)', () => {
     expect(service.activate).toHaveBeenCalledWith(
       ORGANIZATION_ID,
       AGREEMENT_ID,
+      OWNER_ID,
     );
   });
 
-  it('ends an agreement using a date-only value', async () => {
+  it('submits a draft agreement', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())
-      .patch(
-        `/organizations/${ORGANIZATION_ID}/merchant-agreements/${AGREEMENT_ID}/end`,
+      .post(
+        `/organizations/${ORGANIZATION_ID}/merchant-agreements/${AGREEMENT_ID}/submit`,
       )
       .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
-      .send({ endDate: '2026-08-25' })
       .expect(200, { id: AGREEMENT_ID });
-    expect(service.end).toHaveBeenCalledWith(ORGANIZATION_ID, AGREEMENT_ID, {
-      endDate: '2026-08-25',
-    });
+    expect(service.submit).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      AGREEMENT_ID,
+      OWNER_ID,
+    );
   });
 
   it('publishes agreement routes and schema in OpenAPI', async () => {
@@ -208,6 +232,6 @@ describe('Milestone 3 merchant agreement API access (e2e)', () => {
     expect(response.text).toContain(
       '"/organizations/{organizationId}/merchant-agreements/{agreementId}/activate"',
     );
-    expect(response.text).toContain('"MerchantAgreementResponseDto"');
+    expect(response.text).toContain('"CreateMerchantAgreementDto"');
   });
 });

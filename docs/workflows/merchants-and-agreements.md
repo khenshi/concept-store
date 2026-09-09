@@ -2,61 +2,99 @@
 
 **Status:** Current reference
 
-## Merchant management
+## Agreement-led occupancy
 
-Merchants are tenant-owned independent brands. Owners and managers can create,
-view, update, and change merchant lifecycle status. Merchant codes are unique
-within an organization when present.
+Agreements are the only way to create new merchant space occupancy. Each draft
+selects one or more active spaces from branches in which the merchant
+participates. Draft selections are advisory and do not reserve space. Submission
+rechecks availability transactionally and creates dated reservations.
 
-A merchant may operate in multiple branches. Branch participation is stored as
-a separate tenant-scoped relationship and is distinct from occupying a physical
-space.
+Pending, approved, and active agreement reservations block overlapping use of a
+space. PostgreSQL also enforces this rule with a date-range exclusion constraint.
+Open assignments created by the former manual workflow remain read-only history
+and block conflicting submissions until they are ended. Only those legacy
+assignments expose a direct end action.
 
-## Spaces and assignments
+Activation creates agreement-linked `SpaceAssignment` rows atomically. Ending or
+suspending an active agreement ends all of its assignments on the same Philippine
+business date; assignment history is never deleted.
 
-Spaces belong to branches and represent racks, shelves, cabinets, booths,
-tables, drawers, or custom physical areas.
+## Agreement lifecycle
 
-- A space can have at most one active merchant assignment at a time.
-- A merchant may hold several assignments across branches.
-- Assignments retain start and end dates so occupancy history is preserved.
-- The assigned merchant must belong to the organization and operate in the
-  space's branch.
-- Ending an assignment does not delete its history.
+The lifecycle is:
 
-## Commercial agreements
+```text
+DRAFT → PENDING → APPROVED → ACTIVE → ENDED
+  │        │          │          │
+  └────────┴──────────┴──────────┴→ SUSPENDED
+```
 
-Agreements describe how the store earns from a merchant. Supported terms are:
+- A merchant may have at most five numbered drafts, one pending agreement, and
+  one active agreement in an organization.
+- Drafts may be edited or submitted. Submitted terms are immutable.
+- A pending agreement may be withdrawn or returned to an available draft slot;
+  doing so releases its reservations.
+- Approval moves a paid, conflict-free submission to `APPROVED`.
+- Approved agreements activate on their configured Philippine business date. An
+  owner may activate early, which resets the activation date, period,
+  reservations, assignments, and first rent period to the actual activation.
+- Reconciliation runs at backend startup and at each Philippine midnight to
+  safely activate due approved agreements and end expired active agreements.
+  Activation failures are retained for owner review and retried on a later run.
+- `ENDED` and `SUSPENDED` are immutable historical states. `SUSPENDED` covers a
+  discarded draft, cancelled approved agreement, or terminated active agreement.
 
-- fixed rent only;
-- commission only; or
-- fixed rent plus commission.
+Agreement terms support fixed rent, commission, or both, a 1–60 month duration,
+weekly/semi-monthly/monthly settlement schedule, and—when rent is used—a chosen
+first/second/third/fourth/last week plus Monday–Sunday collection day.
 
-Agreements contain effective dates, optional fixed rent, optional commission,
-settlement schedule, and lifecycle status. Every agreement, including a draft,
-must contain at least one positive fixed-rent or commission term. A merchant is not encoded as a
-different type for each commercial model.
+## Deposit and first-rent prerequisites
 
-Fixed rent creates a separate monthly merchant receivable. Agreements do not
-decide whether rent is deducted from payouts; that is an explicit choice made
-for each settlement preview.
+An agreement may require a security deposit and may require the first rent before
+approval. Submission opens the enabled balances. Owners and managers can record
+pending collections, with tenant-scoped idempotency IDs, only after submission.
+Approval remains blocked until every enabled balance is fully collected.
 
-Active agreement periods cannot create ambiguous overlapping commercial terms.
-Historical agreements are retained and settlement calculations snapshot the
-terms that applied to each segment of a period.
+Collections, refunds, retained amounts, deposit deductions, and first-rent
+application are append-only ledger entries. Collections cannot exceed the
+required amount; refunds and deductions cannot exceed the held balance. Deposit
+deductions are available only after activation.
 
-The organization agreement register shows exact commercial terms. Creation and
-draft editing use modals; activation and ending remain in the merchant agreement
-workspace. The redundant agreement-only detail route has been removed.
+At activation, a paid first-rent prepayment is applied to the first rent
+receivable without recording a second payment. Otherwise the first receivable is
+open and due immediately. Later rent receivables use the selected collection
+week and weekday. Existing migrated agreements without this schedule retain
+their anniversary-based rent behavior.
 
-## Settlement schedules
+Cancelling an approved agreement requires the owner to resolve each held balance:
+refund it with payment details or retain it with a reason. Suspending an active
+agreement does not automatically refund rent. Ended or suspended agreements keep
+showing an unresolved deposit until its balance is refunded or deducted to zero;
+that warning does not block a later agreement.
 
-Initial schedules are weekly, semi-monthly, and monthly. Custom scheduling is
-not implemented. Closed scheduled periods are handled by the settlement
-workflow.
+## Access and interface
 
-## Access
+Owners and managers may create, edit, submit, withdraw, and collect pending
+payments. Only owners may approve, return, activate early, cancel an approved
+agreement, or suspend an active agreement.
 
-Owners and managers administer merchants, spaces, assignments, and agreements.
-Merchant self-service is read-only and limited to the merchant explicitly linked
-to the authenticated membership.
+The organization agreement register is the overview surface. It has Draft,
+Pending Review, Approved, Active, Ended, and Suspended tabs and links each row to
+a dedicated detail page. Lifecycle actions and warnings live on that detail page
+instead of competing with register scanning. New agreements use a full-page
+draft form: the user browses spaces one branch at a time, while selections are
+preserved across branches so a merchant agreement can cover multiple locations.
+Saving stays separate from submission. The register refreshes when opened and
+when its browser tab regains focus. Merchant summaries link to this register;
+space pages show agreement occupancy and legacy history rather than offering
+manual assignment creation.
+
+## Current API surface
+
+Agreement lifecycle routes are under
+`/organizations/:organizationId/merchant-agreements/:agreementId` and include
+`submit`, `withdraw`, `return-to-draft`, `approve`, `activate`, `cancel`,
+`suspend`, and `discard`. Prepayment routes expose balances, collections,
+refunds, and deposit deductions. `GET /organizations/:organizationId/spaces/availability`
+provides advisory availability; submission and activation always revalidate on
+the server.

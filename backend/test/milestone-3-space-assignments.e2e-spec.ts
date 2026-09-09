@@ -16,14 +16,12 @@ const CASHIER_ID = '33333333-3333-4333-8333-333333333333';
 const ORGANIZATION_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OTHER_ORGANIZATION_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const SPACE_ID = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
-const MERCHANT_ID = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 const ASSIGNMENT_ID = '99999999-9999-4999-8999-999999999999';
 
 describe('Milestone 3 space assignment API access (e2e)', () => {
   let app: INestApplication;
   let jwtService: JwtService;
   const service = {
-    create: jest.fn().mockResolvedValue({ id: ASSIGNMENT_ID }),
     findAll: jest.fn().mockResolvedValue([]),
     end: jest.fn().mockResolvedValue({ id: ASSIGNMENT_ID }),
   };
@@ -122,27 +120,12 @@ describe('Milestone 3 space assignment API access (e2e)', () => {
       .expect(403);
   });
 
-  it('accepts a valid assignment request from an owner', async () => {
+  it('does not expose manual assignment creation', async () => {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())
       .post(`/organizations/${ORGANIZATION_ID}/spaces/${SPACE_ID}/assignments`)
       .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
-      .send({ merchantId: MERCHANT_ID, startDate: '2026-08-25' })
-      .expect(201, { id: ASSIGNMENT_ID });
-    expect(service.create).toHaveBeenCalledWith(ORGANIZATION_ID, SPACE_ID, {
-      merchantId: MERCHANT_ID,
-      startDate: '2026-08-25',
-    });
-  });
-
-  it('rejects malformed assignment input', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    await request(app.getHttpServer())
-      .post(`/organizations/${ORGANIZATION_ID}/spaces/${SPACE_ID}/assignments`)
-      .set('Authorization', `Bearer ${token(OWNER_ID, 'owner@example.com')}`)
-      .send({ merchantId: 'not-a-uuid', startDate: '08/25/2026' })
-      .expect(400);
-    expect(service.create).not.toHaveBeenCalled();
+      .expect(404);
   });
 
   it('ends an assignment using a date-only value', async () => {

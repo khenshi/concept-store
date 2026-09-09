@@ -1,56 +1,85 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
-import { SettlementSchedule } from '../../../generated/prisma/client';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
+import {
+  RentDueWeek,
+  RentDueWeekday,
+  SettlementSchedule,
+} from '../../../generated/prisma/client';
 import { trimOptionalDecimal } from './agreement-dto.transforms';
 
-const POSITIVE_MONEY_PATTERN =
+export const POSITIVE_MONEY_PATTERN =
   /^(?:0\.(?:0[1-9]|[1-9]\d?)|[1-9]\d{0,9}(?:\.\d{1,2})?)$/;
-const COMMISSION_PATTERN =
+export const COMMISSION_PATTERN =
   /^(?:100(?:\.0{1,2})?|[1-9]\d?(?:\.\d{1,2})?|0\.(?:0[1-9]|[1-9]\d?))$/;
 
 export class CreateMerchantAgreementDto {
+  @ApiProperty({ format: 'date', example: '2026-09-10' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'activationAt must use YYYY-MM-DD format',
+  })
+  activationAt!: string;
+
   @ApiProperty({ minimum: 1, maximum: 60, example: 12 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(60)
-  durationMonths?: number;
+  durationMonths!: number;
 
-  @ApiProperty({ format: 'date', example: '2026-09-01' })
-  @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
-    message: 'startDate must use YYYY-MM-DD format',
-  })
-  startDate?: string;
+  @ApiProperty({ type: [String], minItems: 1 })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @IsUUID('4', { each: true })
+  spaceIds!: string[];
 
-  @ApiPropertyOptional({ format: 'date', example: '2027-08-31' })
-  @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
-    message: 'endDate must use YYYY-MM-DD format',
-  })
-  endDate?: string;
-
-  @ApiPropertyOptional({ example: '2500.00', type: String })
+  @ApiPropertyOptional({ type: String })
   @Transform(trimOptionalDecimal)
   @IsOptional()
-  @Matches(POSITIVE_MONEY_PATTERN, {
-    message:
-      'fixedRentAmount must be a positive amount with at most 2 decimals',
-  })
+  @Matches(POSITIVE_MONEY_PATTERN)
   fixedRentAmount?: string;
 
-  @ApiPropertyOptional({ example: '5.00', type: String })
+  @ApiPropertyOptional({ type: String })
   @Transform(trimOptionalDecimal)
   @IsOptional()
-  @Matches(COMMISSION_PATTERN, {
-    message: 'commissionRate must be between 0 and 100 with at most 2 decimals',
-  })
+  @Matches(COMMISSION_PATTERN)
   commissionRate?: string;
+
+  @ApiPropertyOptional({ type: String })
+  @Transform(trimOptionalDecimal)
+  @IsOptional()
+  @Matches(POSITIVE_MONEY_PATTERN)
+  securityDepositAmount?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  firstRentPaymentRequired?: boolean;
+
+  @ApiPropertyOptional({ enum: RentDueWeek })
+  @IsOptional()
+  @IsEnum(RentDueWeek)
+  rentDueWeek?: RentDueWeek;
+
+  @ApiPropertyOptional({ enum: RentDueWeekday })
+  @IsOptional()
+  @IsEnum(RentDueWeekday)
+  rentDueWeekday?: RentDueWeekday;
 
   @ApiProperty({ enum: SettlementSchedule })
   @IsEnum(SettlementSchedule)
   settlementSchedule!: SettlementSchedule;
 }
-
-export { COMMISSION_PATTERN, POSITIVE_MONEY_PATTERN };

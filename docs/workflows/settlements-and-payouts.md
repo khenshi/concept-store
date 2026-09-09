@@ -79,6 +79,12 @@ full or partial payments and documented adjustments are recorded against the
 specific receivable. A selected settlement deduction is reserved by the draft
 and applied to the rent ledger only when payout is recorded.
 
+For new agreements, the first receivable is due on activation. If first-rent
+prepayment was required, its collected balance is applied to that receivable
+without double-counting payment. Later receivables use the agreement's selected
+first/second/third/fourth/last week and Monday–Sunday collection day. Migrated
+agreements without these fields keep anniversary-based due dates until ending.
+
 Owners and managers can inspect and close the live payable. Only owners can
 approve. Approval locks the snapshot so later agreement or transaction edits
 cannot silently change it.

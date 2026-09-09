@@ -1,11 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  AgreementPrepaymentKind,
+  AgreementPrepaymentTransactionType,
   AgreementStatus,
   InventoryMovementType,
   MerchantStatus,
   OrganizationRole,
   PaymentMethod,
   ProductStatus,
+  RentDueWeek,
+  RentDueWeekday,
   PayoutMethod,
   SettlementSchedule,
   SettlementStatus,
@@ -804,6 +808,9 @@ export class SpaceAssignmentResponseDto {
   @ApiProperty({ format: 'uuid' })
   merchantId!: string;
 
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  agreementId!: string | null;
+
   @ApiProperty({ format: 'date', example: '2026-08-25' })
   startDate!: Date;
 
@@ -846,74 +853,142 @@ export class BranchSpaceAssignmentResponseDto extends SpaceAssignmentResponseDto
   space!: SpaceAssignmentSpaceResponseDto;
 }
 
-export class MerchantAgreementResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
+export class AgreementSelectedSpaceResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() name!: string;
+}
 
-  @ApiProperty({ format: 'uuid' })
-  organizationId!: string;
-
-  @ApiProperty({ format: 'uuid' })
-  merchantId!: string;
-
-  @ApiProperty({ format: 'date', example: '2026-09-01' })
-  startDate!: Date;
-
-  @ApiPropertyOptional({
-    nullable: true,
-    format: 'date',
-    example: '2027-08-31',
-  })
-  endDate!: Date | null;
-
-  @ApiPropertyOptional({ minimum: 1, maximum: 60, nullable: true })
-  durationMonths!: number | null;
-
+export class AgreementSpaceResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) spaceId!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty({ format: 'date' }) periodStart!: Date;
+  @ApiProperty({ format: 'date' }) periodEnd!: Date;
   @ApiPropertyOptional({ nullable: true, format: 'date-time' })
-  activatedAt!: Date | null;
+  releasedAt!: Date | null;
+  @ApiProperty({ type: AgreementSelectedSpaceResponseDto })
+  space!: AgreementSelectedSpaceResponseDto;
+}
 
+export class AgreementPrepaymentTransactionResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ enum: AgreementPrepaymentTransactionType })
+  type!: AgreementPrepaymentTransactionType;
+  @ApiProperty({ type: String }) amount!: string;
+  @ApiPropertyOptional({ nullable: true, enum: PaymentMethod })
+  paymentMethod!: PaymentMethod | null;
+  @ApiPropertyOptional({ nullable: true }) referenceNumber!: string | null;
+  @ApiPropertyOptional({ nullable: true }) reason!: string | null;
+  @ApiProperty({ format: 'date-time' }) occurredAt!: Date;
+}
+
+export class AgreementPrepaymentResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ enum: AgreementPrepaymentKind })
+  kind!: AgreementPrepaymentKind;
+  @ApiProperty({ type: String }) requiredAmount!: string;
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  appliedAt!: Date | null;
+  @ApiProperty({
+    type: AgreementPrepaymentTransactionResponseDto,
+    isArray: true,
+  })
+  transactions!: AgreementPrepaymentTransactionResponseDto[];
+}
+
+export class MerchantAgreementWorkflowResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) organizationId!: string;
+  @ApiProperty({ format: 'uuid' }) merchantId!: string;
+  @ApiProperty({ enum: AgreementStatus }) status!: AgreementStatus;
+  @ApiProperty({ format: 'date' }) activationAt!: Date;
+  @ApiPropertyOptional({ nullable: true, minimum: 1, maximum: 5 })
+  draftSlot!: number | null;
+  @ApiProperty({ format: 'date' }) startDate!: Date;
+  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  endDate!: Date | null;
   @ApiPropertyOptional({ nullable: true, format: 'date' })
   scheduledEndDate!: Date | null;
-
-  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
-  endedAt!: Date | null;
-
-  @ApiPropertyOptional({ nullable: true, maxLength: 500 })
-  endReason!: string | null;
-
-  @ApiPropertyOptional({ nullable: true, type: String, example: '2500.00' })
+  @ApiPropertyOptional({ nullable: true, minimum: 1, maximum: 60 })
+  durationMonths!: number | null;
+  @ApiPropertyOptional({ nullable: true, type: String })
   fixedRentAmount!: string | null;
-
-  @ApiPropertyOptional({ nullable: true, type: String, example: '5.00' })
+  @ApiPropertyOptional({ nullable: true, type: String })
   commissionRate!: string | null;
-
+  @ApiPropertyOptional({ nullable: true, type: String })
+  securityDepositAmount!: string | null;
+  @ApiProperty() firstRentPaymentRequired!: boolean;
+  @ApiPropertyOptional({ nullable: true, enum: RentDueWeek })
+  rentDueWeek!: RentDueWeek | null;
+  @ApiPropertyOptional({ nullable: true, enum: RentDueWeekday })
+  rentDueWeekday!: RentDueWeekday | null;
   @ApiProperty({ enum: SettlementSchedule })
   settlementSchedule!: SettlementSchedule;
-
-  @ApiProperty({ enum: AgreementStatus })
-  status!: AgreementStatus;
-
-  @ApiProperty({ format: 'date-time' })
-  createdAt!: Date;
-
-  @ApiProperty({ format: 'date-time' })
-  updatedAt!: Date;
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  submittedAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  submittedById!: string | null;
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  approvedAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  approvedById!: string | null;
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  activatedAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  endedAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  endedById!: string | null;
+  @ApiPropertyOptional({ nullable: true }) endReason!: string | null;
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  returnedAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  returnedById!: string | null;
+  @ApiPropertyOptional({ nullable: true }) returnReason!: string | null;
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  suspendedAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true, format: 'uuid' })
+  suspendedById!: string | null;
+  @ApiPropertyOptional({ nullable: true }) suspensionReason!: string | null;
+  @ApiPropertyOptional({ nullable: true, format: 'date-time' })
+  lastActivationAttemptAt!: Date | null;
+  @ApiPropertyOptional({ nullable: true })
+  activationFailureReason!: string | null;
+  @ApiProperty({ type: AgreementSpaceResponseDto, isArray: true })
+  spaceReservations!: AgreementSpaceResponseDto[];
+  @ApiProperty({ type: AgreementPrepaymentResponseDto, isArray: true })
+  prepayments!: AgreementPrepaymentResponseDto[];
+  @ApiProperty({
+    type: 'object',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      name: { type: 'string' },
+      code: { type: 'string', nullable: true },
+    },
+  })
+  merchant!: { id: string; name: string; code: string | null };
 }
 
-export class MerchantAgreementMerchantResponseDto {
-  @ApiProperty({ format: 'uuid' })
-  id!: string;
-
-  @ApiProperty({ example: 'Amihan Goods' })
-  name!: string;
-
-  @ApiPropertyOptional({ nullable: true, example: 'AMIHAN-01' })
-  code!: string | null;
-}
-
-export class MerchantAgreementViewResponseDto extends MerchantAgreementResponseDto {
-  @ApiProperty({ type: MerchantAgreementMerchantResponseDto })
-  merchant!: MerchantAgreementMerchantResponseDto;
+export class SpaceAvailabilityResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty() code!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({
+    type: 'object',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      name: { type: 'string' },
+    },
+  })
+  branch!: { id: string; name: string };
+  @ApiProperty() available!: boolean;
+  @ApiPropertyOptional({ nullable: true }) conflictStatus!: string | null;
+  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  conflictStartDate!: Date | null;
+  @ApiPropertyOptional({ nullable: true, format: 'date' })
+  conflictEndDate!: Date | null;
 }
 
 export class SettlementMerchantResponseDto {

@@ -49,6 +49,7 @@ describe('MerchantsService', () => {
     },
     merchantBranch: { deleteMany: jest.fn(), createMany: jest.fn() },
     spaceAssignment: { count: jest.fn() },
+    merchantAgreementSpace: { count: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(),
@@ -63,6 +64,8 @@ describe('MerchantsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    transaction.spaceAssignment.count.mockResolvedValue(0);
+    transaction.merchantAgreementSpace.count.mockResolvedValue(0);
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof transaction) => unknown) =>
         callback(transaction),
@@ -246,7 +249,7 @@ describe('MerchantsService', () => {
         organizationId,
         merchantId,
         branchId: { notIn: [branchId] },
-        endDate: null,
+        OR: [{ endDate: null }, { endDate: { gte: expect.any(Date) as Date } }],
       },
     });
     expect(transaction.merchantBranch.deleteMany).not.toHaveBeenCalled();

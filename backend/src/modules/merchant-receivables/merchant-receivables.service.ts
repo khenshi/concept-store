@@ -11,6 +11,8 @@ import {
   MerchantReceivableTransactionType,
   OrganizationRole,
   Prisma,
+  RentDueWeek,
+  RentDueWeekday,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { currentPhilippineBusinessDate } from '../merchant-agreements/dto/agreement-date.validation';
@@ -39,6 +41,51 @@ function addMonthsAnchored(anchor: Date, months: number): Date {
   ).getUTCDate();
   result.setUTCDate(Math.min(day, lastDay));
   return result;
+}
+
+const weekdayNumber: Record<RentDueWeekday, number> = {
+  MONDAY: 1,
+  TUESDAY: 2,
+  WEDNESDAY: 3,
+  THURSDAY: 4,
+  FRIDAY: 5,
+  SATURDAY: 6,
+  SUNDAY: 0,
+};
+
+export function rentDueDate(
+  activationDate: Date,
+  cycle: number,
+  week: RentDueWeek,
+  weekday: RentDueWeekday,
+): Date {
+  if (cycle === 0) return activationDate;
+  const month = new Date(
+    Date.UTC(
+      activationDate.getUTCFullYear(),
+      activationDate.getUTCMonth() + cycle,
+      1,
+    ),
+  );
+  const wanted = weekdayNumber[weekday];
+  if (week === RentDueWeek.LAST) {
+    const last = new Date(
+      Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0),
+    );
+    last.setUTCDate(last.getUTCDate() - ((last.getUTCDay() - wanted + 7) % 7));
+    return last;
+  }
+  const ordinal =
+    [
+      RentDueWeek.FIRST,
+      RentDueWeek.SECOND,
+      RentDueWeek.THIRD,
+      RentDueWeek.FOURTH,
+    ].indexOf(week) + 1;
+  month.setUTCDate(
+    1 + ((wanted - month.getUTCDay() + 7) % 7) + (ordinal - 1) * 7,
+  );
+  return month;
 }
 
 @Injectable()
@@ -112,6 +159,8 @@ export class MerchantReceivablesService {
         endDate: true,
         scheduledEndDate: true,
         durationMonths: true,
+        rentDueWeek: true,
+        rentDueWeekday: true,
       },
     });
     for (const agreement of agreements) {
@@ -161,7 +210,16 @@ export class MerchantReceivablesService {
       }> = [];
       for (let cycle = 0; cycle < durationMonths; cycle += 1) {
         const periodStart = addMonthsAnchored(agreement.startDate, cycle);
-        if (periodStart > today) break;
+        const dueDate =
+          agreement.rentDueWeek && agreement.rentDueWeekday
+            ? rentDueDate(
+                agreement.startDate,
+                cycle,
+                agreement.rentDueWeek,
+                agreement.rentDueWeekday,
+              )
+            : periodStart;
+        if (dueDate > today) break;
         const nextPeriodStart = addMonthsAnchored(
           agreement.startDate,
           cycle + 1,
@@ -179,7 +237,7 @@ export class MerchantReceivablesService {
           cycleNumber: cycle + 1,
           originalAmount: agreement.fixedRentAmount!,
           remainingAmount: agreement.fixedRentAmount!,
-          dueDate: periodStart,
+          dueDate,
         });
       }
       if (rows.length) {

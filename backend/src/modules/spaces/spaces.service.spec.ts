@@ -92,7 +92,13 @@ describe('SpacesService', () => {
       orderBy: [{ name: 'asc' }, { code: 'asc' }, { id: 'asc' }],
       include: {
         assignments: {
-          where: { endDate: null },
+          where: {
+            startDate: { lte: expect.any(Date) as Date },
+            OR: [
+              { endDate: null },
+              { endDate: { gte: expect.any(Date) as Date } },
+            ],
+          },
           orderBy: [{ startDate: 'desc' }, { id: 'desc' }],
           take: 1,
           select: {

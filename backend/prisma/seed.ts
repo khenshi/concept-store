@@ -49,7 +49,8 @@ async function main(): Promise<void> {
   }
   const connectionString =
     process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
-  if (!connectionString) throw new Error('DATABASE_URL is required to seed demo data');
+  if (!connectionString)
+    throw new Error('DATABASE_URL is required to seed demo data');
   const adapter = new PrismaPg({ connectionString });
   const prisma = new PrismaClient({ adapter });
   try {
@@ -99,12 +100,26 @@ async function main(): Promise<void> {
 
     const passwordHash = await hash('DemoPassword123!', 10);
     for (const user of [
-      { id: ownerId, email: 'owner.demo@example.com', firstName: 'Demo', lastName: 'Owner' },
-      { id: managerId, email: 'manager.demo@example.com', firstName: 'Demo', lastName: 'Manager' },
+      {
+        id: ownerId,
+        email: 'owner.demo@example.com',
+        firstName: 'Demo',
+        lastName: 'Owner',
+      },
+      {
+        id: managerId,
+        email: 'manager.demo@example.com',
+        firstName: 'Demo',
+        lastName: 'Manager',
+      },
     ]) {
       await prisma.user.upsert({
         where: { id: user.id },
-        update: { passwordHash, firstName: user.firstName, lastName: user.lastName },
+        update: {
+          passwordHash,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
         create: { ...user, passwordHash },
       });
     }
@@ -120,8 +135,18 @@ async function main(): Promise<void> {
     });
 
     const merchants = [
-      { id: merchantAId, name: 'Studio Isla', code: 'ISLA', email: 'isla.demo@example.com' },
-      { id: merchantBId, name: 'North Goods', code: 'NORTH', email: 'north.demo@example.com' },
+      {
+        id: merchantAId,
+        name: 'Studio Isla',
+        code: 'ISLA',
+        email: 'isla.demo@example.com',
+      },
+      {
+        id: merchantBId,
+        name: 'North Goods',
+        code: 'NORTH',
+        email: 'north.demo@example.com',
+      },
     ];
     for (const merchant of merchants) {
       await prisma.merchant.upsert({
@@ -155,6 +180,7 @@ async function main(): Promise<void> {
         where: { id },
         update: {
           status: AgreementStatus.ACTIVE,
+          activationAt: activation,
           startDate: activation,
           endDate: previousDate(scheduledEnd),
           durationMonths: 12,
@@ -168,6 +194,7 @@ async function main(): Promise<void> {
           id,
           organizationId,
           merchantId,
+          activationAt: activation,
           startDate: activation,
           endDate: previousDate(scheduledEnd),
           durationMonths: 12,
@@ -217,7 +244,12 @@ async function main(): Promise<void> {
           },
         },
         update: { quantity: 20 },
-        create: { productId: product.id, branchId, organizationId, quantity: 20 },
+        create: {
+          productId: product.id,
+          branchId,
+          organizationId,
+          quantity: 20,
+        },
       });
     }
 
@@ -276,16 +308,22 @@ async function main(): Promise<void> {
       [agreementAId, merchantAId, '2500.00'],
       [agreementBId, merchantBId, '1800.00'],
     ] as const) {
-      const agreement = await prisma.merchantAgreement.findUniqueOrThrow({ where: { id: agreementId } });
+      const agreement = await prisma.merchantAgreement.findUniqueOrThrow({
+        where: { id: agreementId },
+      });
       for (let cycle = 0; cycle < 3; cycle += 1) {
         const periodStart = addMonths(agreement.startDate, cycle);
-        const periodEnd = previousDate(addMonths(agreement.startDate, cycle + 1));
+        const periodEnd = previousDate(
+          addMonths(agreement.startDate, cycle + 1),
+        );
         const existing = await prisma.merchantReceivable.findFirst({
           where: { organizationId, agreementId, cycleNumber: cycle + 1 },
         });
         if (existing) continue;
         const remaining = new Prisma.Decimal(rent).sub(
-          merchantId === merchantAId && cycle === 0 ? new Prisma.Decimal('500.00') : new Prisma.Decimal(0),
+          merchantId === merchantAId && cycle === 0
+            ? new Prisma.Decimal('500.00')
+            : new Prisma.Decimal(0),
         );
         const receivable = await prisma.merchantReceivable.create({
           data: {

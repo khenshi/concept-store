@@ -80,6 +80,7 @@ export class BranchesService {
     }).format(new Date());
     const start = new Date(`${today}T00:00:00+08:00`);
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    const businessDay = new Date(`${today}T00:00:00.000Z`);
 
     const [
       sales,
@@ -111,14 +112,20 @@ export class BranchesService {
         where: {
           organizationId,
           branchId,
-          assignments: { some: { endDate: null } },
+          assignments: {
+            some: {
+              startDate: { lte: businessDay },
+              OR: [{ endDate: null }, { endDate: { gte: businessDay } }],
+            },
+          },
         },
       }),
       this.prisma.spaceAssignment.findMany({
         where: {
           organizationId,
           branchId,
-          endDate: null,
+          startDate: { lte: businessDay },
+          OR: [{ endDate: null }, { endDate: { gte: businessDay } }],
           merchant: { status: 'ACTIVE' },
         },
         distinct: ['merchantId'],
