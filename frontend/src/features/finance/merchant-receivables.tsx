@@ -282,13 +282,24 @@ export function MerchantReceivables({
             {mode === 'payment' ? (
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">
                 Available balance:{' '}
-                {money.format(Number(items.find((item) => item.id === selected)?.outstandingAmount ?? 0))}
+                {money.format(
+                  Number(
+                    items.find((item) => item.id === selected)
+                      ?.outstandingAmount ?? 0,
+                  ),
+                )}
                 <label className="ml-4 inline-flex items-center gap-2 font-normal">
                   Apply amount
                   <input
                     className="min-h-11 w-32 rounded-lg border border-slate-300 px-3 text-right"
-                    defaultValue={items.find((item) => item.id === selected)?.outstandingAmount ?? '0.00'}
-                    max={items.find((item) => item.id === selected)?.outstandingAmount}
+                    defaultValue={
+                      items.find((item) => item.id === selected)
+                        ?.outstandingAmount ?? '0.00'
+                    }
+                    max={
+                      items.find((item) => item.id === selected)
+                        ?.outstandingAmount
+                    }
                     min="0.01"
                     name="amount"
                     required

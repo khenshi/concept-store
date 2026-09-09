@@ -1,8 +1,4 @@
-export type SettlementStatus =
-  | 'DRAFT'
-  | 'APPROVED'
-  | 'PAID'
-  | 'CANCELLED';
+export type SettlementStatus = 'DRAFT' | 'APPROVED' | 'PAID' | 'CANCELLED';
 export type SettlementSchedule = 'WEEKLY' | 'SEMI_MONTHLY' | 'MONTHLY';
 export type PayoutMethod = 'CASH' | 'GCASH' | 'BANK_TRANSFER' | 'OTHER';
 

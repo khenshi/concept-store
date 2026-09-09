@@ -98,8 +98,7 @@ export function SettlementDetailPage({
     }
     const ok = await confirm({
       title: 'Cancel this draft settlement?',
-      description:
-        `Its sales, adjustments, and rent reservations will be released so the payable can be reviewed again. Reason: ${reason.trim()}`,
+      description: `Its sales, adjustments, and rent reservations will be released so the payable can be reviewed again. Reason: ${reason.trim()}`,
       confirmLabel: 'Cancel draft',
     });
     if (!ok) return;
@@ -191,8 +190,7 @@ export function SettlementDetailPage({
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          {owner &&
-          settlement.status === 'DRAFT' ? (
+          {owner && settlement.status === 'DRAFT' ? (
             <Action primary disabled={busy} onClick={() => void approve()}>
               Approve and lock
             </Action>

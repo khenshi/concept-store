@@ -47,12 +47,7 @@ describe('settlement API', () => {
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization-id/settlements/payables?merchantId=merchant-id&branchId=branch-id&offset=20&limit=20',
     );
-    await closeLivePayable(
-      request,
-      'organization-id',
-      'merchant-id',
-      true,
-    );
+    await closeLivePayable(request, 'organization-id', 'merchant-id', true);
     expect(request).toHaveBeenLastCalledWith(
       '/organizations/organization-id/settlements/payables/merchant-id/close',
       expect.objectContaining({

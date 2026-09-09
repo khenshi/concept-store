@@ -368,27 +368,27 @@ export function SettlementList({ organizationId }: { organizationId: string }) {
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              {[
-                ['Net sales', metrics.netSales],
-                ['Refunds', metrics.refunds],
-                ['Deductions', metrics.deductions],
-                ['Amount due', metrics.amountDue],
-                ['Merchants', String(metrics.merchantCount)],
-              ].map(([label, value]) => (
-                <div
-                  className="rounded-xl border border-slate-200 bg-white p-4"
-                  key={label}
-                >
-                  <p className="text-xs font-bold uppercase text-slate-500">
-                    {label}
-                  </p>
-                  <p className="mt-2 text-xl font-bold">
-                    {label === 'Merchants'
-                      ? value
-                      : money.format(Number(value))}
-                  </p>
-                </div>
-              ))}
+                {[
+                  ['Net sales', metrics.netSales],
+                  ['Refunds', metrics.refunds],
+                  ['Deductions', metrics.deductions],
+                  ['Amount due', metrics.amountDue],
+                  ['Merchants', String(metrics.merchantCount)],
+                ].map(([label, value]) => (
+                  <div
+                    className="rounded-xl border border-slate-200 bg-white p-4"
+                    key={label}
+                  >
+                    <p className="text-xs font-bold uppercase text-slate-500">
+                      {label}
+                    </p>
+                    <p className="mt-2 text-xl font-bold">
+                      {label === 'Merchants'
+                        ? value
+                        : money.format(Number(value))}
+                    </p>
+                  </div>
+                ))}
               </div>
             </section>
           ) : null}
