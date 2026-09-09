@@ -129,3 +129,20 @@ lifecycle history.
 Historical settlements, agreement snapshots, payouts, receivable transactions,
 allocations, and audit events remain intact. Obsolete columns were removed only
 after stored data was checked for historical dependencies.
+
+## Backend-maintained payable projection
+
+Completed sale and refund activity is also maintained in period-level
+`MerchantFinanceAccrual` buckets. This is a derived read projection, not another
+settlement or ledger authority. Draft creation removes newly captured activity
+by rebuilding the affected merchant from unreleased sources; cancelling a draft
+releases those links and restores the activity through the same rebuild.
+
+Refunds against an already-captured sale remain new payable activity. They use
+the original sale agreement's commission rate in a separate
+`POST_SETTLEMENT_REFUND` bucket, so prior settlement history is not rewritten.
+Approval, payout recording, and rent payment do not change sales accruals.
+
+Live Finance reads still use the source calculation during the current shadow
+and reconciliation phase. See the reconciliation runbook in
+`architecture/financial-integrity.md`.

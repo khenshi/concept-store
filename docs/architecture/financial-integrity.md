@@ -85,3 +85,43 @@ with a reason; one serializable transaction restores inventory, records reversal
 movements, and writes the immutable void audit fields. Refunded or settlement-
 linked sales are rejected, and all live financial calculations exclude voided
 activity.
+
+## Payable projection and reconciliation
+
+`MerchantFinanceAccrual` is a derived, repairable projection of completed and
+currently unreleased merchant sale/refund activity. Sales and refunds remain the
+authority. Checkout, eligible void, refund, draft closure, and draft cancellation
+maintain the affected buckets inside their existing serializable transactions.
+Paid settlement source links remain boundaries and are never reopened by a
+backfill.
+
+The Finance API continues to use the raw authoritative calculation until the
+projection-read rollout is completed. Projection maintenance therefore cannot
+silently change current Finance responses during backfill validation.
+
+Run reconciliation from `backend/`:
+
+```text
+npm run finance:reconcile
+npm run finance:reconcile -- --organization <organization-id>
+npm run finance:reconcile -- --repair
+npm run finance:reconcile -- --repair --organization <organization-id>
+```
+
+Report mode is the default and performs no persistent writes. It reports gross
+sales, refunds, commission, payable differences, and differing bucket counts per
+merchant. `BLOCKED` means historical activity cannot be attributed to exactly
+one effective agreement; correct that source/agreement history before repair.
+
+Repair mode locks and rebuilds one merchant at a time from completed, currently
+unreleased sale and refund items. It only replaces projection rows. It does not
+modify sales, refunds, agreements, settlement snapshots, source links, payouts,
+rent receivables, or receivable history. The operation is idempotent; rerun
+report mode afterward and require zero drift and zero blocked merchants before
+switching live reads to the projection.
+
+If repair is interrupted, rerun the same command. Each merchant rebuild has its
+own transaction, and already-completed merchants will report as matching. If a
+runtime projection update fails, its enclosing checkout/refund/settlement
+transaction rolls back; investigate the source error, then use report mode
+before choosing explicit repair.

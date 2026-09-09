@@ -35,6 +35,11 @@ export interface CompletedRefundAccrualItem {
   originalSaleCaptured: boolean;
 }
 
+export type MerchantFinanceAccrualSnapshot = SaleAccrualBucket & {
+  refundTotal: Prisma.Decimal;
+  commissionAmount: Prisma.Decimal;
+};
+
 @Injectable()
 export class MerchantFinanceAccrualService {
   async addCompletedRefund(
@@ -52,65 +57,52 @@ export class MerchantFinanceAccrualService {
     await this.addRefundBuckets(transaction, buckets);
   }
 
-  async rebuildMerchant(
+  async calculateMerchantProjection(
     transaction: Prisma.TransactionClient,
     organizationId: string,
     merchantId: string,
-  ): Promise<void> {
-    // Serialize rebuilds for one tenant/merchant and take locks in a stable order.
-    await transaction.$executeRaw(Prisma.sql`
-      SELECT "id" FROM "Merchant"
-      WHERE "organizationId" = ${organizationId} AND "id" = ${merchantId}
-      FOR UPDATE
-    `);
-    const [agreements, saleItems, refundItems, currentRevision] =
-      await Promise.all([
-        transaction.merchantAgreement.findMany({
-          where: {
-            organizationId,
-            merchantId,
-            status: { in: [AgreementStatus.ACTIVE, AgreementStatus.ENDED] },
-          },
-          orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
-        }),
-        transaction.saleItem.findMany({
-          where: {
-            organizationId,
-            merchantId,
-            sale: { status: 'COMPLETED' },
-            settlementLinks: { none: { releasedAt: null } },
-          },
-          select: { total: true, sale: { select: { completedAt: true } } },
-          orderBy: [{ sale: { completedAt: 'asc' } }, { id: 'asc' }],
-        }),
-        transaction.saleRefundItem.findMany({
-          where: {
-            organizationId,
-            merchantId,
-            refund: { status: 'COMPLETED' },
-            settlementLinks: { none: { releasedAt: null } },
-          },
+  ): Promise<MerchantFinanceAccrualSnapshot[]> {
+    const agreements = await transaction.merchantAgreement.findMany({
+      where: {
+        organizationId,
+        merchantId,
+        status: { in: [AgreementStatus.ACTIVE, AgreementStatus.ENDED] },
+      },
+      orderBy: [{ startDate: 'asc' }, { id: 'asc' }],
+    });
+    const saleItems = await transaction.saleItem.findMany({
+      where: {
+        organizationId,
+        merchantId,
+        sale: { status: 'COMPLETED' },
+        settlementLinks: { none: { releasedAt: null } },
+      },
+      select: { total: true, sale: { select: { completedAt: true } } },
+      orderBy: [{ sale: { completedAt: 'asc' } }, { id: 'asc' }],
+    });
+    const refundItems = await transaction.saleRefundItem.findMany({
+      where: {
+        organizationId,
+        merchantId,
+        refund: { status: 'COMPLETED' },
+        settlementLinks: { none: { releasedAt: null } },
+      },
+      select: {
+        amount: true,
+        refund: { select: { completedAt: true } },
+        saleItem: {
           select: {
-            amount: true,
-            refund: { select: { completedAt: true } },
-            saleItem: {
-              select: {
-                sale: { select: { completedAt: true } },
-                settlementLinks: {
-                  where: { releasedAt: null },
-                  select: { settlementId: true },
-                  take: 1,
-                },
-              },
+            sale: { select: { completedAt: true } },
+            settlementLinks: {
+              where: { releasedAt: null },
+              select: { settlementId: true },
+              take: 1,
             },
           },
-          orderBy: [{ refund: { completedAt: 'asc' } }, { id: 'asc' }],
-        }),
-        transaction.merchantFinanceAccrual.aggregate({
-          where: { organizationId, merchantId },
-          _max: { revision: true },
-        }),
-      ]);
+        },
+      },
+      orderBy: [{ refund: { completedAt: 'asc' } }, { id: 'asc' }],
+    });
 
     const buckets = new Map<
       string,
@@ -168,12 +160,43 @@ export class MerchantFinanceAccrualService {
       );
     }
 
+    return [...buckets.values()]
+      .sort((a, b) => this.bucketKey(a).localeCompare(this.bucketKey(b)))
+      .map((bucket) => ({
+        ...bucket,
+        commissionAmount:
+          bucket.kind === MerchantFinanceAccrualKind.POST_SETTLEMENT_REFUND
+            ? this.refundCommission(bucket.refundTotal, bucket.commissionRate)
+            : this.commissionFor(
+                bucket.grossSales.sub(bucket.refundTotal),
+                bucket.commissionRate,
+              ),
+      }));
+  }
+
+  async rebuildMerchant(
+    transaction: Prisma.TransactionClient,
+    organizationId: string,
+    merchantId: string,
+  ): Promise<void> {
+    await transaction.$executeRaw(Prisma.sql`
+      SELECT "id" FROM "Merchant"
+      WHERE "organizationId" = ${organizationId} AND "id" = ${merchantId}
+      FOR UPDATE
+    `);
+    const currentRevision = await transaction.merchantFinanceAccrual.aggregate({
+      where: { organizationId, merchantId },
+      _max: { revision: true },
+    });
+    const buckets = await this.calculateMerchantProjection(
+      transaction,
+      organizationId,
+      merchantId,
+    );
     await transaction.merchantFinanceAccrual.deleteMany({
       where: { organizationId, merchantId },
     });
-    for (const bucket of [...buckets.values()].sort((a, b) =>
-      this.bucketKey(a).localeCompare(this.bucketKey(b)),
-    )) {
+    for (const bucket of buckets) {
       await this.insertRebuiltBucket(
         transaction,
         bucket,

@@ -22,6 +22,7 @@
     "prisma:validate": "prisma validate",
     "prisma:format": "prisma format",
     "prisma:seed:demo": "npm run build && node -r dotenv/config dist/prisma/seed.js",
+    "finance:reconcile": "npm run build && node -r dotenv/config dist/src/commands/reconcile-merchant-finance-accrual.js",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate"
