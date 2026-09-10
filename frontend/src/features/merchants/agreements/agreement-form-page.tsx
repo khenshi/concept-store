@@ -210,9 +210,6 @@ export function AgreementFormPage({
         {agreementId ? 'Back to agreement' : 'Back to agreements'}
       </BackLink>
       <header className="mt-5 border-b border-slate-200 pb-4">
-        <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
-          Agreement draft
-        </p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
           {agreementId ? 'Edit agreement' : 'Create agreement'}
         </h1>
