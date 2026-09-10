@@ -1,11 +1,18 @@
 # API Route and Workflow Alignment Plan
 
-**Status:** Planned  
-**Scope:** Existing Milestones 1–7 only  
+**Status:** Implemented and archived
+
+**Scope:** Existing Milestones 1–7 only
+
 **Audit baseline:** September 2026
-**Implementation status:** Parts 1–6 implemented September 7, 2026; the
-remaining notes below document the decisions and verification scope that led to
-the current contracts.
+
+**Completed:** September 7, 2026
+
+**Current behavior:** See the workflow references linked from
+[`docs/README.md`](../../README.md).
+
+Parts 1–6 were implemented. The notes below preserve the decisions and
+verification scope that led to the current contracts.
 
 ## Goal
 

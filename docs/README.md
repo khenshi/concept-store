@@ -1,7 +1,23 @@
 # Kapwesto Documentation
 
-This directory contains current architecture and workflow references plus one
-historical summary for each completed milestone.
+Use this index to find the smallest authoritative document for a task. Current
+behavior lives in `architecture/` and `workflows/`; delivery history lives in
+`milestones/` and `plans/archive/`.
+
+## Agent and developer reading order
+
+1. Read [`AGENTS.md`](../AGENTS.md) for scope, security, and delivery rules.
+2. Read [`current plan`](plans/current.md) for the only active execution plan.
+3. Read only the architecture and workflow references relevant to the task.
+4. Consult milestone summaries or archived plans only for historical context.
+
+If documents disagree, use this precedence order:
+
+1. `AGENTS.md` and the explicitly assigned task
+2. `docs/plans/current.md`
+3. current architecture and workflow references
+4. completed milestone summaries
+5. archived implementation plans
 
 ## Start here
 
@@ -22,14 +38,15 @@ historical summary for each completed milestone.
 These documents describe current behavior. Swagger/OpenAPI is the authoritative
 endpoint-level reference when the backend is running with documentation enabled.
 
-## Implementation plans
+## Plans
 
-- [Kapwesto UX and operations refactor](plans/kapwesto-ux-and-operations-refactor-plan.md)
-- [Settlement and merchant receivables refactor](plans/concept-store-settlement-receivables-plan.md)
-- [API route and workflow alignment](plans/api-route-and-workflow-alignment-plan.md)
+- [Current plan](plans/current.md) — the single source of truth for active work
+- [Archived plans](plans/archive/README.md) — completed or superseded execution
+  records
 
-Plans preserve design decisions and implementation sequencing. Current workflow
-references remain authoritative for behavior already released.
+An archived plan explains why work was done but does not define current product
+behavior. Promote only one approved plan to `current.md` at a time, then archive
+it when its definition of done is met.
 
 ## Completed milestones
 
@@ -48,6 +65,10 @@ workflow reference differ, the current workflow reference is authoritative.
 
 - Document current business behavior, security boundaries, financial rules,
   and durable architecture decisions.
+- Keep the single active execution plan in `plans/current.md`. Roadmap entries
+  and archived plans are context, not implementation authorization.
+- Give archived plans a final status and links to authoritative current
+  references.
 - Keep one milestone summary instead of a file for every implementation part.
 - Use Swagger/OpenAPI rather than duplicating complete endpoint schemas.
 - Mark planned behavior clearly; roadmap context is not implemented behavior.

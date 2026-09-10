@@ -1,5 +1,13 @@
 # Concept Store Settlement & Merchant Receivables Refactor Plan
 
+**Status:** Implemented, superseded in part, and archived
+
+**Current behavior:** See [Settlements and payouts](../../workflows/settlements-and-payouts.md).
+
+This document preserves the original design. The later
+[finance manager workflow and scalability plan](finance-manager-workflow-and-scalability-plan.md)
+extended it and supersedes any conflicting historical proposal.
+
 ## Goal
 
 Refactor the financial workflow so owners and managers can always see a merchant's **live payable position** without first creating a settlement, while keeping rent obligations separate and auditable.

@@ -1,7 +1,12 @@
 # Finance Manager Workflow, Partial Rent, and Scalability Plan
 
-**Status:** Implemented, migrated, backfilled, reconciled, and verified  
-**Created:** September 7, 2026  
+**Status:** Implemented, migrated, backfilled, reconciled, verified, and archived
+
+**Current behavior:** See [Settlements and payouts](../../workflows/settlements-and-payouts.md)
+and [Financial integrity](../../architecture/financial-integrity.md).
+
+**Created:** September 7, 2026
+
 **Implementation authorization:** Approved by the product owner in this session
 
 ## 1. Purpose

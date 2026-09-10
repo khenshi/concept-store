@@ -1,7 +1,11 @@
 # Kapwesto UX and Operations Refactor — Initial Plan
 
-**Status:** Implemented September 2026
-**Product name:** Kapwesto  
+**Status:** Implemented and archived, September 2026
+
+**Current behavior:** See [Frontend architecture](../../architecture/frontend-architecture.md).
+
+**Product name:** Kapwesto
+
 **Tagline:** Connecting Spaces, Brands, and Business.
 
 ## Goal
