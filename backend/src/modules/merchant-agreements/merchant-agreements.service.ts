@@ -96,8 +96,12 @@ export class MerchantAgreementsService
             );
             return tx.merchantAgreement.create({
               data: {
-                organizationId,
-                merchantId,
+                organization: { connect: { id: organizationId } },
+                merchant: {
+                  connect: {
+                    id_organizationId: { id: merchantId, organizationId },
+                  },
+                },
                 activationAt,
                 draftSlot,
                 startDate: start,
@@ -113,12 +117,19 @@ export class MerchantAgreementsService
                 settlementSchedule: dto.settlementSchedule,
                 spaceReservations: {
                   create: spaces.map((space) => ({
-                    organizationId,
-                    branchId: space.branchId,
-                    spaceId: space.id,
                     periodStart: start,
                     periodEnd: end,
                     releasedAt: new Date(),
+                    organization: { connect: { id: organizationId } },
+                    space: {
+                      connect: {
+                        id_branchId_organizationId: {
+                          id: space.id,
+                          branchId: space.branchId,
+                          organizationId,
+                        },
+                      },
+                    },
                   })),
                 },
               },
