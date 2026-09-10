@@ -25,6 +25,7 @@ If documents disagree, use this precedence order:
 - [Tenancy and security](architecture/tenancy-and-security.md)
 - [Financial integrity](architecture/financial-integrity.md)
 - [Frontend architecture](architecture/frontend-architecture.md)
+- [Development database seeding](development/database-seeding.md)
 
 ## Current workflows
 
