@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BrandWordmark } from '@/components/brand-wordmark';
+import { BrandWordmark } from '@/shared/components/branding/brand-wordmark';
 
 const foundations = [
   {

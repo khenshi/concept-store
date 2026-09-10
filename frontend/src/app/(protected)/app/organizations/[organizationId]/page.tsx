@@ -1,4 +1,4 @@
-import { OrganizationWorkspace } from '@/features/organizations/organization-workspace';
+import { OrganizationWorkspace } from '@/features/organizations/components/organization-workspace';
 
 interface OrganizationPageProps {
   params: Promise<{ organizationId: string }>;

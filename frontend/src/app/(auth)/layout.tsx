@@ -1,4 +1,4 @@
-import { GuestGate } from '@/features/auth/auth-gate';
+import { GuestGate } from '@/features/auth/components/auth-gate';
 import type { ReactNode } from 'react';
 
 export default function AuthLayout({ children }: { children: ReactNode }) {

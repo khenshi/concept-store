@@ -1,5 +1,5 @@
-import { AuthGate } from '@/features/auth/auth-gate';
-import { AuthenticatedHeader } from '@/features/layout/authenticated-header';
+import { AuthGate } from '@/features/auth/components/auth-gate';
+import { AuthenticatedHeader } from '@/features/app-shell/components/authenticated-header';
 import type { ReactNode } from 'react';
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {

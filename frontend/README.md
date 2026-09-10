@@ -2,8 +2,6 @@
 
 Next.js application for the Concept Store Management System foundation. The current interface covers authentication, accounts, organizations, branches, memberships, and invitations; later business modules are intentionally absent.
 
-The current code contains the frontend and authentication-state foundations. Authentication screens and protected application areas are not implemented yet.
-
 ## Requirements
 
 - Node.js 20.9 or newer
@@ -30,9 +28,19 @@ npm run build
 
 ```text
 src/
-  app/          Next.js App Router routes and layouts
-  config/       Validated frontend environment configuration
-  features/     Feature-owned client state, API behavior, and types
+  app/                         Next.js routes, layouts, and route-level styles
+  config/                      Validated frontend environment configuration
+  features/
+    <feature>/
+      api/                     Backend clients and their contract tests
+      components/              Feature-owned UI and page compositions
+      model/                   Types, schemas, and feature state
+  shared/
+    components/                Reusable, domain-agnostic UI and branding
+    hooks/                     Reusable React hooks
 ```
 
-Feature directories will be introduced only as their Milestone 1 vertical slices are implemented.
+Keep route files thin: they should compose feature components instead of owning
+business behavior. Feature-specific code stays inside its feature; only code
+that is genuinely reusable across domains belongs in `shared`. Tests are
+co-located with the implementation they exercise.

@@ -1,4 +1,4 @@
-import { BranchDetail } from '@/features/branches/branch-detail';
+import { BranchDetail } from '@/features/branches/components/branch-detail';
 
 export default async function BranchDetailPage({
   params,

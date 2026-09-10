@@ -1,4 +1,4 @@
-import { BranchManagement } from '@/features/branches/branch-management';
+import { BranchManagement } from '@/features/branches/components/branch-management';
 
 interface BranchesPageProps {
   params: Promise<{ organizationId: string }>;

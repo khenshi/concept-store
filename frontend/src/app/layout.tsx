@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
-import { AuthProvider } from '@/features/auth/auth-context';
+import { AuthProvider } from '@/features/auth/model/auth-context';
 import './globals.css';
 
 const inter = Inter({

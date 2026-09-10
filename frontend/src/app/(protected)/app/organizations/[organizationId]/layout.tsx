@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { OrganizationWorkspaceProvider } from '@/features/organizations/organization-workspace-context';
-import { OrganizationWorkspaceShell } from '@/features/organizations/organization-workspace-shell';
+import { OrganizationWorkspaceProvider } from '@/features/organizations/components/organization-workspace-context';
+import { OrganizationWorkspaceShell } from '@/features/organizations/components/organization-workspace-shell';
 
 interface OrganizationLayoutProps {
   children: ReactNode;

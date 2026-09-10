@@ -1,4 +1,4 @@
-import { OrganizationMemberManagement } from '@/features/organization-members/organization-member-management';
+import { OrganizationMemberManagement } from '@/features/organization-members/components/organization-member-management';
 
 interface MembersPageProps {
   params: Promise<{ organizationId: string }>;

@@ -1,4 +1,4 @@
-import { InvitationAcceptancePage } from '@/features/organization-invitations/invitation-acceptance-page';
+import { InvitationAcceptancePage } from '@/features/organization-invitations/components/invitation-acceptance-page';
 
 export default async function InvitationPage({
   params,

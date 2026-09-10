@@ -1,0 +1,188 @@
+'use client';
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { ApiError } from '@/features/auth/api/auth-client';
+import { useAuth } from '@/features/auth/model/auth-context';
+import { listBranches } from '@/features/branches/api/branch-api';
+import type { Branch } from '@/features/branches/model/branch.types';
+import { getOrganization } from '../api/organization-api';
+import type { OrganizationAccess } from '../model/organization.types';
+
+type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
+
+interface OrganizationWorkspaceContextValue {
+  organizationId: string;
+  organization: OrganizationAccess | null;
+  organizationStatus: Exclude<LoadStatus, 'idle'>;
+  organizationError: string | null;
+  refreshOrganization(): Promise<void>;
+  branches: Branch[];
+  branchesStatus: LoadStatus;
+  branchesError: string | null;
+  loadBranches(options?: { refresh?: boolean }): Promise<Branch[]>;
+  upsertBranch(branch: Branch): void;
+}
+
+const OrganizationWorkspaceContext =
+  createContext<OrganizationWorkspaceContextValue | null>(null);
+
+function errorMessage(cause: unknown, fallback: string): string {
+  return cause instanceof ApiError ? cause.message : fallback;
+}
+
+export function OrganizationWorkspaceProvider({
+  organizationId,
+  children,
+}: {
+  organizationId: string;
+  children: ReactNode;
+}) {
+  const { request } = useAuth();
+  const [organization, setOrganization] = useState<OrganizationAccess | null>(
+    null,
+  );
+  const [organizationStatus, setOrganizationStatus] =
+    useState<Exclude<LoadStatus, 'idle'>>('loading');
+  const [organizationError, setOrganizationError] = useState<string | null>(
+    null,
+  );
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchesStatus, setBranchesStatus] = useState<LoadStatus>('idle');
+  const [branchesError, setBranchesError] = useState<string | null>(null);
+  const branchesPromiseRef = useRef<Promise<Branch[]> | null>(null);
+  const branchesRef = useRef<Branch[]>([]);
+  const branchesStatusRef = useRef<LoadStatus>('idle');
+
+  const refreshOrganization = useCallback(async () => {
+    setOrganizationStatus('loading');
+    setOrganizationError(null);
+    try {
+      setOrganization(await getOrganization(request, organizationId));
+      setOrganizationStatus('ready');
+    } catch (cause: unknown) {
+      setOrganizationError(
+        errorMessage(cause, 'The organization could not be loaded.'),
+      );
+      setOrganizationStatus('error');
+    }
+  }, [organizationId, request]);
+
+  useEffect(() => {
+    let active = true;
+    void getOrganization(request, organizationId)
+      .then((result) => {
+        if (!active) return;
+        setOrganization(result);
+        setOrganizationStatus('ready');
+      })
+      .catch((cause: unknown) => {
+        if (!active) return;
+        setOrganizationError(
+          errorMessage(cause, 'The organization could not be loaded.'),
+        );
+        setOrganizationStatus('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [organizationId, request]);
+
+  const loadBranches = useCallback(
+    async (options?: { refresh?: boolean }): Promise<Branch[]> => {
+      if (!options?.refresh) {
+        if (branchesStatusRef.current === 'ready') return branchesRef.current;
+        if (branchesPromiseRef.current) return branchesPromiseRef.current;
+      }
+
+      branchesStatusRef.current = 'loading';
+      setBranchesStatus('loading');
+      setBranchesError(null);
+      const promise = listBranches(request, organizationId)
+        .then((result) => {
+          branchesRef.current = result;
+          setBranches(result);
+          branchesStatusRef.current = 'ready';
+          setBranchesStatus('ready');
+          return result;
+        })
+        .catch((cause: unknown) => {
+          setBranchesError(
+            errorMessage(cause, 'The branches could not be loaded.'),
+          );
+          branchesStatusRef.current = 'error';
+          setBranchesStatus('error');
+          throw cause;
+        })
+        .finally(() => {
+          branchesPromiseRef.current = null;
+        });
+      branchesPromiseRef.current = promise;
+      return promise;
+    },
+    [organizationId, request],
+  );
+
+  const upsertBranch = useCallback((branch: Branch) => {
+    const next = [
+      ...branchesRef.current.filter((item) => item.id !== branch.id),
+      branch,
+    ].sort((left, right) => left.name.localeCompare(right.name));
+    branchesRef.current = next;
+    branchesStatusRef.current = 'ready';
+    setBranches(next);
+    setBranchesStatus('ready');
+    setBranchesError(null);
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      organizationId,
+      organization,
+      organizationStatus,
+      organizationError,
+      refreshOrganization,
+      branches,
+      branchesStatus,
+      branchesError,
+      loadBranches,
+      upsertBranch,
+    }),
+    [
+      organizationId,
+      organization,
+      organizationStatus,
+      organizationError,
+      refreshOrganization,
+      branches,
+      branchesStatus,
+      branchesError,
+      loadBranches,
+      upsertBranch,
+    ],
+  );
+
+  return (
+    <OrganizationWorkspaceContext.Provider value={value}>
+      {children}
+    </OrganizationWorkspaceContext.Provider>
+  );
+}
+
+export function useOrganizationWorkspaceContext(): OrganizationWorkspaceContextValue {
+  const context = useContext(OrganizationWorkspaceContext);
+  if (!context) {
+    throw new Error(
+      'useOrganizationWorkspaceContext must be used inside OrganizationWorkspaceProvider',
+    );
+  }
+  return context;
+}
