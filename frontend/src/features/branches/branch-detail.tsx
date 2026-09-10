@@ -1,20 +1,14 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { BackLink } from '@/components/ui/back-link';
 import { ListSkeleton } from '@/components/ui/list-skeleton';
 import { RequestError } from '@/components/ui/request-error';
 import { useAuth } from '@/features/auth/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/organization-workspace-context';
-import { getBranchOverview } from './branch-api';
+import { getBranch } from './branch-api';
 import { BranchForm } from './branch-management';
-import type { Branch, BranchOverview } from './branch.types';
-
-const money = new Intl.NumberFormat('en-PH', {
-  style: 'currency',
-  currency: 'PHP',
-});
+import type { Branch } from './branch.types';
 
 function addressFor(branch: Branch): string {
   return [
@@ -38,14 +32,14 @@ export function BranchDetail({
 }) {
   const { request } = useAuth();
   const { organization, upsertBranch } = useOrganizationWorkspaceContext();
-  const [overview, setOverview] = useState<BranchOverview | null>(null);
+  const [branch, setBranch] = useState<Branch | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setOverview(await getBranchOverview(request, organizationId, branchId));
+      setBranch(await getBranch(request, organizationId, branchId));
     } catch {
       setError('The branch details could not be loaded.');
     }
@@ -53,9 +47,9 @@ export function BranchDetail({
 
   useEffect(() => {
     let active = true;
-    void getBranchOverview(request, organizationId, branchId)
+    void getBranch(request, organizationId, branchId)
       .then((result) => {
-        if (active) setOverview(result);
+        if (active) setBranch(result);
       })
       .catch(() => {
         if (active) setError('The branch details could not be loaded.');
@@ -66,7 +60,7 @@ export function BranchDetail({
   }, [branchId, organizationId, request]);
 
   if (!organization) return <ListSkeleton label="Loading branch" />;
-  if (!overview)
+  if (!branch) {
     return (
       <section className="mx-auto mt-5 w-full max-w-7xl sm:mt-6">
         <BackLink href={`/app/organizations/${organizationId}/branches`}>
@@ -87,30 +81,18 @@ export function BranchDetail({
         )}
       </section>
     );
+  }
 
-  const { branch, statistics } = overview;
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
-  const base = `/app/organizations/${organizationId}`;
-  const metrics = [
-    ['Sales today', String(statistics.todaySaleCount)],
-    ['Gross today', money.format(Number(statistics.todayGrossSales))],
-    ['Inventory units', String(statistics.inventoryUnits)],
-    ['Out of stock', String(statistics.outOfStockProducts)],
-    [
-      'Occupied spaces',
-      `${statistics.occupiedSpaces} / ${statistics.totalSpaces}`,
-    ],
-    ['Vacant spaces', String(statistics.vacantSpaces)],
-    ['Active merchants', String(statistics.activeMerchants)],
-  ];
-
   return (
-    <section className="mx-auto mt-5 w-full max-w-7xl sm:mt-6">
-      <BackLink href={`${base}/branches`}>Back to branches</BackLink>
+    <section className="mx-auto mt-5 w-full max-w-4xl sm:mt-6">
+      <BackLink href={`/app/organizations/${organizationId}/branches`}>
+        Back to branches
+      </BackLink>
       <header className="mt-5 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
+          <p className="text-xs font-bold tracking-wider text-emerald-700 uppercase">
             {branch.code ?? 'Branch'}
           </p>
           <h1 className="mt-1 text-3xl font-bold text-slate-950">
@@ -122,7 +104,7 @@ export function BranchDetail({
         </div>
         {canManage ? (
           <button
-            className="min-h-11 rounded-lg bg-emerald-600 px-4 font-bold text-white"
+            className="min-h-11 cursor-pointer rounded-lg bg-emerald-600 px-4 font-bold text-white"
             onClick={() => setEditing(true)}
             type="button"
           >
@@ -131,36 +113,26 @@ export function BranchDetail({
         ) : null}
       </header>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map(([label, value]) => (
-          <div
-            className="rounded-xl border border-slate-200 bg-white p-5"
-            key={label}
-          >
-            <p className="text-xs font-bold uppercase text-slate-500">
-              {label}
-            </p>
-            <p className="mt-2 text-xl font-bold text-slate-950">{value}</p>
-          </div>
-        ))}
-      </div>
-
       <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="font-bold">Branch workspace</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <WorkspaceLink
-            href={`${base}/spaces?branchId=${branch.id}`}
-            label="Spaces and assignments"
-          />
-          <WorkspaceLink
-            href={`${base}/inventory?branchId=${branch.id}`}
-            label="Branch inventory"
-          />
-          <WorkspaceLink
-            href={`${base}/pos/sales?branchId=${branch.id}`}
-            label="Sales history"
-          />
-        </div>
+        <h2 className="font-bold">Branch information</h2>
+        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs font-bold text-slate-500 uppercase">Code</dt>
+            <dd className="mt-1 text-slate-900">{branch.code ?? 'Not set'}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-bold text-slate-500 uppercase">
+              Country
+            </dt>
+            <dd className="mt-1 text-slate-900">{branch.countryCode}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-xs font-bold text-slate-500 uppercase">
+              Address
+            </dt>
+            <dd className="mt-1 text-slate-900">{addressFor(branch)}</dd>
+          </div>
+        </dl>
       </section>
 
       {editing ? (
@@ -170,23 +142,11 @@ export function BranchDetail({
           onCancel={() => setEditing(false)}
           onSaved={(saved) => {
             upsertBranch(saved);
-            setOverview((current) => current && { ...current, branch: saved });
+            setBranch(saved);
             setEditing(false);
           }}
         />
       ) : null}
     </section>
-  );
-}
-
-function WorkspaceLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      className="flex min-h-12 items-center justify-between rounded-lg border border-slate-200 px-4 font-bold text-slate-800 no-underline hover:bg-slate-50"
-      href={href}
-    >
-      {label}
-      <span aria-hidden="true">→</span>
-    </Link>
   );
 }

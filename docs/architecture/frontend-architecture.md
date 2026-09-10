@@ -1,82 +1,20 @@
 # Frontend Architecture
 
-**Status:** Current reference
+**Status:** Current foundation reference
 
-## Application structure
+The Next.js application separates public landing, authentication, and invitation
+acceptance pages from authenticated account and organization workspaces.
 
-The Next.js application separates public authentication pages from protected
-organization workspaces. Organization routes share a provider that loads the
-authenticated organization, branches, merchants, and products on demand.
+The organization provider loads only the active organization and its branches.
+The responsive organization shell exposes Overview and Branches to members and
+adds Members for owners and managers. Account settings remain globally
+available to authenticated users.
 
-Feature folders contain API clients, types, schemas, views, and focused tests.
-The frontend consumes backend responses as authoritative records and does not
-duplicate financial business logic.
+Feature folders contain the retained API clients, types, schemas, components,
+and tests for authentication, accounts, organizations, branches, memberships,
+and invitations. Later business feature components and routes are not retained.
 
-## Organization workspace
-
-The authenticated shell provides:
-
-- organization switching;
-- role-aware navigation;
-- responsive desktop and mobile layouts;
-- consistent page headers, operational panels, tables, filters, notices, and
-  confirmation dialogs; and
-- loading, empty, error, success, and pending states.
-
-Owner and manager navigation exposes administration and merchant finance.
-Cashiers primarily see POS. Merchant users receive their isolated dashboard.
-
-## Interaction conventions
-
-- Destructive or access-changing actions require confirmation.
-- Forms validate user input before API submission while treating backend
-  validation as authoritative.
-- List and report filters apply automatically. Text searches debounce briefly;
-  discrete selections and valid date ranges update immediately, reset
-  pagination, and ignore stale responses.
-- Tables retain semantic captions, column headers, and row headers.
-- Focus-visible styles, skip navigation, labels, alert roles, and status regions
-  support keyboard and assistive-technology use.
-- Responsive tables preserve meaning through horizontal overflow rather than
-  collapsing unrelated fields.
-
-## Styling
-
-Tailwind CSS is the styling standard. Shared controls establish consistent
-spacing, borders, colors, focus treatment, and responsive behavior. The visual
-language uses restrained emerald accents, slate neutrals, strong headings, and
-compact operational density.
-
-The approved palette is:
-
-| Usage         | Color     |
-| ------------- | --------- |
-| Primary       | `#059669` |
-| Primary dark  | `#047857` |
-| Primary light | `#D1FAE5` |
-| Accent        | `#F59E0B` |
-| Background    | `#F8FAFC` |
-| Surface       | `#FFFFFF` |
-| Text          | `#0F172A` |
-| Muted text    | `#64748B` |
-| Border        | `#E2E8F0` |
-| Success       | `#16A34A` |
-| Warning       | `#F59E0B` |
-| Error         | `#DC2626` |
-
-Typography uses Inter. Avoid gradients, glassmorphism, excessive shadows,
-unnecessary animation, new icon systems, and decorative complexity that reduces
-operational clarity.
-
-## Data loading
-
-Reusable organization context loaders deduplicate branch, merchant, and product
-requests. Feature pages own their specific filters and mutation state. Reporting
-views remain embedded in the workflow that owns their data.
-
-## Future offline boundary
-
-The current frontend is online-first. Offline support should be limited to the
-POS-critical catalog, cart, payment, local sale queue, and idempotent sync. The
-administration and finance workspaces remain online-only unless the offline
-milestone explicitly changes that boundary.
+Tailwind CSS remains the styling standard, using restrained emerald accents,
+slate neutrals, semantic HTML, visible focus states, clear request feedback,
+and responsive layouts. Frontend visibility improves usability; backend guards
+and service checks remain the authorization boundary.

@@ -7,21 +7,23 @@ describe('Home', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: 'Run your concept store with one clear system.',
+        name: 'Start with a clear foundation for your concept store.',
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: 'Every role sees what matters to them.',
+        name: 'Secure organization access',
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Organization')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Team membership' }),
+    ).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Sign in' })[0]).toHaveAttribute(
       'href',
       '/login',
     );
     expect(
-      screen.getByRole('link', { name: 'Create your workspace' }),
+      screen.getAllByRole('link', { name: 'Create your workspace' })[0],
     ).toHaveAttribute('href', '/register');
   });
 });

@@ -32,17 +32,3 @@ export type BranchUpdateInput = Omit<
   addressLine2: string | null;
   postalCode: string | null;
 };
-
-export interface BranchOverview {
-  branch: Branch;
-  statistics: {
-    todaySaleCount: number;
-    todayGrossSales: string;
-    inventoryUnits: number;
-    outOfStockProducts: number;
-    totalSpaces: number;
-    occupiedSpaces: number;
-    vacantSpaces: number;
-    activeMerchants: number;
-  };
-}

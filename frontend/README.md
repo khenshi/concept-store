@@ -1,6 +1,6 @@
 # Concept Store Frontend
 
-Shared Next.js web application for the Concept Store Management System. Store operators and merchants will use separate role-based areas within this application.
+Next.js application for the Concept Store Management System foundation. The current interface covers authentication, accounts, organizations, branches, memberships, and invitations; later business modules are intentionally absent.
 
 The current code contains the frontend and authentication-state foundations. Authentication screens and protected application areas are not implemented yet.
 

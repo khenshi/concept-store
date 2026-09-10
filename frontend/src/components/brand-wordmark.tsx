@@ -27,7 +27,7 @@ export function BrandWordmark({
         <strong className="tracking-[-0.02em]">Kapwesto</strong>
         {showTagline ? (
           <small className="text-[0.68rem] font-medium tracking-normal text-slate-500">
-            Connecting Spaces, Brands, and Business.
+            Secure concept store workspaces.
           </small>
         ) : null}
       </span>

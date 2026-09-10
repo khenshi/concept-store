@@ -1,5 +1,10 @@
 import type { AuthenticatedRequest } from '@/features/organizations/organization.types';
-import { createBranch, listBranches, updateBranch } from './branch-api';
+import {
+  createBranch,
+  getBranch,
+  listBranches,
+  updateBranch,
+} from './branch-api';
 import type { BranchInput, BranchUpdateInput } from './branch.types';
 
 describe('branch API', () => {
@@ -44,6 +49,14 @@ describe('branch API', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       },
+    );
+  });
+
+  it('gets one branch through both scoped identifiers', async () => {
+    vi.mocked(request).mockResolvedValue({});
+    await getBranch(request, 'organization/id', 'branch/id');
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%2Fid/branches/branch%2Fid',
     );
   });
 

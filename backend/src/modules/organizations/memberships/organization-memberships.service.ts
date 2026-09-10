@@ -3,9 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
-import type { LinkMerchantAccountDto } from './dto/link-merchant-account.dto';
+import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import type { OrganizationMember } from './organization-memberships.types';
 
@@ -28,23 +27,14 @@ export class OrganizationMembershipsService {
             phone: true,
           },
         },
-        merchantAccount: {
-          select: { merchantId: true, merchant: { select: { name: true } } },
-        },
       },
       orderBy: { createdAt: 'asc' },
     });
 
-    return memberships.map(({ user, role, createdAt, merchantAccount }) => ({
+    return memberships.map(({ user, role, createdAt }) => ({
       ...user,
       role,
       joinedAt: createdAt,
-      merchantAccount: merchantAccount
-        ? {
-            merchantId: merchantAccount.merchantId,
-            merchantName: merchantAccount.merchant.name,
-          }
-        : null,
     }));
   }
 
@@ -67,15 +57,6 @@ export class OrganizationMembershipsService {
         await this.assertAnotherOwnerExists(transaction, organizationId);
       }
 
-      if (
-        membership.role === OrganizationRole.MERCHANT &&
-        dto.role !== OrganizationRole.MERCHANT
-      ) {
-        await transaction.merchantAccount.deleteMany({
-          where: { organizationId, userId },
-        });
-      }
-
       const updated = await transaction.organizationMembership.update({
         where: { organizationId_userId: { organizationId, userId } },
         data: { role: dto.role },
@@ -86,65 +67,6 @@ export class OrganizationMembershipsService {
         ...membership.user,
         role: updated.role,
         joinedAt: updated.createdAt,
-        merchantAccount:
-          dto.role === OrganizationRole.MERCHANT
-            ? membership.merchantAccount
-              ? {
-                  merchantId: membership.merchantAccount.merchantId,
-                  merchantName: membership.merchantAccount.merchant.name,
-                }
-              : null
-            : null,
-      };
-    });
-  }
-
-  linkMerchantAccount(
-    organizationId: string,
-    userId: string,
-    dto: LinkMerchantAccountDto,
-  ): Promise<OrganizationMember> {
-    return this.withOwnerInvariant(async (transaction) => {
-      const membership = await this.findMembership(
-        transaction,
-        organizationId,
-        userId,
-      );
-      if (membership.role !== OrganizationRole.MERCHANT) {
-        throw new ConflictException(
-          'Only a merchant-role member can be linked to a merchant',
-        );
-      }
-      const merchant = await transaction.merchant.findFirst({
-        where: { id: dto.merchantId, organizationId },
-        select: { id: true, name: true },
-      });
-      if (!merchant) throw new NotFoundException('Merchant not found');
-      try {
-        await transaction.merchantAccount.upsert({
-          where: { organizationId_userId: { organizationId, userId } },
-          create: { organizationId, userId, merchantId: merchant.id },
-          update: { merchantId: merchant.id },
-        });
-      } catch (error: unknown) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002'
-        ) {
-          throw new ConflictException(
-            'This merchant is already linked to another account',
-          );
-        }
-        throw error;
-      }
-      return {
-        ...membership.user,
-        role: membership.role,
-        joinedAt: membership.createdAt,
-        merchantAccount: {
-          merchantId: merchant.id,
-          merchantName: merchant.name,
-        },
       };
     });
   }
@@ -186,16 +108,11 @@ export class OrganizationMembershipsService {
             phone: true,
           },
         },
-        merchantAccount: {
-          select: { merchantId: true, merchant: { select: { name: true } } },
-        },
       },
     });
 
-    if (!membership) {
+    if (!membership)
       throw new NotFoundException('Organization member not found');
-    }
-
     return membership;
   }
 
@@ -206,7 +123,6 @@ export class OrganizationMembershipsService {
     const ownerCount = await transaction.organizationMembership.count({
       where: { organizationId, role: OrganizationRole.OWNER },
     });
-
     if (ownerCount <= 1) {
       throw new ConflictException(
         'An organization must retain at least one owner',
@@ -230,7 +146,6 @@ export class OrganizationMembershipsService {
           'Membership changed concurrently; retry the request',
         );
       }
-
       throw error;
     }
   }

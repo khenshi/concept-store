@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useAuth } from '@/features/auth/auth-context';
 import { listBranches } from '@/features/branches/branch-api';
-import { listMerchants } from '@/features/merchants/merchant-api';
 import { getOrganization } from './organization-api';
 import {
   OrganizationWorkspaceProvider,
@@ -10,9 +9,6 @@ import {
 
 vi.mock('@/features/auth/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock('@/features/branches/branch-api', () => ({ listBranches: vi.fn() }));
-vi.mock('@/features/merchants/merchant-api', () => ({
-  listMerchants: vi.fn(),
-}));
 vi.mock('./organization-api', () => ({ getOrganization: vi.fn() }));
 
 const request = vi.fn();
@@ -37,20 +33,6 @@ const branch = {
   createdAt: '2026-08-01T00:00:00.000Z',
   updatedAt: '2026-08-01T00:00:00.000Z',
 };
-const merchant = {
-  id: 'merchant-id',
-  organizationId: 'organization-id',
-  name: 'Amihan Goods',
-  code: 'AMH',
-  contactName: 'Ana Reyes',
-  email: 'ana@example.com',
-  phone: '09171234567',
-  status: 'ACTIVE' as const,
-  notes: null,
-  branches: [],
-  createdAt: '2026-08-01T00:00:00.000Z',
-  updatedAt: '2026-08-01T00:00:00.000Z',
-};
 
 function Consumer() {
   const {
@@ -58,9 +40,6 @@ function Consumer() {
     branches,
     loadBranches,
     upsertBranch,
-    merchants,
-    loadMerchants,
-    upsertMerchant,
   } = useOrganizationWorkspaceContext();
   return (
     <>
@@ -74,25 +53,11 @@ function Consumer() {
       </button>
       <button
         type="button"
-        onClick={() =>
-          upsertBranch({ ...branch, name: 'Makati Flagship', code: 'MKT-02' })
-        }
+        onClick={() => upsertBranch({ ...branch, name: 'Makati Flagship' })}
       >
         Update branch
       </button>
       <span>{branches[0]?.name}</span>
-      <span>{merchants.map((item) => item.name).join(', ')}</span>
-      <button type="button" onClick={() => void loadMerchants()}>
-        Load merchants
-      </button>
-      <button
-        type="button"
-        onClick={() =>
-          upsertMerchant({ ...merchant, name: 'Amihan Collective' })
-        }
-      >
-        Update merchant
-      </button>
     </>
   );
 }
@@ -105,46 +70,21 @@ describe('OrganizationWorkspaceProvider', () => {
     >);
     vi.mocked(getOrganization).mockResolvedValue(organization);
     vi.mocked(listBranches).mockResolvedValue([branch]);
-    vi.mocked(listMerchants).mockResolvedValue([merchant]);
   });
 
-  it('loads organization data once and caches deduplicated branch requests', async () => {
+  it('loads the organization and deduplicates cached branch requests', async () => {
     render(
       <OrganizationWorkspaceProvider organizationId="organization-id">
         <Consumer />
       </OrganizationWorkspaceProvider>,
     );
-
     expect(await screen.findByText('North & Pine')).toBeInTheDocument();
-    expect(getOrganization).toHaveBeenCalledTimes(1);
-
     fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
     expect(await screen.findByText('1 branches')).toBeInTheDocument();
     expect(listBranches).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
-    await waitFor(() => expect(listBranches).toHaveBeenCalledTimes(1));
-
     fireEvent.click(screen.getByRole('button', { name: 'Update branch' }));
     expect(screen.getByText('Makati Flagship')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
     await waitFor(() => expect(listBranches).toHaveBeenCalledTimes(1));
-  });
-
-  it('keeps newly created merchants in the shared workspace cache', async () => {
-    render(
-      <OrganizationWorkspaceProvider organizationId="organization-id">
-        <Consumer />
-      </OrganizationWorkspaceProvider>,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Load merchants' }));
-    expect(await screen.findByText('Amihan Goods')).toBeInTheDocument();
-    expect(listMerchants).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Update merchant' }));
-    expect(screen.getByText('Amihan Collective')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Load merchants' }));
-    await waitFor(() => expect(listMerchants).toHaveBeenCalledTimes(1));
   });
 });

@@ -12,17 +12,3 @@ export interface BranchRecord {
   createdAt: Date;
   updatedAt: Date;
 }
-
-export interface BranchOverview {
-  branch: BranchRecord;
-  statistics: {
-    todaySaleCount: number;
-    todayGrossSales: string;
-    inventoryUnits: number;
-    outOfStockProducts: number;
-    totalSpaces: number;
-    occupiedSpaces: number;
-    vacantSpaces: number;
-    activeMerchants: number;
-  };
-}

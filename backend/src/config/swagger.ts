@@ -24,7 +24,6 @@ export function setupSwagger(app: INestApplication): void {
     .addTag('organizations', 'Organization access')
     .addTag('organization members', 'Organization membership and roles')
     .addTag('branches', 'Organization branch operations')
-    .addTag('merchants', 'Organization merchant management')
     .build();
 
   SwaggerModule.setup(

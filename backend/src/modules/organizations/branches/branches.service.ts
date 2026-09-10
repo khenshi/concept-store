@@ -8,7 +8,7 @@ import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { CreateBranchDto } from './dto/create-branch.dto';
 import type { UpdateBranchDto } from './dto/update-branch.dto';
-import type { BranchOverview, BranchRecord } from './branches.types';
+import type { BranchRecord } from './branches.types';
 
 @Injectable()
 export class BranchesService {
@@ -41,7 +41,6 @@ export class BranchesService {
     const branch = await this.prisma.branch.findFirst({
       where: { id: branchId, organizationId },
     });
-
     if (!branch) throw new NotFoundException('Branch not found');
     return branch;
   }
@@ -54,9 +53,7 @@ export class BranchesService {
     if (!Object.values(dto).some((value) => value !== undefined)) {
       throw new BadRequestException('At least one branch field is required');
     }
-
     await this.findOne(organizationId, branchId);
-
     try {
       return await this.prisma.branch.update({
         where: { id: branchId, organizationId },
@@ -65,87 +62,6 @@ export class BranchesService {
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
-  }
-
-  async overview(
-    organizationId: string,
-    branchId: string,
-  ): Promise<BranchOverview> {
-    const branch = await this.findOne(organizationId, branchId);
-    const today = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Manila',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date());
-    const start = new Date(`${today}T00:00:00+08:00`);
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    const businessDay = new Date(`${today}T00:00:00.000Z`);
-
-    const [
-      sales,
-      inventory,
-      outOfStockProducts,
-      totalSpaces,
-      occupiedSpaces,
-      merchants,
-    ] = await Promise.all([
-      this.prisma.sale.aggregate({
-        where: {
-          organizationId,
-          branchId,
-          status: 'COMPLETED',
-          completedAt: { gte: start, lt: end },
-        },
-        _count: { _all: true },
-        _sum: { total: true },
-      }),
-      this.prisma.inventory.aggregate({
-        where: { organizationId, branchId },
-        _sum: { quantity: true },
-      }),
-      this.prisma.inventory.count({
-        where: { organizationId, branchId, quantity: 0 },
-      }),
-      this.prisma.space.count({ where: { organizationId, branchId } }),
-      this.prisma.space.count({
-        where: {
-          organizationId,
-          branchId,
-          assignments: {
-            some: {
-              startDate: { lte: businessDay },
-              OR: [{ endDate: null }, { endDate: { gte: businessDay } }],
-            },
-          },
-        },
-      }),
-      this.prisma.spaceAssignment.findMany({
-        where: {
-          organizationId,
-          branchId,
-          startDate: { lte: businessDay },
-          OR: [{ endDate: null }, { endDate: { gte: businessDay } }],
-          merchant: { status: 'ACTIVE' },
-        },
-        distinct: ['merchantId'],
-        select: { merchantId: true },
-      }),
-    ]);
-
-    return {
-      branch,
-      statistics: {
-        todaySaleCount: sales._count._all,
-        todayGrossSales: (sales._sum.total ?? new Prisma.Decimal(0)).toFixed(2),
-        inventoryUnits: inventory._sum.quantity ?? 0,
-        outOfStockProducts,
-        totalSpaces,
-        occupiedSpaces,
-        vacantSpaces: totalSpaces - occupiedSpaces,
-        activeMerchants: merchants.length,
-      },
-    };
   }
 
   private rethrowKnownError(error: unknown): never {
@@ -157,7 +73,6 @@ export class BranchesService {
         'Branch name or code already exists in this organization',
       );
     }
-
     throw error;
   }
 }

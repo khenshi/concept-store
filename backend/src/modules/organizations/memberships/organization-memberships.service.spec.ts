@@ -14,7 +14,6 @@ describe('OrganizationMembershipsService', () => {
     phone: null,
   };
   const joinedAt = new Date('2026-08-23T00:00:00.000Z');
-  const merchantId = '2f671678-91d3-4d04-a8f9-787a2e9f3c1a';
   const transaction = {
     organizationMembership: {
       findUnique: jest.fn(),
@@ -22,15 +21,11 @@ describe('OrganizationMembershipsService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
-    merchantAccount: { deleteMany: jest.fn(), upsert: jest.fn() },
-    merchant: { findFirst: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(),
-    user: { findUnique: jest.fn() },
     organizationMembership: {
       findMany: jest.fn(),
-      create: jest.fn(),
     },
   };
   let service: OrganizationMembershipsService;
@@ -52,21 +47,11 @@ describe('OrganizationMembershipsService', () => {
 
   it('lists organization members without password data', async () => {
     prisma.organizationMembership.findMany.mockResolvedValue([
-      {
-        user,
-        role: OrganizationRole.MANAGER,
-        createdAt: joinedAt,
-        merchantAccount: null,
-      },
+      { user, role: OrganizationRole.MANAGER, createdAt: joinedAt },
     ]);
 
     await expect(service.findAll(organizationId)).resolves.toEqual([
-      {
-        ...user,
-        role: OrganizationRole.MANAGER,
-        joinedAt,
-        merchantAccount: null,
-      },
+      { ...user, role: OrganizationRole.MANAGER, joinedAt },
     ]);
     expect(prisma.organizationMembership.findMany).toHaveBeenCalledWith({
       where: { organizationId },
@@ -82,12 +67,6 @@ describe('OrganizationMembershipsService', () => {
             phone: true,
           },
         },
-        merchantAccount: {
-          select: {
-            merchantId: true,
-            merchant: { select: { name: true } },
-          },
-        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -98,7 +77,6 @@ describe('OrganizationMembershipsService', () => {
       user,
       role: OrganizationRole.MANAGER,
       createdAt: joinedAt,
-      merchantAccount: null,
     });
     transaction.organizationMembership.update.mockResolvedValue({
       role: OrganizationRole.CASHIER,
@@ -113,7 +91,6 @@ describe('OrganizationMembershipsService', () => {
       ...user,
       role: OrganizationRole.CASHIER,
       joinedAt,
-      merchantAccount: null,
     });
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
@@ -125,7 +102,6 @@ describe('OrganizationMembershipsService', () => {
       user,
       role: OrganizationRole.OWNER,
       createdAt: joinedAt,
-      merchantAccount: null,
     });
     transaction.organizationMembership.count.mockResolvedValue(1);
 
@@ -144,7 +120,6 @@ describe('OrganizationMembershipsService', () => {
       user,
       role: OrganizationRole.OWNER,
       createdAt: joinedAt,
-      merchantAccount: null,
     });
     transaction.organizationMembership.count.mockResolvedValue(1);
 
@@ -162,54 +137,5 @@ describe('OrganizationMembershipsService', () => {
         role: OrganizationRole.MANAGER,
       }),
     ).rejects.toThrow(new NotFoundException('Organization member not found'));
-  });
-
-  it('links only a merchant-role member to a tenant merchant', async () => {
-    transaction.organizationMembership.findUnique.mockResolvedValue({
-      user,
-      role: OrganizationRole.MERCHANT,
-      createdAt: joinedAt,
-      merchantAccount: null,
-    });
-    transaction.merchant.findFirst.mockResolvedValue({
-      id: merchantId,
-      name: 'Merchant A',
-    });
-    transaction.merchantAccount.upsert.mockResolvedValue({});
-
-    await expect(
-      service.linkMerchantAccount(organizationId, user.id, { merchantId }),
-    ).resolves.toMatchObject({
-      id: user.id,
-      role: OrganizationRole.MERCHANT,
-      merchantAccount: { merchantId, merchantName: 'Merchant A' },
-    });
-    expect(transaction.merchant.findFirst).toHaveBeenCalledWith({
-      where: { id: merchantId, organizationId },
-      select: { id: true, name: true },
-    });
-  });
-
-  it('removes a merchant link when the member role changes', async () => {
-    transaction.organizationMembership.findUnique.mockResolvedValue({
-      user,
-      role: OrganizationRole.MERCHANT,
-      createdAt: joinedAt,
-      merchantAccount: {
-        merchantId,
-        merchant: { name: 'Merchant A' },
-      },
-    });
-    transaction.organizationMembership.update.mockResolvedValue({
-      role: OrganizationRole.CASHIER,
-      createdAt: joinedAt,
-    });
-
-    await service.updateRole(organizationId, user.id, {
-      role: OrganizationRole.CASHIER,
-    });
-    expect(transaction.merchantAccount.deleteMany).toHaveBeenCalledWith({
-      where: { organizationId, userId: user.id },
-    });
   });
 });

@@ -23,7 +23,6 @@
     "prisma:format": "prisma format",
     "prisma:seed:demo": "npm run build && node -r dotenv/config dist/prisma/seed.js --reset",
     "prisma:reset:demo": "npm run prisma:seed:demo",
-    "finance:reconcile": "npm run build && node -r dotenv/config dist/src/commands/reconcile-merchant-finance-accrual.js",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate"

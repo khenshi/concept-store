@@ -6,8 +6,6 @@ import {
   OperationalPanel,
 } from '@/components/ui/operational-page';
 import { OrganizationPageHeader } from './organization-page-header';
-import { OwnerDashboard } from '@/features/reports/owner-dashboard';
-import { MerchantDashboard } from '@/features/reports/merchant-dashboard';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
 
 export function OrganizationWorkspace({
@@ -23,7 +21,6 @@ export function OrganizationWorkspace({
   } = useOrganizationWorkspaceContext();
 
   if (organizationStatus === 'loading') return <OrganizationOverviewSkeleton />;
-
   if (organizationStatus === 'error' || !organization) {
     return (
       <section className="mx-auto mt-12 w-full max-w-3xl" role="alert">
@@ -55,109 +52,69 @@ export function OrganizationWorkspace({
     );
   }
 
-  const canManage =
+  const canViewMembers =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
-  if (canManage) return <OwnerDashboard organization={organization} />;
-  if (organization.role === 'MERCHANT') {
-    return <MerchantDashboard organization={organization} />;
-  }
-  const groups = [
+  const destinations = [
     {
-      title: 'Operations',
-      description: 'Catalog and physical stock used in daily store operations.',
-      destinations: [
-        {
-          label: 'Products',
-          description: 'Merchant-owned catalog, codes, and prices.',
-          href: `/app/organizations/${organizationId}/products`,
-          visible: canManage,
-        },
-        {
-          label: 'Inventory',
-          description: 'Branch quantities and auditable stock movements.',
-          href: `/app/organizations/${organizationId}/inventory`,
-          visible: canManage,
-        },
-      ],
-    },
-    {
-      title: 'Business',
+      label: 'Branches',
       description:
-        'People, brands, and locations participating in this organization.',
-      destinations: [
-        {
-          label: 'Merchants',
-          description: 'Independent brands, participation, and agreements.',
-          href: `/app/organizations/${organizationId}/merchants`,
-          visible: canManage,
-        },
-        {
-          label: 'Branches',
-          description: 'Locations with contextual spaces and inventory.',
-          href: `/app/organizations/${organizationId}/branches`,
-          visible: true,
-        },
-        {
-          label: 'Members',
-          description: 'Organization accounts and assigned roles.',
-          href: `/app/organizations/${organizationId}/members`,
-          visible: canManage,
-        },
-      ],
+        'Create and maintain the physical locations in this organization.',
+      href: `/app/organizations/${organizationId}/branches`,
+      visible: true,
     },
-  ]
-    .map((group) => ({
-      ...group,
-      destinations: group.destinations.filter(
-        (destination) => destination.visible,
-      ),
-    }))
-    .filter((group) => group.destinations.length > 0);
+    {
+      label: 'Members',
+      description:
+        'Review organization access, roles, and pending invitations.',
+      href: `/app/organizations/${organizationId}/members`,
+      visible: canViewMembers,
+    },
+    {
+      label: 'Account settings',
+      description: 'Update your profile, password, and account preferences.',
+      href: '/app/account',
+      visible: true,
+    },
+  ].filter((destination) => destination.visible);
 
   return (
     <OperationalPage>
       <OrganizationPageHeader
         organization={organization}
         title="Workspace overview"
-        description="Choose an operational area to continue managing this concept store."
+        description="Manage the secure organization foundation before adding future business modules."
       />
-
-      <div className="grid gap-0 xl:grid-cols-2 xl:gap-5">
-        {groups.map((group) => (
-          <OperationalPanel
-            key={group.title}
-            title={group.title}
-            description={group.description}
-          >
-            <ul className="list-none px-5 py-2 sm:px-6">
-              {group.destinations.map((destination) => (
-                <li
-                  className="border-b border-slate-200 last:border-0"
-                  key={destination.label}
+      <OperationalPanel
+        title="Foundation"
+        description={`Your current organization role is ${organization.role.toLowerCase()}.`}
+      >
+        <ul className="list-none px-5 py-2 sm:px-6">
+          {destinations.map((destination) => (
+            <li
+              className="border-b border-slate-200 last:border-0"
+              key={destination.label}
+            >
+              <Link
+                className="group flex items-center justify-between gap-5 py-4 text-slate-950 no-underline"
+                href={destination.href}
+              >
+                <span>
+                  <strong className="text-sm">{destination.label}</strong>
+                  <span className="mt-1 block text-sm leading-6 text-slate-500">
+                    {destination.description}
+                  </span>
+                </span>
+                <span
+                  className="text-emerald-700 transition group-hover:translate-x-1"
+                  aria-hidden="true"
                 >
-                  <Link
-                    className="group flex items-center justify-between gap-5 py-4 text-slate-950 no-underline"
-                    href={destination.href}
-                  >
-                    <span>
-                      <strong className="text-sm">{destination.label}</strong>
-                      <span className="mt-1 block text-sm leading-6 text-slate-500">
-                        {destination.description}
-                      </span>
-                    </span>
-                    <span
-                      className="text-emerald-700 transition group-hover:translate-x-1"
-                      aria-hidden="true"
-                    >
-                      →
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </OperationalPanel>
-        ))}
-      </div>
+                  →
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </OperationalPanel>
     </OperationalPage>
   );
 }
@@ -174,8 +131,7 @@ function OrganizationOverviewSkeleton() {
       <div className="mt-8 h-3 w-40 rounded bg-emerald-100" />
       <div className="mt-3 h-10 w-72 max-w-full rounded bg-slate-200" />
       <div className="mt-4 h-5 w-full max-w-xl rounded bg-slate-200" />
-      <div className="mt-8 h-12 border-b border-slate-200" />
-      <div className="mt-6 h-56 rounded-xl border border-slate-200 bg-white" />
+      <div className="mt-8 h-56 rounded-xl border border-slate-200 bg-white" />
       <span className="sr-only">Loading organization…</span>
     </section>
   );

@@ -5,10 +5,10 @@ describe('logging configuration', () => {
   it('redacts sensitive query parameters while preserving ordinary filters', () => {
     expect(
       sanitizeRequestUrl(
-        '/finance/payables?merchantId=merchant-1&token=secret&Password=hidden',
+        '/organizations?status=active&token=secret&Password=hidden',
       ),
     ).toBe(
-      '/finance/payables?merchantId=merchant-1&token=%5BRedacted%5D&Password=%5BRedacted%5D',
+      '/organizations?status=active&token=%5BRedacted%5D&Password=%5BRedacted%5D',
     );
   });
 

@@ -195,7 +195,7 @@ export function BranchManagement({
               <h3 className="m-0 text-base font-bold">No branches yet</h3>
               <p className="mx-auto mt-2 max-w-md leading-7 text-slate-500">
                 {canManage
-                  ? 'Add the first physical store location to begin organizing spaces and inventory.'
+                  ? 'Add the first physical store location to establish this organization.'
                   : 'An owner or manager has not added a branch yet.'}
               </p>
             </div>

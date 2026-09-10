@@ -33,6 +33,10 @@ The browser-based POS must eventually continue operating during temporary intern
 
 ## Capabilities and Constraints
 
+- Only Milestone 1 is currently implemented: authentication, account settings,
+  organizations, branches, memberships/RBAC, and organization invitations.
+- Merchant operations and every subsequent business capability described in
+  this document are future product direction, not active functionality.
 - The application is a multi-tenant modular monolith developed milestone by milestone.
 - An organization represents one subscribed concept-store business and may have multiple branches.
 - Data belonging to one organization must never be accessible by another organization.
@@ -42,8 +46,7 @@ The browser-based POS must eventually continue operating during temporary intern
 - The concept store receives the full customer payment, but merchant-owned gross sales and store-earned revenue must remain distinct.
 - Financial calculations must be precise, deterministic, auditable, and server-authoritative.
 - The cloud PostgreSQL database remains authoritative when offline POS functionality is introduced.
-- Milestones 1–7 are implemented. Milestone 8 offline POS remains the next
-  roadmap boundary unless priorities are explicitly changed.
+- Later milestones must be planned and approved again before implementation.
 - Advanced features and infrastructure must not be introduced before their assigned milestone.
 - Product-specific accessibility requirements remain an open decision.
 
@@ -61,10 +64,9 @@ professional B2B SaaS experiences.
 - The milestone roadmap and confirmed domain rules are documented in `AGENTS.md`.
 - The approved brand commitments are documented in
   `docs/architecture/frontend-architecture.md`.
-- Completed milestone summaries are maintained under `docs/milestones/`.
-- The repository contains working tenant operations from authentication through
-  merchant reporting and payouts. Current behavior is documented under
-  `docs/architecture/` and `docs/workflows/`.
+- The completed foundation summary is maintained under `docs/milestones/`.
+- The repository currently contains working tenant operations for authentication,
+  accounts, organizations, branches, memberships, and invitations only.
 - No customer testimonials, usage benchmarks, case studies, press coverage, or commercial proof have been provided. Future interfaces must not fabricate them.
 
 ## Product Principles
