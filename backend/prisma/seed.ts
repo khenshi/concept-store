@@ -3,6 +3,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import {
+  MerchantStatus,
   OrganizationRole,
   PrismaClient,
 } from '../src/generated/prisma/client';
@@ -18,6 +19,12 @@ const ids = {
     manager: '00000000-0000-4000-8000-000000000022',
     cashier: '00000000-0000-4000-8000-000000000023',
     merchant: '00000000-0000-4000-8000-000000000024',
+  },
+  merchants: {
+    active: '00000000-0000-4000-8000-000000000041',
+    inactive: '00000000-0000-4000-8000-000000000042',
+    suspended: '00000000-0000-4000-8000-000000000043',
+    ended: '00000000-0000-4000-8000-000000000044',
   },
 } as const;
 
@@ -99,6 +106,47 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
         province: 'Metro Manila',
         postalCode: '1634',
         countryCode: 'PH',
+      },
+    ],
+  });
+  await prisma.merchant.createMany({
+    data: [
+      {
+        id: ids.merchants.active,
+        organizationId: ids.organization,
+        name: 'Amihan Home Studio',
+        code: 'AMIHAN-HOME',
+        contactName: 'Mara Santos',
+        email: 'mara@amihan.example.com',
+        phone: '+63 917 555 0101',
+      },
+      {
+        id: ids.merchants.inactive,
+        organizationId: ids.organization,
+        name: 'Habi at Hiyas',
+        code: 'HABI-HIYAS',
+        contactName: 'Lina Reyes',
+        email: 'lina@habihiyas.example.com',
+        phone: '(02) 8555 0102',
+        status: MerchantStatus.INACTIVE,
+      },
+      {
+        id: ids.merchants.suspended,
+        organizationId: ids.organization,
+        name: 'Kape Tala Roasters',
+        code: 'KAPE-TALA',
+        contactName: 'Paolo Cruz',
+        phone: '+63 905 555 0103',
+        status: MerchantStatus.SUSPENDED,
+      },
+      {
+        id: ids.merchants.ended,
+        organizationId: ids.organization,
+        name: 'Lumang Bayan Leather',
+        contactName: 'Tomas Villanueva',
+        email: 'tomas@lumangbayan.example.com',
+        phone: '0917 555 0104',
+        status: MerchantStatus.ENDED,
       },
     ],
   });

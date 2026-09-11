@@ -51,6 +51,27 @@ model Organization {
   memberships OrganizationMembership[]
   branches    Branch[]
   invitations OrganizationInvitation[]
+  merchants   Merchant[]
+}
+
+model Merchant {
+  id             String         @id @default(uuid())
+  organizationId String
+  name           String
+  code           String?
+  contactName    String
+  email          String?
+  phone          String
+  status         MerchantStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, code])
+  @@unique([id, organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, name])
 }
 
 model Branch {
@@ -114,4 +135,11 @@ enum OrganizationRole {
   MANAGER
   CASHIER
   MERCHANT
+}
+
+enum MerchantStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  ENDED
 }
