@@ -10,6 +10,8 @@ import { OrganizationInvitationsController } from './invitations/organization-in
 import { OrganizationInvitationsService } from './invitations/organization-invitations.service';
 import { OrganizationsController } from './organizations.controller';
 import { OrganizationsService } from './organizations.service';
+import { MerchantsController } from './merchants/merchants.controller';
+import { MerchantsService } from './merchants/merchants.service';
 
 @Module({
   imports: [AuthModule],
@@ -19,6 +21,7 @@ import { OrganizationsService } from './organizations.service';
     BranchesController,
     OrganizationInvitationsController,
     InvitationAcceptanceController,
+    MerchantsController,
   ],
   providers: [
     OrganizationsService,
@@ -26,6 +29,7 @@ import { OrganizationsService } from './organizations.service';
     BranchesService,
     OrganizationAccessGuard,
     OrganizationInvitationsService,
+    MerchantsService,
   ],
   exports: [OrganizationAccessGuard],
 })
