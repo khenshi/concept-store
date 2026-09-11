@@ -1,4 +1,4 @@
-# Milestone 2 — Merchant Profiles
+# Merchant Profiles Module Implementation Plan
 
 **Status:** Proposed for approval; implementation not started
 **Date:** September 12, 2026
@@ -6,7 +6,7 @@
 ## Goal
 
 Allow owners and managers to maintain organization-owned merchant business
-profiles. This milestone establishes merchant identity only; it does not attach
+profiles. This module establishes merchant identity only; it does not attach
 operational or financial behavior to merchants.
 
 ## Scope
@@ -101,7 +101,7 @@ Behavior:
 - `q` is optional and searches name, code, contact name, email, and phone
   case-insensitively.
 - `status` is an optional exact filter.
-- This milestone returns the complete filtered list; pagination is not added
+- This implementation returns the complete filtered list; pagination is not added
   before an actual scale requirement.
 - Malformed organization or merchant IDs return `400`.
 - A missing organization membership returns `404` through the existing guard.
@@ -189,8 +189,8 @@ Frontend tests cover:
 5. Add frontend coverage.
 6. Run Prisma validation/generation, backend format/lint/build/tests/e2e, and
    frontend format/lint/typecheck/build/tests.
-7. Replace this proposed plan with completed milestone documentation only after
-   implementation and verification.
+7. Archive this plan and add the implemented behavior to
+   `docs/modules/merchant-profiles.md` only after implementation and verification.
 
 ## Definition of done
 

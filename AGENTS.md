@@ -1,484 +1,263 @@
-# AGENT.md
+# AGENTS.md
 
 ## Project
 
-You are helping build a **multi-tenant SaaS Concept Store Management System**.
+This repository contains a multi-tenant SaaS Concept Store Management System.
+It is developed incrementally as a modular monolith.
 
-The platform is sold to concept store owners on a subscription basis. Each
-subscribed concept store operates as an organization and may have multiple
-branches and staff members.
+Only behavior documented under `docs/modules/` is implemented. The proposed or
+approved work for the next change belongs in `docs/plans/current.md`. Archived
+plans are historical records and never authorize implementation.
 
-The system is being developed **incrementally, milestone by milestone**.
+## Primary rule
 
-## Current Planning State
+Do not implement a feature, module, database entity, abstraction, integration,
+or infrastructure component unless it is explicitly included in the approved
+current plan.
 
-Only Milestone 1 is implemented. A proposed Merchant Profiles plan now exists
-in `docs/plans/current.md`, but it is not approved for implementation. Agents
-must wait for explicit user approval before changing application code. Archived
-roadmaps and proposals are not active requirements.
+For every task:
 
----
+1. Inspect the current repository and relevant module documentation.
+2. Read `docs/plans/current.md` and confirm that the requested work is approved.
+3. Define the smallest complete scope and its explicit exclusions.
+4. Preserve existing behavior and unrelated user changes.
+5. Enforce authentication, authorization, tenant isolation, and data integrity.
+6. Validate the result in proportion to its risk.
+7. Update the affected file under `docs/modules/` after implementation.
+8. Move completed or superseded plans into `docs/plans/archive/`.
 
-# 1. Primary Rule
+Do not infer scope from product ideas, archived plans, old branches, or what a
+full SaaS product might eventually need.
 
-**Do not implement features, modules, database entities, abstractions, integrations, or infrastructure that have not been explicitly assigned in the current milestone.**
+## System architecture
 
-Do not try to anticipate and build the entire system.
+The application is a multi-tenant modular monolith:
 
-When a task is assigned:
+```text
+Next.js web application
+        |
+        v
+NestJS HTTP API
+        |
+        v
+Prisma -> PostgreSQL
+```
 
-1. Understand the requested milestone.
-2. Inspect the existing codebase first.
-3. Identify how the requested work fits the current architecture.
-4. Explain important design decisions when necessary.
-5. Implement only what is required.
-6. Preserve existing working behavior.
-7. Update relevant documentation after implementation.
-8. Do not silently expand scope.
+Current technology:
 
-If a future feature affects today's design, make the current design extensible where reasonable, but **do not implement the future feature yet**.
+- Frontend: Next.js, React, TypeScript, and Tailwind CSS.
+- Backend: NestJS and TypeScript.
+- Database: PostgreSQL through Prisma.
+- Authentication: short-lived JWT access tokens and rotating refresh sessions.
+- API reference: Swagger/OpenAPI in enabled environments.
+- Runtime protection: Helmet, origin-restricted CORS, request throttling, and
+  Pino logging.
 
----
+PostgreSQL is the authoritative application datastore. Do not introduce Redis,
+queues, event streaming, microservices, separate tenant databases, or other
+infrastructure without an approved requirement.
 
-# 2. Product Goal
+## Multi-tenancy architecture
 
-The system replaces concept-store workflows that are commonly handled manually through spreadsheets, paper records, messaging, and manual calculations.
-
-Core problems to solve:
-
-- manual merchant inventory tracking
-- manual sales attribution per merchant
-- no real-time inventory visibility for merchants
-- no centralized store income calculations
-- manual physical space assignments
-- fragmented multi-branch operations
-- inability to continue POS operations during temporary internet outages
-
-Product workflows beyond the implemented foundation require a separately
-approved current plan.
-
----
-
-# 3. Core Business Model
-
-## SaaS Platform
-
-The application is multi-tenant.
+An organization represents one subscribed concept-store business and is the
+tenant boundary. An organization may have multiple branches and members.
 
 ```text
 Platform
-└── Organizations / Concept Stores
+└── Organization
+    ├── Memberships
+    ├── Invitations
     ├── Branches
-    ├── Users / Staff
     └── Approved organization-scoped modules
 ```
 
-Each organization represents one subscribed concept-store business.
+Tenant isolation is a critical invariant:
 
-An organization may have multiple branches.
+- Derive organization access from the authenticated user's membership.
+- Never trust a client-supplied organization ID without authorization checks.
+- Every tenant-owned query must include the active `organizationId`.
+- Branch-owned records must also enforce `branchId` where applicable.
+- Guessed IDs must never enable cross-organization access.
+- Foreign tenant objects should use the same not-found behavior as absent objects.
+- Validate that related records belong to the same organization.
+- Prefer database constraints that make cross-tenant relationships impossible.
+- Do not use a separate database per tenant unless explicitly approved.
 
-Data belonging to one organization must never be accessible by another organization.
+## Roles and authorization
 
----
+The existing organization roles are:
 
-# 4. Main Actors
-
-Initial application roles:
-
-- `PLATFORM_SUPERADMIN`
 - `OWNER`
 - `MANAGER`
 - `CASHIER`
 - `MERCHANT`
 
-General responsibilities:
+`PLATFORM_SUPERADMIN` is a product-level role only and is not implemented unless
+documented in a module file.
 
-### Platform Superadmin
-Manages the SaaS platform, organizations, subscriptions, plans, and platform-level administration.
+Backend guards and service-level object checks are the authorization boundary.
+Frontend visibility is only a usability measure. Do not trust roles, tenant IDs,
+entity IDs, prices, totals, or other sensitive values supplied by the frontend
+when the backend can derive or validate them.
 
-### Owner
-Has full operational control of their concept store.
+Do not add advanced permission granularity without an approved plan.
 
-### Manager
-Handles store operations with fewer high-level account/billing permissions than the owner.
-
-### Cashier
-Primarily handles POS transactions and limited branch operations.
-
-### Merchant
-Remains a foundation organization role. Any merchant-specific access requires
-an explicitly approved plan.
-
-Do not implement advanced permission granularity until required by a milestone.
-
----
-
-# 5. Multi-Tenancy Rules
-
-Multi-tenancy is a critical system invariant.
-
-Most business entities must belong to an organization through an `organizationId` or equivalent tenant identifier.
-
-Branch-specific records should also reference `branchId` when appropriate.
-
-Examples:
-
-```text
-Merchant.organizationId
-Branch.organizationId
-Product.organizationId
-Space.organizationId
-Sale.organizationId
-```
-
-Rules:
-
-- Never trust an organization ID supplied by the client without authorization checks.
-- Derive tenant access from the authenticated user's membership/context.
-- Every tenant-scoped query must enforce organization isolation.
-- Cross-organization access must be impossible even if a valid entity ID is guessed.
-- Avoid duplicated tenant logic when a clean reusable authorization/scoping pattern exists.
-- Do not introduce a separate database per tenant unless explicitly requested.
-
----
-
-# 6. Branch Model
-
-A concept store may have multiple branches.
-
-```text
-Organization
-└── Branch
-```
-
-Do not introduce new branch-specific relationships without current milestone
-authorization.
-
----
-
-# 7. Merchant Domain
-
-A merchant is an independent brand/business selling products inside the concept store.
-
-Expected merchant status concepts may include:
-
-```text
-ACTIVE
-INACTIVE
-SUSPENDED
-ENDED
-```
-
-Exact enums should only be introduced when needed.
-
----
-
-# 21. Suggested Technology Direction
-
-Current preferred architecture:
-
-### Frontend
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-
-### Backend
-- NestJS
-- TypeScript
-
-### Database
-- PostgreSQL
-
-### ORM
-- Prisma
-
-Do not introduce infrastructure simply because it is commonly used in SaaS systems.
-
----
-
-# 22. API and Backend Design Principles
+## Backend architecture
 
 Prefer:
 
-- clear module boundaries
-- thin controllers
-- business logic in services/domain-specific layers
-- explicit DTO validation
-- authorization close to business operations
-- database constraints for important invariants
-- transactions for multi-step consistency requirements
-- predictable API responses
-- descriptive error handling
+- clear NestJS module boundaries;
+- thin controllers;
+- DTO validation and normalization at the API boundary;
+- business logic in focused services;
+- authorization close to business operations;
+- tenant-scoped Prisma queries;
+- database constraints for important invariants;
+- transactions when multiple writes must succeed or fail together;
+- predictable responses and descriptive error handling; and
+- Swagger/OpenAPI contracts that match runtime responses.
 
 Avoid:
 
-- giant services
-- duplicated authorization checks
-- business logic inside controllers
-- premature repository abstractions
-- generic abstractions with only one implementation
-- unnecessary event-driven architecture
-- premature microservices
-- hidden side effects
-- storing derived values when they can safely be calculated
+- business logic in controllers;
+- giant services;
+- duplicated authorization logic;
+- premature repository or generic abstractions;
+- hidden side effects;
+- unnecessary event-driven architecture; and
+- broad refactors unrelated to the current plan.
 
-A modular monolith is preferred unless architecture requirements explicitly change.
+## Frontend architecture
 
----
+The Next.js application separates public, authentication, invitation, account,
+and organization workspace routes. Authenticated organization pages share a
+responsive organization shell and organization context.
 
-# 23. Database Principles
+Source boundaries:
 
-When designing schemas:
+```text
+frontend/src/
+├── app/                         Route entry points and layouts
+├── config/                      Environment parsing and configuration
+├── features/
+│   └── <feature>/
+│       ├── api/                 Backend communication
+│       ├── components/          Feature-owned UI
+│       └── model/               Types, schemas, and client state
+└── shared/
+    ├── components/              Domain-agnostic UI and branding
+    └── hooks/                   Domain-agnostic React hooks
+```
+
+Frontend rules:
+
+- Keep route modules thin and delegate behavior to feature components.
+- A feature may use shared code and explicitly import another feature's public
+  contract when a workflow requires it.
+- Shared code must not import business features.
+- Keep tests beside the source they validate.
+- Mirror backend validation in client schemas for usability, while keeping the
+  backend authoritative.
+- Use semantic HTML, visible focus states, responsive layouts, and clear loading,
+  empty, success, and error feedback.
+- Follow the approved visual system in `DESIGN.md`: restrained emerald accents,
+  slate neutrals, and clear operational hierarchy.
+
+## Database rules
+
+When changing the schema:
 
 1. Protect tenant isolation.
-2. Preserve important historical records.
-3. Use foreign keys and database constraints where practical.
-4. Add indexes based on actual query patterns.
-5. Avoid premature denormalization.
-6. Use transactions when multiple writes must succeed or fail together.
-7. Avoid storing images/blobs directly in PostgreSQL unless explicitly required.
-8. Store monetary values using precise decimal/numeric types, never floating-point types.
-9. Define deletion behavior deliberately.
-10. Prefer soft-delete/status/history approaches only when the business actually requires historical retention.
+2. Use foreign keys and database constraints where practical.
+3. Add indexes for actual query patterns.
+4. Define deletion behavior deliberately.
+5. Preserve history only where the approved business behavior requires it.
+6. Use transactions for multi-write consistency.
+7. Avoid premature denormalization.
+8. Store monetary values with precise decimal/numeric types, never floating point.
+9. Do not store images or blobs in PostgreSQL without an explicit requirement.
+10. Validate and generate the Prisma client after schema changes.
 
-Never remove important business history simply because a related record changes later.
+## Security rules
 
----
+Every module must consider:
 
-# 24. Security Principles
+- authentication;
+- role and object-level authorization;
+- organization and branch isolation;
+- strict input validation;
+- secure password, token, and session handling;
+- rate limiting where abuse risk warrants it;
+- least privilege;
+- safe error disclosure; and
+- auditability for important actions.
 
-Always consider:
+DTO whitelisting must continue to reject unknown fields. Important workflows
+need tests for unauthorized roles and cross-tenant access. Do not add a global
+audit system unless the current plan requires one, but avoid designs that make
+later auditing impossible.
 
-- authentication
-- authorization
-- organization isolation
-- object-level access restrictions
-- input validation
-- rate limiting when relevant
-- secure password handling
-- secure token/session handling
-- auditability for important actions
-- least privilege
+## Planning and implementation workflow
 
-Never trust IDs, roles, organization IDs, or other sensitive values supplied by
-the frontend when the backend can derive or validate them.
+### Inspect
 
----
+Read the schema, relevant modules, authorization patterns, tests, module docs,
+and current plan. Do not assume architecture that is not present.
 
-# 26. Auditability
+### Define scope
 
-Actions such as role and permission changes may require audit history.
+State what is being built, what is excluded, and which existing modules it
+depends on. Ask before implementing ambiguity that materially changes business
+behavior or data integrity.
 
-Do not implement a global audit system until required, but avoid designs that make auditability impossible later.
+### Design
 
----
+Determine only what the approved work requires:
 
-# 27. Current Non-Goals
+- entities and relationships;
+- business rules and constraints;
+- API routes and DTOs;
+- service responsibilities;
+- authorization requirements;
+- transaction boundaries; and
+- important edge cases.
 
-Anything outside the explicitly approved current plan is a non-goal. Do not use
-archived documents or general product expectations to add adjacent features,
-infrastructure, entities, or abstractions.
+### Implement
 
----
+Build the smallest complete version. Prefer straightforward, maintainable code
+over generalized frameworks. Do not rewrite, rename, or remove unrelated code.
 
-# 28. Current Milestone Status
+### Validate
 
-## Milestone 1 — SaaS / Multi-Tenant Foundation
+Run the applicable Prisma validation, formatting, linting, type checking, unit
+tests, integration/e2e tests, and builds. Fix failures introduced by the work.
 
-Scope:
+### Document
 
-- authentication
-- organizations
-- branches
-- organization membership
-- initial RBAC
-- tenant isolation
-- store settings where required
+Update the relevant `docs/modules/<module>.md` with implemented behavior, API
+routes, authorization, business rules, schema changes, and important design
+decisions. Module documentation describes current behavior, not proposed work.
 
-Primary goal:
+## Definition of done
 
-> Establish a secure multi-tenant foundation.
+A task is complete when:
 
----
+- the approved behavior is implemented;
+- tenant isolation and authorization are enforced;
+- important invariants and edge cases are covered;
+- database changes are valid;
+- applicable checks pass;
+- module documentation reflects the implementation; and
+- no unrelated or excluded feature was added.
 
-## Next planning priority — Merchant Profiles
-
-The proposed scope is defined only in `docs/plans/current.md`. Do not implement
-it without explicit user approval, and do not infer additional requirements
-from archived work.
-
----
-
-# 29. Workflow for Every New Milestone
-
-Before implementation, follow this process.
-
-## Step 1 — Inspect
-
-Read:
-
-- existing modules
-- current schema
-- relevant services/controllers
-- authorization patterns
-- tests
-- project documentation
-
-Do not assume architecture that is not present.
-
-## Step 2 — Define Scope
-
-State:
-
-- what is being built
-- what is explicitly not being built
-- dependencies on existing modules
-
-Do not expand scope without approval.
-
-## Step 3 — Design
-
-Before major implementation, determine:
-
-- entities and relationships
-- business rules
-- important constraints
-- API routes
-- DTOs
-- service responsibilities
-- authorization requirements
-- transaction boundaries
-- important edge cases
-
-Keep the design proportional to the milestone.
-
-## Step 4 — Implement
-
-Implement the smallest complete version of the assigned milestone.
-
-Prefer simple, maintainable code over generalized frameworks.
-
-## Step 5 — Validate
-
-Run applicable:
-
-- lint
-- typecheck
-- unit tests
-- integration/e2e tests
-- database validation/migration checks
-
-Fix failures introduced by the milestone.
-
-## Step 6 — Document
-
-Update relevant project documentation with:
-
-- implemented behavior
-- new endpoints
-- business rules
-- schema changes
-- major architectural decisions
-
-Do not create excessive documentation for trivial changes.
-
----
-
-# 30. Response Behavior for Coding Agents
-
-When working interactively:
-
-- Be concise.
-- Explain important decisions, not obvious syntax.
-- Point out meaningful risks or tradeoffs.
-- Do not repeatedly restate the entire architecture.
-- Do not ask questions that can be answered by inspecting the repository.
-- If ambiguity does not block implementation, choose the simplest reasonable approach and state the assumption.
-- If ambiguity materially changes business behavior or data integrity, ask before implementing that behavior.
-- Do not rewrite unrelated code.
-- Do not rename unrelated files.
-- Do not perform large refactors unless required.
-- Do not remove working functionality unless explicitly requested.
-
----
-
-# 31. Definition of Done
-
-A milestone/task is complete when:
-
-- requested behavior is implemented
-- tenant isolation is preserved
-- authorization is enforced
-- important business rules are enforced
-- relevant edge cases are handled
-- database changes are valid
-- tests/checks pass where applicable
-- no unrelated features were added
-- documentation is updated when necessary
-
----
-
-# 32. Core Engineering Philosophy
-
-Use this priority order when making decisions:
+Use this priority order:
 
 ```text
 Correctness
-   ↓
-Security / Tenant Isolation
-   ↓
-Financial Integrity
-   ↓
-Data Consistency
-   ↓
-Maintainability
-   ↓
-Simplicity
-   ↓
-Performance
-   ↓
-Convenience
+  -> Security and tenant isolation
+  -> Data consistency
+  -> Maintainability
+  -> Simplicity
+  -> Performance
+  -> Convenience
 ```
-
-Performance matters, but do not sacrifice correctness or tenant isolation for premature optimization.
-
-The system should be designed for real businesses while remaining understandable and maintainable by a small development team.
-
----
-
-# 33. Final Agent Reminder
-
-This project will evolve.
-
-The roadmap is **context, not permission to implement future milestones**.
-
-Always work from:
-
-```text
-Current repository state
-        +
-Current assigned milestone
-        +
-Business rules in this file
-```
-
-Do not work from:
-
-```text
-"What would a full SaaS product eventually need?"
-```
-
-When unsure, prefer the smallest design that correctly supports the current milestone without blocking known future requirements.
-
-## Security
-
-Build security into every milestone, not as a final step.
-
-- Enforce authentication, RBAC, tenant isolation, and object-level authorization on the backend.
-- Validate all inputs and enforce database integrity.
-- Protect sensitive data, tokens, financial records, and organization boundaries.
-- Use secure transactions and prevent unauthorized or duplicate operations where applicable.
-- Add security tests for critical flows and cross-tenant access.
-- Never trust frontend-provided roles, prices, totals, organization IDs, or other sensitive values without server-side verification.
-- Apply security improvements without unnecessarily overengineering the current milestone.
