@@ -6,47 +6,44 @@ web
 
 ## Users
 
-The primary users for the initial release are:
+The primary users for the initial release are concept-store owners, managers,
+and cashiers who manage store operations.
 
-- concept-store owners, who manage their store organization and its operations
-- merchants, who need access to information and workflows belonging to their own business inside the concept store
-
-Managers and cashiers are also supported through dedicated, authorization-appropriate application pages. Platform superadministration is part of the broader product model but is not a primary initial-release experience.
+Platform superadministration is part of the broader product model but is not a
+primary initial-release experience.
 
 ## Product Purpose
 
 The product is a multi-tenant SaaS Concept Store Management System. It replaces fragmented spreadsheets, paper records, messaging, and manual calculations with one operational system for concept-store businesses and their merchants.
 
-Success means that a concept store can manage the workflow from merchant participation through physical space, products, inventory, customer sales, merchant sales attribution, commercial deductions, settlement, and payout without relying on disconnected manual records.
+Only the multi-tenant foundation is currently implemented. Merchant Profiles
+has a proposed current plan, but implementation has not yet been approved.
 
 ## Positioning
 
-This is one connected system with experiences and data access separated by authorization. It is not merely a generic POS: its distinguishing mechanism connects merchant-owned activity inside a concept store to the store's rent, commission, settlement, and payout workflows while preserving each organization's tenant boundary and each actor's permitted view.
+This is one connected system with experiences and data access separated by
+authorization. Product direction outside the current approved implementation
+plan must not be treated as active scope.
 
 ## Operating Context
 
 The product is intended initially for concept stores in the Philippines and uses English throughout the application.
 
-Concept stores may operate multiple physical branches. Their workflows involve store owners, managers, cashiers, and independent merchants. Customer payments are received by the concept store, while individual sale items must remain attributable to their respective merchants for later financial calculation and settlement.
-
-The browser-based POS must eventually continue operating during temporary internet outages, with PostgreSQL remaining the cloud source of truth when transactions synchronize.
+Concept stores may operate multiple physical branches. Their workflows involve
+store owners, managers, cashiers, and independent merchants.
 
 ## Capabilities and Constraints
 
 - Only Milestone 1 is currently implemented: authentication, account settings,
   organizations, branches, memberships/RBAC, and organization invitations.
-- Merchant operations and every subsequent business capability described in
-  this document are future product direction, not active functionality.
+- Merchant Profiles is proposed as the next milestone; agents must wait for
+  explicit user approval before implementing it.
 - The application is a multi-tenant modular monolith developed milestone by milestone.
 - An organization represents one subscribed concept-store business and may have multiple branches.
 - Data belonging to one organization must never be accessible by another organization.
 - Roles include `PLATFORM_SUPERADMIN`, `OWNER`, `MANAGER`, `CASHIER`, and `MERCHANT`.
 - Role-specific pages and operations must remain separated by backend-authoritative authentication, membership, tenant, and role checks.
-- Merchants may operate across multiple branches and may occupy multiple physical spaces.
-- The concept store receives the full customer payment, but merchant-owned gross sales and store-earned revenue must remain distinct.
-- Financial calculations must be precise, deterministic, auditable, and server-authoritative.
-- The cloud PostgreSQL database remains authoritative when offline POS functionality is introduced.
-- Later milestones must be planned and approved again before implementation.
+- Every new milestone must be planned and explicitly approved before implementation.
 - Advanced features and infrastructure must not be introduced before their assigned milestone.
 - Product-specific accessibility requirements remain an open decision.
 
@@ -61,7 +58,7 @@ professional B2B SaaS experiences.
 
 ## Evidence on Hand
 
-- The milestone roadmap and confirmed domain rules are documented in `AGENTS.md`.
+- Current scope controls and engineering rules are documented in `AGENTS.md`.
 - The approved brand commitments are documented in
   `docs/architecture/frontend-architecture.md`.
 - The completed foundation summary is maintained under `docs/milestones/`.
@@ -72,7 +69,6 @@ professional B2B SaaS experiences.
 ## Product Principles
 
 1. Protect tenant isolation and authorization before convenience.
-2. Connect the full merchant-to-settlement workflow instead of behaving like a generic POS.
-3. Keep owner and merchant work clear while exposing only what each actor is authorized to access.
-4. Preserve financial and inventory history so real businesses can explain every important value.
-5. Deliver the smallest complete milestone without silently expanding scope.
+2. Treat only the current approved plan as implementation scope.
+3. Expose only what each actor is authorized to access.
+4. Deliver the smallest complete milestone without silently expanding scope.

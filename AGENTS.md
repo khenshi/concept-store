@@ -4,9 +4,18 @@
 
 You are helping build a **multi-tenant SaaS Concept Store Management System**.
 
-The platform is sold to concept store owners on a subscription basis. Each subscribed concept store operates as an organization and may have multiple branches, merchants, staff members, physical retail spaces, products, inventory, sales, merchant agreements, settlements, and payouts.
+The platform is sold to concept store owners on a subscription basis. Each
+subscribed concept store operates as an organization and may have multiple
+branches and staff members.
 
 The system is being developed **incrementally, milestone by milestone**.
+
+## Current Planning State
+
+Only Milestone 1 is implemented. A proposed Merchant Profiles plan now exists
+in `docs/plans/current.md`, but it is not approved for implementation. Agents
+must wait for explicit user approval before changing application code. Archived
+roadmaps and proposals are not active requirements.
 
 ---
 
@@ -39,35 +48,14 @@ Core problems to solve:
 
 - manual merchant inventory tracking
 - manual sales attribution per merchant
-- manual rent and commission calculations
-- manual merchant settlements and payouts
 - no real-time inventory visibility for merchants
 - no centralized store income calculations
 - manual physical space assignments
 - fragmented multi-branch operations
 - inability to continue POS operations during temporary internet outages
 
-The product is **not merely a generic POS**.
-
-Its core business workflow is:
-
-```text
-Merchant
-   ↓
-Space Assignment
-   ↓
-Products / Inventory
-   ↓
-Customer Sale
-   ↓
-Merchant Sales Attribution
-   ↓
-Rent + Commission
-   ↓
-Settlement
-   ↓
-Merchant Payout
-```
+Product workflows beyond the implemented foundation require a separately
+approved current plan.
 
 ---
 
@@ -82,12 +70,7 @@ Platform
 └── Organizations / Concept Stores
     ├── Branches
     ├── Users / Staff
-    ├── Merchants
-    ├── Spaces
-    ├── Products
-    ├── Inventory
-    ├── Sales
-    └── Settlements
+    └── Approved organization-scoped modules
 ```
 
 Each organization represents one subscribed concept-store business.
@@ -123,7 +106,8 @@ Handles store operations with fewer high-level account/billing permissions than 
 Primarily handles POS transactions and limited branch operations.
 
 ### Merchant
-Can eventually access only their own products, inventory, sales, spaces, agreements, settlements, and payout information.
+Remains a foundation organization role. Any merchant-specific access requires
+an explicitly approved plan.
 
 Do not implement advanced permission granularity until required by a milestone.
 
@@ -167,32 +151,14 @@ Organization
 └── Branch
 ```
 
-Branch-specific concepts may include:
-
-- staff assignments
-- physical spaces
-- inventory
-- POS devices
-- sales
-
-A merchant belongs to the organization and may operate across multiple branches.
-
-Do not assume merchants belong to exactly one branch.
+Do not introduce new branch-specific relationships without current milestone
+authorization.
 
 ---
 
 # 7. Merchant Domain
 
 A merchant is an independent brand/business selling products inside the concept store.
-
-A merchant may:
-
-- have multiple products
-- rent multiple physical spaces simultaneously
-- operate in multiple branches
-- have one or more agreements over time
-- have sales attributed to them
-- receive periodic settlements/payouts
 
 Expected merchant status concepts may include:
 
@@ -207,409 +173,6 @@ Exact enums should only be introduced when needed.
 
 ---
 
-# 8. Physical Space Domain
-
-Concept stores divide physical retail/display space into exclusive spaces for merchants.
-
-Examples:
-
-- rack
-- shelf
-- cabinet
-- booth
-- table
-- drawer
-- custom space
-
-A physical space belongs to a branch.
-
-Each physical space can have **at most one active merchant assignment at a time**.
-
-One merchant may have multiple active space assignments.
-
-Use a separate assignment/history entity rather than permanently storing a merchant directly on a space.
-
-Conceptual model:
-
-```text
-Space
-- organizationId
-- branchId
-- code
-- type
-- status
-
-SpaceAssignment
-- merchantId
-- spaceId
-- startDate
-- endDate
-- agreedRent
-- status
-```
-
-Assignment history must be preservable.
-
----
-
-# 9. Merchant Agreements
-
-A merchant's commercial arrangement with the concept store can vary.
-
-Supported business models:
-
-- fixed rent only
-- commission only
-- fixed rent + commission
-
-Do not encode this as three separate merchant types.
-
-The agreement should represent the business terms.
-
-Conceptually:
-
-```text
-MerchantAgreement
-- merchantId
-- organizationId
-- startDate
-- endDate
-- fixedRentAmount
-- commissionRate
-- settlementSchedule
-- status
-```
-
-The exact schema should be designed during the relevant milestone.
-
-Agreement history should be preserved instead of overwriting historical terms.
-
----
-
-# 10. Settlement Schedule
-
-The concept store owner controls how often merchants are paid.
-
-Initial expected schedules may include:
-
-- weekly
-- semi-monthly
-- monthly
-
-Custom schedules may be supported later.
-
-Do not build a complex scheduling engine until explicitly required.
-
----
-
-# 11. Product Domain
-
-Products belong to merchants.
-
-Conceptually:
-
-```text
-Product
-- organizationId
-- merchantId
-- name
-- sku
-- barcode
-- sellingPrice
-- status
-```
-
-Do not add advanced product variants, supplier management, warehouse inventory, or purchasing workflows unless explicitly assigned.
-
----
-
-# 12. Inventory Model
-
-Inventory represents products physically available/displayed in the concept store.
-
-Inventory is branch-specific.
-
-Initial model:
-
-```text
-Inventory
-- productId
-- branchId
-- quantity
-```
-
-Maintain an inventory movement/audit trail instead of only mutating quantity.
-
-Typical movement types may include:
-
-```text
-STOCK_IN
-SALE
-RETURN
-DAMAGED
-ADJUSTMENT
-```
-
-Conceptually:
-
-```text
-InventoryMovement
-- productId
-- branchId
-- quantityChange
-- type
-- referenceId
-- createdBy
-- createdAt
-```
-
-Inventory movements should make it possible to explain why the current quantity exists.
-
-Do not implement warehouse/display separation unless explicitly requested.
-
----
-
-# 13. Sales / POS Domain
-
-The concept store receives the customer's full payment.
-
-A single transaction may contain products from multiple merchants.
-
-Example:
-
-```text
-Merchant A product  ₱800
-Merchant B product  ₱300
-Merchant C product  ₱1,200
----------------------------
-Customer pays       ₱2,300
-```
-
-The store receives the full `₱2,300`.
-
-Internally the system must attribute revenue to each merchant.
-
-Conceptual entities:
-
-```text
-Sale
-- organizationId
-- branchId
-- cashierId
-- subtotal
-- discounts
-- total
-- createdAt
-
-SaleItem
-- saleId
-- productId
-- merchantId
-- quantity
-- unitPrice
-- total
-
-Payment
-- saleId
-- method
-- amount
-- referenceNumber
-- confirmedBy
-- paidAt
-```
-
-Keep enough sale-item historical data to prevent later product edits from changing historical transaction meaning.
-
----
-
-# 14. Initial Payment Methods
-
-Actual payment gateway integration is not required initially.
-
-Expected manual payment methods:
-
-```text
-CASH
-GCASH
-BANK_TRANSFER
-OTHER
-```
-
-For GCash or bank transfer:
-
-1. Store displays its own QR/payment details.
-2. Customer pays externally.
-3. Cashier manually confirms the payment.
-4. Optional reference number may be recorded.
-5. Transaction is completed.
-
-Do not integrate external payment providers unless explicitly assigned.
-
----
-
-# 15. Merchant Settlements and Payouts
-
-Merchant settlements calculate what the store owes a merchant for a given period.
-
-Example:
-
-```text
-Gross merchant sales      ₱50,000
-Commission                 -₱5,000
-Fixed rent                 -₱2,000
-Adjustments                  -₱500
-----------------------------------
-Net merchant payout       ₱42,500
-```
-
-Potential settlement lifecycle:
-
-```text
-DRAFT
-REVIEWED
-APPROVED
-PAID
-```
-
-The settlement system must preserve historical calculations.
-
-Do not recompute already-finalized historical settlements from mutable current agreement values.
-
-Exact settlement logic must be defined during the finance milestone.
-
----
-
-# 16. Store Revenue vs Gross Sales
-
-Do not treat total customer sales as concept-store revenue.
-
-Example:
-
-```text
-Gross customer sales    ₱500,000
-
-Store revenue may be:
-Merchant commissions     ₱35,000
-Merchant rent            ₱50,000
-Other store fees          ₱5,000
---------------------------------
-Store revenue            ₱90,000
-```
-
-Merchant-owned sales and store-earned revenue must remain conceptually distinct.
-
----
-
-# 17. Offline POS Requirement
-
-The POS must continue accepting transactions during temporary loss of internet connectivity.
-
-The **cloud PostgreSQL database remains the source of truth**.
-
-The intended client is a browser-based application or PWA.
-
-Conceptual architecture:
-
-```text
-PWA / Browser POS
-       │
-       ├── Online → Backend API → PostgreSQL
-       │
-       └── Offline → IndexedDB / local queue
-                             │
-                       Reconnect / Sync
-                             │
-                         Backend API
-                             │
-                         PostgreSQL
-```
-
-Offline capability should focus primarily on POS-critical functionality.
-
-Do not attempt to make the full administration system offline unless explicitly requested.
-
----
-
-# 18. Offline POS Scope
-
-Expected offline capabilities:
-
-- access cached sellable products
-- barcode/product lookup
-- build cart
-- complete basic sale
-- record manual payment
-- persist unsynced transactions locally
-- sync transactions after connection returns
-
-Online-only features may include:
-
-- advanced reporting
-- merchant management
-- agreements
-- settlements
-- subscription settings
-- administrative configuration
-
-Exact offline scope should be confirmed during the offline milestone.
-
----
-
-# 19. Offline Sync Safety
-
-Offline synchronization is a high-risk area.
-
-When implemented:
-
-- Every client-created sale must have a globally unique client transaction ID.
-- Retrying sync must not create duplicate sales.
-- Sync endpoints should be idempotent.
-- The backend must remain authoritative.
-- Failed syncs must not silently disappear.
-- Pending/synced/error states should be distinguishable.
-- Never assume local inventory is perfectly current after an outage.
-
-Example failure:
-
-```text
-POS sends sale
-Backend saves sale
-Response is lost
-POS retries
-```
-
-The retry must return/reuse the existing sale rather than create another one.
-
----
-
-# 20. Offline Inventory Conflicts
-
-Two offline POS devices may sell the same last cached item.
-
-Example:
-
-```text
-Cloud quantity = 1
-
-POS A cached quantity = 1
-POS B cached quantity = 1
-
-Both go offline.
-Both sell the item.
-```
-
-When the offline milestone is implemented, prefer:
-
-- allowing the sale to continue
-- syncing both transactions
-- flagging the inventory discrepancy for owner/manager reconciliation
-
-Do not silently discard legitimate offline sales.
-
-The exact conflict policy may be refined later.
-
----
-
 # 21. Suggested Technology Direction
 
 Current preferred architecture:
@@ -619,8 +182,6 @@ Current preferred architecture:
 - React
 - TypeScript
 - Tailwind CSS
-- PWA capabilities
-- IndexedDB for offline POS storage
 
 ### Backend
 - NestJS
@@ -631,12 +192,6 @@ Current preferred architecture:
 
 ### ORM
 - Prisma
-
-### Object Storage
-- S3-compatible object storage when file/image storage is introduced
-
-### Future / Optional
-- Redis only when a real caching, queue, or distributed-lock requirement appears
 
 Do not introduce infrastructure simply because it is commonly used in SaaS systems.
 
@@ -698,52 +253,22 @@ Always consider:
 - authentication
 - authorization
 - organization isolation
-- branch access restrictions
-- merchant self-access restrictions
+- object-level access restrictions
 - input validation
 - rate limiting when relevant
 - secure password handling
 - secure token/session handling
-- auditability for financially important actions
+- auditability for important actions
 - least privilege
 
-Never trust IDs, roles, organization IDs, branch IDs, prices, totals, commission calculations, or settlement amounts supplied by the frontend when the backend can derive or validate them.
-
-Financial calculations must be server-authoritative.
-
----
-
-# 25. Financial Integrity
-
-Sales, commissions, rent, settlements, and payouts are financially sensitive.
-
-When implementing these areas:
-
-- prefer deterministic calculations
-- use database transactions where consistency requires them
-- preserve source records
-- keep audit/history data
-- avoid floating-point money arithmetic
-- do not silently modify finalized settlements
-- make adjustments explicit
-- validate that records belong to the same organization
-- carefully consider concurrency
-
-Correctness is more important than cleverness.
+Never trust IDs, roles, organization IDs, or other sensitive values supplied by
+the frontend when the backend can derive or validate them.
 
 ---
 
 # 26. Auditability
 
-Actions that may eventually require audit history include:
-
-- inventory adjustments
-- sale cancellations
-- refunds
-- agreement changes
-- settlement approval
-- payout marking
-- role/permission changes
+Actions such as role and permission changes may require audit history.
 
 Do not implement a global audit system until required, but avoid designs that make auditability impossible later.
 
@@ -751,32 +276,13 @@ Do not implement a global audit system until required, but avoid designs that ma
 
 # 27. Current Non-Goals
 
-Unless explicitly assigned, do not implement:
-
-- ecommerce storefront
-- supplier management
-- purchase orders
-- warehouses
-- loyalty programs
-- native Android/iOS applications
-- accounting integrations
-- automatic merchant bank payouts
-- payment gateway integration
-- AI analytics
-- forecasting
-- advanced product variants
-- custom report builders
-- microservices
-- event sourcing
-- Kafka/message brokers
-- multi-region infrastructure
-- complex feature-flag systems
+Anything outside the explicitly approved current plan is a non-goal. Do not use
+archived documents or general product expectations to add adjacent features,
+infrastructure, entities, or abstractions.
 
 ---
 
-# 28. Milestone Roadmap
-
-The roadmap provides direction, but **only the currently assigned milestone may be implemented**.
+# 28. Current Milestone Status
 
 ## Milestone 1 — SaaS / Multi-Tenant Foundation
 
@@ -796,149 +302,11 @@ Primary goal:
 
 ---
 
-## Milestone 2 — Merchant Management
+## Next planning priority — Merchant Profiles
 
-Scope:
-
-- merchant CRUD
-- merchant status
-- merchant organization relationship
-- basic merchant account/profile where required
-
-Primary goal:
-
-> Allow stores to centrally manage merchants.
-
----
-
-## Milestone 3 — Spaces and Agreements
-
-Scope:
-
-- physical space types
-- spaces
-- branch ownership
-- space assignments
-- exclusive active assignment rule
-- merchant agreements
-- fixed rent
-- commission
-- hybrid rent + commission
-- settlement schedule configuration
-
-Primary goal:
-
-> Represent how merchants occupy space and how the store earns from them.
-
----
-
-## Milestone 4 — Products and Inventory
-
-Scope:
-
-- products
-- merchant ownership
-- SKU/barcode
-- branch inventory
-- stock-in
-- adjustments
-- inventory movements
-
-Primary goal:
-
-> Replace spreadsheet inventory tracking with auditable real-time inventory.
-
----
-
-## Milestone 5 — Online POS
-
-Scope:
-
-- product lookup
-- cart
-- checkout
-- manual payments
-- sales
-- sale items
-- merchant attribution
-- inventory deduction
-- receipts where required
-
-Primary goal:
-
-> Complete reliable cloud-connected sales.
-
----
-
-## Milestone 6 — Merchant Finance
-
-Scope:
-
-- settlement periods
-- merchant gross sales
-- commission calculation
-- rent deductions
-- adjustments
-- net payout
-- settlement lifecycle
-- payout recording
-
-Primary goal:
-
-> Replace manual merchant remittance and payout calculations.
-
----
-
-## Milestone 7 — Reporting and Dashboards
-
-Scope:
-
-- owner dashboard
-- merchant dashboard
-- sales reports
-- inventory reporting
-- merchant reports
-- settlement/payout history
-- store revenue vs gross sales
-
-Primary goal:
-
-> Give owners and merchants usable operational visibility.
-
----
-
-## Milestone 8 — Offline POS
-
-Scope:
-
-- PWA/offline POS support
-- IndexedDB/local persistence
-- cached product catalog
-- offline sales queue
-- client-generated transaction IDs
-- idempotent sync
-- sync states
-- conflict detection/reconciliation
-
-Primary goal:
-
-> Keep sales operating during temporary internet outages without compromising cloud authority.
-
----
-
-## Milestone 9 — SaaS Billing
-
-Scope:
-
-- plans
-- subscriptions
-- trials
-- usage/feature limits
-- SaaS billing integration when selected
-
-Primary goal:
-
-> Commercialize the platform after core store operations are stable.
+The proposed scope is defined only in `docs/plans/current.md`. Do not implement
+it without explicit user approval, and do not infer additional requirements
+from archived work.
 
 ---
 

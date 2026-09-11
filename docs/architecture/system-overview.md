@@ -16,8 +16,9 @@ authentication sessions, organizations, memberships, invitations, and branches.
 - Runtime protection: Helmet, origin-restricted CORS, request throttling, and Pino logging
 
 The backend is authoritative for authentication, organization membership, role
-authorization, and tenant scope. Future business modules are not present in the
-active codebase and must be planned milestone by milestone.
+authorization, and tenant scope. Other business modules are not present in the
+active codebase. No post-foundation module is authorized until a current,
+decision-complete implementation plan is explicitly approved.
 
 ## Active backend modules
 

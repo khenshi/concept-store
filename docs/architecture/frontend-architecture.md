@@ -12,7 +12,9 @@ available to authenticated users.
 
 Feature folders contain the retained API clients, types, schemas, components,
 and tests for authentication, accounts, organizations, branches, memberships,
-and invitations. Later business feature components and routes are not retained.
+and invitations. Other business feature components and routes are not retained.
+No new frontend business feature is authorized until a current implementation
+plan is explicitly approved.
 
 ## Source boundaries
 
