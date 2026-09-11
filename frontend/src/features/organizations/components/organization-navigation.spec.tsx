@@ -37,4 +37,24 @@ describe('OrganizationNavigation', () => {
       screen.queryByRole('link', { name: 'Members' }),
     ).not.toBeInTheDocument();
   });
+
+  it('shows merchant navigation only when merchant management is allowed', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/organization-id/merchants',
+    );
+    const { rerender } = render(
+      <OrganizationNavigation organizationId="organization-id" />,
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Merchants' }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <OrganizationNavigation organizationId="organization-id" showMerchants />,
+    );
+    expect(screen.getByRole('link', { name: 'Merchants' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
 });
