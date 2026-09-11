@@ -33,6 +33,7 @@ export function OrganizationWorkspaceShell({
       <OrganizationNavigation
         organizationId={organizationId}
         showMembers={canManage}
+        showMerchants={canManage}
         collapsed={collapsed}
         onNavigate={() => setIsMenuOpen(false)}
       />

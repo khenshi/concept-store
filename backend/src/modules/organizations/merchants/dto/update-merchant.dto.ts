@@ -3,6 +3,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsOptional,
+  IsPhoneNumber,
   IsString,
   Length,
   Matches,
@@ -68,5 +69,8 @@ export class UpdateMerchantDto {
   @ValidateIf((_object, value: unknown) => value !== undefined)
   @IsString()
   @Length(7, 30)
+  @IsPhoneNumber('PH', {
+    message: 'phone must be a valid Philippine mobile or telephone number',
+  })
   phone?: string;
 }

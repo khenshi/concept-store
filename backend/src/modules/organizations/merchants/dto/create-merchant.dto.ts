@@ -3,6 +3,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsOptional,
+  IsPhoneNumber,
   IsString,
   Length,
   Matches,
@@ -47,5 +48,8 @@ export class CreateMerchantDto {
   @Transform(trimRequiredString)
   @IsString()
   @Length(7, 30)
+  @IsPhoneNumber('PH', {
+    message: 'phone must be a valid Philippine mobile or telephone number',
+  })
   phone!: string;
 }

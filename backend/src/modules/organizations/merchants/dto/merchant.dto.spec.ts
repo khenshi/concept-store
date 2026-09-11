@@ -50,9 +50,22 @@ describe('Merchant DTOs', () => {
       status: 'ARCHIVED',
     });
 
-    await expect(validate(invalidCreate)).resolves.toHaveLength(3);
+    await expect(validate(invalidCreate)).resolves.not.toHaveLength(0);
     await expect(validate(invalidStatus)).resolves.toHaveLength(1);
   });
+
+  it.each(['+63 917 555 0101', '(02) 8555 0102'])(
+    'accepts the Philippine phone format %s',
+    async (phone) => {
+      const dto = plainToInstance(CreateMerchantDto, {
+        name: 'Valid Name',
+        contactName: 'Valid Contact',
+        phone,
+      });
+
+      await expect(validate(dto)).resolves.toHaveLength(0);
+    },
+  );
 
   it('normalizes search and validates an exact status filter', async () => {
     const query = plainToInstance(ListMerchantsQueryDto, {

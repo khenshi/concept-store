@@ -6,11 +6,13 @@ import { usePathname } from 'next/navigation';
 export function OrganizationNavigation({
   organizationId,
   showMembers = false,
+  showMerchants = false,
   collapsed = false,
   onNavigate,
 }: {
   organizationId: string;
   showMembers?: boolean;
+  showMerchants?: boolean;
   collapsed?: boolean;
   onNavigate?(): void;
 }) {
@@ -23,6 +25,12 @@ export function OrganizationNavigation({
       label: 'Branches',
       href: `${basePath}/branches`,
       visible: true,
+    },
+    {
+      key: 'merchants',
+      label: 'Merchants',
+      href: `${basePath}/merchants`,
+      visible: showMerchants,
     },
     {
       key: 'members',
@@ -67,6 +75,7 @@ function NavigationIcon({ destination }: { destination: string }) {
   const paths: Record<string, string> = {
     overview: 'M4 10.5 12 4l8 6.5V20H4v-9.5Z',
     branches: 'M5 21V5h14v16M9 9h2m2 0h2m-6 4h2m2 0h2m-6 4h6',
+    merchants: 'M4 20V9l8-5 8 5v11M8 20v-6h8v6M8 10h.01M12 10h.01M16 10h.01',
     members:
       'M3 20a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 1a4 4 0 0 1 5 4v3',
   };
