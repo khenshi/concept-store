@@ -43,6 +43,8 @@ optional code, complete address, and a detail link. Debounced local search match
 name/code/address; a labeled location selector filters by city and province.
 Empty, filtered-empty, loading, and request-error states remain distinct. Owners
 and managers can add branches; cashiers and merchants remain read-only.
+Add branch appears in the Store locations panel header, consistent with other
+directories. The Branches page title has no organization-name eyebrow above it.
 
 Creation and editing share a scroll-contained native modal. It focuses the form
 heading, blocks background interaction, restores focus/scrolling on close, and

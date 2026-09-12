@@ -85,8 +85,11 @@ sources, production compilation, and a legacy-style source scan are checked afte
 each part. This does not certify rendered accessibility or responsive layout.
 No enabled browser surface was available for final visual QA. Viewport review at
 320/768/1024/1440 pixels, 200% zoom, rendered contrast, and visual reduced-motion
-verification remain pending; the active plan is not archived until those checks
-and final user review are complete.
+verification were not run. The user explicitly waived browser-based QA on
+September 12, 2026. Automated checks passed (149 tests, typecheck, lint,
+changed-source formatting, production build, and diff checks); this does not
+certify rendered accessibility or responsive behavior. The implementation plan
+is archived with that limitation recorded.
 
 ## Organization and account workflows
 

@@ -78,6 +78,19 @@ function fill(form: HTMLElement) {
     });
 }
 
+it('places Add branch in the directory panel and omits the title eyebrow', () => {
+  render(<BranchManagement organizationId="org" />);
+  const panelHeader = screen
+    .getByRole('heading', { name: 'Store locations' })
+    .closest('header');
+  expect(panelHeader).not.toBeNull();
+  expect(
+    within(panelHeader!).getByRole('button', { name: 'Add branch' }),
+  ).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Branches' })).toBeVisible();
+  expect(screen.queryByText('North & Pine')).not.toBeInTheDocument();
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   workspace = {

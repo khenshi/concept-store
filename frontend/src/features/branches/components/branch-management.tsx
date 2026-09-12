@@ -106,9 +106,13 @@ export function BranchManagement({
   return (
     <OperationalPage>
       <PageHeader
-        eyebrow={organization.name}
         title="Branches"
         description="View and maintain the physical store locations in this organization."
+      />
+      {successMessage ? <StatusNotice>{successMessage}</StatusNotice> : null}
+      <OperationalPanel
+        title="Store locations"
+        description={`${visibleBranches.length} matching branches · Open a branch to review its identity and address.`}
         action={
           canManage ? (
             <Button
@@ -122,11 +126,6 @@ export function BranchManagement({
             </Button>
           ) : undefined
         }
-      />
-      {successMessage ? <StatusNotice>{successMessage}</StatusNotice> : null}
-      <OperationalPanel
-        title="Store locations"
-        description={`${visibleBranches.length} matching branches · Open a branch to review its identity and address.`}
       >
         {branchesStatus === 'loading' || branchesStatus === 'idle' ? (
           <div className="px-5 pb-5 sm:px-6">
