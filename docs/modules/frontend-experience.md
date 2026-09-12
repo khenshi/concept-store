@@ -1,5 +1,18 @@
 # Frontend Experience
 
+## Product workspace
+
+Product directory/profile screens use the neutral operational panels, controls,
+responsive divided rows, filters, status feedback, and owner/manager navigation.
+Product creation and identity editing use the shared native `FormDialog`: a wide,
+scroll-contained surface with browser focus containment, heading focus, safe
+pending dismissal, scroll locking, and focus restoration. Shared fields align
+labels and controls before hints/errors; product validation is debounced on each
+input, immediate on blur, and final on submit. Stock mutation UI remains a later
+part. Focused automated checks are run; expanded workflow and rendered visual/
+accessibility verification remain Part 7 of the current plan. The historical
+refactor waiver below applies only to that archived refactor, not these screens.
+
 Member management and owner invitation controls use the neutral operational
 system. Invitation creation uses a native modal with focus restoration and
 pending dismissal protection; historical invitation status remains explicit.

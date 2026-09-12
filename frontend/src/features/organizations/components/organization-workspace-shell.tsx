@@ -62,6 +62,7 @@ export function OrganizationWorkspaceShell({
         organizationId={organizationId}
         showMembers={canManage}
         showMerchants={canManage}
+        showProducts={canManage}
         collapsed={collapsed}
         onNavigate={closeMenu}
       />

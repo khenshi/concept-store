@@ -8,6 +8,7 @@ const navigationIcons: Record<string, IconName> = {
   overview: 'home',
   branches: 'building',
   merchants: 'store',
+  products: 'store',
   members: 'users',
 };
 
@@ -15,12 +16,14 @@ export function OrganizationNavigation({
   organizationId,
   showMembers = false,
   showMerchants = false,
+  showProducts = false,
   collapsed = false,
   onNavigate,
 }: {
   organizationId: string;
   showMembers?: boolean;
   showMerchants?: boolean;
+  showProducts?: boolean;
   collapsed?: boolean;
   onNavigate?(): void;
 }) {
@@ -39,6 +42,12 @@ export function OrganizationNavigation({
       label: 'Merchants',
       href: `${basePath}/merchants`,
       visible: showMerchants,
+    },
+    {
+      key: 'products',
+      label: 'Products',
+      href: `${basePath}/products`,
+      visible: showProducts,
     },
     {
       key: 'members',

@@ -1,0 +1,238 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/features/auth/model/auth-context';
+import { ApiError } from '@/features/auth/api/auth-client';
+import { listMerchants } from '@/features/merchants/api/merchant-api';
+import type { Merchant } from '@/features/merchants/model/merchant.types';
+import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
+import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
+import { buttonStyles } from '@/shared/components/ui/button';
+import { FormDialog } from '@/shared/components/ui/form-dialog';
+import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
+import {
+  FilterField,
+  OperationalPage,
+  OperationalPanel,
+  OperationalToolbar,
+  StatusNotice,
+} from '@/shared/components/ui/operational-page';
+import { RequestError } from '@/shared/components/ui/request-error';
+import { SelectControl } from '@/shared/components/ui/select-control';
+import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
+import { listProducts } from '../api/product-api';
+import type { Product, ProductStatus } from '../model/product.types';
+import { ProductForm } from './product-form';
+
+export function ProductDirectory({
+  organizationId,
+}: {
+  organizationId: string;
+}) {
+  const { request } = useAuth();
+  const { organization, organizationStatus } =
+    useOrganizationWorkspaceContext();
+  const allowed =
+    organization?.role === 'OWNER' || organization?.role === 'MANAGER';
+  const [products, setProducts] = useState<Product[]>([]);
+  const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [search, setSearch] = useState('');
+  const [merchantId, setMerchantId] = useState('');
+  const [status, setStatus] = useState<ProductStatus | ''>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const q = useDebouncedValue(search);
+  useEffect(() => {
+    if (!allowed) return;
+    let active = true;
+    async function load() {
+      await Promise.resolve();
+      if (!active) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const [items, profiles] = await Promise.all([
+          listProducts(request, organizationId, {
+            q: q.trim() || undefined,
+            merchantId: merchantId || undefined,
+            status: status || undefined,
+          }),
+          listMerchants(request, organizationId),
+        ]);
+        if (active) {
+          setProducts(items);
+          setMerchants(profiles);
+        }
+      } catch (cause) {
+        if (active)
+          setError(
+            cause instanceof ApiError
+              ? cause.message
+              : 'The product directory could not be loaded.',
+          );
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [allowed, request, organizationId, q, merchantId, status, revision]);
+  if (organizationStatus === 'loading')
+    return <ListSkeleton label="Loading product directory" />;
+  if (!allowed || !organization)
+    return (
+      <p className="mt-8" role="alert">
+        Your organization role cannot view or manage products.
+      </p>
+    );
+  return (
+    <OperationalPage>
+      <OrganizationPageHeader
+        organization={organization}
+        title="Products"
+        description="Maintain merchant-owned products. Prices and stock are tracked independently by branch."
+      />
+      {success ? <StatusNotice>{success}</StatusNotice> : null}
+      <OperationalPanel
+        title="Product directory"
+        description={
+          loading ? 'Loading products…' : `${products.length} matching products`
+        }
+        action={
+          <button
+            type="button"
+            className={buttonStyles({ variant: 'primary' })}
+            disabled={loading || Boolean(error)}
+            onClick={() => {
+              setCreating(true);
+              setSuccess(null);
+            }}
+          >
+            Add product
+          </button>
+        }
+      >
+        <OperationalToolbar className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]">
+          <FilterField id="product-search" label="Search">
+            <input
+              id="product-search"
+              type="search"
+              value={search}
+              maxLength={254}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Product name, SKU, or barcode"
+              className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm"
+            />
+          </FilterField>
+          <FilterField id="product-filter-merchant" label="Merchant">
+            <SelectControl
+              id="product-filter-merchant"
+              value={merchantId}
+              onValueChange={setMerchantId}
+            >
+              <option value="">All merchants</option>
+              {merchants.map((merchant) => (
+                <option key={merchant.id} value={merchant.id}>
+                  {merchant.name}
+                </option>
+              ))}
+            </SelectControl>
+          </FilterField>
+          <FilterField id="product-filter-status" label="Status">
+            <SelectControl
+              id="product-filter-status"
+              value={status}
+              onValueChange={(value) => setStatus(value as ProductStatus | '')}
+            >
+              <option value="">All statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </SelectControl>
+          </FilterField>
+        </OperationalToolbar>
+        {loading ? (
+          <ListSkeleton className="p-6" label="Loading products" />
+        ) : error ? (
+          <RequestError
+            className="p-6"
+            message={error}
+            onRetry={() => setRevision((value) => value + 1)}
+          />
+        ) : !products.length ? (
+          <div className="px-6 py-12 text-center">
+            <h3 className="font-semibold">
+              {search || merchantId || status
+                ? 'No products match these filters'
+                : 'No products yet'}
+            </h3>
+            <p className="mt-2 text-sm text-muted">
+              {search || merchantId || status
+                ? 'Try another search or filter.'
+                : 'Add an active merchant’s first product to get started.'}
+            </p>
+          </div>
+        ) : (
+          <ul
+            aria-label="Product directory"
+            className="m-0 list-none divide-y divide-hairline p-0"
+          >
+            {products.map((product) => (
+              <li key={product.id}>
+                <Link
+                  href={`/app/organizations/${organizationId}/products/${product.id}`}
+                  aria-label={`View ${product.name}`}
+                  className="grid min-w-0 gap-3 px-6 py-5 text-ink no-underline hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+                >
+                  <div className="min-w-0 break-words">
+                    <strong className="block text-sm font-semibold">
+                      {product.name}
+                    </strong>
+                    <span className="mt-1 block text-xs text-muted">
+                      SKU: {product.sku ?? 'Not set'} · Barcode:{' '}
+                      {product.barcode ?? 'Not set'}
+                    </span>
+                  </div>
+                  <span className="min-w-0 break-words text-sm">
+                    {merchants.find(
+                      (merchant) => merchant.id === product.merchantId,
+                    )?.name ?? 'Merchant unavailable'}
+                  </span>
+                  <span className="w-fit rounded-compact border border-hairline bg-subtle px-2 py-1 text-xs">
+                    {product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </OperationalPanel>
+      {creating ? (
+        <FormDialog
+          title="Add a product"
+          description="Choose its merchant and record its identity. New products start active, without branch stock or a global price."
+          pending={pending}
+          onClose={() => setCreating(false)}
+        >
+          <ProductForm
+            organizationId={organizationId}
+            merchants={merchants}
+            onCancel={() => setCreating(false)}
+            onPendingChange={setPending}
+            onSaved={(saved) => {
+              setCreating(false);
+              setSuccess(`${saved.name} was created successfully.`);
+              setRevision((value) => value + 1);
+            }}
+          />
+        </FormDialog>
+      ) : null}
+    </OperationalPage>
+  );
+}

@@ -1,13 +1,14 @@
 # Products
 
-**Status:** Backend API implemented and verified; frontend pending
+**Status:** Backend and product frontend implemented; expanded frontend QA pending
 
 ## Responsibilities
 
 Maintain organization-owned product identities with one merchant per product.
 Expose read-only branch placements with independently tracked prices and stock.
 Stock mutation services are documented in [Branch Inventory](branch-inventory.md).
-Frontend product management is not yet implemented.
+Owners and managers can manage product identities through the organization
+workspace. Branch stock mutation UI is not yet implemented.
 
 ## API and authorization
 
@@ -61,4 +62,39 @@ coverage validates normalization, immutable ownership, lifecycle, scoped access,
 identifier conflicts, independent branch placements, and precision. PostgreSQL
 tests apply repository migrations inside random test schemas to verify database
 relationships and workflows. See [backend test setup](../../backend/test/README.md).
-Frontend remains Part 5 of the active plan.
+Focused frontend schema, live-validation, profile-update, pending, empty-merchant,
+and navigation tests pass alongside existing frontend regressions. Expanded
+workflow tests and visual/accessibility QA remain Part 7 of the active plan;
+rendered behavior is not yet certified and the prior frontend-refactor QA waiver
+does not apply.
+
+## Workspace UI
+
+```text
+/app/organizations/:organizationId/products
+/app/organizations/:organizationId/products/:productId
+```
+
+- Products navigation and direct screens are available only to owners/managers.
+  Disallowed roles do not request product data; backend guards remain authoritative.
+- Directory supports debounced name/SKU/barcode search and merchant/status filters,
+  divided responsive rows, loading, retryable errors, and contextual empty states.
+  Obsolete read responses are ignored when filters or routes change.
+- Creation uses the shared native `FormDialog` with contained scrolling, initial
+  heading focus, browser focus containment, Escape/backdrop dismissal protection
+  during writes, and trigger focus restoration. Only active merchants are offered;
+  creation is disabled if no active merchant exists.
+- Forms validate changed inputs after 300 ms, on blur immediately, and again on
+  submit. Invalid submissions focus the first invalid control. Backend errors
+  preserve the form. Pending writes disable fields, repeat submission, and Cancel.
+- Product identity editing cannot change merchant ownership or status. SKU is
+  normalized to uppercase; barcode case/leading zeroes remain unchanged. Blank
+  optional identifiers are sent as null to clear them.
+- Lifecycle changes use a separate confirmed action and explain that branch stock,
+  prices, and history are preserved. Existing inactive products remain editable.
+- Details show branch identity, whole-unit quantity, and exact two-decimal PHP
+  price strings, without converting monetary values through floating point.
+  Placement links currently open branch details; inventory detail links and stock
+  management are delivered separately in Part 6.
+- API response schemas reject malformed identities, status, dates, quantity bounds,
+  and non-decimal-string prices before rendering.

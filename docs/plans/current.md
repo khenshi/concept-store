@@ -1,6 +1,6 @@
 # Products and Branch Inventory Implementation Plan
 
-**Status:** Approved; Parts 1–3 committed; Part 4 implemented, awaiting review
+**Status:** Approved; Parts 1–4 committed; Part 5 implemented, awaiting review
 **Date:** September 12, 2026
 
 ## Goal
@@ -370,3 +370,24 @@ Continue only through the per-part review and commit checkpoints above.
   and backend build pass. See module docs for check totals and test setup.
 - Only a disposable Docker test database was used; no application data was reset
   or migrated. No frontend or excluded workflow was added.
+
+## Part 5 verification record
+
+- Part 4 was reviewed and committed as `a40a4aa`.
+- Added owner/manager Products navigation, thin directory/profile routes, typed
+  API calls, and runtime response validation.
+- Added debounced directory search, merchant/status filters, responsive rows,
+  creation in a scroll-contained native dialog, and request-state feedback.
+- Product profile supports identity edits with fixed merchant ownership and
+  separately confirmed lifecycle changes. Forms validate on input after 300 ms,
+  immediately on blur, and on submit; pending writes disable fields and dismissal.
+- Product details display independent branch quantities and exact PHP price
+  strings. Placement links go to implemented branch details for now; inventory
+  detail links and stock/price/placement mutations remain Part 6.
+- Added focused normalization, response precision, live validation, pending,
+  optional-clearing, empty-merchant, and navigation tests. Broader frontend
+  workflow coverage and explicit rendered QA remain Part 7; no prior QA waiver
+  applies to these screens.
+- Frontend tests, type checking, lint, changed-source formatting, production
+  build, and diff checks were run. No backend/database change or excluded
+  behavior was added.

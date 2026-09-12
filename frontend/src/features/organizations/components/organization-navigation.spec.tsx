@@ -5,6 +5,24 @@ import { OrganizationNavigation } from './organization-navigation';
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 
 describe('OrganizationNavigation', () => {
+  it('shows product navigation only when allowed and marks profiles active', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/organization-id/products/product-id',
+    );
+    const { rerender } = render(
+      <OrganizationNavigation organizationId="organization-id" />,
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Products' }),
+    ).not.toBeInTheDocument();
+    rerender(
+      <OrganizationNavigation organizationId="organization-id" showProducts />,
+    );
+    expect(screen.getByRole('link', { name: 'Products' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
   it('shows only foundation destinations and marks the active route', () => {
     vi.mocked(usePathname).mockReturnValue(
       '/app/organizations/organization-id/branches',
