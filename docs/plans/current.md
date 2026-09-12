@@ -1,6 +1,6 @@
 # Products and Branch Inventory Implementation Plan
 
-**Status:** Approved; Parts 1–2 committed; Part 3 implemented, awaiting review
+**Status:** Approved; Parts 1–3 committed; Part 4 implemented, awaiting review
 **Date:** September 12, 2026
 
 ## Goal
@@ -351,3 +351,22 @@ Continue only through the per-part review and commit checkpoints above.
 - Dedicated stock/authorization tests and actual PostgreSQL rollback/concurrency
   verification remain Part 4. No existing database migration/reset was run.
 - No frontend or excluded workflow was implemented.
+
+## Part 4 verification record
+
+- Part 3 was reviewed and committed as `baa37db`.
+- Added product/price/stock DTO tests and product, placement, and stock service
+  tests for normalization, lifecycle, scoped access, precise prices, bounded
+  increments, actor attribution, and retry/conflict handling.
+- Added HTTP coverage for every product/inventory route's authentication and
+  role boundary, malformed IDs, unknown fields, trusted context, and price input.
+- Added explicit `TEST_DATABASE_URL` integration setup with random schemas and
+  repository migrations, without application URL fallback or database resets.
+- Actual PostgreSQL 17 tests pass for tenant/branch composite foreign keys,
+  scoped uniqueness, price/quantity/movement checks, failed-write rollback,
+  concurrent receipts/withdrawals, simultaneous duplicates (including overflow),
+  lifecycle/profile/history workflows, and ledger/balance reconciliation.
+- Unit tests, HTTP e2e tests, PostgreSQL integration tests, formatting, lint,
+  and backend build pass. See module docs for check totals and test setup.
+- Only a disposable Docker test database was used; no application data was reset
+  or migrated. No frontend or excluded workflow was added.

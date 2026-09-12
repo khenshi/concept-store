@@ -1,6 +1,6 @@
 # Products
 
-**Status:** Backend API implemented; frontend and dedicated verification pending
+**Status:** Backend API implemented and verified; frontend pending
 
 ## Responsibilities
 
@@ -56,5 +56,9 @@ This endpoint is read-only and does not change any branch stock.
 
 ## Delivery state
 
-Backend format/lint/build and existing regression tests pass. Dedicated product
-unit/HTTP tests remain in Part 4 of the active plan; frontend remains Part 5.
+Backend formatting/lint/build and unit/HTTP/PostgreSQL checks pass. Dedicated
+coverage validates normalization, immutable ownership, lifecycle, scoped access,
+identifier conflicts, independent branch placements, and precision. PostgreSQL
+tests apply repository migrations inside random test schemas to verify database
+relationships and workflows. See [backend test setup](../../backend/test/README.md).
+Frontend remains Part 5 of the active plan.

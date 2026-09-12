@@ -1,6 +1,6 @@
 # Branch Inventory
 
-**Status:** Backend API implemented; frontend and dedicated verification pending
+**Status:** Backend API implemented and verified; frontend pending
 
 ## Responsibilities
 
@@ -70,7 +70,12 @@ whitelisting reject malformed IDs and unexpected fields.
 
 ## Delivery state
 
-Backend format/lint/build and 85 existing regression tests pass. Dedicated stock,
-authorization, database constraint, rollback, and concurrency coverage remains
-Part 4 of the active plan. Database-backed correctness is not yet represented as
-verified. Frontend stock management remains Part 6.
+Backend formatting/lint/build, 171 unit tests, 59 HTTP e2e tests, and 18 PostgreSQL
+integration tests pass. Dedicated coverage includes request normalization, roles,
+tenant/branch access, lifecycle, precise prices, bounded writes, actor attribution,
+and retry conflicts. Actual PostgreSQL 17 verification exercises migration
+constraints, failed movement rollback, concurrent receipts and withdrawals,
+simultaneous duplicate commands, overflow retries, independent placements, and
+ledger/balance reconciliation. Test setup uses explicit disposable database URLs
+and random isolated schemas, never application database resets. See
+[backend test setup](../../backend/test/README.md). Frontend remains Part 6.
