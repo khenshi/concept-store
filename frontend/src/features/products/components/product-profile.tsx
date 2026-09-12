@@ -261,7 +261,7 @@ export function ProductProfile({
               >
                 <Link
                   className="min-w-0 break-words"
-                  href={`/app/organizations/${organizationId}/branches/${placement.branchId}`}
+                  href={`/app/organizations/${organizationId}/branches/${placement.branchId}/inventory/${placement.id}`}
                 >
                   {placement.branch.name}
                   {placement.branch.code ? ` · ${placement.branch.code}` : ''}

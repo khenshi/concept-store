@@ -8,7 +8,7 @@ Maintain organization-owned product identities with one merchant per product.
 Expose read-only branch placements with independently tracked prices and stock.
 Stock mutation services are documented in [Branch Inventory](branch-inventory.md).
 Owners and managers can manage product identities through the organization
-workspace. Branch stock mutation UI is not yet implemented.
+workspace. Branch stock management is provided by the scoped inventory workspace.
 
 ## API and authorization
 
@@ -94,7 +94,7 @@ does not apply.
   prices, and history are preserved. Existing inactive products remain editable.
 - Details show branch identity, whole-unit quantity, and exact two-decimal PHP
   price strings, without converting monetary values through floating point.
-  Placement links currently open branch details; inventory detail links and stock
-  management are delivered separately in Part 6.
+  Placement links open the matching branch-scoped inventory detail for price,
+  receiving, corrections, and immutable history. See [Branch Inventory](branch-inventory.md).
 - API response schemas reject malformed identities, status, dates, quantity bounds,
   and non-decimal-string prices before rendering.

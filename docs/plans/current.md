@@ -1,6 +1,6 @@
 # Products and Branch Inventory Implementation Plan
 
-**Status:** Approved; Parts 1–4 committed; Part 5 implemented, awaiting review
+**Status:** Approved; Parts 1–5 committed; Part 6 implemented, awaiting review
 **Date:** September 12, 2026
 
 ## Goal
@@ -391,3 +391,28 @@ Continue only through the per-part review and commit checkpoints above.
 - Frontend tests, type checking, lint, changed-source formatting, production
   build, and diff checks were run. No backend/database change or excluded
   behavior was added.
+
+## Part 6 verification record
+
+- Part 5 was reviewed and committed as `8cf4853`.
+- Added owner/manager branch inventory directory/detail routes and branch/product
+  links, scoped API calls, and runtime branch/inventory/movement response schemas.
+- Directory supports debounced product search, merchant/product-status filters,
+  independently displayed price/quantity, loading, retryable errors, and empty states.
+- Placement creation uses the shared native dialog and searchable active products
+  of active merchants, excluding products already placed in this branch. Placement
+  starts at zero with an explicit decimal-string PHP price and no transfer effects.
+- Added separate live-validated branch price, receiving, and correction forms.
+  Corrections require confirmation of signed delta, reason, and estimated result;
+  the server remains authoritative over current stock and lifecycle.
+- Unchanged failed stock commands retain their request IDs; editing command input
+  assigns a new ID on submission. Pending controls prevent repeat/concurrent writes.
+- Successful commands refresh current inventory and immutable movement history.
+  A refresh error hides stale write controls and offers read retry without replaying
+  the successful stock command. Movement snapshots never replace current stock.
+- Added focused price/quantity/schema, debounce/blur, retry identity, correction
+  confirmation, and inactive-receiving coverage. Frontend tests (191), typecheck,
+  lint, changed-source formatting, build, and diff checks pass.
+- Expanded frontend workflow coverage and explicit rendered visual/accessibility
+  verification remain Part 7. No prior QA waiver applies. No backend/database
+  changes, transfers, checkout, or excluded behavior were added.

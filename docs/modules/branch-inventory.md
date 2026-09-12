@@ -1,6 +1,6 @@
 # Branch Inventory
 
-**Status:** Backend API implemented and verified; frontend pending
+**Status:** Backend and inventory frontend implemented; expanded frontend QA pending
 
 ## Responsibilities
 
@@ -78,4 +78,44 @@ constraints, failed movement rollback, concurrent receipts and withdrawals,
 simultaneous duplicate commands, overflow retries, independent placements, and
 ledger/balance reconciliation. Test setup uses explicit disposable database URLs
 and random isolated schemas, never application database resets. See
-[backend test setup](../../backend/test/README.md). Frontend remains Part 6.
+[backend test setup](../../backend/test/README.md). Focused frontend coverage and
+regressions pass (191 tests total), along with typecheck, lint, formatting, and
+production build. Broader workflow tests and visual/accessibility verification
+remain Part 7; rendered behavior is not yet certified.
+
+## Workspace UI
+
+```text
+/app/organizations/:organizationId/branches/:branchId/inventory
+/app/organizations/:organizationId/branches/:branchId/inventory/:inventoryId
+```
+
+- Owner/manager branch details link to inventory; product placements link directly
+  to their scoped inventory details. Cashier/merchant members see no inventory
+  action, and direct inventory screens do not request data for those roles.
+- The directory includes debounced product search, merchant/product-status filters,
+  responsive divided rows, exact PHP prices, and whole-unit balances. Empty,
+  filtered-empty, loading, and retryable errors have distinct feedback.
+- Placement creation uses the shared scroll-contained native dialog, with focus
+  restoration and pending dismissal protection. Search is organization-scoped;
+  active products of active merchants are offered and existing branch placements
+  are excluded. Creation accepts price/product only and starts at zero stock.
+- Price, receiving, and correction forms are separate and use shared aligned
+  fields. Input validation runs after 300 ms, immediately on blur, and on submit.
+  Invalid submissions focus the first invalid field; errors preserve input.
+- Price remains a decimal string through validation, JSON, and display. Changing
+  one branch price never writes a quantity or another branch's placement.
+- Receiving requires active product/merchant state. Corrections remain available
+  for inactive records and confirm a signed delta, reason, and estimated result.
+  Estimates do not authorize or reject commands; the backend checks current stock.
+- Pending commands disable repeat activation, their inputs, and other placement
+  write controls. Adjustments also protect against duplicate confirmation requests.
+- Within a stock form, unchanged retries reuse the UUID from a failed command.
+  Editing quantity/reason starts a new command; confirmed success clears the draft.
+- Every successful stock command reloads actual inventory and movement history.
+  A replayed historical balance is not treated as current stock. Failed refreshes
+  hide stale write controls and offer a read-only retry, without replaying success.
+- History displays immutable operation, signed delta, resulting balance, reason,
+  timestamp, and actor ID, without personal user information or mutation actions.
+- Runtime schemas validate branch identity, inventory/product/merchant summaries,
+  exact price strings, integer bounds, and movement type/delta before rendering.

@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { BackLink } from '@/shared/components/ui/back-link';
-import { Button } from '@/shared/components/ui/button';
+import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { Notice } from '@/shared/components/ui/notice';
 import {
@@ -164,6 +165,21 @@ export function BranchDetail({
           </div>
         </dl>
       </OperationalPanel>
+      {canManage ? (
+        <OperationalPanel
+          title="Branch inventory"
+          description="Maintain this branch’s independent product prices, stock, and movement history."
+        >
+          <div className="p-6">
+            <Link
+              className={buttonStyles({ variant: 'secondary' })}
+              href={`/app/organizations/${organizationId}/branches/${branchId}/inventory`}
+            >
+              Manage inventory
+            </Link>
+          </div>
+        </OperationalPanel>
+      ) : null}
       {editing && canManage ? (
         <BranchForm
           branch={branch}

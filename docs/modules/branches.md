@@ -35,7 +35,9 @@ lines, city, province, optional postal code, and a two-letter country code.
 
 Branch inventory uses the branch's `(id, organizationId)` composite key for
 tenant-safe placement relations. Its backend workflows are documented in
-[Branch Inventory](branch-inventory.md); branch inventory UI is not yet delivered.
+[Branch Inventory](branch-inventory.md). Owner/manager branch details expose a
+Manage inventory link to the branch-scoped inventory workspace. Cashier/merchant
+branch readers do not see this action; backend inventory routes enforce roles.
 
 ## Frontend
 
