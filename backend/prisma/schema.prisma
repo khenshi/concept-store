@@ -70,7 +70,9 @@ model Merchant {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
-  products Product[]
+  products    Product[]
+  memberships OrganizationMembership[]
+  invitations OrganizationInvitation[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -92,8 +94,10 @@ model Branch {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  inventory    BranchInventory[]
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  inventory        BranchInventory[]
+  memberships      BranchMembership[]
+  invitationGrants InvitationBranch[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, name])
@@ -167,14 +171,31 @@ model OrganizationMembership {
   organizationId String
   userId         String
   role           OrganizationRole
+  merchantId     String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchant     Merchant?          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  branches     BranchMembership[]
 
   @@id([organizationId, userId])
   @@index([userId])
+  @@index([organizationId, merchantId])
+}
+
+model BranchMembership {
+  organizationId String
+  branchId       String
+  userId         String
+  createdAt      DateTime @default(now())
+
+  branch     Branch                 @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  membership OrganizationMembership @relation(fields: [organizationId, userId], references: [organizationId, userId], onDelete: Cascade)
+
+  @@id([organizationId, branchId, userId])
+  @@index([organizationId, userId])
 }
 
 model OrganizationInvitation {
@@ -182,6 +203,7 @@ model OrganizationInvitation {
   organizationId String
   email          String
   role           OrganizationRole
+  merchantId     String?
   tokenHash      String           @unique
   expiresAt      DateTime
   acceptedAt     DateTime?
@@ -191,12 +213,28 @@ model OrganizationInvitation {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  invitedBy    User         @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
-  acceptedBy   User?        @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: Restrict)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  invitedBy    User               @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Restrict)
+  acceptedBy   User?              @relation("InvitationAcceptor", fields: [acceptedById], references: [id], onDelete: Restrict)
+  merchant     Merchant?          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  branches     InvitationBranch[]
 
+  @@unique([id, organizationId])
+  @@index([organizationId, merchantId])
   @@index([organizationId, email])
   @@index([organizationId, expiresAt])
+}
+
+model InvitationBranch {
+  invitationId   String
+  organizationId String
+  branchId       String
+
+  invitation OrganizationInvitation @relation(fields: [invitationId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch     Branch                 @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@id([invitationId, branchId])
+  @@index([branchId, organizationId])
 }
 
 enum OrganizationRole {

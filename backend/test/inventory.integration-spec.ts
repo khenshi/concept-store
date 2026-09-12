@@ -146,6 +146,129 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     ).toMatchObject({ quantity: 0, sellingPrice: '9999999999.99' });
   });
 
+  it('requires tenant-local membership and branch for unique branch assignments', async () => {
+    const data = { organizationId, branchId, userId };
+    await expect(prisma.branchMembership.create({ data })).rejects.toThrow();
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    await prisma.branchMembership.create({ data });
+    await expect(prisma.branchMembership.create({ data })).rejects.toThrow();
+    await expect(
+      prisma.branchMembership.create({
+        data: { ...data, branchId: randomUUID() },
+      }),
+    ).rejects.toThrow();
+    const foreign = await prisma.organization.create({
+      data: { name: randomUUID() },
+    });
+    await prisma.organizationMembership.create({
+      data: { organizationId: foreign.id, userId, role: 'MANAGER' },
+    });
+    await expect(
+      prisma.branchMembership.create({
+        data: { ...data, organizationId: foreign.id },
+      }),
+    ).rejects.toThrow();
+    await prisma.organizationMembership.delete({
+      where: { organizationId_userId: { organizationId, userId } },
+    });
+    expect(
+      await prisma.branchMembership.count({
+        where: { organizationId, userId },
+      }),
+    ).toBe(0);
+    expect((await balance()).quantity).toBe(0);
+  });
+
+  it('permits legacy unlinked merchants but restricts linked memberships to same-tenant merchants and role', async () => {
+    const key = { organizationId, userId };
+    await prisma.organizationMembership.create({
+      data: { ...key, role: 'MERCHANT' },
+    });
+    await prisma.organizationMembership.update({
+      where: { organizationId_userId: key },
+      data: { merchantId },
+    });
+    await expect(
+      prisma.organizationMembership.update({
+        where: { organizationId_userId: key },
+        data: { role: 'MANAGER' },
+      }),
+    ).rejects.toThrow();
+    const foreign = await prisma.organization.create({
+      data: { name: randomUUID() },
+    });
+    await expect(
+      prisma.organizationMembership.create({
+        data: {
+          organizationId: foreign.id,
+          userId,
+          role: 'MERCHANT',
+          merchantId,
+        },
+      }),
+    ).rejects.toThrow();
+    const second = await prisma.user.create({
+      data: {
+        firstName: 'Second',
+        lastName: 'Merchant',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId: second.id, role: 'MERCHANT', merchantId },
+    });
+    expect(
+      await prisma.organizationMembership.count({
+        where: { organizationId, merchantId },
+      }),
+    ).toBe(2);
+  });
+
+  it('enforces unique tenant-local invitation grants and removes grants with their invitation', async () => {
+    const invitation = await prisma.organizationInvitation.create({
+      data: {
+        organizationId,
+        email: 'invite@example.test',
+        role: 'CASHIER',
+        tokenHash: randomUUID(),
+        expiresAt: new Date(Date.now() + 60000),
+        invitedById: userId,
+      },
+    });
+    const data = { organizationId, invitationId: invitation.id, branchId };
+    await prisma.invitationBranch.create({ data });
+    await expect(prisma.invitationBranch.create({ data })).rejects.toThrow();
+    const foreign = await prisma.organization.create({
+      data: { name: randomUUID() },
+    });
+    await expect(
+      prisma.invitationBranch.create({
+        data: { ...data, organizationId: foreign.id, branchId: otherBranchId },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      prisma.organizationInvitation.update({
+        where: { id: invitation.id },
+        data: { merchantId },
+      }),
+    ).rejects.toThrow();
+    await prisma.organizationInvitation.update({
+      where: { id: invitation.id },
+      data: { role: 'MERCHANT', merchantId },
+    });
+    await prisma.organizationInvitation.delete({
+      where: { id: invitation.id },
+    });
+    expect(
+      await prisma.invitationBranch.count({
+        where: { invitationId: invitation.id },
+      }),
+    ).toBe(0);
+  });
+
   it('rolls back quantity when actor foreign key rejects movement insertion', async () => {
     await expect(receive(3, randomUUID(), randomUUID())).rejects.toThrow();
     expect((await balance()).quantity).toBe(0);

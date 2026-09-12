@@ -185,6 +185,30 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
     ],
   });
 
+  await prisma.organizationMembership.update({
+    where: {
+      organizationId_userId: {
+        organizationId: ids.organization,
+        userId: ids.users.merchant,
+      },
+    },
+    data: { merchantId: ids.merchants.active },
+  });
+  await prisma.branchMembership.createMany({
+    data: [
+      {
+        organizationId: ids.organization,
+        branchId: ids.branches.makati,
+        userId: ids.users.manager,
+      },
+      {
+        organizationId: ids.organization,
+        branchId: ids.branches.makati,
+        userId: ids.users.cashier,
+      },
+    ],
+  });
+
   await seedProductInventory(prisma);
 
   const invitationToken = 'foundation-demo-invitation-token-0000000001';
@@ -197,6 +221,11 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
       tokenHash: createHash('sha256').update(invitationToken).digest('hex'),
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       invitedById: ids.users.owner,
+      branches: {
+        create: {
+          branchId: ids.branches.bgc,
+        },
+      },
     },
   });
 

@@ -34,7 +34,20 @@ stores one of `OWNER`, `MANAGER`, `CASHIER`, or `MERCHANT`.
 - Organization access is derived from the authenticated user's membership.
 - Foreign organizations and members are not disclosed.
 
-## Frontend
+## Access persistence delivery (Part 1)
+
+Memberships now have a nullable tenant-safe merchant profile link. Multiple
+MERCHANT members may share a profile; a database check prevents other roles
+carrying links. Legacy merchant memberships may remain unlinked. BranchMembership
+stores unique organization/branch/user assignments with composite foreign keys
+to the branch and organization membership. Removing a membership cascades only
+its assignments, never inventory or movement history. Merchant links are restrictive.
+
+These are persistence foundations only. Assignment/link management APIs, role-change
+cleanup, and access enforcement are not yet implemented; existing authorization
+and frontend behavior above remain unchanged until subsequent approved parts.
+
+## Frontend behavior
 
 Owners and managers receive the Members navigation entry and member list.
 Owner-only controls change roles and remove members with confirmation.

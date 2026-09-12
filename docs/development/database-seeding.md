@@ -9,6 +9,11 @@ Makati/BGC PHP prices (`850.00`/`925.50`) and stock balances (`10`/`8`). Other
 placements start at zero. Seeded receipts and a correction insert attributed
 movement history atomically with balance changes; there are no transfer effects.
 
+Access persistence examples assign the manager and cashier to Makati, link the
+merchant member to Amihan Home Studio, and attach a BGC grant to the pending
+cashier invitation. Owners have no explicit assignment rows. Access enforcement
+and invitation grant acceptance are not yet implemented by the persistence part.
+
 From `backend/`, run:
 
 ```bash

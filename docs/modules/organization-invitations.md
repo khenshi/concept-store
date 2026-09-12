@@ -35,7 +35,20 @@ POST  /organization-invitations/:token/accept
   transaction.
 - Invitation errors do not disclose unavailable tenant data.
 
-## Frontend
+## Access persistence delivery (Part 1)
+
+Invitations now support nullable tenant-safe merchant links and unique branch
+grant records. Composite foreign keys prevent cross-tenant merchant/branch grants.
+Only MERCHANT invitations may carry merchant links; legacy invitations may remain
+unlinked. Grant records cascade if their invitation is deleted; branch/merchant
+references remain restrictive. Existing invitation retention is unchanged.
+
+The demo invitation stores a BGC branch grant. Creation/acceptance APIs do not yet
+accept or apply these grants or merchant links; that behavior belongs to later
+approved parts. Existing invitation authorization and acceptance behavior remain
+unchanged in this persistence-only delivery.
+
+## Frontend behavior
 
 Owners manage invitations from the organization member workflow. A separate
 token route previews and accepts invitations.
