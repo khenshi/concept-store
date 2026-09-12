@@ -3,9 +3,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import {
+  InventoryMovementType,
   MerchantStatus,
   OrganizationRole,
   PrismaClient,
+  ProductStatus,
 } from '../src/generated/prisma/client';
 
 const ids = {
@@ -26,11 +28,25 @@ const ids = {
     suspended: '00000000-0000-4000-8000-000000000043',
     ended: '00000000-0000-4000-8000-000000000044',
   },
+  products: {
+    vase: '00000000-0000-4000-8000-000000000051',
+    tray: '00000000-0000-4000-8000-000000000052',
+    inactive: '00000000-0000-4000-8000-000000000053',
+  },
+  inventory: {
+    makatiVase: '00000000-0000-4000-8000-000000000061',
+    bgcVase: '00000000-0000-4000-8000-000000000062',
+    makatiTray: '00000000-0000-4000-8000-000000000063',
+    inactive: '00000000-0000-4000-8000-000000000064',
+  },
 } as const;
 
 function assertSafeEnvironment(resetRequested: boolean): void {
   const runtimeEnvironment = process.env.NODE_ENV ?? 'development';
-  if (!['development', 'test'].includes(runtimeEnvironment) && process.env.SEED_DEMO_DATA !== '1') {
+  if (
+    !['development', 'test'].includes(runtimeEnvironment) &&
+    process.env.SEED_DEMO_DATA !== '1'
+  ) {
     throw new Error(
       'Demo seed is restricted to development/test. Set SEED_DEMO_DATA=1 explicitly to override.',
     );
@@ -50,7 +66,9 @@ async function resetDatabase(prisma: PrismaClient): Promise<void> {
   const quoted = tables
     .map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`)
     .join(', ');
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE`);
+  await prisma.$executeRawUnsafe(
+    `TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE`,
+  );
 }
 
 async function seedFoundation(prisma: PrismaClient): Promise<void> {
@@ -77,10 +95,26 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
   });
   await prisma.organizationMembership.createMany({
     data: [
-      { organizationId: ids.organization, userId: ids.users.owner, role: OrganizationRole.OWNER },
-      { organizationId: ids.organization, userId: ids.users.manager, role: OrganizationRole.MANAGER },
-      { organizationId: ids.organization, userId: ids.users.cashier, role: OrganizationRole.CASHIER },
-      { organizationId: ids.organization, userId: ids.users.merchant, role: OrganizationRole.MERCHANT },
+      {
+        organizationId: ids.organization,
+        userId: ids.users.owner,
+        role: OrganizationRole.OWNER,
+      },
+      {
+        organizationId: ids.organization,
+        userId: ids.users.manager,
+        role: OrganizationRole.MANAGER,
+      },
+      {
+        organizationId: ids.organization,
+        userId: ids.users.cashier,
+        role: OrganizationRole.CASHIER,
+      },
+      {
+        organizationId: ids.organization,
+        userId: ids.users.merchant,
+        role: OrganizationRole.MERCHANT,
+      },
     ],
   });
   await prisma.branch.createMany({
@@ -151,6 +185,8 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
     ],
   });
 
+  await seedProductInventory(prisma);
+
   const invitationToken = 'foundation-demo-invitation-token-0000000001';
   await prisma.organizationInvitation.create({
     data: {
@@ -169,14 +205,140 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
   console.info('Invitation token:', invitationToken);
 }
 
+async function seedProductInventory(prisma: PrismaClient): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.product.createMany({
+      data: [
+        {
+          id: ids.products.vase,
+          organizationId: ids.organization,
+          merchantId: ids.merchants.active,
+          name: 'Amihan Ceramic Vase',
+          sku: 'AMIHAN-VASE',
+          barcode: '0001234567890',
+        },
+        {
+          id: ids.products.tray,
+          organizationId: ids.organization,
+          merchantId: ids.merchants.active,
+          name: 'Amihan Woven Tray',
+          sku: 'AMIHAN-TRAY',
+        },
+        {
+          id: ids.products.inactive,
+          organizationId: ids.organization,
+          merchantId: ids.merchants.active,
+          name: 'Amihan Retired Planter',
+          status: ProductStatus.INACTIVE,
+        },
+      ],
+    });
+    await tx.branchInventory.createMany({
+      data: [
+        {
+          id: ids.inventory.makatiVase,
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
+          productId: ids.products.vase,
+          sellingPrice: '850.00',
+        },
+        {
+          id: ids.inventory.bgcVase,
+          organizationId: ids.organization,
+          branchId: ids.branches.bgc,
+          productId: ids.products.vase,
+          sellingPrice: '925.50',
+        },
+        {
+          id: ids.inventory.makatiTray,
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
+          productId: ids.products.tray,
+          sellingPrice: '450.00',
+        },
+        {
+          id: ids.inventory.inactive,
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
+          productId: ids.products.inactive,
+          sellingPrice: '600.00',
+        },
+      ],
+    });
+
+    const movements = [
+      {
+        id: '00000000-0000-4000-8000-000000000071',
+        requestId: '00000000-0000-4000-8000-000000000081',
+        inventoryId: ids.inventory.makatiVase,
+        branchId: ids.branches.makati,
+        type: InventoryMovementType.RECEIPT,
+        delta: 12,
+        reason: 'Initial demo stock received',
+        createdAt: new Date('2026-09-12T00:00:00.000Z'),
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000072',
+        requestId: '00000000-0000-4000-8000-000000000082',
+        inventoryId: ids.inventory.bgcVase,
+        branchId: ids.branches.bgc,
+        type: InventoryMovementType.RECEIPT,
+        delta: 8,
+        reason: 'Independent BGC demo stock received',
+        createdAt: new Date('2026-09-12T00:01:00.000Z'),
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000073',
+        requestId: '00000000-0000-4000-8000-000000000083',
+        inventoryId: ids.inventory.makatiVase,
+        branchId: ids.branches.makati,
+        type: InventoryMovementType.ADJUSTMENT,
+        delta: -2,
+        reason: 'Two damaged demo units removed',
+        createdAt: new Date('2026-09-12T00:02:00.000Z'),
+      },
+    ];
+    for (const movement of movements) {
+      const inventory = await tx.branchInventory.update({
+        where: {
+          id: movement.inventoryId,
+          organizationId: ids.organization,
+          branchId: movement.branchId,
+        },
+        data: { quantity: { increment: movement.delta } },
+      });
+      await tx.inventoryMovement.create({
+        data: {
+          id: movement.id,
+          organizationId: ids.organization,
+          branchId: movement.branchId,
+          branchInventoryId: inventory.id,
+          type: movement.type,
+          quantityChange: movement.delta,
+          quantityAfter: inventory.quantity,
+          reason: movement.reason,
+          createdById: ids.users.owner,
+          requestId: movement.requestId,
+          createdAt: movement.createdAt,
+        },
+      });
+    }
+  });
+}
+
 async function main(): Promise<void> {
   const resetRequested = process.argv.includes('--reset');
   assertSafeEnvironment(resetRequested);
-  const connectionString = process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
+  const connectionString =
+    process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error('DATABASE_URL or DIRECT_DATABASE_URL is required to seed demo data');
+    throw new Error(
+      'DATABASE_URL or DIRECT_DATABASE_URL is required to seed demo data',
+    );
   }
-  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
+  });
   try {
     await resetDatabase(prisma);
     await seedFoundation(prisma);

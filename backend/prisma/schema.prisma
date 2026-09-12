@@ -23,6 +23,7 @@ model User {
   sentOrganizationInvitations     OrganizationInvitation[] @relation("InvitationSender")
   acceptedOrganizationInvitations OrganizationInvitation[] @relation("InvitationAcceptor")
   sessions                        UserSession[]
+  inventoryMovements              InventoryMovement[]
 
   @@index([deletedAt])
 }
@@ -52,6 +53,7 @@ model Organization {
   branches    Branch[]
   invitations OrganizationInvitation[]
   merchants   Merchant[]
+  products    Product[]
 }
 
 model Merchant {
@@ -67,6 +69,8 @@ model Merchant {
   updatedAt      DateTime       @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  products Product[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -88,10 +92,75 @@ model Branch {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  inventory    BranchInventory[]
 
+  @@unique([id, organizationId])
   @@unique([organizationId, name])
   @@unique([organizationId, code])
+}
+
+model Product {
+  id             String        @id @default(uuid())
+  organizationId String
+  merchantId     String
+  name           String
+  sku            String?
+  barcode        String?
+  status         ProductStatus @default(ACTIVE)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchant     Merchant          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  inventory    BranchInventory[]
+
+  @@unique([organizationId, sku])
+  @@unique([organizationId, barcode])
+  @@unique([id, organizationId])
+  @@index([organizationId, merchantId, status])
+  @@index([organizationId, name])
+}
+
+/// Quantity and price CHECK constraints are defined in the SQL migration.
+model BranchInventory {
+  id             String   @id @default(uuid())
+  organizationId String
+  branchId       String
+  productId      String
+  sellingPrice   Decimal  @db.Decimal(12, 2)
+  quantity       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  branch    Branch              @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  product   Product             @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  movements InventoryMovement[]
+
+  @@unique([organizationId, branchId, productId])
+  @@unique([id, organizationId, branchId])
+  @@index([organizationId, productId])
+}
+
+/// Delta, receipt, and resulting-quantity CHECK constraints are defined in SQL.
+model InventoryMovement {
+  id                String                @id @default(uuid())
+  organizationId    String
+  branchId          String
+  branchInventoryId String
+  type              InventoryMovementType
+  quantityChange    Int
+  quantityAfter     Int
+  reason            String
+  createdById       String
+  requestId         String
+  createdAt         DateTime              @default(now())
+
+  inventory BranchInventory @relation(fields: [branchInventoryId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
+  createdBy User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, requestId])
+  @@index([organizationId, branchId, branchInventoryId, createdAt, id], map: "InventoryMovement_history_idx")
 }
 
 model OrganizationMembership {
@@ -142,4 +211,14 @@ enum MerchantStatus {
   INACTIVE
   SUSPENDED
   ENDED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InventoryMovementType {
+  RECEIPT
+  ADJUSTMENT
 }
