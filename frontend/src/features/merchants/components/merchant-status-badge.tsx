@@ -1,10 +1,10 @@
 import type { MerchantStatus } from '../model/merchant.types';
 
 const styles: Record<MerchantStatus, string> = {
-  ACTIVE: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  INACTIVE: 'border-slate-200 bg-slate-50 text-slate-600',
-  SUSPENDED: 'border-amber-200 bg-amber-50 text-amber-800',
-  ENDED: 'border-red-200 bg-red-50 text-red-700',
+  ACTIVE: 'border-success/20 bg-success/5 text-success',
+  INACTIVE: 'border-hairline bg-subtle text-muted',
+  SUSPENDED: 'border-warning/20 bg-warning/5 text-warning',
+  ENDED: 'border-hairline bg-subtle text-muted',
 };
 
 export function MerchantStatusBadge({ status }: { status: MerchantStatus }) {

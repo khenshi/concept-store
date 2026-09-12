@@ -4,6 +4,7 @@ import {
   Children,
   isValidElement,
   useEffect,
+  useLayoutEffect,
   useId,
   useMemo,
   useRef,
@@ -85,15 +86,37 @@ export function SelectControl({
     triggerRef.current?.focus();
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) return;
+    const trigger = triggerRef.current;
+    const listbox = listboxRef.current;
+    if (!trigger || !listbox) return;
+    function positionMenu() {
+      if (!trigger || !listbox) return;
+      const bounds = trigger.getBoundingClientRect();
+      const dialog = trigger.closest('dialog');
+      const dialogBounds = dialog?.getBoundingClientRect();
+      const viewportTop = window.visualViewport?.offsetTop ?? 0;
+      const viewportBottom =
+        viewportTop + (window.visualViewport?.height ?? window.innerHeight);
+      const top = Math.max(viewportTop, dialogBounds?.top ?? viewportTop) + 8;
+      const bottom =
+        Math.min(viewportBottom, dialogBounds?.bottom ?? viewportBottom) - 8;
+      const above = Math.max(0, bounds.top - top - 8);
+      const below = Math.max(0, bottom - bounds.bottom - 8);
+      const opensAbove = below < 256 && above > below;
+      listbox.style.top = opensAbove ? 'auto' : 'calc(100% + 8px)';
+      listbox.style.bottom = opensAbove ? 'calc(100% + 8px)' : 'auto';
+      listbox.style.maxHeight = `${Math.min(256, opensAbove ? above : below)}px`;
+    }
+    positionMenu();
     const selected = listboxRef.current?.querySelector<HTMLButtonElement>(
       '[aria-selected="true"]:not(:disabled)',
     );
     const first = listboxRef.current?.querySelector<HTMLButtonElement>(
       'button:not(:disabled)',
     );
-    (selected ?? first)?.focus();
+    focusOption(selected ?? first);
     function closeOnOutsideClick(event: PointerEvent) {
       if (
         event.target instanceof Node &&
@@ -109,11 +132,30 @@ export function SelectControl({
     }
     document.addEventListener('pointerdown', closeOnOutsideClick);
     document.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('resize', positionMenu);
+    document.addEventListener('scroll', positionMenu, true);
+    window.visualViewport?.addEventListener('resize', positionMenu);
+    window.visualViewport?.addEventListener('scroll', positionMenu);
     return () => {
       document.removeEventListener('pointerdown', closeOnOutsideClick);
       document.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('resize', positionMenu);
+      document.removeEventListener('scroll', positionMenu, true);
+      window.visualViewport?.removeEventListener('resize', positionMenu);
+      window.visualViewport?.removeEventListener('scroll', positionMenu);
     };
   }, [isOpen]);
+
+  function focusOption(option: HTMLButtonElement | null | undefined) {
+    option?.focus({ preventScroll: true });
+    const listbox = listboxRef.current;
+    if (!option || !listbox) return;
+    const top = option.offsetTop;
+    const bottom = top + option.offsetHeight;
+    if (top < listbox.scrollTop) listbox.scrollTop = top;
+    else if (bottom > listbox.scrollTop + listbox.clientHeight)
+      listbox.scrollTop = bottom - listbox.clientHeight;
+  }
 
   useEffect(() => {
     const form = containerRef.current?.closest('form');
@@ -183,7 +225,7 @@ export function SelectControl({
       {isOpen ? (
         <div
           ref={listboxRef}
-          className="absolute right-0 left-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-control border border-hairline bg-surface p-1.5 shadow-floating"
+          className="absolute right-0 left-0 z-50 overflow-y-auto overscroll-contain rounded-control border border-hairline bg-surface p-1.5 shadow-floating"
           id={listboxId}
           role="listbox"
           aria-labelledby={id}
@@ -211,7 +253,7 @@ export function SelectControl({
               return;
             } else return;
             event.preventDefault();
-            enabled[next]?.focus();
+            focusOption(enabled[next]);
           }}
         >
           {options.map((option) => (

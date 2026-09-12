@@ -5,6 +5,15 @@ system. Invitation creation uses a native modal with focus restoration and
 pending dismissal protection; historical invitation status remains explicit.
 Form dialogs use generous viewport-aware widths. Dialog headings retain initial
 focus for context without a visible outline; control focus rings are unchanged.
+Merchant workflows now use full-width responsive linked directory rows, neutral
+profile panels and shared form controls. Creation uses a wide native dialog with
+focus restoration, scroll containment, and pending dismissal protection. Existing
+debounced search and validation, role restrictions, and confirmed lifecycle
+changes are preserved.
+
+Shared select menus choose upward or downward placement using available viewport
+and modal space. Only the choice list scrolls when options exceed that space;
+keyboard navigation scrolls the list rather than moving the surrounding modal.
 
 ## Public landing page
 

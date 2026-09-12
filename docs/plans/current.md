@@ -17,9 +17,12 @@
   control borders and full-width organization-row hover surfaces.
 - Part 5: Branch directory, creation, detail, and editing approved and committed
   as `51f264b`.
-- Part 6: Member management and owner invitation workflows approved, including
-  wider form dialogs and removal of outlines on focused modal headings.
-- Part 7: Merchant directory, profile, editing, and lifecycle workflows next.
+- Part 6: Member management and owner invitation workflows approved and committed
+  as `40395bd`, including wider form dialogs and outline-free focused headings.
+- Part 7: Merchant directory, profile, editing, and lifecycle workflows approved.
+  Shared dropdown refinement bounds menus to modal space, opens upward when
+  needed, and confines option scrolling to the menu.
+- Part 8: Login, registration, invitation acceptance, and guest/session states next.
 - Subsequent parts: Operational features, guest experiences, and final cross-route
   verification.
 

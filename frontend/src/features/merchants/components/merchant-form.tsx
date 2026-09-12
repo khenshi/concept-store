@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
+import { buttonStyles } from '@/shared/components/ui/button';
+import { TextField } from '@/shared/components/ui/text-field';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { createMerchant, updateMerchant } from '../api/merchant-api';
@@ -29,11 +31,13 @@ export function MerchantForm({
   merchant,
   onSaved,
   onCancel,
+  onPendingChange,
 }: {
   organizationId: string;
   merchant?: Merchant;
   onSaved(merchant: Merchant): void;
   onCancel?(): void;
+  onPendingChange?(pending: boolean): void;
 }) {
   const { request } = useAuth();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -94,6 +98,7 @@ export function MerchantForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
     setSubmissionError(null);
     const form = event.currentTarget;
     const result = merchantFormSchema.safeParse(valuesFrom(form));
@@ -111,6 +116,7 @@ export function MerchantForm({
 
     setFieldErrors({});
     setIsSubmitting(true);
+    onPendingChange?.(true);
     try {
       const saved = merchant
         ? await updateMerchant(request, organizationId, merchant.id, {
@@ -124,6 +130,7 @@ export function MerchantForm({
       setSubmissionError(errorMessage(cause));
     } finally {
       setIsSubmitting(false);
+      onPendingChange?.(false);
     }
   }
 
@@ -137,7 +144,7 @@ export function MerchantForm({
     >
       {submissionError ? (
         <p
-          className="rounded-lg border border-red-600 p-3 text-sm text-red-700"
+          className="rounded-lg border border-danger p-3 text-sm text-danger"
           role="alert"
         >
           {submissionError}
@@ -145,7 +152,7 @@ export function MerchantForm({
       ) : null}
       {Object.keys(fieldErrors).length ? (
         <p
-          className="rounded-lg border border-red-600 p-3 text-sm text-red-700"
+          className="rounded-lg border border-danger p-3 text-sm text-danger"
           role="alert"
         >
           Review the highlighted fields and try again.
@@ -199,8 +206,9 @@ export function MerchantForm({
       </div>
       <div className="flex flex-wrap gap-3">
         <button
-          className="min-h-11 cursor-pointer rounded-lg bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-65"
+          className={buttonStyles({ variant: 'primary' })}
           disabled={isSubmitting}
+          aria-busy={isSubmitting}
           type="submit"
         >
           {isSubmitting
@@ -211,7 +219,7 @@ export function MerchantForm({
         </button>
         {onCancel ? (
           <button
-            className="min-h-11 cursor-pointer rounded-lg border border-slate-200 bg-white px-4 font-bold text-slate-700"
+            className={buttonStyles({ variant: 'secondary' })}
             disabled={isSubmitting}
             onClick={onCancel}
             type="button"
@@ -243,41 +251,25 @@ function MerchantFieldInput({
   required?: boolean;
   type?: 'text' | 'email' | 'tel';
 }) {
-  const describedBy = [
-    hint ? `${name}-hint` : null,
-    error ? `${name}-error` : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
   return (
-    <div className="grid min-w-0 content-start gap-2">
-      <label className="text-sm font-bold" htmlFor={name}>
-        {label}
-        {!required ? (
-          <span className="font-normal text-slate-500"> (optional)</span>
-        ) : null}
-      </label>
-      {hint ? (
-        <small className="text-sm text-slate-500" id={`${name}-hint`}>
-          {hint}
-        </small>
-      ) : null}
-      <input
-        aria-describedby={describedBy || undefined}
-        aria-invalid={Boolean(error)}
-        className="min-h-12 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
-        defaultValue={defaultValue}
-        id={name}
-        maxLength={maxLength}
-        name={name}
-        required={required}
-        type={type}
-      />
-      {error ? (
-        <p className="text-sm text-red-600" id={`${name}-error`}>
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <TextField
+      name={name}
+      label={
+        <>
+          {label}
+          {!required ? (
+            <span className="font-normal text-muted"> (optional)</span>
+          ) : null}
+        </>
+      }
+      hint={hint}
+      hintPosition="before"
+      error={error}
+      defaultValue={defaultValue}
+      maxLength={maxLength}
+      required={required}
+      type={type}
+      containerClassName="content-start"
+    />
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { buttonStyles } from '@/shared/components/ui/button';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -52,6 +53,8 @@ export function MerchantProfile({
   }, [merchantId, organizationId, request]);
 
   useEffect(() => {
+    if (!organization || !['OWNER', 'MANAGER'].includes(organization.role))
+      return;
     let active = true;
     void getMerchant(request, organizationId, merchantId)
       .then((result) => {
@@ -68,10 +71,10 @@ export function MerchantProfile({
     return () => {
       active = false;
     };
-  }, [merchantId, organizationId, request]);
+  }, [merchantId, organizationId, organization, request]);
 
   async function changeStatus() {
-    if (!merchant || status === merchant.status) return;
+    if (!merchant || changingStatus || status === merchant.status) return;
     const accepted = await confirm({
       title: `Change ${merchant.name} to ${status.toLowerCase()}?`,
       description:
@@ -100,7 +103,7 @@ export function MerchantProfile({
     }
   }
 
-  if (organizationStatus === 'loading' || (!merchant && !error))
+  if (organizationStatus === 'loading')
     return (
       <ListSkeleton
         className="mx-auto mt-6 max-w-4xl"
@@ -113,6 +116,14 @@ export function MerchantProfile({
       <p className="mx-auto mt-8 max-w-3xl" role="alert">
         Your organization role cannot view merchant profiles.
       </p>
+    );
+  if (!merchant && !error)
+    return (
+      <ListSkeleton
+        className="mt-6"
+        label="Loading merchant profile"
+        rows={5}
+      />
     );
   if (!merchant)
     return (
@@ -129,24 +140,22 @@ export function MerchantProfile({
     );
 
   return (
-    <section className="mx-auto mt-6 w-full max-w-4xl">
+    <section className="mx-auto mt-6 w-full max-w-5xl">
       <BackLink href={`/app/organizations/${organizationId}/merchants`}>
         Back to merchants
       </BackLink>
-      <header className="mt-5 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <p className="text-xs font-bold tracking-wider text-emerald-700 uppercase">
+      <header className="mt-5 flex flex-wrap items-start justify-between gap-4 border-b border-hairline pb-5">
+        <div className="min-w-0 break-words">
+          <p className="text-xs font-bold tracking-wider text-ink uppercase">
             {merchant.code ?? 'Merchant profile'}
           </p>
-          <h1 className="mt-1 text-3xl font-bold text-slate-950">
-            {merchant.name}
-          </h1>
+          <h1 className="mt-1 text-3xl font-bold text-ink">{merchant.name}</h1>
           <div className="mt-3">
             <MerchantStatusBadge status={merchant.status} />
           </div>
         </div>
         <button
-          className="min-h-11 cursor-pointer rounded-lg bg-emerald-600 px-4 font-bold text-white"
+          className={buttonStyles({ variant: 'primary' })}
           onClick={() => {
             setEditing((current) => !current);
             setSuccess(null);
@@ -159,7 +168,7 @@ export function MerchantProfile({
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       {error ? (
         <p
-          className="mt-5 rounded-lg border border-red-600 p-3 text-sm text-red-700"
+          className="mt-5 rounded-lg border border-danger p-3 text-sm text-danger"
           role="alert"
         >
           {error}
@@ -167,7 +176,7 @@ export function MerchantProfile({
       ) : null}
 
       {editing ? (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+        <div className="mt-6 rounded-panel border border-hairline bg-surface p-6">
           <h2 className="text-lg font-bold">Edit profile</h2>
           <MerchantForm
             merchant={merchant}
@@ -182,46 +191,40 @@ export function MerchantProfile({
           />
         </div>
       ) : (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+        <section className="mt-6 rounded-panel border border-hairline bg-surface p-6">
           <h2 className="font-bold">Business and contact information</h2>
-          <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+          <dl className="mt-5 grid gap-5 break-words sm:grid-cols-2 [&>div]:min-w-0">
             <div>
-              <dt className="text-xs font-bold text-slate-500 uppercase">
+              <dt className="text-xs font-bold text-muted uppercase">
                 Business name
               </dt>
               <dd className="mt-1">{merchant.name}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold text-slate-500 uppercase">
-                Code
-              </dt>
+              <dt className="text-xs font-bold text-muted uppercase">Code</dt>
               <dd className="mt-1">{merchant.code ?? 'Not set'}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold text-slate-500 uppercase">
+              <dt className="text-xs font-bold text-muted uppercase">
                 Contact
               </dt>
               <dd className="mt-1">{merchant.contactName}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold text-slate-500 uppercase">
-                Phone
-              </dt>
+              <dt className="text-xs font-bold text-muted uppercase">Phone</dt>
               <dd className="mt-1">{merchant.phone}</dd>
             </div>
             <div>
-              <dt className="text-xs font-bold text-slate-500 uppercase">
-                Email
-              </dt>
+              <dt className="text-xs font-bold text-muted uppercase">Email</dt>
               <dd className="mt-1">{merchant.email ?? 'Not set'}</dd>
             </div>
           </dl>
         </section>
       )}
 
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+      <section className="mt-6 rounded-panel border border-hairline bg-surface p-6">
         <h2 className="font-bold">Lifecycle status</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
+        <p className="mt-2 text-sm leading-6 text-muted">
           Status is changed separately from profile details and requires
           confirmation.
         </p>
@@ -244,8 +247,9 @@ export function MerchantProfile({
             </SelectControl>
           </label>
           <button
-            className="min-h-11 cursor-pointer rounded-lg border border-slate-200 bg-white px-4 font-bold disabled:cursor-not-allowed disabled:opacity-50"
+            className={buttonStyles({ variant: 'secondary' })}
             disabled={changingStatus || status === merchant.status}
+            aria-busy={changingStatus}
             onClick={() => void changeStatus()}
             type="button"
           >

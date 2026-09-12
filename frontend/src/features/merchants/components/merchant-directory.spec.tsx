@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { listMerchants } from '../api/merchant-api';
@@ -18,6 +24,39 @@ vi.mock('../api/merchant-api', () => ({
 }));
 
 const organizationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const originalShow = Object.getOwnPropertyDescriptor(
+  HTMLDialogElement.prototype,
+  'showModal',
+);
+const originalClose = Object.getOwnPropertyDescriptor(
+  HTMLDialogElement.prototype,
+  'close',
+);
+beforeEach(() => {
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+    configurable: true,
+    value() {
+      this.setAttribute('open', '');
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+    configurable: true,
+    value() {
+      this.removeAttribute('open');
+    },
+  });
+});
+afterEach(() => {
+  cleanup();
+  for (const [name, descriptor] of [
+    ['showModal', originalShow],
+    ['close', originalClose],
+  ] as const) {
+    if (descriptor)
+      Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+  }
+});
 const merchant = {
   id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   organizationId,
@@ -99,5 +138,35 @@ describe('MerchantDirectory', () => {
         { q: 'amihan', status: 'SUSPENDED' },
       ),
     );
+  });
+
+  it('restores the trigger focus and scrolling after modal cancellation', async () => {
+    vi.mocked(listMerchants).mockResolvedValue([]);
+    render(<MerchantDirectory organizationId={organizationId} />);
+    await screen.findByText('No merchants yet');
+    const trigger = screen.getByRole('button', { name: 'Add merchant' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(
+      screen.getByRole('heading', { name: 'Add a merchant' }),
+    ).toHaveFocus();
+    expect(document.body.style.overflow).toBe('hidden');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('does not request merchant data for a cashier', () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { id: organizationId, role: 'CASHIER' },
+      organizationStatus: 'ready',
+    } as never);
+    render(<MerchantDirectory organizationId={organizationId} />);
+    expect(screen.getByText('Merchant directory unavailable')).toBeVisible();
+    expect(listMerchants).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: 'Add merchant' }),
+    ).not.toBeInTheDocument();
   });
 });

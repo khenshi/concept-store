@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { buttonStyles } from '@/shared/components/ui/button';
+import { Icon } from '@/shared/components/ui/icon';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
@@ -99,7 +101,7 @@ export function MerchantDirectory({
     return (
       <section className="mx-auto mt-8 max-w-3xl" role="alert">
         <h1 className="text-3xl font-bold">Merchant directory unavailable</h1>
-        <p className="mt-3 text-slate-500">
+        <p className="mt-3 text-muted">
           Your organization role cannot manage merchant profiles.
         </p>
       </section>
@@ -119,7 +121,7 @@ export function MerchantDirectory({
         description={`${merchants.length} matching merchant${merchants.length === 1 ? '' : 's'}`}
         action={
           <button
-            className="min-h-11 cursor-pointer rounded-lg border-0 bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700"
+            className={buttonStyles({ variant: 'primary' })}
             onClick={() => {
               setSuccess(null);
               setShowCreate(true);
@@ -133,7 +135,7 @@ export function MerchantDirectory({
         <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]">
           <FilterField id="merchant-search" label="Search">
             <input
-              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3"
+              className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm placeholder:text-faint"
               id="merchant-search"
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Business, code, contact, email, or phone"
@@ -174,56 +176,51 @@ export function MerchantDirectory({
                 ? 'No merchants match these filters'
                 : 'No merchants yet'}
             </h3>
-            <p className="mx-auto mt-2 max-w-md text-slate-500">
+            <p className="mx-auto mt-2 max-w-md text-muted">
               {search || status
                 ? 'Try a different search or lifecycle status.'
                 : 'Add the first merchant business profile for this organization.'}
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-6 py-3">Merchant</th>
-                  <th className="px-4 py-3">Contact</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-6 py-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {merchants.map((merchant) => (
-                  <tr key={merchant.id}>
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-slate-950">
-                        {merchant.name}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {merchant.code ?? 'No code'}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <p>{merchant.contactName}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {merchant.email ?? merchant.phone}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <MerchantStatusBadge status={merchant.status} />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Link
-                        className="font-bold text-emerald-700 no-underline"
-                        href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul
+            aria-label="Merchant directory"
+            className="m-0 list-none divide-y divide-hairline p-0"
+          >
+            {merchants.map((merchant) => (
+              <li key={merchant.id}>
+                <Link
+                  className="flex min-w-0 flex-col gap-3 px-5 py-5 text-ink no-underline hover:bg-subtle sm:flex-row sm:items-center sm:px-6"
+                  href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
+                  aria-label={`View ${merchant.name}`}
+                >
+                  <div className="min-w-0 flex-1 break-words">
+                    <strong className="block text-sm font-semibold">
+                      {merchant.name}
+                    </strong>
+                    <span className="mt-1 block text-xs text-muted">
+                      {merchant.code ?? 'No code'}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1 break-words text-sm">
+                    <span className="block">{merchant.contactName}</span>
+                    <span className="mt-1 block text-xs text-muted">
+                      {merchant.email ?? merchant.phone}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4 sm:justify-end">
+                    <MerchantStatusBadge status={merchant.status} />
+                    <span
+                      className="flex items-center gap-2 text-xs font-medium text-muted"
+                      aria-hidden="true"
+                    >
+                      View profile <Icon name="arrow" className="size-4" />
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
         )}
       </OperationalPanel>
       {showCreate ? (
@@ -251,31 +248,49 @@ function CreateMerchantModal({
   onSaved(merchant: Merchant): void;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
     headingRef.current?.focus();
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel();
-    }
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [onCancel]);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      dialog?.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+        previousFocus.focus();
+    };
+  }, []);
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onCancel();
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="create-merchant-title"
+      aria-describedby="create-merchant-description"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-5xl overflow-y-auto rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-ink/40 sm:p-8"
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!pending) onCancel();
       }}
-      role="presentation"
+      onMouseDown={(event) => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (
+          !pending &&
+          event.target === event.currentTarget &&
+          (event.clientX < bounds.left ||
+            event.clientX > bounds.right ||
+            event.clientY < bounds.top ||
+            event.clientY > bounds.bottom)
+        )
+          onCancel();
+      }}
     >
-      <section
-        aria-labelledby="create-merchant-title"
-        aria-modal="true"
-        className="my-auto max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8"
-        role="dialog"
-      >
-        <p className="text-xs font-bold tracking-wider text-emerald-700 uppercase">
+      <section className="min-w-0">
+        <p className="text-xs font-bold tracking-wider text-ink uppercase">
           Merchant identity
         </p>
         <h2
@@ -286,7 +301,10 @@ function CreateMerchantModal({
         >
           Add a merchant
         </h2>
-        <p className="mt-2 text-slate-500">
+        <p
+          className="mt-2 text-sm leading-6 text-muted"
+          id="create-merchant-description"
+        >
           Record the business and primary contact information. New merchants
           start as active.
         </p>
@@ -294,8 +312,9 @@ function CreateMerchantModal({
           organizationId={organizationId}
           onCancel={onCancel}
           onSaved={onSaved}
+          onPendingChange={setPending}
         />
       </section>
-    </div>
+    </dialog>
   );
 }

@@ -4,6 +4,61 @@ import { useConfirmationDialog } from './confirmation-dialog';
 import { SelectControl } from './select-control';
 
 describe('SelectControl', () => {
+  it('opens upward near a modal bottom and keeps scrolling inside the choices', () => {
+    render(
+      <dialog open data-testid="modal">
+        <SelectControl aria-label="Role">
+          <option value="OWNER">Owner</option>
+        </SelectControl>
+      </dialog>,
+    );
+    const dialog = screen.getByTestId('modal');
+    const trigger = screen.getByRole('combobox', { name: 'Role' });
+    vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 600,
+    } as DOMRect);
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+      top: 520,
+      bottom: 564,
+    } as DOMRect);
+    dialog.scrollTop = 20;
+    fireEvent.click(trigger);
+    const menu = screen.getByRole('listbox');
+    expect(menu.style.top).toBe('auto');
+    expect(menu.style.bottom).toBe('calc(100% + 8px)');
+    expect(menu.style.maxHeight).toBe('256px');
+    expect(menu).toHaveClass('overflow-y-auto', 'overscroll-contain');
+    expect(dialog.scrollTop).toBe(20);
+  });
+
+  it('limits choices to available modal space and repositions on scrolling', () => {
+    render(
+      <dialog open data-testid="modal">
+        <SelectControl aria-label="Role">
+          <option value="OWNER">Owner</option>
+        </SelectControl>
+      </dialog>,
+    );
+    const dialog = screen.getByTestId('modal');
+    const trigger = screen.getByRole('combobox', { name: 'Role' });
+    vi.spyOn(dialog, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 400,
+    } as DOMRect);
+    const bounds = vi
+      .spyOn(trigger, 'getBoundingClientRect')
+      .mockReturnValue({ top: 130, bottom: 174 } as DOMRect);
+    fireEvent.click(trigger);
+    const menu = screen.getByRole('listbox');
+    expect(menu.style.maxHeight).toBe('210px');
+    expect(menu.style.top).toBe('calc(100% + 8px)');
+    bounds.mockReturnValue({ top: 320, bottom: 364 } as DOMRect);
+    fireEvent.scroll(dialog);
+    expect(menu.style.top).toBe('auto');
+    expect(menu.style.maxHeight).toBe('204px');
+  });
+
   it('uses the shared listbox and submits the selected value', () => {
     render(
       <form data-testid="form">
