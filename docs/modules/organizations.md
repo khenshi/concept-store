@@ -46,3 +46,16 @@ current-organization semantics, Escape dismissal, and request retry feedback.
 The mobile Menu opens a native modal navigation drawer, with a close action,
 Escape/backdrop dismissal, scroll containment, and focus restoration. Selecting
 a destination or entering the desktop breakpoint closes the drawer.
+
+Organization selection uses a labeled search toolbar and divided workspace rows
+with visible role context. Loading, no memberships, no search matches, and failed
+requests have distinct feedback. Creation opens a scroll-contained native dialog
+with an explicit description, initial name-field focus, field validation, pending
+feedback, and disabled dismissal during submission. Successful creation closes
+the dialog and opens the new workspace overview; failure leaves it available for
+correction/retry. The original organization validation and creation contract are
+unchanged.
+
+The overview links to existing branches and account settings for all members, and
+merchant profiles and members for owners/managers. It shows the authenticated
+organization role, not mock financial metrics. Backend guards remain authoritative.

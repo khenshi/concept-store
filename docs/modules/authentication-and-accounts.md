@@ -50,5 +50,15 @@ logout, profile editing, password changing, and account deletion workflows.
 Authenticated routes share a compact neutral utility header with a workspace
 home link, Philippine Standard Time on wide screens, account access at every
 viewport size, and a sign-out action that announces pending state and prevents
-repeat activation. Account forms and guest screens are migrated separately;
+repeat activation. Guest screens are migrated separately;
 authentication/session contracts are unchanged.
+
+Account settings use shared neutral panels, explicit labeled fields, and consistent
+error/success notices. Invalid submissions focus the first invalid field and never
+reach the API. Pending actions prevent repeated submission. Email stays read-only;
+profile normalization, password validation, and session invalidation are unchanged.
+
+Account deletion requires the current password and a separate destructive
+confirmation. The form's initial action is outlined rather than solid red. Cancel
+does not call the API and restores focus; server rejections, including sole-owner
+restrictions, are shown without changing the backend's authorization rules.

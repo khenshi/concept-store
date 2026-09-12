@@ -3,6 +3,15 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
+import { BackLink } from '@/shared/components/ui/back-link';
+import { Button } from '@/shared/components/ui/button';
+import { Notice } from '@/shared/components/ui/notice';
+import { OperationalPanel } from '@/shared/components/ui/operational-page';
+import { PageHeader } from '@/shared/components/ui/page-header';
+import {
+  TextField,
+  focusFirstInvalidField,
+} from '@/shared/components/ui/text-field';
 import { updateProfileSchema } from '../model/account.schemas';
 import { ChangePasswordForm } from './change-password-form';
 import { DeleteAccountForm } from './delete-account-form';
@@ -15,12 +24,15 @@ export function AccountSettings() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-
   if (!user) return null;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    if (isSaving) return;
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    setError(null);
+    setSuccess(null);
     const result = updateProfileSchema.safeParse({
       firstName: formData.get('firstName'),
       lastName: formData.get('lastName'),
@@ -33,12 +45,10 @@ export function AccountSettings() {
         lastName: fields.lastName?.[0],
         phone: fields.phone?.[0],
       });
+      focusFirstInvalidField(form);
       return;
     }
-
     setFieldErrors({});
-    setError(null);
-    setSuccess(null);
     setIsSaving(true);
     try {
       await updateProfile(result.data);
@@ -55,144 +65,75 @@ export function AccountSettings() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-7 lg:py-10">
-      <header>
-        <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
-          Account
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-          Profile settings
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-          Keep your personal details current across your organization
-          memberships.
-        </p>
-      </header>
-
-      <section className="mt-7 rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
-          <h2 className="text-lg font-bold text-slate-900">
-            Personal information
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Your email is your sign-in identity and cannot be changed here.
-          </p>
-        </div>
-
-        <form className="grid gap-5 p-5 sm:p-6" onSubmit={submit} noValidate>
-          {error ? (
-            <p
-              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-              role="alert"
-            >
-              {error}
-            </p>
-          ) : null}
-          {success ? (
-            <p
-              className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
-              role="status"
-            >
-              {success}
-            </p>
-          ) : null}
-
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:py-10">
+      <div className="mb-6">
+        <BackLink href="/app">All organizations</BackLink>
+      </div>
+      <PageHeader
+        eyebrow="Account"
+        title="Profile settings"
+        description="Keep your personal details current across your organization memberships."
+      />
+      <OperationalPanel
+        title="Personal information"
+        description="Your email is your sign-in identity and cannot be changed here."
+      >
+        <form
+          aria-label="Personal information"
+          className="grid gap-5 p-5 sm:p-6"
+          onSubmit={submit}
+          noValidate
+        >
+          {error ? <Notice tone="error">{error}</Notice> : null}
+          {success ? <Notice>{success}</Notice> : null}
           <div className="grid gap-5 sm:grid-cols-2">
-            <ProfileField
+            <TextField
+              id="firstName"
               name="firstName"
               label="First name"
               defaultValue={user.firstName}
               error={fieldErrors.firstName}
               autoComplete="given-name"
+              maxLength={80}
             />
-            <ProfileField
+            <TextField
+              id="lastName"
               name="lastName"
               label="Last name"
               defaultValue={user.lastName}
               error={fieldErrors.lastName}
               autoComplete="family-name"
+              maxLength={80}
             />
           </div>
-
           <div className="grid gap-5 sm:grid-cols-2">
-            <ProfileField
+            <TextField
+              id="phone"
               name="phone"
               label="Phone number"
               defaultValue={user.phone ?? ''}
               error={fieldErrors.phone}
               autoComplete="tel"
               type="tel"
+              maxLength={25}
             />
-            <div className="grid gap-2">
-              <label
-                className="text-sm font-bold text-slate-800"
-                htmlFor="email"
-              >
-                Email address
-              </label>
-              <input
-                className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-slate-50 px-3 text-slate-500"
-                id="email"
-                value={user.email}
-                readOnly
-              />
-            </div>
+            <TextField
+              id="email"
+              label="Email address"
+              value={user.email}
+              readOnly
+              type="email"
+            />
           </div>
-
-          <div className="flex justify-end border-t border-slate-100 pt-5">
-            <button
-              className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-5 font-bold text-white hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60"
-              type="submit"
-              disabled={isSaving}
-            >
-              {isSaving ? 'Saving…' : 'Save changes'}
-            </button>
+          <div className="flex justify-end border-t border-hairline pt-5">
+            <Button type="submit" pending={isSaving} pendingLabel="Saving…">
+              Save changes
+            </Button>
           </div>
         </form>
-      </section>
+      </OperationalPanel>
       <ChangePasswordForm />
       <DeleteAccountForm />
-    </div>
-  );
-}
-
-function ProfileField({
-  name,
-  label,
-  defaultValue,
-  error,
-  autoComplete,
-  type = 'text',
-}: {
-  name: 'firstName' | 'lastName' | 'phone';
-  label: string;
-  defaultValue: string;
-  error?: string;
-  autoComplete: string;
-  type?: 'text' | 'tel';
-}) {
-  const errorId = `${name}-error`;
-  return (
-    <div className="grid gap-2">
-      <label className="text-sm font-bold text-slate-800" htmlFor={name}>
-        {label}
-      </label>
-      <input
-        className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3 text-slate-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-emerald-100 aria-invalid:border-red-600"
-        id={name}
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        autoComplete={autoComplete}
-        maxLength={name === 'phone' ? 25 : 80}
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? errorId : undefined}
-      />
-      {error ? (
-        <p className="text-sm text-red-600" id={errorId}>
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }

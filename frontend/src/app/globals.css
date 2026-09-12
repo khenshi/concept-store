@@ -9,7 +9,7 @@
   --color-faint: #9a9b97;
   --color-hairline: #e7e7e2;
   --color-border-strong: #d8d8d2;
-  --color-control-border: #898a84;
+  --color-control-border: #d8d8d2;
   --color-action: #242422;
   --color-action-hover: #3a3a37;
   --color-selected: #ecece7;
@@ -105,7 +105,7 @@
   }
 
   .ui-button-secondary {
-    @apply border-control-border bg-surface text-ink hover:bg-subtle;
+    @apply border-control-border bg-surface text-ink hover:border-selected-border hover:bg-subtle;
   }
 
   .ui-button-quiet {

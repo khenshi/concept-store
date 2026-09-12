@@ -2,6 +2,13 @@
 
 import { useState, type FormEvent } from 'react';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
+import { Button } from '@/shared/components/ui/button';
+import { Notice } from '@/shared/components/ui/notice';
+import { OperationalPanel } from '@/shared/components/ui/operational-page';
+import {
+  TextField,
+  focusFirstInvalidField,
+} from '@/shared/components/ui/text-field';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { deleteAccountSchema } from '../model/account.schemas';
@@ -12,20 +19,25 @@ export function DeleteAccountForm() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isDeleting || isConfirming) return;
+    const form = event.currentTarget;
+    setError(null);
     const result = deleteAccountSchema.safeParse({
-      password: new FormData(event.currentTarget).get('deletePassword'),
+      password: new FormData(form).get('deletePassword'),
     });
     if (!result.success) {
       setPasswordError(
         result.error.flatten().fieldErrors.password?.[0] ?? null,
       );
+      focusFirstInvalidField(form);
       return;
     }
     setPasswordError(null);
-
+    setIsConfirming(true);
     const approved = await confirm({
       title: 'Permanently delete your account?',
       description:
@@ -33,9 +45,8 @@ export function DeleteAccountForm() {
       confirmLabel: 'Delete account',
       tone: 'danger',
     });
+    setIsConfirming(false);
     if (!approved) return;
-
-    setError(null);
     setIsDeleting(true);
     try {
       await deleteAccount(result.data);
@@ -51,64 +62,43 @@ export function DeleteAccountForm() {
 
   return (
     <>
-      <section className="mt-6 rounded-xl border border-red-200 bg-white shadow-sm">
-        <div className="border-b border-red-100 px-5 py-5 sm:px-6">
-          <p className="text-xs font-bold tracking-[0.12em] text-red-600 uppercase">
-            Danger zone
+      <OperationalPanel
+        title="Delete account"
+        description="This removes your access and personal details across the platform. Sole organization owners must transfer ownership first."
+      >
+        <form
+          aria-label="Delete account"
+          className="grid gap-5 p-5 sm:p-6"
+          onSubmit={submit}
+          noValidate
+        >
+          <p className="text-sm font-medium text-danger">
+            This action is permanent and cannot be undone.
           </p>
-          <h2 className="mt-2 text-lg font-bold text-slate-900">
-            Delete account
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-            This removes your access and personal details across the platform.
-            Sole organization owners must transfer ownership first.
-          </p>
-        </div>
-        <form className="grid gap-5 p-5 sm:p-6" onSubmit={submit} noValidate>
-          {error ? (
-            <p
-              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
-              role="alert"
-            >
-              {error}
-            </p>
-          ) : null}
-          <div className="grid max-w-md gap-2">
-            <label
-              className="text-sm font-bold text-slate-800"
-              htmlFor="deletePassword"
-            >
-              Confirm your password
-            </label>
-            <input
-              className="min-h-12 rounded-[0.6rem] border border-slate-200 bg-white px-3 text-slate-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-red-100 aria-invalid:border-red-600"
-              id="deletePassword"
-              name="deletePassword"
-              type="password"
-              autoComplete="current-password"
-              maxLength={128}
-              aria-invalid={Boolean(passwordError)}
-              aria-describedby={
-                passwordError ? 'delete-password-error' : undefined
-              }
-            />
-            {passwordError ? (
-              <p className="text-sm text-red-600" id="delete-password-error">
-                {passwordError}
-              </p>
-            ) : null}
-          </div>
-          <div className="flex justify-end border-t border-red-100 pt-5">
-            <button
-              className="min-h-11 rounded-[0.65rem] border-0 bg-red-600 px-5 font-bold text-white hover:bg-red-700 disabled:cursor-wait disabled:opacity-60"
+          {error ? <Notice tone="error">{error}</Notice> : null}
+          <TextField
+            containerClassName="max-w-md"
+            id="deletePassword"
+            name="deletePassword"
+            label="Confirm your password"
+            type="password"
+            autoComplete="current-password"
+            maxLength={128}
+            error={passwordError}
+          />
+          <div className="flex justify-end border-t border-hairline pt-5">
+            <Button
+              variant="secondary"
+              className="border-danger text-danger"
               type="submit"
-              disabled={isDeleting}
+              pending={isDeleting}
+              pendingLabel="Deleting account…"
             >
-              {isDeleting ? 'Deleting account…' : 'Delete account'}
-            </button>
+              Delete account
+            </Button>
           </div>
         </form>
-      </section>
+      </OperationalPanel>
       {confirmationDialog}
     </>
   );

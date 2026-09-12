@@ -11,7 +11,7 @@ colors:
   faint-ink: "#9A9B97"
   hairline: "#E7E7E2"
   strong-hairline: "#D8D8D2"
-  control-border: "#898A84"
+  control-border: "#D8D8D2"
   graphite-action: "#242422"
   graphite-hover: "#3A3A37"
   selected-surface: "#ECECE7"
@@ -110,8 +110,8 @@ Static cards do not receive shadows merely because they are important.
 - **Faint Ink** (`#9A9B97`): placeholders and nonessential decoration only.
 - **Hairline** (`#E7E7E2`) and **Strong Hairline** (`#D8D8D2`): dividers,
   surfaces, and decorative boundaries.
-- **Control Border** (`#898A84`): meaningful control boundaries, strengthened for
-  non-text contrast on light surfaces.
+- **Control Border** (`#D8D8D2`): quiet resting button/input outlines. Hover may
+  strengthen to Selected Border; keyboard focus remains high-contrast Focus Ring.
 - **Graphite Action** (`#242422`) and **Graphite Hover** (`#3A3A37`): primary
   public and operational actions.
 - **Selected Surface** (`#ECECE7`) and **Selected Border** (`#A8A8A0`): active

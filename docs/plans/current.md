@@ -11,10 +11,13 @@
   committed as `3a84d9f`.
   Feature-specific form and layout migration remains in subsequent parts.
 - Part 3: Authenticated header, sidebar, organization switching, and navigation
-  approved, including the switcher second-click dismissal fix.
-- Part 4: Organization and account workflows in progress.
-- Subsequent parts: Operational
-  features, guest experiences, and final cross-route verification.
+  approved and committed as `84a8628`, including the switcher second-click fix.
+- Part 4: Organization selection/creation, workspace overview, and account
+  profile/password/deletion approved, including lighter control borders and
+  full-width organization-row hover surfaces.
+- Part 5: Branch directory, creation, detail, and editing in progress.
+- Subsequent parts: Operational features, guest experiences, and final cross-route
+  verification.
 
 Each part stops for user approval before its commit and before starting the next
 part. No part may expand the feature scope or change backend behavior.
