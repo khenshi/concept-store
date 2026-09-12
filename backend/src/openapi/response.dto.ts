@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MerchantStatus, OrganizationRole } from '../generated/prisma/client';
+import {
+  MerchantStatus,
+  OrganizationRole,
+  ProductStatus,
+} from '../generated/prisma/client';
 
 export class StatusResponseDto {
   @ApiProperty({ example: 'ok' }) status!: string;
@@ -110,4 +114,45 @@ export class MerchantResponseDto {
   @ApiProperty({ enum: MerchantStatus }) status!: MerchantStatus;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
+}
+
+export class ProductResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) organizationId!: string;
+  @ApiProperty({ format: 'uuid' }) merchantId!: string;
+  @ApiProperty({ example: 'Amihan Ceramic Vase' }) name!: string;
+  @ApiProperty({ type: String, nullable: true, example: 'AMIHAN-VASE' }) sku!:
+    string | null;
+  @ApiProperty({ type: String, nullable: true, example: '0001234567890' })
+  barcode!: string | null;
+  @ApiProperty({ enum: ProductStatus }) status!: ProductStatus;
+  @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
+}
+
+export class InventoryBranchResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ example: 'Makati Main' }) name!: string;
+  @ApiProperty({ type: String, nullable: true, example: 'MAKATI' }) code!:
+    string | null;
+}
+
+export class ProductInventoryResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) organizationId!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty({ format: 'uuid' }) productId!: string;
+  @ApiProperty({
+    type: String,
+    example: '925.50',
+    pattern: '^\\d+\\.\\d{2}$',
+    description: 'PHP selling price as an exact two-decimal string',
+  })
+  sellingPrice!: string;
+  @ApiProperty({ minimum: 0, maximum: 2147483647, type: 'integer' })
+  quantity!: number;
+  @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
+  @ApiProperty({ type: InventoryBranchResponseDto })
+  branch!: InventoryBranchResponseDto;
 }

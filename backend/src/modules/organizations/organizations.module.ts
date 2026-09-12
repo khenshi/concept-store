@@ -12,6 +12,8 @@ import { OrganizationsController } from './organizations.controller';
 import { OrganizationsService } from './organizations.service';
 import { MerchantsController } from './merchants/merchants.controller';
 import { MerchantsService } from './merchants/merchants.service';
+import { ProductsController } from './products/products.controller';
+import { ProductsService } from './products/products.service';
 
 @Module({
   imports: [AuthModule],
@@ -22,6 +24,7 @@ import { MerchantsService } from './merchants/merchants.service';
     OrganizationInvitationsController,
     InvitationAcceptanceController,
     MerchantsController,
+    ProductsController,
   ],
   providers: [
     OrganizationsService,
@@ -30,6 +33,7 @@ import { MerchantsService } from './merchants/merchants.service';
     OrganizationAccessGuard,
     OrganizationInvitationsService,
     MerchantsService,
+    ProductsService,
   ],
   exports: [OrganizationAccessGuard],
 })

@@ -1,6 +1,6 @@
 # Products and Branch Inventory Implementation Plan
 
-**Status:** Approved; Part 1 implemented, awaiting review
+**Status:** Approved; Part 1 committed; Part 2 implemented, awaiting review
 **Date:** September 12, 2026
 
 ## Goal
@@ -319,3 +319,19 @@ Continue only through the per-part review and commit checkpoints above.
   or destructive seed reset was run against an existing database. Database-backed
   constraint and concurrency verification remains required in Part 4.
 - No API, UI, stock-command service, or excluded feature was implemented.
+
+## Part 2 verification record
+
+- Part 1 was reviewed and committed as `582cf58`.
+- Added product creation, listing/search/filtering, retrieval, profile editing,
+  lifecycle changes, and read-only branch placement listing.
+- Every route requires owner/manager organization access. Related merchants and
+  products are resolved within the trusted tenant; foreign IDs return not found.
+- Create requires an active merchant. Profile edits reject empty bodies and
+  cannot reassign ownership or set lifecycle status.
+- SKU normalization and barcode case/leading zeroes are preserved. Duplicate
+  organization-scoped identifiers map to conflict responses.
+- Placement responses use exact two-decimal price strings, not floating-point.
+- Backend formatting/lint/build and 85 existing regression unit tests passed.
+  Product-specific unit/HTTP coverage remains Part 4.
+- No stock mutations or frontend behavior was added.
