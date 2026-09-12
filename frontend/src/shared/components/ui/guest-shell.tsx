@@ -22,7 +22,7 @@ export function GuestShell({
     <main className="min-h-dvh bg-canvas px-4 py-5 text-ink sm:px-8 sm:py-8">
       <div className="mx-auto flex min-h-[calc(100dvh-2.5rem)] max-w-7xl flex-col sm:min-h-[calc(100dvh-4rem)]">
         <header className="flex flex-wrap items-center justify-between gap-4">
-          <BrandWordmark tone="neutral" />
+          <BrandWordmark />
           <Link
             href="/"
             className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 text-sm text-muted no-underline hover:text-ink"
@@ -55,7 +55,7 @@ export function GuestShell({
             <p className="mb-6 text-xs font-medium text-muted">
               Concept-store workspaces
             </p>
-            <h2 className="whitespace-pre-line text-[clamp(2.75rem,4.5vw,4.5rem)] leading-[1.03] font-medium tracking-[-0.055em]">
+            <h2 className="break-words whitespace-pre-line text-[clamp(2.75rem,4.5vw,4.5rem)] leading-[1.03] font-medium tracking-[-0.055em]">
               {contextTitle}
             </h2>
             <p className="mt-6 max-w-md text-base leading-7 text-muted">

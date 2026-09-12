@@ -52,3 +52,5 @@ registration and login links with the invitation return path, mismatch/sign-out
 feedback, and automatic acceptance for the matching authenticated account.
 Acceptance remains guarded against duplicate requests and redirects to the
 accepted organization; token and authorization behavior are unchanged.
+Mismatch sign-out announces pending state, prevents repeat activation, and shows
+recoverable request failures without attempting invitation acceptance.

@@ -44,6 +44,12 @@ outlines, focus, typography, spacing, radii, and floating/overlay elevation.
 Feature-specific layouts are migrated in separately reviewed parts. Global focus is neutral
 and reduced-motion preferences suppress nonessential transitions and animation.
 
+Public illustrations and navigation now use semantic color/radius tokens and the
+shared SVG icon set. Branding is uniformly neutral; the legacy colored variant
+has been removed. Global HTML/body defaults use the warm canvas and ink tokens.
+Operational panels no longer clip menus, and member controls live in responsive
+rows instead of table scrollers. Long panel headings and guest context text wrap.
+
 Shared buttons expose primary, secondary, quiet, and destructive variants.
 Pending buttons announce busy state and disable repeat activation. Back links
 remain real navigation links. Panels, toolbars, request errors, skeletons, and
@@ -69,8 +75,18 @@ The mobile navigation drawer uses a native modal dialog for top-layer display,
 background interaction blocking, and browser focus containment. It focuses Close
 navigation initially, restores the Menu trigger and page scrolling on dismissal,
 and closes when the viewport becomes desktop-sized. Header/sidebar/navigation
-are hidden for printing; operational feature forms and content layouts remain for
-later approved parts.
+are hidden for printing; operational feature forms and content layouts retain
+their normal workflow semantics.
+
+## Verification status
+
+Frontend unit/component tests, type checking, linting, formatting of changed
+sources, production compilation, and a legacy-style source scan are checked after
+each part. This does not certify rendered accessibility or responsive layout.
+No enabled browser surface was available for final visual QA. Viewport review at
+320/768/1024/1440 pixels, 200% zoom, rendered contrast, and visual reduced-motion
+verification remain pending; the active plan is not archived until those checks
+and final user review are complete.
 
 ## Organization and account workflows
 

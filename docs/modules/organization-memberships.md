@@ -39,6 +39,9 @@ stores one of `OWNER`, `MANAGER`, `CASHIER`, or `MERCHANT`.
 Owners and managers receive the Members navigation entry and member list.
 Owner-only controls change roles and remove members with confirmation.
 
-The member directory uses neutral operational panels and a contained data table.
+The member directory uses neutral operational panels and responsive divided rows.
+Role menus are not enclosed in clipping table scrollers. Member removal controls
+have account-specific accessible names; join dates and contact information remain
+visible at narrow widths.
 Role changes and removal disable member controls while pending; request failures
 and successful changes remain visible. Managers see read-only role labels.

@@ -23,10 +23,10 @@ export function OperationalPanel({
 }) {
   return (
     <section
-      className={`mt-6 overflow-hidden rounded-panel border border-hairline bg-surface text-ink ${className}`}
+      className={`mt-6 rounded-panel border border-hairline bg-surface text-ink ${className}`}
     >
       <header className="flex items-start justify-between gap-5 border-b border-hairline px-5 py-5 max-sm:grid sm:px-6">
-        <div>
+        <div className="min-w-0 break-words">
           <h2 className="text-base font-semibold text-ink">{title}</h2>
           {description ? (
             <p className="mt-1.5 text-sm leading-6 text-muted">{description}</p>
@@ -65,7 +65,7 @@ export function FilterField({
   children: ReactNode;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <label className="text-label font-semibold text-ink" htmlFor={id}>
         {label}
       </label>

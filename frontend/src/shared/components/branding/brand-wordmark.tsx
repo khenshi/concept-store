@@ -4,14 +4,12 @@ type BrandWordmarkProps = {
   className?: string;
   href?: string;
   showTagline?: boolean;
-  tone?: 'default' | 'neutral';
 };
 
 export function BrandWordmark({
   className = '',
   href = '/',
   showTagline = false,
-  tone = 'default',
 }: BrandWordmarkProps) {
   return (
     <Link
@@ -20,7 +18,7 @@ export function BrandWordmark({
       aria-label="Kapwesto home"
     >
       <span
-        className={`grid size-8 place-items-center rounded-lg text-[0.65rem] font-bold tracking-[-0.04em] text-white ${tone === 'neutral' ? 'bg-[#242422]' : 'bg-emerald-600'}`}
+        className="grid size-8 place-items-center rounded-lg bg-action text-[0.65rem] font-bold tracking-[-0.04em] text-surface"
         aria-hidden="true"
       >
         K
@@ -28,9 +26,7 @@ export function BrandWordmark({
       <span className="grid gap-0.5">
         <strong className="tracking-[-0.02em]">Kapwesto</strong>
         {showTagline ? (
-          <small
-            className={`text-[0.68rem] font-medium tracking-normal ${tone === 'neutral' ? 'text-[#6f706d]' : 'text-slate-500'}`}
-          >
+          <small className="text-[0.68rem] font-medium tracking-normal text-muted">
             Secure concept store workspaces.
           </small>
         ) : null}

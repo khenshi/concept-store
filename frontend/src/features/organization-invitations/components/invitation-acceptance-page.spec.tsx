@@ -94,3 +94,26 @@ it('shows an unavailable invitation with retry', async () => {
   expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
   expect(acceptOrganizationInvitation).not.toHaveBeenCalled();
 });
+
+it('announces pending sign-out and displays a recoverable failure', async () => {
+  vi.mocked(useAuth).mockReturnValue({
+    request,
+    logout,
+    status: 'authenticated',
+    user: { email: 'other@example.com' },
+  } as never);
+  let reject!: (cause: Error) => void;
+  logout.mockReturnValue(
+    new Promise((_, fail) => {
+      reject = fail;
+    }),
+  );
+  render(<InvitationAcceptancePage token="token" />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
+  expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
+  reject(new Error('offline'));
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'Sign out could not be completed. Please try again.',
+  );
+  expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled();
+});

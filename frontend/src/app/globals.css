@@ -48,11 +48,11 @@
 
 @layer base {
   html {
-    @apply bg-slate-50;
+    @apply bg-canvas;
   }
 
   body {
-    @apply m-0 bg-slate-50 text-slate-900;
+    @apply m-0 bg-canvas text-ink;
   }
 
   button,

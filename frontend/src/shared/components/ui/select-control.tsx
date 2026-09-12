@@ -12,6 +12,7 @@ import {
   type AriaAttributes,
   type ReactNode,
 } from 'react';
+import { Icon } from './icon';
 
 interface SelectControlProps {
   children: ReactNode;
@@ -269,7 +270,7 @@ export function SelectControl({
             >
               <span>{option.label}</span>
               {option.value === selectedValue ? (
-                <span aria-hidden="true">✓</span>
+                <Icon name="check" className="size-4" />
               ) : null}
             </button>
           ))}

@@ -29,7 +29,6 @@ export function AuthenticatedHeader() {
           <BrandWordmark
             className="shrink-0 text-sm text-ink sm:text-base"
             href="/app"
-            tone="neutral"
           />
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-4">

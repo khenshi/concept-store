@@ -24,8 +24,9 @@
   Shared dropdown refinement bounds menus to modal space, opens upward when
   needed, and confines option scrolling to the menu.
 - Part 8: Login, registration, invitation acceptance, and guest/session states
-  approved for commit.
-- Part 9: Final cross-route styling, interaction, and verification cleanup in progress.
+  approved and committed as `ae45843`.
+- Part 9: Final source-level styling and interaction cleanup approved for commit.
+  Rendered visual/accessibility checks remain pending; the plan stays active.
 
 Each part stops for user approval before its commit and before starting the next
 part. No part may expand the feature scope or change backend behavior.
@@ -202,6 +203,22 @@ unused abstractions, or speculative dependencies.
 - No excluded or unimplemented capability appears in code or product copy.
 
 ## Approval boundary
+
+### Final verification record
+
+- Route coverage inspected: landing, login/register, organization entry/overview,
+  account settings, branch directory/detail/forms, member/invitation management,
+  merchant directory/profile/forms, invitation acceptance, and session gates.
+- Semantic-token cleanup removes remaining legacy global defaults and public
+  hard-coded palette classes; branding and navigation icons are consistent.
+- Responsive member rows and unclipped operational panels prevent role menus
+  from being trapped in table/panel scrollers.
+- Automated checks cover existing workflows plus modal menu bounds, guest return
+  paths, invitation account matching, pending/error handling, and role visibility.
+- Browser inventory returned no enabled surfaces. Visual checks at the four
+  planned widths, keyboard traversal in a real browser, 200% zoom, rendered
+  contrast, and reduced motion remain pending. Do not treat automated checks as
+  proof of those requirements or archive the plan yet.
 
 The user approved implementation on September 12, 2026, with a mandatory review
 checkpoint before committing each part and starting the next part.

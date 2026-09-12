@@ -323,107 +323,72 @@ export function OrganizationMemberManagement({
                     </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
-                      <caption className="sr-only">
-                        Organization member accounts, join dates, roles, and
-                        available actions
-                      </caption>
-                      <thead className="bg-subtle text-xs tracking-wide text-muted uppercase">
-                        <tr>
-                          <th className="px-6 py-3.5 font-bold" scope="col">
-                            Account
-                          </th>
-                          <th className="px-4 py-3.5 font-bold" scope="col">
-                            Joined
-                          </th>
-                          <th className="px-4 py-3.5 font-bold" scope="col">
-                            Organization role
-                          </th>
-                          <th
-                            className="px-6 py-3.5 text-right font-bold"
-                            scope="col"
-                          >
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {members.map((member) => (
-                          <tr
-                            className="border-t border-hairline hover:bg-subtle"
-                            key={member.id}
-                          >
-                            <th
-                              className="px-6 py-4 font-bold text-ink"
-                              scope="row"
+                  <ul
+                    aria-label="Organization members"
+                    className="m-0 list-none divide-y divide-hairline p-0"
+                  >
+                    {members.map((member) => (
+                      <li
+                        className="grid min-w-0 gap-4 px-5 py-5 hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6"
+                        key={member.id}
+                      >
+                        <div className="min-w-0 break-words">
+                          <strong className="block text-sm font-semibold">
+                            {member.firstName} {member.lastName}
+                          </strong>
+                          <p className="mt-1 text-xs leading-5 text-muted">
+                            {member.email}
+                            {member.phone ? ` · ${member.phone}` : ''}
+                          </p>
+                          <p className="mt-1 text-xs text-muted">
+                            Joined {joinedDate(member.joinedAt)}
+                          </p>
+                        </div>
+                        {canManageMembers ? (
+                          <div className="flex min-w-0 flex-wrap items-center gap-3">
+                            <div className="min-w-0 flex-1 sm:w-40">
+                              <label
+                                className="sr-only"
+                                htmlFor={`role-${member.id}`}
+                              >
+                                Role for {member.email}
+                              </label>
+                              <SelectControl
+                                id={`role-${member.id}`}
+                                value={member.role}
+                                disabled={Boolean(pendingMemberId)}
+                                onValueChange={(value) =>
+                                  void handleRoleChange(
+                                    member,
+                                    value as OrganizationRole,
+                                  )
+                                }
+                              >
+                                {roles.map((role) => (
+                                  <option key={role} value={role}>
+                                    {roleLabels[role]}
+                                  </option>
+                                ))}
+                              </SelectControl>
+                            </div>
+                            <button
+                              className={buttonStyles({ variant: 'secondary' })}
+                              type="button"
+                              disabled={Boolean(pendingMemberId)}
+                              aria-label={`Remove ${member.email}`}
+                              onClick={() => void handleRemove(member)}
                             >
-                              <span className="block">
-                                {member.firstName} {member.lastName}
-                              </span>
-                              <span className="mt-1 block text-xs font-normal text-muted">
-                                {member.email}
-                                {member.phone ? ` · ${member.phone}` : ''}
-                              </span>
-                            </th>
-                            <td className="px-4 py-4 text-muted">
-                              {joinedDate(member.joinedAt)}
-                            </td>
-                            <td className="px-4 py-4">
-                              {canManageMembers ? (
-                                <>
-                                  <label
-                                    className="sr-only"
-                                    htmlFor={`role-${member.id}`}
-                                  >
-                                    Role for {member.email}
-                                  </label>
-                                  <SelectControl
-                                    className="min-w-36"
-                                    id={`role-${member.id}`}
-                                    value={member.role}
-                                    disabled={Boolean(pendingMemberId)}
-                                    onValueChange={(value) =>
-                                      void handleRoleChange(
-                                        member,
-                                        value as OrganizationRole,
-                                      )
-                                    }
-                                  >
-                                    {roles.map((role) => (
-                                      <option key={role} value={role}>
-                                        {roleLabels[role]}
-                                      </option>
-                                    ))}
-                                  </SelectControl>
-                                </>
-                              ) : (
-                                <span className="w-fit rounded-full bg-selected px-2.5 py-1 text-xs font-bold text-ink">
-                                  {roleLabels[member.role]}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              {canManageMembers ? (
-                                <button
-                                  className={buttonStyles({
-                                    variant: 'secondary',
-                                  })}
-                                  type="button"
-                                  disabled={Boolean(pendingMemberId)}
-                                  onClick={() => void handleRemove(member)}
-                                >
-                                  Remove
-                                </button>
-                              ) : (
-                                <span className="text-faint">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="w-fit rounded-full bg-selected px-3 py-1.5 text-xs font-medium text-ink">
+                            {roleLabels[member.role]}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </OperationalPanel>
 

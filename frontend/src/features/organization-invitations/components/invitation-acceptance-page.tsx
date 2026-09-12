@@ -36,6 +36,7 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const acceptanceStarted = useRef(false);
 
   const load = useCallback(async () => {
@@ -96,6 +97,23 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
 
   const returnTo = `/invitations/${encodeURIComponent(token)}`;
 
+  async function signOut() {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    setActionError(null);
+    try {
+      await logout();
+    } catch (cause: unknown) {
+      setActionError(
+        cause instanceof ApiError
+          ? cause.message
+          : 'Sign out could not be completed. Please try again.',
+      );
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
+
   return (
     <GuestShell
       eyebrow="Organization invitation"
@@ -104,7 +122,7 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
           ? `Join ${invitation.organizationName}`
           : 'Your team invitation.'
       }
-      contextTitle="A place for you.\nA workspace for everyone."
+      contextTitle={'A place for you.\nA workspace for everyone.'}
       contextDescription="Join your organization with the account and role selected by its owner."
     >
       {isLoading ? (
@@ -176,9 +194,11 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
                   className: 'mt-3',
                 })}
                 type="button"
-                onClick={() => void logout()}
+                disabled={isSigningOut}
+                aria-busy={isSigningOut}
+                onClick={() => void signOut()}
               >
-                Sign out
+                {isSigningOut ? 'Signing out…' : 'Sign out'}
               </button>
             </div>
           ) : (
