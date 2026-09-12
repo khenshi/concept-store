@@ -37,3 +37,21 @@ lines, city, province, optional postal code, and a two-letter country code.
 
 The organization workspace provides branch listing, creation, detail, and edit
 flows with validation and request-state feedback.
+
+The directory uses full-width responsive rows with visible branch identity,
+optional code, complete address, and a detail link. Debounced local search matches
+name/code/address; a labeled location selector filters by city and province.
+Empty, filtered-empty, loading, and request-error states remain distinct. Owners
+and managers can add branches; cashiers and merchants remain read-only.
+
+Creation and editing share a scroll-contained native modal. It focuses the form
+heading, blocks background interaction, restores focus/scrolling on close, and
+supports safe Escape/backdrop dismissal. Dismissal and repeat submission are
+blocked while a write is pending. Field hints remain above inputs, and validation
+connects messages and focuses the first invalid field.
+
+The detail view uses the shared page header, information panel, and owner/manager
+edit action. Successful create/edit operations update the workspace cache and
+announce the affected branch. Edit requests still explicitly send `null` when
+clearing optional code, second address line, or postal code. API scoping,
+authorization, schema validation, and normalization are unchanged.

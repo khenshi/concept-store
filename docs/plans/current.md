@@ -13,9 +13,10 @@
 - Part 3: Authenticated header, sidebar, organization switching, and navigation
   approved and committed as `84a8628`, including the switcher second-click fix.
 - Part 4: Organization selection/creation, workspace overview, and account
-  profile/password/deletion approved, including lighter control borders and
-  full-width organization-row hover surfaces.
-- Part 5: Branch directory, creation, detail, and editing in progress.
+  profile/password/deletion approved and committed as `ff8bf91`, including lighter
+  control borders and full-width organization-row hover surfaces.
+- Part 5: Branch directory, creation, detail, and editing approved for commit.
+- Part 6: Member management and owner invitation workflows in progress.
 - Subsequent parts: Operational features, guest experiences, and final cross-route
   verification.
 

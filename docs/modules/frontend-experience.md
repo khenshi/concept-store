@@ -65,3 +65,14 @@ No backend, tenancy, API, or session behavior changes are introduced.
 Resting button/input borders use light stone outlines while keyboard focus remains
 strong. Organization selection and overview rows own their internal padding, so
 their hover surface extends to both edges of the content panel.
+
+## Branch workflow
+
+Branch directory/detail/create/edit use the neutral shared controls and panels.
+The directory uses full-width responsive rows instead of a wide fixed-minimum
+table. The create/edit form lives in a focused feature-owned component and uses
+a native modal with scroll containment, pending-write protection, focus
+restoration, and safe dismissal. Shared fields support opt-in hints above inputs
+to preserve the branch form's established field layout; other fields retain hints
+below by default. Branch search/filter behavior, API requests, normalization,
+authorization, tenant scoping, and optional-field clearing are unchanged.
