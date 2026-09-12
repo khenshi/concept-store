@@ -1,0 +1,144 @@
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
+import { useAuth } from '@/features/auth/model/auth-context';
+import { createOrganizationInvitation } from '../api/organization-invitation-api';
+import { OrganizationInvitationModal } from './organization-invitation-modal';
+
+vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
+vi.mock('../api/organization-invitation-api', () => ({
+  createOrganizationInvitation: vi.fn(),
+}));
+const request = vi.fn();
+const show = Object.getOwnPropertyDescriptor(
+  HTMLDialogElement.prototype,
+  'showModal',
+);
+const close = Object.getOwnPropertyDescriptor(
+  HTMLDialogElement.prototype,
+  'close',
+);
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(useAuth).mockReturnValue({ request } as unknown as ReturnType<
+    typeof useAuth
+  >);
+  Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+    configurable: true,
+    value() {
+      this.setAttribute('open', '');
+    },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+    configurable: true,
+    value() {
+      this.removeAttribute('open');
+    },
+  });
+});
+afterEach(() => {
+  cleanup();
+  for (const [name, descriptor] of [
+    ['showModal', show],
+    ['close', close],
+  ] as const) {
+    if (descriptor)
+      Object.defineProperty(HTMLDialogElement.prototype, name, descriptor);
+    else Reflect.deleteProperty(HTMLDialogElement.prototype, name);
+  }
+});
+
+it('opens with heading focus and restores focus and scrolling on unmount', () => {
+  const trigger = document.createElement('button');
+  document.body.append(trigger);
+  trigger.focus();
+  const { unmount } = render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(
+    screen.getByRole('heading', { name: 'Invite a member' }),
+  ).toHaveFocus();
+  expect(document.body.style.overflow).toBe('hidden');
+  unmount();
+  expect(trigger).toHaveFocus();
+  expect(document.body.style.overflow).toBe('');
+  trigger.remove();
+});
+
+it('rejects invalid email without making a request', async () => {
+  render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Create invitation' }));
+  expect(await screen.findByText('Enter a valid email address.')).toBeVisible();
+  expect(createOrganizationInvitation).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(screen.getByLabelText('Email address')).toHaveFocus(),
+  );
+});
+
+it('blocks dismissal while creating and presents the normalized invitation link', async () => {
+  let resolve!: (
+    value: Awaited<ReturnType<typeof createOrganizationInvitation>>,
+  ) => void;
+  vi.mocked(createOrganizationInvitation).mockReturnValue(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  const onClose = vi.fn();
+  const onCreated = vi.fn();
+  render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={onCreated}
+      onClose={onClose}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText('Email address'), {
+    target: { value: ' PERSON@EXAMPLE.COM ' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Create invitation' }));
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+  fireEvent(
+    screen.getByRole('dialog'),
+    new Event('cancel', { cancelable: true }),
+  );
+  expect(onClose).not.toHaveBeenCalled();
+  expect(createOrganizationInvitation).toHaveBeenCalledWith(request, 'org', {
+    email: 'person@example.com',
+    role: 'CASHIER',
+  });
+  resolve({
+    token: 'single-use-token',
+    invitation: {
+      id: 'invite',
+      organizationId: 'org',
+      email: 'person@example.com',
+      role: 'CASHIER',
+      expiresAt: '2026-09-19T00:00:00Z',
+      createdAt: '2026-09-12T00:00:00Z',
+      acceptedAt: null,
+      revokedAt: null,
+    },
+  });
+  expect(
+    await screen.findByRole('heading', { name: 'Invitation ready' }),
+  ).toHaveFocus();
+  expect(screen.getByLabelText('Invitation link')).toHaveValue(
+    `${window.location.origin}/invitations/single-use-token`,
+  );
+  expect(onCreated).toHaveBeenCalledOnce();
+});

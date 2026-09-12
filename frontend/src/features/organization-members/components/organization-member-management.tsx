@@ -9,6 +9,7 @@ import {
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { buttonStyles } from '@/shared/components/ui/button';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -69,6 +70,9 @@ export function OrganizationMemberManagement({
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
+  const [pendingInvitationId, setPendingInvitationId] = useState<string | null>(
+    null,
+  );
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const { confirm, confirmationDialog } = useConfirmationDialog();
   const organizationRole = organization?.role;
@@ -188,6 +192,7 @@ export function OrganizationMemberManagement({
   }
 
   async function handleRevoke(invitation: OrganizationInvitation) {
+    if (pendingInvitationId) return;
     if (
       !(await confirm({
         title: 'Revoke this invitation?',
@@ -199,6 +204,8 @@ export function OrganizationMemberManagement({
       return;
 
     setActionError(null);
+    setSuccessMessage(null);
+    setPendingInvitationId(invitation.id);
     try {
       const revoked = await revokeOrganizationInvitation(
         request,
@@ -211,15 +218,14 @@ export function OrganizationMemberManagement({
       setSuccessMessage(`The invitation for ${revoked.email} was revoked.`);
     } catch (cause: unknown) {
       setActionError(errorMessage(cause));
+    } finally {
+      setPendingInvitationId(null);
     }
   }
 
   if (organizationStatus === 'loading') {
     return (
-      <p
-        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-5xl"
-        role="status"
-      >
+      <p className="p-6 text-sm text-muted" role="status">
         Loading organization…
       </p>
     );
@@ -227,18 +233,15 @@ export function OrganizationMemberManagement({
 
   if (organizationStatus === 'error' || !organization) {
     return (
-      <section
-        className="mx-auto mt-[clamp(4rem,10vh,7rem)] w-full max-w-3xl"
-        role="alert"
-      >
+      <section className="mx-auto w-full max-w-3xl p-6" role="alert">
         <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
           We could not load the organization.
         </h1>
-        <p className="mt-4 leading-7 text-slate-500">
+        <p className="mt-4 leading-7 text-muted">
           {organizationError ?? 'The organization could not be loaded.'}
         </p>
         <button
-          className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
+          className={buttonStyles({ variant: 'secondary' })}
           type="button"
           onClick={() => void refreshOrganization()}
         >
@@ -261,9 +264,9 @@ export function OrganizationMemberManagement({
       />
 
       {!canViewMembers ? (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+        <section className="mt-6 rounded-panel border border-hairline bg-surface p-6">
           <h2 className="m-0 text-base font-bold">Member access is limited</h2>
-          <p className="mt-3 leading-7 text-slate-500">
+          <p className="mt-3 leading-7 text-muted">
             Only organization owners and managers can view the member list.
           </p>
         </section>
@@ -271,7 +274,7 @@ export function OrganizationMemberManagement({
         <>
           {loadError ? (
             <RequestError
-              className="mt-6 rounded-xl border border-slate-200 bg-white p-6"
+              className="mt-6 rounded-panel border border-hairline bg-surface p-6"
               title="Members unavailable"
               message={loadError}
               onRetry={() => void load()}
@@ -282,7 +285,7 @@ export function OrganizationMemberManagement({
           ) : null}
           {actionError ? (
             <p
-              className="mt-6 rounded-lg border border-red-600 bg-white p-3 text-sm text-red-600"
+              className="mt-6 rounded-lg border border-danger bg-surface p-3 text-sm text-danger"
               role="alert"
             >
               {actionError}
@@ -297,7 +300,7 @@ export function OrganizationMemberManagement({
                 action={
                   canManageMembers ? (
                     <button
-                      className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white hover:bg-emerald-700"
+                      className={buttonStyles({ variant: 'primary' })}
                       type="button"
                       onClick={() => setIsAddMemberOpen(true)}
                     >
@@ -315,8 +318,8 @@ export function OrganizationMemberManagement({
                     <h3 className="m-0 text-base font-bold">
                       No members found
                     </h3>
-                    <p className="mx-auto mt-2 max-w-md leading-7 text-slate-500">
-                      Add a registered user to give them organization access.
+                    <p className="mx-auto mt-2 max-w-md leading-7 text-muted">
+                      Invite someone to give them organization access.
                     </p>
                   </div>
                 ) : (
@@ -326,7 +329,7 @@ export function OrganizationMemberManagement({
                         Organization member accounts, join dates, roles, and
                         available actions
                       </caption>
-                      <thead className="bg-slate-50 text-xs tracking-wide text-slate-500 uppercase">
+                      <thead className="bg-subtle text-xs tracking-wide text-muted uppercase">
                         <tr>
                           <th className="px-6 py-3.5 font-bold" scope="col">
                             Account
@@ -348,22 +351,22 @@ export function OrganizationMemberManagement({
                       <tbody>
                         {members.map((member) => (
                           <tr
-                            className="border-t border-slate-200 hover:bg-slate-50/60"
+                            className="border-t border-hairline hover:bg-subtle"
                             key={member.id}
                           >
                             <th
-                              className="px-6 py-4 font-bold text-slate-950"
+                              className="px-6 py-4 font-bold text-ink"
                               scope="row"
                             >
                               <span className="block">
                                 {member.firstName} {member.lastName}
                               </span>
-                              <span className="mt-1 block text-xs font-normal text-slate-500">
+                              <span className="mt-1 block text-xs font-normal text-muted">
                                 {member.email}
                                 {member.phone ? ` · ${member.phone}` : ''}
                               </span>
                             </th>
-                            <td className="px-4 py-4 text-slate-500">
+                            <td className="px-4 py-4 text-muted">
                               {joinedDate(member.joinedAt)}
                             </td>
                             <td className="px-4 py-4">
@@ -376,10 +379,10 @@ export function OrganizationMemberManagement({
                                     Role for {member.email}
                                   </label>
                                   <SelectControl
-                                    className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-60"
+                                    className="min-w-36"
                                     id={`role-${member.id}`}
                                     value={member.role}
-                                    disabled={pendingMemberId === member.id}
+                                    disabled={Boolean(pendingMemberId)}
                                     onValueChange={(value) =>
                                       void handleRoleChange(
                                         member,
@@ -395,7 +398,7 @@ export function OrganizationMemberManagement({
                                   </SelectControl>
                                 </>
                               ) : (
-                                <span className="w-fit rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                                <span className="w-fit rounded-full bg-selected px-2.5 py-1 text-xs font-bold text-ink">
                                   {roleLabels[member.role]}
                                 </span>
                               )}
@@ -403,15 +406,17 @@ export function OrganizationMemberManagement({
                             <td className="px-6 py-4 text-right">
                               {canManageMembers ? (
                                 <button
-                                  className="min-h-10 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-3 py-2 text-sm font-bold disabled:cursor-wait disabled:opacity-65"
+                                  className={buttonStyles({
+                                    variant: 'secondary',
+                                  })}
                                   type="button"
-                                  disabled={pendingMemberId === member.id}
+                                  disabled={Boolean(pendingMemberId)}
                                   onClick={() => void handleRemove(member)}
                                 >
                                   Remove
                                 </button>
                               ) : (
-                                <span className="text-slate-400">—</span>
+                                <span className="text-faint">—</span>
                               )}
                             </td>
                           </tr>
@@ -426,6 +431,7 @@ export function OrganizationMemberManagement({
                 <InvitationList
                   invitations={invitations}
                   statusTime={invitationStatusTime}
+                  pendingId={pendingInvitationId}
                   onRevoke={handleRevoke}
                 />
               ) : null}
@@ -458,10 +464,12 @@ export function OrganizationMemberManagement({
 function InvitationList({
   invitations,
   statusTime,
+  pendingId,
   onRevoke,
 }: {
   invitations: OrganizationInvitation[];
   statusTime: number;
+  pendingId: string | null;
   onRevoke(invitation: OrganizationInvitation): Promise<void>;
 }) {
   return (
@@ -470,11 +478,9 @@ function InvitationList({
       description="Pending and historical organization invitations"
     >
       {invitations.length === 0 ? (
-        <p className="p-6 text-sm text-slate-500">
-          No invitations created yet.
-        </p>
+        <p className="p-6 text-sm text-muted">No invitations created yet.</p>
       ) : (
-        <ul className="list-none divide-y divide-slate-200 p-0">
+        <ul className="list-none divide-y divide-hairline p-0">
           {invitations.map((invitation) => {
             const pending =
               !invitation.acceptedAt &&
@@ -492,19 +498,21 @@ function InvitationList({
                 className="flex items-center justify-between gap-4 px-6 py-4 max-sm:grid"
                 key={invitation.id}
               >
-                <div>
+                <div className="min-w-0 break-words">
                   <strong>{invitation.email}</strong>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-muted">
                     {roleLabels[invitation.role]} · {status}
                   </p>
                 </div>
                 {pending ? (
                   <button
-                    className="min-h-10 rounded-[0.6rem] border border-slate-200 bg-white px-3 font-bold"
+                    className={buttonStyles({ variant: 'secondary' })}
                     type="button"
+                    disabled={Boolean(pendingId)}
+                    aria-busy={pendingId === invitation.id}
                     onClick={() => void onRevoke(invitation)}
                   >
-                    Revoke
+                    {pendingId === invitation.id ? 'Revoking…' : 'Revoke'}
                   </button>
                 ) : null}
               </li>

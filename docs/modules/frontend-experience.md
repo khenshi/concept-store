@@ -1,5 +1,11 @@
 # Frontend Experience
 
+Member management and owner invitation controls use the neutral operational
+system. Invitation creation uses a native modal with focus restoration and
+pending dismissal protection; historical invitation status remains explicit.
+Form dialogs use generous viewport-aware widths. Dialog headings retain initial
+focus for context without a visible outline; control focus rings are unchanged.
+
 ## Public landing page
 
 **Status:** Implemented; approved September 12, 2026

@@ -119,7 +119,7 @@ export function BranchForm({
         )
           onCancel();
       }}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-2xl overflow-y-auto rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-ink/40 sm:p-7"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-5xl overflow-y-auto rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-ink/40 sm:p-8"
     >
       <h2
         ref={headingRef}

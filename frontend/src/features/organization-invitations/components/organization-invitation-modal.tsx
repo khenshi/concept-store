@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { buttonStyles } from '@/shared/components/ui/button';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import {
+  TextField,
+  focusFirstInvalidField,
+} from '@/shared/components/ui/text-field';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { createOrganizationInvitation } from '../api/organization-invitation-api';
@@ -41,15 +46,26 @@ export function OrganizationInvitationModal({
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
     headingRef.current?.focus();
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !isSubmitting) onClose();
-    }
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [isSubmitting, onClose]);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      dialog?.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+        previousFocus.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (created) headingRef.current?.focus();
+  }, [created]);
 
   const invitationLink = created
     ? `${window.location.origin}/invitations/${created.token}`
@@ -57,6 +73,7 @@ export function OrganizationInvitationModal({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
     const form = event.currentTarget;
     const result = createOrganizationInvitationSchema.safeParse({
       email: new FormData(form).get('email'),
@@ -66,6 +83,7 @@ export function OrganizationInvitationModal({
     setSubmissionError(null);
     if (!result.success) {
       setEmailError(result.error.flatten().fieldErrors.email?.[0] ?? null);
+      focusFirstInvalidField(form);
       return;
     }
 
@@ -96,16 +114,28 @@ export function OrganizationInvitationModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/45 p-4"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-4xl overflow-y-auto rounded-panel border border-hairline bg-surface p-0 text-ink shadow-overlay backdrop:bg-ink/35"
       aria-labelledby="invitation-modal-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!isSubmitting) onClose();
+      }}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isSubmitting) onClose();
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (
+          event.target === event.currentTarget &&
+          !isSubmitting &&
+          (event.clientX < bounds.left ||
+            event.clientX > bounds.right ||
+            event.clientY < bounds.top ||
+            event.clientY > bounds.bottom)
+        )
+          onClose();
       }}
     >
-      <section className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+      <section className="min-w-0 p-5 sm:p-8">
         <h2
           className="text-xl font-bold tracking-tight"
           id="invitation-modal-title"
@@ -116,35 +146,36 @@ export function OrganizationInvitationModal({
         </h2>
         {created ? (
           <div className="mt-5 grid gap-4">
-            <p className="text-sm leading-6 text-slate-500">
+            <p className="text-sm leading-6 text-muted">
               Share this single-use link with {created.invitation.email}. It
-              expires in 7 days and will only work for that email address.
+              expires{' '}
+              {new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium' }).format(
+                new Date(created.invitation.expiresAt),
+              )}{' '}
+              and will only work for that email address.
             </p>
-            <label className="text-sm font-bold" htmlFor="invitation-link">
-              Invitation link
-            </label>
-            <input
-              className="min-h-12 w-full rounded-[0.6rem] border border-slate-200 bg-slate-50 px-3 text-sm"
+            <TextField
+              label="Invitation link"
               id="invitation-link"
               value={invitationLink}
               readOnly
               onFocus={(event) => event.currentTarget.select()}
             />
             {copyStatus ? (
-              <p className="text-sm text-slate-600" role="status">
+              <p className="text-sm text-muted" role="status">
                 {copyStatus}
               </p>
             ) : null}
             <div className="flex justify-end gap-3">
               <button
-                className="min-h-11 rounded-[0.6rem] border border-slate-200 bg-white px-4 font-bold"
+                className={buttonStyles({ variant: 'secondary' })}
                 type="button"
                 onClick={onClose}
               >
                 Done
               </button>
               <button
-                className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white"
+                className={buttonStyles({ variant: 'primary' })}
                 type="button"
                 onClick={() => void copyLink()}
               >
@@ -154,13 +185,13 @@ export function OrganizationInvitationModal({
           </div>
         ) : (
           <form className="mt-5 grid gap-4" onSubmit={handleSubmit} noValidate>
-            <p className="text-sm leading-6 text-slate-500">
+            <p className="text-sm leading-6 text-muted">
               The recipient will sign in or create their own account before
               accepting access.
             </p>
             {submissionError ? (
               <p
-                className="rounded-lg border border-red-600 p-3 text-sm text-red-600"
+                className="rounded-lg border border-danger p-3 text-sm text-danger"
                 role="alert"
               >
                 {submissionError}
@@ -171,7 +202,7 @@ export function OrganizationInvitationModal({
                 Email address
               </label>
               <input
-                className="min-h-12 rounded-[0.6rem] border border-slate-200 px-3 aria-invalid:border-red-600"
+                className="min-h-11 min-w-0 rounded-control border border-control-border px-3 aria-invalid:border-danger"
                 id="invitation-email"
                 name="email"
                 type="email"
@@ -184,7 +215,7 @@ export function OrganizationInvitationModal({
                 }
               />
               {emailError ? (
-                <p className="text-sm text-red-600" id="invitation-email-error">
+                <p className="text-sm text-danger" id="invitation-email-error">
                   {emailError}
                 </p>
               ) : null}
@@ -207,7 +238,7 @@ export function OrganizationInvitationModal({
             </div>
             <div className="mt-2 flex justify-end gap-3">
               <button
-                className="min-h-11 rounded-[0.6rem] border border-slate-200 bg-white px-4 font-bold"
+                className={buttonStyles({ variant: 'secondary' })}
                 type="button"
                 disabled={isSubmitting}
                 onClick={onClose}
@@ -215,7 +246,7 @@ export function OrganizationInvitationModal({
                 Cancel
               </button>
               <button
-                className="min-h-11 rounded-[0.65rem] border-0 bg-emerald-600 px-4 font-bold text-white disabled:opacity-60"
+                className={buttonStyles({ variant: 'primary' })}
                 type="submit"
                 disabled={isSubmitting}
               >
@@ -225,6 +256,6 @@ export function OrganizationInvitationModal({
           </form>
         )}
       </section>
-    </div>
+    </dialog>
   );
 }

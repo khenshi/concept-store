@@ -39,3 +39,10 @@ POST  /organization-invitations/:token/accept
 
 Owners manage invitations from the organization member workflow. A separate
 token route previews and accepts invitations.
+
+Owner invitation management uses neutral controls and explicit pending, accepted,
+revoked, and expired labels. Revocation disables invitation actions while pending.
+Creation opens a native modal dialog with focus restoration, scroll containment,
+and pending dismissal protection. The created link shows the actual expiry date
+and supports clipboard copying with a manual-copy fallback. Guest acceptance is
+unchanged.

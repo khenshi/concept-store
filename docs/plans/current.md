@@ -15,8 +15,11 @@
 - Part 4: Organization selection/creation, workspace overview, and account
   profile/password/deletion approved and committed as `ff8bf91`, including lighter
   control borders and full-width organization-row hover surfaces.
-- Part 5: Branch directory, creation, detail, and editing approved for commit.
-- Part 6: Member management and owner invitation workflows in progress.
+- Part 5: Branch directory, creation, detail, and editing approved and committed
+  as `51f264b`.
+- Part 6: Member management and owner invitation workflows approved, including
+  wider form dialogs and removal of outlines on focused modal headings.
+- Part 7: Merchant directory, profile, editing, and lifecycle workflows next.
 - Subsequent parts: Operational features, guest experiences, and final cross-route
   verification.
 

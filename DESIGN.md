@@ -173,6 +173,10 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 - Pills are for short statuses, filters, and tags—not every action.
 - Resting surfaces use a one-pixel Hairline border and no shadow.
 - Menus/popovers may use the floating shadow; dialogs may use overlay shadow.
+- Form dialogs use nearly the full viewport width on phones and a generous
+  56–64rem maximum width on larger screens, with contained vertical scrolling.
+  Programmatically focused dialog headings do not display an outline; interactive
+  controls retain visible keyboard focus rings.
 - Avoid thick borders, bubbly card stacks, glow, glassmorphism, and excessive nested
   rounding.
 

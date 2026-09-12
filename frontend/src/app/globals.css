@@ -75,6 +75,10 @@
     }
   }
 
+  dialog h2[tabindex='-1']:focus-visible {
+    outline: none;
+  }
+
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
     @apply outline-2 outline-offset-3 outline-focus;
   }
