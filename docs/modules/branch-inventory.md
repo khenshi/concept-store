@@ -1,6 +1,6 @@
 # Branch Inventory
 
-**Status:** Backend and inventory frontend implemented; visual/accessibility QA pending
+**Status:** Implemented; rendered visual/accessibility QA explicitly waived
 
 ## Responsibilities
 
@@ -83,10 +83,11 @@ coverage and regressions pass (236 tests total), along with typecheck, lint,
 formatting, and production build. Coverage includes scoped contracts, candidates,
 filters, placement/price forms, request errors, history, historical-replay refresh,
 failed-refresh read retry, pending write exclusion, and role-aware data denial.
-Visual/accessibility verification remains pending because no browser is enabled
-and the user declined enabling one. No waiver was given. Native rendered modal,
-viewport, contrast, zoom, and keyboard behavior are not yet certified; see the
-active plan's rendered checklist.
+The user explicitly waived rendered visual/accessibility QA on September 12,
+2026 after declining browser access. Native rendered modal, viewport, contrast,
+zoom, and keyboard behavior are not certified by automated tests. The unperformed
+checklist is retained in the
+[completed plan](../plans/archive/products-and-branch-inventory-2026-09-12.md).
 
 ## Workspace UI
 

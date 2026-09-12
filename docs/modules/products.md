@@ -1,6 +1,6 @@
 # Products
 
-**Status:** Backend and product frontend implemented; visual/accessibility QA pending
+**Status:** Implemented; rendered visual/accessibility QA explicitly waived
 
 ## Responsibilities
 
@@ -67,9 +67,10 @@ Expanded frontend API/component workflow coverage passes alongside regressions
 Coverage includes filters, creation/editing, input normalization, role denial,
 confirmed/cancelled lifecycle actions, independent placements, request-state
 feedback, obsolete responses, and modal state/focus/dismissal contracts.
-Visual/accessibility QA remains pending: no browser is enabled and the user
-declined enabling one. No waiver was given; rendered behavior is not certified.
-See the active plan's rendered checklist. The prior refactor waiver does not apply.
+The user explicitly waived rendered visual/accessibility QA on September 12,
+2026 after declining browser access. Rendered behavior is not certified by the
+automated tests. The unperformed checklist is retained in the
+[completed plan](../plans/archive/products-and-branch-inventory-2026-09-12.md).
 
 ## Workspace UI
 

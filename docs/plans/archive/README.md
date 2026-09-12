@@ -12,3 +12,7 @@ The superseded MVP delivery proposal is retained in
 
 The completed merchant profiles implementation plan is retained in
 [`merchant-profiles-module-2026-09-12.md`](merchant-profiles-module-2026-09-12.md).
+
+The completed products and branch inventory implementation plan, with the user's
+explicit rendered QA waiver, is retained in
+[`products-and-branch-inventory-2026-09-12.md`](products-and-branch-inventory-2026-09-12.md).

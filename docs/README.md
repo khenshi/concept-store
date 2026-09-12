@@ -19,14 +19,18 @@ Documentation is separated by purpose:
 - [Branches](modules/branches.md)
 - [Organization memberships](modules/organization-memberships.md)
 - [Organization invitations](modules/organization-invitations.md)
+- [Merchant profiles](modules/merchant-profiles.md)
+- [Products](modules/products.md)
+- [Branch inventory](modules/branch-inventory.md)
+- [Frontend experience](modules/frontend-experience.md)
 
 ## Planning
 
-- [Current Merchant Profiles proposal](plans/current.md)
+- [Current implementation plan](plans/current.md)
 - [Archived plans](plans/archive/README.md)
 
-Merchant Profiles is proposed but not approved for implementation. Archived
-documents and the pre-rollback branch are historical context only.
+Archived documents and the pre-rollback branch are historical context only and
+do not authorize further implementation.
 
 ## Development
 

@@ -3,6 +3,11 @@
 The foundation seed is destructive and is intended only for disposable local or
 test databases. It truncates application tables, then creates one organization,
 two branches, OWNER/MANAGER/CASHIER/MERCHANT members, and one pending invitation.
+It also creates four merchant lifecycle examples, three products (including an
+inactive product), and four branch placements. The ceramic vase has independent
+Makati/BGC PHP prices (`850.00`/`925.50`) and stock balances (`10`/`8`). Other
+placements start at zero. Seeded receipts and a correction insert attributed
+movement history atomically with balance changes; there are no transfer effects.
 
 From `backend/`, run:
 
