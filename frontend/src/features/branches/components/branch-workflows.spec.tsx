@@ -396,6 +396,12 @@ describe('BranchDetail', () => {
     vi.mocked(updateBranch).mockResolvedValueOnce(saved);
     render(<BranchDetail organizationId="org" branchId="branch-id" />);
     await screen.findByRole('heading', { name: 'Makati Main' });
+    expect(
+      screen.getByRole('link', { name: 'Manage inventory' }),
+    ).toHaveAttribute(
+      'href',
+      '/app/organizations/org/branches/branch-id/inventory',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Edit branch' }));
     const form = screen.getByRole('form', { name: 'Edit branch' });
     fireEvent.change(within(form).getByLabelText('Branch name'), {
@@ -438,6 +444,9 @@ describe('BranchDetail', () => {
         screen.queryByRole('button', { name: 'Edit branch' }),
       ).not.toBeInTheDocument();
       expect(getBranch).toHaveBeenCalledWith(request, 'org', 'branch-id');
+      expect(
+        screen.queryByRole('link', { name: 'Manage inventory' }),
+      ).not.toBeInTheDocument();
     },
   );
 

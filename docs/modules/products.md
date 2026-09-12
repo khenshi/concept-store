@@ -1,6 +1,6 @@
 # Products
 
-**Status:** Backend and product frontend implemented; expanded frontend QA pending
+**Status:** Backend and product frontend implemented; visual/accessibility QA pending
 
 ## Responsibilities
 
@@ -62,11 +62,14 @@ coverage validates normalization, immutable ownership, lifecycle, scoped access,
 identifier conflicts, independent branch placements, and precision. PostgreSQL
 tests apply repository migrations inside random test schemas to verify database
 relationships and workflows. See [backend test setup](../../backend/test/README.md).
-Focused frontend schema, live-validation, profile-update, pending, empty-merchant,
-and navigation tests pass alongside existing frontend regressions. Expanded
-workflow tests and visual/accessibility QA remain Part 7 of the active plan;
-rendered behavior is not yet certified and the prior frontend-refactor QA waiver
-does not apply.
+Expanded frontend API/component workflow coverage passes alongside regressions
+(236 frontend tests total), typecheck, lint, formatting, and production build.
+Coverage includes filters, creation/editing, input normalization, role denial,
+confirmed/cancelled lifecycle actions, independent placements, request-state
+feedback, obsolete responses, and modal state/focus/dismissal contracts.
+Visual/accessibility QA remains pending: no browser is enabled and the user
+declined enabling one. No waiver was given; rendered behavior is not certified.
+See the active plan's rendered checklist. The prior refactor waiver does not apply.
 
 ## Workspace UI
 

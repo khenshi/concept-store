@@ -1,6 +1,6 @@
 # Branch Inventory
 
-**Status:** Backend and inventory frontend implemented; expanded frontend QA pending
+**Status:** Backend and inventory frontend implemented; visual/accessibility QA pending
 
 ## Responsibilities
 
@@ -78,10 +78,15 @@ constraints, failed movement rollback, concurrent receipts and withdrawals,
 simultaneous duplicate commands, overflow retries, independent placements, and
 ledger/balance reconciliation. Test setup uses explicit disposable database URLs
 and random isolated schemas, never application database resets. See
-[backend test setup](../../backend/test/README.md). Focused frontend coverage and
-regressions pass (191 tests total), along with typecheck, lint, formatting, and
-production build. Broader workflow tests and visual/accessibility verification
-remain Part 7; rendered behavior is not yet certified.
+[backend test setup](../../backend/test/README.md). Expanded frontend API/component
+coverage and regressions pass (236 tests total), along with typecheck, lint,
+formatting, and production build. Coverage includes scoped contracts, candidates,
+filters, placement/price forms, request errors, history, historical-replay refresh,
+failed-refresh read retry, pending write exclusion, and role-aware data denial.
+Visual/accessibility verification remains pending because no browser is enabled
+and the user declined enabling one. No waiver was given. Native rendered modal,
+viewport, contrast, zoom, and keyboard behavior are not yet certified; see the
+active plan's rendered checklist.
 
 ## Workspace UI
 

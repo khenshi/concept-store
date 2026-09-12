@@ -9,8 +9,8 @@ scroll-contained surface with browser focus containment, heading focus, safe
 pending dismissal, scroll locking, and focus restoration. Shared fields align
 labels and controls before hints/errors; product validation is debounced on each
 input, immediate on blur, and final on submit. Stock mutation lives in the scoped
-branch inventory workspace. Focused automated checks are run; expanded workflow and rendered visual/
-accessibility verification remain Part 7 of the current plan. The historical
+branch inventory workspace. Expanded automated workflows pass; rendered visual/
+accessibility verification remains pending in Part 7. The historical
 refactor waiver below applies only to that archived refactor, not these screens.
 
 Branch inventory now uses the same operational system for scoped directories,
@@ -21,8 +21,12 @@ dialog. Corrections confirm the signed delta and estimated stock while keeping
 the server authoritative; pending writes disable repeat/concurrent actions. Stock
 retry IDs remain unchanged for unchanged failed commands, and success reloads
 current inventory instead of treating historical movement balances as current.
-Focused automated coverage passes; expanded workflows and explicit rendered QA
-remain Part 7 without inheriting the historical waiver.
+Expanded API/component workflows pass alongside regressions (236 frontend tests),
+typecheck, lint, formatting, and production build. Test-only native dialog shims
+model open/close state, not actual top-layer display or browser focus containment.
+Explicit rendered QA remains pending: no browser is enabled, the user declined
+enabling one, and no new waiver was given. The active plan records the viewport,
+zoom, input alignment, modal/menu, keyboard, contrast, and reduced-motion checklist.
 
 Member management and owner invitation controls use the neutral operational
 system. Invitation creation uses a native modal with focus restoration and

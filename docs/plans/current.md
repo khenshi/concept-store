@@ -1,6 +1,6 @@
 # Products and Branch Inventory Implementation Plan
 
-**Status:** Approved; Parts 1–5 committed; Part 6 implemented, awaiting review
+**Status:** Approved; Parts 1–6 committed; Part 7 automated coverage reviewed and approved; visual QA pending
 **Date:** September 12, 2026
 
 ## Goal
@@ -416,3 +416,51 @@ Continue only through the per-part review and commit checkpoints above.
 - Expanded frontend workflow coverage and explicit rendered visual/accessibility
   verification remain Part 7. No prior QA waiver applies. No backend/database
   changes, transfers, checkout, or excluded behavior were added.
+
+## Part 7 verification record and remaining boundary
+
+- The user reviewed and approved the automated coverage for commit. Visual QA
+  remains a separate unmet requirement; Part 7 is not marked complete.
+- Part 6 was reviewed and committed as `9477f2e`.
+- Added product/inventory API tests for scoped paths, query encoding, separate
+  profile/status/placement/price/stock contracts, precise prices, request IDs, and
+  rejection of malformed inventory/movement responses.
+- Added product directory/profile workflow coverage for debounced search and
+  filters, creation/editing dialogs, normalization, success/reload, read retry,
+  superseded responses, confirmed/cancelled lifecycle changes, independent branch
+  placement displays, and cashier/merchant-role denial without data requests.
+- Added inventory directory/placement/price/detail coverage for active candidates,
+  exclusion of existing placements, scoped search/filters/links, exact prices,
+  creation/conflict input preservation, live validation, immutable history,
+  actual-stock refresh after historical replay, stale-control suppression after
+  refresh failure, read-only retry, and pending concurrent-write prevention.
+- Added shared form-dialog accessible context, initial/restored focus, scroll
+  restoration, and pending Escape/backdrop protection tests. Test-only jsdom
+  dialog shims model open/close, not browser layout, top layer, or native focus trap.
+- All 236 frontend tests, typecheck, lint, changed-source formatting, production
+  build, and diff checks pass. No business/API/database behavior was changed.
+- Visual QA could not run: browser inventory has no enabled browsers, and opening
+  an in-app browser returned `Browser is not available: iab`. The user declined
+  enabling a browser. This is not an explicit waiver of visual verification.
+- Part 7 is not complete and this plan must not be archived as fully verified.
+  Review of the automated changes does not implicitly waive the remaining QA.
+
+### Pending rendered checklist
+
+With a browser and a disposable seeded environment, verify product directory,
+creation/editing dialogs, product detail/placements, inventory directory,
+placement dialog, and price/receipt/adjustment/history detail screens:
+
+- 320/768/1024/1440-pixel layouts and 200% zoom: no overlapping controls, clipped
+  labels/errors, inconsistent field sizing, or unintended horizontal overflow.
+- Long names, barcodes, actor IDs, and reasons wrap without hiding actions.
+- Native modal heading focus, background blocking, Tab/Shift+Tab containment,
+  safe Escape/backdrop dismissal, pending protection, and trigger restoration.
+- Merchant/product choice menus remain inside available viewport/dialog space;
+  arrows/Home/End/Enter/Space/Tab/Escape work without scrolling the entire modal.
+- Live errors appear after 300 ms and immediately on blur, clear on correction,
+  and link to inputs; loading/error/empty/success feedback remains understandable.
+- Adjustment confirmation states signed delta/estimate, focuses the safe action,
+  and restores focus; pending writes do not permit another command.
+- Visible keyboard focus, rendered contrast, reduced-motion behavior, and clear
+  role-aware navigation/actions. No production data should be changed for QA.
