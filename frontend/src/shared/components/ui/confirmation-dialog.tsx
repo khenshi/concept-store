@@ -3,10 +3,12 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
+import { Button } from './button';
 
 interface ConfirmationOptions {
   title: string;
@@ -25,6 +27,8 @@ export function useConfirmationDialog(): {
 } {
   const [pending, setPending] = useState<PendingConfirmation | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const dialogId = useId();
 
   const close = useCallback((confirmed: boolean) => {
     setPending((current) => {
@@ -41,12 +45,38 @@ export function useConfirmationDialog(): {
 
   useEffect(() => {
     if (!pending) return;
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     cancelRef.current?.focus();
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') close(false);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close(false);
+      }
+      if (event.key === 'Tab') {
+        const buttons = dialogRef.current?.querySelectorAll<HTMLButtonElement>(
+          'button:not(:disabled)',
+        );
+        if (!buttons?.length) return;
+        const first = buttons[0];
+        const last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     }
     document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+        previousFocus.focus();
+    };
   }, [close, pending]);
 
   const confirmationDialog = pending ? (
@@ -54,45 +84,39 @@ export function useConfirmationDialog(): {
       className="fixed inset-0 z-[70] grid place-items-center p-5"
       role="presentation"
     >
-      <div className="absolute inset-0 bg-slate-950/40" aria-hidden="true" />
+      <div className="absolute inset-0 bg-ink/40" aria-hidden="true" />
       <section
-        className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl"
+        ref={dialogRef}
+        className="relative max-h-[calc(100dvh-2.5rem)] w-full max-w-md overflow-y-auto rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay"
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby="confirmation-title"
-        aria-describedby="confirmation-description"
+        aria-labelledby={`${dialogId}-title`}
+        aria-describedby={`${dialogId}-description`}
       >
-        <p className="text-xs font-bold tracking-[0.12em] text-emerald-700 uppercase">
-          Confirm action
-        </p>
+        <p className="text-xs font-medium text-muted">Confirm action</p>
         <h2
-          className="mt-2 text-xl font-bold tracking-tight text-slate-950"
-          id="confirmation-title"
+          className="mt-2 text-xl font-semibold tracking-tight text-ink"
+          id={`${dialogId}-title`}
         >
           {pending.title}
         </h2>
-        <p
-          className="mt-3 leading-7 text-slate-500"
-          id="confirmation-description"
-        >
+        <p className="mt-3 leading-7 text-muted" id={`${dialogId}-description`}>
           {pending.description}
         </p>
         <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button
+          <Button
             ref={cancelRef}
-            className="min-h-11 cursor-pointer rounded-[0.6rem] border border-slate-200 bg-white px-4 font-bold text-slate-700 hover:bg-slate-50"
-            type="button"
+            variant="secondary"
             onClick={() => close(false)}
           >
             Cancel
-          </button>
-          <button
-            className={`min-h-11 cursor-pointer rounded-[0.65rem] border-0 px-4 font-bold text-white ${pending.tone === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-            type="button"
+          </Button>
+          <Button
+            variant={pending.tone === 'danger' ? 'danger' : 'primary'}
             onClick={() => close(true)}
           >
             {pending.confirmLabel}
-          </button>
+          </Button>
         </div>
       </section>
     </div>

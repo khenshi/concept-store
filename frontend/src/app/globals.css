@@ -1,5 +1,51 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-canvas: #f4f4f1;
+  --color-surface: #ffffff;
+  --color-subtle: #f8f8f6;
+  --color-ink: #171717;
+  --color-muted: #6f706d;
+  --color-faint: #9a9b97;
+  --color-hairline: #e7e7e2;
+  --color-border-strong: #d8d8d2;
+  --color-control-border: #898a84;
+  --color-action: #242422;
+  --color-action-hover: #3a3a37;
+  --color-selected: #ecece7;
+  --color-selected-border: #a8a8a0;
+  --color-focus: #575752;
+  --color-success: #168a52;
+  --color-warning: #8a4b10;
+  --color-danger: #c53b37;
+  --radius-compact: 0.5rem;
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+  --radius-feature: 1.5rem;
+  --shadow-floating: 0 10px 30px rgb(23 23 23 / 0.08);
+  --shadow-overlay: 0 24px 70px rgb(23 23 23 / 0.14);
+  --text-page: clamp(1.65rem, 3vw, 2.25rem);
+  --text-page--line-height: 1.08;
+  --text-page--letter-spacing: -0.035em;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.35;
+}
+
+:root {
+  --space-xs: 0.375rem;
+  --space-sm: 0.625rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 5rem;
+  --control-height: 2.75rem;
+  --motion-duration: 150ms;
+  --motion-easing: ease-out;
+}
+
 @layer base {
   html {
     @apply bg-slate-50;
@@ -11,24 +57,66 @@
 
   button,
   input,
-  select {
+  select,
+  textarea {
     font: inherit;
   }
 
   button:not(:disabled) {
     cursor: pointer;
     transition-property: background-color, border-color, color, filter;
-    transition-duration: 150ms;
-    transition-timing-function: ease-out;
+    transition-duration: var(--motion-duration);
+    transition-timing-function: var(--motion-easing);
   }
 
   @media (hover: hover) {
-    button:not(:disabled):hover {
+    button:not(:disabled):not(.ui-button):hover {
       filter: brightness(0.94);
     }
   }
 
-  :where(a, button, input, select):focus-visible {
-    @apply outline-3 outline-offset-2 outline-emerald-100;
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    @apply outline-2 outline-offset-3 outline-focus;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .ui-button {
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-control border px-4 py-2 text-sm font-semibold no-underline;
+    transition:
+      background-color var(--motion-duration) var(--motion-easing),
+      border-color var(--motion-duration) var(--motion-easing),
+      color var(--motion-duration) var(--motion-easing);
+  }
+
+  .ui-button-primary {
+    @apply border-action bg-action text-surface hover:border-action-hover hover:bg-action-hover;
+  }
+
+  .ui-button-secondary {
+    @apply border-control-border bg-surface text-ink hover:bg-subtle;
+  }
+
+  .ui-button-quiet {
+    @apply border-transparent bg-transparent text-ink hover:bg-selected;
+  }
+
+  .ui-button-danger {
+    @apply border-danger bg-danger text-surface hover:brightness-90;
+  }
+
+  .ui-button:disabled {
+    @apply cursor-not-allowed opacity-50;
   }
 }

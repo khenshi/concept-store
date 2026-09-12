@@ -160,8 +160,8 @@ Frontend rules:
   backend authoritative.
 - Use semantic HTML, visible focus states, responsive layouts, and clear loading,
   empty, success, and error feedback.
-- Follow the approved visual system in `DESIGN.md`: restrained emerald accents,
-  slate neutrals, and clear operational hierarchy.
+- Follow the approved visual system in `DESIGN.md`: warm stone neutrals,
+  graphite actions, and clear editorial/operational hierarchy.
 
 ## Database rules
 

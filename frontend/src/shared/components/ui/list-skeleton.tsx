@@ -13,7 +13,7 @@ export function ListSkeleton({
     <div className={`${className} grid gap-3`} role="status" aria-label={label}>
       {Array.from({ length: rows }, (_, index) => (
         <div
-          className={`${rowClassName} animate-pulse rounded-lg bg-slate-100`}
+          className={`${rowClassName} animate-pulse rounded-compact bg-selected`}
           key={index}
           aria-hidden="true"
         />

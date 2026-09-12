@@ -1,208 +1,194 @@
-# Merchant Profiles Module Implementation Plan
+# Frontend Design-System and Experience Refactor Plan
 
-**Status:** Proposed for approval; implementation not started
+**Status:** Approved; implementation in progress in separately reviewed parts
+
 **Date:** September 12, 2026
+
+## Part-by-part review checkpoints
+
+- Part 1: Public landing page approved and committed as `5b3f014`.
+- Part 2: Semantic foundations and existing shared UI primitives approved.
+  Feature-specific form and layout migration remains in subsequent parts.
+- Part 3: Authenticated header, sidebar, organization switching, and navigation in
+  progress.
+- Subsequent parts: Application shell, organization/account workflows, operational
+  features, guest experiences, and final cross-route verification.
+
+Each part stops for user approval before its commit and before starting the next
+part. No part may expand the feature scope or change backend behavior.
 
 ## Goal
 
-Allow owners and managers to maintain organization-owned merchant business
-profiles. This module establishes merchant identity only; it does not attach
-operational or financial behavior to merchants.
+Refactor every existing frontend surface into one coherent system based on the
+supplied references. The direction is **editorial operational minimalism**: a
+warm, nearly monochrome canvas; confident oversized type on public pages;
+compact, information-dense workspace screens; fine borders; softly layered
+surfaces; restrained curves; and small, deliberate accents.
+
+This changes presentation, layout, component composition, responsive behavior,
+and interaction polish. It preserves implemented business behavior, API
+contracts, authorization, tenant isolation, and validation.
+
+## Reference interpretation
+
+The images share a design language rather than one exact template:
+
+- warm white and light-gray canvases with near-black typography;
+- generous editorial whitespace and tightly tracked marketing headlines;
+- compact dashboard chrome with a sidebar and slim utility header;
+- thin neutral borders and tonal separation instead of heavy shadows;
+- white or softly tinted cards with restrained rounding;
+- graphite calls to action and quiet tonal selection states that remain compatible
+  with different categories of concept store;
+- small outline icons, quiet metadata, and scannable operational density; and
+- responsive compositions that retain hierarchy rather than simply stacking.
+
+Kapwesto will adapt these qualities without copying the sample brands, phone
+mockup, financial charts, pricing, or unimplemented features.
 
 ## Scope
 
-- Create merchant profiles.
-- List, search, and filter merchants within an organization.
-- View and edit a merchant profile.
-- Change a merchant's lifecycle status without deleting its record.
-- Add owner/manager merchant-management pages to the organization workspace.
-- Add tenant-isolation, authorization, validation, service, API, and frontend
-  tests for the delivered workflows.
-- Add representative merchant records to the disposable development seed.
-- Document the completed schema, API, authorization, and business rules.
+### Foundations and shared components
+
+- Implement the tokens and rules in `DESIGN.md` as semantic CSS custom properties
+  in `frontend/src/app/globals.css`.
+- Define canvas, surfaces, text, borders, accents, status colors, radii, spacing,
+  control heights, shadows, typography, focus, and motion.
+- Continue using Inter through `next/font`; add no display-font dependency.
+- Consolidate shared buttons/links, fields, selects, field messages, badges,
+  panels, toolbars, list/data rows, empty/error/loading states, dialogs, page
+  headers, back links, and status notices with semantic variants.
+- Replace duplicated feature-level visual class strings where a shared primitive
+  should own the rule, while keeping shared code domain-agnostic.
+- Preserve semantics, labels, keyboard behavior, focus management, pending and
+  disabled states, and relevant test hooks.
+
+### Public, guest, and invitation experiences
+
+- Recompose the home page as a spacious editorial page with compact navigation,
+  oversized value proposition, concise copy, and clear registration/sign-in
+  actions.
+- Replace generic foundation cards with alternating feature stories and HTML/CSS
+  product previews based only on implemented organizations, branches, teams,
+  invitations, and merchant profiles.
+- Add a restrained closing action and footer; do not imply analytics, inventory,
+  sales, billing, reporting, or other unavailable capabilities.
+- Introduce a shared guest shell for login, registration, and invitation acceptance
+  with a focused form and optional quiet context panel at wide viewports.
+- Standardize credential forms, validation summaries, success/error feedback,
+  pending states, and cross-links without changing auth or invitation behavior.
+
+### Authenticated application shell
+
+- Refactor the header and organization shell into compact application chrome: a
+  persistent desktop sidebar, slim utility header, bordered content canvas, and
+  deliberate maximum widths.
+- Clarify brand, organization switching, grouped navigation, account access,
+  logout, and sidebar-collapse hierarchy.
+- Replace interface text glyphs with a small internal SVG icon set. Do not add an
+  icon dependency unless the plan is amended with a concrete need.
+- Preserve role-aware destinations, route matching, `aria-current`, print behavior,
+  and stored sidebar preference.
+- Provide a proper mobile menu with focus handling, dismissal, scroll containment,
+  and no inaccessible hidden content.
+
+### Operational pages and complete feature coverage
+
+- Standardize page anatomy: breadcrumb/context, title and supporting copy, primary
+  action, optional filters, content surface, and request feedback.
+- Use compact controls and rows while retaining 44-by-44 CSS-pixel primary touch
+  targets. Use tables only when column comparison is important; otherwise use
+  semantic responsive lists.
+- Align loading, empty, error, success, and unavailable states without masking their
+  behavioral differences.
+- Apply the system to organization entry/creation/selection/switching and overview;
+  branch list/create/detail/edit; member list/invitations/role/removal; merchant
+  list/search/filter/create/detail/edit/status; account profile/password/deletion;
+  and all existing modal, confirmation, and request states.
+- No existing route may remain on the previous visual language.
+
+### Responsive and accessibility requirements
+
+- Define phone, tablet, laptop, and wide-desktop behavior for public, form, list,
+  detail, modal, and shell layouts.
+- Maintain logical DOM/task order, landmarks, headings, explicit labels,
+  descriptive actions, keyboard access, focus visibility, and live announcements.
+- Meet WCAG 2.2 AA contrast; state must never depend on color alone.
+- Respect `prefers-reduced-motion`; motion remains short and functional.
+- Avoid page overflow at 320 CSS pixels except contained data scrollers.
 
 ## Explicit exclusions
 
-- Merchant login or linking a merchant record to a user/membership.
-- Branch participation or branch assignment.
-- Products, inventory, POS, sales, reporting, and payments.
-- Space profiles, occupancy, agreements, rent, commission, settlements, and
-  payouts.
-- Merchant deletion, bulk import/export, attachments, custom fields, and audit
-  event infrastructure.
+- Backend, Prisma, API, authorization, tenant, or validation changes.
+- New modules or routes: dashboards, analytics, revenue, orders, inventory,
+  products, transactions, goals, marketing, sales, payments, billing, plans, AI,
+  reports, or exports.
+- Search, notification, chart, customization, or export controls copied from the
+  reference dashboard unless they already have implemented behavior.
+- Pricing claims, reference-brand assets, phone photography, stock imagery, or
+  unimplemented product previews.
+- Dark mode, user themes, tenant branding, charting packages, third-party component
+  libraries, and broad state-management/routing/API rewrites.
 
-These exclusions must not produce placeholder tables, fields, routes, UI, or
-abstractions.
+Exclusions must not produce placeholders, disabled navigation, mock metrics,
+unused abstractions, or speculative dependencies.
 
-## Data model
+## Architecture rules
 
-Add one organization-owned `Merchant` entity:
+- Route modules remain thin; feature composition stays within feature components.
+- Shared primitives expose semantic variants and never import business features.
+- Prefer CSS/Tailwind and internal SVG for deterministic visuals. A new runtime
+  dependency requires explicit justification and a plan amendment.
+- Preserve request, authorization, validation, accessible-name, and focus behavior.
+- Migrate complete workflows rather than leaving mixed old/new interfaces.
 
-```text
-Merchant
-- id             UUID, primary key
-- organizationId UUID, required
-- name           required
-- code           optional
-- contactName    required
-- email          optional
-- phone          required
-- status         ACTIVE | INACTIVE | SUSPENDED | ENDED
-- createdAt
-- updatedAt
-```
+## Testing and visual verification
 
-Rules and constraints:
-
-- `Organization` has many merchants.
-- `organizationId` is derived from the authenticated organization context and
-  is never accepted in a request body.
-- Merchant names are not unique because separate businesses may share a name.
-- A non-null code is unique within its organization, normalized to uppercase,
-  and may be reused by a merchant in another organization.
-- Add `@@unique([organizationId, code])`, `@@unique([id, organizationId])`,
-  `@@index([organizationId, status])`, and `@@index([organizationId, name])`.
-- The organization relation uses `onDelete: Restrict`.
-- Status defaults to `ACTIVE`.
-- There is no delete operation. `ENDED` preserves the profile for later
-  historical relationships.
-
-## Validation
-
-- `name`: trimmed, 2–120 characters.
-- `code`: optional; trimmed and uppercased; 2–32 characters; uppercase letters,
-  numbers, and internal hyphens only.
-- `contactName`: trimmed, 2–120 characters.
-- `email`: optional; trimmed, lowercased, valid email, at most 254 characters.
-- `phone`: trimmed, 7–30 characters. Preserve user-readable formatting rather
-  than requiring one national format.
-- `status`: one of the four defined enum values.
-- Create accepts profile fields but not `status`; new merchants are active.
-- Profile update rejects an empty body and cannot change status.
-- Status changes use a dedicated DTO and endpoint.
-- Global DTO whitelisting continues to reject unknown fields.
-
-## API
-
-All routes use `AuthGuard`, `OrganizationAccessGuard`, and organization roles
-`OWNER` or `MANAGER`.
-
-```text
-POST  /organizations/:organizationId/merchants
-GET   /organizations/:organizationId/merchants?q=&status=
-GET   /organizations/:organizationId/merchants/:merchantId
-PATCH /organizations/:organizationId/merchants/:merchantId
-PATCH /organizations/:organizationId/merchants/:merchantId/status
-```
-
-Behavior:
-
-- List results are ordered by merchant name and then ID for deterministic output.
-- `q` is optional and searches name, code, contact name, email, and phone
-  case-insensitively.
-- `status` is an optional exact filter.
-- This implementation returns the complete filtered list; pagination is not added
-  before an actual scale requirement.
-- Malformed organization or merchant IDs return `400`.
-- A missing organization membership returns `404` through the existing guard.
-- A missing or foreign-organization merchant returns the same `404` response.
-- Cashiers and merchant-role members receive `403` and cannot list or mutate
-  merchant profiles.
-- A duplicate organization-scoped code returns `409`.
-
-The backend module contains thin controllers, DTO validation and normalization,
-and a service responsible for tenant-scoped queries and Prisma error mapping.
-OpenAPI response DTOs are updated for the merchant contract.
-
-## Frontend
-
-Add the following organization-scoped routes:
-
-```text
-/app/organizations/:organizationId/merchants
-/app/organizations/:organizationId/merchants/new
-/app/organizations/:organizationId/merchants/:merchantId
-```
-
-Owner/manager experience:
-
-- Add `Merchants` to organization navigation only for owners and managers.
-- Directory includes debounced search, status filter, loading skeleton, empty
-  state, request error, status badge, and create action.
-- Creation uses a dedicated page and returns to the created merchant profile on
-  success.
-- Profile page displays business/contact information and supports profile edits.
-- Status change is a separate, confirmed action so it cannot be submitted
-  accidentally with ordinary profile edits.
-- Reuse current feature boundaries and shared controls; route modules remain thin.
-- Client schemas mirror server validation for usability, while the backend
-  remains authoritative.
-
-No merchant navigation is shown to cashiers or merchant-role members.
-
-## Security and tenant isolation
-
-- Every merchant query includes `organizationId` from authenticated context.
-- Entity IDs never authorize access by themselves.
-- Update operations first resolve the merchant inside the active organization.
-- Unique-conflict handling must not expose records from another tenant.
-- The frontend's role-based visibility is not an authorization boundary.
-- No client-provided role, organization ID, or status-on-create is trusted.
-
-## Testing
-
-Backend unit tests cover:
-
-- creation and normalization;
-- deterministic listing, search, and status filtering;
-- organization-scoped retrieval and updates;
-- empty update rejection;
-- status changes;
-- duplicate-code conflict mapping; and
-- foreign-organization IDs returning not found.
-
-Backend end-to-end tests cover:
-
-- owner and manager access;
-- cashier and merchant-role denial;
-- malformed IDs;
-- cross-tenant list, read, update, and status isolation;
-- DTO rejection of unknown or invalid values; and
-- the complete create-to-status-change workflow.
-
-Frontend tests cover:
-
-- API request/response validation;
-- merchant form validation and normalization;
-- directory loading, empty, error, search, and filter states;
-- role-aware navigation;
-- create and edit success/failure behavior; and
-- confirmed status changes.
+- Update component tests for navigation, mobile menu behavior, dialogs, focus,
+  pending states, validation, request feedback, and role-aware visibility.
+- Preserve coverage for every implemented workflow; adjust assertions only where
+  user-visible wording or semantics intentionally change.
+- Run frontend formatting, linting, type checking, unit tests, and production build.
+- Render and inspect every route and meaningful state at 320, 768, 1024, and 1440
+  CSS pixels.
+- Verify keyboard traversal, dialog focus/restoration, 200% zoom, reduced motion,
+  long names/emails, empty/populated lists, errors, and pending submissions.
+- Check overflow, clipping, layout shifts, contrast, stale styles, and
+  role-inappropriate navigation.
 
 ## Implementation sequence
 
-1. Add the Prisma model, enum, relation, migration, generated client, and seed.
-2. Add backend merchant DTOs, types, service, controller, module, and OpenAPI DTO.
-3. Add backend unit and end-to-end coverage, especially cross-tenant tests.
-4. Add frontend types, schemas, API client, routes, navigation, directory,
-   creation, profile editing, and status controls.
-5. Add frontend coverage.
-6. Run Prisma validation/generation, backend format/lint/build/tests/e2e, and
-   frontend format/lint/typecheck/build/tests.
-7. Archive this plan and add the implemented behavior to
-   `docs/modules/merchant-profiles.md` only after implementation and verification.
+1. Inventory rendered routes, state variants, class duplication, and tests; record
+   a visual baseline.
+2. Add semantic tokens and global foundations, then shared primitives and focused
+   accessibility tests.
+3. Refactor the authenticated header, sidebar, switcher, navigation, mobile menu,
+   and operational page anatomy.
+4. Migrate organization entry/overview and account workflows to validate shell,
+   form, panel, and destructive-action patterns.
+5. Migrate branches, members/invitations, and merchants one complete workflow at a
+   time, including all request states.
+6. Rebuild login, registration, and invitation guest experiences.
+7. Recompose the landing page using only implemented capabilities.
+8. Remove superseded styling and duplication; complete automated, responsive,
+   accessibility, and visual checks.
+9. Update affected `docs/modules/*.md` frontend sections where behavior/navigation
+   changed; archive this plan only after all acceptance criteria pass.
 
-## Definition of done
+## Acceptance criteria
 
-- Owners and managers can complete every scoped merchant-profile workflow.
-- Cashiers, merchant-role members, unauthenticated users, and other tenants
-  cannot access merchant records.
-- Validation and database constraints enforce the documented invariants.
-- Status changes preserve merchant records; no deletion path exists.
-- All applicable validation commands pass.
-- No excluded capability or placeholder for it is introduced.
+- Every current route uses the new language with no legacy component islands.
+- Public/guest pages use spacious editorial density; authenticated pages use compact
+  operational density; both are recognizably Kapwesto.
+- All workflows and role-based visibility work without backend or API changes.
+- Shared primitives cover recurring controls/states without erasing necessary
+  feature behavior.
+- Viewport and accessibility checks pass under the stated conditions.
+- Format, lint, typecheck, tests, and production build pass.
+- Module documentation reflects delivered interaction or navigation changes.
+- No excluded or unimplemented capability appears in code or product copy.
 
 ## Approval boundary
 
-This document is a proposed implementation plan. Do not implement it until the
-user explicitly approves the plan and instructs the agent to proceed.
+The user approved implementation on September 12, 2026, with a mandatory review
+checkpoint before committing each part and starting the next part.

@@ -11,15 +11,16 @@ export function RequestError({
 }) {
   return (
     <div className={className} role="alert">
-      {title ? <h3 className="m-0 text-base font-bold">{title}</h3> : null}
-      <p className={title ? 'mt-2 leading-7 text-slate-500' : ''}>{message}</p>
-      <button
-        className="mt-3 cursor-pointer border-0 bg-transparent p-0 font-bold text-emerald-700 underline underline-offset-3"
-        type="button"
-        onClick={onRetry}
-      >
+      {title ? (
+        <h3 className="m-0 text-base font-semibold text-ink">{title}</h3>
+      ) : null}
+      <p className={title ? 'mt-2 leading-7 text-muted' : 'text-ink'}>
+        {message}
+      </p>
+      <Button variant="secondary" className="mt-3" onClick={onRetry}>
         Try again
-      </button>
+      </Button>
     </div>
   );
 }
+import { Button } from './button';
