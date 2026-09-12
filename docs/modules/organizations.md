@@ -34,3 +34,15 @@ must enforce the global isolation rules in `AGENTS.md`.
 
 Authenticated users can create organizations, view their available
 organizations, switch workspaces, and load an organization-scoped shell.
+
+The organization shell uses a neutral canvas with a persistent desktop sidebar.
+Expanded and collapsed sidebar modes both provide organization switching; the
+collapse preference is stored locally when browser storage is available.
+Navigation preserves role-aware visibility and marks both directory and detail
+routes active without matching unrelated route prefixes.
+
+Organization switchers have unique popup IDs, keyboard arrow/Home/End navigation,
+current-organization semantics, Escape dismissal, and request retry feedback.
+The mobile Menu opens a native modal navigation drawer, with a close action,
+Escape/backdrop dismissal, scroll containment, and focus restoration. Selecting
+a destination or entering the desktop breakpoint closes the drawer.

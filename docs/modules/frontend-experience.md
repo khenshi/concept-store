@@ -32,3 +32,18 @@ select with Enter/Space, dismiss with Escape, and leave with Tab. Selection and
 dismissal restore trigger focus. Confirmation dialogs initially focus Cancel,
 trap Tab within their actions, restore focus and page scrolling on close, and
 use unique accessible title/description IDs.
+
+## Authenticated application frame
+
+Protected routes use a warm neutral canvas and a compact sticky utility header.
+The workspace sidebar remains 15.5rem expanded or 4.5rem collapsed and offers
+organization switching in both modes. Navigation uses neutral selected surfaces,
+borders, visible labels, and a shared internal outline SVG icon set. Existing
+role checks, destination paths, and the skip-to-content link are preserved.
+
+The mobile navigation drawer uses a native modal dialog for top-layer display,
+background interaction blocking, and browser focus containment. It focuses Close
+navigation initially, restores the Menu trigger and page scrolling on dismissal,
+and closes when the viewport becomes desktop-sized. Header/sidebar/navigation
+are hidden for printing; feature-page forms and content layouts remain for later
+approved parts.

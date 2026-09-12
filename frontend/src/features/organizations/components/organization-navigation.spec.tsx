@@ -57,4 +57,24 @@ describe('OrganizationNavigation', () => {
       'page',
     );
   });
+
+  it('marks detail routes active without matching unrelated prefix routes', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/organization-id/branches/branch-id',
+    );
+    const { rerender } = render(
+      <OrganizationNavigation organizationId="organization-id" />,
+    );
+    expect(screen.getByRole('link', { name: 'Branches' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/organization-id/branches-other',
+    );
+    rerender(<OrganizationNavigation organizationId="organization-id" />);
+    expect(screen.getByRole('link', { name: 'Branches' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
 });

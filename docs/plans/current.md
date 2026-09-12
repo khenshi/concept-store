@@ -7,11 +7,13 @@
 ## Part-by-part review checkpoints
 
 - Part 1: Public landing page approved and committed as `5b3f014`.
-- Part 2: Semantic foundations and existing shared UI primitives approved.
+- Part 2: Semantic foundations and existing shared UI primitives approved and
+  committed as `3a84d9f`.
   Feature-specific form and layout migration remains in subsequent parts.
-- Part 3: Authenticated header, sidebar, organization switching, and navigation in
-  progress.
-- Subsequent parts: Application shell, organization/account workflows, operational
+- Part 3: Authenticated header, sidebar, organization switching, and navigation
+  approved, including the switcher second-click dismissal fix.
+- Part 4: Organization and account workflows in progress.
+- Subsequent parts: Operational
   features, guest experiences, and final cross-route verification.
 
 Each part stops for user approval before its commit and before starting the next

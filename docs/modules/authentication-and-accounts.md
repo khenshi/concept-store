@@ -46,3 +46,9 @@ expiring, revocable refresh sessions and is deleted with its user.
 
 The frontend provides registration, login, authenticated route protection,
 logout, profile editing, password changing, and account deletion workflows.
+
+Authenticated routes share a compact neutral utility header with a workspace
+home link, Philippine Standard Time on wide screens, account access at every
+viewport size, and a sign-out action that announces pending state and prevents
+repeat activation. Account forms and guest screens are migrated separately;
+authentication/session contracts are unchanged.
