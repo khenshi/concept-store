@@ -8,6 +8,7 @@ import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
 import { ProductsService } from '../src/modules/organizations/products/products.service';
+import { OrganizationMembershipsService } from '../src/modules/organizations/memberships/organization-memberships.service';
 
 // No application DATABASE_URL fallback. Only this run's random schema is removed.
 const connectionString = process.env.TEST_DATABASE_URL;
@@ -28,6 +29,9 @@ const inventory = new BranchInventoryService(
   prisma as unknown as PrismaService,
 );
 const products = new ProductsService(prisma as unknown as PrismaService);
+const memberships = new OrganizationMembershipsService(
+  prisma as unknown as PrismaService,
+);
 let organizationId: string;
 let branchId: string;
 let otherBranchId: string;
@@ -144,6 +148,43 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     expect(
       await inventory.findOne(organizationId, otherBranchId, second.id),
     ).toMatchObject({ quantity: 0, sellingPrice: '9999999999.99' });
+  });
+
+  it('manages branch grants, role clearing, merchant links and removal with real membership locks', async () => {
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    await memberships.setBranch(organizationId, userId, branchId, true);
+    await memberships.setBranch(organizationId, userId, branchId, true);
+    expect(await memberships.findBranches(organizationId, userId)).toEqual([
+      expect.objectContaining({ id: branchId }),
+    ]);
+    await expect(
+      memberships.updateRole(organizationId, userId, {
+        role: 'MERCHANT',
+        merchantId: randomUUID(),
+      }),
+    ).rejects.toThrow();
+    expect(
+      await prisma.branchMembership.count({
+        where: { organizationId, userId },
+      }),
+    ).toBe(1);
+    await memberships.updateRole(organizationId, userId, {
+      role: 'MERCHANT',
+      merchantId,
+    });
+    expect(await memberships.findBranches(organizationId, userId)).toEqual([]);
+    await memberships.setMerchant(organizationId, userId, merchantId);
+    await memberships.setBranch(organizationId, userId, branchId, false);
+    await memberships.setBranch(organizationId, userId, branchId, true);
+    await memberships.remove(organizationId, userId);
+    expect(
+      await prisma.branchMembership.count({
+        where: { organizationId, userId },
+      }),
+    ).toBe(0);
+    expect((await balance()).quantity).toBe(0);
   });
 
   it('requires tenant-local membership and branch for unique branch assignments', async () => {

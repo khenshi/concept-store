@@ -7,5 +7,6 @@ export interface OrganizationMember {
   lastName: string;
   phone: string | null;
   role: OrganizationRole;
+  merchantId: string | null;
   joinedAt: Date;
 }

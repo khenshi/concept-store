@@ -30,6 +30,9 @@ describe('Milestone 1 organization access (e2e)', () => {
     update: jest.fn().mockResolvedValue({ id: BRANCH_ID }),
   };
   const membershipsService = {
+    findBranches: jest.fn().mockResolvedValue([]),
+    setBranch: jest.fn().mockResolvedValue(undefined),
+    setMerchant: jest.fn().mockResolvedValue({ merchantId: BRANCH_ID }),
     findAll: jest.fn().mockResolvedValue([]),
     add: jest.fn().mockResolvedValue({ id: CASHIER_ID }),
     updateRole: jest.fn().mockResolvedValue({ id: CASHIER_ID }),
@@ -219,7 +222,64 @@ describe('Milestone 1 organization access (e2e)', () => {
     });
   });
 
-  it('allows a manager to list members but reserves membership changes for owners', async () => {
+  it('validates owner-only access commands and trusted scope', async () => {
+    const token = accessToken(OWNER_ID, 'owner@example.com');
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .put(
+        `/organizations/${ORGANIZATION_ID}/members/${CASHIER_ID}/branches/${BRANCH_ID}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+      .expect(204);
+    expect(membershipsService.setBranch).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      CASHIER_ID,
+      BRANCH_ID,
+      true,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .put(
+        `/organizations/${ORGANIZATION_ID}/members/${CASHIER_ID}/branches/${BRANCH_ID}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .send({ role: 'OWNER' })
+      .expect(400);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .patch(`/organizations/${ORGANIZATION_ID}/members/${CASHIER_ID}/role`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ role: 'MERCHANT' })
+      .expect(400);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .patch(`/organizations/${ORGANIZATION_ID}/members/${CASHIER_ID}/merchant`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ merchantId: BRANCH_ID })
+      .expect(200);
+    expect(membershipsService.setMerchant).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      CASHIER_ID,
+      BRANCH_ID,
+    );
+    for (const role of [
+      OrganizationRole.MANAGER,
+      OrganizationRole.CASHIER,
+      OrganizationRole.MERCHANT,
+    ]) {
+      prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
+        role,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      await request(app.getHttpServer())
+        .get(`/organizations/${ORGANIZATION_ID}/members/${CASHIER_ID}/branches`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+    }
+  });
+
+  it('reserves member listing and membership changes for owners', async () => {
     prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
       role: OrganizationRole.MANAGER,
     });
@@ -229,7 +289,7 @@ describe('Milestone 1 organization access (e2e)', () => {
     await request(app.getHttpServer())
       .get(`/organizations/${ORGANIZATION_ID}/members`)
       .set('Authorization', `Bearer ${token}`)
-      .expect(200, []);
+      .expect(403);
 
     prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
       role: OrganizationRole.MANAGER,
@@ -242,6 +302,6 @@ describe('Milestone 1 organization access (e2e)', () => {
       .send({ email: 'new@example.com', role: OrganizationRole.CASHIER })
       .expect(404);
 
-    expect(membershipsService.findAll).toHaveBeenCalledWith(ORGANIZATION_ID);
+    expect(membershipsService.findAll).not.toHaveBeenCalled();
   });
 });

@@ -36,6 +36,8 @@ export class OrganizationAccessResponseDto {
 }
 
 export class OrganizationMemberResponseDto {
+  @ApiProperty({ type: String, nullable: true, format: 'uuid' }) merchantId!:
+    string | null;
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'email', example: 'manager@example.com' })
   email!: string;

@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -30,6 +31,14 @@ import { CurrentOrganization } from '../authorization/organization-context.decor
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
 import { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import { OrganizationMembershipsService } from './organization-memberships.service';
+import {
+  EmptyAssignmentDto,
+  UpdateMemberMerchantDto,
+} from './dto/update-member-merchant.dto';
+import {
+  MemberBranchResponse,
+  MemberMerchantResponse,
+} from './member-access.response';
 import type { OrganizationMember } from './organization-memberships.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
@@ -43,7 +52,7 @@ export class OrganizationMembershipsController {
     private readonly membershipsService: OrganizationMembershipsService,
   ) {}
 
-  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Get()
   @ApiOperation({ summary: 'List organization members' })
   @ApiOkResponse({ type: OrganizationMemberResponseDto, isArray: true })
@@ -54,6 +63,89 @@ export class OrganizationMembershipsController {
     @CurrentOrganization() organization: OrganizationContext,
   ): Promise<OrganizationMember[]> {
     return this.membershipsService.findAll(organization.organizationId);
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @Get(':userId/branches')
+  @ApiOperation({
+    summary: 'List a member’s explicit branches, or all branches for an owner',
+  })
+  @ApiOkResponse({ type: MemberBranchResponse, isArray: true })
+  findBranches(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
+  ) {
+    return this.membershipsService.findBranches(
+      organization.organizationId,
+      userId,
+    );
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @Put(':userId/branches/:branchId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Grant a branch assignment idempotently' })
+  @ApiNoContentResponse()
+  @ApiConflictResponse({
+    description: 'Owner has implicit access or membership changed concurrently',
+  })
+  grantBranch(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Body() _dto: EmptyAssignmentDto,
+  ) {
+    void _dto;
+    return this.membershipsService.setBranch(
+      organization.organizationId,
+      userId,
+      branchId,
+      true,
+    );
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @Delete(':userId/branches/:branchId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Revoke a branch assignment idempotently' })
+  @ApiNoContentResponse()
+  @ApiConflictResponse({
+    description: 'Owner has implicit access or membership changed concurrently',
+  })
+  revokeBranch(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Body() _dto: EmptyAssignmentDto,
+  ) {
+    void _dto;
+    return this.membershipsService.setBranch(
+      organization.organizationId,
+      userId,
+      branchId,
+      false,
+    );
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @Patch(':userId/merchant')
+  @ApiOperation({
+    summary: 'Set the tenant-local profile represented by a merchant member',
+  })
+  @ApiOkResponse({ type: MemberMerchantResponse })
+  @ApiConflictResponse({
+    description: 'Member is not MERCHANT or membership changed concurrently',
+  })
+  setMerchant(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
+    @Body() dto: UpdateMemberMerchantDto,
+  ) {
+    return this.membershipsService.setMerchant(
+      organization.organizationId,
+      userId,
+      dto.merchantId,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.OWNER)

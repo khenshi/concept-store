@@ -9,6 +9,7 @@
 - Change member roles.
 - Remove memberships.
 - Supply organization context for tenant authorization.
+- Manage explicit branch assignments and merchant-profile links.
 
 ## API
 
@@ -16,12 +17,16 @@
 GET    /organizations/:organizationId/members
 PATCH  /organizations/:organizationId/members/:userId/role
 DELETE /organizations/:organizationId/members/:userId
+GET    /organizations/:organizationId/members/:userId/branches
+PUT    /organizations/:organizationId/members/:userId/branches/:branchId
+DELETE /organizations/:organizationId/members/:userId/branches/:branchId
+PATCH  /organizations/:organizationId/members/:userId/merchant
 ```
 
 ## Authorization
 
-- `OWNER` and `MANAGER` can list members.
-- Only `OWNER` can change roles or remove members.
+- Only `OWNER` can list members, change roles, remove members, manage assignments,
+  or set merchant links. Managers, cashiers, and merchants cannot use these APIs.
 - `CASHIER` and `MERCHANT` cannot access member management.
 
 ## Data and rules
@@ -43,13 +48,30 @@ stores unique organization/branch/user assignments with composite foreign keys
 to the branch and organization membership. Removing a membership cascades only
 its assignments, never inventory or movement history. Merchant links are restrictive.
 
-These are persistence foundations only. Assignment/link management APIs, role-change
-cleanup, and access enforcement are not yet implemented; existing authorization
-and frontend behavior above remain unchanged until subsequent approved parts.
+## Access management delivery (Part 2)
+
+Owner APIs list explicit assignments (all branches for owner targets), grant/revoke
+tenant-local branches idempotently with 204 responses, and set a merchant link with
+a merchantId response. Owner targets reject explicit assignments. Branch/member/
+merchant resolution is tenant-scoped; missing and foreign objects use 404.
+Assignment commands accept no fields; unknown fields are rejected. Merchant-link
+commands require a UUID v4 merchantId and a MERCHANT target membership.
+
+Role changes require merchantId for MERCHANT and reject it for other roles. An
+actual role change clears explicit assignments and sets/clears the link atomically;
+same-role requests preserve assignments. Member list/role responses include nullable
+merchantId. No product ownership or historical actor attribution changes.
+
+Access mutations and membership removal lock the same tenant-local membership in
+serializable transactions. Serialization conflicts return 409 with retry guidance.
+The last-owner invariant remains enforced; failed writes roll back all changes.
+Resource-access filtering and invitation-grant acceptance remain later parts.
 
 ## Frontend behavior
 
-Owners and managers receive the Members navigation entry and member list.
+The existing frontend still shows Members to owners/managers, but the backend now
+rejects manager member-list requests. Frontend alignment and merchant role-selection
+input are deferred to the approved frontend parts.
 Owner-only controls change roles and remove members with confirmation.
 
 The member directory uses neutral operational panels and responsive divided rows.

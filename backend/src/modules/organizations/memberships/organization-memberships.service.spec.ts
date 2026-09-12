@@ -15,6 +15,10 @@ describe('OrganizationMembershipsService', () => {
   };
   const joinedAt = new Date('2026-08-23T00:00:00.000Z');
   const transaction = {
+    $queryRaw: jest.fn(),
+    branchMembership: { deleteMany: jest.fn(), upsert: jest.fn() },
+    branch: { findUnique: jest.fn(), findMany: jest.fn() },
+    merchant: { findUnique: jest.fn() },
     organizationMembership: {
       findUnique: jest.fn(),
       count: jest.fn(),
@@ -57,6 +61,7 @@ describe('OrganizationMembershipsService', () => {
       where: { organizationId },
       select: {
         role: true,
+        merchantId: true,
         createdAt: true,
         user: {
           select: {
@@ -137,5 +142,109 @@ describe('OrganizationMembershipsService', () => {
         role: OrganizationRole.MANAGER,
       }),
     ).rejects.toThrow(new NotFoundException('Organization member not found'));
+  });
+
+  it('grants and revokes only tenant-local branches after locking the membership', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      user,
+      role: 'MANAGER',
+      createdAt: joinedAt,
+    });
+    transaction.branch.findUnique.mockResolvedValue({ id: user.id });
+    await service.setBranch(organizationId, user.id, user.id, true);
+    expect(transaction.$queryRaw).toHaveBeenCalled();
+    expect(transaction.branchMembership.upsert).toHaveBeenCalledWith({
+      where: {
+        organizationId_branchId_userId: {
+          organizationId,
+          userId: user.id,
+          branchId: user.id,
+        },
+      },
+      create: { organizationId, userId: user.id, branchId: user.id },
+      update: {},
+    });
+    await service.setBranch(organizationId, user.id, user.id, false);
+    expect(transaction.branchMembership.deleteMany).toHaveBeenCalledWith({
+      where: { organizationId, userId: user.id, branchId: user.id },
+    });
+    transaction.branch.findUnique.mockResolvedValue(null);
+    await expect(
+      service.setBranch(organizationId, user.id, user.id, true),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('rejects explicit owner assignments and nonmerchant links', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      user,
+      role: 'OWNER',
+      createdAt: joinedAt,
+    });
+    await expect(
+      service.setBranch(organizationId, user.id, user.id, true),
+    ).rejects.toThrow(ConflictException);
+    await expect(
+      service.setMerchant(organizationId, user.id, user.id),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('validates merchant role commands and clears assignments on role change', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      user,
+      role: 'MANAGER',
+      createdAt: joinedAt,
+    });
+    transaction.merchant.findUnique.mockResolvedValue({ id: user.id });
+    transaction.organizationMembership.update.mockResolvedValue({
+      role: 'MERCHANT',
+      merchantId: user.id,
+      createdAt: joinedAt,
+    });
+    await expect(
+      service.updateRole(organizationId, user.id, { role: 'MERCHANT' }),
+    ).rejects.toThrow('requires merchantId');
+    await expect(
+      service.updateRole(organizationId, user.id, {
+        role: 'MANAGER',
+        merchantId: user.id,
+      }),
+    ).rejects.toThrow('only allowed');
+    await service.updateRole(organizationId, user.id, {
+      role: 'MERCHANT',
+      merchantId: user.id,
+    });
+    expect(transaction.branchMembership.deleteMany).toHaveBeenCalledWith({
+      where: { organizationId, userId: user.id },
+    });
+    expect(transaction.organizationMembership.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { role: 'MERCHANT', merchantId: user.id },
+      }),
+    );
+  });
+
+  it('relinks only a same-tenant merchant and maps serialization failures to conflict', async () => {
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      user,
+      role: 'MERCHANT',
+      createdAt: joinedAt,
+    });
+    transaction.merchant.findUnique.mockResolvedValue(null);
+    await expect(
+      service.setMerchant(organizationId, user.id, user.id),
+    ).rejects.toThrow(NotFoundException);
+    transaction.merchant.findUnique.mockResolvedValue({ id: user.id });
+    await expect(
+      service.setMerchant(organizationId, user.id, user.id),
+    ).resolves.toEqual({ merchantId: user.id });
+    prisma.$transaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError('conflict', {
+        code: 'P2034',
+        clientVersion: 'test',
+      }),
+    );
+    await expect(service.remove(organizationId, user.id)).rejects.toThrow(
+      ConflictException,
+    );
   });
 });

@@ -1,6 +1,6 @@
 # Branch and Merchant Access Control Plan
 
-**Status:** Approved; Part 1 implemented and verified, awaiting review
+**Status:** Approved; Part 1 committed; Part 2 implemented and verified, awaiting review
 **Date:** September 12, 2026
 
 ## Goal and confirmed decisions
@@ -254,6 +254,25 @@ Applicable checks pass, module docs are accurate, and exclusions remain excluded
 - Updated membership/invitation persistence and seed documentation. No API,
   authorization, or frontend behavior changed. Later parts implement enforcement.
 - The user reviewed and approved Part 1 for commit on September 12, 2026.
+
+## Part 2 verification record
+
+- Part 1 was reviewed and committed as e469c43.
+- Added owner-only assignment listing/grant/revoke and merchant-link APIs.
+  Member listing is now owner-only; responses include nullable merchantId.
+- Added strict merchant role commands, tenant-local related object checks,
+  idempotent grants/revocations, and implicit owner access handling.
+- Role changes clear assignments and update merchant links atomically. Membership
+  access writes/removal lock the target membership in serializable transactions;
+  final-owner checks remain intact and serialization conflicts return 409.
+- Backend format/lint/build, 175 unit tests, 60 HTTP tests, and 22 PostgreSQL tests
+  pass. PostgreSQL verifies real membership locks, idempotency, failed related
+  object rollback, role clearing, relinking, and assignment cleanup on removal.
+- Only a disposable PostgreSQL 17 container was used and removed afterward.
+  No application database, invitation, stock, or frontend behavior was changed.
+- Updated membership module documentation. Broader concurrency coverage remains
+  Part 5; invitation grants/resource enforcement/frontend alignment remain later parts.
+- The user reviewed and approved Part 2 for commit on September 12, 2026.
 
 ## Deferred POS decisions (not implementation scope)
 
