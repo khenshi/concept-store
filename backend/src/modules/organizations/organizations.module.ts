@@ -14,6 +14,9 @@ import { MerchantsController } from './merchants/merchants.controller';
 import { MerchantsService } from './merchants/merchants.service';
 import { ProductsController } from './products/products.controller';
 import { ProductsService } from './products/products.service';
+import { BranchInventoryController } from './inventory/branch-inventory.controller';
+import { BranchInventoryService } from './inventory/branch-inventory.service';
+import { InventoryStockService } from './inventory/inventory-stock.service';
 
 @Module({
   imports: [AuthModule],
@@ -25,6 +28,7 @@ import { ProductsService } from './products/products.service';
     InvitationAcceptanceController,
     MerchantsController,
     ProductsController,
+    BranchInventoryController,
   ],
   providers: [
     OrganizationsService,
@@ -34,6 +38,8 @@ import { ProductsService } from './products/products.service';
     OrganizationInvitationsService,
     MerchantsService,
     ProductsService,
+    BranchInventoryService,
+    InventoryStockService,
   ],
   exports: [OrganizationAccessGuard],
 })

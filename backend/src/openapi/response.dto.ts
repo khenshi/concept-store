@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  InventoryMovementType,
   MerchantStatus,
   OrganizationRole,
   ProductStatus,
@@ -155,4 +156,66 @@ export class ProductInventoryResponseDto {
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
   @ApiProperty({ type: InventoryBranchResponseDto })
   branch!: InventoryBranchResponseDto;
+}
+
+export class InventoryMerchantResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ enum: MerchantStatus }) status!: MerchantStatus;
+}
+
+export class InventoryProductResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) merchantId!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ type: String, nullable: true }) sku!: string | null;
+  @ApiProperty({ type: String, nullable: true }) barcode!: string | null;
+  @ApiProperty({ enum: ProductStatus }) status!: ProductStatus;
+  @ApiProperty({ type: InventoryMerchantResponseDto })
+  merchant!: InventoryMerchantResponseDto;
+}
+
+export class BranchInventoryResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) organizationId!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty({ format: 'uuid' }) productId!: string;
+  @ApiProperty({
+    type: String,
+    example: '925.50',
+    pattern: '^\\d+\\.\\d{2}$',
+    description: 'Exact PHP price with two decimal places',
+  })
+  sellingPrice!: string;
+  @ApiProperty({ type: 'integer', minimum: 0, maximum: 2147483647 })
+  quantity!: number;
+  @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
+  @ApiProperty({ type: InventoryProductResponseDto })
+  product!: InventoryProductResponseDto;
+}
+
+export class InventoryMovementResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) organizationId!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty({ format: 'uuid' }) branchInventoryId!: string;
+  @ApiProperty({ enum: InventoryMovementType }) type!: InventoryMovementType;
+  @ApiProperty({
+    type: 'integer',
+    minimum: -2147483648,
+    maximum: 2147483647,
+    description: 'Nonzero signed stock change',
+  })
+  quantityChange!: number;
+  @ApiProperty({ type: 'integer', minimum: 0, maximum: 2147483647 })
+  quantityAfter!: number;
+  @ApiProperty() reason!: string;
+  @ApiProperty({
+    format: 'uuid',
+    description: 'Actor ID; no personal data is returned',
+  })
+  createdById!: string;
+  @ApiProperty({ format: 'uuid' }) requestId!: string;
+  @ApiProperty({ format: 'date-time' }) createdAt!: Date;
 }

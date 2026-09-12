@@ -1,6 +1,6 @@
 # Products and Branch Inventory Implementation Plan
 
-**Status:** Approved; Part 1 committed; Part 2 implemented, awaiting review
+**Status:** Approved; Parts 1–2 committed; Part 3 implemented, awaiting review
 **Date:** September 12, 2026
 
 ## Goal
@@ -335,3 +335,19 @@ Continue only through the per-part review and commit checkpoints above.
 - Backend formatting/lint/build and 85 existing regression unit tests passed.
   Product-specific unit/HTTP coverage remains Part 4.
 - No stock mutations or frontend behavior was added.
+
+## Part 3 verification record
+
+- Part 2 was reviewed and committed as `cca32c1`.
+- Added tenant/branch-scoped placement creation/listing/retrieval, price changes,
+  stock receipts, corrective adjustments, and immutable history endpoints.
+- Added decimal-string price validation, signed integer bounds, required reasons,
+  active lifecycle checks, and authenticated actor attribution.
+- Bounded atomic stock increments and movement insertion share a read-committed
+  transaction. Request-ID replay and concurrent uniqueness/range conflict
+  resolution avoid duplicate stock changes.
+- Updated OpenAPI contracts and module documentation with delivered backend scope.
+- Backend formatting/lint/build and 85 existing regression tests passed.
+- Dedicated stock/authorization tests and actual PostgreSQL rollback/concurrency
+  verification remain Part 4. No existing database migration/reset was run.
+- No frontend or excluded workflow was implemented.

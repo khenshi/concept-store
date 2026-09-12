@@ -1,0 +1,76 @@
+# Branch Inventory
+
+**Status:** Backend API implemented; frontend and dedicated verification pending
+
+## Responsibilities
+
+Maintain one quantity-tracked placement per product/branch, a branch-specific PHP
+selling price, and immutable receiving/adjustment history. Different placements
+of the same product have independent prices and balances. No transfer, sale,
+reservation, purchasing, or deletion workflow is provided.
+
+## API and authorization
+
+```text
+POST  /organizations/:organizationId/branches/:branchId/inventory
+GET   /organizations/:organizationId/branches/:branchId/inventory?q=&merchantId=&status=
+GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId
+PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/price
+POST  /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/receipts
+POST  /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/adjustments
+GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/movements
+```
+
+All routes require authentication, organization membership, and `OWNER` or
+`MANAGER`. Every inventory/movement query includes organization and branch scope.
+Related branches, products, and merchant filters are resolved inside the active
+tenant. Foreign records use not-found behavior. UUID v4 validation and global DTO
+whitelisting reject malformed IDs and unexpected fields.
+
+## Placements and prices
+
+- Placement creation accepts product ID and price, starts at zero stock, and
+  creates no opening movement. Duplicate product/branch placement returns `409`.
+- New placements require an active product and active merchant.
+- Price requests use positive decimal strings with at most 10 integer and two
+  fractional digits. Numeric JSON values, scientific notation, and zero are
+  rejected. Prisma Decimal stores prices; responses have exactly two decimals.
+- Price edits change only price, not quantity. Existing inactive product/merchant
+  records remain editable and readable.
+- Inventory responses include product identity and merchant name/status.
+- Search matches product name/SKU case-insensitively and barcode case-sensitively.
+  Merchant/product-status filters are optional. Lists order by product name then
+  inventory ID and are not paginated.
+- Composite foreign keys prevent cross-tenant product/branch placements and
+  cross-branch movement references. Database checks protect prices and quantities.
+
+## Stock commands and history
+
+- Receipt requires a positive integer quantity, trimmed 2–500 character reason,
+  and UUID request ID. Product and merchant must be active for a new receipt.
+- Adjustment requires a nonzero signed integer delta, reason, and request ID.
+  It is not an absolute stock replacement and may correct inactive records.
+- Quantities stay within `0..2147483647`. Requests that would underflow/overflow
+  return `409`; integer validation rejects invalid command values.
+- A bounded atomic increment and movement insertion share a read-committed
+  PostgreSQL transaction. The updated row remains locked until commit, preserving
+  the movement's resulting balance. A failed movement write rolls back stock.
+- Request IDs are unique per organization. Replaying the same inventory, branch,
+  operation, delta, and reason returns the original movement without another
+  stock change, even if lifecycle state has subsequently changed.
+- A request ID reused for different content returns `409`. Concurrent duplicate
+  uniqueness/range failures resolve the committed original after rollback.
+- Movement actor comes from authenticated context. Replays retain original actor
+  attribution. History returns actor IDs, not personal user information.
+- History is ordered by timestamp descending then movement ID descending. There
+  is no movement mutation or deletion endpoint.
+- Command responses are historical movement snapshots; clients must refresh
+  current inventory after success rather than treating a replay as current stock.
+- No stock write touches another branch's placement.
+
+## Delivery state
+
+Backend format/lint/build and 85 existing regression tests pass. Dedicated stock,
+authorization, database constraint, rollback, and concurrency coverage remains
+Part 4 of the active plan. Database-backed correctness is not yet represented as
+verified. Frontend stock management remains Part 6.

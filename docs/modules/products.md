@@ -6,7 +6,8 @@
 
 Maintain organization-owned product identities with one merchant per product.
 Expose read-only branch placements with independently tracked prices and stock.
-Stock mutation services and frontend product management are not yet implemented.
+Stock mutation services are documented in [Branch Inventory](branch-inventory.md).
+Frontend product management is not yet implemented.
 
 ## API and authorization
 

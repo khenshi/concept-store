@@ -33,6 +33,10 @@ lines, city, province, optional postal code, and a two-letter country code.
 - Queries include `organizationId`; a foreign branch is returned as not found.
 - Organization deletion is restricted while branches exist.
 
+Branch inventory uses the branch's `(id, organizationId)` composite key for
+tenant-safe placement relations. Its backend workflows are documented in
+[Branch Inventory](branch-inventory.md); branch inventory UI is not yet delivered.
+
 ## Frontend
 
 The organization workspace provides branch listing, creation, detail, and edit

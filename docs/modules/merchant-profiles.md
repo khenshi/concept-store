@@ -60,6 +60,11 @@ deletion while merchant records exist.
 There is no merchant deletion operation. `ENDED` retains the profile for later
 historical relationships.
 
+The separate [Products](products.md) backend now references merchant identity with
+a tenant-safe composite foreign key. New products, placements, and receipts
+require an active merchant. Changing merchant status does not modify existing
+products, branch prices, balances, or movement history.
+
 ## Validation and normalization
 
 - Name and contact name are trimmed and contain 2–120 characters.
