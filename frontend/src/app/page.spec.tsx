@@ -7,18 +7,20 @@ describe('Home', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: 'Start with a clear foundation for your concept store.',
+        name: 'Run your store with everything in its place.',
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
-        name: 'Secure organization access',
+        name: 'Keep every location in view',
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: 'Team membership' }),
+      screen.getByRole('heading', {
+        name: 'Give every person the right context',
+      }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Sign in' })[0]).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
       'href',
       '/login',
     );
