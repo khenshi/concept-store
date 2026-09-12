@@ -19,12 +19,13 @@
   as `51f264b`.
 - Part 6: Member management and owner invitation workflows approved and committed
   as `40395bd`, including wider form dialogs and outline-free focused headings.
-- Part 7: Merchant directory, profile, editing, and lifecycle workflows approved.
+- Part 7: Merchant directory, profile, editing, and lifecycle workflows approved
+  and committed as `0816e48`.
   Shared dropdown refinement bounds menus to modal space, opens upward when
   needed, and confines option scrolling to the menu.
-- Part 8: Login, registration, invitation acceptance, and guest/session states next.
-- Subsequent parts: Operational features, guest experiences, and final cross-route
-  verification.
+- Part 8: Login, registration, invitation acceptance, and guest/session states
+  approved for commit.
+- Part 9: Final cross-route styling, interaction, and verification cleanup in progress.
 
 Each part stops for user approval before its commit and before starting the next
 part. No part may expand the feature scope or change backend behavior.

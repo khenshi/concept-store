@@ -44,5 +44,11 @@ Owner invitation management uses neutral controls and explicit pending, accepted
 revoked, and expired labels. Revocation disables invitation actions while pending.
 Creation opens a native modal dialog with focus restoration, scroll containment,
 and pending dismissal protection. The created link shows the actual expiry date
-and supports clipboard copying with a manual-copy fallback. Guest acceptance is
-unchanged.
+and supports clipboard copying with a manual-copy fallback.
+
+The token acceptance page shares the neutral guest shell with login and
+registration. It retains invitation preview/retry, explicit recipient and expiry,
+registration and login links with the invitation return path, mismatch/sign-out
+feedback, and automatic acceptance for the matching authenticated account.
+Acceptance remains guarded against duplicate requests and redirects to the
+accepted organization; token and authorization behavior are unchanged.

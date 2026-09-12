@@ -4,9 +4,5 @@ import { CredentialsForm } from '@/features/auth/components/credentials-form';
 export const metadata: Metadata = { title: 'Sign in | Kapwesto' };
 
 export default function LoginPage() {
-  return (
-    <main className="grid min-h-screen place-items-center bg-white">
-      <CredentialsForm mode="login" />
-    </main>
-  );
+  return <CredentialsForm mode="login" />;
 }

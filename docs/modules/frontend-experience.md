@@ -15,6 +15,16 @@ Shared select menus choose upward or downward placement using available viewport
 and modal space. Only the choice list scrolls when options exceed that space;
 keyboard navigation scrolls the list rather than moving the surrounding modal.
 
+## Guest experiences
+
+Login, registration, and invitation acceptance share a paper form surface on the
+warm canvas, neutral branding and actions, home navigation, and a wide-screen
+editorial context panel. Small screens keep the form first and omit the optional
+context panel. Shared fields and notices retain validation, autocomplete, pending
+feedback, and first-invalid-field focus. Session loading/failure states also use
+the neutral system. Authentication redirects and invitation acceptance contracts
+are unchanged.
+
 ## Public landing page
 
 **Status:** Implemented; approved September 12, 2026
@@ -24,8 +34,7 @@ graphite actions, responsive feature stories, and registration/sign-in links.
 Product illustrations are static HTML/CSS compositions, not live organization
 data. They describe existing branch, team, and merchant-profile capabilities.
 
-The neutral wordmark variant is opt-in; guest screens retain their previous
-branding until their migration is approved. No API,
+The neutral wordmark variant is used on public and guest screens. No API,
 authorization, tenant, or business behavior changes are introduced.
 
 ## Shared design foundations
