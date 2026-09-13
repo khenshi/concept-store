@@ -1,6 +1,6 @@
 # Sales
 
-**Status:** Persistence and checkout API implemented; sales history APIs and screens are not yet implemented.
+**Status:** Persistence, checkout and scoped sales-read APIs implemented; screens/printing are not yet implemented.
 
 ## Implemented scope
 
@@ -33,7 +33,7 @@ merchant consistency. A sale cannot repeat a placement.
 The database checks are row-local. The checkout service additionally derives the
 sum of all items and creates every matching deduction in one transaction. There
 is no sale/item update or delete endpoint, payment entity, pending-sale state,
-refund, sales-history read or receipt-printing workflow.
+refund or receipt-printing workflow.
 
 ## Checkout API and authorization
 
@@ -97,6 +97,58 @@ commands, checkout request IDs and creator IDs are excluded. No merchant contact
 member directory or stock movement details are returned. These are internal
 transaction records, not fiscal/tax invoices; rendering/printing comes later.
 
+## Sales reads and historical merchant branches
+
+```text
+GET /organizations/:organizationId/branches/:branchId/sales?from=&until=&page=&limit=
+GET /organizations/:organizationId/branches/:branchId/sales/:saleId
+GET /organizations/:organizationId/sales/branches
+```
+
+List/detail require authentication and current membership. OWNER reads all tenant
+branches; MANAGER reads assigned branches; CASHIER reads only their own completed
+sales in assigned branches. Foreign, inaccessible and missing branch/sale guesses
+use 404. Fresh membership/role/profile and branch checks share a REPEATABLE READ
+transaction with sale queries; list count and rows use the same snapshot and
+authorization predicate. Removed assignments/memberships and role changes affect
+subsequent reads, regardless of a stale context. Deleted accounts are denied.
+
+MERCHANT reads only items historically owned by their currently linked profile,
+including inactive products/merchants and zero-stock placements. Historical own
+sales grant branch sales access without assignments or current-placement-based
+authorization; explicit assignments may instead grant an empty own-sales directory.
+An unlinked merchant has no historical access, receives empty assigned-branch lists,
+and receives an empty historical branch lookup. Neither assignments nor a guessed
+sale ID can expose another merchant's sale. Relinking changes subsequent reads
+without rewriting historical ownership; multiple members linked to the same
+business see the same own-sale projections.
+
+Merchant list/detail uses a separate database selection containing sale ID,
+receipt code/time, snapshot branch ID/name/code, and only own item ID/product ID,
+product/SKU/barcode/merchant-name snapshots, quantity, unit price and line total.
+`ownItemsSubtotal` is the exact two-decimal sum of those selected items, calculated
+with 40-digit decimal arithmetic. The full-sale total, other items/item counts,
+cashier/member identity, payment method/reference/tender/change, organization
+receipt identity, request IDs and canonical command are never selected or returned.
+This remains a reduced view even for a sale containing only one merchant;
+there is no alternate full-receipt endpoint for merchants.
+
+Lists return `{ items, page, limit, total, totalPages }`, newest completion first
+then descending sale ID. `total` counts only permitted matching sales. Default
+page/limit are 1/50; limit is 1–100 and page is bounded to 21474836 to keep database
+offsets within integer bounds. `from` is inclusive and `until` exclusive; optional
+strict UTC timestamps end in Z, with up to millisecond precision. Both supplied
+requires from < until. Unknown fields, malformed dates/pagination and non-v4 UUIDs
+are rejected. Details and branch lookup accept no query options.
+
+The historical branch lookup is MERCHANT-only and returns current branch ID/name/
+code, sorted by name then ID, with matching own historical items. No addresses,
+counts or other-merchant branches are exposed; explicit assignments alone do not
+add a branch to this historical list. This focused lookup does not widen existing
+general branch-detail or inventory access. Staff details return the persisted full
+snapshot shape from checkout completion for later internal receipt rendering.
+No mutable sale/receipt routes or sales UI are added.
+
 ## Verification and development examples
 
 PostgreSQL tests use explicit disposable databases and random isolated schemas.
@@ -105,6 +157,11 @@ restrictive deletion, snapshot preservation, failed-write rollback and private
 inventory-history projections. Checkout coverage includes payment/command
 validation, fresh roles/assignments, exact and conflicting replay, full-capacity
 arithmetic, mixed ownership, injected sale/item/movement failures, concurrent
-checkouts/withdrawals, duplicate requests and ledger reconciliation. The destructive development seed adds three
+checkouts/withdrawals, duplicate requests and ledger reconciliation. Read coverage
+includes role/tenant/branch/actor isolation, historical ownership, shared/relinked/
+unlinked profiles, exact merchant projection keys/subtotals, stable filtered
+pagination and UTC boundaries. Expanded PostgreSQL races cover receiving,
+opposite multi-line carts, second-line movement rollback and lock-controlled
+price/lifecycle changes. The destructive development seed adds three
 completed examples with CASH/GCASH/CARD and a mixed-merchant sale, inserting items,
 stock deductions and movements atomically. It is not the application checkout API.

@@ -15,8 +15,10 @@ Three completed persistence examples include a Makati cash sale (`850.00`, tende
 and a BGC card sale (`925.50`). Manual references are demo-only and unverified.
 The cashier creates Makati examples; the owner creates BGC's example without
 granting the cashier BGC access. Snapshots and canonical commands are included.
-These examples do not call the application checkout API; sales-history read
-endpoints are not yet implemented. Checkout behavior is documented under Sales.
+These examples do not call the application checkout API. Scoped sales-read APIs
+show the cashier's Makati sales, managers' assigned-branch sales and the linked
+merchant's Amihan items/subtotals only, including its historical BGC card sale.
+Checkout and sales-read behavior is documented under Sales; screens come later.
 
 Access examples assign the manager and cashier to Makati, link the
 merchant member to Amihan Home Studio, and attach a BGC grant to the pending

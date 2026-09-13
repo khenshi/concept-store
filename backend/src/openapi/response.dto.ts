@@ -1,4 +1,6 @@
 import {
+  ApiExtraModels,
+  getSchemaPath,
   ApiProperty,
   ApiPropertyOptional,
   OmitType,
@@ -258,6 +260,58 @@ export class CompletedSaleResponseDto {
   @ApiProperty({ type: String, example: '850.00' }) total!: string;
   @ApiProperty({ type: [CompletedSaleItemResponseDto] })
   items!: CompletedSaleItemResponseDto[];
+}
+
+export class MerchantSaleItemResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) productId!: string;
+  @ApiProperty() productName!: string;
+  @ApiProperty({ type: String, nullable: true }) sku!: string | null;
+  @ApiProperty({ type: String, nullable: true }) barcode!: string | null;
+  @ApiProperty() merchantName!: string;
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 2147483647 })
+  quantity!: number;
+  @ApiProperty({ type: String }) unitPrice!: string;
+  @ApiProperty({ type: String }) lineTotal!: string;
+}
+
+export class MerchantSaleResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() receiptCode!: string;
+  @ApiProperty({ format: 'date-time' }) completedAt!: Date;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty() branchName!: string;
+  @ApiProperty({ type: String, nullable: true }) branchCode!: string | null;
+  @ApiProperty({ type: [MerchantSaleItemResponseDto] })
+  items!: MerchantSaleItemResponseDto[];
+  @ApiProperty({
+    type: String,
+    description: 'Sum of own historical items, never the whole-sale total',
+  })
+  ownItemsSubtotal!: string;
+}
+
+@ApiExtraModels(CompletedSaleResponseDto, MerchantSaleResponseDto)
+export class SalesPageResponseDto {
+  @ApiProperty({
+    type: 'array',
+    items: {
+      oneOf: [
+        { $ref: getSchemaPath(CompletedSaleResponseDto) },
+        { $ref: getSchemaPath(MerchantSaleResponseDto) },
+      ],
+    },
+  })
+  items!: (CompletedSaleResponseDto | MerchantSaleResponseDto)[];
+  @ApiProperty({ type: 'integer', minimum: 1 }) page!: number;
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 100 }) limit!: number;
+  @ApiProperty({
+    type: 'integer',
+    minimum: 0,
+    description: 'Count of permitted matching sales only',
+  })
+  total!: number;
+  @ApiProperty({ type: 'integer', minimum: 0 }) totalPages!: number;
 }
 
 export class BranchInventoryResponseDto {

@@ -1,6 +1,6 @@
 # Branch POS Checkout and Sales Plan
 
-**Status:** Approved; Parts 1–2 committed; Part 3 verified, awaiting review before commit.
+**Status:** Approved; Parts 1–3 committed; Part 4 verified, awaiting review before commit.
 **Date:** September 13, 2026
 
 ## Goal and confirmed decisions
@@ -298,8 +298,34 @@ Only disposable PostgreSQL 17 and isolated schemas were used; the application
 database and unrelated root package/audit changes remain untouched. Frontend
 files are unchanged. Diff whitespace checks pass.
 
-Stop for review after verification; do not commit Part 3 or begin Part 4 before
-approval. The full plan remains active until all parts are delivered.
+User approved Part 3 on September 13, 2026; committed as `630d21b`.
+
+### Part 4 delivery — September 13, 2026
+
+Implemented scoped sales list/detail reads, private-data-free merchant own-item
+projections and exact ownItemsSubtotal, and MERCHANT-only historical selling-branch
+identity lookup. Fresh database membership/profile and branch checks share a
+repeatable-read snapshot with list count/rows and detail projections. Staff scope
+is owner-all, manager-assigned, cashier-assigned-and-own-actor; merchant access
+requires an assignment or matching own historical sale items and never exposes
+other sales. Unlinked/assigned branches return empty own lists; inaccessible branch
+and detail guesses return 404. Added strict bounded pagination, half-open UTC range
+validation, precise projection/OpenAPI contracts and expanded PostgreSQL races.
+No frontend screens, printing, schema changes or excluded mutations are added.
+
+Verification passes: Prisma validation, backend format/lint/build, 258 unit tests,
+106 HTTP tests and 99 PostgreSQL integration tests, with the final database suite
+passing twice consecutively. Tests cover exact merchant projection keys/subtotals,
+unlinked detail denial, relinking/shared profiles, historical selling branches,
+current role/assignment/actor scope, stable own-filtered pagination/UTC boundaries,
+receiving/withdrawal competition, opposite multi-line carts, second-line movement
+rollback and lock-controlled concurrent price/product/merchant lifecycle changes.
+Only disposable PostgreSQL 17 and isolated schemas were used; the application
+database and unrelated root package/audit changes remain untouched. Frontend
+files are unchanged. Diff whitespace checks pass.
+
+Stop for user review after verification; do not commit Part 4 or begin Part 5
+before approval. The full plan remains active until all parts are delivered.
 
 ### Remaining part-by-part sequence
 

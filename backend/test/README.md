@@ -20,6 +20,13 @@ maximum 100-line precise arithmetic, current access on replay, mixed ownership,
 concurrent checkout/withdrawal and identical/conflicting request-ID races. Failure
 injection triggers exist only in the suite's isolated schema and are removed in
 finally blocks; no production trigger or infrastructure is added.
+Sales-read tests verify current role/branch/actor scope, historical merchant
+ownership, shared/relinked/unlinked profiles, exact reduced response keys,
+own-only subtotals/counts, filtered pagination and half-open UTC date ranges.
+Expanded races cover opposite multi-line carts, stock receiving, second-movement
+rollback and lock-controlled concurrent price/lifecycle changes. A transaction
+serialized before a lifecycle change may retain its old valid snapshots; every
+subsequent new checkout must observe the inactive state and be denied.
 
 `npm run test:integration` requires an explicit `TEST_DATABASE_URL` pointing to a
 disposable PostgreSQL test database. It never falls back to application

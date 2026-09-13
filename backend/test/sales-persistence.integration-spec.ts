@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { ConflictException } from '@nestjs/common';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -10,6 +11,9 @@ import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.
 import { CheckoutService } from '../src/modules/organizations/sales/checkout.service';
 import type { CheckoutDto } from '../src/modules/organizations/sales/dto/checkout.dto';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
+import { SalesReadService } from '../src/modules/organizations/sales/sales-read.service';
+import { ListSalesQueryDto } from '../src/modules/organizations/sales/dto/list-sales-query.dto';
+import type { OrganizationContext } from '../src/modules/organizations/authorization/organization-authorization.types';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString)
@@ -99,6 +103,294 @@ const movementData = (
 });
 
 describe('PostgreSQL sale persistence integrity', () => {
+  const salesReads = new SalesReadService(prisma as unknown as PrismaService);
+  const salesMember = async (
+    role: OrganizationContext['role'],
+    link: string | null = null,
+  ): Promise<OrganizationContext> => {
+    const user = await prisma.user.create({
+      data: {
+        firstName: 'Sales',
+        lastName: 'Member',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId: user.id, role, merchantId: link },
+    });
+    return { organizationId, userId: user.id, role, merchantId: link };
+  };
+  const fixtureSale = async (
+    extra: Partial<Prisma.SaleUncheckedCreateInput> = {},
+  ) => {
+    const sale = await prisma.sale.create({ data: saleData(extra) });
+    await prisma.saleItem.create({ data: itemData(sale.id) });
+    return sale;
+  };
+  it('scopes staff list/detail by current assignments, cashier actor, tenant and branch', async () => {
+    const owner = await salesMember('OWNER');
+    const cashier = await salesMember('CASHIER');
+    const manager = await salesMember('MANAGER');
+    const own = await fixtureSale({ createdById: cashier.userId });
+    const other = await fixtureSale();
+    await expect(
+      salesReads.findAll(cashier, branchId, new ListSalesQueryDto()),
+    ).rejects.toThrow('Branch not found');
+    await prisma.branchMembership.createMany({
+      data: [cashier, manager].map((context) => ({
+        organizationId,
+        branchId,
+        userId: context.userId,
+      })),
+    });
+    const page = await salesReads.findAll(
+      cashier,
+      branchId,
+      new ListSalesQueryDto(),
+    );
+    expect(page.total).toBe(1);
+    expect(page.items.map((row) => row.id)).toEqual([own.id]);
+    expect(
+      (await salesReads.findAll(manager, branchId, new ListSalesQueryDto()))
+        .total,
+    ).toBe(2);
+    expect(
+      (await salesReads.findAll(owner, branchId, new ListSalesQueryDto()))
+        .total,
+    ).toBe(2);
+    await expect(
+      salesReads.findOne(cashier, branchId, other.id),
+    ).rejects.toThrow('Sale not found');
+    await expect(
+      salesReads.findOne(owner, otherBranchId, own.id),
+    ).rejects.toThrow('Sale not found');
+    await expect(
+      salesReads.findOne(
+        { ...owner, organizationId: randomUUID() },
+        branchId,
+        own.id,
+      ),
+    ).rejects.toThrow('Organization not found');
+    await prisma.branchMembership.deleteMany({
+      where: { organizationId, userId: cashier.userId },
+    });
+    await expect(salesReads.findOne(cashier, branchId, own.id)).rejects.toThrow(
+      'Branch not found',
+    );
+    await prisma.organizationMembership.update({
+      where: {
+        organizationId_userId: { organizationId, userId: owner.userId },
+      },
+      data: { role: 'CASHIER' },
+    });
+    await expect(salesReads.findOne(owner, branchId, own.id)).rejects.toThrow(
+      'Branch not found',
+    );
+  });
+  it('projects mixed sales to historical own items/subtotal and discovers selling branches without assignments', async () => {
+    const merchant = await salesMember('MERCHANT', merchantId);
+    const colleague = await salesMember('MERCHANT', merchantId);
+    const secondProduct = await prisma.product.create({
+      data: {
+        organizationId,
+        merchantId: otherMerchantId,
+        name: 'Other merchant goods',
+      },
+    });
+    const second = await prisma.branchInventory.create({
+      data: {
+        organizationId,
+        branchId,
+        productId: secondProduct.id,
+        sellingPrice: '0.01',
+      },
+    });
+    const sale = await fixtureSale({
+      total: '25.02',
+      cashTender: '30.00',
+      cashChange: '4.98',
+    });
+    await prisma.saleItem.create({
+      data: itemData(sale.id, {
+        branchInventoryId: second.id,
+        productId: secondProduct.id,
+        merchantId: otherMerchantId,
+        merchantName: 'Other merchant',
+        productName: 'Other merchant goods',
+        unitPrice: '0.01',
+        lineTotal: '0.02',
+      }),
+    });
+    const own = await salesReads.findOne(merchant, branchId, sale.id);
+    expect(Object.keys(own).sort()).toEqual(
+      [
+        'id',
+        'receiptCode',
+        'completedAt',
+        'branchId',
+        'branchName',
+        'branchCode',
+        'items',
+        'ownItemsSubtotal',
+      ].sort(),
+    );
+    expect(own).toMatchObject({
+      ownItemsSubtotal: '25.00',
+      items: [
+        {
+          productName: 'Original product',
+          unitPrice: '12.50',
+          lineTotal: '25.00',
+          quantity: 2,
+        },
+      ],
+    });
+    expect(own.items).toHaveLength(1);
+    expect(Object.keys(own.items[0]).sort()).toEqual(
+      [
+        'id',
+        'productId',
+        'productName',
+        'sku',
+        'barcode',
+        'merchantName',
+        'quantity',
+        'unitPrice',
+        'lineTotal',
+      ].sort(),
+    );
+    expect(await salesReads.findOne(colleague, branchId, sale.id)).toEqual(own);
+    expect(
+      await salesReads.findOne(
+        { ...merchant, role: 'OWNER', merchantId: otherMerchantId },
+        branchId,
+        sale.id,
+      ),
+    ).toEqual(own);
+    expect(await salesReads.sellingBranches(merchant)).toEqual([
+      { id: branchId, name: 'Original branch', code: 'ONE' },
+    ]);
+    await prisma.product.update({
+      where: { id: productId },
+      data: { status: 'INACTIVE', name: 'Changed' },
+    });
+    await prisma.merchant.update({
+      where: { id: merchantId },
+      data: { status: 'ENDED', name: 'Changed' },
+    });
+    await prisma.branch.update({
+      where: { id: branchId },
+      data: { name: 'Renamed branch' },
+    });
+    expect(await salesReads.findOne(merchant, branchId, sale.id)).toEqual(own);
+    expect(await salesReads.sellingBranches(merchant)).toEqual([
+      { id: branchId, name: 'Renamed branch', code: 'ONE' },
+    ]);
+    const page = await salesReads.findAll(
+      merchant,
+      branchId,
+      new ListSalesQueryDto(),
+    );
+    expect(page.total).toBe(1);
+    expect(page.items).toEqual([own]);
+    await prisma.organizationMembership.update({
+      where: {
+        organizationId_userId: { organizationId, userId: merchant.userId },
+      },
+      data: { merchantId: otherMerchantId },
+    });
+    expect(await salesReads.findOne(merchant, branchId, sale.id)).toMatchObject(
+      {
+        ownItemsSubtotal: '0.02',
+        items: [{ productName: 'Other merchant goods' }],
+      },
+    );
+    expect(await salesReads.findOne(colleague, branchId, sale.id)).toEqual(own);
+  });
+  it('keeps unlinked and unrelated merchants empty, even with explicit assignments, and denies detail guesses', async () => {
+    const sale = await fixtureSale();
+    const unlinked = await salesMember('MERCHANT');
+    const unrelated = await salesMember('MERCHANT', otherMerchantId);
+    await expect(
+      salesReads.findAll(unlinked, branchId, new ListSalesQueryDto()),
+    ).rejects.toThrow('Branch not found');
+    await expect(
+      salesReads.findAll(unrelated, branchId, new ListSalesQueryDto()),
+    ).rejects.toThrow('Branch not found');
+    await prisma.branchMembership.createMany({
+      data: [unlinked, unrelated].map((context) => ({
+        organizationId,
+        branchId,
+        userId: context.userId,
+      })),
+    });
+    for (const context of [unlinked, unrelated]) {
+      expect(
+        await salesReads.findAll(context, branchId, new ListSalesQueryDto()),
+      ).toEqual({ items: [], page: 1, limit: 50, total: 0, totalPages: 0 });
+      expect(await salesReads.sellingBranches(context)).toEqual([]);
+      await expect(
+        salesReads.findOne(context, branchId, sale.id),
+      ).rejects.toThrow('Sale not found');
+      await expect(
+        salesReads.findOne(context, branchId, randomUUID()),
+      ).rejects.toThrow('Sale not found');
+      await expect(
+        salesReads.findAll(context, randomUUID(), new ListSalesQueryDto()),
+      ).rejects.toThrow('Branch not found');
+    }
+    const owner = await salesMember('OWNER');
+    await expect(salesReads.sellingBranches(owner)).rejects.toThrow(
+      'Only merchants',
+    );
+  });
+  it('paginates only matching sales in stable completion/ID order with a half-open UTC range', async () => {
+    const merchant = await salesMember('MERCHANT', merchantId);
+    const first = await fixtureSale({
+      completedAt: new Date('2026-09-13T00:00:00Z'),
+    });
+    const second = await fixtureSale({
+      completedAt: new Date('2026-09-13T01:00:00Z'),
+    });
+    const third = await fixtureSale({
+      completedAt: new Date('2026-09-13T01:00:00Z'),
+    });
+    await prisma.sale.create({
+      data: saleData({ completedAt: new Date('2026-09-13T01:30:00Z') }),
+    });
+    const query = {
+      ...new ListSalesQueryDto(),
+      limit: 1,
+      from: '2026-09-13T01:00:00Z',
+      until: '2026-09-13T02:00:00Z',
+    };
+    const sorted = [second.id, third.id].sort().reverse();
+    const page = await salesReads.findAll(merchant, branchId, query);
+    expect(page).toMatchObject({ total: 2, totalPages: 2, page: 1, limit: 1 });
+    expect(page.items.map((row) => row.id)).toEqual([sorted[0]]);
+    expect(
+      (
+        await salesReads.findAll(merchant, branchId, { ...query, page: 2 })
+      ).items.map((row) => row.id),
+    ).toEqual([sorted[1]]);
+    expect(
+      (await salesReads.findAll(merchant, branchId, { ...query, page: 3 }))
+        .items,
+    ).toEqual([]);
+    expect(
+      (
+        await salesReads.findAll(merchant, branchId, {
+          ...query,
+          from: '2026-09-13T00:00:00Z',
+          until: '2026-09-13T01:00:00Z',
+        })
+      ).items.map((row) => row.id),
+    ).toEqual([first.id]);
+    await expect(
+      salesReads.findAll(merchant, branchId, { ...query, until: query.from }),
+    ).rejects.toThrow('from must precede until');
+  });
   const checkout = new CheckoutService(prisma as unknown as PrismaService);
   const checkoutSetup = async () => {
     await prisma.organizationMembership.create({
@@ -638,6 +930,11 @@ describe('PostgreSQL sale persistence integrity', () => {
     );
     expect(result.total).toBe(total);
     expect(result.cashChange).toBe('0.01');
+    const merchant = await salesMember('MERCHANT', merchantId);
+    const own = await salesReads.findOne(merchant, branchId, result.id);
+    expect(own).toHaveProperty('ownItemsSubtotal', total);
+    expect(own).not.toHaveProperty('total');
+    expect(own).not.toHaveProperty('paymentMethod');
     expect(result.items).toHaveLength(100);
     expect(
       await prisma.inventoryMovement.count({
@@ -650,6 +947,297 @@ describe('PostgreSQL sale persistence integrity', () => {
       }),
     ).toBe(0);
   }, 30000);
+  it('reconciles checkout competing with stock receiving, including an explicit unchanged retry', async () => {
+    const context = await checkoutSetup();
+    const command = checkoutCommand();
+    const stock = new InventoryStockService(prisma as unknown as PrismaService);
+    const results = await Promise.allSettled([
+      checkout.complete(context, branchId, command),
+      stock.receive(organizationId, branchId, inventoryId, userId, {
+        quantity: 3,
+        reason: 'Concurrent delivery',
+        requestId: randomUUID(),
+      }),
+    ]);
+    expect(results[1].status).toBe('fulfilled');
+    if (results[0].status === 'rejected')
+      expect(results[0].reason).toBeInstanceOf(ConflictException);
+    await checkout.complete(context, branchId, command);
+    const balance = await prisma.branchInventory.findUniqueOrThrow({
+      where: { id: inventoryId },
+    });
+    const ledger = await prisma.inventoryMovement.aggregate({
+      where: { organizationId, branchInventoryId: inventoryId },
+      _sum: { quantityChange: true },
+    });
+    expect(balance.quantity).toBe(6);
+    expect(ledger._sum.quantityChange).toBe(6);
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(1);
+  });
+  it('handles opposite multi-line cart ordering without partial deductions or overselling', async () => {
+    const context = await checkoutSetup();
+    const product = await prisma.product.create({
+      data: {
+        organizationId,
+        merchantId: otherMerchantId,
+        name: 'Second stock',
+      },
+    });
+    const placement = await prisma.branchInventory.create({
+      data: {
+        organizationId,
+        branchId,
+        productId: product.id,
+        sellingPrice: '1.00',
+        quantity: 5,
+      },
+    });
+    await prisma.inventoryMovement.create({
+      data: {
+        organizationId,
+        branchId,
+        branchInventoryId: placement.id,
+        type: 'RECEIPT',
+        quantityChange: 5,
+        quantityAfter: 5,
+        reason: 'Second opening stock',
+        createdById: userId,
+        requestId: randomUUID(),
+      },
+    });
+    const items = [
+      {
+        branchInventoryId: inventoryId,
+        quantity: 3,
+        expectedUnitPrice: '12.50',
+      },
+      {
+        branchInventoryId: placement.id,
+        quantity: 3,
+        expectedUnitPrice: '1.00',
+      },
+    ];
+    const results = await Promise.allSettled([
+      checkout.complete(context, branchId, checkoutCommand({ items })),
+      checkout.complete(
+        context,
+        branchId,
+        checkoutCommand({ items: [...items].reverse() }),
+      ),
+    ]);
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(1);
+    expect(await prisma.saleItem.count({ where: { organizationId } })).toBe(2);
+    for (const id of [inventoryId, placement.id]) {
+      expect(
+        (await prisma.branchInventory.findUniqueOrThrow({ where: { id } }))
+          .quantity,
+      ).toBe(2);
+      expect(
+        (
+          await prisma.inventoryMovement.aggregate({
+            where: { organizationId, branchInventoryId: id },
+            _sum: { quantityChange: true },
+          })
+        )._sum.quantityChange,
+      ).toBe(2);
+    }
+  });
+  it('rolls back a previously written cart line when the second SALE movement fails', async () => {
+    const context = await checkoutSetup();
+    const product = await prisma.product.create({
+      data: {
+        organizationId,
+        merchantId: otherMerchantId,
+        name: 'Rollback goods',
+      },
+    });
+    const placement = await prisma.branchInventory.create({
+      data: {
+        organizationId,
+        branchId,
+        productId: product.id,
+        sellingPrice: '1.00',
+        quantity: 5,
+      },
+    });
+    await admin.query(
+      `CREATE FUNCTION fail_second_sale_movement() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."type"::text = 'SALE' AND EXISTS (SELECT 1 FROM "InventoryMovement" WHERE "organizationId" = NEW."organizationId" AND "type"::text = 'SALE') THEN RAISE EXCEPTION 'second sale movement failure'; END IF; RETURN NEW; END; $$`,
+    );
+    await admin.query(
+      'CREATE TRIGGER fail_second_sale_movement BEFORE INSERT ON "InventoryMovement" FOR EACH ROW EXECUTE FUNCTION fail_second_sale_movement()',
+    );
+    try {
+      await expect(
+        checkout.complete(
+          context,
+          branchId,
+          checkoutCommand({
+            items: [
+              ...checkoutCommand().items,
+              {
+                branchInventoryId: placement.id,
+                quantity: 2,
+                expectedUnitPrice: '1.00',
+              },
+            ],
+          }),
+        ),
+      ).rejects.toThrow();
+      expect(await prisma.sale.count({ where: { organizationId } })).toBe(0);
+      expect(await prisma.saleItem.count({ where: { organizationId } })).toBe(
+        0,
+      );
+      expect(
+        await prisma.inventoryMovement.count({
+          where: { organizationId, type: 'SALE' },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.branchInventory.count({
+          where: { organizationId, quantity: 5 },
+        }),
+      ).toBe(2);
+    } finally {
+      await admin.query(
+        'DROP TRIGGER fail_second_sale_movement ON "InventoryMovement"',
+      );
+      await admin.query('DROP FUNCTION fail_second_sale_movement()');
+    }
+  });
+  it('rejects a price changed while checkout waits for its stock lock, then requires price review', async () => {
+    const context = await checkoutSetup();
+    const command = checkoutCommand();
+    const pid = (
+      await admin.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')
+    ).rows[0].pid;
+    await admin.query('BEGIN');
+    await admin.query(
+      'SELECT id FROM "BranchInventory" WHERE id = $1 FOR UPDATE',
+      [inventoryId],
+    );
+    const pending = checkout.complete(context, branchId, command).then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    let committed = false;
+    try {
+      let blocked = false;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        blocked = (
+          await admin.query<{ blocked: boolean }>(
+            'SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))) AS blocked',
+            [pid],
+          )
+        ).rows[0].blocked;
+        if (blocked) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(blocked).toBe(true);
+      await admin.query(
+        'UPDATE "BranchInventory" SET "sellingPrice" = 99.00 WHERE id = $1',
+        [inventoryId],
+      );
+      await admin.query('COMMIT');
+      committed = true;
+      const outcome = await pending;
+      expect(outcome).toHaveProperty('error');
+      if ('error' in outcome)
+        expect(outcome.error).toBeInstanceOf(ConflictException);
+      expect(await prisma.sale.count({ where: { organizationId } })).toBe(0);
+      expect(
+        (
+          await prisma.branchInventory.findUniqueOrThrow({
+            where: { id: inventoryId },
+          })
+        ).quantity,
+      ).toBe(5);
+      await expect(
+        checkout.complete(context, branchId, command),
+      ).rejects.toThrow('Branch price changed');
+    } finally {
+      if (!committed) await admin.query('ROLLBACK');
+      await pending;
+    }
+  }, 10000);
+  it.each(['Product', 'Merchant'])(
+    'preserves a consistent snapshot across concurrent %s lifecycle changes',
+    async (table) => {
+      const context = await checkoutSetup();
+      const command = checkoutCommand();
+      const pid = (
+        await admin.query<{ pid: number }>('SELECT pg_backend_pid() AS pid')
+      ).rows[0].pid;
+      await admin.query('BEGIN');
+      await admin.query(
+        'SELECT id FROM "BranchInventory" WHERE id = $1 FOR UPDATE',
+        [inventoryId],
+      );
+      const pending = checkout.complete(context, branchId, command).then(
+        (value) => ({ value }),
+        (error: unknown) => ({ error }),
+      );
+      let committed = false;
+      try {
+        let blocked = false;
+        for (let attempt = 0; attempt < 200; attempt++) {
+          blocked = (
+            await admin.query<{ blocked: boolean }>(
+              'SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE $1 = ANY(pg_blocking_pids(pid))) AS blocked',
+              [pid],
+            )
+          ).rows[0].blocked;
+          if (blocked) break;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(blocked).toBe(true);
+        await admin.query(
+          `UPDATE "${table}" SET status = 'INACTIVE', name = 'Concurrent rename' WHERE id = $1`,
+          [table === 'Product' ? productId : merchantId],
+        );
+        await admin.query('COMMIT');
+        committed = true;
+        const outcome = await pending;
+        if ('error' in outcome)
+          expect(outcome.error).toBeInstanceOf(ConflictException);
+        else
+          expect(outcome.value.items[0]).toMatchObject({
+            productName: 'Original product',
+            merchantName: 'Original merchant',
+            unitPrice: '12.50',
+            lineTotal: '25.00',
+          });
+        // A transaction serialized before the lifecycle change may succeed with
+        // its old snapshots; otherwise it aborts. Every subsequent new checkout
+        // observes INACTIVE and is denied, with no partial stock/history writes.
+        await expect(
+          checkout.complete(context, branchId, checkoutCommand()),
+        ).rejects.toThrow('Checkout requires active');
+        const expected = 'error' in outcome ? 0 : 1;
+        expect(await prisma.sale.count({ where: { organizationId } })).toBe(
+          expected,
+        );
+        expect(
+          await prisma.inventoryMovement.count({
+            where: { organizationId, type: 'SALE' },
+          }),
+        ).toBe(expected);
+        expect(
+          (
+            await prisma.branchInventory.findUniqueOrThrow({
+              where: { id: inventoryId },
+            })
+          ).quantity,
+        ).toBe(5 - expected * 2);
+      } finally {
+        if (!committed) await admin.query('ROLLBACK');
+        await pending;
+      }
+    },
+    10000,
+  );
   it('scopes POS catalog and exact ambiguity matches, with lifecycle and stock filtering', async () => {
     const service = new PosCatalogService(prisma as unknown as PrismaService);
     const owner = { organizationId, userId, role: 'OWNER' as const };

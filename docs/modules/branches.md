@@ -25,6 +25,10 @@ PATCH /organizations/:organizationId/branches/:branchId
 - Unassigned/foreign/missing branch IDs return the same 404.
 - Organization membership and object scope are enforced by the backend.
 
+The separate [historical own-sales branch lookup](sales.md) returns identity only
+for merchants with matching historical sale items. It grants no address/general
+branch-detail access and does not change these existing branch routes.
+
 ## Data and rules
 
 `Branch` belongs to one organization and contains name, optional code, address

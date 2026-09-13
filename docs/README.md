@@ -22,7 +22,7 @@ Documentation is separated by purpose:
 - [Merchant profiles](modules/merchant-profiles.md)
 - [Products](modules/products.md)
 - [Branch inventory](modules/branch-inventory.md)
-- [Sales persistence and checkout](modules/sales.md)
+- [Sales persistence, checkout and scoped reads](modules/sales.md)
 - [Branch POS catalog](modules/pos.md)
 - [Frontend experience](modules/frontend-experience.md)
 

@@ -16,6 +16,11 @@ import { PosCatalogController } from '../src/modules/organizations/pos/pos-catal
 import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
 import { CheckoutController } from '../src/modules/organizations/sales/checkout.controller';
 import { CheckoutService } from '../src/modules/organizations/sales/checkout.service';
+import {
+  SalesReadController,
+  MerchantSalesBranchesController,
+} from '../src/modules/organizations/sales/sales-read.controller';
+import { SalesReadService } from '../src/modules/organizations/sales/sales-read.service';
 
 const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -53,6 +58,11 @@ describe('Products and inventory HTTP boundaries', () => {
   };
   const stock = { receive: jest.fn(), adjust: jest.fn() };
   const checkout = { complete: jest.fn() };
+  const sales = {
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    sellingBranches: jest.fn(),
+  };
   const prisma = {
     branch: { findFirst: jest.fn().mockResolvedValue({ id: branch }) },
     product: { findFirst: jest.fn().mockResolvedValue({ id: item }) },
@@ -100,6 +110,8 @@ describe('Products and inventory HTTP boundaries', () => {
         BranchInventoryController,
         PosCatalogController,
         CheckoutController,
+        SalesReadController,
+        MerchantSalesBranchesController,
       ],
       providers: [
         AuthGuard,
@@ -111,6 +123,7 @@ describe('Products and inventory HTTP boundaries', () => {
         { provide: InventoryStockService, useValue: stock },
         PosCatalogService,
         { provide: CheckoutService, useValue: checkout },
+        { provide: SalesReadService, useValue: sales },
       ],
     }).compile();
     app = module.createNestApplication();
@@ -127,7 +140,7 @@ describe('Products and inventory HTTP boundaries', () => {
   afterAll(async () => app.close());
   beforeEach(() => {
     jest.clearAllMocks();
-    for (const service of [products, inventory, stock, checkout]) {
+    for (const service of [products, inventory, stock, checkout, sales]) {
       for (const method of Object.values(service))
         method.mockResolvedValue({ id: item });
     }
@@ -143,6 +156,70 @@ describe('Products and inventory HTTP boundaries', () => {
   ];
   const posPath = `/organizations/${org}/branches/${branch}/pos/products`;
   const salesPath = `/organizations/${org}/branches/${branch}/sales`;
+  it.each([actor, manager, cashier, merchant])(
+    'allows current member sales reads %s with trusted context',
+    async (userId) => {
+      await http()
+        .get(salesPath + '?page=2&limit=10')
+        .auth(token(userId), { type: 'bearer' })
+        .expect(200);
+      expect(sales.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: org,
+          userId,
+          role: roles.get(userId),
+        }),
+        branch,
+        expect.objectContaining({ page: 2, limit: 10 }),
+      );
+      await http()
+        .get(salesPath + '/' + item)
+        .auth(token(userId), { type: 'bearer' })
+        .expect(200);
+    },
+  );
+  it('requires authentication and organization membership for sales reads', async () => {
+    await http().get(salesPath).expect(401);
+    await http()
+      .get(salesPath + '/' + item)
+      .expect(401);
+    await http()
+      .get(salesPath.replace(org, item))
+      .auth(token(), { type: 'bearer' })
+      .expect(404);
+    expect(sales.findAll).not.toHaveBeenCalled();
+  });
+  it('restricts historical branch lookup to merchants and rejects extra queries', async () => {
+    const path = `/organizations/${org}/sales/branches`;
+    await http().get(path).expect(401);
+    for (const userId of [actor, manager, cashier])
+      await http()
+        .get(path)
+        .auth(token(userId), { type: 'bearer' })
+        .expect(403);
+    await http()
+      .get(path)
+      .auth(token(merchant), { type: 'bearer' })
+      .expect(200);
+    await http()
+      .get(path + '?merchantId=' + item)
+      .auth(token(merchant), { type: 'bearer' })
+      .expect(400);
+  });
+  it.each([
+    '?limit=101',
+    '?page=0',
+    '?from=invalid',
+    '?merchantId=' + item,
+    '/' + item + '?receipt=full',
+    '/invalid',
+    '?until=2026-09-13',
+  ])('rejects malformed sales read %s', async (suffix) => {
+    await http()
+      .get(salesPath + suffix)
+      .auth(token(merchant), { type: 'bearer' })
+      .expect(400);
+  });
   const saleCommand = {
     requestId: item,
     items: [

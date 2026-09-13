@@ -22,6 +22,11 @@ import { PosCatalogController } from './pos/pos-catalog.controller';
 import { PosCatalogService } from './pos/pos-catalog.service';
 import { CheckoutController } from './sales/checkout.controller';
 import { CheckoutService } from './sales/checkout.service';
+import {
+  SalesReadController,
+  MerchantSalesBranchesController,
+} from './sales/sales-read.controller';
+import { SalesReadService } from './sales/sales-read.service';
 
 @Module({
   imports: [AuthModule],
@@ -36,6 +41,8 @@ import { CheckoutService } from './sales/checkout.service';
     BranchInventoryController,
     PosCatalogController,
     CheckoutController,
+    SalesReadController,
+    MerchantSalesBranchesController,
   ],
   providers: [
     OrganizationsService,
@@ -50,6 +57,7 @@ import { CheckoutService } from './sales/checkout.service';
     InventoryStockService,
     PosCatalogService,
     CheckoutService,
+    SalesReadService,
   ],
   exports: [OrganizationAccessGuard],
 })
