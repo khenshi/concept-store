@@ -1,5 +1,5 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
-import { getBranch } from '@/features/branches/api/branch-api';
+import { getBranch, listBranches } from '@/features/branches/api/branch-api';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import {
   posCatalogSchema,
@@ -10,6 +10,22 @@ import type { PosScope } from '../model/pos.types';
 
 const path = (scope: PosScope) =>
   `/organizations/${encodeURIComponent(scope.organizationId)}/branches/${encodeURIComponent(scope.branchId)}/pos/products`;
+export async function listPosBranches(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  role: OrganizationRole,
+) {
+  if (role === 'MERCHANT') throw new Error('Merchants cannot access POS.');
+  const branches = await listBranches(request, organizationId, role);
+  return branches.map((branch) => {
+    if (
+      !('organizationId' in branch) ||
+      branch.organizationId !== organizationId
+    )
+      throw new Error('Branch scope is inconsistent.');
+    return { id: branch.id, name: branch.name, code: branch.code };
+  });
+}
 export async function getPosBranch(
   request: AuthenticatedRequest,
   scope: PosScope,

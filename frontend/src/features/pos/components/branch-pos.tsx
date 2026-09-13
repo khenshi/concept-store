@@ -33,6 +33,7 @@ import {
   type CheckoutIssue,
 } from './payment-confirmation';
 import { SaleReceipt } from './sale-receipt';
+import { PosBranchSelector } from './pos-branch-selector';
 import type { CompletedSale } from '../model/checkout';
 import {
   checkoutAttemptKey,
@@ -280,6 +281,8 @@ function ScopedBranchPos({
       )
         return false;
       commitCart([]);
+      lookupGeneration.current += 1;
+      lookupBusy.current = false;
       return true;
     }
     function programmatic(event: Event) {
@@ -562,9 +565,6 @@ function ScopedBranchPos({
   if (!branch && !recovering)
     return (
       <OperationalPage>
-        <BackLink href={`/app/organizations/${organizationId}/branches`}>
-          Back to branches
-        </BackLink>
         {branchError ? (
           <RequestError
             className="mt-6"
@@ -581,14 +581,16 @@ function ScopedBranchPos({
     );
   return (
     <OperationalPage>
-      <BackLink
-        href={`/app/organizations/${organizationId}/branches/${branchId}`}
-      >
-        Back to branch
-      </BackLink>
       <PageHeader
-        title={`${branch?.name ?? 'Branch'} POS`}
+        title="POS"
         description="Build a branch-specific cart, review payment and complete one sale. Prices and stock are estimates until server checkout."
+      />
+      <PosBranchSelector
+        organizationId={organizationId}
+        branchId={branchId}
+        role={role}
+        disabled={paying || recovering}
+        onAccessDenied={denyAccess}
       />
       <Link
         className={buttonStyles({ variant: 'secondary', className: 'mb-6' })}

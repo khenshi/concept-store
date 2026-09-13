@@ -45,10 +45,26 @@ both fields appears once; an unknown/unavailable code returns an empty array.
 
 ## Branch cart workspace
 
-The branch detail screen links owners, managers and cashiers to
+Organization sidebar and mobile navigation expose POS to owners, managers and
+cashiers, with branch checkout routes marking POS rather than Branches active.
+`/app/organizations/:organizationId/pos` requires an explicit branch selection,
+even when only one branch is available. The branch-title dropdown reuses authorized
+branch reads: owners see tenant branches and managers/cashiers only assigned ones.
+Loading, failed-read/retry and empty/unassigned states are provided. Missing current
+branch access clears the cart and catalog. Merchants retain their separate Sales
+entry and direct POS access does not request branches or catalog data.
+
+The branch detail screen also links owners, managers and cashiers to
 `/app/organizations/:organizationId/branches/:branchId/pos`. Merchants have no POS
 entry point or catalog access. The workspace uses the dedicated minimal catalog,
 not product, merchant or inventory management APIs.
+
+Normal POS back buttons are removed. The current history shortcut remains until
+the separately approved shared-tabs part is implemented. Branch changes confirm
+discarding nonempty carts, invalidate obsolete code lookups and clear payment
+drafts on scope unmount. Cancelled changes retain the current branch and cart.
+Pending/unknown checkout prevents branch switching, including from the organization
+POS entry, which instead offers the existing unresolved-checkout recovery action.
 
 Enter submits an exact SKU/barcode lookup, preserving barcode case and leading
 zeroes. Repeated products increment one cart line. In-flight requests and input
@@ -110,6 +126,14 @@ invoices. POS links to branch history and the saved receipt detail; merchant own
 screens remain separate and do not expose full receipt/print controls.
 
 ## Verification
+
+The navigation refinement passes frontend lint, type checking, production build,
+changed-file formatting and 413 tests across 65 files. Added tests cover explicit
+branch selection, unassigned members, revoked current access, read retry, obsolete
+responses, pending/unknown switching locks, merchant denial and cancellation versus
+confirmed cart clearing. Full formatting currently flags an unrelated existing
+inventory-api.ts edit, which this change preserves. Rendered QA for the refinement
+is pending a separate browser-access or waiver decision.
 
 Unit tests validate bounded queries, explicit projection and branch scope. HTTP
 tests cover all roles, authentication, organization/branch denial, normalization,

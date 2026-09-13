@@ -9,7 +9,12 @@ import {
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { getPosBranch, lookupPosCode, searchPosProducts } from '../api/pos-api';
+import {
+  getPosBranch,
+  listPosBranches,
+  lookupPosCode,
+  searchPosProducts,
+} from '../api/pos-api';
 import { allowPosNavigation } from '../model/pos-navigation';
 import {
   product,
@@ -19,17 +24,50 @@ import {
 } from '../model/pos.test-fixtures';
 import { BranchPos } from './branch-pos';
 import { setCheckoutAttempt } from '../model/checkout-attempt';
+const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
   '@/features/organizations/components/organization-workspace-context',
   () => ({ useOrganizationWorkspaceContext: vi.fn() }),
 );
 vi.mock('../api/pos-api', () => ({
+  listPosBranches: vi.fn(),
   getPosBranch: vi.fn(),
   lookupPosCode: vi.fn(),
   searchPosProducts: vi.fn(),
 }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 describe('Branch POS cart workflows', () => {
+  it('keeps a cancelled branch cart and clears it after confirmation', async () => {
+    vi.mocked(listPosBranches).mockResolvedValue([
+      { id: scope.branchId, name: 'Makati', code: 'MKT' },
+      { id: secondProduct.branchInventoryId, name: 'BGC', code: 'BGC' },
+    ]);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<BranchPos {...scope} />);
+    await screen.findByRole('button', { name: `Add ${product.name}` });
+    enterCode();
+    await screen.findByRole('textbox', {
+      name: `Quantity for ${product.name}`,
+    });
+    fireEvent.click(screen.getByRole('combobox', { name: 'POS branch' }));
+    fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Estimated total')).toHaveTextContent(
+      '850.00',
+    );
+    expect(screen.getByRole('combobox')).toHaveTextContent('Makati (MKT)');
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
+    expect(push).toHaveBeenCalledWith(
+      `/app/organizations/${scope.organizationId}/branches/${secondProduct.branchInventoryId}/pos`,
+    );
+    expect(screen.getByLabelText('Estimated total')).toHaveTextContent('0.00');
+    expect(
+      screen.queryByRole('link', { name: 'Back to branch' }),
+    ).not.toBeInTheDocument();
+  });
   const request = vi.fn();
   const workspace = (role = 'OWNER', id = scope.organizationId) =>
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
@@ -50,6 +88,9 @@ describe('Branch POS cart workflows', () => {
       user: { id: 'actor' },
     } as never);
     workspace();
+    vi.mocked(listPosBranches).mockResolvedValue([
+      { id: scope.branchId, name: 'Makati', code: 'MKT' },
+    ]);
     vi.mocked(getPosBranch).mockResolvedValue({
       id: scope.branchId,
       name: 'Makati',
@@ -439,6 +480,9 @@ describe('Branch POS cart workflows', () => {
     const view = render(<BranchPos {...scope} />);
     await screen.findByRole('button', { name: `Add ${product.name}` });
     enterCode();
+    vi.mocked(listPosBranches).mockResolvedValue([
+      { id: secondProduct.branchInventoryId, name: 'BGC', code: 'BGC' },
+    ]);
     view.rerender(
       <BranchPos {...scope} branchId={secondProduct.branchInventoryId} />,
     );
@@ -462,7 +506,7 @@ describe('Branch POS cart workflows', () => {
     expect(screen.getByLabelText('Estimated total')).toHaveTextContent(
       '850.00',
     );
-    fireEvent.click(screen.getByRole('link', { name: 'Back to branch' }));
+    fireEvent.click(screen.getByRole('link', { name: 'View sales history' }));
     expect(confirm).toHaveBeenCalledTimes(2);
     confirm.mockReturnValue(true);
     act(() => {

@@ -11,6 +11,7 @@ const navigationIcons: Record<string, IconName> = {
   products: 'store',
   members: 'users',
   sales: 'store',
+  pos: 'store',
 };
 
 export function OrganizationNavigation({
@@ -19,6 +20,7 @@ export function OrganizationNavigation({
   showMerchants = false,
   showProducts = false,
   showSales = false,
+  showPos = false,
   collapsed = false,
   onNavigate,
 }: {
@@ -27,11 +29,19 @@ export function OrganizationNavigation({
   showMerchants?: boolean;
   showProducts?: boolean;
   showSales?: boolean;
+  showPos?: boolean;
   collapsed?: boolean;
   onNavigate?(): void;
 }) {
   const pathname = usePathname();
   const basePath = `/app/organizations/${organizationId}`;
+  const posRoute =
+    showPos &&
+    (pathname === `${basePath}/pos` ||
+      pathname.startsWith(`${basePath}/pos/`) ||
+      (pathname.startsWith(`${basePath}/branches/`) &&
+        pathname.slice(`${basePath}/branches/`.length).split('/')[1] ===
+          'pos'));
   const ownSalesRoute =
     showSales &&
     (pathname === `${basePath}/sales` ||
@@ -40,6 +50,7 @@ export function OrganizationNavigation({
         pathname.slice(`${basePath}/branches/`.length).split('/')[1] ===
           'sales'));
   const destinations = [
+    { key: 'pos', label: 'POS', href: `${basePath}/pos`, visible: showPos },
     { key: 'overview', label: 'Overview', href: basePath, visible: true },
     {
       key: 'branches',
@@ -84,20 +95,25 @@ export function OrganizationNavigation({
             key={destination.key}
             className={`flex min-h-11 items-center rounded-control border border-transparent text-sm font-medium text-muted no-underline transition-colors hover:bg-subtle hover:text-ink aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:font-semibold aria-[current=page]:text-ink ${collapsed ? 'justify-center px-2' : 'gap-3 px-3 py-2.5'}`}
             aria-current={
-              destination.key === 'sales'
-                ? ownSalesRoute
+              destination.key === 'pos'
+                ? posRoute
                   ? 'page'
                   : undefined
-                : destination.key === 'branches' && ownSalesRoute
-                  ? undefined
-                  : destination.key === 'overview'
-                    ? pathname === basePath
-                      ? 'page'
-                      : undefined
-                    : pathname === destination.href ||
-                        pathname.startsWith(`${destination.href}/`)
-                      ? 'page'
-                      : undefined
+                : destination.key === 'sales'
+                  ? ownSalesRoute
+                    ? 'page'
+                    : undefined
+                  : destination.key === 'branches' &&
+                      (ownSalesRoute || posRoute)
+                    ? undefined
+                    : destination.key === 'overview'
+                      ? pathname === basePath
+                        ? 'page'
+                        : undefined
+                      : pathname === destination.href ||
+                          pathname.startsWith(`${destination.href}/`)
+                        ? 'page'
+                        : undefined
             }
             href={destination.href}
             onClick={onNavigate}

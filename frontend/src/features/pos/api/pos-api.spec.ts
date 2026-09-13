@@ -1,8 +1,50 @@
-import { getBranch } from '@/features/branches/api/branch-api';
-import { getPosBranch, lookupPosCode, searchPosProducts } from './pos-api';
+import { getBranch, listBranches } from '@/features/branches/api/branch-api';
+import {
+  getPosBranch,
+  listPosBranches,
+  lookupPosCode,
+  searchPosProducts,
+} from './pos-api';
 import { product, scope } from '../model/pos.test-fixtures';
-vi.mock('@/features/branches/api/branch-api', () => ({ getBranch: vi.fn() }));
+vi.mock('@/features/branches/api/branch-api', () => ({
+  getBranch: vi.fn(),
+  listBranches: vi.fn(),
+}));
 describe('POS minimal read contracts', () => {
+  it('projects authorized branches and rejects merchants and foreign tenant rows', async () => {
+    const request = vi.fn();
+    vi.mocked(listBranches).mockResolvedValue([
+      {
+        id: scope.branchId,
+        organizationId: scope.organizationId,
+        name: 'Makati',
+        code: 'MKT',
+        address: 'private',
+      },
+    ] as never);
+    expect(
+      await listPosBranches(request, scope.organizationId, 'CASHIER'),
+    ).toEqual([{ id: scope.branchId, name: 'Makati', code: 'MKT' }]);
+    expect(listBranches).toHaveBeenCalledWith(
+      request,
+      scope.organizationId,
+      'CASHIER',
+    );
+    await expect(
+      listPosBranches(request, scope.organizationId, 'MERCHANT'),
+    ).rejects.toThrow('Merchants');
+    vi.mocked(listBranches).mockResolvedValue([
+      {
+        id: scope.branchId,
+        organizationId: 'foreign',
+        name: 'Other',
+        code: 'OTHER',
+      },
+    ] as never);
+    await expect(
+      listPosBranches(request, scope.organizationId, 'OWNER'),
+    ).rejects.toThrow('scope');
+  });
   const request = vi.fn();
   const path = `/organizations/${scope.organizationId}/branches/${scope.branchId}/pos/products`;
   beforeEach(() => {

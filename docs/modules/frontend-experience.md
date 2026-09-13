@@ -1,5 +1,16 @@
 # Frontend Experience
 
+## POS navigation refinement
+
+Staff sidebar/mobile navigation now includes POS, with branch checkout routes
+marking that entry active. The organization POS entry requires explicit authorized
+branch selection; branch POS uses the shared labeled dropdown and omits normal
+back buttons. Branch switching preserves cancellation, cart-discard confirmation,
+scope isolation and pending/uncertain checkout recovery. Merchant navigation remains
+read-only Sales. Shared Cart/History tabs are a later approved part, not implemented
+by this change. Rendered QA for this refinement is pending browser access or a new
+explicit user waiver; previous milestone waivers do not certify these controls.
+
 ## Product workspace
 
 Product directory/profile screens use the neutral operational panels, controls,

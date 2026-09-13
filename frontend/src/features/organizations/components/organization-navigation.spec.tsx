@@ -5,6 +5,23 @@ import { OrganizationNavigation } from './organization-navigation';
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 
 describe('OrganizationNavigation', () => {
+  it('marks branch checkout as POS instead of Branches and hides unauthorized POS', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/org/branches/branch/pos',
+    );
+    const view = render(
+      <OrganizationNavigation organizationId="org" showPos collapsed />,
+    );
+    expect(screen.getByRole('link', { name: 'POS' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Branches' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    view.rerender(<OrganizationNavigation organizationId="org" showSales />);
+    expect(screen.queryByRole('link', { name: 'POS' })).not.toBeInTheDocument();
+  });
   it('shows merchant sales navigation only when allowed, including collapsed active detail destinations', () => {
     vi.mocked(usePathname).mockReturnValue('/app/organizations/org/sales');
     const view = render(<OrganizationNavigation organizationId="org" />);
