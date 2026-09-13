@@ -176,3 +176,13 @@ restoration, and safe dismissal. Shared fields support opt-in hints above inputs
 to preserve the branch form's established field layout; other fields retain hints
 below by default. Branch search/filter behavior, API requests, normalization,
 authorization, tenant scoping, and optional-field clearing are unchanged.
+## Branch POS cart delivery
+
+Branch POS uses the existing warm-stone operational panels, consistent text fields
+and shared native dialogs. It offers exact-code Enter addition, bounded debounced
+search, explicit ambiguous-product choice and quantity feedback on input (300 ms)
+and blur. The cart is memory-only, with exact PHP estimates and no payment action
+in this delivery. Role-aware entry points and branch/org scope clearing preserve
+the backend's authorization boundaries. Outgoing links and organization-menu
+navigation warn before discarding a cart; history navigation clears on unmount.
+Rendered POS browser QA remains pending for this milestone.

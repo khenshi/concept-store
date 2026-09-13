@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { listOrganizations } from '../api/organization-api';
 import type { OrganizationAccess } from '../model/organization.types';
 import { Icon } from '@/shared/components/ui/icon';
+import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
 
 const roleLabels = {
   OWNER: 'Owner',
@@ -88,6 +89,7 @@ export function OrganizationSwitcher({
   }, [isOpen]);
 
   function navigate(href: string) {
+    if (!allowPosNavigation(href)) return;
     setIsOpen(false);
     triggerRef.current?.focus();
     router.push(href);

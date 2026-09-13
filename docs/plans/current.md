@@ -1,6 +1,6 @@
 # Branch POS Checkout and Sales Plan
 
-**Status:** Approved; Parts 1–3 committed; Part 4 verified, awaiting review before commit.
+**Status:** Approved; Parts 1–4 committed; Part 5 verified, awaiting review before commit.
 **Date:** September 13, 2026
 
 ## Goal and confirmed decisions
@@ -326,6 +326,24 @@ files are unchanged. Diff whitespace checks pass.
 
 Stop for user review after verification; do not commit Part 4 or begin Part 5
 before approval. The full plan remains active until all parts are delivered.
+
+### Part 5 delivery — September 13, 2026
+
+Part 4 was approved and committed as `a2a3203`. Part 5 adds the branch-scoped
+memory-only POS cart, minimal catalog search, exact Enter code lookup, explicit
+ambiguity selection, quantity validation, exact integer-cent estimates and
+role-aware branch entry points. Navigation guards cover outgoing links and the
+organization switcher; scope changes/access denial clear stale cart state.
+Browser history navigation clears on unmount without a custom confirmation.
+Payment submission, completion, receipts and sales-history screens remain excluded
+until their respective parts. Unrelated root package/audit files are untouched.
+
+Stop for user review before committing Part 5 or implementing Part 6. Rendered
+browser QA remains pending for the POS milestone.
+
+Verification passes: frontend formatting, type checking, lint, 307 tests across
+55 files, production build and diff whitespace checks. No backend/schema changes
+were required. The existing multiple-lockfile build warning remains unchanged.
 
 ### Remaining part-by-part sequence
 

@@ -217,6 +217,21 @@ function ScopedBranchDetail({
           </div>
         </OperationalPanel>
       ) : null}
+      {organization.role !== 'MERCHANT' ? (
+        <OperationalPanel
+          title="Point of sale"
+          description="Build a branch cart using SKU/barcode input or product search. Payment submission is not available yet."
+        >
+          <div className="p-6">
+            <Link
+              className={buttonStyles({ variant: 'primary' })}
+              href={`/app/organizations/${organizationId}/branches/${branchId}/pos`}
+            >
+              Open POS cart
+            </Link>
+          </div>
+        </OperationalPanel>
+      ) : null}
       {editing && canManage && 'addressLine1' in branch ? (
         <BranchForm
           branch={branch}
