@@ -1,6 +1,6 @@
 # Sales
 
-**Status:** Implemented, including staff POS history/receipts and separate read-only merchant own-sale screens. Original milestone rendered QA waived September 13, 2026; navigation refinement QA pending.
+**Status:** Implemented, including staff POS history/receipts and separate read-only merchant own-sale screens. Rendered QA explicitly waived September 13, 2026, separately for the original milestone and navigation refinement.
 
 ## Implemented scope
 
@@ -208,7 +208,9 @@ production build, changed-file formatting and 430 tests across 67 files. Tests
 cover retained dates/pagination, embedded receipt links/active History navigation,
 staff legacy redirects, unchanged merchant routes, cart/payment draft retention,
 checkout switching locks and a single active print surface. Rendered QA for this
-refinement remains pending a separate browser-access or user-waiver decision.
+refinement was explicitly waived by the user on September 13, 2026, separately
+from the original milestone. Rendered QA was not performed; automated checks do
+not certify rendered behavior or actual printing.
 
 Final milestone verification passes: Prisma format/validate/generate, backend
 format/lint/build, 258 unit tests, 106 HTTP tests and 99 PostgreSQL integration

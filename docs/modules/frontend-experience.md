@@ -15,8 +15,9 @@ reads pause, and returning Cart requires fresh authorized branch/catalog reads.
 Old staff sales deep links redirect into POS; merchant routes stay separate.
 Frozen checkout remains visible rather than being concealed by a History route,
 and only the active receipt mounts its print surface.
-Rendered QA for this refinement is pending browser access or a new
-explicit user waiver; previous milestone waivers do not certify these controls.
+The user explicitly waived rendered dropdown/tab/responsive/keyboard/dialog/zoom/
+print QA for this refinement on September 13, 2026, separately from prior milestone
+waivers. Automated checks do not certify rendered behavior or actual printing.
 
 ## Product workspace
 

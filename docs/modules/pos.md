@@ -155,8 +155,10 @@ responses, pending/unknown switching locks, merchant denial and cancellation ver
 confirmed cart clearing, same-branch cash/manual draft retention, history
 dates/pagination retention, fresh return reads/retry, old staff redirects, frozen
 checkout visibility and single-receipt printing. Full formatting currently flags an unrelated existing
-inventory-api.ts edit, which this change preserves. Rendered QA for the refinement
-is pending a separate browser-access or waiver decision.
+inventory-api.ts edit, which this change preserves. The user explicitly waived
+rendered dropdown/tab/responsive/keyboard/dialog/zoom/print QA for this refinement
+on September 13, 2026, separately from prior milestone waivers. It was not performed;
+automated checks do not certify rendered behavior or actual printing.
 
 Unit tests validate bounded queries, explicit projection and branch scope. HTTP
 tests cover all roles, authentication, organization/branch denial, normalization,
