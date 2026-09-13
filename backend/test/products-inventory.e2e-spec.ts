@@ -49,6 +49,10 @@ describe('Products and inventory HTTP boundaries', () => {
   };
   const stock = { receive: jest.fn(), adjust: jest.fn() };
   const prisma = {
+    branch: { findFirst: jest.fn().mockResolvedValue({ id: branch }) },
+    product: { findFirst: jest.fn().mockResolvedValue({ id: item }) },
+    merchant: { findFirst: jest.fn().mockResolvedValue({ id: item }) },
+    branchInventory: { findFirst: jest.fn().mockResolvedValue({ id: item }) },
     user: {
       findFirst: jest.fn(({ where }: { where: { id: string } }) =>
         Promise.resolve(roles.has(where.id) ? { id: where.id } : null),
@@ -122,11 +126,31 @@ describe('Products and inventory HTTP boundaries', () => {
     `${inventoryPath}/${item}`,
     `${inventoryPath}/${item}/movements`,
   ];
+  it('hides an unassigned branch before business operations', async () => {
+    prisma.branch.findFirst.mockResolvedValueOnce(null);
+    await http()
+      .get(inventoryPath)
+      .auth(token(manager), { type: 'bearer' })
+      .expect(404);
+    expect(inventory.findAll).not.toHaveBeenCalled();
+  });
+  it('accepts merchant read routes after scoped object checks', async () => {
+    await http()
+      .get(`${inventoryPath}/${item}/movements`)
+      .auth(token(merchant), { type: 'bearer' })
+      .expect(200);
+    expect(inventory.findMovements).toHaveBeenCalledWith(
+      org,
+      branch,
+      item,
+      expect.objectContaining({ role: 'MERCHANT' }),
+    );
+  });
   it.each(reads)('requires authentication on %s', async (path) => {
     await http().get(path).expect(401);
   });
-  it.each(reads)('denies cashier and merchant roles on %s', async (path) => {
-    for (const userId of [cashier, merchant])
+  it.each(reads)('denies cashier roles on %s', async (path) => {
+    for (const userId of [cashier])
       await http()
         .get(path)
         .auth(token(userId), { type: 'bearer' })
@@ -200,7 +224,9 @@ describe('Products and inventory HTTP boundaries', () => {
           [method](path)
           .auth(token(userId), { type: 'bearer' })
           .send(body)
-          .expect(status);
+          .expect(
+            userId === manager && path.startsWith(productsPath) ? 403 : status,
+          );
     },
   );
 

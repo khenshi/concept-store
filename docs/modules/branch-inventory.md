@@ -21,8 +21,11 @@ POST  /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/a
 GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/movements
 ```
 
-All routes require authentication, organization membership, and `OWNER` or
-`MANAGER`. Every inventory/movement query includes organization and branch scope.
+All routes require authentication and organization membership. Owners read/write
+all tenant inventory; managers read/write only assigned branches. Linked merchants
+read only own merchant placements/history, with actor IDs omitted. Merchant writes
+and all cashier inventory access are denied. Every inventory/movement query includes
+organization and branch scope; filtered reads also enforce product ownership/access.
 Related branches, products, and merchant filters are resolved inside the active
 tenant. Foreign records use not-found behavior. UUID v4 validation and global DTO
 whitelisting reject malformed IDs and unexpected fields.
@@ -90,6 +93,12 @@ checklist is retained in the
 [completed plan](../plans/archive/products-and-branch-inventory-2026-09-12.md).
 
 ## Workspace UI
+
+Part 4 backend enforcement/projections are delivered; manager/merchant frontend
+alignment remains Part 7. Existing UI controls are not an authorization boundary.
+Explicit merchant branch assignments with no own products return empty inventory;
+assignments never expose another merchant's stock. OpenAPI describes reduced history
+responses as well as full owner/manager responses.
 
 ```text
 /app/organizations/:organizationId/branches/:branchId/inventory

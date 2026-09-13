@@ -17,6 +17,7 @@ import { ProductsService } from './products/products.service';
 import { BranchInventoryController } from './inventory/branch-inventory.controller';
 import { BranchInventoryService } from './inventory/branch-inventory.service';
 import { InventoryStockService } from './inventory/inventory-stock.service';
+import { ResourceAccessGuard } from './authorization/resource-access.guard';
 
 @Module({
   imports: [AuthModule],
@@ -35,6 +36,7 @@ import { InventoryStockService } from './inventory/inventory-stock.service';
     OrganizationMembershipsService,
     BranchesService,
     OrganizationAccessGuard,
+    ResourceAccessGuard,
     OrganizationInvitationsService,
     MerchantsService,
     ProductsService,

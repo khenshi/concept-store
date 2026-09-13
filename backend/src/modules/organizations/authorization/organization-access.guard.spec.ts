@@ -55,6 +55,7 @@ describe('OrganizationAccessGuard', () => {
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.organizationContext).toEqual({
+      merchantId: null,
       organizationId,
       userId: 'user-id',
       role: OrganizationRole.OWNER,

@@ -12,6 +12,8 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { ListProductsQueryDto } from '../products/dto/list-products-query.dto';
 import type { CreateBranchInventoryDto } from './dto/create-branch-inventory.dto';
 import type { InventoryPriceDto } from './dto/inventory-price.dto';
+import type { OrganizationContext } from '../authorization/organization-authorization.types';
+import { inventoryScope } from '../authorization/resource-access';
 import {
   inventoryProductSelect,
   type BranchInventoryRecord,
@@ -61,6 +63,7 @@ export class BranchInventoryService {
     organizationId: string,
     branchId: string,
     query: ListProductsQueryDto,
+    context?: OrganizationContext,
   ): Promise<BranchInventoryRecord[]> {
     await this.resolveBranch(organizationId, branchId);
     if (query.merchantId) {
@@ -74,6 +77,7 @@ export class BranchInventoryService {
       where: {
         organizationId,
         branchId,
+        ...(context ? { AND: [inventoryScope(context)] } : {}),
         product: {
           organizationId,
           ...(query.merchantId ? { merchantId: query.merchantId } : {}),
@@ -102,9 +106,15 @@ export class BranchInventoryService {
     organizationId: string,
     branchId: string,
     inventoryId: string,
+    context?: OrganizationContext,
   ): Promise<BranchInventoryRecord> {
     const inventory = await this.prisma.branchInventory.findUnique({
-      where: { id: inventoryId, organizationId, branchId },
+      where: {
+        id: inventoryId,
+        organizationId,
+        branchId,
+        ...(context ? { AND: [inventoryScope(context)] } : {}),
+      },
       include: { product: { select: inventoryProductSelect } },
     });
     if (!inventory) throw new NotFoundException('Branch inventory not found');
@@ -134,12 +144,20 @@ export class BranchInventoryService {
     organizationId: string,
     branchId: string,
     inventoryId: string,
-  ): Promise<InventoryMovementRecord[]> {
-    await this.findOne(organizationId, branchId, inventoryId);
-    return this.prisma.inventoryMovement.findMany({
-      where: { organizationId, branchId, branchInventoryId: inventoryId },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    });
+    context?: OrganizationContext,
+  ) {
+    await this.findOne(organizationId, branchId, inventoryId, context);
+    const movements: InventoryMovementRecord[] =
+      await this.prisma.inventoryMovement.findMany({
+        where: { organizationId, branchId, branchInventoryId: inventoryId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      });
+    return context?.role === 'MERCHANT'
+      ? movements.map(({ createdById: _actor, ...movement }) => {
+          void _actor;
+          return movement;
+        })
+      : movements;
   }
 
   private async resolveBranch(

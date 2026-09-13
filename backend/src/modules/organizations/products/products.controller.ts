@@ -27,6 +27,7 @@ import {
   ProductResponseDto,
 } from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
+import { ResourceAccessGuard } from '../authorization/resource-access.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
@@ -36,10 +37,14 @@ import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import { ProductsService } from './products.service';
-import type { ProductInventoryRecord, ProductRecord } from './products.types';
+import type { ProductRecord } from './products.types';
 
-@UseGuards(AuthGuard, OrganizationAccessGuard)
-@OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+@UseGuards(AuthGuard, OrganizationAccessGuard, ResourceAccessGuard)
+@OrganizationRoles(
+  OrganizationRole.OWNER,
+  OrganizationRole.MANAGER,
+  OrganizationRole.MERCHANT,
+)
 @ApiTags('products')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
@@ -56,6 +61,7 @@ import type { ProductInventoryRecord, ProductRecord } from './products.types';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Post()
   @ApiOperation({
     summary: 'Create an active product owned by an active merchant',
@@ -77,8 +83,12 @@ export class ProductsController {
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
     @Query() query: ListProductsQueryDto,
-  ): Promise<ProductRecord[]> {
-    return this.productsService.findAll(organization.organizationId, query);
+  ) {
+    return this.productsService.findAll(
+      organization.organizationId,
+      query,
+      organization,
+    );
   }
 
   @Get(':productId')
@@ -87,10 +97,15 @@ export class ProductsController {
   findOne(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('productId', new ParseUUIDPipe({ version: '4' })) productId: string,
-  ): Promise<ProductRecord> {
-    return this.productsService.findOne(organization.organizationId, productId);
+  ) {
+    return this.productsService.findOne(
+      organization.organizationId,
+      productId,
+      organization,
+    );
   }
 
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Patch(':productId')
   @ApiOperation({
     summary: 'Edit product identity without changing merchant or status',
@@ -111,6 +126,7 @@ export class ProductsController {
     );
   }
 
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Patch(':productId/status')
   @ApiOperation({
     summary: 'Change product lifecycle status without altering inventory',
@@ -137,10 +153,11 @@ export class ProductsController {
   findInventory(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('productId', new ParseUUIDPipe({ version: '4' })) productId: string,
-  ): Promise<ProductInventoryRecord[]> {
+  ) {
     return this.productsService.findInventory(
       organization.organizationId,
       productId,
+      organization,
     );
   }
 }

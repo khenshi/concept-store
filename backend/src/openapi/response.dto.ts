@@ -1,4 +1,9 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  OmitType,
+  PickType,
+} from '@nestjs/swagger';
 import {
   InventoryMovementType,
   MerchantStatus,
@@ -245,3 +250,19 @@ export class InventoryMovementResponseDto {
   @ApiProperty({ format: 'uuid' }) requestId!: string;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
 }
+
+export class BranchIdentityResponseDto extends PickType(BranchResponseDto, [
+  'id',
+  'name',
+  'code',
+] as const) {}
+export class MerchantIdentityResponseDto extends PickType(MerchantResponseDto, [
+  'id',
+  'name',
+  'code',
+  'status',
+] as const) {}
+export class MerchantMovementResponseDto extends OmitType(
+  InventoryMovementResponseDto,
+  ['createdById'] as const,
+) {}

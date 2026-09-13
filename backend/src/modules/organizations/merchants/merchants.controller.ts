@@ -1,3 +1,4 @@
+import { MerchantIdentityResponseDto } from '../../../openapi/response.dto';
 import {
   Body,
   Controller,
@@ -11,6 +12,8 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiExtraModels,
+  getSchemaPath,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
@@ -23,6 +26,7 @@ import {
 import { OrganizationRole } from '../../../generated/prisma/client';
 import { MerchantResponseDto } from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
+import { ResourceAccessGuard } from '../authorization/resource-access.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
@@ -34,8 +38,13 @@ import { UpdateMerchantDto } from './dto/update-merchant.dto';
 import { MerchantsService } from './merchants.service';
 import type { MerchantRecord } from './merchants.types';
 
-@UseGuards(AuthGuard, OrganizationAccessGuard)
-@OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+@UseGuards(AuthGuard, OrganizationAccessGuard, ResourceAccessGuard)
+@OrganizationRoles(
+  OrganizationRole.OWNER,
+  OrganizationRole.MANAGER,
+  OrganizationRole.MERCHANT,
+)
+@ApiExtraModels(MerchantResponseDto, MerchantIdentityResponseDto)
 @ApiTags('merchants')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
@@ -47,6 +56,7 @@ import type { MerchantRecord } from './merchants.types';
 export class MerchantsController {
   constructor(private readonly merchantsService: MerchantsService) {}
 
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Post()
   @ApiOperation({ summary: 'Create a merchant profile' })
   @ApiCreatedResponse({ type: MerchantResponseDto })
@@ -60,28 +70,51 @@ export class MerchantsController {
 
   @Get()
   @ApiOperation({ summary: 'List merchant profiles in the organization' })
-  @ApiOkResponse({ type: MerchantResponseDto, isArray: true })
+  @ApiOkResponse({
+    schema: {
+      type: 'array',
+      items: {
+        oneOf: [
+          { $ref: getSchemaPath(MerchantResponseDto) },
+          { $ref: getSchemaPath(MerchantIdentityResponseDto) },
+        ],
+      },
+    },
+  })
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
     @Query() query: ListMerchantsQueryDto,
-  ): Promise<MerchantRecord[]> {
-    return this.merchantsService.findAll(organization.organizationId, query);
+  ) {
+    return this.merchantsService.findAll(
+      organization.organizationId,
+      query,
+      organization,
+    );
   }
 
   @Get(':merchantId')
   @ApiOperation({ summary: 'Get a merchant profile' })
-  @ApiOkResponse({ type: MerchantResponseDto })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(MerchantResponseDto) },
+        { $ref: getSchemaPath(MerchantIdentityResponseDto) },
+      ],
+    },
+  })
   findOne(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('merchantId', new ParseUUIDPipe({ version: '4' }))
     merchantId: string,
-  ): Promise<MerchantRecord> {
+  ) {
     return this.merchantsService.findOne(
       organization.organizationId,
       merchantId,
+      organization,
     );
   }
 
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Patch(':merchantId')
   @ApiOperation({ summary: 'Update a merchant profile' })
   @ApiOkResponse({ type: MerchantResponseDto })
@@ -99,6 +132,7 @@ export class MerchantsController {
     );
   }
 
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Patch(':merchantId/status')
   @ApiOperation({ summary: 'Change a merchant lifecycle status' })
   @ApiOkResponse({ type: MerchantResponseDto })

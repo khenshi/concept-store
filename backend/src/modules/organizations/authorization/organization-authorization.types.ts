@@ -4,4 +4,5 @@ export interface OrganizationContext {
   organizationId: string;
   userId: string;
   role: OrganizationRole;
+  merchantId?: string | null;
 }

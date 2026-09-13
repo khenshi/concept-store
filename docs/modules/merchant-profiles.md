@@ -9,7 +9,7 @@
 - Preserve merchant records while changing their lifecycle status.
 
 This module establishes merchant identity only. It does not provide merchant
-login, membership linkage, branch assignment, products, inventory, sales,
+separate merchant authentication, products, inventory, sales,
 payments, commercial agreements, settlements, or deletion.
 
 ## API
@@ -30,8 +30,11 @@ filter. Results are not paginated.
 ## Authorization and tenant isolation
 
 - Every route requires authentication and organization membership.
-- Only `OWNER` and `MANAGER` organization roles may use merchant routes.
-- `CASHIER` and `MERCHANT` members receive `403`.
+- Only owners create/edit/change lifecycle. Managers read identity/status summaries
+  of merchants represented in assigned branches, without contact details.
+- Linked MERCHANT members read their own profile including own contact details.
+  Cashiers cannot use merchant routes. Unlinked merchants receive empty lists.
+- Manager search uses name/code only, not hidden contact fields.
 - `organizationId` is derived from the authenticated organization context and
   is never accepted in a request body.
 - Every merchant query includes the active `organizationId`.
@@ -81,6 +84,10 @@ products, branch prices, balances, or movement history.
   tenant's records.
 
 ## Frontend
+
+Part 4 backend permissions/projections are delivered; existing frontend full-profile
+schemas and controls are aligned in Part 7. Merchant-profile links are owner-managed
+through membership APIs, not separate merchant authentication.
 
 Owners and managers receive a `Merchants` organization-navigation destination.
 The directory provides debounced server-side search, lifecycle filtering,

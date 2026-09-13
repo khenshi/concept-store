@@ -1,6 +1,6 @@
 # Branch and Merchant Access Control Plan
 
-**Status:** Approved; Parts 1–2 committed; Part 3 implemented and verified, awaiting review
+**Status:** Approved; Parts 1–3 committed; Part 4 implemented and verified, awaiting review
 **Date:** September 12, 2026
 
 ## Goal and confirmed decisions
@@ -292,6 +292,32 @@ Applicable checks pass, module docs are accurate, and exclusions remain excluded
   afterward. No application database was migrated or reset.
 - The user reviewed and approved Part 3 for commit on September 13, 2026.
   Resource enforcement/frontend changes remain later parts.
+
+## Part 4 verification record
+
+- Part 3 was reviewed and committed as 0b2c30d.
+- Added focused branch/product/merchant/inventory query scopes and object-access
+  guard checks on existing resource endpoints. Trusted membership context now
+  includes the current merchant link from the database.
+- Managers read assigned branches and represented catalog records only; shared
+  merchant/product mutations and branch creation are owner-only. Placement candidate
+  checks prevent unrepresented product discovery or placement by managers.
+- Linked merchants read own profiles/products/placements across selling branches
+  and explicitly assigned branches, without another merchant's records. Unlinked
+  merchants receive no catalog/branch data. Cashier inventory/catalog denial remains.
+- Merchant branch responses contain identity only; merchant history omits actor
+  IDs. Manager merchant summaries/search do not expose or search contact fields.
+  OpenAPI describes reduced responses. Existing organization/account reads contain
+  no branch summaries or counts and require no expansion.
+- Backend formatting/lint/build, 191 unit tests, 62 HTTP tests, and 25 PostgreSQL
+  tests pass. Actual database coverage verifies assigned filtering, inaccessible
+  branches/unplaced products, automatic own placements, contact/actor projections,
+  and cross-merchant read rejection.
+- Only disposable PostgreSQL 17 was used and removed afterward; no application
+  database migration/reset or stock behavior change occurred.
+- Updated affected module documentation. Frontend alignment remains Parts 6–7;
+  expanded backend integrity/concurrency coverage remains Part 5.
+- The user reviewed and approved Part 4 for commit on September 13, 2026.
 
 ## Deferred POS decisions (not implementation scope)
 

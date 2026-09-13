@@ -10,6 +10,8 @@ import { BranchInventoryService } from '../src/modules/organizations/inventory/b
 import { ProductsService } from '../src/modules/organizations/products/products.service';
 import { OrganizationMembershipsService } from '../src/modules/organizations/memberships/organization-memberships.service';
 import { OrganizationInvitationsService } from '../src/modules/organizations/invitations/organization-invitations.service';
+import { BranchesService } from '../src/modules/organizations/branches/branches.service';
+import { MerchantsService } from '../src/modules/organizations/merchants/merchants.service';
 
 // No application DATABASE_URL fallback. Only this run's random schema is removed.
 const connectionString = process.env.TEST_DATABASE_URL;
@@ -57,6 +59,96 @@ const balance = () =>
   prisma.branchInventory.findUniqueOrThrow({ where: { id: inventoryId } });
 
 describe('PostgreSQL inventory integrity and concurrency', () => {
+  it('filters assigned manager reads and projects merchant own-placement reads without contacts or actors', async () => {
+    const branches = new BranchesService(prisma as unknown as PrismaService);
+    const merchants = new MerchantsService(prisma as unknown as PrismaService);
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    await memberships.setBranch(organizationId, userId, branchId, true);
+    const manager = { organizationId, userId, role: 'MANAGER' as const };
+    expect(await branches.findAll(organizationId, manager)).toHaveLength(1);
+    await expect(
+      branches.findOne(organizationId, otherBranchId, manager),
+    ).rejects.toThrow();
+    expect(await products.findAll(organizationId, {}, manager)).toHaveLength(1);
+    const summary = await merchants.findOne(
+      organizationId,
+      merchantId,
+      manager,
+    );
+    expect(summary).not.toHaveProperty('contactName');
+    const unplaced = await products.create(organizationId, {
+      merchantId,
+      name: 'Unplaced',
+    });
+    await expect(
+      products.findOne(organizationId, unplaced.id, manager),
+    ).rejects.toThrow();
+    await inventory.create(organizationId, otherBranchId, {
+      productId,
+      sellingPrice: '14.00',
+    });
+    expect(
+      await products.findInventory(organizationId, productId, manager),
+    ).toHaveLength(1);
+    await receive(2);
+    const merchant = {
+      organizationId,
+      userId,
+      role: 'MERCHANT' as const,
+      merchantId,
+    };
+    const visibleBranches = await branches.findAll(organizationId, merchant);
+    expect(visibleBranches).toHaveLength(2);
+    expect(visibleBranches[0]).not.toHaveProperty('addressLine1');
+    expect(
+      await products.findInventory(organizationId, productId, merchant),
+    ).toHaveLength(2);
+    const history = await inventory.findMovements(
+      organizationId,
+      branchId,
+      inventoryId,
+      merchant,
+    );
+    expect(history).toHaveLength(1);
+    expect(history[0]).not.toHaveProperty('createdById');
+    const otherMerchant = await prisma.merchant.create({
+      data: {
+        organizationId,
+        name: 'Other business',
+        contactName: 'Private contact',
+        phone: '09171234567',
+      },
+    });
+    const otherProduct = await products.create(organizationId, {
+      merchantId: otherMerchant.id,
+      name: 'Other product',
+    });
+    const hidden = await inventory.create(organizationId, branchId, {
+      productId: otherProduct.id,
+      sellingPrice: '15.00',
+    });
+    expect(
+      await inventory.findAll(organizationId, branchId, {}, merchant),
+    ).toHaveLength(1);
+    await expect(
+      inventory.findOne(organizationId, branchId, hidden.id, merchant),
+    ).rejects.toThrow();
+    await expect(
+      products.findOne(organizationId, otherProduct.id, merchant),
+    ).rejects.toThrow();
+    await expect(
+      merchants.findOne(organizationId, otherMerchant.id, merchant),
+    ).rejects.toThrow();
+    expect(
+      await products.findAll(
+        organizationId,
+        {},
+        { ...merchant, merchantId: null },
+      ),
+    ).toEqual([]);
+  });
   it('atomically accepts merchant invitation grants and rejects replay/revocation', async () => {
     const invites = new OrganizationInvitationsService(
       prisma as unknown as PrismaService,

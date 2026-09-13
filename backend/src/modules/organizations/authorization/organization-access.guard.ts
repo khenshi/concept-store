@@ -42,7 +42,7 @@ export class OrganizationAccessGuard implements CanActivate {
           userId: request.user.id,
         },
       },
-      select: { role: true },
+      select: { role: true, merchantId: true },
     });
 
     if (!membership) {
@@ -64,6 +64,7 @@ export class OrganizationAccessGuard implements CanActivate {
       organizationId,
       userId: request.user.id,
       role: membership.role,
+      merchantId: membership.merchantId ?? null,
     };
     return true;
   }

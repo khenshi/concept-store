@@ -9,6 +9,8 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { CreateBranchDto } from './dto/create-branch.dto';
 import type { UpdateBranchDto } from './dto/update-branch.dto';
 import type { BranchRecord } from './branches.types';
+import type { OrganizationContext } from '../authorization/organization-authorization.types';
+import { branchScope } from '../authorization/resource-access';
 
 @Injectable()
 export class BranchesService {
@@ -27,22 +29,30 @@ export class BranchesService {
     }
   }
 
-  findAll(organizationId: string): Promise<BranchRecord[]> {
-    return this.prisma.branch.findMany({
-      where: { organizationId },
+  async findAll(organizationId: string, context?: OrganizationContext) {
+    const branches = await this.prisma.branch.findMany({
+      where: context ? branchScope(context) : { organizationId },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
+    return context?.role === 'MERCHANT'
+      ? branches.map(({ id, name, code }) => ({ id, name, code }))
+      : branches;
   }
 
   async findOne(
     organizationId: string,
     branchId: string,
-  ): Promise<BranchRecord> {
+    context?: OrganizationContext,
+  ) {
     const branch = await this.prisma.branch.findFirst({
-      where: { id: branchId, organizationId },
+      where: context
+        ? { AND: [branchScope(context), { id: branchId }] }
+        : { id: branchId, organizationId },
     });
     if (!branch) throw new NotFoundException('Branch not found');
-    return branch;
+    return context?.role === 'MERCHANT'
+      ? { id: branch.id, name: branch.name, code: branch.code }
+      : branch;
   }
 
   async update(

@@ -18,8 +18,11 @@ PATCH /organizations/:organizationId/branches/:branchId
 
 ## Authorization
 
-- All organization members can list and retrieve branches.
-- `OWNER` and `MANAGER` can create and edit branches.
+- Owners read all branches and alone create branches.
+- Managers/cashiers read only assigned branches; managers edit assigned branches.
+- Linked merchants read identity-only branches where explicitly assigned or their
+  own products are placed. Unlinked merchants receive empty lists.
+- Unassigned/foreign/missing branch IDs return the same 404.
 - Organization membership and object scope are enforced by the backend.
 
 ## Data and rules
@@ -40,6 +43,10 @@ Manage inventory link to the branch-scoped inventory workspace. Cashier/merchant
 branch readers do not see this action; backend inventory routes enforce roles.
 
 ## Frontend
+
+Backend access filtering is delivered in Part 4. Existing frontend controls and
+full-address schemas are not yet aligned for managers/merchants; that is Part 7.
+Do not interpret visible legacy controls as permission to create/read a branch.
 
 The organization workspace provides branch listing, creation, detail, and edit
 flows with validation and request-state feedback.

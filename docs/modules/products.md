@@ -21,8 +21,10 @@ PATCH /organizations/:organizationId/products/:productId/status
 GET   /organizations/:organizationId/products/:productId/inventory
 ```
 
-Every route requires authentication, organization membership, and `OWNER` or
-`MANAGER`. Queries include the trusted organization ID. Missing and foreign
+Every route requires authentication and organization membership. Only owners
+create/edit/change status. Managers read only products placed in assigned branches;
+linked merchants read their own merchant's products. Cashiers cannot use these routes.
+Queries include the trusted organization ID. Missing, inaccessible, and foreign
 products or related merchants return the same not-found behavior. UUID v4
 identifiers and DTO whitelisting enforce the request boundary.
 
@@ -73,6 +75,13 @@ automated tests. The unperformed checklist is retained in the
 [completed plan](../plans/archive/products-and-branch-inventory-2026-09-12.md).
 
 ## Workspace UI
+
+Part 4 changes backend access only. Existing frontend management controls and
+merchant-role visibility are aligned in Part 7, not this backend delivery.
+Managers' placement lists contain assigned branches only; merchants see own
+products' placements across all selling branches. Placement candidate checks
+prevent managers discovering or placing unrepresented catalog products; an owner
+must place them first. Lifecycle and quantity do not affect read visibility.
 
 ```text
 /app/organizations/:organizationId/products

@@ -65,7 +65,9 @@ merchantId. No product ownership or historical actor attribution changes.
 Access mutations and membership removal lock the same tenant-local membership in
 serializable transactions. Serialization conflicts return 409 with retry guidance.
 The last-owner invariant remains enforced; failed writes roll back all changes.
-Resource-access filtering and invitation-grant acceptance remain later parts.
+Invitation grant acceptance is delivered in Part 3; backend resource-access
+filtering and role-specific projections are delivered in Part 4. Frontend alignment
+remains later approved parts.
 
 ## Frontend behavior
 

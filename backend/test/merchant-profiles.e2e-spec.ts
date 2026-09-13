@@ -38,6 +38,7 @@ describe('Merchant profiles (e2e)', () => {
     [MERCHANT_MEMBER_ID, OrganizationRole.MERCHANT],
   ]);
   const prismaService = {
+    merchant: { findFirst: jest.fn().mockResolvedValue({ id: MERCHANT_ID }) },
     user: {
       findFirst: jest.fn(({ where }: { where: { id: string } }) =>
         Promise.resolve(roles.has(where.id) ? { id: where.id } : null),
@@ -178,24 +179,28 @@ describe('Merchant profiles (e2e)', () => {
       .query({ q: ' amihan ', status: MerchantStatus.ACTIVE })
       .expect(200, []);
 
-    expect(merchantsService.findAll).toHaveBeenCalledWith(ORGANIZATION_ID, {
-      q: 'amihan',
-      status: MerchantStatus.ACTIVE,
-    });
+    expect(merchantsService.findAll).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      {
+        q: 'amihan',
+        status: MerchantStatus.ACTIVE,
+      },
+      expect.objectContaining({ userId }),
+    );
   });
 
-  it.each([
-    ['cashier', CASHIER_ID],
-    ['merchant member', MERCHANT_MEMBER_ID],
-  ])('forbids a %s from listing merchants', async (_label, userId) => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    await request(app.getHttpServer())
-      .get(merchantPath())
-      .set('Authorization', `Bearer ${token(userId)}`)
-      .expect(403);
+  it.each([['cashier', CASHIER_ID]])(
+    'forbids a %s from listing merchants',
+    async (_label, userId) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      await request(app.getHttpServer())
+        .get(merchantPath())
+        .set('Authorization', `Bearer ${token(userId)}`)
+        .expect(403);
 
-    expect(merchantsService.findAll).not.toHaveBeenCalled();
-  });
+      expect(merchantsService.findAll).not.toHaveBeenCalled();
+    },
+  );
 
   it('rejects malformed organization and merchant IDs', async () => {
     const authorization = `Bearer ${token(OWNER_ID)}`;
@@ -210,6 +215,21 @@ describe('Merchant profiles (e2e)', () => {
       .get(merchantPath('not-a-uuid'))
       .set('Authorization', authorization)
       .expect(400);
+  });
+  it('forbids manager shared-profile writes and hides inaccessible merchant reads', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .patch(`${merchantPath(MERCHANT_ID)}/status`)
+      .set('Authorization', `Bearer ${token(MANAGER_ID)}`)
+      .send({ status: 'INACTIVE' })
+      .expect(403);
+    prismaService.merchant.findFirst.mockResolvedValueOnce(null);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .get(merchantPath(MERCHANT_ID))
+      .set('Authorization', `Bearer ${token(MANAGER_ID)}`)
+      .expect(404);
+    expect(merchantsService.findOne).not.toHaveBeenCalled();
   });
 
   it('hides every merchant route from a user outside the organization', async () => {
@@ -312,7 +332,7 @@ describe('Merchant profiles (e2e)', () => {
   });
 
   it('completes create, read, edit, and confirmed-status API operations', async () => {
-    const authorization = `Bearer ${token(MANAGER_ID)}`;
+    const authorization = `Bearer ${token(OWNER_ID)}`;
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())

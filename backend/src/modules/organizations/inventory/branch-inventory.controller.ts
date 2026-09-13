@@ -1,3 +1,4 @@
+import { MerchantMovementResponseDto } from '../../../openapi/response.dto';
 import {
   Body,
   Controller,
@@ -12,6 +13,8 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiExtraModels,
+  getSchemaPath,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
@@ -27,6 +30,7 @@ import {
   InventoryMovementResponseDto,
 } from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
+import { ResourceAccessGuard } from '../authorization/resource-access.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
@@ -45,8 +49,13 @@ import type {
   InventoryMovementRecord,
 } from './inventory.types';
 
-@UseGuards(AuthGuard, OrganizationAccessGuard)
-@OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+@UseGuards(AuthGuard, OrganizationAccessGuard, ResourceAccessGuard)
+@OrganizationRoles(
+  OrganizationRole.OWNER,
+  OrganizationRole.MANAGER,
+  OrganizationRole.MERCHANT,
+)
+@ApiExtraModels(InventoryMovementResponseDto, MerchantMovementResponseDto)
 @ApiTags('branch-inventory')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
@@ -71,6 +80,7 @@ export class BranchInventoryController {
     private readonly stockService: InventoryStockService,
   ) {}
 
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
   @Post()
   @ApiOperation({
     summary: 'Place an active product in this branch with zero stock',
@@ -95,11 +105,12 @@ export class BranchInventoryController {
     @CurrentOrganization() organization: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Query() query: ListProductsQueryDto,
-  ): Promise<BranchInventoryRecord[]> {
+  ) {
     return this.inventoryService.findAll(
       organization.organizationId,
       branchId,
       query,
+      organization,
     );
   }
 
@@ -111,14 +122,16 @@ export class BranchInventoryController {
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Param('inventoryId', new ParseUUIDPipe({ version: '4' }))
     inventoryId: string,
-  ): Promise<BranchInventoryRecord> {
+  ) {
     return this.inventoryService.findOne(
       organization.organizationId,
       branchId,
       inventoryId,
+      organization,
     );
   }
 
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
   @Patch(':inventoryId/price')
   @ApiOperation({
     summary: 'Edit this branch selling price without changing quantity',
@@ -139,6 +152,7 @@ export class BranchInventoryController {
     );
   }
 
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
   @Post(':inventoryId/receipts')
   @ApiOperation({
     summary: 'Receive stock atomically; retries return the original movement',
@@ -160,6 +174,7 @@ export class BranchInventoryController {
     );
   }
 
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
   @Post(':inventoryId/adjustments')
   @ApiOperation({
     summary: 'Apply a signed corrective stock delta with retry protection',
@@ -183,17 +198,28 @@ export class BranchInventoryController {
 
   @Get(':inventoryId/movements')
   @ApiOperation({ summary: 'Get immutable stock history newest first' })
-  @ApiOkResponse({ type: InventoryMovementResponseDto, isArray: true })
+  @ApiOkResponse({
+    schema: {
+      type: 'array',
+      items: {
+        oneOf: [
+          { $ref: getSchemaPath(InventoryMovementResponseDto) },
+          { $ref: getSchemaPath(MerchantMovementResponseDto) },
+        ],
+      },
+    },
+  })
   findMovements(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Param('inventoryId', new ParseUUIDPipe({ version: '4' }))
     inventoryId: string,
-  ): Promise<InventoryMovementRecord[]> {
+  ) {
     return this.inventoryService.findMovements(
       organization.organizationId,
       branchId,
       inventoryId,
+      organization,
     );
   }
 }

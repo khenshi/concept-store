@@ -1,3 +1,4 @@
+import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
 import {
   Body,
   Controller,
@@ -10,6 +11,8 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiExtraModels,
+  getSchemaPath,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
@@ -22,6 +25,7 @@ import {
 import { BranchResponseDto } from '../../../openapi/response.dto';
 import { OrganizationRole } from '../../../generated/prisma/client';
 import { AuthGuard } from '../../auth/auth.guard';
+import { ResourceAccessGuard } from '../authorization/resource-access.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
@@ -31,7 +35,8 @@ import type { BranchRecord } from './branches.types';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 
-@UseGuards(AuthGuard, OrganizationAccessGuard)
+@UseGuards(AuthGuard, OrganizationAccessGuard, ResourceAccessGuard)
+@ApiExtraModels(BranchResponseDto, BranchIdentityResponseDto)
 @ApiTags('branches')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
@@ -40,7 +45,7 @@ import { UpdateBranchDto } from './dto/update-branch.dto';
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 
-  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Post()
   @ApiOperation({ summary: 'Create a branch' })
   @ApiCreatedResponse({ type: BranchResponseDto })
@@ -59,21 +64,43 @@ export class BranchesController {
 
   @Get()
   @ApiOperation({ summary: 'List branches in the organization' })
-  @ApiOkResponse({ type: BranchResponseDto, isArray: true })
-  findAll(
-    @CurrentOrganization() organization: OrganizationContext,
-  ): Promise<BranchRecord[]> {
-    return this.branchesService.findAll(organization.organizationId);
+  @ApiOkResponse({
+    schema: {
+      type: 'array',
+      items: {
+        oneOf: [
+          { $ref: getSchemaPath(BranchResponseDto) },
+          { $ref: getSchemaPath(BranchIdentityResponseDto) },
+        ],
+      },
+    },
+  })
+  findAll(@CurrentOrganization() organization: OrganizationContext) {
+    return this.branchesService.findAll(
+      organization.organizationId,
+      organization,
+    );
   }
 
   @Get(':branchId')
   @ApiOperation({ summary: 'Get a branch' })
-  @ApiOkResponse({ type: BranchResponseDto })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(BranchResponseDto) },
+        { $ref: getSchemaPath(BranchIdentityResponseDto) },
+      ],
+    },
+  })
   findOne(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
   ) {
-    return this.branchesService.findOne(organization.organizationId, branchId);
+    return this.branchesService.findOne(
+      organization.organizationId,
+      branchId,
+      organization,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)

@@ -11,6 +11,8 @@ import type { ListMerchantsQueryDto } from './dto/list-merchants-query.dto';
 import type { UpdateMerchantStatusDto } from './dto/update-merchant-status.dto';
 import type { UpdateMerchantDto } from './dto/update-merchant.dto';
 import type { MerchantRecord } from './merchants.types';
+import type { OrganizationContext } from '../authorization/organization-authorization.types';
+import { merchantScope } from '../authorization/resource-access';
 
 @Injectable()
 export class MerchantsService {
@@ -29,40 +31,81 @@ export class MerchantsService {
     }
   }
 
-  findAll(
+  async findAll(
     organizationId: string,
     query: ListMerchantsQueryDto,
-  ): Promise<MerchantRecord[]> {
+    context?: OrganizationContext,
+  ) {
     const search = query.q;
-    return this.prisma.merchant.findMany({
+    const merchants = await this.prisma.merchant.findMany({
       where: {
         organizationId,
+        ...(context ? { AND: [merchantScope(context)] } : {}),
         ...(query.status ? { status: query.status } : {}),
         ...(search
           ? {
               OR: [
                 { name: { contains: search, mode: 'insensitive' } },
                 { code: { contains: search, mode: 'insensitive' } },
-                { contactName: { contains: search, mode: 'insensitive' } },
-                { email: { contains: search, mode: 'insensitive' } },
-                { phone: { contains: search, mode: 'insensitive' } },
+                ...(context?.role === 'MANAGER'
+                  ? []
+                  : [
+                      {
+                        contactName: {
+                          contains: search,
+                          mode: 'insensitive' as const,
+                        },
+                      },
+                      {
+                        email: {
+                          contains: search,
+                          mode: 'insensitive' as const,
+                        },
+                      },
+                      {
+                        phone: {
+                          contains: search,
+                          mode: 'insensitive' as const,
+                        },
+                      },
+                    ]),
               ],
             }
           : {}),
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
+    return context?.role === 'MANAGER'
+      ? merchants.map(({ id, name, code, status }) => ({
+          id,
+          name,
+          code,
+          status,
+        }))
+      : merchants;
   }
 
   async findOne(
     organizationId: string,
     merchantId: string,
-  ): Promise<MerchantRecord> {
+    context?: OrganizationContext,
+  ) {
     const merchant = await this.prisma.merchant.findUnique({
-      where: { id: merchantId, organizationId },
+      where: {
+        id: merchantId,
+        organizationId,
+        ...(context ? { AND: [merchantScope(context)] } : {}),
+      },
     });
     if (!merchant) throw new NotFoundException('Merchant not found');
-    return merchant;
+    return context?.role === 'MANAGER'
+      ? {
+          id: merchant.id,
+          name: merchant.name,
+          code: merchant.code,
+          status: merchant.status,
+        }
+      : merchant;
   }
 
   async update(

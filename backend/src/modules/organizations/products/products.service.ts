@@ -11,6 +11,8 @@ import type { ListProductsQueryDto } from './dto/list-products-query.dto';
 import type { UpdateProductDto } from './dto/update-product.dto';
 import type { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import type { ProductInventoryRecord, ProductRecord } from './products.types';
+import type { OrganizationContext } from '../authorization/organization-authorization.types';
+import { inventoryScope, productScope } from '../authorization/resource-access';
 
 @Injectable()
 export class ProductsService {
@@ -42,12 +44,14 @@ export class ProductsService {
   async findAll(
     organizationId: string,
     query: ListProductsQueryDto,
+    context?: OrganizationContext,
   ): Promise<ProductRecord[]> {
     if (query.merchantId)
       await this.resolveMerchant(organizationId, query.merchantId);
     return this.prisma.product.findMany({
       where: {
         organizationId,
+        ...(context ? { AND: [productScope(context)] } : {}),
         ...(query.merchantId ? { merchantId: query.merchantId } : {}),
         ...(query.status ? { status: query.status } : {}),
         ...(query.q
@@ -67,9 +71,14 @@ export class ProductsService {
   async findOne(
     organizationId: string,
     productId: string,
+    context?: OrganizationContext,
   ): Promise<ProductRecord> {
     const product = await this.prisma.product.findUnique({
-      where: { id: productId, organizationId },
+      where: {
+        id: productId,
+        organizationId,
+        ...(context ? { AND: [productScope(context)] } : {}),
+      },
     });
     if (!product) throw new NotFoundException('Product not found');
     return product;
@@ -115,10 +124,15 @@ export class ProductsService {
   async findInventory(
     organizationId: string,
     productId: string,
+    context?: OrganizationContext,
   ): Promise<ProductInventoryRecord[]> {
-    await this.findOne(organizationId, productId);
+    await this.findOne(organizationId, productId, context);
     const placements = await this.prisma.branchInventory.findMany({
-      where: { organizationId, productId },
+      where: {
+        organizationId,
+        productId,
+        ...(context ? { AND: [inventoryScope(context)] } : {}),
+      },
       include: { branch: { select: { id: true, name: true, code: true } } },
       orderBy: [{ branch: { name: 'asc' } }, { id: 'asc' }],
     });

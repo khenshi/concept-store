@@ -173,7 +173,10 @@ describe('Milestone 1 organization access (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200, []);
 
-    expect(branchesService.findAll).toHaveBeenCalledWith(ORGANIZATION_ID);
+    expect(branchesService.findAll).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      expect.objectContaining({ organizationId: ORGANIZATION_ID }),
+    );
   });
 
   it('forbids a cashier from creating a branch', async () => {
