@@ -18,6 +18,8 @@ import { BranchInventoryController } from './inventory/branch-inventory.controll
 import { BranchInventoryService } from './inventory/branch-inventory.service';
 import { InventoryStockService } from './inventory/inventory-stock.service';
 import { ResourceAccessGuard } from './authorization/resource-access.guard';
+import { PosCatalogController } from './pos/pos-catalog.controller';
+import { PosCatalogService } from './pos/pos-catalog.service';
 
 @Module({
   imports: [AuthModule],
@@ -30,6 +32,7 @@ import { ResourceAccessGuard } from './authorization/resource-access.guard';
     MerchantsController,
     ProductsController,
     BranchInventoryController,
+    PosCatalogController,
   ],
   providers: [
     OrganizationsService,
@@ -42,6 +45,7 @@ import { ResourceAccessGuard } from './authorization/resource-access.guard';
     ProductsService,
     BranchInventoryService,
     InventoryStockService,
+    PosCatalogService,
   ],
   exports: [OrganizationAccessGuard],
 })

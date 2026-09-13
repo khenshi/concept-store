@@ -1,6 +1,6 @@
 # Branch POS Checkout and Sales Plan
 
-**Status:** Approved; Part 1 implemented and verified, awaiting review before commit.
+**Status:** Approved; Part 1 committed; Part 2 verified, awaiting review before commit.
 **Date:** September 13, 2026
 
 ## Goal and confirmed decisions
@@ -258,7 +258,26 @@ Verification: Prisma format/validate/generate; backend format/lint/build and
 frontend format/lint/typecheck/build and 268 tests. Migration deployment and demo
 seeding were checked only in a disposable PostgreSQL 17 container. No application
 database was migrated/reset. Rendered POS QA remains for later frontend parts.
-Stop here for user review; do not commit or begin Part 2 before approval.
+User approved Part 1 on September 13, 2026; committed as `ed0f128`.
+
+### Part 2 delivery — September 13, 2026
+
+Implemented dedicated branch POS search and exact-code reads, current branch
+assignment enforcement for managers/cashiers, minimal explicit projections and
+matching SKU/barcode ambiguity without silent selection. Search is bounded to
+the first 100 matches in stable name/placement order; narrow search for larger
+catalogs. Exact results remain complete (at most two due to existing identifier
+uniqueness). Active lifecycle filtering preserves visible zero-stock rows with
+an explicit ineligibility flag. Existing management permissions are unchanged.
+No checkout writes, cart/payment/sales screens or schema changes are added.
+
+Verification passes: backend format/lint/build, 205 unit tests, 81 HTTP tests
+and 65 PostgreSQL integration tests. PostgreSQL uses only a disposable container
+and random isolated schemas; the application database is untouched. Frontend
+files are unchanged in this part. Diff whitespace checks pass.
+
+Stop for user review after verification; do not commit Part 2 or begin Part 3
+before approval. The full plan remains active until all parts are delivered.
 
 ### Remaining part-by-part sequence
 

@@ -206,6 +206,23 @@ export class InventoryProductResponseDto {
   merchant!: InventoryMerchantResponseDto;
 }
 
+export class PosCatalogResponseDto {
+  @ApiProperty({ format: 'uuid' }) branchInventoryId!: string;
+  @ApiProperty({ format: 'uuid' }) productId!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ type: String, nullable: true }) sku!: string | null;
+  @ApiProperty({ type: String, nullable: true }) barcode!: string | null;
+  @ApiProperty() merchantName!: string;
+  @ApiProperty({ type: String, example: '850.00', pattern: '^\\d+\\.\\d{2}$' })
+  sellingPrice!: string;
+  @ApiProperty({ type: 'integer', minimum: 0, maximum: 2147483647 })
+  quantity!: number;
+  @ApiProperty({
+    description: 'Current stock is positive; checkout must revalidate',
+  })
+  eligible!: boolean;
+}
+
 export class BranchInventoryResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;

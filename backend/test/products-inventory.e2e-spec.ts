@@ -12,6 +12,8 @@ import { ProductsService } from '../src/modules/organizations/products/products.
 import { BranchInventoryController } from '../src/modules/organizations/inventory/branch-inventory.controller';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
+import { PosCatalogController } from '../src/modules/organizations/pos/pos-catalog.controller';
+import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
 
 const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -52,7 +54,10 @@ describe('Products and inventory HTTP boundaries', () => {
     branch: { findFirst: jest.fn().mockResolvedValue({ id: branch }) },
     product: { findFirst: jest.fn().mockResolvedValue({ id: item }) },
     merchant: { findFirst: jest.fn().mockResolvedValue({ id: item }) },
-    branchInventory: { findFirst: jest.fn().mockResolvedValue({ id: item }) },
+    branchInventory: {
+      findFirst: jest.fn().mockResolvedValue({ id: item }),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     user: {
       findFirst: jest.fn(({ where }: { where: { id: string } }) =>
         Promise.resolve(roles.has(where.id) ? { id: where.id } : null),
@@ -87,7 +92,11 @@ describe('Products and inventory HTTP boundaries', () => {
       imports: [
         JwtModule.register({ secret: 'products-inventory-http-test-secret' }),
       ],
-      controllers: [ProductsController, BranchInventoryController],
+      controllers: [
+        ProductsController,
+        BranchInventoryController,
+        PosCatalogController,
+      ],
       providers: [
         AuthGuard,
         OrganizationAccessGuard,
@@ -96,6 +105,7 @@ describe('Products and inventory HTTP boundaries', () => {
         { provide: ProductsService, useValue: products },
         { provide: BranchInventoryService, useValue: inventory },
         { provide: InventoryStockService, useValue: stock },
+        PosCatalogService,
       ],
     }).compile();
     app = module.createNestApplication();
@@ -126,6 +136,68 @@ describe('Products and inventory HTTP boundaries', () => {
     `${inventoryPath}/${item}`,
     `${inventoryPath}/${item}/movements`,
   ];
+  const posPath = `/organizations/${org}/branches/${branch}/pos/products`;
+  it.each(['', '/code?code=001Ab'])(
+    'enforces POS authentication and merchant denial on %s',
+    async (suffix) => {
+      await http()
+        .get(posPath + suffix)
+        .expect(401);
+      await http()
+        .get(posPath + suffix)
+        .auth(token(merchant), { type: 'bearer' })
+        .expect(403);
+    },
+  );
+  it.each([actor, manager, cashier])(
+    'allows authorized POS staff %s with minimal reads',
+    async (userId) => {
+      await http()
+        .get(posPath)
+        .auth(token(userId), { type: 'bearer' })
+        .expect(200, []);
+      await http()
+        .get(posPath + '/code?code=%20001Ab%20')
+        .auth(token(userId), { type: 'bearer' })
+        .expect(200, []);
+      expect(prisma.branchInventory.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          where: expect.objectContaining({
+            organizationId: org,
+            branchId: branch,
+          }),
+        }),
+      );
+    },
+  );
+  it('hides inaccessible POS branches and foreign organizations', async () => {
+    prisma.branch.findFirst.mockResolvedValueOnce(null);
+    await http()
+      .get(posPath)
+      .auth(token(cashier), { type: 'bearer' })
+      .expect(404);
+    expect(prisma.branchInventory.findMany).not.toHaveBeenCalled();
+    await http()
+      .get(posPath.replace(org, item))
+      .auth(token(), { type: 'bearer' })
+      .expect(404);
+  });
+  it.each([
+    '/code',
+    '/code?code=',
+    '/code?code=bad%20code',
+    '/code?code=' + 'A'.repeat(65),
+    '?q=' + 'A'.repeat(255),
+    '?merchantId=' + item,
+    '/code?code=OK&q=test',
+  ])('rejects malformed or extra POS query %s', async (suffix) => {
+    await http()
+      .get(posPath + suffix)
+      .auth(token(), { type: 'bearer' })
+      .expect(400);
+    expect(prisma.branchInventory.findMany).not.toHaveBeenCalled();
+  });
   it('hides an unassigned branch before business operations', async () => {
     prisma.branch.findFirst.mockResolvedValueOnce(null);
     await http()

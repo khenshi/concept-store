@@ -29,6 +29,9 @@ Queries include the trusted organization ID. Missing, inaccessible, and foreign
 products or related merchants return the same not-found behavior. UUID v4
 identifiers and DTO whitelisting enforce the request boundary.
 
+Cashiers have a separate minimal [branch POS catalog](pos.md) in assigned branches;
+it does not grant access to these product-management routes.
+
 ## Data and rules
 
 - Product contains name, fixed merchant ownership, optional SKU/barcode,

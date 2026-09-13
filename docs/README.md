@@ -23,6 +23,7 @@ Documentation is separated by purpose:
 - [Products](modules/products.md)
 - [Branch inventory](modules/branch-inventory.md)
 - [Sales persistence](modules/sales.md)
+- [Branch POS catalog](modules/pos.md)
 - [Frontend experience](modules/frontend-experience.md)
 
 Branch and merchant access control is implemented across memberships, invitations,

@@ -6,6 +6,7 @@ import { Client } from 'pg';
 import { Prisma, PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
+import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString)
@@ -95,6 +96,105 @@ const movementData = (
 });
 
 describe('PostgreSQL sale persistence integrity', () => {
+  it('scopes POS catalog and exact ambiguity matches, with lifecycle and stock filtering', async () => {
+    const service = new PosCatalogService(prisma as unknown as PrismaService);
+    const owner = { organizationId, userId, role: 'OWNER' as const };
+    const second = await prisma.product.create({
+      data: {
+        organizationId,
+        merchantId: otherMerchantId,
+        name: 'Second product',
+        sku: 'SECOND',
+        barcode: 'ORIGINAL',
+      },
+    });
+    await prisma.branchInventory.create({
+      data: {
+        organizationId,
+        branchId,
+        productId: second.id,
+        sellingPrice: '99.99',
+        quantity: 0,
+      },
+    });
+    const matches = await service.findByCode(owner, branchId, 'ORIGINAL');
+    expect(matches).toHaveLength(2);
+    expect(matches[0]).toEqual({
+      branchInventoryId: inventoryId,
+      productId,
+      name: 'Original product',
+      sku: 'ORIGINAL',
+      barcode: '001Ab',
+      merchantName: 'Original merchant',
+      sellingPrice: '12.50',
+      quantity: 5,
+      eligible: true,
+    });
+    expect(matches[1].eligible).toBe(false);
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'CASHIER' },
+    });
+    await prisma.branchMembership.create({
+      data: { organizationId, userId, branchId },
+    });
+    expect(
+      await service.findAll({ ...owner, role: 'CASHIER' }, branchId),
+    ).toEqual(matches);
+    expect(
+      await service.findAll({ ...owner, role: 'MANAGER' }, branchId),
+    ).toEqual(matches);
+    await expect(
+      service.findAll({ ...owner, role: 'CASHIER' }, otherBranchId),
+    ).rejects.toThrow('Branch not found');
+    await expect(
+      service.findAll({ ...owner, organizationId: randomUUID() }, branchId),
+    ).rejects.toThrow('Branch not found');
+    await prisma.branchMembership.deleteMany({
+      where: { organizationId, userId },
+    });
+    expect(await service.findByCode(owner, branchId, 'original')).toHaveLength(
+      1,
+    );
+    expect(await service.findByCode(owner, branchId, '001Ab')).toHaveLength(1);
+    expect(await service.findByCode(owner, branchId, '001ab')).toEqual([]);
+    expect(await service.findByCode(owner, branchId, '01Ab')).toEqual([]);
+    expect(await service.findByCode(owner, otherBranchId, 'ORIGINAL')).toEqual(
+      [],
+    );
+    expect(await service.findAll(owner, branchId, 'original')).toHaveLength(1);
+    await prisma.product.update({
+      where: { id: second.id },
+      data: { barcode: 'OTHER' },
+    });
+    await prisma.product.update({
+      where: { id: productId },
+      data: { barcode: 'ORIGINAL' },
+    });
+    expect(await service.findByCode(owner, branchId, 'ORIGINAL')).toHaveLength(
+      1,
+    );
+    await prisma.product.update({
+      where: { id: productId },
+      data: { status: 'INACTIVE' },
+    });
+    expect(await service.findByCode(owner, branchId, 'ORIGINAL')).toHaveLength(
+      0,
+    );
+    await prisma.merchant.update({
+      where: { id: otherMerchantId },
+      data: { status: 'ENDED' },
+    });
+    expect(await service.findAll(owner, branchId)).toEqual([]);
+    await expect(
+      service.findAll({ ...owner, role: 'CASHIER' }, branchId),
+    ).rejects.toThrow('Branch not found');
+    await expect(
+      service.findAll({ ...owner, role: 'MERCHANT', merchantId }, branchId),
+    ).rejects.toThrow('cannot access POS');
+    await expect(service.findAll(owner, randomUUID())).rejects.toThrow(
+      'Branch not found',
+    );
+  });
   beforeAll(async () => {
     await admin.connect();
     await admin.query(`CREATE SCHEMA "${schema}"`);
