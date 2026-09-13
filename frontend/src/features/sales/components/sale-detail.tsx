@@ -19,7 +19,9 @@ import type { MerchantSale } from '../model/sales.schemas';
 import { getSale } from '../api/sales-api';
 import { SalesAccess } from './sales-access';
 
-export function SaleDetail(props: PosScope & { saleId: string }) {
+export function SaleDetail(
+  props: PosScope & { saleId: string; embedded?: boolean },
+) {
   return (
     <SalesAccess organizationId={props.organizationId}>
       {(role, key) => (
@@ -72,7 +74,8 @@ function ScopedSaleDetail({
   branchId,
   saleId,
   role,
-}: PosScope & { saleId: string; role: OrganizationRole }) {
+  embedded = false,
+}: PosScope & { saleId: string; role: OrganizationRole; embedded?: boolean }) {
   const { request } = useAuth();
   const { refreshOrganization } = useOrganizationWorkspaceContext();
   const [result, setResult] = useState<Awaited<
@@ -110,20 +113,22 @@ function ScopedSaleDetail({
   return (
     <OperationalPage>
       <BackLink
-        href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}
+        href={`/app/organizations/${organizationId}/branches/${branchId}/${embedded && role !== 'MERCHANT' ? 'pos/sales' : 'sales'}`}
       >
-        Back to branch sales
+        {embedded ? 'Return to sales history' : 'Back to branch sales'}
       </BackLink>
-      <PageHeader
-        title={
-          role === 'MERCHANT' ? 'Your sale items' : 'Internal sale receipt'
-        }
-        description={
-          role === 'MERCHANT'
-            ? 'Read-only historical items owned by your currently linked merchant business.'
-            : 'Immutable completed transaction snapshots. Internal record, not a fiscal/tax invoice.'
-        }
-      />
+      {!embedded ? (
+        <PageHeader
+          title={
+            role === 'MERCHANT' ? 'Your sale items' : 'Internal sale receipt'
+          }
+          description={
+            role === 'MERCHANT'
+              ? 'Read-only historical items owned by your currently linked merchant business.'
+              : 'Immutable completed transaction snapshots. Internal record, not a fiscal/tax invoice.'
+          }
+        />
+      ) : null}
       <OperationalPanel
         title={role === 'MERCHANT' ? 'Own items' : 'Saved receipt'}
         description="Refreshing retries only the authorized sale read."

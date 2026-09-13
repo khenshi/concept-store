@@ -506,8 +506,13 @@ describe('Branch POS cart workflows', () => {
     expect(screen.getByLabelText('Estimated total')).toHaveTextContent(
       '850.00',
     );
-    fireEvent.click(screen.getByRole('link', { name: 'View sales history' }));
-    expect(confirm).toHaveBeenCalledTimes(2);
+    const historyLink = screen.getByRole('link', { name: 'Sales History' });
+    // Exercise the navigation guard without asking jsdom to navigate documents.
+    historyLink.addEventListener('click', (event) => event.preventDefault(), {
+      once: true,
+    });
+    fireEvent.click(historyLink);
+    expect(confirm).toHaveBeenCalledTimes(1);
     confirm.mockReturnValue(true);
     act(() => {
       allowed = allowPosNavigation('/app/organizations/another');

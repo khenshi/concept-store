@@ -1,6 +1,6 @@
 # Sales
 
-**Status:** Implemented, including staff history/receipts and read-only merchant own-sale screens. Rendered QA explicitly waived September 13, 2026.
+**Status:** Implemented, including staff POS history/receipts and separate read-only merchant own-sale screens. Original milestone rendered QA waived September 13, 2026; navigation refinement QA pending.
 
 ## Implemented scope
 
@@ -154,12 +154,23 @@ No mutable sale/receipt routes are provided.
 
 ```text
 /app/organizations/:organizationId/sales
+/app/organizations/:organizationId/branches/:branchId/pos/sales
+/app/organizations/:organizationId/branches/:branchId/pos/sales/:saleId
 /app/organizations/:organizationId/branches/:branchId/sales
 /app/organizations/:organizationId/branches/:branchId/sales/:saleId
 ```
 
+Staff history and receipt detail now live inside the shared branch POS layout,
+header/dropdown and Cart/Sales History navigation. Receipt detail keeps History
+active and has a Return to sales history action. Internal page changes preserve the
+same-branch cart/payment draft and date filters/pagination without sale/payment writes;
+inactive history reads pause and re-entering it refreshes the authorized list.
+Old staff `.../sales` and `.../sales/:saleId` deep links redirect to their POS
+equivalents; merchants continue using these separate own-sale routes without POS
+access. Pending/uncertain checkout prevents hiding recovery behind History.
+
 Branch details expose sales history for owners/managers/cashiers and own sales for
-merchants. POS links to branch history and the saved completion receipt. Staff
+merchants. POS completion links to its saved receipt within History. Staff
 lists show receipt code/time, saved branch identity, exact total and saved cashier/
 payment method. Cashier copy describes only their own sales; backend filtering
 remains authoritative. Staff detail renders immutable receipt snapshots and offers
@@ -191,6 +202,13 @@ QA for this POS/sales milestone on September 13, 2026. Automated tests do not
 certify rendered layout, modal focus containment, contrast or actual printing.
 
 ## Verification and development examples
+
+The frontend POS navigation/workspace refinement passes lint, type checking,
+production build, changed-file formatting and 430 tests across 67 files. Tests
+cover retained dates/pagination, embedded receipt links/active History navigation,
+staff legacy redirects, unchanged merchant routes, cart/payment draft retention,
+checkout switching locks and a single active print surface. Rendered QA for this
+refinement remains pending a separate browser-access or user-waiver decision.
 
 Final milestone verification passes: Prisma format/validate/generate, backend
 format/lint/build, 258 unit tests, 106 HTTP tests and 99 PostgreSQL integration

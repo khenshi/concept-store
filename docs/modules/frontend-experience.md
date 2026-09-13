@@ -7,8 +7,15 @@ marking that entry active. The organization POS entry requires explicit authoriz
 branch selection; branch POS uses the shared labeled dropdown and omits normal
 back buttons. Branch switching preserves cancellation, cart-discard confirmation,
 scope isolation and pending/uncertain checkout recovery. Merchant navigation remains
-read-only Sales. Shared Cart/History tabs are a later approved part, not implemented
-by this change. Rendered QA for this refinement is pending browser access or a new
+read-only Sales. Cart and Sales History are route-backed links in one persistent
+branch POS layout/header. Saved receipt detail keeps History active, while normal
+POS back buttons and the standalone history shortcut are absent. Same-branch page
+changes preserve the cart/payment draft and history dates/pagination; inactive
+reads pause, and returning Cart requires fresh authorized branch/catalog reads.
+Old staff sales deep links redirect into POS; merchant routes stay separate.
+Frozen checkout remains visible rather than being concealed by a History route,
+and only the active receipt mounts its print surface.
+Rendered QA for this refinement is pending browser access or a new
 explicit user waiver; previous milestone waivers do not certify these controls.
 
 ## Product workspace

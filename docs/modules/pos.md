@@ -59,8 +59,13 @@ The branch detail screen also links owners, managers and cashiers to
 entry point or catalog access. The workspace uses the dedicated minimal catalog,
 not product, merchant or inventory management APIs.
 
-Normal POS back buttons are removed. The current history shortcut remains until
-the separately approved shared-tabs part is implemented. Branch changes confirm
+Normal POS back buttons and the standalone history shortcut are removed. Cart and
+Sales History are route-backed navigation tabs under one persistent POS layout,
+header and branch dropdown. History uses `.../pos/sales`; saved receipt detail uses
+`.../pos/sales/:saleId` with History active. Old staff sales list/detail links redirect
+into this workspace, while merchant own-sales routes remain unchanged.
+
+Branch changes confirm
 discarding nonempty carts, invalidate obsolete code lookups and clear payment
 drafts on scope unmount. Cancelled changes retain the current branch and cart.
 Pending/unknown checkout prevents branch switching, including from the organization
@@ -78,11 +83,21 @@ Invalid drafts block additions and retain the last valid estimate. Monetary
 estimates use integer cents, never floating-point arithmetic. The cart allows at
 most 100 distinct placements and refuses silently replacing an existing price.
 
-The cart is memory-only and keyed to user, organization, branch and role. Access
+The cart is memory-only and keyed to user, organization, branch and role. Same-branch
+Cart/History/receipt navigation preserves the cart and cash/manual payment draft
+without reserving stock, recording payment or automatically completing checkout.
+History filters and pagination remain mounted across these pages, and reads pause
+while their page is inactive. Returning to Cart refreshes branch access and catalog;
+failed return catalog reads preserve the draft but block payment review until a
+successful read retry. Stored cart prices remain estimates requiring authoritative
+checkout validation and existing explicit price-conflict review.
+
+Access
 denial clears cart and catalog data; late responses from an old scope are ignored.
 Outgoing links and organization-menu navigation ask before discarding a nonempty
-cart, and full-page unload uses the browser's unsaved-work warning. Route unmount
-also clears the cart; browser history navigation does not have a custom prompt.
+cart, except internal same-branch POS page links, and full-page unload uses the
+browser's unsaved-work warning. Leaving the POS layout clears editable drafts;
+browser history navigation outside it does not have a custom prompt.
 Clear-cart and ambiguous-code interactions use the shared native modal dialog.
 Building/editing a cart performs no sale/payment writes or stock deductions.
 Confirmed checkout uses the [sales API](sales.md), which remains authoritative
@@ -117,6 +132,12 @@ uses the browser unload warning; staff must verify recorded sales before recreat
 an uncertain transaction after leaving the page. Role/branch checks still apply to
 every retry, and another user's session never receives this in-memory attempt.
 
+Pending/unknown checkout also blocks History tab switching. If browser history or a
+deep-link transition targets History with a frozen same-branch command, the workspace
+keeps Cart/recovery visible and does not request sales or auto-submit checkout.
+Only the active receipt mounts the print portal, so a hidden completion receipt
+cannot print alongside a saved receipt opened within the History workspace.
+
 Completion clears the cart and shows validated persisted receipt snapshots. Failed
 catalog refresh retries only the read and preserves the receipt. Printing uses a
 receipt-only print surface without shell/cart controls, and shows print-dialog or
@@ -127,11 +148,13 @@ screens remain separate and do not expose full receipt/print controls.
 
 ## Verification
 
-The navigation refinement passes frontend lint, type checking, production build,
-changed-file formatting and 413 tests across 65 files. Added tests cover explicit
+The navigation/workspace refinement passes frontend lint, type checking, production build,
+changed-file formatting and 430 tests across 67 files. Added tests cover explicit
 branch selection, unassigned members, revoked current access, read retry, obsolete
 responses, pending/unknown switching locks, merchant denial and cancellation versus
-confirmed cart clearing. Full formatting currently flags an unrelated existing
+confirmed cart clearing, same-branch cash/manual draft retention, history
+dates/pagination retention, fresh return reads/retry, old staff redirects, frozen
+checkout visibility and single-receipt printing. Full formatting currently flags an unrelated existing
 inventory-api.ts edit, which this change preserves. Rendered QA for the refinement
 is pending a separate browser-access or waiver decision.
 

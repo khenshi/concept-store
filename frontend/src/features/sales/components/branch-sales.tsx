@@ -20,7 +20,9 @@ import { salesQuerySchema, type SalesQuery } from '../model/sales.schemas';
 import { listSales } from '../api/sales-api';
 import { SalesAccess } from './sales-access';
 
-export function BranchSales(props: PosScope) {
+export function BranchSales(
+  props: PosScope & { embedded?: boolean; active?: boolean },
+) {
   return (
     <SalesAccess organizationId={props.organizationId}>
       {(role, key) => (
@@ -37,7 +39,13 @@ function ScopedBranchSales({
   organizationId,
   branchId,
   role,
-}: PosScope & { role: OrganizationRole }) {
+  embedded = false,
+  active: visible = true,
+}: PosScope & {
+  role: OrganizationRole;
+  embedded?: boolean;
+  active?: boolean;
+}) {
   const { request } = useAuth();
   const { refreshOrganization } = useOrganizationWorkspaceContext();
   const [result, setResult] = useState<Awaited<
@@ -55,6 +63,7 @@ function ScopedBranchSales({
       if (!active) return;
       setResult(null);
       setError(null);
+      if (!visible) return;
       try {
         const response = await listSales(
           request,
@@ -75,7 +84,7 @@ function ScopedBranchSales({
     return () => {
       active = false;
     };
-  }, [request, organizationId, branchId, role, query, revision]);
+  }, [request, organizationId, branchId, role, query, revision, visible]);
   function applyDates() {
     const parsed = salesQuerySchema.safeParse({
       page: 1,
@@ -94,28 +103,32 @@ function ScopedBranchSales({
   const branchName = result?.page.items[0]?.branchName;
   return (
     <OperationalPage>
-      <BackLink
-        href={
-          merchant
-            ? `/app/organizations/${organizationId}/sales`
-            : `/app/organizations/${organizationId}/branches/${branchId}`
-        }
-      >
-        {merchant ? 'Back to your selling branches' : 'Back to branch'}
-      </BackLink>
-      <PageHeader
-        title={merchant ? 'Your branch sales' : 'Branch sales'}
-        description={
-          merchant
-            ? 'Only your own product snapshots and own-items subtotal. This is not the whole receipt.'
-            : role === 'CASHIER'
-              ? 'Your completed sales in this assigned branch.'
-              : 'Completed sales in this permitted branch.'
-        }
-      />
+      {!embedded ? (
+        <>
+          <BackLink
+            href={
+              merchant
+                ? `/app/organizations/${organizationId}/sales`
+                : `/app/organizations/${organizationId}/branches/${branchId}`
+            }
+          >
+            {merchant ? 'Back to your selling branches' : 'Back to branch'}
+          </BackLink>
+          <PageHeader
+            title={merchant ? 'Your branch sales' : 'Branch sales'}
+            description={
+              merchant
+                ? 'Only your own product snapshots and own-items subtotal. This is not the whole receipt.'
+                : role === 'CASHIER'
+                  ? 'Your completed sales in this assigned branch.'
+                  : 'Completed sales in this permitted branch.'
+            }
+          />
+        </>
+      ) : null}
       <OperationalPanel
         title={branchName ?? (merchant ? 'Own sales' : 'Sales history')}
-        description="Newest completion first. Amounts and names are saved transaction snapshots."
+        description={`${role === 'CASHIER' ? 'Your completed sales in this assigned branch. ' : ''}Newest completion first. Amounts and names are saved transaction snapshots.`}
         action={
           <Button
             variant="quiet"
@@ -218,7 +231,7 @@ function ScopedBranchSales({
                 <Link
                   aria-label={`${merchant ? 'View own items' : 'View receipt'} ${sale.receiptCode}`}
                   className={buttonStyles({ variant: 'secondary' })}
-                  href={`/app/organizations/${organizationId}/branches/${branchId}/sales/${sale.id}`}
+                  href={`/app/organizations/${organizationId}/branches/${branchId}/${embedded && !merchant ? 'pos/sales' : 'sales'}/${sale.id}`}
                 >
                   {merchant ? 'View own items' : 'View receipt'}
                   <span className="sr-only"> {sale.receiptCode}</span>

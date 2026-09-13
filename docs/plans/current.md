@@ -1,6 +1,6 @@
 # Current Implementation Plan
 
-**Status:** Approved; Part 1 implemented, awaiting review before committing.
+**Status:** Both implementation parts reviewed and approved. Part 1 committed as `f98587c`; Part 2 approved for commit. Rendered QA and final plan closure remain pending.
 
 # POS Navigation and Workspace Refinement
 
@@ -56,6 +56,17 @@ Frontend production build, lint, type checking, changed-file formatting and all
 413 tests across 65 files pass. `git diff --check` passes. Full frontend formatting
 flags only the pre-existing unrelated inventory-api.ts edit, preserved unchanged.
 Rendered QA choice remains pending.
+
+Part 2 implements a persistent branch POS layout with route-backed Cart/History
+links and embedded staff receipt detail. Same-scope cart/payment draft and history
+dates/pagination survive these page changes. Inactive reads pause and clear old
+results; returning Cart waits for fresh branch/catalog reads before payment review.
+Pending/unknown checkout blocks switching and remains visible even after a browser
+history/deep-link transition. Only the active receipt mounts a print portal.
+Old staff history/receipt links redirect into POS; merchant routes stay separate.
+All 430 frontend tests across 67 files, lint, type checking, production build,
+changed-file formatting and diff checks pass. The unrelated inventory API/root
+package/performance audit changes are preserved. Rendered QA remains pending.
 
 Stop for review after each part; commit only after approval. Update affected module
 docs after implementation and archive this plan after final approval.

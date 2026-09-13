@@ -1,6 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
@@ -42,7 +48,11 @@ import {
   useCheckoutAttempt,
 } from '../model/checkout-attempt';
 
-export function BranchPos(props: PosScope) {
+type BranchPosProps = PosScope & {
+  cartActive?: boolean;
+  history?(active: boolean): ReactNode;
+};
+export function BranchPos(props: BranchPosProps) {
   const { user } = useAuth();
   const {
     organization,
@@ -85,7 +95,9 @@ function ScopedBranchPos({
   organizationId,
   branchId,
   role,
-}: PosScope & { role: 'OWNER' | 'MANAGER' | 'CASHIER' }) {
+  cartActive: requestedCartActive = true,
+  history,
+}: BranchPosProps & { role: 'OWNER' | 'MANAGER' | 'CASHIER' }) {
   const { request, user } = useAuth();
   const attemptKey = checkoutAttemptKey(organizationId, user?.id ?? '');
   const attempt = useCheckoutAttempt(attemptKey);
@@ -94,6 +106,13 @@ function ScopedBranchPos({
     attempt.scope.branchId === branchId &&
     attempt.state !== 'completed',
   );
+  // A browser-history/deep-link transition cannot conceal a frozen checkout.
+  const cartActive = requestedCartActive || recovering;
+  const [branchChecking, setBranchChecking] = useState(true);
+  const [checkedCartActive, setCheckedCartActive] = useState<boolean | null>(
+    null,
+  );
+  const branchReady = !branchChecking && checkedCartActive === cartActive;
   const [branch, setBranch] = useState<{
     id: string;
     name: string;
@@ -107,6 +126,8 @@ function ScopedBranchPos({
   const q = useDebouncedValue(search, 300);
   const settled = search.trim() === q.trim();
   const [catalogLoading, setCatalogLoading] = useState(true);
+  // After visiting History, require a fresh catalog read before reviewing payment.
+  const [cartCatalogReady, setCartCatalogReady] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogRevision, setCatalogRevision] = useState(0);
   const [code, setCode] = useState('');
@@ -171,7 +192,7 @@ function ScopedBranchPos({
     let active = true;
     void Promise.resolve().then(async () => {
       if (!active) return;
-      setBranch(null);
+      setBranchChecking(true);
       setBranchError(null);
       setAccessDenied(false);
       try {
@@ -182,7 +203,9 @@ function ScopedBranchPos({
         );
         if (active) {
           setBranch(result);
-          window.requestAnimationFrame(() => codeRef.current?.focus());
+          setCheckedCartActive(cartActive);
+          if (cartActive)
+            window.requestAnimationFrame(() => codeRef.current?.focus());
         }
       } catch (cause) {
         if (!active) return;
@@ -194,14 +217,34 @@ function ScopedBranchPos({
               ? cause.message
               : 'The branch could not be loaded.',
           );
+      } finally {
+        if (active) setBranchChecking(false);
       }
     });
     return () => {
       active = false;
     };
-  }, [request, organizationId, branchId, role, revision, denyAccess]);
+  }, [
+    request,
+    organizationId,
+    branchId,
+    role,
+    revision,
+    denyAccess,
+    cartActive,
+  ]);
   useEffect(() => {
-    if (!branch || !settled || accessDenied || paying || recovering) return;
+    if (
+      !cartActive ||
+      !branchReady ||
+      branchError ||
+      !branch ||
+      !settled ||
+      accessDenied ||
+      paying ||
+      recovering
+    )
+      return;
     let active = true;
     void Promise.resolve().then(async () => {
       if (!active) return;
@@ -214,7 +257,10 @@ function ScopedBranchPos({
           { organizationId, branchId },
           q,
         );
-        if (active) setProducts(rows);
+        if (active) {
+          setProducts(rows);
+          setCartCatalogReady(true);
+        }
       } catch (cause) {
         if (!active) return;
         if (cause instanceof ApiError && [403, 404].includes(cause.status))
@@ -244,7 +290,31 @@ function ScopedBranchPos({
     q,
     catalogRevision,
     denyAccess,
+    cartActive,
+    branchReady,
+    branchError,
   ]);
+
+  useEffect(() => {
+    if (cartActive) return;
+    let active = true;
+    lookupGeneration.current++;
+    lookupBusy.current = false;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      setLookupPending(false);
+      setMatches(null);
+      setCartCatalogReady(false);
+      setProducts([]);
+      setCatalogLoading(true);
+      setClearing(false);
+      setPaying(false);
+      paymentOpen.current = false;
+    });
+    return () => {
+      active = false;
+    };
+  }, [cartActive]);
 
   useEffect(() => {
     function leaving(href: string) {
@@ -271,7 +341,10 @@ function ScopedBranchPos({
       }
       if (
         cartRef.current.length === 0 ||
-        (url.origin === window.location.origin && url.pathname === pathname)
+        (url.origin === window.location.origin &&
+          (url.pathname === pathname ||
+            url.pathname === `${pathname}/sales` ||
+            url.pathname.startsWith(`${pathname}/sales/`)))
       )
         return true;
       if (
@@ -283,6 +356,7 @@ function ScopedBranchPos({
       commitCart([]);
       lookupGeneration.current += 1;
       lookupBusy.current = false;
+      setPaymentRevision((value) => value + 1);
       return true;
     }
     function programmatic(event: Event) {
@@ -354,7 +428,14 @@ function ScopedBranchPos({
     window.requestAnimationFrame(() => codeRef.current?.focus());
   }
   function add(product: PosProduct): boolean {
-    if (paymentOpen.current || unsafeCheckout.current) return false;
+    if (
+      !cartActive ||
+      !branchReady ||
+      branchError ||
+      paymentOpen.current ||
+      unsafeCheckout.current
+    )
+      return false;
     try {
       commitCart(addPosProduct(cartRef.current, product));
       setNotice(`${product.name} added to this branch’s cart.`);
@@ -376,6 +457,9 @@ function ScopedBranchPos({
       paymentOpen.current ||
       unsafeCheckout.current ||
       !branch ||
+      !cartActive ||
+      !branchReady ||
+      branchError ||
       accessDenied
     )
       return;
@@ -586,405 +670,445 @@ function ScopedBranchPos({
         description="Build a branch-specific cart, review payment and complete one sale. Prices and stock are estimates until server checkout."
       />
       <PosBranchSelector
+        key={String(cartActive)}
         organizationId={organizationId}
         branchId={branchId}
         role={role}
-        disabled={paying || recovering}
+        disabled={paying || recovering || !branchReady || Boolean(branchError)}
         onAccessDenied={denyAccess}
       />
-      <Link
-        className={buttonStyles({ variant: 'secondary', className: 'mb-6' })}
-        href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}
+      <nav
+        aria-label="POS pages"
+        className="mb-6 flex flex-wrap gap-2 border-b border-hairline pb-3"
       >
-        View sales history
-      </Link>
-      {notice ? <StatusNotice>{notice}</StatusNotice> : null}
-      {completed ? (
-        <OperationalPanel
-          title="Sale completed"
-          description="This persisted sale is complete. Printing and catalog retries do not repeat checkout."
-        >
-          <div className="p-5 sm:p-6">
-            <SaleReceipt sale={completed} />
-            <Link
-              className={buttonStyles({
-                variant: 'secondary',
-                className: 'mt-4',
-              })}
-              href={`/app/organizations/${organizationId}/branches/${branchId}/sales/${completed.id}`}
-            >
-              Open saved receipt
-            </Link>
-            <Button
-              variant="quiet"
-              className="mt-4"
-              onClick={() => {
-                setCompleted(null);
-                focusCode();
-              }}
-            >
-              Dismiss receipt
-            </Button>
-          </div>
-        </OperationalPanel>
+        {[
+          { label: 'Cart', href: pathname, active: cartActive },
+          {
+            label: 'Sales History',
+            href: `${pathname}/sales`,
+            active: !cartActive,
+          },
+        ].map((tab) => (
+          <Link
+            key={tab.label}
+            href={tab.href}
+            aria-current={tab.active ? 'page' : undefined}
+            aria-disabled={!tab.active && recovering ? true : undefined}
+            className="flex min-h-11 items-center rounded-control border border-control-border px-4 py-2 text-sm font-medium text-muted no-underline aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:text-ink"
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+      {branchError ? (
+        <RequestError
+          message={branchError}
+          onRetry={() => setRevision((value) => value + 1)}
+        />
       ) : null}
-      <fieldset
-        disabled={paying || recovering}
-        className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]"
-      >
-        <div className="min-w-0">
+      <div hidden={cartActive || !branchReady || Boolean(branchError)}>
+        {history?.(!cartActive && branchReady && !branchError)}
+      </div>
+      <div hidden={!cartActive}>
+        {notice ? <StatusNotice>{notice}</StatusNotice> : null}
+        {completed && cartActive ? (
           <OperationalPanel
-            title="Add products"
-            description="Enter an exact SKU or barcode. Repeating a code increases its cart quantity."
+            title="Sale completed"
+            description="This persisted sale is complete. Printing and catalog retries do not repeat checkout."
           >
-            <form
-              noValidate
-              className="grid gap-4 p-5 sm:p-6"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void lookup();
-              }}
-            >
-              <TextField
-                ref={codeRef}
-                label="SKU or barcode"
-                value={code}
-                autoComplete="off"
-                spellCheck={false}
-                disabled={lookupPending || Boolean(matches) || clearing}
-                error={codeError}
-                onChange={(event) => {
-                  setCode(event.target.value);
-                  validateCode(event.target.value);
-                }}
-                onBlur={() => validateCode(code, true)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                    event.preventDefault();
-                    void lookup();
-                  }
-                }}
-                hint="Barcode case and leading zeroes are preserved. Ambiguous codes require a choice."
-              />
-              <Button
-                type="submit"
-                className="w-fit max-sm:w-full"
-                pending={lookupPending}
-                pendingLabel="Looking up code…"
-                disabled={Boolean(matches) || clearing}
+            <div className="p-5 sm:p-6">
+              <SaleReceipt sale={completed} />
+              <Link
+                className={buttonStyles({
+                  variant: 'secondary',
+                  className: 'mt-4',
+                })}
+                href={`${pathname}/sales/${completed.id}`}
               >
-                Add code to cart
+                Open saved receipt
+              </Link>
+              <Button
+                variant="quiet"
+                className="mt-4"
+                onClick={() => {
+                  setCompleted(null);
+                  focusCode();
+                }}
+              >
+                Dismiss receipt
               </Button>
-            </form>
-          </OperationalPanel>
-          <OperationalPanel
-            title="Product search"
-            description="Active products placed here only; at most 100 results. Narrow search for larger catalogs."
-          >
-            <div className="border-b border-hairline bg-subtle p-5 sm:p-6">
-              <TextField
-                label="Search products"
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                hint="Search product name, SKU or barcode."
-              />
             </div>
-            {!settled || catalogLoading ? (
-              <ListSkeleton
-                className="p-6"
-                label="Searching branch products"
-                rows={3}
-              />
-            ) : catalogError ? (
-              <RequestError
-                className="p-6"
-                message={catalogError}
-                onRetry={() => setCatalogRevision((value) => value + 1)}
-              />
-            ) : !products.length ? (
-              <p className="p-6 text-sm text-muted">
-                {q.trim()
-                  ? 'No matching active placed products. Try another search or code.'
-                  : 'No active products are placed in this branch. Ask an owner to configure products and stock.'}
-              </p>
-            ) : (
-              <ul className="divide-y divide-hairline">
-                {products.map((product) => (
-                  <li
-                    key={product.branchInventoryId}
-                    className="grid min-w-0 gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:p-6"
-                  >
-                    <div className="min-w-0 break-words">
-                      <h3 className="text-sm font-semibold">{product.name}</h3>
-                      <p className="mt-1 text-xs text-muted">
-                        {product.merchantName} · SKU {product.sku ?? 'not set'}{' '}
-                        · Barcode {product.barcode ?? 'not set'}
-                      </p>
-                      <p className="mt-2 text-sm tabular-nums">
-                        PHP {product.sellingPrice} · {product.quantity} units
-                        {!product.eligible ? ' · Out of stock' : ''}
-                      </p>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      aria-label={`Add ${product.name}`}
-                      disabled={
-                        !product.eligible ||
-                        lookupPending ||
-                        Boolean(matches) ||
-                        clearing
-                      }
-                      onClick={() => {
-                        add(product);
-                        focusCode();
-                      }}
-                    >
-                      Add to cart
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </OperationalPanel>
-        </div>
-        <div className="min-w-0">
-          <OperationalPanel
-            title="Cart"
-            description={`${cart.length} distinct products · this branch only`}
-            action={
-              cart.length ? (
+        ) : null}
+        <fieldset
+          disabled={
+            paying || recovering || !branchReady || Boolean(branchError)
+          }
+          className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]"
+        >
+          <div className="min-w-0">
+            <OperationalPanel
+              title="Add products"
+              description="Enter an exact SKU or barcode. Repeating a code increases its cart quantity."
+            >
+              <form
+                noValidate
+                className="grid gap-4 p-5 sm:p-6"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void lookup();
+                }}
+              >
+                <TextField
+                  ref={codeRef}
+                  label="SKU or barcode"
+                  value={code}
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={lookupPending || Boolean(matches) || clearing}
+                  error={codeError}
+                  onChange={(event) => {
+                    setCode(event.target.value);
+                    validateCode(event.target.value);
+                  }}
+                  onBlur={() => validateCode(code, true)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'Enter' &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      void lookup();
+                    }
+                  }}
+                  hint="Barcode case and leading zeroes are preserved. Ambiguous codes require a choice."
+                />
                 <Button
-                  variant="quiet"
-                  disabled={lookupPending || Boolean(matches)}
-                  onClick={() => setClearing(true)}
+                  type="submit"
+                  className="w-fit max-sm:w-full"
+                  pending={lookupPending}
+                  pendingLabel="Looking up code…"
+                  disabled={Boolean(matches) || clearing}
                 >
-                  Clear cart
+                  Add code to cart
                 </Button>
-              ) : undefined
-            }
-          >
-            {!cart.length ? (
-              <p className="p-6 text-sm text-muted">
-                Your cart is empty. Enter a code or choose a product.
-              </p>
-            ) : (
-              <ul className="divide-y divide-hairline">
-                {cart.map((line) => (
-                  <li
-                    key={line.product.branchInventoryId}
-                    className="grid min-w-0 gap-4 p-5 sm:p-6"
-                  >
-                    <div className="flex min-w-0 items-start justify-between gap-4">
+              </form>
+            </OperationalPanel>
+            <OperationalPanel
+              title="Product search"
+              description="Active products placed here only; at most 100 results. Narrow search for larger catalogs."
+            >
+              <div className="border-b border-hairline bg-subtle p-5 sm:p-6">
+                <TextField
+                  label="Search products"
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  hint="Search product name, SKU or barcode."
+                />
+              </div>
+              {!settled || catalogLoading ? (
+                <ListSkeleton
+                  className="p-6"
+                  label="Searching branch products"
+                  rows={3}
+                />
+              ) : catalogError ? (
+                <RequestError
+                  className="p-6"
+                  message={catalogError}
+                  onRetry={() => setCatalogRevision((value) => value + 1)}
+                />
+              ) : !products.length ? (
+                <p className="p-6 text-sm text-muted">
+                  {q.trim()
+                    ? 'No matching active placed products. Try another search or code.'
+                    : 'No active products are placed in this branch. Ask an owner to configure products and stock.'}
+                </p>
+              ) : (
+                <ul className="divide-y divide-hairline">
+                  {products.map((product) => (
+                    <li
+                      key={product.branchInventoryId}
+                      className="grid min-w-0 gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:p-6"
+                    >
                       <div className="min-w-0 break-words">
                         <h3 className="text-sm font-semibold">
-                          {line.product.name}
+                          {product.name}
                         </h3>
                         <p className="mt-1 text-xs text-muted">
-                          {line.product.merchantName} · PHP{' '}
-                          {line.product.sellingPrice} each
+                          {product.merchantName} · SKU{' '}
+                          {product.sku ?? 'not set'} · Barcode{' '}
+                          {product.barcode ?? 'not set'}
+                        </p>
+                        <p className="mt-2 text-sm tabular-nums">
+                          PHP {product.sellingPrice} · {product.quantity} units
+                          {!product.eligible ? ' · Out of stock' : ''}
                         </p>
                       </div>
                       <Button
-                        variant="quiet"
-                        aria-label={`Remove ${line.product.name}`}
-                        disabled={lookupPending || Boolean(matches) || clearing}
+                        variant="secondary"
+                        aria-label={`Add ${product.name}`}
+                        disabled={
+                          !product.eligible ||
+                          lookupPending ||
+                          Boolean(matches) ||
+                          clearing
+                        }
                         onClick={() => {
-                          window.clearTimeout(
-                            quantityTimers.current.get(
-                              line.product.branchInventoryId,
-                            ),
-                          );
-                          commitCart(
-                            cartRef.current.filter((row) => row !== line),
-                          );
-                          setNotice(null);
+                          add(product);
                           focusCode();
                         }}
                       >
-                        Remove
+                        Add to cart
                       </Button>
-                    </div>
-                    <TextField
-                      label={`Quantity for ${line.product.name}`}
-                      inputMode="numeric"
-                      value={line.quantityInput}
-                      error={line.error}
-                      disabled={lookupPending || Boolean(matches) || clearing}
-                      hint={`Latest observed stock: ${line.product.quantity} whole units.`}
-                      onChange={(event) =>
-                        changeQuantity(
-                          line.product.branchInventoryId,
-                          event.target.value,
-                        )
-                      }
-                      onBlur={() =>
-                        validateQuantity(
-                          line.product.branchInventoryId,
-                          line.quantityInput,
-                          true,
-                        )
-                      }
-                    />
-                    <p className="text-right text-sm font-semibold tabular-nums">
-                      Line estimate: PHP {posLineTotal(line)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="grid gap-3 border-t border-hairline bg-subtle p-5 sm:p-6">
-              <p className="flex flex-wrap justify-between gap-3 font-semibold">
-                <span>Estimated total</span>
-                <output aria-label="Estimated total" className="tabular-nums">
-                  PHP {posCartTotal(cart)}
-                </output>
-              </p>
-              {invalidCart ? (
-                <p role="alert" className="text-sm text-danger">
-                  Fix invalid cart quantities. The estimate retains the last
-                  valid quantity.
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </OperationalPanel>
+          </div>
+          <div className="min-w-0">
+            <OperationalPanel
+              title="Cart"
+              description={`${cart.length} distinct products · this branch only`}
+              action={
+                cart.length ? (
+                  <Button
+                    variant="quiet"
+                    disabled={lookupPending || Boolean(matches)}
+                    onClick={() => setClearing(true)}
+                  >
+                    Clear cart
+                  </Button>
+                ) : undefined
+              }
+            >
+              {!cart.length ? (
+                <p className="p-6 text-sm text-muted">
+                  Your cart is empty. Enter a code or choose a product.
                 </p>
-              ) : null}
-              <p className="text-xs leading-5 text-muted">
-                Cart only: no stock has been deducted and no sale or payment has
-                been recorded.
-              </p>
-              <Button
-                disabled={
-                  !cart.length ||
-                  invalidCart ||
-                  lookupPending ||
-                  Boolean(matches) ||
-                  clearing ||
-                  paying
-                }
-                onClick={() => {
-                  if (
-                    lookupBusy.current ||
-                    unsafeCheckout.current ||
-                    !cartRef.current.length
-                  )
-                    return;
-                  for (const timer of quantityTimers.current.values())
-                    window.clearTimeout(timer);
-                  paymentOpen.current = true;
-                  setPaying(true);
-                }}
-              >
-                Review payment
-              </Button>
-            </div>
-          </OperationalPanel>
-        </div>
-      </fieldset>
-      <PaymentConfirmation
-        key={paymentRevision}
-        open={paying || recovering}
-        attemptKey={attemptKey}
-        request={request}
-        scope={{ organizationId, branchId }}
-        lines={recovering ? attempt!.lines : cart}
-        onUnsafeChange={(value) => {
-          unsafeCheckout.current = value;
-        }}
-        onClose={() => {
-          paymentOpen.current = false;
-          setPaying(false);
-          focusCode();
-        }}
-        onIssue={checkoutIssue}
-        onCompleted={(sale) => {
-          commitCart([]);
-          setCompleted(sale);
-          setCode('');
-          setNotice(null);
-          paymentOpen.current = false;
-          setPaying(false);
-          setPaymentRevision((value) => value + 1);
-          setCatalogRevision((value) => value + 1);
-          focusCode();
-        }}
-      />
-      {matches ? (
-        <FormDialog
-          title="Choose the matching product"
-          description="This code matches more than one product’s SKU or barcode. Select explicitly; nothing has been added yet."
-          onClose={() => {
-            lookupBusy.current = false;
-            setMatches(null);
-            focusCode();
-          }}
-        >
-          <ul className="mt-6 divide-y divide-hairline">
-            {matches.map((product) => (
-              <li
-                key={product.branchInventoryId}
-                className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
-              >
-                <div className="min-w-0 break-words">
-                  <h3 className="font-semibold">{product.name}</h3>
-                  <p className="mt-1 text-sm text-muted">
-                    {product.merchantName} · SKU {product.sku ?? 'not set'} ·
-                    Barcode {product.barcode ?? 'not set'}
+              ) : (
+                <ul className="divide-y divide-hairline">
+                  {cart.map((line) => (
+                    <li
+                      key={line.product.branchInventoryId}
+                      className="grid min-w-0 gap-4 p-5 sm:p-6"
+                    >
+                      <div className="flex min-w-0 items-start justify-between gap-4">
+                        <div className="min-w-0 break-words">
+                          <h3 className="text-sm font-semibold">
+                            {line.product.name}
+                          </h3>
+                          <p className="mt-1 text-xs text-muted">
+                            {line.product.merchantName} · PHP{' '}
+                            {line.product.sellingPrice} each
+                          </p>
+                        </div>
+                        <Button
+                          variant="quiet"
+                          aria-label={`Remove ${line.product.name}`}
+                          disabled={
+                            lookupPending || Boolean(matches) || clearing
+                          }
+                          onClick={() => {
+                            window.clearTimeout(
+                              quantityTimers.current.get(
+                                line.product.branchInventoryId,
+                              ),
+                            );
+                            commitCart(
+                              cartRef.current.filter((row) => row !== line),
+                            );
+                            setNotice(null);
+                            focusCode();
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <TextField
+                        label={`Quantity for ${line.product.name}`}
+                        inputMode="numeric"
+                        value={line.quantityInput}
+                        error={line.error}
+                        disabled={lookupPending || Boolean(matches) || clearing}
+                        hint={`Latest observed stock: ${line.product.quantity} whole units.`}
+                        onChange={(event) =>
+                          changeQuantity(
+                            line.product.branchInventoryId,
+                            event.target.value,
+                          )
+                        }
+                        onBlur={() =>
+                          validateQuantity(
+                            line.product.branchInventoryId,
+                            line.quantityInput,
+                            true,
+                          )
+                        }
+                      />
+                      <p className="text-right text-sm font-semibold tabular-nums">
+                        Line estimate: PHP {posLineTotal(line)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="grid gap-3 border-t border-hairline bg-subtle p-5 sm:p-6">
+                <p className="flex flex-wrap justify-between gap-3 font-semibold">
+                  <span>Estimated total</span>
+                  <output aria-label="Estimated total" className="tabular-nums">
+                    PHP {posCartTotal(cart)}
+                  </output>
+                </p>
+                {invalidCart ? (
+                  <p role="alert" className="text-sm text-danger">
+                    Fix invalid cart quantities. The estimate retains the last
+                    valid quantity.
                   </p>
-                  <p className="mt-1 tabular-nums">
-                    PHP {product.sellingPrice} · {product.quantity} units
-                    {!product.eligible ? ' · Out of stock' : ''}
-                  </p>
-                </div>
+                ) : null}
+                <p className="text-xs leading-5 text-muted">
+                  Cart only: no stock has been deducted and no sale or payment
+                  has been recorded.
+                </p>
                 <Button
-                  disabled={!product.eligible}
-                  aria-label={`Choose ${product.name}`}
+                  disabled={
+                    !cart.length ||
+                    invalidCart ||
+                    lookupPending ||
+                    Boolean(matches) ||
+                    clearing ||
+                    paying ||
+                    !cartCatalogReady
+                  }
                   onClick={() => {
-                    if (add(product)) setCode('');
-                    lookupBusy.current = false;
-                    setMatches(null);
-                    focusCode();
+                    if (
+                      lookupBusy.current ||
+                      unsafeCheckout.current ||
+                      !cartRef.current.length
+                    )
+                      return;
+                    for (const timer of quantityTimers.current.values())
+                      window.clearTimeout(timer);
+                    paymentOpen.current = true;
+                    setPaying(true);
                   }}
                 >
-                  Choose product
+                  Review payment
                 </Button>
-              </li>
-            ))}
-          </ul>
-          <Button
-            variant="secondary"
-            className="mt-6"
-            onClick={() => {
+              </div>
+            </OperationalPanel>
+          </div>
+        </fieldset>
+        <PaymentConfirmation
+          key={paymentRevision}
+          open={cartActive && (paying || recovering)}
+          attemptKey={attemptKey}
+          request={request}
+          scope={{ organizationId, branchId }}
+          lines={recovering ? attempt!.lines : cart}
+          onUnsafeChange={(value) => {
+            unsafeCheckout.current = value;
+          }}
+          onClose={() => {
+            paymentOpen.current = false;
+            setPaying(false);
+            focusCode();
+          }}
+          onIssue={checkoutIssue}
+          onCompleted={(sale) => {
+            commitCart([]);
+            setCompleted(sale);
+            setCode('');
+            setNotice(null);
+            paymentOpen.current = false;
+            setPaying(false);
+            setPaymentRevision((value) => value + 1);
+            setCatalogRevision((value) => value + 1);
+            focusCode();
+          }}
+        />
+        {matches && cartActive ? (
+          <FormDialog
+            title="Choose the matching product"
+            description="This code matches more than one product’s SKU or barcode. Select explicitly; nothing has been added yet."
+            onClose={() => {
               lookupBusy.current = false;
               setMatches(null);
               focusCode();
             }}
           >
-            Cancel
-          </Button>
-        </FormDialog>
-      ) : null}
-      {clearing ? (
-        <FormDialog
-          title="Discard this cart?"
-          description="Remove all products and quantities from this branch’s unsaved cart. No stock or recorded sale will change."
-          onClose={() => setClearing(false)}
-        >
-          <div className="mt-6 flex flex-wrap justify-end gap-3">
-            <Button variant="secondary" onClick={() => setClearing(false)}>
-              Cancel
-            </Button>
+            <ul className="mt-6 divide-y divide-hairline">
+              {matches.map((product) => (
+                <li
+                  key={product.branchInventoryId}
+                  className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+                >
+                  <div className="min-w-0 break-words">
+                    <h3 className="font-semibold">{product.name}</h3>
+                    <p className="mt-1 text-sm text-muted">
+                      {product.merchantName} · SKU {product.sku ?? 'not set'} ·
+                      Barcode {product.barcode ?? 'not set'}
+                    </p>
+                    <p className="mt-1 tabular-nums">
+                      PHP {product.sellingPrice} · {product.quantity} units
+                      {!product.eligible ? ' · Out of stock' : ''}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={!product.eligible}
+                    aria-label={`Choose ${product.name}`}
+                    onClick={() => {
+                      if (add(product)) setCode('');
+                      lookupBusy.current = false;
+                      setMatches(null);
+                      focusCode();
+                    }}
+                  >
+                    Choose product
+                  </Button>
+                </li>
+              ))}
+            </ul>
             <Button
-              variant="danger"
+              variant="secondary"
+              className="mt-6"
               onClick={() => {
-                commitCart([]);
-                setNotice(null);
-                setClearing(false);
+                lookupBusy.current = false;
+                setMatches(null);
                 focusCode();
               }}
             >
-              Discard cart
+              Cancel
             </Button>
-          </div>
-        </FormDialog>
-      ) : null}
+          </FormDialog>
+        ) : null}
+        {clearing && cartActive ? (
+          <FormDialog
+            title="Discard this cart?"
+            description="Remove all products and quantities from this branch’s unsaved cart. No stock or recorded sale will change."
+            onClose={() => setClearing(false)}
+          >
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <Button variant="secondary" onClick={() => setClearing(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  commitCart([]);
+                  setNotice(null);
+                  setClearing(false);
+                  focusCode();
+                }}
+              >
+                Discard cart
+              </Button>
+            </div>
+          </FormDialog>
+        ) : null}
+      </div>
     </OperationalPage>
   );
 }

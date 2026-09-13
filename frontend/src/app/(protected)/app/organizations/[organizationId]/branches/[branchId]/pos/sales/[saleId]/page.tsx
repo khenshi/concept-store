@@ -1,9 +1,9 @@
-import { LegacySalesRoute } from '@/features/sales/components/legacy-sales-route';
+import { SaleDetail } from '@/features/sales/components/sale-detail';
 export default async function Page({
   params,
 }: {
   params: Promise<{ organizationId: string; branchId: string; saleId: string }>;
 }) {
   const scope = await params;
-  return <LegacySalesRoute {...scope} />;
+  return <SaleDetail {...scope} embedded />;
 }
