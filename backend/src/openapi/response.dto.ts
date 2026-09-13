@@ -49,7 +49,31 @@ export class OrganizationMemberResponseDto {
   @ApiProperty({ format: 'date-time' }) joinedAt!: Date;
 }
 
+export class InvitationMerchantSummaryDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ type: String, nullable: true }) code!: string | null;
+  @ApiProperty({ enum: MerchantStatus }) status!: MerchantStatus;
+}
+
+export class InvitationBranchIdentityDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ type: String, nullable: true }) code!: string | null;
+}
+
+export class InvitationBranchGrantDto {
+  @ApiProperty({ type: InvitationBranchIdentityDto })
+  branch!: InvitationBranchIdentityDto;
+}
+
 export class OrganizationInvitationResponseDto {
+  @ApiProperty({ type: String, nullable: true, format: 'uuid' }) merchantId!:
+    string | null;
+  @ApiProperty({ type: InvitationMerchantSummaryDto, nullable: true })
+  merchant!: InvitationMerchantSummaryDto | null;
+  @ApiProperty({ type: [InvitationBranchGrantDto] })
+  branches!: InvitationBranchGrantDto[];
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;
   @ApiProperty({ format: 'email' }) email!: string;

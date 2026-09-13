@@ -5,6 +5,14 @@ export interface OrganizationInvitationView {
   organizationId: string;
   email: string;
   role: OrganizationRole;
+  merchantId: string | null;
+  merchant: {
+    id: string;
+    name: string;
+    code: string | null;
+    status: string;
+  } | null;
+  branches: { branch: { id: string; name: string; code: string | null } }[];
   expiresAt: Date;
   acceptedAt: Date | null;
   revokedAt: Date | null;

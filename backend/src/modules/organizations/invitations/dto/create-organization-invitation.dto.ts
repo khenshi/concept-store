@@ -1,6 +1,15 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, MaxLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
+  IsEmail,
+  IsIn,
+  IsUUID,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrganizationRole } from '../../../../generated/prisma/client';
 
 export class CreateOrganizationInvitationDto {
@@ -25,4 +34,29 @@ export class CreateOrganizationInvitationDto {
     OrganizationRole.MERCHANT,
   ])
   role!: OrganizationRole;
+
+  @ApiPropertyOptional({
+    type: [String],
+    maxItems: 100,
+    description: 'Distinct branch UUID v4 identifiers',
+  })
+  @ValidateIf(
+    (dto: CreateOrganizationInvitationDto) => dto.branchIds !== undefined,
+  )
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  branchIds?: string[];
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Required only for MERCHANT invitations',
+  })
+  @ValidateIf(
+    (dto: CreateOrganizationInvitationDto) =>
+      dto.role === OrganizationRole.MERCHANT || dto.merchantId !== undefined,
+  )
+  @IsUUID('4')
+  merchantId?: string;
 }

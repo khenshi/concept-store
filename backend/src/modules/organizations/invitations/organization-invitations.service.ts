@@ -1,11 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
-import { Prisma } from '../../../generated/prisma/client';
+import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { AuthenticatedPrincipal } from '../../auth/auth.types';
 import type { CreateOrganizationInvitationDto } from './dto/create-organization-invitation.dto';
@@ -24,6 +25,12 @@ const invitationSelect = {
   organizationId: true,
   email: true,
   role: true,
+  merchantId: true,
+  merchant: { select: { id: true, name: true, code: true, status: true } },
+  branches: {
+    select: { branch: { select: { id: true, name: true, code: true } } },
+    orderBy: { branchId: 'asc' },
+  },
   expiresAt: true,
   acceptedAt: true,
   revokedAt: true,
@@ -44,6 +51,31 @@ export class OrganizationInvitationsService {
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
 
     const invitation = await this.prisma.$transaction(async (transaction) => {
+      if (
+        dto.role !== OrganizationRole.MERCHANT &&
+        dto.merchantId !== undefined
+      )
+        throw new BadRequestException(
+          'merchantId is only allowed for MERCHANT invitations',
+        );
+      if (dto.role === OrganizationRole.MERCHANT && !dto.merchantId)
+        throw new BadRequestException(
+          'MERCHANT invitation requires merchantId',
+        );
+      if (dto.merchantId) {
+        const merchant = await transaction.merchant.findUnique({
+          where: { id_organizationId: { id: dto.merchantId, organizationId } },
+          select: { id: true },
+        });
+        if (!merchant) throw new NotFoundException('Merchant not found');
+      }
+      if (dto.branchIds?.length) {
+        const branches = await transaction.branch.count({
+          where: { organizationId, id: { in: dto.branchIds } },
+        });
+        if (branches !== dto.branchIds.length)
+          throw new NotFoundException('Branch not found');
+      }
       const existingMembership =
         await transaction.organizationMembership.findFirst({
           where: { organizationId, user: { email: dto.email } },
@@ -70,6 +102,10 @@ export class OrganizationInvitationsService {
           organizationId,
           email: dto.email,
           role: dto.role,
+          merchantId: dto.merchantId ?? null,
+          branches: {
+            create: (dto.branchIds ?? []).map((branchId) => ({ branchId })),
+          },
           tokenHash,
           expiresAt,
           invitedById: invitedBy.id,
@@ -128,66 +164,97 @@ export class OrganizationInvitationsService {
     if (!TOKEN_PATTERN.test(token)) this.throwUnavailable();
     const tokenHash = this.hashToken(token);
 
-    return this.prisma.$transaction(
-      async (transaction) => {
-        const invitation = await transaction.organizationInvitation.findFirst({
-          where: {
-            tokenHash,
-            acceptedAt: null,
-            revokedAt: null,
-            expiresAt: { gt: new Date() },
-          },
-          include: { organization: { select: { id: true, name: true } } },
-        });
-        if (!invitation) this.throwUnavailable();
-        if (invitation.email !== user.email) {
-          throw new ForbiddenException(
-            'Sign in with the email address that received this invitation',
+    try {
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          const invitation = await transaction.organizationInvitation.findFirst(
+            {
+              where: {
+                tokenHash,
+                acceptedAt: null,
+                revokedAt: null,
+                expiresAt: { gt: new Date() },
+              },
+              include: {
+                organization: { select: { id: true, name: true } },
+                branches: { select: { branchId: true } },
+              },
+            },
           );
-        }
+          if (!invitation) this.throwUnavailable();
+          if (invitation.email !== user.email) {
+            throw new ForbiddenException(
+              'Sign in with the email address that received this invitation',
+            );
+          }
 
-        const existing = await transaction.organizationMembership.findUnique({
-          where: {
-            organizationId_userId: {
+          if (
+            invitation.role === OrganizationRole.MERCHANT &&
+            !invitation.merchantId
+          )
+            throw new ConflictException(
+              'This merchant invitation has no profile link; ask an owner to revoke it and send a new invitation',
+            );
+
+          const existing = await transaction.organizationMembership.findUnique({
+            where: {
+              organizationId_userId: {
+                organizationId: invitation.organizationId,
+                userId: user.id,
+              },
+            },
+            select: { userId: true },
+          });
+          if (existing) {
+            throw new ConflictException(
+              'This account is already an organization member',
+            );
+          }
+
+          const claimed = await transaction.organizationInvitation.updateMany({
+            where: {
+              id: invitation.id,
+              organizationId: invitation.organizationId,
+              acceptedAt: null,
+              revokedAt: null,
+              expiresAt: { gt: new Date() },
+            },
+            data: { acceptedAt: new Date(), acceptedById: user.id },
+          });
+          if (claimed.count !== 1) this.throwUnavailable();
+
+          await transaction.organizationMembership.create({
+            data: {
               organizationId: invitation.organizationId,
               userId: user.id,
+              role: invitation.role,
+              merchantId: invitation.merchantId ?? null,
+              branches: {
+                create: invitation.branches.map(({ branchId }) => ({
+                  branchId,
+                })),
+              },
             },
-          },
-          select: { userId: true },
-        });
-        if (existing) {
-          throw new ConflictException(
-            'This account is already an organization member',
-          );
-        }
+          });
 
-        const claimed = await transaction.organizationInvitation.updateMany({
-          where: {
-            id: invitation.id,
-            acceptedAt: null,
-            revokedAt: null,
-            expiresAt: { gt: new Date() },
-          },
-          data: { acceptedAt: new Date(), acceptedById: user.id },
-        });
-        if (claimed.count !== 1) this.throwUnavailable();
-
-        await transaction.organizationMembership.create({
-          data: {
-            organizationId: invitation.organizationId,
-            userId: user.id,
+          return {
+            organizationId: invitation.organization.id,
+            organizationName: invitation.organization.name,
             role: invitation.role,
-          },
-        });
-
-        return {
-          organizationId: invitation.organization.id,
-          organizationName: invitation.organization.name,
-          role: invitation.role,
-        };
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+          };
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        ['P2034', 'P2002'].includes(error.code)
+      )
+        throw new ConflictException(
+          'Invitation or membership changed concurrently; retry the request',
+        );
+      throw error;
+    }
   }
 
   private async findUsableInvitation(token: string) {

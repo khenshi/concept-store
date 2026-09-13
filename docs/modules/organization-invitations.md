@@ -43,15 +43,47 @@ Only MERCHANT invitations may carry merchant links; legacy invitations may remai
 unlinked. Grant records cascade if their invitation is deleted; branch/merchant
 references remain restrictive. Existing invitation retention is unchanged.
 
-The demo invitation stores a BGC branch grant. Creation/acceptance APIs do not yet
-accept or apply these grants or merchant links; that behavior belongs to later
-approved parts. Existing invitation authorization and acceptance behavior remain
-unchanged in this persistence-only delivery.
+## Invitation access grants (Part 3)
+
+Creation accepts optional distinct UUID v4 branchIds (maximum 100). MERCHANT
+invitations require one merchantId; other roles reject it. Branches and merchant
+must belong to the trusted organization; foreign/absent related records return
+404. Empty branch selections are allowed. Existing supported invitation roles
+remain MANAGER, CASHIER, and MERCHANT; OWNER invitations remain unsupported.
+
+Invitation and grants are created atomically after validation. Owner create/list/
+revoke responses include nullable merchantId, merchant identity/status, and branch
+identity grants. Public token preview still exposes only organization name, email,
+role, and expiry—no branch, merchant, or contact details.
+
+Acceptance creates membership, merchant link, branch assignments, and accepted
+marker in one serializable transaction. Matching-email, expiry, revocation,
+single-use, and existing-membership checks remain enforced. Failed writes roll
+back the claim and membership/grants. Concurrent membership/invitation conflicts
+return 409 with retry guidance. Legacy unlinked MERCHANT invitations return 409
+with owner revoke/reinvite guidance before claiming the invitation.
+
+Grants are immutable after creation; revoke/reinvite to change them. The demo
+invitation's BGC grant is now applied on acceptance. No email delivery integration
+or branch-resource authorization change is included in this part.
+
+### Verification
+
+Backend formatting/lint/build, 187 unit tests, 60 HTTP regression tests, and
+24 PostgreSQL integration tests pass. Focused coverage verifies role-dependent
+fields, scoped grants, public-preview projection, configured merchant acceptance,
+legacy unlinked rejection, atomic persistence, replay/revocation rejection, and
+failed membership creation rollback. PostgreSQL uses isolated schemas in a
+disposable test database, never application database resets.
 
 ## Frontend behavior
 
 Owners manage invitations from the organization member workflow. A separate
 token route previews and accepts invitations.
+
+Branch/merchant invitation selections are not yet available in the existing
+frontend; their implementation is Part 6. Existing merchant invitation submissions
+without merchantId now fail backend validation until that frontend alignment.
 
 Owner invitation management uses neutral controls and explicit pending, accepted,
 revoked, and expired labels. Revocation disables invitation actions while pending.

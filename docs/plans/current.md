@@ -1,6 +1,6 @@
 # Branch and Merchant Access Control Plan
 
-**Status:** Approved; Part 1 committed; Part 2 implemented and verified, awaiting review
+**Status:** Approved; Parts 1–2 committed; Part 3 implemented and verified, awaiting review
 **Date:** September 12, 2026
 
 ## Goal and confirmed decisions
@@ -273,6 +273,25 @@ Applicable checks pass, module docs are accurate, and exclusions remain excluded
 - Updated membership module documentation. Broader concurrency coverage remains
   Part 5; invitation grants/resource enforcement/frontend alignment remain later parts.
 - The user reviewed and approved Part 2 for commit on September 12, 2026.
+
+## Part 3 verification record
+
+- Part 2 was reviewed and committed as 585fc9b.
+- Added strict branch selection/merchant-link invitation fields, tenant-local
+  validation, atomic grant creation, and role-dependent merchant requirements.
+- Owner responses include grant identities; public preview remains unchanged.
+- Acceptance applies membership/link/branches and claim atomically; legacy
+  unlinked merchant invites require owner reinvitation. Concurrency errors return 409.
+- Backend build, formatting, lint, and 187 unit tests pass; 60 HTTP regression
+  tests pass. Added PostgreSQL acceptance/replay/revocation and rollback tests.
+- PostgreSQL verification attempted September 13, 2026 could not connect because
+  Docker daemon was unavailable. After Docker resumed, all 24 PostgreSQL tests
+  passed, including atomic invitation acceptance, grant persistence, replay/
+  revocation rejection, and failed membership creation rollback.
+- Only disposable PostgreSQL 17 was used; its container and test data were removed
+  afterward. No application database was migrated or reset.
+- The user reviewed and approved Part 3 for commit on September 13, 2026.
+  Resource enforcement/frontend changes remain later parts.
 
 ## Deferred POS decisions (not implementation scope)
 

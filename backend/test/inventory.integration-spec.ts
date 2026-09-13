@@ -9,6 +9,7 @@ import { InventoryStockService } from '../src/modules/organizations/inventory/in
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
 import { ProductsService } from '../src/modules/organizations/products/products.service';
 import { OrganizationMembershipsService } from '../src/modules/organizations/memberships/organization-memberships.service';
+import { OrganizationInvitationsService } from '../src/modules/organizations/invitations/organization-invitations.service';
 
 // No application DATABASE_URL fallback. Only this run's random schema is removed.
 const connectionString = process.env.TEST_DATABASE_URL;
@@ -56,6 +57,77 @@ const balance = () =>
   prisma.branchInventory.findUniqueOrThrow({ where: { id: inventoryId } });
 
 describe('PostgreSQL inventory integrity and concurrency', () => {
+  it('atomically accepts merchant invitation grants and rejects replay/revocation', async () => {
+    const invites = new OrganizationInvitationsService(
+      prisma as unknown as PrismaService,
+    );
+    const actor = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const recipient = await prisma.user.create({
+      data: {
+        firstName: 'Invited',
+        lastName: 'Merchant',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    const created = await invites.create(organizationId, actor, {
+      email: recipient.email,
+      role: 'MERCHANT',
+      merchantId,
+      branchIds: [branchId, otherBranchId],
+    });
+    expect(created.invitation.branches).toHaveLength(2);
+    expect(await invites.preview(created.token)).not.toHaveProperty(
+      'merchantId',
+    );
+    await invites.accept(created.token, recipient);
+    expect(
+      await prisma.organizationMembership.findUnique({
+        where: {
+          organizationId_userId: { organizationId, userId: recipient.id },
+        },
+      }),
+    ).toMatchObject({ role: 'MERCHANT', merchantId });
+    expect(
+      await prisma.branchMembership.count({
+        where: { organizationId, userId: recipient.id },
+      }),
+    ).toBe(2);
+    await expect(invites.accept(created.token, recipient)).rejects.toThrow();
+    const revoked = await invites.create(organizationId, actor, {
+      email: `${randomUUID()}@example.test`,
+      role: 'CASHIER',
+      branchIds: [branchId],
+    });
+    await invites.revoke(organizationId, revoked.invitation.id);
+    await expect(invites.accept(revoked.token, recipient)).rejects.toThrow();
+  });
+
+  it('rolls back an invitation claim when membership creation fails', async () => {
+    const invites = new OrganizationInvitationsService(
+      prisma as unknown as PrismaService,
+    );
+    const actor = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const email = `${randomUUID()}@example.test`;
+    const created = await invites.create(organizationId, actor, {
+      email,
+      role: 'MERCHANT',
+      merchantId,
+      branchIds: [branchId],
+    });
+    await expect(
+      invites.accept(created.token, { id: randomUUID(), email }),
+    ).rejects.toThrow();
+    expect(
+      await prisma.organizationInvitation.findUnique({
+        where: { id: created.invitation.id },
+      }),
+    ).toMatchObject({ acceptedAt: null, acceptedById: null });
+  });
   beforeAll(async () => {
     await admin.connect();
     await admin.query(`CREATE SCHEMA "${schema}"`);
