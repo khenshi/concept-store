@@ -1,6 +1,6 @@
 # Sales
 
-**Status:** Persistence, checkout and scoped sales-read APIs implemented; screens/printing are not yet implemented.
+**Status:** Persistence, checkout/scoped read APIs, POS payment confirmation and completion receipt printing implemented. Sales-history screens are not yet implemented.
 
 ## Implemented scope
 
@@ -33,7 +33,7 @@ merchant consistency. A sale cannot repeat a placement.
 The database checks are row-local. The checkout service additionally derives the
 sum of all items and creates every matching deduction in one transaction. There
 is no sale/item update or delete endpoint, payment entity, pending-sale state,
-refund or receipt-printing workflow.
+or refund workflow. The POS completion screen supports internal receipt printing.
 
 ## Checkout API and authorization
 
@@ -95,7 +95,8 @@ organization IDs, receipt code/time, receipt identity names, payment fields,
 two-decimal total/tender/change, and item snapshots/amounts. Private canonical
 commands, checkout request IDs and creator IDs are excluded. No merchant contacts,
 member directory or stock movement details are returned. These are internal
-transaction records, not fiscal/tax invoices; rendering/printing comes later.
+transaction records, not fiscal/tax invoices. POS completion renders and prints
+these immutable snapshots; see [Branch POS](pos.md) for validation and safe retry UI.
 
 ## Sales reads and historical merchant branches
 
@@ -146,8 +147,8 @@ code, sorted by name then ID, with matching own historical items. No addresses,
 counts or other-merchant branches are exposed; explicit assignments alone do not
 add a branch to this historical list. This focused lookup does not widen existing
 general branch-detail or inventory access. Staff details return the persisted full
-snapshot shape from checkout completion for later internal receipt rendering.
-No mutable sale/receipt routes or sales UI are added.
+snapshot shape from checkout completion for internal receipt rendering.
+No mutable sale/receipt routes or sales-history screens are added.
 
 ## Verification and development examples
 

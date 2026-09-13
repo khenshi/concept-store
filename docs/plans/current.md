@@ -1,6 +1,6 @@
 # Branch POS Checkout and Sales Plan
 
-**Status:** Approved; Parts 1–4 committed; Part 5 verified, awaiting review before commit.
+**Status:** Approved; Parts 1–5 committed; Part 6 verified, awaiting review before commit.
 **Date:** September 13, 2026
 
 ## Goal and confirmed decisions
@@ -344,6 +344,33 @@ browser QA remains pending for the POS milestone.
 Verification passes: frontend formatting, type checking, lint, 307 tests across
 55 files, production build and diff whitespace checks. No backend/schema changes
 were required. The existing multiple-lockfile build warning remains unchanged.
+
+### Part 6 delivery — September 13, 2026
+
+Part 5 was approved and committed as `eaf5386`. Part 6 implements the native payment
+confirmation dialog for cash/manual GCash/card, debounced payment validation and
+explicit received confirmation, known-conflict cart re-review, same-ID retries,
+pending/unknown command locking, successful completion and internal receipt printing.
+Focused memory-only attempt recovery prevents route unmount from permitting a
+replacement checkout in the same organization while its outcome remains unknown.
+Lost full-page memory requires verification of recorded sales before recreation;
+browser unload warnings do not provide offline persistence. Completion refresh or
+printing retries never repeat checkout. Typed conflict details are projected through
+the existing authenticated client without exposing private error payload fields.
+The existing checkout/read APIs and schema are unchanged. Staff/merchant sales-history
+screens remain excluded until Part 7. Unrelated root package/audit changes are untouched.
+
+Stop for review before committing Part 6 or beginning Part 7. Rendered responsive,
+keyboard/dialog, zoom and print QA remains pending for this milestone.
+
+Verification passes: frontend format checks, type checking, lint, 353 tests across
+60 files, production build and diff whitespace checks. Tests include manual/cash
+validation, exact change, pending repeat/dismissal prevention, price/stock/lifecycle
+review, normalized unchanged retry IDs, unknown/revoked retry locking, route-unmount
+recovery, user/tenant attempt isolation, successful-write catalog refresh failure,
+receipt validation/snapshots and print-only failure retry. No backend/schema changes
+or application database writes were required. The existing multiple-lockfile build
+warning remains outside this part's scope.
 
 ### Remaining part-by-part sequence
 

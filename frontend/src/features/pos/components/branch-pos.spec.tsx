@@ -11,8 +11,14 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { getPosBranch, lookupPosCode, searchPosProducts } from '../api/pos-api';
 import { allowPosNavigation } from '../model/pos-navigation';
-import { product, secondProduct, scope } from '../model/pos.test-fixtures';
+import {
+  product,
+  secondProduct,
+  scope,
+  completedSale,
+} from '../model/pos.test-fixtures';
 import { BranchPos } from './branch-pos';
+import { setCheckoutAttempt } from '../model/checkout-attempt';
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
   '@/features/organizations/components/organization-workspace-context',
@@ -37,6 +43,7 @@ describe('Branch POS cart workflows', () => {
     fireEvent.keyDown(codeInput(), { key: 'Enter' });
   };
   beforeEach(() => {
+    setCheckoutAttempt(`${scope.organizationId}:actor`, null);
     vi.resetAllMocks();
     vi.mocked(useAuth).mockReturnValue({
       request,
@@ -56,7 +63,7 @@ describe('Branch POS cart workflows', () => {
     vi.restoreAllMocks();
   });
   it.each(['OWNER', 'MANAGER', 'CASHIER'])(
-    'loads only branch/POS reads for %s, with no checkout action',
+    'loads only branch/POS reads for %s, with payment disabled for an empty cart',
     async (role) => {
       workspace(role);
       render(<BranchPos {...scope} />);
@@ -64,8 +71,8 @@ describe('Branch POS cart workflows', () => {
       expect(getPosBranch).toHaveBeenCalledWith(request, scope, role);
       expect(searchPosProducts).toHaveBeenCalledWith(request, scope, '');
       expect(
-        screen.queryByRole('button', { name: /pay|complete checkout/i }),
-      ).not.toBeInTheDocument();
+        screen.getByRole('button', { name: 'Review payment' }),
+      ).toBeDisabled();
       expect(request).not.toHaveBeenCalled();
     },
   );
@@ -92,6 +99,166 @@ describe('Branch POS cart workflows', () => {
     );
     await waitFor(() => expect(codeInput()).toHaveFocus());
     expect(lookupPosCode).toHaveBeenCalledTimes(2);
+  });
+  async function startPayment() {
+    await screen.findByRole('button', { name: `Add ${product.name}` });
+    enterCode();
+    await screen.findByRole('textbox', {
+      name: `Quantity for ${product.name}`,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Review payment' }));
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
+      { target: { value: '1000' } },
+    );
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
+  }
+  it('clears a successful cart and retries a failed catalog read without completing again', async () => {
+    request.mockResolvedValue(completedSale);
+    render(<BranchPos {...scope} />);
+    await screen.findByRole('button', { name: `Add ${product.name}` });
+    vi.mocked(searchPosProducts).mockRejectedValueOnce(
+      new ApiError(503, 'Catalog refresh unavailable'),
+    );
+    await startPayment();
+    await screen.findByText('Sale completed');
+    expect(screen.getByLabelText('Estimated total')).toHaveTextContent('0.00');
+    expect(
+      screen.getByRole('button', { name: 'Review payment' }),
+    ).toBeDisabled();
+    expect(screen.getAllByText('Saved Store')).toHaveLength(2);
+    await screen.findByText('Catalog refresh unavailable');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await screen.findByRole('button', { name: `Add ${product.name}` });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText('Receipt SALE-SAVED-001')).toHaveLength(2);
+  });
+  it('requires explicit re-review after a price conflict and uses a new ID only for the changed command', async () => {
+    request
+      .mockRejectedValueOnce(
+        new ApiError(409, 'Branch price changed', {
+          code: 'PRICE_CHANGED',
+          branchInventoryId: product.branchInventoryId,
+          sellingPrice: '900.00',
+        }),
+      )
+      .mockResolvedValueOnce({
+        ...completedSale,
+        total: '900.00',
+        cashChange: '100.00',
+        items: [
+          {
+            ...completedSale.items[0],
+            unitPrice: '900.00',
+            lineTotal: '900.00',
+          },
+        ],
+      });
+    render(<BranchPos {...scope} />);
+    await startPayment();
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText('Estimated total')).toHaveTextContent(
+      '900.00',
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Review payment' }));
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
+    await screen.findByText('Sale completed');
+    const first = JSON.parse(request.mock.calls[0][1].body);
+    const second = JSON.parse(request.mock.calls[1][1].body);
+    expect(first.items[0].expectedUnitPrice).toBe('850.00');
+    expect(second.items[0].expectedUnitPrice).toBe('900.00');
+    expect(second.requestId).not.toBe(first.requestId);
+  });
+  it.each(['INSUFFICIENT_STOCK', 'PRODUCT_UNAVAILABLE'])(
+    'blocks payment until a %s line is corrected or removed',
+    async (code) => {
+      request.mockRejectedValueOnce(
+        new ApiError(409, 'Product cannot be sold', {
+          code,
+          branchInventoryId: product.branchInventoryId,
+          quantity: 0,
+        }),
+      );
+      render(<BranchPos {...scope} />);
+      await startPayment();
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+      );
+      expect(
+        screen.getByRole('button', { name: 'Review payment' }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole('textbox', { name: `Quantity for ${product.name}` }),
+      ).toHaveAttribute('aria-invalid', 'true');
+      expect(request).toHaveBeenCalledTimes(1);
+    },
+  );
+  it('blocks voluntary navigation and recovers an uncertain command after a forced route unmount', async () => {
+    vi.spyOn(window, 'alert').mockImplementation(() => {});
+    request
+      .mockRejectedValueOnce(new TypeError('response lost'))
+      .mockResolvedValueOnce(completedSale);
+    const view = render(<BranchPos {...scope} />);
+    await startPayment();
+    await screen.findByRole('button', { name: 'Retry same checkout' });
+    let allowed = true;
+    act(() => {
+      allowed = allowPosNavigation('/app/organizations/another');
+    });
+    expect(allowed).toBe(false);
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    const first = JSON.parse(request.mock.calls[0][1].body);
+    view.unmount();
+    const another = render(
+      <BranchPos {...scope} branchId={secondProduct.productId} />,
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(/earlier checkout/);
+    act(() => {
+      allowed = allowPosNavigation(
+        `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/pos`,
+      );
+    });
+    expect(allowed).toBe(true);
+    another.unmount();
+    render(<BranchPos {...scope} />);
+    expect(
+      screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
+    ).toHaveValue('1000.00');
+    expect(
+      screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
+    ).toBeDisabled();
+    expect(request).toHaveBeenCalledTimes(1);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Retry same checkout' }),
+    );
+    await screen.findByText('Sale completed');
+    expect(JSON.parse(request.mock.calls[1][1].body)).toEqual(first);
+  });
+  it('recovers a response completed while unmounted without another write', async () => {
+    let resolve!: (value: typeof completedSale) => void;
+    request.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const view = render(<BranchPos {...scope} />);
+    await startPayment();
+    view.unmount();
+    await act(async () => {
+      resolve(completedSale);
+    });
+    render(<BranchPos {...scope} />);
+    await screen.findByText('Sale completed');
+    expect(screen.getByLabelText('Estimated total')).toHaveTextContent('0.00');
+    expect(request).toHaveBeenCalledTimes(1);
   });
   it('guards duplicate in-flight Enter and excludes cart edits during lookup', async () => {
     let finish!: (rows: (typeof product)[]) => void;

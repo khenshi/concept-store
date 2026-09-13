@@ -12,6 +12,10 @@ import type {
 
 interface ApiErrorBody {
   message?: string | string[];
+  code?: unknown;
+  branchInventoryId?: unknown;
+  sellingPrice?: unknown;
+  quantity?: unknown;
 }
 
 const TECHNICAL_MESSAGE_PATTERN =
@@ -49,6 +53,12 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    public readonly details?: {
+      code?: string;
+      branchInventoryId?: string;
+      sellingPrice?: string;
+      quantity?: number;
+    },
   ) {
     super(message);
     this.name = 'ApiError';
@@ -203,6 +213,21 @@ export class AuthClient {
     return new ApiError(
       response.status,
       userFacingMessage(body.message, response.status),
+      typeof body.code === 'string'
+        ? {
+            code: typeof body.code === 'string' ? body.code : undefined,
+            branchInventoryId:
+              typeof body.branchInventoryId === 'string'
+                ? body.branchInventoryId
+                : undefined,
+            sellingPrice:
+              typeof body.sellingPrice === 'string'
+                ? body.sellingPrice
+                : undefined,
+            quantity:
+              typeof body.quantity === 'number' ? body.quantity : undefined,
+          }
+        : undefined,
     );
   }
 }

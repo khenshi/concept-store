@@ -220,7 +220,7 @@ function ScopedBranchDetail({
       {organization.role !== 'MERCHANT' ? (
         <OperationalPanel
           title="Point of sale"
-          description="Build a branch cart using SKU/barcode input or product search. Payment submission is not available yet."
+          description="Build a branch cart using SKU/barcode input or product search, then record cash or manual GCash/card payment."
         >
           <div className="p-6">
             <Link

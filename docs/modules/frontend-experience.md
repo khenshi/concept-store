@@ -181,8 +181,22 @@ authorization, tenant scoping, and optional-field clearing are unchanged.
 Branch POS uses the existing warm-stone operational panels, consistent text fields
 and shared native dialogs. It offers exact-code Enter addition, bounded debounced
 search, explicit ambiguous-product choice and quantity feedback on input (300 ms)
-and blur. The cart is memory-only, with exact PHP estimates and no payment action
-in this delivery. Role-aware entry points and branch/org scope clearing preserve
+and blur. The cart is memory-only, with exact PHP estimates. Role-aware entry
+points and branch/org scope clearing preserve
 the backend's authorization boundaries. Outgoing links and organization-menu
 navigation warn before discarding a cart; history navigation clears on unmount.
 Rendered POS browser QA remains pending for this milestone.
+
+## POS payment and completion
+
+The shared native payment dialog presents a reviewed cart, cash tender/exact change
+estimate or explicitly manual/unverified GCash/card reference. Field validation
+runs after 300 ms on input, on blur and on submit; received-payment confirmation
+is required. Pending and uncertain writes block unsafe edits/dismissal and new
+checkout. Focused organization/user-keyed memory retains the frozen unresolved
+command across route changes for identical-ID recovery; it is not an offline draft.
+Price conflicts require another review, stock/lifecycle failures require correction,
+and successful completion clears the cart and renders persisted receipt snapshots.
+Catalog refresh and printing failures retry reads/printing only. Print CSS exposes
+only the internal receipt, not workspace controls or private retry data. Browser
+responsive/dialog/zoom/print QA remains pending, without an inherited waiver.

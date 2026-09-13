@@ -27,6 +27,18 @@ import {
 import { posCodeSchema, posQuantitySchema } from '../model/pos.schemas';
 import { POS_NAVIGATION_EVENT } from '../model/pos-navigation';
 import type { PosCartLine, PosProduct, PosScope } from '../model/pos.types';
+import {
+  PaymentConfirmation,
+  type CheckoutIssue,
+} from './payment-confirmation';
+import { SaleReceipt } from './sale-receipt';
+import type { CompletedSale } from '../model/checkout';
+import {
+  checkoutAttemptKey,
+  getCheckoutAttempt,
+  setCheckoutAttempt,
+  useCheckoutAttempt,
+} from '../model/checkout-attempt';
 
 export function BranchPos(props: PosScope) {
   const { user } = useAuth();
@@ -72,7 +84,14 @@ function ScopedBranchPos({
   branchId,
   role,
 }: PosScope & { role: 'OWNER' | 'MANAGER' | 'CASHIER' }) {
-  const { request } = useAuth();
+  const { request, user } = useAuth();
+  const attemptKey = checkoutAttemptKey(organizationId, user?.id ?? '');
+  const attempt = useCheckoutAttempt(attemptKey);
+  const recovering = Boolean(
+    attempt &&
+    attempt.scope.branchId === branchId &&
+    attempt.state !== 'completed',
+  );
   const [branch, setBranch] = useState<{
     id: string;
     name: string;
@@ -98,6 +117,11 @@ function ScopedBranchPos({
   const cartRef = useRef<PosCartLine[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const unsafeCheckout = useRef(false);
+  const paymentOpen = useRef(false);
+  const [completed, setCompleted] = useState<CompletedSale | null>(null);
+  const [paymentRevision, setPaymentRevision] = useState(0);
   const codeRef = useRef<HTMLInputElement>(null);
   const codeTimer = useRef<number | undefined>(undefined);
   const quantityTimers = useRef(new Map<string, number>());
@@ -116,6 +140,8 @@ function ScopedBranchPos({
     commitCart([]);
     setMatches(null);
     setClearing(false);
+    setPaying(false);
+    paymentOpen.current = false;
     setLookupPending(false);
     setCode('');
     setCodeError(undefined);
@@ -173,7 +199,7 @@ function ScopedBranchPos({
     };
   }, [request, organizationId, branchId, role, revision, denyAccess]);
   useEffect(() => {
-    if (!branch || !settled || accessDenied) return;
+    if (!branch || !settled || accessDenied || paying || recovering) return;
     let active = true;
     void Promise.resolve().then(async () => {
       if (!active) return;
@@ -208,6 +234,8 @@ function ScopedBranchPos({
     branch,
     settled,
     accessDenied,
+    paying,
+    recovering,
     request,
     organizationId,
     branchId,
@@ -219,6 +247,26 @@ function ScopedBranchPos({
   useEffect(() => {
     function leaving(href: string) {
       const url = new URL(href, window.location.href);
+      const unresolved = getCheckoutAttempt(attemptKey);
+      if (
+        unresolved &&
+        unresolved.scope.branchId !== branchId &&
+        url.origin === window.location.origin &&
+        url.pathname ===
+          `/app/organizations/${organizationId}/branches/${unresolved.scope.branchId}/pos`
+      )
+        return true;
+      if (
+        (unsafeCheckout.current ||
+          getCheckoutAttempt(attemptKey)?.state === 'pending' ||
+          getCheckoutAttempt(attemptKey)?.state === 'unknown') &&
+        (url.origin !== window.location.origin || url.pathname !== pathname)
+      ) {
+        window.alert(
+          'Checkout is pending or its outcome is unknown. Resolve the same checkout before leaving POS.',
+        );
+        return false;
+      }
       if (
         cartRef.current.length === 0 ||
         (url.origin === window.location.origin && url.pathname === pathname)
@@ -263,7 +311,12 @@ function ScopedBranchPos({
       }
     }
     function beforeUnload(event: BeforeUnloadEvent) {
-      if (cartRef.current.length) {
+      if (
+        cartRef.current.length ||
+        unsafeCheckout.current ||
+        getCheckoutAttempt(attemptKey)?.state === 'pending' ||
+        getCheckoutAttempt(attemptKey)?.state === 'unknown'
+      ) {
         event.preventDefault();
         event.returnValue = '';
       }
@@ -276,7 +329,7 @@ function ScopedBranchPos({
       document.removeEventListener('click', linkClick, true);
       window.removeEventListener('beforeunload', beforeUnload);
     };
-  }, [pathname, commitCart]);
+  }, [pathname, commitCart, attemptKey, branchId, organizationId]);
 
   function validateCode(value: string, immediate = false) {
     window.clearTimeout(codeTimer.current);
@@ -297,6 +350,7 @@ function ScopedBranchPos({
     window.requestAnimationFrame(() => codeRef.current?.focus());
   }
   function add(product: PosProduct): boolean {
+    if (paymentOpen.current || unsafeCheckout.current) return false;
     try {
       commitCart(addPosProduct(cartRef.current, product));
       setNotice(`${product.name} added to this branch’s cart.`);
@@ -311,7 +365,15 @@ function ScopedBranchPos({
     }
   }
   async function lookup() {
-    if (lookupBusy.current || matches || clearing || !branch || accessDenied)
+    if (
+      lookupBusy.current ||
+      matches ||
+      clearing ||
+      paymentOpen.current ||
+      unsafeCheckout.current ||
+      !branch ||
+      accessDenied
+    )
       return;
     window.clearTimeout(codeTimer.current);
     const parsed = posCodeSchema.safeParse(code);
@@ -362,6 +424,7 @@ function ScopedBranchPos({
     }
   }
   function changeQuantity(id: string, value: string) {
+    if (paymentOpen.current || unsafeCheckout.current) return;
     const parsed = posQuantitySchema.safeParse(value);
     commitCart(
       cartRef.current.map((line) =>
@@ -395,7 +458,107 @@ function ScopedBranchPos({
   const invalidCart = cart.some((line) =>
     quantityError(line.quantityInput, line.product.quantity),
   );
-  if (!branch)
+  useEffect(() => {
+    if (
+      attempt?.state !== 'completed' ||
+      attempt.scope.branchId !== branchId ||
+      !attempt.sale
+    )
+      return;
+    const sale = attempt.sale;
+    void Promise.resolve().then(() => {
+      setCompleted(sale);
+      setPaying(false);
+      paymentOpen.current = false;
+      unsafeCheckout.current = false;
+      setPaymentRevision((value) => value + 1);
+      setCheckoutAttempt(attemptKey, null);
+    });
+  }, [attempt, attemptKey, branchId]);
+  function checkoutIssue(issue: CheckoutIssue) {
+    if (issue.code === 'ACCESS_DENIED') {
+      denyAccess();
+      return;
+    }
+    const id = issue.branchInventoryId;
+    const price = issue.sellingPrice;
+    if (
+      issue.code === 'PRICE_CHANGED' &&
+      id &&
+      price &&
+      /^(?=.*[1-9])\d{1,10}\.\d{2}$/.test(price)
+    ) {
+      commitCart(
+        cartRef.current.map((line) =>
+          line.product.branchInventoryId === id
+            ? { ...line, product: { ...line.product, sellingPrice: price } }
+            : line,
+        ),
+      );
+      setNotice(
+        `${issue.message}. The estimate was updated; review the new total and confirm payment again. No sale was recorded.`,
+      );
+    } else if (
+      issue.code === 'INSUFFICIENT_STOCK' &&
+      id &&
+      Number.isInteger(issue.quantity) &&
+      issue.quantity! >= 0 &&
+      issue.quantity! <= 2147483647
+    ) {
+      commitCart(
+        cartRef.current.map((line) =>
+          line.product.branchInventoryId === id
+            ? {
+                ...line,
+                product: {
+                  ...line.product,
+                  quantity: issue.quantity!,
+                  eligible: issue.quantity! > 0,
+                },
+                error: quantityError(line.quantityInput, issue.quantity!),
+              }
+            : line,
+        ),
+      );
+      setNotice(
+        `${issue.message}. Review quantities or remove the unavailable line. No sale was recorded.`,
+      );
+    } else if (issue.code === 'PRODUCT_UNAVAILABLE' && id) {
+      commitCart(
+        cartRef.current.map((line) =>
+          line.product.branchInventoryId === id
+            ? {
+                ...line,
+                product: { ...line.product, quantity: 0, eligible: false },
+                error:
+                  'This product or merchant is no longer active. Remove this line.',
+              }
+            : line,
+        ),
+      );
+      setNotice(`${issue.message}. No sale was recorded.`);
+    } else setNotice(issue.message);
+    setCatalogRevision((value) => value + 1);
+  }
+  if (
+    attempt &&
+    attempt.scope.branchId !== branchId &&
+    attempt.state !== 'completed'
+  )
+    return (
+      <OperationalPage>
+        <p role="alert">
+          An earlier checkout in another branch is pending or unconfirmed.
+          Resolve that checkout before creating another sale.
+        </p>
+        <BackLink
+          href={`/app/organizations/${organizationId}/branches/${attempt.scope.branchId}/pos`}
+        >
+          Return to unresolved checkout
+        </BackLink>
+      </OperationalPage>
+    );
+  if (!branch && !recovering)
     return (
       <OperationalPage>
         <BackLink href={`/app/organizations/${organizationId}/branches`}>
@@ -423,11 +586,34 @@ function ScopedBranchPos({
         Back to branch
       </BackLink>
       <PageHeader
-        title={`${branch.name} POS`}
-        description="Build a branch-specific cart. Prices and stock are estimates until server checkout; payment submission is not available yet."
+        title={`${branch?.name ?? 'Branch'} POS`}
+        description="Build a branch-specific cart, review payment and complete one sale. Prices and stock are estimates until server checkout."
       />
       {notice ? <StatusNotice>{notice}</StatusNotice> : null}
-      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">
+      {completed ? (
+        <OperationalPanel
+          title="Sale completed"
+          description="This persisted sale is complete. Printing and catalog retries do not repeat checkout."
+        >
+          <div className="p-5 sm:p-6">
+            <SaleReceipt sale={completed} />
+            <Button
+              variant="quiet"
+              className="mt-4"
+              onClick={() => {
+                setCompleted(null);
+                focusCode();
+              }}
+            >
+              Dismiss receipt
+            </Button>
+          </div>
+        </OperationalPanel>
+      ) : null}
+      <fieldset
+        disabled={paying || recovering}
+        className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]"
+      >
         <div className="min-w-0">
           <OperationalPanel
             title="Add products"
@@ -646,10 +832,62 @@ function ScopedBranchPos({
                 Cart only: no stock has been deducted and no sale or payment has
                 been recorded.
               </p>
+              <Button
+                disabled={
+                  !cart.length ||
+                  invalidCart ||
+                  lookupPending ||
+                  Boolean(matches) ||
+                  clearing ||
+                  paying
+                }
+                onClick={() => {
+                  if (
+                    lookupBusy.current ||
+                    unsafeCheckout.current ||
+                    !cartRef.current.length
+                  )
+                    return;
+                  for (const timer of quantityTimers.current.values())
+                    window.clearTimeout(timer);
+                  paymentOpen.current = true;
+                  setPaying(true);
+                }}
+              >
+                Review payment
+              </Button>
             </div>
           </OperationalPanel>
         </div>
-      </div>
+      </fieldset>
+      <PaymentConfirmation
+        key={paymentRevision}
+        open={paying || recovering}
+        attemptKey={attemptKey}
+        request={request}
+        scope={{ organizationId, branchId }}
+        lines={recovering ? attempt!.lines : cart}
+        onUnsafeChange={(value) => {
+          unsafeCheckout.current = value;
+        }}
+        onClose={() => {
+          paymentOpen.current = false;
+          setPaying(false);
+          focusCode();
+        }}
+        onIssue={checkoutIssue}
+        onCompleted={(sale) => {
+          commitCart([]);
+          setCompleted(sale);
+          setCode('');
+          setNotice(null);
+          paymentOpen.current = false;
+          setPaying(false);
+          setPaymentRevision((value) => value + 1);
+          setCatalogRevision((value) => value + 1);
+          focusCode();
+        }}
+      />
       {matches ? (
         <FormDialog
           title="Choose the matching product"

@@ -1,6 +1,6 @@
 # Branch POS
 
-**Status:** Catalog API and branch cart implemented. Payment screens are not yet implemented.
+**Status:** Catalog, branch cart, payment confirmation, completion and internal receipt printing implemented.
 
 The separate [sales checkout API](sales.md) completes reviewed branch commands;
 catalog eligibility remains a read-time observation only.
@@ -68,8 +68,45 @@ Outgoing links and organization-menu navigation ask before discarding a nonempty
 cart, and full-page unload uses the browser's unsaved-work warning. Route unmount
 also clears the cart; browser history navigation does not have a custom prompt.
 Clear-cart and ambiguous-code interactions use the shared native modal dialog.
-This part performs no sale/payment writes or stock deductions; backend checkout
-remains authoritative for price, stock and authorization.
+Building/editing a cart performs no sale/payment writes or stock deductions.
+Confirmed checkout uses the [sales API](sales.md), which remains authoritative
+for price, stock, payment values and authorization.
+
+## Payment confirmation and recovery
+
+Review payment opens a native dialog showing the cart and estimated total. Cash
+tender validates 300 ms after each input, immediately on blur and on submission;
+it must cover the total. GCash/card are explicitly manual and provider-unverified,
+requiring a trimmed 2–100 character reference. Staff must explicitly confirm that
+payment was received. Changing method clears its fields and received confirmation.
+Estimated change uses integer cents; completion displays backend-persisted change.
+
+Pending checkout blocks cart/payment edits, repeat activation, Escape/backdrop
+dismissal and outgoing link/menu navigation. A known rejected unchanged command
+keeps its request ID; changed content receives a new ID only after known rejection.
+Price conflicts update the identified cart price and require another review and
+received confirmation. Stock/lifecycle conflicts mark the affected line invalid;
+staff must correct or remove it. Refresh never automatically submits checkout.
+
+Network/server errors, malformed/mismatched successful responses and request-ID
+conflicts are treated as uncertain outcomes. The frozen command remains locked for
+same-ID retry, without collecting payment again. A subsequent rejection does not
+unlock a previously uncertain command. Focused in-memory attempt state is keyed
+to organization and authenticated user and survives route unmounts: another branch
+in that organization blocks new checkout and links back to the original branch.
+Returning recovers the frozen command without auto-submitting. A response that
+completes while unmounted is recovered as a completed receipt without another POST.
+This is not persistent/offline storage: page reload/tab closure loses memory and
+uses the browser unload warning; staff must verify recorded sales before recreating
+an uncertain transaction after leaving the page. Role/branch checks still apply to
+every retry, and another user's session never receives this in-memory attempt.
+
+Completion clears the cart and shows validated persisted receipt snapshots. Failed
+catalog refresh retries only the read and preserves the receipt. Printing uses a
+receipt-only print surface without shell/cart controls, and shows print-dialog or
+failure feedback without claiming the printer succeeded. Print cancellation/failure
+can retry printing only. Receipts are internal transaction records, not fiscal/tax
+invoices. Sales-history and merchant own-sale screens are not yet implemented.
 
 ## Verification
 
@@ -81,5 +118,9 @@ case/leading-zero preservation, matching-both deduplication, lifecycle exclusion
 zero-stock eligibility and exact price strings. Frontend tests cover role gates,
 scoped API contracts, Enter/in-flight behavior, ambiguity, stock and quantity
 validation, exact estimates, cart clearing, access revocation and navigation guards.
-Rendered browser QA for this POS milestone remains pending, not covered by the
+Payment/receipt tests cover exact cash/manual validation, pending/unknown locking,
+unchanged and edited command IDs, route recovery, isolated attempt state, explicit
+price re-review, failed post-completion catalog reads and print-only retries.
+Frontend formatting, type checking, lint, all 353 tests across 60 files and the
+production build pass. Rendered browser QA remains pending, not covered by the
 previous access-control milestone waiver.

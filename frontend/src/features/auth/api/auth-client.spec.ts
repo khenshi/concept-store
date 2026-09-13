@@ -268,4 +268,36 @@ describe('AuthClient', () => {
       new ApiError(409, 'Space already has a current assignment'),
     );
   });
+  it('preserves only typed checkout conflict details, not private error payload data', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(
+        {
+          message: 'Review changed price',
+          code: 'PRICE_CHANGED',
+          branchInventoryId: 'placement',
+          sellingPrice: '900.00',
+          quantity: 'wrong-type',
+          canonicalCommand: 'private',
+          createdById: 'private',
+        },
+        409,
+      ),
+    );
+    const client = new AuthClient('http://localhost:3000');
+    const error = await client
+      .request('/sales')
+      .catch((error: ApiError) => error);
+    expect(error).toMatchObject({
+      status: 409,
+      message: 'Review changed price',
+      details: {
+        code: 'PRICE_CHANGED',
+        branchInventoryId: 'placement',
+        sellingPrice: '900.00',
+        quantity: undefined,
+      },
+    });
+    expect((error as ApiError).details).not.toHaveProperty('canonicalCommand');
+    expect((error as ApiError).details).not.toHaveProperty('createdById');
+  });
 });
