@@ -121,6 +121,59 @@ it('includes selected branch and merchant grants on merchant invitations', async
     merchantId: id,
   });
 });
+
+it('requires a merchant link before submitting a merchant invitation', async () => {
+  render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  await screen.findByText(
+    'No branches available. Access can be assigned later.',
+  );
+  fireEvent.change(screen.getByLabelText('Email address'), {
+    target: { value: 'merchant@example.test' },
+  });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Organization role' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Merchant' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Create invitation' }));
+  expect(createOrganizationInvitation).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole('combobox', { name: 'Merchant profile' }),
+  ).toHaveAttribute('aria-invalid', 'true');
+});
+
+it('recovers choice loading without losing the invitation draft', async () => {
+  vi.mocked(loadMemberAccessOptions).mockRejectedValueOnce(
+    new Error('offline'),
+  );
+  render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText('Email address'), {
+    target: { value: 'staff@example.test' },
+  });
+  await screen.findByText(
+    'Branches and merchants could not be loaded. Try again.',
+  );
+  expect(
+    screen.getByRole('button', { name: 'Create invitation' }),
+  ).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  await screen.findByText(
+    'No branches available. Access can be assigned later.',
+  );
+  expect(screen.getByLabelText('Email address')).toHaveValue(
+    'staff@example.test',
+  );
+  expect(createOrganizationInvitation).not.toHaveBeenCalled();
+});
 afterEach(() => {
   cleanup();
   for (const [name, descriptor] of [

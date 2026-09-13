@@ -112,3 +112,9 @@ Acceptance remains guarded against duplicate requests and redirects to the
 accepted organization; token and authorization behavior are unchanged.
 Mismatch sign-out announces pending state, prevents repeat activation, and shows
 recoverable request failures without attempting invitation acceptance.
+
+Final access-control coverage includes loading-choice recovery without losing
+the draft, required merchant selection before submit, branch/link commands,
+debounced and blur validation, and pending/dismissal behavior. Public preview and
+acceptance remain unchanged. Rendered QA for this milestone was explicitly waived
+on September 13, 2026; automated dialog shims do not certify browser behavior.

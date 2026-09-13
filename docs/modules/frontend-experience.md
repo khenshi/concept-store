@@ -115,6 +115,12 @@ refresh clears branch cache and obsolete responses cannot restore prior data.
 Stock/price access-denial responses clear stale placement data and write controls;
 successful stock writes still refresh reads without replay on refresh failure.
 Automated verification does not certify rendered browser behavior for this milestone.
+Final automated checks pass: 266 frontend tests across 52 suites, formatting,
+lint, type checking, and production build. The existing multiple-lockfile build
+warning remains nonblocking and outside this access-control scope.
+The user explicitly waived rendered browser QA for branch/merchant access control
+on September 13, 2026. Viewport/zoom, actual modal focus containment, menu layout,
+contrast, and rendered reduced-motion checks were not performed for these screens.
 
 Protected routes use a warm neutral canvas and a compact sticky utility header.
 The workspace sidebar remains 15.5rem expanded or 4.5rem collapsed and offers

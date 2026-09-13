@@ -148,3 +148,60 @@ it('preserves a failed relink confirmation and offers retry', async () => {
   );
   expect(screen.getByRole('button', { name: 'Confirm change' })).toBeEnabled();
 });
+
+it('shows implicit owner access without assignment mutations', async () => {
+  render(
+    <MemberAccessDialog
+      organizationId="org"
+      member={{ ...member, role: 'OWNER' }}
+      onClose={vi.fn()}
+      onMemberChanged={vi.fn()}
+    />,
+  );
+  await screen.findByText(
+    'Owners have access to all current and future branches.',
+  );
+  expect(
+    screen.queryByRole('button', { name: /Grant|Revoke/ }),
+  ).not.toBeInTheDocument();
+  expect(setMemberBranch).not.toHaveBeenCalled();
+});
+
+it('recovers access-choice loading without writing incomplete settings', async () => {
+  vi.mocked(loadMemberAccessOptions).mockRejectedValueOnce(
+    new Error('offline'),
+  );
+  render(
+    <MemberAccessDialog
+      organizationId="org"
+      member={member}
+      onClose={vi.fn()}
+      onMemberChanged={vi.fn()}
+    />,
+  );
+  await screen.findByText('Access settings could not be loaded. Try again.');
+  expect(setMemberBranch).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  await screen.findByRole('button', { name: 'Revoke Makati' });
+  expect(loadMemberAccessOptions).toHaveBeenCalledTimes(2);
+});
+
+it('does not change a merchant link when confirmation is cancelled', async () => {
+  render(
+    <MemberAccessDialog
+      organizationId="org"
+      member={{ ...member, role: 'MERCHANT' }}
+      onClose={vi.fn()}
+      onMemberChanged={vi.fn()}
+    />,
+  );
+  await screen.findByRole('combobox', { name: 'Merchant profile' });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Merchant profile' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Review merchant link' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Keep current access' }));
+  expect(setMemberMerchant).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole('button', { name: 'Review merchant link' }),
+  ).toBeEnabled();
+});

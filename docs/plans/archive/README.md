@@ -16,3 +16,8 @@ The completed merchant profiles implementation plan is retained in
 The completed products and branch inventory implementation plan, with the user's
 explicit rendered QA waiver, is retained in
 [`products-and-branch-inventory-2026-09-12.md`](products-and-branch-inventory-2026-09-12.md).
+
+The completed branch and merchant access-control implementation record, with
+final verification and the September 13, 2026 rendered-QA waiver, is retained in
+[`branch-and-merchant-access-control-2026-09-13.md`](branch-and-merchant-access-control-2026-09-13.md).
+All eight parts were reviewed and approved; the archive does not authorize new work.

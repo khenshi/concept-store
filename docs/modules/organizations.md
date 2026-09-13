@@ -57,5 +57,13 @@ correction/retry. The original organization validation and creation contract are
 unchanged.
 
 The overview links to existing branches and account settings for all members, and
-merchant profiles and members for owners/managers. It shows the authenticated
-organization role, not mock financial metrics. Backend guards remain authoritative.
+merchant profiles/products for owners, managers, and merchants. Members navigation
+is owner-only. Catalog destinations use backend-filtered records, not a full-tenant
+catalog for nonowners. It shows the authenticated organization role, not mock
+financial metrics. Backend guards remain authoritative. Organization identity
+responses do not embed branch summaries, counts, or access grants.
+
+Workspace scope changes reset cached data. Access refresh clears branch cache;
+obsolete branch responses cannot restore data from an earlier access scope.
+The branch directory refreshes accessible branches on entry. Access checks are
+performed by the backend on current membership/assignments, not cached JWT claims.

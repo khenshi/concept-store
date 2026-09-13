@@ -24,6 +24,12 @@ Documentation is separated by purpose:
 - [Branch inventory](modules/branch-inventory.md)
 - [Frontend experience](modules/frontend-experience.md)
 
+Branch and merchant access control is implemented across memberships, invitations,
+branches, merchant profiles, products, and inventory. Owners manage access;
+managers/cashiers require assignments, while linked merchants read only their own
+business and selling-branch stock. Rendered QA was explicitly waived for this
+milestone; automated verification does not certify rendered accessibility.
+
 ## Planning
 
 - [Current implementation plan](plans/current.md)

@@ -101,4 +101,14 @@ have account-specific accessible names; join dates and contact information remai
 visible at narrow widths.
 Role changes and removal disable member controls while pending; request failures
 and successful changes remain visible. Workspace navigation alignment is delivered
-separately in Part 7.
+separately in Part 7; Members navigation is now owner-only.
+
+## Final verification (Part 8)
+
+Prisma formatting/validation/client generation, backend formatting/lint/build,
+202 unit tests, 68 HTTP tests, and 33 disposable PostgreSQL tests pass.
+Frontend coverage additionally verifies owner implicit access, recoverable
+choice loading, required merchant links, cancellation, pending protection, reduced
+role data, scope changes, and fresh access denial. Rendered browser QA for this
+access-control milestone was explicitly waived on September 13, 2026; automated
+tests do not certify actual top-layer/focus, responsive layout, or contrast.
