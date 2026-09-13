@@ -1,6 +1,6 @@
 # Branch and Merchant Access Control Plan
 
-**Status:** Approved; Parts 1–4 committed; Part 5 implemented and verified, awaiting review
+**Status:** Approved; Parts 1–5 committed; Part 6 implemented and verified, awaiting review
 **Date:** September 12, 2026
 
 ## Goal and confirmed decisions
@@ -339,6 +339,24 @@ Applicable checks pass, module docs are accurate, and exclusions remain excluded
 - The user reviewed and approved Part 5 for commit on September 13, 2026.
   Unrelated root package/performance-audit changes
   were preserved and remain outside this part.
+
+## Part 6 verification record
+
+- Part 5 was reviewed and committed as 5be779b.
+- Added owner-only access dialogs for branch grants, confirmed revocations,
+  merchant relinking, and required merchant selection during role changes.
+- Added invitation branch selection and role-dependent merchant selection,
+  300 ms input validation, immediate blur/final checks, runtime response schemas,
+  loading/retry feedback, and pending duplicate/dismissal protection.
+- Updated membership, invitation, and frontend experience documentation.
+- Frontend formatting, lint, type checking, all 245 tests across 52 suites,
+  production build, and diff checks pass. The existing multiple-lockfile build
+  warning remains; unrelated root package changes were preserved.
+- Manager/merchant workspace alignment remains Part 7. No POS, backend/schema,
+  or unrelated root package/performance-audit changes are included.
+- Rendered browser QA has not been performed; a new waiver or browser access is
+  still required at the final verification checkpoint.
+- The user reviewed and approved Part 6 for commit on September 13, 2026.
 
 ## Deferred POS decisions (not implementation scope)
 

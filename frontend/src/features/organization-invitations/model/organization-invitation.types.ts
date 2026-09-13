@@ -9,6 +9,14 @@ export interface OrganizationInvitation {
   acceptedAt: string | null;
   revokedAt: string | null;
   createdAt: string;
+  merchantId?: string | null;
+  merchant?: {
+    id: string;
+    name: string;
+    code: string | null;
+    status: string;
+  } | null;
+  branches?: { branch: { id: string; name: string; code: string | null } }[];
 }
 
 export interface CreatedOrganizationInvitation {
@@ -30,6 +38,8 @@ export interface AcceptedOrganizationInvitation {
 }
 
 export interface CreateOrganizationInvitationInput {
+  branchIds?: string[];
+  merchantId?: string;
   email: string;
   role: Extract<OrganizationRole, 'MANAGER' | 'CASHIER' | 'MERCHANT'>;
 }

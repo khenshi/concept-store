@@ -66,8 +66,7 @@ Access mutations and membership removal lock the same tenant-local membership in
 serializable transactions. Serialization conflicts return 409 with retry guidance.
 The last-owner invariant remains enforced; failed writes roll back all changes.
 Invitation grant acceptance is delivered in Part 3; backend resource-access
-filtering and role-specific projections are delivered in Part 4. Frontend alignment
-remains later approved parts.
+filtering and role-specific projections are delivered in Part 4.
 
 ## Backend verification (Part 5)
 
@@ -80,16 +79,26 @@ including Prisma adapter metadata, now map to the intended retryable 409 respons
 Other database errors retain their existing behavior. No schema/stock/frontend
 behavior changes are included in this verification part.
 
-## Existing frontend behavior
+## Owner access frontend (Part 6)
 
-The existing frontend still shows Members to owners/managers, but the backend now
-rejects manager member-list requests. Frontend alignment and merchant role-selection
-input are deferred to the approved frontend parts.
-Owner-only controls change roles and remove members with confirmation.
+Member management loads members and invitations only for owners; other roles see
+an owner-only notice without those requests. Owner controls change roles and
+remove members with confirmation. Role changes explain that assignments and the
+previous merchant link are cleared. Changing to MERCHANT opens a native access
+dialog requiring a merchant profile in the same role command.
+
+The access dialog loads tenant-local branch/profile choices and current assignments.
+Owners have an implicit all-branches explanation instead of grant controls.
+Nonowners can receive individual branch grants; revocations require confirmation.
+MERCHANT links can be changed with confirmation explaining the read-access change
+without changing product ownership or history. Pending writes prevent duplicate
+actions and dismissal; loading, retryable failures, and success are explicit.
+API responses are runtime validated. Dialog choices and lists are scroll-bounded.
 
 The member directory uses neutral operational panels and responsive divided rows.
 Role menus are not enclosed in clipping table scrollers. Member removal controls
 have account-specific accessible names; join dates and contact information remain
 visible at narrow widths.
 Role changes and removal disable member controls while pending; request failures
-and successful changes remain visible. Managers see read-only role labels.
+and successful changes remain visible. Workspace navigation alignment is delivered
+separately in Part 7.

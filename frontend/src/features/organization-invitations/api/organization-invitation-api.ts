@@ -1,4 +1,9 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
+import {
+  createdInvitationResponseSchema,
+  invitationResponseSchema,
+  createOrganizationInvitationSchema,
+} from '../model/organization-invitation.schemas';
 import type {
   AcceptedOrganizationInvitation,
   CreatedOrganizationInvitation,
@@ -11,36 +16,39 @@ function organizationPath(organizationId: string): string {
   return `/organizations/${encodeURIComponent(organizationId)}/invitations`;
 }
 
-export function createOrganizationInvitation(
+export async function createOrganizationInvitation(
   request: AuthenticatedRequest,
   organizationId: string,
   input: CreateOrganizationInvitationInput,
 ): Promise<CreatedOrganizationInvitation> {
-  return request<CreatedOrganizationInvitation>(
-    organizationPath(organizationId),
-    {
+  return createdInvitationResponseSchema.parse(
+    await request<unknown>(organizationPath(organizationId), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    },
+      body: JSON.stringify(createOrganizationInvitationSchema.parse(input)),
+    }),
   );
 }
 
-export function listOrganizationInvitations(
+export async function listOrganizationInvitations(
   request: AuthenticatedRequest,
   organizationId: string,
 ): Promise<OrganizationInvitation[]> {
-  return request<OrganizationInvitation[]>(organizationPath(organizationId));
+  return invitationResponseSchema
+    .array()
+    .parse(await request<unknown>(organizationPath(organizationId)));
 }
 
-export function revokeOrganizationInvitation(
+export async function revokeOrganizationInvitation(
   request: AuthenticatedRequest,
   organizationId: string,
   invitationId: string,
 ): Promise<OrganizationInvitation> {
-  return request<OrganizationInvitation>(
-    `${organizationPath(organizationId)}/${encodeURIComponent(invitationId)}/revoke`,
-    { method: 'PATCH' },
+  return invitationResponseSchema.parse(
+    await request<unknown>(
+      `${organizationPath(organizationId)}/${encodeURIComponent(invitationId)}/revoke`,
+      { method: 'PATCH' },
+    ),
   );
 }
 

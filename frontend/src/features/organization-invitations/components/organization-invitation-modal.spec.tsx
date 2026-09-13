@@ -8,8 +8,14 @@ import {
 import { useAuth } from '@/features/auth/model/auth-context';
 import { createOrganizationInvitation } from '../api/organization-invitation-api';
 import { OrganizationInvitationModal } from './organization-invitation-modal';
+import { loadMemberAccessOptions } from '@/features/organization-members/api/organization-member-api';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
+vi.mock('@/features/organization-members/api/organization-member-api', () => ({
+  loadMemberAccessOptions: vi
+    .fn()
+    .mockResolvedValue({ branches: [], merchants: [] }),
+}));
 vi.mock('../api/organization-invitation-api', () => ({
   createOrganizationInvitation: vi.fn(),
 }));
@@ -24,6 +30,10 @@ const close = Object.getOwnPropertyDescriptor(
 );
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(loadMemberAccessOptions).mockResolvedValue({
+    branches: [],
+    merchants: [],
+  });
   vi.mocked(useAuth).mockReturnValue({ request } as unknown as ReturnType<
     typeof useAuth
   >);
@@ -38,6 +48,77 @@ beforeEach(() => {
     value() {
       this.removeAttribute('open');
     },
+  });
+});
+
+it('validates email after input debounce and immediately on blur', async () => {
+  render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText('Email address'), {
+    target: { value: 'invalid' },
+  });
+  expect(
+    screen.queryByText('Enter a valid email address.'),
+  ).not.toBeInTheDocument();
+  expect(await screen.findByText('Enter a valid email address.')).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Email address'), {
+    target: { value: 'valid@example.test' },
+  });
+  fireEvent.blur(screen.getByLabelText('Email address'));
+  await waitFor(() =>
+    expect(
+      screen.queryByText('Enter a valid email address.'),
+    ).not.toBeInTheDocument(),
+  );
+});
+
+it('includes selected branch and merchant grants on merchant invitations', async () => {
+  const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  vi.mocked(loadMemberAccessOptions).mockResolvedValue({
+    branches: [{ id, name: 'Makati', code: null }],
+    merchants: [{ id, name: 'Amihan', code: null, status: 'ACTIVE' }],
+  });
+  vi.mocked(createOrganizationInvitation).mockResolvedValue({
+    token: 'token',
+    invitation: {
+      id,
+      organizationId: id,
+      email: 'merchant@example.test',
+      role: 'MERCHANT',
+      expiresAt: '2026-09-20T00:00:00Z',
+      createdAt: '2026-09-13T00:00:00Z',
+      acceptedAt: null,
+      revokedAt: null,
+    },
+  });
+  render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  await screen.findByLabelText('Makati');
+  fireEvent.change(screen.getByLabelText('Email address'), {
+    target: { value: 'merchant@example.test' },
+  });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Organization role' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Merchant' }));
+  fireEvent.click(screen.getByRole('combobox', { name: 'Merchant profile' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
+  fireEvent.click(screen.getByLabelText('Makati'));
+  fireEvent.click(screen.getByRole('button', { name: 'Create invitation' }));
+  await screen.findByRole('heading', { name: 'Invitation ready' });
+  expect(createOrganizationInvitation).toHaveBeenCalledWith(request, 'org', {
+    email: 'merchant@example.test',
+    role: 'MERCHANT',
+    branchIds: [id],
+    merchantId: id,
   });
 });
 afterEach(() => {
@@ -110,6 +191,11 @@ it('blocks dismissal while creating and presents the normalized invitation link'
   fireEvent.change(screen.getByLabelText('Email address'), {
     target: { value: ' PERSON@EXAMPLE.COM ' },
   });
+  await waitFor(() =>
+    expect(
+      screen.queryByText('Loading access choices…'),
+    ).not.toBeInTheDocument(),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Create invitation' }));
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   fireEvent(

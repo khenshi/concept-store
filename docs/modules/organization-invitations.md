@@ -89,9 +89,14 @@ and unavailable-token conditions also have focused service coverage.
 Owners manage invitations from the organization member workflow. A separate
 token route previews and accepts invitations.
 
-Branch/merchant invitation selections are not yet available in the existing
-frontend; their implementation is Part 6. Existing merchant invitation submissions
-without merchantId now fail backend validation until that frontend alignment.
+The owner invitation modal loads tenant-local branches and merchant profiles.
+Branch checkboxes allow zero to 100 distinct assignments; MERCHANT requires a
+profile selection. Switching away from MERCHANT clears the link selection.
+Validation runs 300 ms after input changes, immediately on blur, and again on
+submit. Loading/choice failures have retry feedback; pending creation disables
+fields and repeat submission. Create/list/revoke responses are runtime validated.
+Invitation rows show configured branch and merchant identities. Public preview
+and acceptance do not expose these additional owner-management details.
 
 Owner invitation management uses neutral controls and explicit pending, accepted,
 revoked, and expired labels. Revocation disables invitation actions while pending.

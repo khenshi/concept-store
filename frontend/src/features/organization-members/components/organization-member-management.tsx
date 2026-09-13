@@ -28,6 +28,7 @@ import {
   updateOrganizationMemberRole,
 } from '../api/organization-member-api';
 import type { OrganizationMember } from '../model/organization-member.types';
+import { MemberAccessDialog } from './member-access-dialog';
 
 const roles: OrganizationRole[] = ['OWNER', 'MANAGER', 'CASHIER', 'MERCHANT'];
 
@@ -74,6 +75,10 @@ export function OrganizationMemberManagement({
     null,
   );
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [accessMember, setAccessMember] = useState<{
+    member: OrganizationMember;
+    changeToMerchant?: boolean;
+  } | null>(null);
   const { confirm, confirmationDialog } = useConfirmationDialog();
   const organizationRole = organization?.role;
 
@@ -99,7 +104,7 @@ export function OrganizationMemberManagement({
 
   useEffect(() => {
     if (!organization) return;
-    if (organization.role !== 'OWNER' && organization.role !== 'MANAGER') {
+    if (organization.role !== 'OWNER') {
       return;
     }
     let active = true;
@@ -139,9 +144,14 @@ export function OrganizationMemberManagement({
     role: OrganizationRole,
   ) {
     if (role === member.role) return;
+    if (pendingMemberId || accessMember) return;
+    if (role === 'MERCHANT') {
+      setAccessMember({ member, changeToMerchant: true });
+      return;
+    }
     const confirmed = await confirm({
       title: `Change ${member.email}'s role?`,
-      description: `Change this member from ${roleLabels[member.role]} to ${roleLabels[role]}. Their organization access will immediately follow the new role.`,
+      description: `Change this member from ${roleLabels[member.role]} to ${roleLabels[role]}. Existing branch assignments and merchant links will be cleared. Their access will follow the new role.`,
       confirmLabel: 'Change role',
       tone: role === 'OWNER' ? 'danger' : 'primary',
     });
@@ -251,8 +261,7 @@ export function OrganizationMemberManagement({
     );
   }
 
-  const canViewMembers =
-    organization.role === 'OWNER' || organization.role === 'MANAGER';
+  const canViewMembers = organization.role === 'OWNER';
   const canManageMembers = organization.role === 'OWNER';
 
   return (
@@ -267,7 +276,7 @@ export function OrganizationMemberManagement({
         <section className="mt-6 rounded-panel border border-hairline bg-surface p-6">
           <h2 className="m-0 text-base font-bold">Member access is limited</h2>
           <p className="mt-3 leading-7 text-muted">
-            Only organization owners and managers can view the member list.
+            Only organization owners can view the member list.
           </p>
         </section>
       ) : (
@@ -296,7 +305,7 @@ export function OrganizationMemberManagement({
             <div className="mt-6">
               <OperationalPanel
                 title="People with access"
-                description={`${members.length} organization members · Roles apply across the organization; branch access is not configured yet`}
+                description={`${members.length} organization members · Branch assignments restrict access; owners have all-branch access`}
                 action={
                   canManageMembers ? (
                     <button
@@ -343,6 +352,18 @@ export function OrganizationMemberManagement({
                           <p className="mt-1 text-xs text-muted">
                             Joined {joinedDate(member.joinedAt)}
                           </p>
+                          {member.role === 'OWNER' && (
+                            <p className="mt-1 text-xs text-muted">
+                              All branches
+                            </p>
+                          )}
+                          {member.role === 'MERCHANT' && (
+                            <p className="mt-1 break-words text-xs text-muted">
+                              {member.merchantId
+                                ? `Merchant profile: ${member.merchantId}`
+                                : 'Merchant profile not linked'}
+                            </p>
+                          )}
                         </div>
                         {canManageMembers ? (
                           <div className="flex min-w-0 flex-wrap items-center gap-3">
@@ -371,6 +392,15 @@ export function OrganizationMemberManagement({
                                 ))}
                               </SelectControl>
                             </div>
+                            <button
+                              className={buttonStyles({ variant: 'secondary' })}
+                              type="button"
+                              disabled={Boolean(pendingMemberId)}
+                              aria-label={`Manage access for ${member.email}`}
+                              onClick={() => setAccessMember({ member })}
+                            >
+                              Manage access
+                            </button>
                             <button
                               className={buttonStyles({ variant: 'secondary' })}
                               type="button"
@@ -422,6 +452,22 @@ export function OrganizationMemberManagement({
         </>
       )}
       {confirmationDialog}
+      {canManageMembers && accessMember && (
+        <MemberAccessDialog
+          key={`${organizationId}-${accessMember.member.id}-${accessMember.changeToMerchant ? 'role' : 'access'}`}
+          organizationId={organizationId}
+          member={accessMember.member}
+          changeToMerchant={accessMember.changeToMerchant}
+          onClose={() => setAccessMember(null)}
+          onMemberChanged={(updated) => {
+            replaceMember(updated);
+            setAccessMember((current) =>
+              current ? { ...current, member: updated } : null,
+            );
+            setSuccessMessage(`Access updated for ${updated.email}.`);
+          }}
+        />
+      )}
     </OperationalPage>
   );
 }
@@ -467,6 +513,15 @@ function InvitationList({
                   <strong>{invitation.email}</strong>
                   <p className="mt-1 text-sm text-muted">
                     {roleLabels[invitation.role]} · {status}
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    Branches:{' '}
+                    {invitation.branches
+                      ?.map(({ branch }) => branch.name)
+                      .join(', ') || 'None assigned'}
+                    {invitation.merchant
+                      ? ` · Merchant: ${invitation.merchant.name}`
+                      : ''}
                   </p>
                 </div>
                 {pending ? (

@@ -56,16 +56,17 @@ it('renders responsive member rows with uniquely named owner actions', async () 
   expect(screen.queryByRole('table')).not.toBeInTheDocument();
 });
 
-it('keeps managers read-only and does not request invitations', async () => {
+it('denies managers without requesting members or invitations', async () => {
   vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
     organization: { id: 'org', role: 'MANAGER' },
     organizationStatus: 'ready',
   } as never);
   render(<OrganizationMemberManagement organizationId="org" />);
-  await screen.findByText('Mara Santos');
+  await screen.findByText('Member access is limited');
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'Invite member' }),
   ).not.toBeInTheDocument();
   expect(listOrganizationInvitations).not.toHaveBeenCalled();
+  expect(listOrganizationMembers).not.toHaveBeenCalled();
 });

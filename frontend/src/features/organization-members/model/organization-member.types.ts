@@ -11,6 +11,7 @@ export interface OrganizationMember {
   phone: string | null;
   role: OrganizationRole;
   joinedAt: string;
+  merchantId?: string | null;
 }
 
 export type { AuthenticatedRequest };

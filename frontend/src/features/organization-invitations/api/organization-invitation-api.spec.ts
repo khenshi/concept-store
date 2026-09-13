@@ -8,12 +8,27 @@ import {
 } from './organization-invitation-api';
 
 describe('organization invitation API', () => {
+  const invitation = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    email: 'manager@example.com',
+    role: 'MANAGER',
+    merchantId: null,
+    merchant: null,
+    branches: [],
+    expiresAt: '2026-09-20T00:00:00Z',
+    createdAt: '2026-09-13T00:00:00Z',
+    acceptedAt: null,
+    revokedAt: null,
+  };
   const request = vi.fn() as unknown as AuthenticatedRequest;
 
   beforeEach(() => vi.clearAllMocks());
 
   it('creates and lists invitations through the organization-scoped path', async () => {
-    vi.mocked(request).mockResolvedValue({});
+    vi.mocked(request)
+      .mockResolvedValueOnce({ invitation, token: 'token' })
+      .mockResolvedValueOnce([invitation]);
     const input = { email: 'manager@example.com', role: 'MANAGER' as const };
 
     await createOrganizationInvitation(request, 'organization/id', input);
@@ -35,7 +50,7 @@ describe('organization invitation API', () => {
   });
 
   it('revokes an invitation through both scoped identifiers', async () => {
-    vi.mocked(request).mockResolvedValue({});
+    vi.mocked(request).mockResolvedValue(invitation);
 
     await revokeOrganizationInvitation(
       request,

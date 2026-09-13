@@ -32,6 +32,14 @@ in the [completed plan](../plans/archive/products-and-branch-inventory-2026-09-1
 Member management and owner invitation controls use the neutral operational
 system. Invitation creation uses a native modal with focus restoration and
 pending dismissal protection; historical invitation status remains explicit.
+Owner access dialogs provide branch grants, confirmed revocations and merchant
+relinking, with bounded choices, safe pending dismissal, and request feedback.
+Merchant role changes require a profile and explain assignment clearing.
+Invitation inputs validate with a 300 ms debounce, immediate blur feedback, and
+final submission checks; branch selections and role-dependent merchant choices
+are included. Member management makes no directory/invitation requests for
+nonowners. These access-control screens have not had rendered browser QA;
+the historical visual waivers below do not cover this milestone.
 Form dialogs use generous viewport-aware widths. Dialog headings retain initial
 focus for context without a visible outline; control focus rings are unchanged.
 Merchant workflows now use full-width responsive linked directory rows, neutral

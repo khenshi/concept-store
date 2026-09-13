@@ -3,6 +3,9 @@ import {
   listOrganizationMembers,
   removeOrganizationMember,
   updateOrganizationMemberRole,
+  listMemberBranches,
+  setMemberBranch,
+  setMemberMerchant,
 } from './organization-member-api';
 
 describe('organization member API', () => {
@@ -21,7 +24,16 @@ describe('organization member API', () => {
   });
 
   it('updates a member role through both scoped identifiers', async () => {
-    vi.mocked(request).mockResolvedValue({});
+    vi.mocked(request).mockResolvedValue({
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      email: 'member@example.test',
+      firstName: 'Test',
+      lastName: 'Member',
+      phone: null,
+      role: 'CASHIER',
+      merchantId: null,
+      joinedAt: '2026-09-13T00:00:00Z',
+    });
 
     await updateOrganizationMemberRole(
       request,
@@ -48,5 +60,34 @@ describe('organization member API', () => {
       '/organizations/organization%2Fid/members/user%2Fid',
       { method: 'DELETE' },
     );
+  });
+  it('uses scoped grant/revoke and merchant-link commands without role or tenant body fields', async () => {
+    const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    vi.mocked(request).mockResolvedValue(undefined);
+    await setMemberBranch(request, 'org/id', 'user/id', 'branch/id', true);
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/org%2Fid/members/user%2Fid/branches/branch%2Fid',
+      expect.objectContaining({ method: 'PUT', body: '{}' }),
+    );
+    await setMemberBranch(request, 'org/id', 'user/id', 'branch/id', false);
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/org%2Fid/members/user%2Fid/branches/branch%2Fid',
+      expect.objectContaining({ method: 'DELETE', body: '{}' }),
+    );
+    vi.mocked(request).mockResolvedValue({ merchantId: id });
+    await setMemberMerchant(request, 'org/id', 'user/id', id);
+    expect(request).toHaveBeenLastCalledWith(
+      '/organizations/org%2Fid/members/user%2Fid/merchant',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ merchantId: id }),
+      }),
+    );
+  });
+  it('rejects malformed assignment responses before rendering', async () => {
+    vi.mocked(request).mockResolvedValue([
+      { id: 'bad', name: 'Branch', code: null },
+    ]);
+    await expect(listMemberBranches(request, 'org', 'user')).rejects.toThrow();
   });
 });
