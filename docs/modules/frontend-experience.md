@@ -102,6 +102,20 @@ use unique accessible title/description IDs.
 
 ## Authenticated application frame
 
+### Branch and merchant access alignment (Part 7)
+
+Only owners see Members navigation and shared catalog/branch creation controls.
+Managers retain assigned-branch editing and inventory controls, with read-only
+represented merchant/product views. Merchants receive branch identity, own-profile,
+product placement, and inventory/history navigation with no catalog or stock
+mutations, branch-wide totals, or movement actors. Cashiers remain branch readers.
+Runtime schemas support reduced role responses. Empty/unconfigured states explain
+asking an owner. Organization/role/resource changes reset screen state; access
+refresh clears branch cache and obsolete responses cannot restore prior data.
+Stock/price access-denial responses clear stale placement data and write controls;
+successful stock writes still refresh reads without replay on refresh failure.
+Automated verification does not certify rendered browser behavior for this milestone.
+
 Protected routes use a warm neutral canvas and a compact sticky utility header.
 The workspace sidebar remains 15.5rem expanded or 4.5rem collapsed and offers
 organization switching in both modes. Navigation uses neutral selected surfaces,

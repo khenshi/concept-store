@@ -13,7 +13,10 @@ import {
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { listBranches } from '@/features/branches/api/branch-api';
-import type { Branch } from '@/features/branches/model/branch.types';
+import type {
+  Branch,
+  BranchView,
+} from '@/features/branches/model/branch.types';
 import { getOrganization } from '../api/organization-api';
 import type { OrganizationAccess } from '../model/organization.types';
 
@@ -25,10 +28,10 @@ interface OrganizationWorkspaceContextValue {
   organizationStatus: Exclude<LoadStatus, 'idle'>;
   organizationError: string | null;
   refreshOrganization(): Promise<void>;
-  branches: Branch[];
+  branches: BranchView[];
   branchesStatus: LoadStatus;
   branchesError: string | null;
-  loadBranches(options?: { refresh?: boolean }): Promise<Branch[]>;
+  loadBranches(options?: { refresh?: boolean }): Promise<BranchView[]>;
   upsertBranch(branch: Branch): void;
 }
 
@@ -39,7 +42,19 @@ function errorMessage(cause: unknown, fallback: string): string {
   return cause instanceof ApiError ? cause.message : fallback;
 }
 
-export function OrganizationWorkspaceProvider({
+export function OrganizationWorkspaceProvider(props: {
+  organizationId: string;
+  children: ReactNode;
+}) {
+  return (
+    <ScopedOrganizationWorkspaceProvider
+      key={props.organizationId}
+      {...props}
+    />
+  );
+}
+
+function ScopedOrganizationWorkspaceProvider({
   organizationId,
   children,
 }: {
@@ -55,37 +70,56 @@ export function OrganizationWorkspaceProvider({
   const [organizationError, setOrganizationError] = useState<string | null>(
     null,
   );
-  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branches, setBranches] = useState<BranchView[]>([]);
   const [branchesStatus, setBranchesStatus] = useState<LoadStatus>('idle');
   const [branchesError, setBranchesError] = useState<string | null>(null);
-  const branchesPromiseRef = useRef<Promise<Branch[]> | null>(null);
-  const branchesRef = useRef<Branch[]>([]);
+  const branchesPromiseRef = useRef<Promise<BranchView[]> | null>(null);
+  const branchesRef = useRef<BranchView[]>([]);
   const branchesStatusRef = useRef<LoadStatus>('idle');
+  const branchGeneration = useRef(0);
+  const organizationGeneration = useRef(0);
+
+  const clearBranches = useCallback(() => {
+    branchGeneration.current += 1;
+    branchesPromiseRef.current = null;
+    branchesRef.current = [];
+    branchesStatusRef.current = 'idle';
+    setBranches([]);
+    setBranchesStatus('idle');
+    setBranchesError(null);
+  }, []);
 
   const refreshOrganization = useCallback(async () => {
+    const generation = ++organizationGeneration.current;
+    clearBranches();
+    setOrganization(null);
     setOrganizationStatus('loading');
     setOrganizationError(null);
     try {
-      setOrganization(await getOrganization(request, organizationId));
+      const result = await getOrganization(request, organizationId);
+      if (generation !== organizationGeneration.current) return;
+      setOrganization(result);
       setOrganizationStatus('ready');
     } catch (cause: unknown) {
+      if (generation !== organizationGeneration.current) return;
       setOrganizationError(
         errorMessage(cause, 'The organization could not be loaded.'),
       );
       setOrganizationStatus('error');
     }
-  }, [organizationId, request]);
+  }, [clearBranches, organizationId, request]);
 
   useEffect(() => {
     let active = true;
+    const generation = ++organizationGeneration.current;
     void getOrganization(request, organizationId)
       .then((result) => {
-        if (!active) return;
+        if (!active || generation !== organizationGeneration.current) return;
         setOrganization(result);
         setOrganizationStatus('ready');
       })
       .catch((cause: unknown) => {
-        if (!active) return;
+        if (!active || generation !== organizationGeneration.current) return;
         setOrganizationError(
           errorMessage(cause, 'The organization could not be loaded.'),
         );
@@ -93,21 +127,27 @@ export function OrganizationWorkspaceProvider({
       });
     return () => {
       active = false;
+      organizationGeneration.current += 1;
+      branchGeneration.current += 1;
     };
   }, [organizationId, request]);
 
   const loadBranches = useCallback(
-    async (options?: { refresh?: boolean }): Promise<Branch[]> => {
+    async (options?: { refresh?: boolean }): Promise<BranchView[]> => {
       if (!options?.refresh) {
         if (branchesStatusRef.current === 'ready') return branchesRef.current;
         if (branchesPromiseRef.current) return branchesPromiseRef.current;
       }
 
+      const generation = ++branchGeneration.current;
+      branchesRef.current = [];
+      setBranches([]);
       branchesStatusRef.current = 'loading';
       setBranchesStatus('loading');
       setBranchesError(null);
-      const promise = listBranches(request, organizationId)
+      const promise = listBranches(request, organizationId, organization?.role)
         .then((result) => {
+          if (generation !== branchGeneration.current) return [];
           branchesRef.current = result;
           setBranches(result);
           branchesStatusRef.current = 'ready';
@@ -115,6 +155,9 @@ export function OrganizationWorkspaceProvider({
           return result;
         })
         .catch((cause: unknown) => {
+          if (generation !== branchGeneration.current) throw cause;
+          branchesRef.current = [];
+          setBranches([]);
           setBranchesError(
             errorMessage(cause, 'The branches could not be loaded.'),
           );
@@ -123,12 +166,13 @@ export function OrganizationWorkspaceProvider({
           throw cause;
         })
         .finally(() => {
-          branchesPromiseRef.current = null;
+          if (generation === branchGeneration.current)
+            branchesPromiseRef.current = null;
         });
       branchesPromiseRef.current = promise;
       return promise;
     },
-    [organizationId, request],
+    [organizationId, organization, request],
   );
 
   const upsertBranch = useCallback((branch: Branch) => {

@@ -25,12 +25,14 @@ export function InventoryStockForm({
   mode,
   onSaved,
   onPendingChange,
+  onAccessLost,
 }: {
   scope: InventoryDetailScope;
   inventory: BranchInventory;
   mode: 'receipt' | 'adjustment';
   onSaved(): void;
   onPendingChange(pending: boolean): void;
+  onAccessLost?(): void;
 }) {
   const { request } = useAuth();
   const { confirm, confirmationDialog } = useConfirmationDialog();
@@ -150,6 +152,8 @@ export function InventoryStockForm({
       setReason('');
       onSaved();
     } catch (cause) {
+      if (cause instanceof ApiError && [403, 404].includes(cause.status))
+        onAccessLost?.();
       setError(
         cause instanceof ApiError
           ? cause.message

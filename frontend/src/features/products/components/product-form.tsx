@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
-import type { Merchant } from '@/features/merchants/model/merchant.types';
+import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import { buttonStyles } from '@/shared/components/ui/button';
 import {
   TextField,
@@ -27,7 +27,7 @@ export function ProductForm({
   onPendingChange,
 }: {
   organizationId: string;
-  merchants: Merchant[];
+  merchants: MerchantView[];
   product?: Product;
   onSaved(product: Product): void;
   onCancel(): void;

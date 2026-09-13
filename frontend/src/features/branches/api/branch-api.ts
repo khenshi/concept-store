@@ -3,17 +3,33 @@ import type {
   Branch,
   BranchInput,
   BranchUpdateInput,
+  BranchView,
 } from '../model/branch.types';
+import {
+  branchIdentitySchema,
+  branchResponseSchema,
+  branchViewSchema,
+} from '../model/branch.schemas';
 
 function branchPath(organizationId: string): string {
   return `/organizations/${encodeURIComponent(organizationId)}/branches`;
 }
 
-export function listBranches(
+export async function listBranches(
   request: AuthenticatedRequest,
   organizationId: string,
-): Promise<Branch[]> {
-  return request<Branch[]>(branchPath(organizationId));
+  role?: string,
+): Promise<BranchView[]> {
+  const result = await request<unknown>(branchPath(organizationId));
+  return (
+    role === 'MERCHANT'
+      ? branchIdentitySchema
+      : role
+        ? branchResponseSchema
+        : branchViewSchema
+  )
+    .array()
+    .parse(result);
 }
 
 export function createBranch(
@@ -28,14 +44,22 @@ export function createBranch(
   });
 }
 
-export function getBranch(
+export async function getBranch(
   request: AuthenticatedRequest,
   organizationId: string,
   branchId: string,
-): Promise<Branch> {
-  return request<Branch>(
+  role?: string,
+): Promise<BranchView> {
+  const result = await request<unknown>(
     `${branchPath(organizationId)}/${encodeURIComponent(branchId)}`,
   );
+  return (
+    role === 'MERCHANT'
+      ? branchIdentitySchema
+      : role
+        ? branchResponseSchema
+        : branchViewSchema
+  ).parse(result);
 }
 
 export function updateBranch(

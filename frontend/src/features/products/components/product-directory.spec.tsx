@@ -43,7 +43,7 @@ describe('ProductDirectory workflows', () => {
     vi.mocked(listMerchants).mockResolvedValue([merchant]);
     vi.mocked(listProducts).mockResolvedValue([product]);
   });
-  it.each(['CASHIER', 'MERCHANT'])(
+  it.each(['CASHIER'])(
     'does not request or show product controls for %s',
     (role) => {
       vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
@@ -87,6 +87,41 @@ describe('ProductDirectory workflows', () => {
         status: 'INACTIVE',
       }),
     );
+  });
+  it.each(['MANAGER', 'MERCHANT'])(
+    'shows filtered read-only products for %s',
+    async (role) => {
+      vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+        organization: { role },
+        organizationStatus: 'ready',
+      } as never);
+      render(<ProductDirectory organizationId={organizationId} />);
+      await screen.findByRole('link', { name: `View ${product.name}` });
+      expect(
+        screen.queryByRole('button', { name: 'Add product' }),
+      ).not.toBeInTheDocument();
+      expect(listMerchants).toHaveBeenCalledWith(
+        request,
+        organizationId,
+        {},
+        role,
+      );
+    },
+  );
+  it('explains unconfigured merchant access without exposing an empty catalog mutation', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    vi.mocked(listProducts).mockResolvedValue([]);
+    vi.mocked(listMerchants).mockResolvedValue([]);
+    render(<ProductDirectory organizationId={organizationId} />);
+    expect(
+      await screen.findByText(/Ask an owner to configure your merchant link/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Add product' }),
+    ).not.toBeInTheDocument();
   });
   it('creates a product in a dialog, announces success, and reloads the list', async () => {
     vi.mocked(createProduct).mockResolvedValue(product);

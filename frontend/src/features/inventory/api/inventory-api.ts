@@ -6,6 +6,7 @@ import {
   inventoryResponseSchema,
   movementListSchema,
   movementResponseSchema,
+  merchantMovementSchema,
 } from '../model/inventory.schemas';
 import type {
   InventoryScope,
@@ -70,10 +71,12 @@ export async function updateInventoryPrice(
 export async function listMovements(
   request: AuthenticatedRequest,
   scope: InventoryDetailScope,
+  role?: string,
 ) {
-  return movementListSchema.parse(
-    await request<unknown>(`${detail(scope)}/movements`),
-  );
+  const result = await request<unknown>(`${detail(scope)}/movements`);
+  return role === 'MERCHANT'
+    ? merchantMovementSchema.array().parse(result)
+    : movementListSchema.parse(result);
 }
 export async function receiveStock(
   request: AuthenticatedRequest,

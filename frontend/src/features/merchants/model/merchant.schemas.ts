@@ -75,3 +75,14 @@ export const merchantResponseSchema = z.object({
 });
 
 export const merchantListResponseSchema = z.array(merchantResponseSchema);
+export const merchantSummarySchema = merchantResponseSchema.pick({
+  id: true,
+  name: true,
+  code: true,
+  status: true,
+});
+export const merchantViewSchema = z.union([
+  merchantResponseSchema,
+  merchantSummarySchema,
+]);
+export const merchantViewListSchema = z.array(merchantViewSchema);

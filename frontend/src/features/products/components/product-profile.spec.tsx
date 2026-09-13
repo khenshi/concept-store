@@ -37,7 +37,7 @@ describe('ProductProfile workflows', () => {
     vi.resetAllMocks();
     vi.mocked(useAuth).mockReturnValue({ request } as never);
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
-      organization: { role: 'MANAGER' },
+      organization: { role: 'OWNER' },
       organizationStatus: 'ready',
     } as never);
     vi.mocked(getProduct).mockResolvedValue(product);
@@ -55,6 +55,34 @@ describe('ProductProfile workflows', () => {
       `/app/organizations/${organizationId}/branches/${placement.branchId}/inventory/${placement.id}`,
     );
   });
+  it.each(['MANAGER', 'MERCHANT'])(
+    'keeps product details and placements read-only for %s',
+    async (role) => {
+      vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+        organization: { role },
+        organizationStatus: 'ready',
+      } as never);
+      render(
+        <ProductProfile
+          organizationId={organizationId}
+          productId={product.id}
+        />,
+      );
+      await screen.findByText('PHP 850.00');
+      expect(
+        screen.queryByRole('button', { name: 'Edit profile' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Change status' }),
+      ).not.toBeInTheDocument();
+      expect(getMerchant).toHaveBeenCalledWith(
+        request,
+        organizationId,
+        product.merchantId,
+        role,
+      );
+    },
+  );
   it('cancels status confirmation without sending a write, then confirms separately', async () => {
     vi.mocked(updateProductStatus).mockResolvedValue({
       ...product,
@@ -116,20 +144,14 @@ describe('ProductProfile workflows', () => {
       { name: 'Updated vase', sku: product.sku, barcode: product.barcode },
     );
   });
-  it.each(['CASHIER', 'MERCHANT'])(
-    'does not request profiles for %s',
-    (role) => {
-      vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
-        organization: { role },
-        organizationStatus: 'ready',
-      } as never);
-      render(
-        <ProductProfile
-          organizationId={organizationId}
-          productId={product.id}
-        />,
-      );
-      expect(getProduct).not.toHaveBeenCalled();
-    },
-  );
+  it.each(['CASHIER'])('does not request profiles for %s', (role) => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role },
+      organizationStatus: 'ready',
+    } as never);
+    render(
+      <ProductProfile organizationId={organizationId} productId={product.id} />,
+    );
+    expect(getProduct).not.toHaveBeenCalled();
+  });
 });

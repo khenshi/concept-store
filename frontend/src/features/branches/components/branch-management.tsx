@@ -19,9 +19,10 @@ import { TextField } from '@/shared/components/ui/text-field';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BranchForm } from './branch-form';
-import type { Branch } from '../model/branch.types';
+import type { BranchView } from '../model/branch.types';
 
-function addressFor(branch: Branch): string {
+function addressFor(branch: BranchView): string {
+  if (!('addressLine1' in branch)) return '';
   return [
     branch.addressLine1,
     branch.addressLine2,
@@ -34,7 +35,17 @@ function addressFor(branch: Branch): string {
     .join(', ');
 }
 
-export function BranchManagement({
+export function BranchManagement(props: { organizationId: string }) {
+  const { organization } = useOrganizationWorkspaceContext();
+  return (
+    <ScopedBranchManagement
+      key={`${props.organizationId}:${organization?.role}`}
+      {...props}
+    />
+  );
+}
+
+function ScopedBranchManagement({
   organizationId,
 }: {
   organizationId: string;
@@ -57,13 +68,16 @@ export function BranchManagement({
   const debouncedSearch = useDebouncedValue(search);
 
   useEffect(() => {
-    if (branchesStatus === 'idle') void loadBranches().catch(() => undefined);
-  }, [branchesStatus, loadBranches]);
+    if (!organization) return;
+    void loadBranches({ refresh: true }).catch(() => undefined);
+  }, [organization, loadBranches]);
   const locations = useMemo(
     () =>
       [
         ...new Set(
-          branches.map((branch) => `${branch.city}, ${branch.province}`),
+          branches.flatMap((branch) =>
+            'city' in branch ? [`${branch.city}, ${branch.province}`] : [],
+          ),
         ),
       ].sort(),
     [branches],
@@ -72,7 +86,9 @@ export function BranchManagement({
     const query = debouncedSearch.trim().toLowerCase();
     return branches.filter(
       (branch) =>
-        (!location || `${branch.city}, ${branch.province}` === location) &&
+        (!location ||
+          ('city' in branch &&
+            `${branch.city}, ${branch.province}` === location)) &&
         (!query ||
           `${branch.name} ${branch.code ?? ''} ${addressFor(branch)}`
             .toLowerCase()
@@ -101,18 +117,22 @@ export function BranchManagement({
       </OperationalPage>
     );
 
-  const canManage =
-    organization.role === 'OWNER' || organization.role === 'MANAGER';
+  const canManage = organization.role === 'OWNER';
+  const identityOnly = organization.role === 'MERCHANT';
   return (
     <OperationalPage>
       <PageHeader
         title="Branches"
-        description="View and maintain the physical store locations in this organization."
+        description={
+          identityOnly
+            ? 'Read branch identities where you are assigned or your merchant sells products.'
+            : 'View the store locations available to your role and branch assignments.'
+        }
       />
       {successMessage ? <StatusNotice>{successMessage}</StatusNotice> : null}
       <OperationalPanel
         title="Store locations"
-        description={`${visibleBranches.length} matching branches · Open a branch to review its identity and address.`}
+        description={`${visibleBranches.length} matching accessible branches · Open a branch to review its ${identityOnly ? 'identity and own inventory' : 'identity and address'}.`}
         action={
           canManage ? (
             <Button
@@ -145,7 +165,7 @@ export function BranchManagement({
             <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
               {canManage
                 ? 'Add the first physical store location for this organization.'
-                : 'An owner or manager has not added a branch yet.'}
+                : 'No branches are available to your access. Ask an owner to configure your branch assignments or merchant link.'}
             </p>
           </div>
         ) : (
@@ -156,23 +176,27 @@ export function BranchManagement({
                 label="Search"
                 type="search"
                 value={search}
-                placeholder="Name, code, or address"
+                placeholder={
+                  identityOnly ? 'Name or code' : 'Name, code, or address'
+                }
                 onChange={(event) => setSearch(event.target.value)}
               />
-              <FilterField id="branch-location" label="Location">
-                <SelectControl
-                  id="branch-location"
-                  value={location}
-                  onValueChange={setLocation}
-                >
-                  <option value="">All locations</option>
-                  {locations.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </SelectControl>
-              </FilterField>
+              {!identityOnly ? (
+                <FilterField id="branch-location" label="Location">
+                  <SelectControl
+                    id="branch-location"
+                    value={location}
+                    onValueChange={setLocation}
+                  >
+                    <option value="">All locations</option>
+                    {locations.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </SelectControl>
+                </FilterField>
+              ) : null}
             </OperationalToolbar>
             {visibleBranches.length === 0 ? (
               <p className="px-5 py-12 text-center text-sm text-muted sm:px-6">
@@ -204,7 +228,9 @@ export function BranchManagement({
                           ) : null}
                         </span>
                         <span className="mt-2 block break-words text-sm leading-6 text-muted">
-                          {addressFor(branch)}
+                          {identityOnly
+                            ? 'Read-only branch identity'
+                            : addressFor(branch)}
                         </span>
                       </span>
                       <Icon

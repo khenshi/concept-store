@@ -149,7 +149,7 @@ afterEach(() => {
 });
 
 describe('BranchManagement', () => {
-  it.each(['OWNER', 'MANAGER'] as const)(
+  it.each(['OWNER'] as const)(
     'keeps branch creation available to %s',
     (role) => {
       workspace.organization = { ...workspace.organization!, role };
@@ -166,16 +166,19 @@ describe('BranchManagement', () => {
     },
   );
 
-  it.each(['CASHIER', 'MERCHANT'] as const)('keeps %s read-only', (role) => {
-    workspace.organization = { ...workspace.organization!, role };
-    render(<BranchManagement organizationId="org" />);
-    expect(
-      screen.queryByRole('button', { name: 'Add branch' }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: /Makati Main/ }),
-    ).toBeInTheDocument();
-  });
+  it.each(['MANAGER', 'CASHIER', 'MERCHANT'] as const)(
+    'keeps %s read-only',
+    (role) => {
+      workspace.organization = { ...workspace.organization!, role };
+      render(<BranchManagement organizationId="org" />);
+      expect(
+        screen.queryByRole('button', { name: 'Add branch' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: /Makati Main/ }),
+      ).toBeInTheDocument();
+    },
+  );
 
   it('preserves debounced search and location filtering', async () => {
     render(<BranchManagement organizationId="org" />);
@@ -443,10 +446,20 @@ describe('BranchDetail', () => {
       expect(
         screen.queryByRole('button', { name: 'Edit branch' }),
       ).not.toBeInTheDocument();
-      expect(getBranch).toHaveBeenCalledWith(request, 'org', 'branch-id');
+      expect(getBranch).toHaveBeenCalledWith(request, 'org', 'branch-id', role);
       expect(
         screen.queryByRole('link', { name: 'Manage inventory' }),
       ).not.toBeInTheDocument();
+      if (role === 'MERCHANT') {
+        expect(screen.queryByText('Country')).not.toBeInTheDocument();
+        expect(screen.queryByText('Address')).not.toBeInTheDocument();
+        expect(
+          screen.getByRole('link', { name: 'View own inventory' }),
+        ).toHaveAttribute(
+          'href',
+          '/app/organizations/org/branches/branch-id/inventory',
+        );
+      }
     },
   );
 

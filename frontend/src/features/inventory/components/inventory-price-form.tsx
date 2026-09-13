@@ -20,11 +20,13 @@ export function InventoryPriceForm({
   inventory,
   onSaved,
   onPendingChange,
+  onAccessLost,
 }: {
   scope: InventoryDetailScope;
   inventory: BranchInventory;
   onSaved(): void;
   onPendingChange(pending: boolean): void;
+  onAccessLost?(): void;
 }) {
   const { request } = useAuth();
   const [price, setPrice] = useState(inventory.sellingPrice);
@@ -62,6 +64,8 @@ export function InventoryPriceForm({
       await updateInventoryPrice(request, scope, parsed.data.sellingPrice);
       onSaved();
     } catch (cause) {
+      if (cause instanceof ApiError && [403, 404].includes(cause.status))
+        onAccessLost?.();
       setError(
         cause instanceof ApiError
           ? cause.message

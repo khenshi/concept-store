@@ -2,6 +2,9 @@ import type { AuthenticatedRequest } from '@/features/organizations/model/organi
 import {
   merchantListResponseSchema,
   merchantResponseSchema,
+  merchantSummarySchema,
+  merchantViewSchema,
+  merchantViewListSchema,
 } from '../model/merchant.schemas';
 import type {
   Merchant,
@@ -9,6 +12,7 @@ import type {
   MerchantInput,
   MerchantStatus,
   MerchantUpdateInput,
+  MerchantView,
 } from '../model/merchant.types';
 
 function merchantPath(organizationId: string): string {
@@ -26,14 +30,20 @@ export async function listMerchants(
   request: AuthenticatedRequest,
   organizationId: string,
   filters: MerchantFilters = {},
-): Promise<Merchant[]> {
+  role?: string,
+): Promise<MerchantView[]> {
   const query = new URLSearchParams();
   if (filters.q) query.set('q', filters.q);
   if (filters.status) query.set('status', filters.status);
   const suffix = query.size ? `?${query.toString()}` : '';
-  return merchantListResponseSchema.parse(
-    await request<unknown>(`${merchantPath(organizationId)}${suffix}`),
+  const result = await request<unknown>(
+    `${merchantPath(organizationId)}${suffix}`,
   );
+  return role === 'MANAGER'
+    ? merchantSummarySchema.array().parse(result)
+    : role === 'OWNER' || role === 'MERCHANT'
+      ? merchantListResponseSchema.parse(result)
+      : merchantViewListSchema.parse(result);
 }
 
 export async function createMerchant(
@@ -54,10 +64,16 @@ export async function getMerchant(
   request: AuthenticatedRequest,
   organizationId: string,
   merchantId: string,
-): Promise<Merchant> {
-  return merchantResponseSchema.parse(
-    await request<unknown>(merchantDetailPath(organizationId, merchantId)),
+  role?: string,
+): Promise<MerchantView> {
+  const result = await request<unknown>(
+    merchantDetailPath(organizationId, merchantId),
   );
+  return role === 'MANAGER'
+    ? merchantSummarySchema.parse(result)
+    : role === 'OWNER' || role === 'MERCHANT'
+      ? merchantResponseSchema.parse(result)
+      : merchantViewSchema.parse(result);
 }
 
 export async function updateMerchant(

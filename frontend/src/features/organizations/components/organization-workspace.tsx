@@ -49,7 +49,9 @@ export function OrganizationWorkspace({
     );
 
   const canManage =
-    organization.role === 'OWNER' || organization.role === 'MANAGER';
+    organization.role === 'OWNER' ||
+    organization.role === 'MANAGER' ||
+    organization.role === 'MERCHANT';
   const destinations: {
     label: string;
     description: string;
@@ -67,7 +69,10 @@ export function OrganizationWorkspace({
     },
     {
       label: 'Merchants',
-      description: 'Find merchant business profiles and contact details.',
+      description:
+        organization.role === 'MERCHANT'
+          ? 'View your linked merchant profile.'
+          : 'View merchant profiles available to your role and branches.',
       href: `/app/organizations/${organizationId}/merchants`,
       visible: canManage,
       icon: 'store',
@@ -77,8 +82,15 @@ export function OrganizationWorkspace({
       description:
         'Review team access and roles. Owners can also manage invitations.',
       href: `/app/organizations/${organizationId}/members`,
-      visible: canManage,
+      visible: organization.role === 'OWNER',
       icon: 'users',
+    },
+    {
+      label: 'Products',
+      description: 'View available products and their branch prices and stock.',
+      href: `/app/organizations/${organizationId}/products`,
+      visible: canManage,
+      icon: 'store',
     },
     {
       label: 'Account settings',

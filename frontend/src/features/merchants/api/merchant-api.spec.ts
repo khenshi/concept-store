@@ -89,4 +89,31 @@ describe('merchant API', () => {
       getMerchant(request, merchant.organizationId, merchant.id),
     ).rejects.toThrow();
   });
+  it('parses reduced manager summaries and strips any contact fields', async () => {
+    const summary = {
+      id: merchant.id,
+      name: merchant.name,
+      code: merchant.code,
+      status: merchant.status,
+    };
+    vi.mocked(request).mockResolvedValue([summary]);
+    await expect(
+      listMerchants(request, merchant.organizationId, {}, 'MANAGER'),
+    ).resolves.toEqual([summary]);
+    vi.mocked(request).mockResolvedValue(merchant);
+    await expect(
+      getMerchant(request, merchant.organizationId, merchant.id, 'MANAGER'),
+    ).resolves.toEqual(summary);
+  });
+  it('requires full own-profile responses for linked merchants', async () => {
+    vi.mocked(request).mockResolvedValue({
+      id: merchant.id,
+      name: merchant.name,
+      code: merchant.code,
+      status: merchant.status,
+    });
+    await expect(
+      getMerchant(request, merchant.organizationId, merchant.id, 'MERCHANT'),
+    ).rejects.toThrow();
+  });
 });

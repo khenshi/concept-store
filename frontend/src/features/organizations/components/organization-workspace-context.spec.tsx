@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { listBranches } from '@/features/branches/api/branch-api';
 import { getOrganization } from '../api/organization-api';
@@ -42,6 +48,7 @@ function Consumer() {
     branches,
     loadBranches,
     upsertBranch,
+    refreshOrganization,
   } = useOrganizationWorkspaceContext();
   return (
     <>
@@ -60,6 +67,7 @@ function Consumer() {
         Update branch
       </button>
       <span>{branches[0]?.name}</span>
+      <button onClick={() => void refreshOrganization()}>Refresh access</button>
     </>
   );
 }
@@ -88,5 +96,62 @@ describe('OrganizationWorkspaceProvider', () => {
     expect(screen.getByText('Makati Flagship')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
     await waitFor(() => expect(listBranches).toHaveBeenCalledTimes(1));
+  });
+  it('clears branch cache on access refresh and ignores an older branch response', async () => {
+    let resolveOld!: (value: (typeof branch)[]) => void;
+    vi.mocked(listBranches)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+      )
+      .mockResolvedValue([]);
+    render(
+      <OrganizationWorkspaceProvider organizationId="organization-id">
+        <Consumer />
+      </OrganizationWorkspaceProvider>,
+    );
+    await screen.findByText('North & Pine');
+    fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
+    await waitFor(() => expect(listBranches).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+    await screen.findByText('North & Pine');
+    await act(async () => resolveOld([branch]));
+    expect(screen.getByText('0 branches')).toBeInTheDocument();
+    expect(screen.queryByText('Makati Main')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
+    await waitFor(() => expect(listBranches).toHaveBeenCalledTimes(2));
+  });
+  it('does not reuse cached branch data when switching organization scope', async () => {
+    const { rerender } = render(
+      <OrganizationWorkspaceProvider organizationId="organization-id">
+        <Consumer />
+      </OrganizationWorkspaceProvider>,
+    );
+    await screen.findByText('North & Pine');
+    fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
+    await screen.findByText('Makati Main');
+    vi.mocked(getOrganization).mockResolvedValue({
+      ...organization,
+      id: 'other-org',
+      name: 'Other store',
+      role: 'MANAGER',
+    });
+    vi.mocked(listBranches).mockResolvedValue([]);
+    rerender(
+      <OrganizationWorkspaceProvider organizationId="other-org">
+        <Consumer />
+      </OrganizationWorkspaceProvider>,
+    );
+    expect(screen.queryByText('Makati Main')).not.toBeInTheDocument();
+    await screen.findByText('Other store');
+    fireEvent.click(screen.getByRole('button', { name: 'Load branches' }));
+    await waitFor(() =>
+      expect(listBranches).toHaveBeenLastCalledWith(
+        request,
+        'other-org',
+        'MANAGER',
+      ),
+    );
   });
 });

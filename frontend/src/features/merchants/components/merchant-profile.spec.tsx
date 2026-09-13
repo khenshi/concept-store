@@ -43,7 +43,7 @@ describe('MerchantProfile', () => {
     vi.clearAllMocks();
     vi.mocked(useAuth).mockReturnValue({ request } as never);
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
-      organization: { id: merchant.organizationId, role: 'MANAGER' },
+      organization: { id: merchant.organizationId, role: 'OWNER' },
       organizationStatus: 'ready',
     } as never);
     vi.mocked(useConfirmationDialog).mockReturnValue({
@@ -65,6 +65,57 @@ describe('MerchantProfile', () => {
     expect(
       screen.getByRole('heading', { name: 'Edit profile' }),
     ).toBeInTheDocument();
+  });
+  it('shows manager identity/status without contact details or mutations', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MANAGER' },
+      organizationStatus: 'ready',
+    } as never);
+    vi.mocked(getMerchant).mockResolvedValue({
+      id: merchant.id,
+      name: merchant.name,
+      code: merchant.code,
+      status: merchant.status,
+    });
+    render(
+      <MerchantProfile
+        merchantId={merchant.id}
+        organizationId={merchant.organizationId}
+      />,
+    );
+    await screen.findByRole('heading', { name: merchant.name });
+    expect(screen.queryByText(merchant.contactName)).not.toBeInTheDocument();
+    expect(screen.queryByText('Phone')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Edit profile' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Change status' }),
+    ).not.toBeInTheDocument();
+  });
+  it('shows own merchant contacts read-only even for an inactive profile', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    vi.mocked(getMerchant).mockResolvedValue({
+      ...merchant,
+      status: 'INACTIVE',
+    });
+    render(
+      <MerchantProfile
+        merchantId={merchant.id}
+        organizationId={merchant.organizationId}
+      />,
+    );
+    await screen.findByText(merchant.contactName);
+    expect(screen.getByText('Inactive')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Edit profile' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Change status' }),
+    ).not.toBeInTheDocument();
   });
 
   it('confirms before changing lifecycle status', async () => {

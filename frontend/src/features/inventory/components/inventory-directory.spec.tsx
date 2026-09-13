@@ -91,18 +91,40 @@ describe('InventoryDirectory workflows', () => {
     await waitFor(() => expect(listInventory).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
-  it.each(['CASHIER', 'MERCHANT'])(
-    'blocks data and controls for %s',
-    (role) => {
-      vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
-        organization: { role },
-        organizationStatus: 'ready',
-      } as never);
-      render(<InventoryDirectory {...scope} />);
-      expect(listInventory).not.toHaveBeenCalled();
-      expect(getInventoryBranch).not.toHaveBeenCalled();
-    },
-  );
+  it('shows only own merchant placements with no placement creation', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    render(<InventoryDirectory {...scope} />);
+    await screen.findByRole('link', {
+      name: `View ${inventory.product.name} inventory`,
+    });
+    expect(
+      screen.queryByRole('button', { name: 'Add product placement' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/matching own placements/)).toBeInTheDocument();
+  });
+  it('explains an assigned merchant branch with no own inventory', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    vi.mocked(listInventory).mockResolvedValue([]);
+    render(<InventoryDirectory {...scope} />);
+    expect(
+      await screen.findByText(/never grants access to another merchant/),
+    ).toBeInTheDocument();
+  });
+  it.each(['CASHIER'])('blocks data and controls for %s', (role) => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role },
+      organizationStatus: 'ready',
+    } as never);
+    render(<InventoryDirectory {...scope} />);
+    expect(listInventory).not.toHaveBeenCalled();
+    expect(getInventoryBranch).not.toHaveBeenCalled();
+  });
   it('distinguishes empty and filtered-empty results', async () => {
     vi.mocked(listInventory).mockResolvedValue([]);
     render(<InventoryDirectory {...scope} />);

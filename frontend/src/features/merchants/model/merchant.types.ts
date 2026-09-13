@@ -20,6 +20,9 @@ export interface Merchant {
   updatedAt: string;
 }
 
+export type MerchantSummary = Pick<Merchant, 'id' | 'name' | 'code' | 'status'>;
+export type MerchantView = Merchant | MerchantSummary;
+
 export interface MerchantInput {
   name: string;
   code?: string;

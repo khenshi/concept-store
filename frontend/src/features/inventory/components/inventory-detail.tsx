@@ -23,12 +23,22 @@ import type {
   BranchInventory,
   InventoryBranch,
   InventoryDetailScope,
-  InventoryMovement,
+  InventoryMovementView,
 } from '../model/inventory.types';
 import { InventoryPriceForm } from './inventory-price-form';
 import { InventoryStockForm } from './inventory-stock-form';
 
-export function InventoryDetail({
+export function InventoryDetail(props: InventoryDetailScope) {
+  const { organization } = useOrganizationWorkspaceContext();
+  return (
+    <ScopedInventoryDetail
+      key={`${props.organizationId}:${props.branchId}:${props.inventoryId}:${organization?.role}`}
+      {...props}
+    />
+  );
+}
+
+function ScopedInventoryDetail({
   organizationId,
   branchId,
   inventoryId,
@@ -37,10 +47,14 @@ export function InventoryDetail({
   const { organization, organizationStatus } =
     useOrganizationWorkspaceContext();
   const allowed =
+    organization?.role === 'OWNER' ||
+    organization?.role === 'MANAGER' ||
+    organization?.role === 'MERCHANT';
+  const canWrite =
     organization?.role === 'OWNER' || organization?.role === 'MANAGER';
   const [inventory, setInventory] = useState<BranchInventory | null>(null);
   const [branch, setBranch] = useState<InventoryBranch | null>(null);
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
+  const [movements, setMovements] = useState<InventoryMovementView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -56,12 +70,15 @@ export function InventoryDetail({
       if (!active) return;
       setLoading(true);
       setError(null);
+      setInventory(null);
+      setBranch(null);
+      setMovements([]);
       try {
         const scope = { organizationId, branchId, inventoryId };
         const [item, location, history] = await Promise.all([
           getInventory(request, scope),
           getInventoryBranch(request, scope),
-          listMovements(request, scope),
+          listMovements(request, scope, organization?.role),
         ]);
         if (active) {
           setInventory(item);
@@ -83,7 +100,15 @@ export function InventoryDetail({
     return () => {
       active = false;
     };
-  }, [allowed, request, organizationId, branchId, inventoryId, revision]);
+  }, [
+    allowed,
+    organization,
+    request,
+    organizationId,
+    branchId,
+    inventoryId,
+    revision,
+  ]);
   if (organizationStatus === 'loading')
     return <ListSkeleton label="Loading inventory" />;
   if (!allowed)
@@ -124,6 +149,14 @@ export function InventoryDetail({
     setSuccess(message);
     setRevision((value) => value + 1);
   };
+  const accessLost = () => {
+    setInventory(null);
+    setBranch(null);
+    setMovements([]);
+    setError(
+      'Access to this placement is unavailable. Ask an owner to review your branch assignments or merchant link.',
+    );
+  };
   return (
     <OperationalPage>
       {back}
@@ -162,74 +195,89 @@ export function InventoryDetail({
           another branch’s price.
         </p>
       </OperationalPanel>
-      <OperationalPanel title="Branch selling price">
-        <fieldset
-          className="min-w-0 border-0 p-0"
-          disabled={pendingOperation !== null && pendingOperation !== 'price'}
-        >
-          <InventoryPriceForm
-            scope={scope}
-            inventory={inventory}
-            onPendingChange={(pending) =>
-              setPendingOperation(pending ? 'price' : null)
-            }
-            onSaved={() =>
-              saved('Branch price saved. Refreshing the current placement.')
-            }
-          />
-        </fieldset>
-      </OperationalPanel>
-      <OperationalPanel
-        title="Receive stock"
-        description="Record a receipt of positive whole units with a required reason."
-      >
-        <fieldset
-          className="min-w-0 border-0 p-0"
-          disabled={pendingOperation !== null && pendingOperation !== 'receipt'}
-        >
-          <InventoryStockForm
-            mode="receipt"
-            scope={scope}
-            inventory={inventory}
-            onPendingChange={(pending) =>
-              setPendingOperation(pending ? 'receipt' : null)
-            }
-            onSaved={() =>
-              saved(
-                'Stock receipt recorded. Refreshing current stock and history.',
-              )
-            }
-          />
-        </fieldset>
-      </OperationalPanel>
-      <OperationalPanel
-        title="Correct stock"
-        description="Review a signed adjustment before applying it. Corrections remain available for inactive products or merchants."
-      >
-        <fieldset
-          className="min-w-0 border-0 p-0"
-          disabled={
-            pendingOperation !== null && pendingOperation !== 'adjustment'
-          }
-        >
-          <InventoryStockForm
-            mode="adjustment"
-            scope={scope}
-            inventory={inventory}
-            onPendingChange={(pending) =>
-              setPendingOperation(pending ? 'adjustment' : null)
-            }
-            onSaved={() =>
-              saved(
-                'Stock adjustment recorded. Refreshing current stock and history.',
-              )
-            }
-          />
-        </fieldset>
-      </OperationalPanel>
+      {canWrite ? (
+        <>
+          <OperationalPanel title="Branch selling price">
+            <fieldset
+              className="min-w-0 border-0 p-0"
+              disabled={
+                pendingOperation !== null && pendingOperation !== 'price'
+              }
+            >
+              <InventoryPriceForm
+                onAccessLost={accessLost}
+                scope={scope}
+                inventory={inventory}
+                onPendingChange={(pending) =>
+                  setPendingOperation(pending ? 'price' : null)
+                }
+                onSaved={() =>
+                  saved('Branch price saved. Refreshing the current placement.')
+                }
+              />
+            </fieldset>
+          </OperationalPanel>
+          <OperationalPanel
+            title="Receive stock"
+            description="Record a receipt of positive whole units with a required reason."
+          >
+            <fieldset
+              className="min-w-0 border-0 p-0"
+              disabled={
+                pendingOperation !== null && pendingOperation !== 'receipt'
+              }
+            >
+              <InventoryStockForm
+                onAccessLost={accessLost}
+                mode="receipt"
+                scope={scope}
+                inventory={inventory}
+                onPendingChange={(pending) =>
+                  setPendingOperation(pending ? 'receipt' : null)
+                }
+                onSaved={() =>
+                  saved(
+                    'Stock receipt recorded. Refreshing current stock and history.',
+                  )
+                }
+              />
+            </fieldset>
+          </OperationalPanel>
+          <OperationalPanel
+            title="Correct stock"
+            description="Review a signed adjustment before applying it. Corrections remain available for inactive products or merchants."
+          >
+            <fieldset
+              className="min-w-0 border-0 p-0"
+              disabled={
+                pendingOperation !== null && pendingOperation !== 'adjustment'
+              }
+            >
+              <InventoryStockForm
+                onAccessLost={accessLost}
+                mode="adjustment"
+                scope={scope}
+                inventory={inventory}
+                onPendingChange={(pending) =>
+                  setPendingOperation(pending ? 'adjustment' : null)
+                }
+                onSaved={() =>
+                  saved(
+                    'Stock adjustment recorded. Refreshing current stock and history.',
+                  )
+                }
+              />
+            </fieldset>
+          </OperationalPanel>
+        </>
+      ) : null}
       <OperationalPanel
         title="Movement history"
-        description="Immutable receipts and adjustments, newest first. Actor identifiers are retained without exposing personal details."
+        description={
+          canWrite
+            ? 'Immutable receipts and adjustments, newest first. Actor identifiers are retained without exposing personal details.'
+            : 'Your immutable receipts and adjustments, newest first. Member identities are not exposed.'
+        }
       >
         {!movements.length ? (
           <p className="p-6 text-sm text-muted">
@@ -255,8 +303,12 @@ export function InventoryDetail({
                     <time dateTime={movement.createdAt}>
                       {new Date(movement.createdAt).toLocaleString()}
                     </time>
-                    <br />
-                    Actor ID: {movement.createdById}
+                    {canWrite && 'createdById' in movement ? (
+                      <>
+                        <br />
+                        Actor ID: {movement.createdById}
+                      </>
+                    ) : null}
                   </p>
                 </div>
                 <div className="text-sm tabular-nums">

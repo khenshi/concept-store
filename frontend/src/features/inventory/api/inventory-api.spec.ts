@@ -59,6 +59,24 @@ describe('Branch inventory API contracts', () => {
       }),
     );
   });
+  it('accepts actor-free merchant history and strips actor fields defensively', async () => {
+    const { createdById, ...own } = movement;
+    request.mockResolvedValue([own]);
+    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual([
+      own,
+    ]);
+    request.mockResolvedValue([{ ...own, createdById }]);
+    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual([
+      own,
+    ]);
+    request.mockResolvedValue([{ ...own, quantityChange: 0 }]);
+    await expect(listMovements(request, scope, 'MERCHANT')).rejects.toThrow();
+  });
+  it('accepts identity-only selling branches for merchants', async () => {
+    const identity = { id: branch.id, name: branch.name, code: branch.code };
+    request.mockResolvedValue(identity);
+    await expect(getInventoryBranch(request, scope)).resolves.toEqual(identity);
+  });
   it('preserves request IDs and integer deltas without submitting actor or tenant fields', async () => {
     request.mockResolvedValue(movement);
     const receipt = {

@@ -34,7 +34,7 @@ function context(
 }
 
 describe('OrganizationWorkspace', () => {
-  it.each(['OWNER', 'MANAGER'] as const)(
+  it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
     'exposes only existing management workflows for %s',
     (role) => {
       context(role);
@@ -43,13 +43,23 @@ describe('OrganizationWorkspace', () => {
         'href',
         '/app/organizations/org/merchants',
       );
-      expect(screen.getByRole('link', { name: /Members/ })).toBeInTheDocument();
+      if (role === 'OWNER')
+        expect(
+          screen.getByRole('link', { name: /Members/ }),
+        ).toBeInTheDocument();
+      else
+        expect(
+          screen.queryByRole('link', { name: /Members/ }),
+        ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: /Products/ }),
+      ).toBeInTheDocument();
       expect(
         screen.queryByRole('link', { name: /Sales/ }),
       ).not.toBeInTheDocument();
     },
   );
-  it.each(['CASHIER', 'MERCHANT'] as const)(
+  it.each(['CASHIER'] as const)(
     'preserves restricted-role visibility for %s',
     (role) => {
       context(role);

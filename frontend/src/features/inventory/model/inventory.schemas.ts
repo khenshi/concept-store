@@ -67,33 +67,37 @@ export const inventoryResponseSchema = z.object({
   }),
 });
 export const inventoryListSchema = z.array(inventoryResponseSchema);
-export const movementResponseSchema = z
-  .object({
-    id: z.uuidv4(),
-    organizationId: z.uuidv4(),
-    branchId: z.uuidv4(),
-    branchInventoryId: z.uuidv4(),
-    type: z.enum(['RECEIPT', 'ADJUSTMENT']),
-    quantityChange: z
-      .number()
-      .int()
-      .min(-2147483648)
-      .max(2147483647)
-      .refine((value) => value !== 0),
-    quantityAfter: z.number().int().min(0).max(2147483647),
-    reason: z.string(),
-    createdById: z.uuidv4(),
-    requestId: z.uuidv4(),
-    createdAt: z.iso.datetime(),
-  })
-  .refine(
-    (value) => value.type !== 'RECEIPT' || value.quantityChange > 0,
-    'Receipt delta must be positive.',
-  );
+const movementObjectSchema = z.object({
+  id: z.uuidv4(),
+  organizationId: z.uuidv4(),
+  branchId: z.uuidv4(),
+  branchInventoryId: z.uuidv4(),
+  type: z.enum(['RECEIPT', 'ADJUSTMENT']),
+  quantityChange: z
+    .number()
+    .int()
+    .min(-2147483648)
+    .max(2147483647)
+    .refine((value) => value !== 0),
+  quantityAfter: z.number().int().min(0).max(2147483647),
+  reason: z.string(),
+  createdById: z.uuidv4(),
+  requestId: z.uuidv4(),
+  createdAt: z.iso.datetime(),
+});
+const validReceipt = (value: { type: string; quantityChange: number }) =>
+  value.type !== 'RECEIPT' || value.quantityChange > 0;
+export const merchantMovementSchema = movementObjectSchema
+  .omit({ createdById: true })
+  .refine(validReceipt, 'Receipt delta must be positive.');
+export const movementResponseSchema = movementObjectSchema.refine(
+  (value) => value.type !== 'RECEIPT' || value.quantityChange > 0,
+  'Receipt delta must be positive.',
+);
 export const movementListSchema = z.array(movementResponseSchema);
 export const inventoryBranchSchema = z.object({
   id: z.uuidv4(),
-  organizationId: z.uuidv4(),
+  organizationId: z.uuidv4().optional(),
   name: z.string(),
   code: z.string().nullable(),
 });

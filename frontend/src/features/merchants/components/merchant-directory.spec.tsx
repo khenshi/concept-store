@@ -125,6 +125,7 @@ describe('MerchantDirectory', () => {
           expect.any(Function),
           organizationId,
           { q: 'amihan', status: undefined },
+          'OWNER',
         ),
       { timeout: 1000 },
     );
@@ -136,6 +137,7 @@ describe('MerchantDirectory', () => {
         expect.any(Function),
         organizationId,
         { q: 'amihan', status: 'SUSPENDED' },
+        'OWNER',
       ),
     );
   });
@@ -168,5 +170,29 @@ describe('MerchantDirectory', () => {
     expect(
       screen.queryByRole('button', { name: 'Add merchant' }),
     ).not.toBeInTheDocument();
+  });
+  it('renders represented manager identities without contacts or creation', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MANAGER' },
+      organizationStatus: 'ready',
+    } as never);
+    vi.mocked(listMerchants).mockResolvedValue([
+      {
+        id: merchant.id,
+        name: merchant.name,
+        code: merchant.code,
+        status: merchant.status,
+      },
+    ]);
+    render(<MerchantDirectory organizationId={organizationId} />);
+    await screen.findByRole('link', { name: `View ${merchant.name}` });
+    expect(
+      screen.queryByRole('button', { name: 'Add merchant' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(merchant.contactName)).not.toBeInTheDocument();
+    expect(screen.getByRole('searchbox')).toHaveAttribute(
+      'placeholder',
+      'Business or code',
+    );
   });
 });

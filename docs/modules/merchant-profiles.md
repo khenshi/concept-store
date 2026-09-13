@@ -85,11 +85,17 @@ products, branch prices, balances, or movement history.
 
 ## Frontend
 
-Part 4 backend permissions/projections are delivered; existing frontend full-profile
-schemas and controls are aligned in Part 7. Merchant-profile links are owner-managed
-through membership APIs, not separate merchant authentication.
+Merchant-profile links are owner-managed through membership APIs, not separate
+merchant authentication. Only owners see creation/editing/lifecycle controls.
+Managers read represented identity/status summaries with no contact fields; their
+search prompt is business/code only. Runtime parsing strips contacts from manager
+responses. Merchants read their linked profile, including their own contacts, with
+no mutation actions; inactive profiles remain readable. Empty access explains
+asking an owner to configure the link or placements. Role/organization/profile
+changes reset screen state; obsolete reads and failed refreshes do not retain
+actionable profiles.
 
-Owners and managers receive a `Merchants` organization-navigation destination.
+Owners, managers, and merchants receive a `Merchants` organization-navigation destination.
 The directory provides debounced server-side search, lifecycle filtering,
 loading and error feedback, empty states, status badges, and profile links.
 
@@ -99,7 +105,7 @@ blur, and final validation on submit. The profile page displays business and
 contact information, supports profile editing, and keeps lifecycle changes in a
 separate confirmed action.
 
-Cashiers and merchant-role members are not shown merchant navigation.
+Cashiers are not shown merchant navigation and direct screens do not request data.
 
 The directory uses full-width responsive linked rows rather than a wide table.
 Profile panels, lifecycle badges, and create/edit controls follow the neutral

@@ -39,14 +39,19 @@ lines, city, province, optional postal code, and a two-letter country code.
 Branch inventory uses the branch's `(id, organizationId)` composite key for
 tenant-safe placement relations. Its backend workflows are documented in
 [Branch Inventory](branch-inventory.md). Owner/manager branch details expose a
-Manage inventory link to the branch-scoped inventory workspace. Cashier/merchant
-branch readers do not see this action; backend inventory routes enforce roles.
+Manage inventory link to the branch-scoped inventory workspace. Merchants receive
+a View own inventory link; cashiers receive no inventory action.
 
 ## Frontend
 
-Backend access filtering is delivered in Part 4. Existing frontend controls and
-full-address schemas are not yet aligned for managers/merchants; that is Part 7.
-Do not interpret visible legacy controls as permission to create/read a branch.
+Backend-filtered branches drive the directory. Runtime schemas accept full branch
+records for staff and identity-only records for merchants, stripping address fields
+from merchant reads. Managers cannot create branches; assigned branch editing is
+retained. Merchants see identity/code and own-inventory links, no addresses or
+location filter. Empty access explains asking an owner to configure assignments
+or the merchant link. Workspace branch cache clears on access refresh and organization
+changes; obsolete read responses cannot repopulate it. Directory entry refreshes
+accessible branches rather than relying on an indefinitely cached assignment list.
 
 The organization workspace provides branch listing, creation, detail, and edit
 flows with validation and request-state feedback.
@@ -55,7 +60,8 @@ The directory uses full-width responsive rows with visible branch identity,
 optional code, complete address, and a detail link. Debounced local search matches
 name/code/address; a labeled location selector filters by city and province.
 Empty, filtered-empty, loading, and request-error states remain distinct. Owners
-and managers can add branches; cashiers and merchants remain read-only.
+alone can add branches; managers can edit assigned branches, while cashiers and
+merchants remain read-only.
 Add branch appears in the Store locations panel header, consistent with other
 directories. The Branches page title has no organization-name eyebrow above it.
 

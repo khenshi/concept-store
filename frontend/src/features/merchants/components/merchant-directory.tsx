@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { Icon } from '@/shared/components/ui/icon';
 import { ApiError } from '@/features/auth/api/auth-client';
@@ -20,7 +20,11 @@ import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { listMerchants } from '../api/merchant-api';
-import type { Merchant, MerchantStatus } from '../model/merchant.types';
+import type {
+  Merchant,
+  MerchantView,
+  MerchantStatus,
+} from '../model/merchant.types';
 import { MerchantForm } from './merchant-form';
 import { MerchantStatusBadge } from './merchant-status-badge';
 
@@ -30,7 +34,17 @@ function errorMessage(cause: unknown): string {
     : 'The merchant directory could not be loaded.';
 }
 
-export function MerchantDirectory({
+export function MerchantDirectory(props: { organizationId: string }) {
+  const { organization } = useOrganizationWorkspaceContext();
+  return (
+    <ScopedMerchantDirectory
+      key={`${props.organizationId}:${organization?.role}`}
+      {...props}
+    />
+  );
+}
+
+function ScopedMerchantDirectory({
   organizationId,
 }: {
   organizationId: string;
@@ -38,7 +52,8 @@ export function MerchantDirectory({
   const { request } = useAuth();
   const { organization, organizationStatus } =
     useOrganizationWorkspaceContext();
-  const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const canEdit = organization?.role === 'OWNER';
+  const [merchants, setMerchants] = useState<MerchantView[]>([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<MerchantStatus | ''>('');
   const [loading, setLoading] = useState(true);
@@ -46,35 +61,34 @@ export function MerchantDirectory({
   const [showCreate, setShowCreate] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search);
-
-  const load = useCallback(async () => {
-    await Promise.resolve();
-    setLoading(true);
-    setError(null);
-    try {
-      setMerchants(
-        await listMerchants(request, organizationId, {
-          q: debouncedSearch.trim() || undefined,
-          status: status || undefined,
-        }),
-      );
-    } catch (cause: unknown) {
-      setError(errorMessage(cause));
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, organizationId, request, status]);
+  const [revision, setRevision] = useState(0);
+  const load = () => setRevision((value) => value + 1);
 
   useEffect(() => {
-    if (!organization || !['OWNER', 'MANAGER'].includes(organization.role))
+    if (
+      !organization ||
+      !['OWNER', 'MANAGER', 'MERCHANT'].includes(organization.role)
+    )
       return;
     let active = true;
-    void listMerchants(request, organizationId, {
-      q: debouncedSearch.trim() || undefined,
-      status: status || undefined,
-    })
-      .then((result) => {
+    void Promise.resolve()
+      .then(() => {
         if (!active) return;
+        setLoading(true);
+        setMerchants([]);
+        setError(null);
+        return listMerchants(
+          request,
+          organizationId,
+          {
+            q: debouncedSearch.trim() || undefined,
+            status: status || undefined,
+          },
+          organization.role,
+        );
+      })
+      .then((result) => {
+        if (!active || !result) return;
         setMerchants(result);
         setError(null);
         setLoading(false);
@@ -87,7 +101,14 @@ export function MerchantDirectory({
     return () => {
       active = false;
     };
-  }, [debouncedSearch, organization, organizationId, request, status]);
+  }, [
+    debouncedSearch,
+    organization,
+    organizationId,
+    request,
+    status,
+    revision,
+  ]);
 
   if (organizationStatus === 'loading') {
     return (
@@ -97,7 +118,10 @@ export function MerchantDirectory({
       />
     );
   }
-  if (!organization || !['OWNER', 'MANAGER'].includes(organization.role)) {
+  if (
+    !organization ||
+    !['OWNER', 'MANAGER', 'MERCHANT'].includes(organization.role)
+  ) {
     return (
       <section className="mx-auto mt-8 max-w-3xl" role="alert">
         <h1 className="text-3xl font-bold">Merchant directory unavailable</h1>
@@ -113,23 +137,31 @@ export function MerchantDirectory({
       <OrganizationPageHeader
         organization={organization}
         title="Merchants"
-        description="Maintain the business and contact identities for merchants in this organization."
+        description={
+          canEdit
+            ? 'Maintain the business and contact identities for merchants in this organization.'
+            : organization.role === 'MERCHANT'
+              ? 'Read your linked merchant profile. Ask an owner to update your access or profile.'
+              : 'Read merchant identities represented in your assigned branches. Contact details and catalog edits are owner-only.'
+        }
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
         title="Merchant directory"
         description={`${merchants.length} matching merchant${merchants.length === 1 ? '' : 's'}`}
         action={
-          <button
-            className={buttonStyles({ variant: 'primary' })}
-            onClick={() => {
-              setSuccess(null);
-              setShowCreate(true);
-            }}
-            type="button"
-          >
-            Add merchant
-          </button>
+          canEdit ? (
+            <button
+              className={buttonStyles({ variant: 'primary' })}
+              onClick={() => {
+                setSuccess(null);
+                setShowCreate(true);
+              }}
+              type="button"
+            >
+              Add merchant
+            </button>
+          ) : undefined
         }
       >
         <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]">
@@ -138,7 +170,11 @@ export function MerchantDirectory({
               className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm placeholder:text-faint"
               id="merchant-search"
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Business, code, contact, email, or phone"
+              placeholder={
+                organization.role === 'MANAGER'
+                  ? 'Business or code'
+                  : 'Business, code, contact, email, or phone'
+              }
               type="search"
               value={search}
             />
@@ -179,7 +215,9 @@ export function MerchantDirectory({
             <p className="mx-auto mt-2 max-w-md text-muted">
               {search || status
                 ? 'Try a different search or lifecycle status.'
-                : 'Add the first merchant business profile for this organization.'}
+                : canEdit
+                  ? 'Add the first merchant business profile for this organization.'
+                  : 'No merchant profiles are available to your access. Ask an owner to configure your merchant link or branch placements.'}
             </p>
           </div>
         ) : (
@@ -202,12 +240,15 @@ export function MerchantDirectory({
                       {merchant.code ?? 'No code'}
                     </span>
                   </div>
-                  <div className="min-w-0 flex-1 break-words text-sm">
-                    <span className="block">{merchant.contactName}</span>
-                    <span className="mt-1 block text-xs text-muted">
-                      {merchant.email ?? merchant.phone}
-                    </span>
-                  </div>
+                  {organization.role !== 'MANAGER' &&
+                  'contactName' in merchant ? (
+                    <div className="min-w-0 flex-1 break-words text-sm">
+                      <span className="block">{merchant.contactName}</span>
+                      <span className="mt-1 block text-xs text-muted">
+                        {merchant.email ?? merchant.phone}
+                      </span>
+                    </div>
+                  ) : null}
                   <div className="flex items-center justify-between gap-4 sm:justify-end">
                     <MerchantStatusBadge status={merchant.status} />
                     <span
@@ -223,7 +264,7 @@ export function MerchantDirectory({
           </ul>
         )}
       </OperationalPanel>
-      {showCreate ? (
+      {showCreate && canEdit ? (
         <CreateMerchantModal
           organizationId={organizationId}
           onCancel={() => setShowCreate(false)}

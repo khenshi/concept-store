@@ -24,6 +24,9 @@ export interface BranchInput {
   countryCode: string;
 }
 
+export type BranchIdentity = Pick<Branch, 'id' | 'name' | 'code'>;
+export type BranchView = Branch | BranchIdentity;
+
 export type BranchUpdateInput = Omit<
   BranchInput,
   'code' | 'addressLine2' | 'postalCode'

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { getMerchant } from '@/features/merchants/api/merchant-api';
-import type { Merchant } from '@/features/merchants/model/merchant.types';
+import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { buttonStyles } from '@/shared/components/ui/button';
@@ -30,7 +30,20 @@ import type {
 } from '../model/product.types';
 import { ProductForm } from './product-form';
 
-export function ProductProfile({
+export function ProductProfile(props: {
+  organizationId: string;
+  productId: string;
+}) {
+  const { organization } = useOrganizationWorkspaceContext();
+  return (
+    <ScopedProductProfile
+      key={`${props.organizationId}:${props.productId}:${organization?.role}`}
+      {...props}
+    />
+  );
+}
+
+function ScopedProductProfile({
   organizationId,
   productId,
 }: {
@@ -41,10 +54,13 @@ export function ProductProfile({
   const { organization, organizationStatus } =
     useOrganizationWorkspaceContext();
   const allowed =
-    organization?.role === 'OWNER' || organization?.role === 'MANAGER';
+    organization?.role === 'OWNER' ||
+    organization?.role === 'MANAGER' ||
+    organization?.role === 'MERCHANT';
+  const canEdit = organization?.role === 'OWNER';
   const { confirm, confirmationDialog } = useConfirmationDialog();
   const [product, setProduct] = useState<Product | null>(null);
-  const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [merchant, setMerchant] = useState<MerchantView | null>(null);
   const [placements, setPlacements] = useState<ProductPlacement[]>([]);
   const [status, setStatus] = useState<ProductStatus>('ACTIVE');
   const [loading, setLoading] = useState(true);
@@ -62,10 +78,18 @@ export function ProductProfile({
       if (!active) return;
       setLoading(true);
       setError(null);
+      setProduct(null);
+      setMerchant(null);
+      setPlacements([]);
       try {
         const item = await getProduct(request, organizationId, productId);
         const [profile, inventory] = await Promise.all([
-          getMerchant(request, organizationId, item.merchantId),
+          getMerchant(
+            request,
+            organizationId,
+            item.merchantId,
+            organization?.role,
+          ),
           getProductPlacements(request, organizationId, productId),
         ]);
         if (active) {
@@ -89,9 +113,15 @@ export function ProductProfile({
     return () => {
       active = false;
     };
-  }, [allowed, request, organizationId, productId, revision]);
+  }, [allowed, organization, request, organizationId, productId, revision]);
   async function changeStatus() {
-    if (!product || pending || statusLock.current || status === product.status)
+    if (
+      !canEdit ||
+      !product ||
+      pending ||
+      statusLock.current ||
+      status === product.status
+    )
       return;
     statusLock.current = true;
     const nextStatus = status;
@@ -173,17 +203,19 @@ export function ProductProfile({
             {product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
           </p>
         </div>
-        <button
-          type="button"
-          className={buttonStyles({ variant: 'primary' })}
-          disabled={pending}
-          onClick={() => {
-            setEditing(true);
-            setSuccess(null);
-          }}
-        >
-          Edit profile
-        </button>
+        {canEdit ? (
+          <button
+            type="button"
+            className={buttonStyles({ variant: 'primary' })}
+            disabled={pending}
+            onClick={() => {
+              setEditing(true);
+              setSuccess(null);
+            }}
+          >
+            Edit profile
+          </button>
+        ) : null}
       </header>
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       {error ? (
@@ -210,37 +242,39 @@ export function ProductProfile({
           independent.
         </p>
       </OperationalPanel>
-      <OperationalPanel
-        title="Lifecycle status"
-        description="Status changes require confirmation and do not modify inventory."
-      >
-        <div className="flex flex-wrap items-end gap-3 p-6">
-          <label
-            htmlFor="product-lifecycle"
-            className="grid w-full max-w-xs gap-2 text-label font-semibold"
-          >
-            Status
-            <SelectControl
-              id="product-lifecycle"
-              value={status}
-              disabled={pending}
-              onValueChange={(value) => setStatus(value as ProductStatus)}
+      {canEdit ? (
+        <OperationalPanel
+          title="Lifecycle status"
+          description="Status changes require confirmation and do not modify inventory."
+        >
+          <div className="flex flex-wrap items-end gap-3 p-6">
+            <label
+              htmlFor="product-lifecycle"
+              className="grid w-full max-w-xs gap-2 text-label font-semibold"
             >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </SelectControl>
-          </label>
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'secondary' })}
-            disabled={pending || status === product.status}
-            aria-busy={pending}
-            onClick={() => void changeStatus()}
-          >
-            {pending ? 'Changing…' : 'Change status'}
-          </button>
-        </div>
-      </OperationalPanel>
+              Status
+              <SelectControl
+                id="product-lifecycle"
+                value={status}
+                disabled={pending}
+                onValueChange={(value) => setStatus(value as ProductStatus)}
+              >
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </SelectControl>
+            </label>
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'secondary' })}
+              disabled={pending || status === product.status}
+              aria-busy={pending}
+              onClick={() => void changeStatus()}
+            >
+              {pending ? 'Changing…' : 'Change status'}
+            </button>
+          </div>
+        </OperationalPanel>
+      ) : null}
       <OperationalPanel
         title="Branch placements"
         description="PHP selling price and whole-unit stock for each branch. Placing a product elsewhere does not transfer existing stock."
@@ -277,7 +311,7 @@ export function ProductProfile({
           </ul>
         )}
       </OperationalPanel>
-      {editing ? (
+      {editing && canEdit ? (
         <FormDialog
           title="Edit product profile"
           description="Update product identity without changing merchant ownership, lifecycle, price, or stock."

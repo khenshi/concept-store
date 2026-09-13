@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
-import type { Merchant } from '@/features/merchants/model/merchant.types';
+import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { buttonStyles } from '@/shared/components/ui/button';
@@ -25,7 +25,17 @@ import { listProducts } from '../api/product-api';
 import type { Product, ProductStatus } from '../model/product.types';
 import { ProductForm } from './product-form';
 
-export function ProductDirectory({
+export function ProductDirectory(props: { organizationId: string }) {
+  const { organization } = useOrganizationWorkspaceContext();
+  return (
+    <ScopedProductDirectory
+      key={`${props.organizationId}:${organization?.role}`}
+      {...props}
+    />
+  );
+}
+
+function ScopedProductDirectory({
   organizationId,
 }: {
   organizationId: string;
@@ -34,9 +44,12 @@ export function ProductDirectory({
   const { organization, organizationStatus } =
     useOrganizationWorkspaceContext();
   const allowed =
-    organization?.role === 'OWNER' || organization?.role === 'MANAGER';
+    organization?.role === 'OWNER' ||
+    organization?.role === 'MANAGER' ||
+    organization?.role === 'MERCHANT';
+  const canEdit = organization?.role === 'OWNER';
   const [products, setProducts] = useState<Product[]>([]);
-  const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [merchants, setMerchants] = useState<MerchantView[]>([]);
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
   const [status, setStatus] = useState<ProductStatus | ''>('');
@@ -55,6 +68,8 @@ export function ProductDirectory({
       if (!active) return;
       setLoading(true);
       setError(null);
+      setProducts([]);
+      setMerchants([]);
       try {
         const [items, profiles] = await Promise.all([
           listProducts(request, organizationId, {
@@ -62,7 +77,7 @@ export function ProductDirectory({
             merchantId: merchantId || undefined,
             status: status || undefined,
           }),
-          listMerchants(request, organizationId),
+          listMerchants(request, organizationId, {}, organization?.role),
         ]);
         if (active) {
           setProducts(items);
@@ -83,7 +98,16 @@ export function ProductDirectory({
     return () => {
       active = false;
     };
-  }, [allowed, request, organizationId, q, merchantId, status, revision]);
+  }, [
+    allowed,
+    organization,
+    request,
+    organizationId,
+    q,
+    merchantId,
+    status,
+    revision,
+  ]);
   if (organizationStatus === 'loading')
     return <ListSkeleton label="Loading product directory" />;
   if (!allowed || !organization)
@@ -97,7 +121,11 @@ export function ProductDirectory({
       <OrganizationPageHeader
         organization={organization}
         title="Products"
-        description="Maintain merchant-owned products. Prices and stock are tracked independently by branch."
+        description={
+          canEdit
+            ? 'Maintain merchant-owned products. Prices and stock are tracked independently by branch.'
+            : 'Read available products and their independent branch prices and stock. Ask an owner to change catalog details.'
+        }
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
@@ -106,17 +134,19 @@ export function ProductDirectory({
           loading ? 'Loading products…' : `${products.length} matching products`
         }
         action={
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'primary' })}
-            disabled={loading || Boolean(error)}
-            onClick={() => {
-              setCreating(true);
-              setSuccess(null);
-            }}
-          >
-            Add product
-          </button>
+          canEdit ? (
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'primary' })}
+              disabled={loading || Boolean(error)}
+              onClick={() => {
+                setCreating(true);
+                setSuccess(null);
+              }}
+            >
+              Add product
+            </button>
+          ) : undefined
         }
       >
         <OperationalToolbar className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]">
@@ -175,7 +205,9 @@ export function ProductDirectory({
             <p className="mt-2 text-sm text-muted">
               {search || merchantId || status
                 ? 'Try another search or filter.'
-                : 'Add an active merchant’s first product to get started.'}
+                : canEdit
+                  ? 'Add an active merchant’s first product to get started.'
+                  : 'No products are available to your access. Ask an owner to configure your merchant link or branch placements.'}
             </p>
           </div>
         ) : (
@@ -213,7 +245,7 @@ export function ProductDirectory({
           </ul>
         )}
       </OperationalPanel>
-      {creating ? (
+      {creating && canEdit ? (
         <FormDialog
           title="Add a product"
           description="Choose its merchant and record its identity. New products start active, without branch stock or a global price."

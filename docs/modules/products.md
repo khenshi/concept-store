@@ -7,8 +7,9 @@
 Maintain organization-owned product identities with one merchant per product.
 Expose read-only branch placements with independently tracked prices and stock.
 Stock mutation services are documented in [Branch Inventory](branch-inventory.md).
-Owners and managers can manage product identities through the organization
-workspace. Branch stock management is provided by the scoped inventory workspace.
+Owners manage product identities through the organization workspace. Managers and
+linked merchants have scoped read-only product views. Branch stock management is
+provided by the scoped inventory workspace.
 
 ## API and authorization
 
@@ -76,8 +77,11 @@ automated tests. The unperformed checklist is retained in the
 
 ## Workspace UI
 
-Part 4 changes backend access only. Existing frontend management controls and
-merchant-role visibility are aligned in Part 7, not this backend delivery.
+Frontend controls now match backend access: only owners create/edit/change status;
+managers and merchants read available products and filtered branch placements.
+Empty access explains asking an owner to configure links or placements. Screen
+state resets on role/organization/product changes and obsolete reads are ignored;
+failed refreshes clear prior product/merchant/placement data.
 Managers' placement lists contain assigned branches only; merchants see own
 products' placements across all selling branches. Placement candidate checks
 prevent managers discovering or placing unrepresented catalog products; an owner
@@ -88,7 +92,7 @@ must place them first. Lifecycle and quantity do not affect read visibility.
 /app/organizations/:organizationId/products/:productId
 ```
 
-- Products navigation and direct screens are available only to owners/managers.
+- Products navigation and direct screens are available to owners/managers/merchants.
   Disallowed roles do not request product data; backend guards remain authoritative.
 - Directory supports debounced name/SKU/barcode search and merchant/status filters,
   divided responsive rows, loading, retryable errors, and contextual empty states.

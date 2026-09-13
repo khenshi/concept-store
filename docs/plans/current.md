@@ -1,6 +1,6 @@
 # Branch and Merchant Access Control Plan
 
-**Status:** Approved; Parts 1–5 committed; Part 6 implemented and verified, awaiting review
+**Status:** Approved; Parts 1–6 committed; Part 7 implemented and verified, awaiting review
 **Date:** September 12, 2026
 
 ## Goal and confirmed decisions
@@ -357,6 +357,29 @@ Applicable checks pass, module docs are accurate, and exclusions remain excluded
 - Rendered browser QA has not been performed; a new waiver or browser access is
   still required at the final verification checkpoint.
 - The user reviewed and approved Part 6 for commit on September 13, 2026.
+
+## Part 7 verification record
+
+- Part 6 was reviewed and committed as 8253465.
+- Aligned navigation and controls: Members and shared catalog/branch creation are
+  owner-only; managers retain assigned branch editing and inventory writes.
+- Added merchant read-only own profile/products/placements/inventory/history views,
+  identity-only branch screens, own-placement counts, and empty-access guidance.
+- Runtime schemas parse reduced manager merchant and merchant branch/history
+  responses, stripping contact/address/actor fields where restricted.
+- Organization/role/resource changes reset screen state. Access refresh clears
+  branch cache; obsolete responses cannot repopulate prior scope. Stock/price
+  access denial clears placement data and write controls. Successful writes retain
+  read-only refresh retry, without replaying successful stock commands.
+- Frontend formatting, lint, type checking, all 261 tests across 52 suites,
+  production build, and diff checks pass. The existing multiple-lockfile warning
+  remains unrelated and nonblocking.
+- Updated branches, merchant profiles, products, branch inventory, and frontend
+  documentation. No backend/schema, POS/payment, or unrelated root package/audit
+  changes were introduced. Final full verification/archive remains Part 8.
+- Rendered browser QA has not been performed; a new waiver or browser access
+  remains required at the final checkpoint.
+- The user reviewed and approved Part 7 for commit on September 13, 2026.
 
 ## Deferred POS decisions (not implementation scope)
 

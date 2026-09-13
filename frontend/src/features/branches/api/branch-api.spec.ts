@@ -53,7 +53,11 @@ describe('branch API', () => {
   });
 
   it('gets one branch through both scoped identifiers', async () => {
-    vi.mocked(request).mockResolvedValue({});
+    vi.mocked(request).mockResolvedValue({
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      name: 'Makati',
+      code: null,
+    });
     await getBranch(request, 'organization/id', 'branch/id');
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%2Fid/branches/branch%2Fid',
@@ -72,5 +76,29 @@ describe('branch API', () => {
         body: JSON.stringify(updateInput),
       }),
     );
+  });
+  it('validates merchant identity-only responses and strips addresses', async () => {
+    const identity = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      name: 'Makati',
+      code: null,
+    };
+    vi.mocked(request).mockResolvedValue({
+      ...identity,
+      addressLine1: 'Private address',
+    });
+    await expect(
+      getBranch(request, 'org', identity.id, 'MERCHANT'),
+    ).resolves.toEqual(identity);
+    vi.mocked(request).mockResolvedValue([
+      { ...identity, city: 'Private city' },
+    ]);
+    await expect(listBranches(request, 'org', 'MERCHANT')).resolves.toEqual([
+      identity,
+    ]);
+    vi.mocked(request).mockResolvedValue({ ...identity, id: 'invalid' });
+    await expect(
+      getBranch(request, 'org', identity.id, 'MERCHANT'),
+    ).rejects.toThrow();
   });
 });

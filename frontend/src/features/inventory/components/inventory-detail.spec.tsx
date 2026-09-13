@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
+import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import {
   getInventory,
@@ -61,6 +62,42 @@ describe('InventoryDetail workflows', () => {
       screen.queryByRole('button', { name: /delete movement|edit movement/i }),
     ).not.toBeInTheDocument();
   });
+  it('shows own merchant history without actors or any stock writes', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    const { createdById: _actor, ...ownMovement } = movement;
+    expect(_actor).toBe(movement.createdById);
+    vi.mocked(listMovements).mockResolvedValue([ownMovement]);
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    expect(screen.queryByText(/Actor ID/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Save branch price' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Receive stock' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Review adjustment' }),
+    ).not.toBeInTheDocument();
+    expect(listMovements).toHaveBeenCalledWith(request, scope, 'MERCHANT');
+  });
+  it('clears actionable owner data immediately on a role change', async () => {
+    const { rerender } = render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    rerender(<InventoryDetail {...scope} />);
+    expect(
+      screen.queryByRole('button', { name: 'Receive stock' }),
+    ).not.toBeInTheDocument();
+    await screen.findByText('Opening delivery');
+    expect(screen.queryByText(/Actor ID/)).not.toBeInTheDocument();
+  });
   it('reloads actual stock rather than using a replayed historical balance', async () => {
     vi.mocked(receiveStock).mockResolvedValue({
       ...movement,
@@ -96,6 +133,18 @@ describe('InventoryDetail workflows', () => {
     await screen.findByText('13 units');
     expect(receiveStock).toHaveBeenCalledOnce();
   });
+  it('hides placement data and write controls when a stock request loses access', async () => {
+    vi.mocked(receiveStock).mockRejectedValue(new ApiError(404, 'Not found'));
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    submitReceipt();
+    await screen.findByText(/Access to this placement is unavailable/);
+    expect(screen.queryByText('Opening delivery')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Receive stock' }),
+    ).not.toBeInTheDocument();
+    expect(receiveStock).toHaveBeenCalledOnce();
+  });
   it('disables other write controls while a receipt is pending', async () => {
     vi.mocked(receiveStock).mockReturnValue(new Promise(() => {}));
     render(<InventoryDetail {...scope} />);
@@ -108,16 +157,13 @@ describe('InventoryDetail workflows', () => {
       screen.getByRole('button', { name: 'Review adjustment' }),
     ).toBeDisabled();
   });
-  it.each(['CASHIER', 'MERCHANT'])(
-    'does not request inventory for %s',
-    (role) => {
-      vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
-        organization: { role },
-        organizationStatus: 'ready',
-      } as never);
-      render(<InventoryDetail {...scope} />);
-      expect(getInventory).not.toHaveBeenCalled();
-      expect(listMovements).not.toHaveBeenCalled();
-    },
-  );
+  it.each(['CASHIER'])('does not request inventory for %s', (role) => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role },
+      organizationStatus: 'ready',
+    } as never);
+    render(<InventoryDetail {...scope} />);
+    expect(getInventory).not.toHaveBeenCalled();
+    expect(listMovements).not.toHaveBeenCalled();
+  });
 });

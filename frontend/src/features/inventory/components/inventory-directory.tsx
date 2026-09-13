@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
-import type { Merchant } from '@/features/merchants/model/merchant.types';
+import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import type { ProductStatus } from '@/features/products/model/product.types';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BackLink } from '@/shared/components/ui/back-link';
@@ -31,7 +31,17 @@ import type {
 } from '../model/inventory.types';
 import { InventoryPlacementForm } from './inventory-placement-form';
 
-export function InventoryDirectory({
+export function InventoryDirectory(props: InventoryScope) {
+  const { organization } = useOrganizationWorkspaceContext();
+  return (
+    <ScopedInventoryDirectory
+      key={`${props.organizationId}:${props.branchId}:${organization?.role}`}
+      {...props}
+    />
+  );
+}
+
+function ScopedInventoryDirectory({
   organizationId,
   branchId,
 }: InventoryScope) {
@@ -39,10 +49,14 @@ export function InventoryDirectory({
   const { organization, organizationStatus } =
     useOrganizationWorkspaceContext();
   const allowed =
+    organization?.role === 'OWNER' ||
+    organization?.role === 'MANAGER' ||
+    organization?.role === 'MERCHANT';
+  const canWrite =
     organization?.role === 'OWNER' || organization?.role === 'MANAGER';
   const [branch, setBranch] = useState<InventoryBranch | null>(null);
   const [items, setItems] = useState<BranchInventory[]>([]);
-  const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [merchants, setMerchants] = useState<MerchantView[]>([]);
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
   const [status, setStatus] = useState<ProductStatus | ''>('');
@@ -61,6 +75,9 @@ export function InventoryDirectory({
       if (!active) return;
       setLoading(true);
       setError(null);
+      setBranch(null);
+      setItems([]);
+      setMerchants([]);
       try {
         const scope = { organizationId, branchId };
         const [location, inventory, profiles] = await Promise.all([
@@ -70,7 +87,7 @@ export function InventoryDirectory({
             merchantId: merchantId || undefined,
             status: status || undefined,
           }),
-          listMerchants(request, organizationId),
+          listMerchants(request, organizationId, {}, organization?.role),
         ]);
         if (active) {
           setBranch(location);
@@ -94,6 +111,7 @@ export function InventoryDirectory({
     };
   }, [
     allowed,
+    organization,
     request,
     organizationId,
     branchId,
@@ -119,26 +137,34 @@ export function InventoryDirectory({
       </BackLink>
       <PageHeader
         title={branch ? `${branch.name} inventory` : 'Branch inventory'}
-        description="Maintain this branch’s independent PHP prices and whole-unit stock."
+        description={
+          canWrite
+            ? 'Maintain this branch’s independent PHP prices and whole-unit stock.'
+            : 'Read your merchant’s placements only. Prices, quantities, and history are specific to this branch.'
+        }
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
         title="Inventory"
         description={
-          loading ? 'Loading inventory…' : `${items.length} matching placements`
+          loading
+            ? 'Loading inventory…'
+            : `${items.length} matching ${canWrite ? '' : 'own '}placements`
         }
         action={
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'primary' })}
-            disabled={loading || Boolean(error)}
-            onClick={() => {
-              setSuccess(null);
-              setCreating(true);
-            }}
-          >
-            Add product placement
-          </button>
+          canWrite ? (
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'primary' })}
+              disabled={loading || Boolean(error)}
+              onClick={() => {
+                setSuccess(null);
+                setCreating(true);
+              }}
+            >
+              Add product placement
+            </button>
+          ) : undefined
         }
       >
         <OperationalToolbar className="grid gap-4 md:grid-cols-3">
@@ -197,7 +223,9 @@ export function InventoryDirectory({
             <p className="mt-2 text-sm text-muted">
               {search || merchantId || status
                 ? 'Try another search or filter.'
-                : 'Place an active product here with a branch-specific price, then receive stock separately.'}
+                : canWrite
+                  ? 'Place an active product here with a branch-specific price, then receive stock separately.'
+                  : 'Your merchant has no placements here. A branch assignment never grants access to another merchant’s stock. Ask an owner if access needs configuring.'}
             </p>
           </div>
         ) : (
@@ -234,7 +262,7 @@ export function InventoryDirectory({
           </ul>
         )}
       </OperationalPanel>
-      {creating ? (
+      {creating && canWrite ? (
         <FormDialog
           title="Add product placement"
           description={`Place an existing product in ${branch?.name ?? 'this branch'} with its own selling price and stock tracking.`}

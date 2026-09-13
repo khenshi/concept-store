@@ -1,5 +1,26 @@
 import { z } from 'zod';
 
+export const branchIdentitySchema = z.object({
+  id: z.uuidv4(),
+  name: z.string(),
+  code: z.string().nullable(),
+});
+export const branchResponseSchema = branchIdentitySchema.extend({
+  organizationId: z.uuidv4(),
+  addressLine1: z.string(),
+  addressLine2: z.string().nullable(),
+  city: z.string(),
+  province: z.string(),
+  postalCode: z.string().nullable(),
+  countryCode: z.string(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export const branchViewSchema = z.union([
+  branchResponseSchema,
+  branchIdentitySchema,
+]);
+
 const requiredText = (label: string, maximum: number) =>
   z
     .string()

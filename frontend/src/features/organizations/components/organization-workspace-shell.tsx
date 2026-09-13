@@ -26,7 +26,9 @@ export function OrganizationWorkspaceShell({
   const { organization, organizationStatus } =
     useOrganizationWorkspaceContext();
   const canManage =
-    organization?.role === 'OWNER' || organization?.role === 'MANAGER';
+    organization?.role === 'OWNER' ||
+    organization?.role === 'MANAGER' ||
+    organization?.role === 'MERCHANT';
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -60,7 +62,7 @@ export function OrganizationWorkspaceShell({
     organization ? (
       <OrganizationNavigation
         organizationId={organizationId}
-        showMembers={canManage}
+        showMembers={organization.role === 'OWNER'}
         showMerchants={canManage}
         showProducts={canManage}
         collapsed={collapsed}

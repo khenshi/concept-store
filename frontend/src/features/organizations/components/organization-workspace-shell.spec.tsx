@@ -105,7 +105,7 @@ describe('OrganizationWorkspaceShell', () => {
     else Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
   });
 
-  it.each(['OWNER', 'MANAGER'] as const)(
+  it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
     'preserves management destinations for %s',
     (role) => {
       context(role);
@@ -113,16 +113,21 @@ describe('OrganizationWorkspaceShell', () => {
       const sidebar = within(
         screen.getByRole('complementary', { name: 'Workspace sidebar' }),
       );
-      expect(
-        sidebar.getByRole('link', { name: 'Members' }),
-      ).toBeInTheDocument();
+      if (role === 'OWNER')
+        expect(
+          sidebar.getByRole('link', { name: 'Members' }),
+        ).toBeInTheDocument();
+      else
+        expect(
+          sidebar.queryByRole('link', { name: 'Members' }),
+        ).not.toBeInTheDocument();
       expect(
         sidebar.getByRole('link', { name: 'Merchants' }),
       ).toBeInTheDocument();
     },
   );
 
-  it.each(['CASHIER', 'MERCHANT'] as const)(
+  it.each(['CASHIER'] as const)(
     'keeps management destinations hidden for %s',
     (role) => {
       context(role);

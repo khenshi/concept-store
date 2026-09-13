@@ -64,7 +64,8 @@ whitelisting reject malformed IDs and unexpected fields.
 - A request ID reused for different content returns `409`. Concurrent duplicate
   uniqueness/range failures resolve the committed original after rollback.
 - Movement actor comes from authenticated context. Replays retain original actor
-  attribution. History returns actor IDs, not personal user information.
+  attribution. Owner/manager history returns actor IDs, not personal user
+  information; merchant history omits actor IDs.
 - History is ordered by timestamp descending then movement ID descending. There
   is no movement mutation or deletion endpoint.
 - Command responses are historical movement snapshots; clients must refresh
@@ -94,8 +95,11 @@ checklist is retained in the
 
 ## Workspace UI
 
-Part 4 backend enforcement/projections are delivered; manager/merchant frontend
-alignment remains Part 7. Existing UI controls are not an authorization boundary.
+Frontend inventory views match backend enforcement: owners/managers retain stock
+controls in accessible branches, while merchants see own placements/history only.
+Role/organization/branch/placement changes reset screen state and obsolete reads
+are ignored. A 403/404 stock/price response clears placement data and controls,
+offering read retry and owner-access guidance without replaying the denied command.
 Explicit merchant branch assignments with no own products return empty inventory;
 assignments never expose another merchant's stock. OpenAPI describes reduced history
 responses as well as full owner/manager responses.
@@ -105,9 +109,12 @@ responses as well as full owner/manager responses.
 /app/organizations/:organizationId/branches/:branchId/inventory/:inventoryId
 ```
 
-- Owner/manager branch details link to inventory; product placements link directly
-  to their scoped inventory details. Cashier/merchant members see no inventory
-  action, and direct inventory screens do not request data for those roles.
+- Owner/manager branch details link to inventory; merchant branch details link to
+  own inventory. Product placements link directly to their scoped inventory details.
+  Cashier members see no inventory action and direct screens request no inventory.
+- Merchants receive no placement, price, receipt, or correction forms. Their
+  matching counts explicitly describe own placements, never branch-wide totals;
+  empty assigned branches explain that assignments cannot expose others' stock.
 - The directory includes debounced product search, merchant/product-status filters,
   responsive divided rows, exact PHP prices, and whole-unit balances. Empty,
   filtered-empty, loading, and retryable errors have distinct feedback.
@@ -131,6 +138,7 @@ responses as well as full owner/manager responses.
   A replayed historical balance is not treated as current stock. Failed refreshes
   hide stale write controls and offer a read-only retry, without replaying success.
 - History displays immutable operation, signed delta, resulting balance, reason,
-  timestamp, and actor ID, without personal user information or mutation actions.
+  and timestamp. Owner/manager history also shows actor ID; merchant runtime
+  schemas accept actor-free responses and strip actor fields defensively.
 - Runtime schemas validate branch identity, inventory/product/merchant summaries,
   exact price strings, integer bounds, and movement type/delta before rendering.
