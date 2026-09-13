@@ -20,6 +20,8 @@ import { InventoryStockService } from './inventory/inventory-stock.service';
 import { ResourceAccessGuard } from './authorization/resource-access.guard';
 import { PosCatalogController } from './pos/pos-catalog.controller';
 import { PosCatalogService } from './pos/pos-catalog.service';
+import { CheckoutController } from './sales/checkout.controller';
+import { CheckoutService } from './sales/checkout.service';
 
 @Module({
   imports: [AuthModule],
@@ -33,6 +35,7 @@ import { PosCatalogService } from './pos/pos-catalog.service';
     ProductsController,
     BranchInventoryController,
     PosCatalogController,
+    CheckoutController,
   ],
   providers: [
     OrganizationsService,
@@ -46,6 +49,7 @@ import { PosCatalogService } from './pos/pos-catalog.service';
     BranchInventoryService,
     InventoryStockService,
     PosCatalogService,
+    CheckoutService,
   ],
   exports: [OrganizationAccessGuard],
 })

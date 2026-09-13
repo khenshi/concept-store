@@ -6,9 +6,10 @@
 
 Maintain one quantity-tracked placement per product/branch, a branch-specific PHP
 selling price, and immutable receiving/adjustment history. Different placements
-of the same product have independent prices and balances. No transfer, sale,
-reservation, purchasing, or deletion workflow is provided. Sales persistence now
-supports SALE deductions in history, but there is no application checkout workflow yet.
+of the same product have independent prices and balances. No transfer,
+reservation, purchasing, or deletion workflow is provided. The separate
+[sales checkout API](sales.md) atomically creates SALE deductions in this history;
+existing receipt/adjustment endpoints and role permissions remain unchanged.
 
 ## API and authorization
 

@@ -1,6 +1,9 @@
 # Branch POS Catalog
 
-**Status:** Catalog API implemented; cart and checkout are not yet implemented.
+**Status:** Catalog API implemented; cart screens are not yet implemented.
+
+The separate [sales checkout API](sales.md) completes reviewed branch commands;
+catalog eligibility remains a read-time observation only.
 
 ## API and authorization
 

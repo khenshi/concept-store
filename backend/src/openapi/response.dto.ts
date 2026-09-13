@@ -223,6 +223,43 @@ export class PosCatalogResponseDto {
   eligible!: boolean;
 }
 
+export class CompletedSaleItemResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) branchInventoryId!: string;
+  @ApiProperty({ format: 'uuid' }) productId!: string;
+  @ApiProperty({ format: 'uuid' }) merchantId!: string;
+  @ApiProperty() productName!: string;
+  @ApiProperty({ type: String, nullable: true }) sku!: string | null;
+  @ApiProperty({ type: String, nullable: true }) barcode!: string | null;
+  @ApiProperty() merchantName!: string;
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 2147483647 })
+  quantity!: number;
+  @ApiProperty({ type: String, example: '850.00' }) unitPrice!: string;
+  @ApiProperty({ type: String, example: '1700.00' }) lineTotal!: string;
+}
+
+export class CompletedSaleResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) organizationId!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty() receiptCode!: string;
+  @ApiProperty({ format: 'date-time' }) completedAt!: Date;
+  @ApiProperty() organizationName!: string;
+  @ApiProperty() branchName!: string;
+  @ApiProperty({ type: String, nullable: true }) branchCode!: string | null;
+  @ApiProperty() cashierName!: string;
+  @ApiProperty({ enum: ['CASH', 'GCASH', 'CARD'] }) paymentMethod!: string;
+  @ApiProperty({ type: String, nullable: true, example: '1000.00' })
+  cashTender!: string | null;
+  @ApiProperty({ type: String, nullable: true, example: '150.00' })
+  cashChange!: string | null;
+  @ApiProperty({ type: String, nullable: true }) paymentReference!:
+    string | null;
+  @ApiProperty({ type: String, example: '850.00' }) total!: string;
+  @ApiProperty({ type: [CompletedSaleItemResponseDto] })
+  items!: CompletedSaleItemResponseDto[];
+}
+
 export class BranchInventoryResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;

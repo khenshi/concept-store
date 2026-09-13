@@ -7,6 +7,9 @@ import { Prisma, PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
 import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
+import { CheckoutService } from '../src/modules/organizations/sales/checkout.service';
+import type { CheckoutDto } from '../src/modules/organizations/sales/dto/checkout.dto';
+import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString)
@@ -96,6 +99,557 @@ const movementData = (
 });
 
 describe('PostgreSQL sale persistence integrity', () => {
+  const checkout = new CheckoutService(prisma as unknown as PrismaService);
+  const checkoutSetup = async () => {
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'OWNER' },
+    });
+    return { organizationId, userId, role: 'OWNER' as const };
+  };
+  const checkoutCommand = (extra: Partial<CheckoutDto> = {}): CheckoutDto => ({
+    requestId: randomUUID(),
+    items: [
+      {
+        branchInventoryId: inventoryId,
+        quantity: 2,
+        expectedUnitPrice: '12.50',
+      },
+    ],
+    paymentMethod: 'CASH',
+    cashTender: '50.00',
+    ...extra,
+  });
+  it.each(['CASH', 'GCASH', 'CARD'] as const)(
+    'atomically checks out %s with precise payment snapshots and a matching ledger',
+    async (paymentMethod) => {
+      const context = await checkoutSetup();
+      const command = checkoutCommand(
+        paymentMethod === 'CASH'
+          ? {}
+          : {
+              paymentMethod,
+              cashTender: undefined,
+              paymentReference: 'manual-reference',
+            },
+      );
+      const result = await checkout.complete(context, branchId, command);
+      expect(result).toMatchObject({
+        total: '25.00',
+        paymentMethod,
+        organizationName: (
+          await prisma.organization.findUniqueOrThrow({
+            where: { id: organizationId },
+          })
+        ).name,
+        cashierName: 'Original actor',
+        items: [
+          {
+            productName: 'Original product',
+            merchantName: 'Original merchant',
+            quantity: 2,
+            unitPrice: '12.50',
+            lineTotal: '25.00',
+          },
+        ],
+      });
+      expect(result).not.toHaveProperty('requestId');
+      expect(result).not.toHaveProperty('checkoutCommand');
+      expect(result).not.toHaveProperty('createdById');
+      expect(result.cashTender).toBe(paymentMethod === 'CASH' ? '50.00' : null);
+      expect(result.cashChange).toBe(paymentMethod === 'CASH' ? '25.00' : null);
+      const movement = await prisma.inventoryMovement.findFirstOrThrow({
+        where: { organizationId, type: 'SALE' },
+      });
+      expect(movement).toMatchObject({
+        saleItemId: result.items[0].id,
+        quantityChange: -2,
+        quantityAfter: 3,
+        createdById: userId,
+        reason: 'Point-of-sale checkout',
+      });
+      expect(
+        (
+          await prisma.branchInventory.findUniqueOrThrow({
+            where: { id: inventoryId },
+          })
+        ).quantity,
+      ).toBe(3);
+    },
+  );
+  it('replays normalized commands before current price/lifecycle/stock checks and rejects changed commands', async () => {
+    const context = await checkoutSetup();
+    const command = checkoutCommand();
+    const result = await checkout.complete(context, branchId, command);
+    await new InventoryStockService(prisma as unknown as PrismaService).adjust(
+      organizationId,
+      branchId,
+      inventoryId,
+      userId,
+      {
+        quantityChange: -3,
+        reason: 'Remaining stock correction',
+        requestId: randomUUID(),
+      },
+    );
+    await prisma.branchInventory.update({
+      where: { id: inventoryId },
+      data: { sellingPrice: '99.00' },
+    });
+    await prisma.product.update({
+      where: { id: productId },
+      data: { status: 'INACTIVE', name: 'Renamed' },
+    });
+    expect(
+      await checkout.complete(context, branchId, {
+        ...command,
+        cashTender: '50',
+        items: [{ ...command.items[0], expectedUnitPrice: '12.5' }],
+      }),
+    ).toEqual(result);
+    await expect(
+      checkout.complete(context, branchId, { ...command, cashTender: '51' }),
+    ).rejects.toThrow('Request ID');
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(1);
+    expect(
+      await prisma.inventoryMovement.count({
+        where: { organizationId, type: 'SALE' },
+      }),
+    ).toBe(1);
+  });
+  it('checks fresh roles, memberships, branch assignments and original actor on replay', async () => {
+    const context = await checkoutSetup();
+    const command = checkoutCommand();
+    await checkout.complete(context, branchId, command);
+    await prisma.organizationMembership.update({
+      where: { organizationId_userId: { organizationId, userId } },
+      data: { role: 'CASHIER' },
+    });
+    await expect(checkout.complete(context, branchId, command)).rejects.toThrow(
+      'Branch not found',
+    );
+    await prisma.branchMembership.create({
+      data: { organizationId, branchId, userId },
+    });
+    await expect(
+      checkout.complete(context, branchId, command),
+    ).resolves.toMatchObject({ total: '25.00' });
+    await prisma.organizationMembership.update({
+      where: { organizationId_userId: { organizationId, userId } },
+      data: { role: 'MERCHANT' },
+    });
+    await expect(checkout.complete(context, branchId, command)).rejects.toThrow(
+      'cannot complete checkout',
+    );
+    await prisma.organizationMembership.delete({
+      where: { organizationId_userId: { organizationId, userId } },
+    });
+    await expect(checkout.complete(context, branchId, command)).rejects.toThrow(
+      'Organization not found',
+    );
+    const another = await prisma.user.create({
+      data: {
+        firstName: 'Other',
+        lastName: 'Owner',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId: another.id, role: 'OWNER' },
+    });
+    await expect(
+      checkout.complete({ ...context, userId: another.id }, branchId, command),
+    ).rejects.toThrow('Request ID');
+  });
+  it.each([
+    'price',
+    'stock',
+    'product',
+    'merchant',
+    'cash',
+    'foreign-line',
+    'foreign-branch',
+    'duplicate',
+  ] as const)('does not commit invalid checkout: %s', async (failure) => {
+    const context = await checkoutSetup();
+    const command = checkoutCommand();
+    if (failure === 'price') command.items[0].expectedUnitPrice = '12.00';
+    if (failure === 'stock') command.items[0].quantity = 6;
+    if (failure === 'product')
+      await prisma.product.update({
+        where: { id: productId },
+        data: { status: 'INACTIVE' },
+      });
+    if (failure === 'merchant')
+      await prisma.merchant.update({
+        where: { id: merchantId },
+        data: { status: 'INACTIVE' },
+      });
+    if (failure === 'cash') command.cashTender = '24.99';
+    if (failure === 'foreign-line')
+      command.items[0].branchInventoryId = randomUUID();
+    if (failure === 'duplicate') command.items.push(command.items[0]);
+    await expect(
+      checkout.complete(
+        context,
+        failure === 'foreign-branch' ? randomUUID() : branchId,
+        command,
+      ),
+    ).rejects.toThrow();
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(0);
+    expect(
+      (
+        await prisma.branchInventory.findUniqueOrThrow({
+          where: { id: inventoryId },
+        })
+      ).quantity,
+    ).toBe(5);
+  });
+  it.each(['Sale', 'SaleItem', 'InventoryMovement'])(
+    'rolls back all writes when %s insertion fails',
+    async (table) => {
+      const context = await checkoutSetup();
+      await admin.query(
+        `CREATE FUNCTION fail_checkout_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test checkout insertion failure'; END; $$`,
+      );
+      await admin.query(
+        `CREATE TRIGGER fail_checkout_insert BEFORE INSERT ON "${table}" FOR EACH ROW EXECUTE FUNCTION fail_checkout_insert()`,
+      );
+      try {
+        await expect(
+          checkout.complete(context, branchId, checkoutCommand()),
+        ).rejects.toThrow();
+        expect(await prisma.sale.count({ where: { organizationId } })).toBe(0);
+        expect(await prisma.saleItem.count({ where: { organizationId } })).toBe(
+          0,
+        );
+        expect(
+          await prisma.inventoryMovement.count({
+            where: { organizationId, type: 'SALE' },
+          }),
+        ).toBe(0);
+        expect(
+          (
+            await prisma.branchInventory.findUniqueOrThrow({
+              where: { id: inventoryId },
+            })
+          ).quantity,
+        ).toBe(5);
+      } finally {
+        await admin.query(`DROP TRIGGER fail_checkout_insert ON "${table}"`);
+        await admin.query('DROP FUNCTION fail_checkout_insert()');
+      }
+    },
+  );
+  it('prevents overselling concurrent checkouts and reconciles the resulting ledger', async () => {
+    const context = await checkoutSetup();
+    const commands = [
+      checkoutCommand({
+        items: [
+          {
+            branchInventoryId: inventoryId,
+            quantity: 4,
+            expectedUnitPrice: '12.50',
+          },
+        ],
+      }),
+      checkoutCommand({
+        items: [
+          {
+            branchInventoryId: inventoryId,
+            quantity: 4,
+            expectedUnitPrice: '12.50',
+          },
+        ],
+      }),
+    ];
+    const results = await Promise.allSettled(
+      commands.map((command) => checkout.complete(context, branchId, command)),
+    );
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(1);
+    const balance = await prisma.branchInventory.findUniqueOrThrow({
+      where: { id: inventoryId },
+    });
+    const ledger = await prisma.inventoryMovement.aggregate({
+      where: { organizationId, branchInventoryId: inventoryId },
+      _sum: { quantityChange: true },
+    });
+    expect(balance.quantity).toBe(1);
+    expect(ledger._sum.quantityChange).toBe(balance.quantity);
+  });
+  it('resolves simultaneous identical requests as one sale and one deduction', async () => {
+    const context = await checkoutSetup();
+    const command = checkoutCommand();
+    const results = await Promise.allSettled([
+      checkout.complete(context, branchId, command),
+      checkout.complete(context, branchId, command),
+    ]);
+    const original = await checkout.complete(context, branchId, command);
+    for (const result of results) {
+      if (result.status === 'fulfilled') expect(result.value).toEqual(original);
+    }
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(1);
+    expect(
+      (
+        await prisma.branchInventory.findUniqueOrThrow({
+          where: { id: inventoryId },
+        })
+      ).quantity,
+    ).toBe(3);
+  });
+  it('keeps mixed-merchant lines atomic and canonicalizes reversed line order', async () => {
+    const context = await checkoutSetup();
+    const secondProduct = await prisma.product.create({
+      data: {
+        organizationId,
+        merchantId: otherMerchantId,
+        name: 'Other goods',
+      },
+    });
+    const second = await prisma.branchInventory.create({
+      data: {
+        organizationId,
+        branchId,
+        productId: secondProduct.id,
+        quantity: 2,
+        sellingPrice: '0.01',
+      },
+    });
+    const command = checkoutCommand({
+      items: [
+        {
+          branchInventoryId: second.id,
+          quantity: 2,
+          expectedUnitPrice: '0.01',
+        },
+        ...checkoutCommand().items,
+      ],
+    });
+    const result = await checkout.complete(context, branchId, command);
+    expect(result.total).toBe('25.02');
+    expect(result.items).toHaveLength(2);
+    expect(
+      await checkout.complete(context, branchId, {
+        ...command,
+        items: [...command.items].reverse(),
+      }),
+    ).toEqual(result);
+    expect(
+      await prisma.inventoryMovement.count({
+        where: { organizationId, type: 'SALE' },
+      }),
+    ).toBe(2);
+  });
+  it('rejects a simultaneous conflicting request and prevents a cross-branch replay', async () => {
+    const context = await checkoutSetup();
+    const command = checkoutCommand();
+    const results = await Promise.allSettled([
+      checkout.complete(context, branchId, command),
+      checkout.complete(context, branchId, { ...command, cashTender: '51.00' }),
+    ]);
+    const success = results.find((result) => result.status === 'fulfilled');
+    expect(success?.status).toBe('fulfilled');
+    if (!success || success.status !== 'fulfilled')
+      throw new Error('Expected one checkout to commit');
+    await expect(
+      checkout.complete(context, branchId, {
+        ...command,
+        cashTender: success.value.cashTender === '50.00' ? '51.00' : '50.00',
+      }),
+    ).rejects.toThrow('Request ID');
+    await expect(
+      checkout.complete(context, otherBranchId, command),
+    ).rejects.toThrow('Request ID');
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(1);
+    expect(
+      (
+        await prisma.branchInventory.findUniqueOrThrow({
+          where: { id: inventoryId },
+        })
+      ).quantity,
+    ).toBe(3);
+  });
+  it('allows separate manual checkouts to reuse the same entered payment reference', async () => {
+    const context = await checkoutSetup();
+    const payment = {
+      paymentMethod: 'GCASH' as const,
+      cashTender: undefined,
+      paymentReference: 'same-manual-reference',
+    };
+    const first = await checkout.complete(
+      context,
+      branchId,
+      checkoutCommand(payment),
+    );
+    const second = await checkout.complete(
+      context,
+      branchId,
+      checkoutCommand(payment),
+    );
+    expect(first.id).not.toBe(second.id);
+    expect(first.paymentReference).toBe(second.paymentReference);
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(2);
+  });
+  it('rejects a failing second cart line without deducting the first', async () => {
+    const context = await checkoutSetup();
+    const product = await prisma.product.create({
+      data: {
+        organizationId,
+        merchantId: otherMerchantId,
+        name: 'Limited stock',
+      },
+    });
+    const placement = await prisma.branchInventory.create({
+      data: {
+        organizationId,
+        branchId,
+        productId: product.id,
+        sellingPrice: '1.00',
+        quantity: 1,
+      },
+    });
+    await expect(
+      checkout.complete(
+        context,
+        branchId,
+        checkoutCommand({
+          items: [
+            ...checkoutCommand().items,
+            {
+              branchInventoryId: placement.id,
+              quantity: 2,
+              expectedUnitPrice: '1.00',
+            },
+          ],
+        }),
+      ),
+    ).rejects.toThrow('Insufficient stock');
+    expect(await prisma.sale.count({ where: { organizationId } })).toBe(0);
+    expect(
+      (
+        await prisma.branchInventory.findUniqueOrThrow({
+          where: { id: inventoryId },
+        })
+      ).quantity,
+    ).toBe(5);
+  });
+  it('competes safely with an existing inventory withdrawal', async () => {
+    const context = await checkoutSetup();
+    const stock = new InventoryStockService(prisma as unknown as PrismaService);
+    const results = await Promise.allSettled([
+      checkout.complete(
+        context,
+        branchId,
+        checkoutCommand({
+          items: [
+            {
+              branchInventoryId: inventoryId,
+              quantity: 4,
+              expectedUnitPrice: '12.50',
+            },
+          ],
+        }),
+      ),
+      stock.adjust(organizationId, branchId, inventoryId, userId, {
+        quantityChange: -4,
+        reason: 'Concurrent correction',
+        requestId: randomUUID(),
+      }),
+    ]);
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
+    const balance = await prisma.branchInventory.findUniqueOrThrow({
+      where: { id: inventoryId },
+    });
+    const ledger = await prisma.inventoryMovement.aggregate({
+      where: { organizationId, branchInventoryId: inventoryId },
+      _sum: { quantityChange: true },
+    });
+    expect(balance.quantity).toBe(1);
+    expect(ledger._sum.quantityChange).toBe(1);
+  });
+  it('derives an exact maximum-capacity 100-line total, tender and change', async () => {
+    const context = await checkoutSetup();
+    const ExactDecimal = Prisma.Decimal.clone({ precision: 40 });
+    const quantity = 2147483647;
+    const price = '9999999999.99';
+    await prisma.branchInventory.update({
+      where: { id: inventoryId },
+      data: { quantity, sellingPrice: price },
+    });
+    await prisma.inventoryMovement.updateMany({
+      where: { organizationId, branchInventoryId: inventoryId },
+      data: { quantityChange: quantity, quantityAfter: quantity },
+    });
+    const extra = Array.from({ length: 99 }, (_, index) => ({
+      id: randomUUID(),
+      productId: randomUUID(),
+      name: `Capacity ${index}`,
+    }));
+    await prisma.product.createMany({
+      data: extra.map((row) => ({
+        id: row.productId,
+        organizationId,
+        merchantId,
+        name: row.name,
+      })),
+    });
+    await prisma.branchInventory.createMany({
+      data: extra.map((row) => ({
+        id: row.id,
+        organizationId,
+        branchId,
+        productId: row.productId,
+        quantity,
+        sellingPrice: price,
+      })),
+    });
+    await prisma.inventoryMovement.createMany({
+      data: extra.map((row) => ({
+        organizationId,
+        branchId,
+        branchInventoryId: row.id,
+        type: 'RECEIPT',
+        quantityChange: quantity,
+        quantityAfter: quantity,
+        reason: 'Capacity opening stock',
+        requestId: randomUUID(),
+        createdById: userId,
+      })),
+    });
+    const total = new ExactDecimal(price).times(quantity).times(100).toFixed(2);
+    const result = await checkout.complete(
+      context,
+      branchId,
+      checkoutCommand({
+        cashTender: new ExactDecimal(total).plus('0.01').toFixed(2),
+        items: [inventoryId, ...extra.map((row) => row.id)].map(
+          (branchInventoryId) => ({
+            branchInventoryId,
+            quantity,
+            expectedUnitPrice: price,
+          }),
+        ),
+      }),
+    );
+    expect(result.total).toBe(total);
+    expect(result.cashChange).toBe('0.01');
+    expect(result.items).toHaveLength(100);
+    expect(
+      await prisma.inventoryMovement.count({
+        where: { organizationId, type: 'SALE' },
+      }),
+    ).toBe(100);
+    expect(
+      await prisma.branchInventory.count({
+        where: { organizationId, quantity: { not: 0 } },
+      }),
+    ).toBe(0);
+  }, 30000);
   it('scopes POS catalog and exact ambiguity matches, with lifecycle and stock filtering', async () => {
     const service = new PosCatalogService(prisma as unknown as PrismaService);
     const owner = { organizationId, userId, role: 'OWNER' as const };

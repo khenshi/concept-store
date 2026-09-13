@@ -1,6 +1,6 @@
 # Branch POS Checkout and Sales Plan
 
-**Status:** Approved; Part 1 committed; Part 2 verified, awaiting review before commit.
+**Status:** Approved; Parts 1–2 committed; Part 3 verified, awaiting review before commit.
 **Date:** September 13, 2026
 
 ## Goal and confirmed decisions
@@ -276,8 +276,30 @@ and 65 PostgreSQL integration tests. PostgreSQL uses only a disposable container
 and random isolated schemas; the application database is untouched. Frontend
 files are unchanged in this part. Diff whitespace checks pass.
 
-Stop for user review after verification; do not commit Part 2 or begin Part 3
-before approval. The full plan remains active until all parts are delivered.
+User approved Part 2 on September 13, 2026; committed as `aeccccc`.
+
+### Part 3 delivery — September 13, 2026
+
+Implemented strict checkout DTO and POST branch sales, server-derived exact
+pricing/payment totals, serializable atomic sale/item/stock/movement writes,
+fresh in-transaction membership/assignment enforcement, original-actor canonical
+replay, price/lifecycle/stock conflicts and retryable concurrency handling.
+Explicit completion snapshots omit creator/request IDs and canonical commands.
+No sales list/detail lookup, merchant projections, cart/payment screens, printing,
+schema changes or excluded refund/payment-provider workflows are added.
+
+Verification passes: Prisma validation, backend format/lint/build, 242 unit tests,
+93 HTTP tests and 89 PostgreSQL integration tests, with the final database suite
+passing twice consecutively. Coverage includes full-capacity 100-line arithmetic,
+complete write-failure rollback, mixed ownership, sold-out/inactive canonical
+replay, current access and original-actor enforcement, concurrent overselling,
+inventory correction competition and identical/conflicting checkout-ID races.
+Only disposable PostgreSQL 17 and isolated schemas were used; the application
+database and unrelated root package/audit changes remain untouched. Frontend
+files are unchanged. Diff whitespace checks pass.
+
+Stop for review after verification; do not commit Part 3 or begin Part 4 before
+approval. The full plan remains active until all parts are delivered.
 
 ### Remaining part-by-part sequence
 

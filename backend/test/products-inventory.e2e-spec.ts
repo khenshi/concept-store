@@ -14,6 +14,8 @@ import { BranchInventoryService } from '../src/modules/organizations/inventory/b
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
 import { PosCatalogController } from '../src/modules/organizations/pos/pos-catalog.controller';
 import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
+import { CheckoutController } from '../src/modules/organizations/sales/checkout.controller';
+import { CheckoutService } from '../src/modules/organizations/sales/checkout.service';
 
 const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -50,6 +52,7 @@ describe('Products and inventory HTTP boundaries', () => {
     findMovements: jest.fn(),
   };
   const stock = { receive: jest.fn(), adjust: jest.fn() };
+  const checkout = { complete: jest.fn() };
   const prisma = {
     branch: { findFirst: jest.fn().mockResolvedValue({ id: branch }) },
     product: { findFirst: jest.fn().mockResolvedValue({ id: item }) },
@@ -96,6 +99,7 @@ describe('Products and inventory HTTP boundaries', () => {
         ProductsController,
         BranchInventoryController,
         PosCatalogController,
+        CheckoutController,
       ],
       providers: [
         AuthGuard,
@@ -106,6 +110,7 @@ describe('Products and inventory HTTP boundaries', () => {
         { provide: BranchInventoryService, useValue: inventory },
         { provide: InventoryStockService, useValue: stock },
         PosCatalogService,
+        { provide: CheckoutService, useValue: checkout },
       ],
     }).compile();
     app = module.createNestApplication();
@@ -122,7 +127,7 @@ describe('Products and inventory HTTP boundaries', () => {
   afterAll(async () => app.close());
   beforeEach(() => {
     jest.clearAllMocks();
-    for (const service of [products, inventory, stock]) {
+    for (const service of [products, inventory, stock, checkout]) {
       for (const method of Object.values(service))
         method.mockResolvedValue({ id: item });
     }
@@ -137,6 +142,72 @@ describe('Products and inventory HTTP boundaries', () => {
     `${inventoryPath}/${item}/movements`,
   ];
   const posPath = `/organizations/${org}/branches/${branch}/pos/products`;
+  const salesPath = `/organizations/${org}/branches/${branch}/sales`;
+  const saleCommand = {
+    requestId: item,
+    items: [
+      { branchInventoryId: item, quantity: 1, expectedUnitPrice: '12.50' },
+    ],
+    paymentMethod: 'CASH',
+    cashTender: '20.00',
+  };
+  it('requires authentication and rejects merchant checkout', async () => {
+    await http().post(salesPath).send(saleCommand).expect(401);
+    await http()
+      .post(salesPath)
+      .auth(token(merchant), { type: 'bearer' })
+      .send(saleCommand)
+      .expect(403);
+    expect(checkout.complete).not.toHaveBeenCalled();
+  });
+  it.each([actor, manager, cashier])(
+    'delegates normalized checkout for authorized role %s',
+    async (userId) => {
+      await http()
+        .post(salesPath)
+        .auth(token(userId), { type: 'bearer' })
+        .send({ ...saleCommand, cashTender: ' 20.00 ' })
+        .expect(201);
+      expect(checkout.complete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: org,
+          userId,
+          role: roles.get(userId),
+        }),
+        branch,
+        expect.objectContaining(saleCommand),
+      );
+    },
+  );
+  it.each([
+    { total: '12.50' },
+    { organizationId: org },
+    { createdById: actor },
+    { cashTender: 20 },
+    { paymentReference: 'cash cannot have reference' },
+    { items: [saleCommand.items[0], saleCommand.items[0]] },
+    { items: [{ ...saleCommand.items[0], unitPrice: '0.01' }] },
+  ])('rejects untrusted HTTP checkout fields %j', async (extra) => {
+    await http()
+      .post(salesPath)
+      .auth(token(), { type: 'bearer' })
+      .send({ ...saleCommand, ...extra })
+      .expect(400);
+    expect(checkout.complete).not.toHaveBeenCalled();
+  });
+  it('rejects foreign organization and invalid branch IDs before checkout', async () => {
+    await http()
+      .post(salesPath.replace(org, item))
+      .auth(token(), { type: 'bearer' })
+      .send(saleCommand)
+      .expect(404);
+    await http()
+      .post(salesPath.replace(branch, 'invalid'))
+      .auth(token(), { type: 'bearer' })
+      .send(saleCommand)
+      .expect(400);
+    expect(checkout.complete).not.toHaveBeenCalled();
+  });
   it.each(['', '/code?code=001Ab'])(
     'enforces POS authentication and merchant denial on %s',
     async (suffix) => {

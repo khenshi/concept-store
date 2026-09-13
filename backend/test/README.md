@@ -15,6 +15,11 @@ tests model explicit client retries; the API returns 409 rather than hiding retr
 Sales persistence tests additionally cover scoped foreign keys, payment checks,
 exact monetary capacity, unique receipt/request/item links, preserved snapshots,
 restrictive deletion, transaction rollback and private inventory-history projections.
+Checkout checks include complete rollback on sale/item/movement insertion failure,
+maximum 100-line precise arithmetic, current access on replay, mixed ownership,
+concurrent checkout/withdrawal and identical/conflicting request-ID races. Failure
+injection triggers exist only in the suite's isolated schema and are removed in
+finally blocks; no production trigger or infrastructure is added.
 
 `npm run test:integration` requires an explicit `TEST_DATABASE_URL` pointing to a
 disposable PostgreSQL test database. It never falls back to application
