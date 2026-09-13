@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BranchInventoryService } from './branch-inventory.service';
+import { inventoryMovementSelect } from './inventory.types';
 
 describe('BranchInventoryService', () => {
   const prisma = {
@@ -119,6 +120,7 @@ describe('BranchInventoryService', () => {
   it('history queries enforce placement access and stable scoped ordering', async () => {
     await service.findMovements('org', 'branch', 'inventory');
     expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith({
+      select: inventoryMovementSelect,
       where: {
         organizationId: 'org',
         branchId: 'branch',

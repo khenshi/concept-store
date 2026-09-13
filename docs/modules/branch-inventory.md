@@ -7,7 +7,8 @@
 Maintain one quantity-tracked placement per product/branch, a branch-specific PHP
 selling price, and immutable receiving/adjustment history. Different placements
 of the same product have independent prices and balances. No transfer, sale,
-reservation, purchasing, or deletion workflow is provided.
+reservation, purchasing, or deletion workflow is provided. Sales persistence now
+supports SALE deductions in history, but there is no application checkout workflow yet.
 
 ## API and authorization
 
@@ -71,6 +72,9 @@ whitelisting reject malformed IDs and unexpected fields.
 - Command responses are historical movement snapshots; clients must refresh
   current inventory after success rather than treating a replay as current stock.
 - No stock write touches another branch's placement.
+- Persisted SALE movements display as sales and require negative deltas. Their
+  private sale-item link is excluded from all existing movement responses; merchant
+  history still omits actor IDs. Public receiving/correction contracts are unchanged.
 
 ## Delivery state
 

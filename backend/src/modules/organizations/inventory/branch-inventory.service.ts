@@ -16,6 +16,7 @@ import type { OrganizationContext } from '../authorization/organization-authoriz
 import { inventoryScope } from '../authorization/resource-access';
 import {
   inventoryProductSelect,
+  inventoryMovementSelect,
   type BranchInventoryRecord,
   type InventoryMovementRecord,
 } from './inventory.types';
@@ -149,6 +150,7 @@ export class BranchInventoryService {
     await this.findOne(organizationId, branchId, inventoryId, context);
     const movements: InventoryMovementRecord[] =
       await this.prisma.inventoryMovement.findMany({
+        select: inventoryMovementSelect,
         where: { organizationId, branchId, branchInventoryId: inventoryId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       });

@@ -296,7 +296,11 @@ function ScopedInventoryDetail({
               >
                 <div className="min-w-0 break-words">
                   <strong className="text-sm font-semibold">
-                    {movement.type === 'RECEIPT' ? 'Receipt' : 'Adjustment'}
+                    {movement.type === 'RECEIPT'
+                      ? 'Receipt'
+                      : movement.type === 'SALE'
+                        ? 'Sale'
+                        : 'Adjustment'}
                   </strong>
                   <p className="mt-1 text-sm">{movement.reason}</p>
                   <p className="mt-2 text-xs text-muted">

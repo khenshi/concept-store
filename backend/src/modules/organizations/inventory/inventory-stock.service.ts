@@ -14,7 +14,10 @@ import type {
   AdjustInventoryDto,
   ReceiveInventoryDto,
 } from './dto/stock-command.dto';
-import type { InventoryMovementRecord } from './inventory.types';
+import {
+  inventoryMovementSelect,
+  type InventoryMovementRecord,
+} from './inventory.types';
 
 interface StockCommand {
   organizationId: string;
@@ -92,6 +95,7 @@ export class InventoryStockService {
             throw new NotFoundException('Branch inventory not found');
 
           const original = await tx.inventoryMovement.findUnique({
+            select: inventoryMovementSelect,
             where: {
               organizationId_requestId: {
                 organizationId,
@@ -137,6 +141,7 @@ export class InventoryStockService {
             select: { quantity: true },
           });
           return tx.inventoryMovement.create({
+            select: inventoryMovementSelect,
             data: {
               organizationId,
               branchId,
@@ -161,6 +166,7 @@ export class InventoryStockService {
           error.code === 'P2002')
       ) {
         const original = await this.prisma.inventoryMovement.findUnique({
+          select: inventoryMovementSelect,
           where: {
             organizationId_requestId: {
               organizationId,

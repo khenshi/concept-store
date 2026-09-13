@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { InventoryStockService } from './inventory-stock.service';
+import { inventoryMovementSelect } from './inventory.types';
 
 describe('InventoryStockService', () => {
   const dto = { quantity: 3, reason: 'Delivery', requestId: 'request' };
@@ -64,6 +65,7 @@ describe('InventoryStockService', () => {
       data: { quantity: { increment: 3 } },
     });
     expect(tx.inventoryMovement.create).toHaveBeenCalledWith({
+      select: inventoryMovementSelect,
       data: {
         organizationId: 'org',
         branchId: 'branch',
@@ -183,6 +185,7 @@ describe('InventoryStockService', () => {
       prisma.inventoryMovement.findUnique.mockResolvedValue(movement);
       await expect(receive()).resolves.toEqual(movement);
       expect(prisma.inventoryMovement.findUnique).toHaveBeenCalledWith({
+        select: inventoryMovementSelect,
         where: {
           organizationId_requestId: {
             organizationId: 'org',

@@ -77,6 +77,16 @@ describe('Branch inventory API contracts', () => {
     request.mockResolvedValue(identity);
     await expect(getInventoryBranch(request, scope)).resolves.toEqual(identity);
   });
+  it('accepts sale deductions without exposing internal sale-item links', async () => {
+    const sale = { ...movement, type: 'SALE', quantityChange: -1 };
+    request.mockResolvedValue([{ ...sale, saleItemId: 'private-link' }]);
+    await expect(listMovements(request, scope)).resolves.toEqual([sale]);
+    const { createdById, ...own } = sale;
+    expect(createdById).toBe(movement.createdById);
+    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual([
+      own,
+    ]);
+  });
   it('preserves request IDs and integer deltas without submitting actor or tenant fields', async () => {
     request.mockResolvedValue(movement);
     const receipt = {
@@ -120,7 +130,8 @@ describe('Branch inventory API contracts', () => {
     { quantityChange: 0 },
     { quantityChange: -1 },
     { quantityAfter: -1 },
-    { type: 'SALE' },
+    { type: 'REFUND' },
+    { type: 'SALE', quantityChange: 1 },
   ])('rejects invalid movement responses %j', async (extra) => {
     request.mockResolvedValue([{ ...movement, ...extra }]);
     await expect(listMovements(request, scope)).rejects.toThrow();

@@ -34,4 +34,19 @@ export interface BranchInventoryRecord {
   };
 }
 
-export type InventoryMovementRecord = InventoryMovement;
+export type InventoryMovementRecord = Omit<InventoryMovement, 'saleItemId'>;
+
+// Internal checkout relationships are not part of the inventory history contract.
+export const inventoryMovementSelect = {
+  id: true,
+  organizationId: true,
+  branchId: true,
+  branchInventoryId: true,
+  type: true,
+  quantityChange: true,
+  quantityAfter: true,
+  reason: true,
+  createdById: true,
+  requestId: true,
+  createdAt: true,
+} as const;

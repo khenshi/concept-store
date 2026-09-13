@@ -24,6 +24,7 @@ model User {
   acceptedOrganizationInvitations OrganizationInvitation[] @relation("InvitationAcceptor")
   sessions                        UserSession[]
   inventoryMovements              InventoryMovement[]
+  sales                           Sale[]
 
   @@index([deletedAt])
 }
@@ -54,6 +55,7 @@ model Organization {
   invitations OrganizationInvitation[]
   merchants   Merchant[]
   products    Product[]
+  sales       Sale[]
 }
 
 model Merchant {
@@ -73,6 +75,8 @@ model Merchant {
   products    Product[]
   memberships OrganizationMembership[]
   invitations OrganizationInvitation[]
+
+  saleItems SaleItem[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -98,6 +102,7 @@ model Branch {
   inventory        BranchInventory[]
   memberships      BranchMembership[]
   invitationGrants InvitationBranch[]
+  sales            Sale[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, name])
@@ -118,10 +123,12 @@ model Product {
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   merchant     Merchant          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
   inventory    BranchInventory[]
+  saleItems    SaleItem[]
 
   @@unique([organizationId, sku])
   @@unique([organizationId, barcode])
   @@unique([id, organizationId])
+  @@unique([id, organizationId, merchantId])
   @@index([organizationId, merchantId, status])
   @@index([organizationId, name])
 }
@@ -140,9 +147,11 @@ model BranchInventory {
   branch    Branch              @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
   product   Product             @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
   movements InventoryMovement[]
+  saleItems SaleItem[]
 
   @@unique([organizationId, branchId, productId])
   @@unique([id, organizationId, branchId])
+  @@unique([id, organizationId, branchId, productId])
   @@index([organizationId, productId])
 }
 
@@ -159,12 +168,75 @@ model InventoryMovement {
   createdById       String
   requestId         String
   createdAt         DateTime              @default(now())
+  saleItemId        String?
 
   inventory BranchInventory @relation(fields: [branchInventoryId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
   createdBy User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  saleItem  SaleItem?       @relation(fields: [saleItemId, organizationId, branchId, branchInventoryId], references: [id, organizationId, branchId, branchInventoryId], onDelete: Restrict)
 
   @@unique([organizationId, requestId])
+  @@unique([saleItemId, organizationId, branchId, branchInventoryId], map: "InventoryMovement_saleItem_scope_key")
   @@index([organizationId, branchId, branchInventoryId, createdAt, id], map: "InventoryMovement_history_idx")
+}
+
+/// Completed-only records. Payment/amount constraints are defined in SQL.
+model Sale {
+  id               String            @id @default(uuid())
+  organizationId   String
+  branchId         String
+  receiptCode      String
+  createdById      String
+  requestId        String
+  paymentMethod    SalePaymentMethod
+  cashTender       Decimal?          @db.Decimal(24, 2)
+  cashChange       Decimal?          @db.Decimal(24, 2)
+  paymentReference String?
+  total            Decimal           @db.Decimal(24, 2)
+  completedAt      DateTime          @default(now())
+  organizationName String
+  branchName       String
+  branchCode       String?
+  cashierName      String
+  checkoutCommand  Json              @db.JsonB
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items        SaleItem[]
+
+  @@unique([organizationId, receiptCode])
+  @@unique([organizationId, requestId])
+  @@unique([id, organizationId, branchId])
+  @@index([organizationId, branchId, completedAt, id], map: "Sale_branch_history_idx")
+  @@index([organizationId, branchId, createdById, completedAt, id], map: "Sale_cashier_history_idx")
+}
+
+/// Snapshot amounts/quantity checks are defined in SQL. No item mutation API.
+model SaleItem {
+  id                String  @id @default(uuid())
+  organizationId    String
+  branchId          String
+  saleId            String
+  branchInventoryId String
+  productId         String
+  merchantId        String
+  quantity          Int
+  productName       String
+  sku               String?
+  barcode           String?
+  merchantName      String
+  unitPrice         Decimal @db.Decimal(12, 2)
+  lineTotal         Decimal @db.Decimal(22, 2)
+
+  sale      Sale               @relation(fields: [saleId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
+  inventory BranchInventory    @relation(fields: [branchInventoryId, organizationId, branchId, productId], references: [id, organizationId, branchId, productId], onDelete: Restrict)
+  product   Product            @relation(fields: [productId, organizationId, merchantId], references: [id, organizationId, merchantId], onDelete: Restrict)
+  merchant  Merchant           @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  movement  InventoryMovement?
+
+  @@unique([saleId, branchInventoryId])
+  @@unique([id, organizationId, branchId, branchInventoryId], map: "SaleItem_inventory_scope_key")
+  @@index([organizationId, merchantId, branchId, saleId], map: "SaleItem_merchant_sales_idx")
 }
 
 model OrganizationMembership {
@@ -259,4 +331,11 @@ enum ProductStatus {
 enum InventoryMovementType {
   RECEIPT
   ADJUSTMENT
+  SALE
+}
+
+enum SalePaymentMethod {
+  CASH
+  GCASH
+  CARD
 }

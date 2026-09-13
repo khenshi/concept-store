@@ -1,13 +1,15 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   InventoryMovementType,
   MerchantStatus,
   OrganizationRole,
   PrismaClient,
   ProductStatus,
+  Prisma,
+  SalePaymentMethod,
 } from '../src/generated/prisma/client';
 
 const ids = {
@@ -27,17 +29,20 @@ const ids = {
     inactive: '00000000-0000-4000-8000-000000000042',
     suspended: '00000000-0000-4000-8000-000000000043',
     ended: '00000000-0000-4000-8000-000000000044',
+    secondActive: '00000000-0000-4000-8000-000000000045',
   },
   products: {
     vase: '00000000-0000-4000-8000-000000000051',
     tray: '00000000-0000-4000-8000-000000000052',
     inactive: '00000000-0000-4000-8000-000000000053',
+    pouch: '00000000-0000-4000-8000-000000000054',
   },
   inventory: {
     makatiVase: '00000000-0000-4000-8000-000000000061',
     bgcVase: '00000000-0000-4000-8000-000000000062',
     makatiTray: '00000000-0000-4000-8000-000000000063',
     inactive: '00000000-0000-4000-8000-000000000064',
+    pouch: '00000000-0000-4000-8000-000000000065',
   },
 } as const;
 
@@ -182,6 +187,14 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
         phone: '0917 555 0104',
         status: MerchantStatus.ENDED,
       },
+      {
+        id: ids.merchants.secondActive,
+        organizationId: ids.organization,
+        name: 'Luntian Studio',
+        code: 'LUNTIAN',
+        contactName: 'Ana Demo',
+        phone: '09171234567',
+      },
     ],
   });
 
@@ -210,6 +223,7 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
   });
 
   await seedProductInventory(prisma);
+  await seedSales(prisma);
 
   const invitationToken = 'foundation-demo-invitation-token-0000000001';
   await prisma.organizationInvitation.create({
@@ -260,6 +274,13 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
           name: 'Amihan Retired Planter',
           status: ProductStatus.INACTIVE,
         },
+        {
+          id: ids.products.pouch,
+          organizationId: ids.organization,
+          merchantId: ids.merchants.secondActive,
+          name: 'Luntian Cotton Pouch',
+          sku: 'LUNTIAN-POUCH',
+        },
       ],
     });
     await tx.branchInventory.createMany({
@@ -291,6 +312,13 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
           branchId: ids.branches.makati,
           productId: ids.products.inactive,
           sellingPrice: '600.00',
+        },
+        {
+          id: ids.inventory.pouch,
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
+          productId: ids.products.pouch,
+          sellingPrice: '250.00',
         },
       ],
     });
@@ -351,6 +379,173 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
           createdAt: movement.createdAt,
         },
       });
+    }
+  });
+}
+
+// Persistence examples only: no application checkout API/service is implemented here.
+async function seedSales(prisma: PrismaClient): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    for (const [inventoryId, quantity] of [
+      [ids.inventory.makatiTray, 5],
+      [ids.inventory.pouch, 6],
+    ] as const) {
+      const placement = await tx.branchInventory.update({
+        where: {
+          id: inventoryId,
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
+        },
+        data: { quantity: { increment: quantity } },
+      });
+      await tx.inventoryMovement.create({
+        data: {
+          organizationId: ids.organization,
+          branchId: placement.branchId,
+          branchInventoryId: placement.id,
+          type: InventoryMovementType.RECEIPT,
+          quantityChange: quantity,
+          quantityAfter: placement.quantity,
+          reason: 'Demo sale stock received',
+          createdById: ids.users.owner,
+          requestId: randomUUID(),
+          createdAt: new Date('2026-09-13T00:00:00Z'),
+        },
+      });
+    }
+    const examples = [
+      {
+        id: '00000000-0000-4000-8000-000000000091',
+        method: SalePaymentMethod.CASH,
+        branchId: ids.branches.makati,
+        actor: ids.users.cashier,
+        tender: '1000.00',
+        reference: null,
+        lines: [{ id: ids.inventory.makatiVase, quantity: 1 }],
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000092',
+        method: SalePaymentMethod.GCASH,
+        branchId: ids.branches.makati,
+        actor: ids.users.cashier,
+        tender: null,
+        reference: 'DEMO-GCASH-0001',
+        lines: [
+          { id: ids.inventory.makatiTray, quantity: 1 },
+          { id: ids.inventory.pouch, quantity: 2 },
+        ],
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000093',
+        method: SalePaymentMethod.CARD,
+        branchId: ids.branches.bgc,
+        actor: ids.users.owner,
+        tender: null,
+        reference: 'DEMO-CARD-0001',
+        lines: [{ id: ids.inventory.bgcVase, quantity: 1 }],
+      },
+    ];
+    for (const [index, example] of examples.entries()) {
+      const branch = await tx.branch.findUniqueOrThrow({
+        where: { id: example.branchId, organizationId: ids.organization },
+      });
+      const actor = await tx.user.findUniqueOrThrow({
+        where: { id: example.actor },
+      });
+      const lines = await Promise.all(
+        example.lines.map(async (line) => ({
+          quantity: line.quantity,
+          placement: await tx.branchInventory.findUniqueOrThrow({
+            where: {
+              id: line.id,
+              organizationId: ids.organization,
+              branchId: example.branchId,
+            },
+            include: { product: { include: { merchant: true } } },
+          }),
+        })),
+      );
+      const total = lines.reduce(
+        (sum, line) =>
+          sum.plus(line.placement.sellingPrice.times(line.quantity)),
+        new Prisma.Decimal(0),
+      );
+      const completedAt = new Date(`2026-09-13T00:0${index + 1}:00Z`);
+      const sale = await tx.sale.create({
+        data: {
+          id: example.id,
+          organizationId: ids.organization,
+          branchId: branch.id,
+          receiptCode: `DEMO-SALE-${index + 1}`,
+          createdById: actor.id,
+          requestId: example.id,
+          paymentMethod: example.method,
+          total,
+          completedAt,
+          cashTender: example.tender,
+          cashChange: example.tender
+            ? new Prisma.Decimal(example.tender).minus(total)
+            : null,
+          paymentReference: example.reference,
+          organizationName: 'Kapwesto Demo Store',
+          branchName: branch.name,
+          branchCode: branch.code,
+          cashierName: `${actor.firstName} ${actor.lastName}`,
+          checkoutCommand: {
+            items: lines.map(({ placement, quantity }) => ({
+              branchInventoryId: placement.id,
+              quantity,
+              expectedUnitPrice: placement.sellingPrice.toFixed(2),
+            })),
+            paymentMethod: example.method,
+            ...(example.tender
+              ? { cashTender: example.tender }
+              : { paymentReference: example.reference }),
+          },
+        },
+      });
+      for (const { placement, quantity } of lines) {
+        const item = await tx.saleItem.create({
+          data: {
+            organizationId: ids.organization,
+            branchId: branch.id,
+            saleId: sale.id,
+            branchInventoryId: placement.id,
+            productId: placement.productId,
+            merchantId: placement.product.merchantId,
+            quantity,
+            productName: placement.product.name,
+            sku: placement.product.sku,
+            barcode: placement.product.barcode,
+            merchantName: placement.product.merchant.name,
+            unitPrice: placement.sellingPrice,
+            lineTotal: placement.sellingPrice.times(quantity),
+          },
+        });
+        const updated = await tx.branchInventory.update({
+          where: {
+            id: placement.id,
+            organizationId: ids.organization,
+            branchId: branch.id,
+          },
+          data: { quantity: { decrement: quantity } },
+        });
+        await tx.inventoryMovement.create({
+          data: {
+            organizationId: ids.organization,
+            branchId: branch.id,
+            branchInventoryId: placement.id,
+            saleItemId: item.id,
+            type: InventoryMovementType.SALE,
+            quantityChange: -quantity,
+            quantityAfter: updated.quantity,
+            reason: 'Point-of-sale checkout',
+            createdById: actor.id,
+            requestId: randomUUID(),
+            createdAt: completedAt,
+          },
+        });
+      }
     }
   });
 }
