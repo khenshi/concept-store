@@ -219,6 +219,47 @@ describe('OrganizationInvitationsService', () => {
     expect(prisma.organizationInvitation.findFirst).not.toHaveBeenCalled();
   });
 
+  it('rejects expired, revoked, or accepted tokens without creating a membership', async () => {
+    transaction.organizationInvitation.findFirst.mockResolvedValue(null);
+    await expect(service.accept('a'.repeat(43), user)).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(transaction.organizationMembership.create).not.toHaveBeenCalled();
+    expect(transaction.organizationInvitation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        }) as unknown,
+      }),
+    );
+  });
+
+  it('does not overwrite an existing membership or accept a lost claim', async () => {
+    transaction.organizationInvitation.findFirst.mockResolvedValue({
+      ...invitation,
+      organization: { id: organizationId, name: 'Store' },
+    });
+    transaction.organizationMembership.findUnique.mockResolvedValue({
+      userId: user.id,
+    });
+    await expect(service.accept('a'.repeat(43), user)).rejects.toThrow(
+      ConflictException,
+    );
+    expect(
+      transaction.organizationInvitation.updateMany,
+    ).not.toHaveBeenCalled();
+    transaction.organizationMembership.findUnique.mockResolvedValue(null);
+    transaction.organizationInvitation.updateMany.mockResolvedValue({
+      count: 0,
+    });
+    await expect(service.accept('a'.repeat(43), user)).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(transaction.organizationMembership.create).not.toHaveBeenCalled();
+  });
+
   it('requires the signed-in email to match the invitation', async () => {
     transaction.organizationInvitation.findFirst.mockResolvedValue({
       ...invitation,

@@ -237,9 +237,21 @@ export class OrganizationMembershipsService {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
     } catch (error: unknown) {
+      const adapterError =
+        error instanceof Prisma.PrismaClientKnownRequestError
+          ? (error.meta?.driverAdapterError as
+              { cause?: { originalCode?: string } } | undefined)
+          : undefined;
+      const postgresCode =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        typeof error.meta?.code === 'string'
+          ? error.meta.code
+          : adapterError?.cause?.originalCode;
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2034'
+        (error.code === 'P2034' ||
+          (error.code === 'P2010' &&
+            ['40001', '40P01'].includes(postgresCode ?? '')))
       ) {
         throw new ConflictException(
           'Membership changed concurrently; retry the request',

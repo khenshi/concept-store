@@ -1,6 +1,6 @@
 # Branch and Merchant Access Control Plan
 
-**Status:** Approved; Parts 1–3 committed; Part 4 implemented and verified, awaiting review
+**Status:** Approved; Parts 1–4 committed; Part 5 implemented and verified, awaiting review
 **Date:** September 12, 2026
 
 ## Goal and confirmed decisions
@@ -318,6 +318,27 @@ Applicable checks pass, module docs are accurate, and exclusions remain excluded
 - Updated affected module documentation. Frontend alignment remains Parts 6–7;
   expanded backend integrity/concurrency coverage remains Part 5.
 - The user reviewed and approved Part 4 for commit on September 13, 2026.
+
+## Part 5 verification record
+
+- Part 4 was reviewed and committed as 27c5237.
+- Expanded query-scope and strict member DTO tests, HTTP authorization/denial
+  tests, invitation service edge cases, and PostgreSQL lifecycle race coverage.
+- Verified grants versus promotion/removal, links versus role changes, final-owner
+  preservation, simultaneous acceptance, acceptance/revocation, fresh revoke/relink
+  reads, and actual grant-insert failure rolling back membership and invitation.
+- Repeated races exposed raw SELECT FOR UPDATE serialization errors surfaced as
+  Prisma P2010 with adapter originalCode 40001. Corrected membership conflict mapping
+  for 40001/40P01 in direct or adapter metadata; regression tests cover adapter errors.
+  This fixes an existing intended 409 contract, without expanding business scope.
+- All 33 PostgreSQL tests passed on three consecutive runs; all 68 HTTP tests pass.
+  Final backend formatting/lint/build and all 202 unit tests also pass.
+- Only disposable PostgreSQL 17 was used. No application database or schema change,
+  stock change, invitation business expansion, or frontend change was introduced.
+- The disposable container and test data were removed after verification.
+- The user reviewed and approved Part 5 for commit on September 13, 2026.
+  Unrelated root package/performance-audit changes
+  were preserved and remain outside this part.
 
 ## Deferred POS decisions (not implementation scope)
 

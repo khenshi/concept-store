@@ -247,4 +247,19 @@ describe('OrganizationMembershipsService', () => {
       ConflictException,
     );
   });
+  it.each(['40001', '40P01'])(
+    'maps raw membership-lock PostgreSQL conflict %s to 409',
+    async (code) => {
+      prisma.$transaction.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError('raw lock conflict', {
+          code: 'P2010',
+          clientVersion: 'test',
+          meta: { driverAdapterError: { cause: { originalCode: code } } },
+        }),
+      );
+      await expect(service.remove(organizationId, user.id)).rejects.toThrow(
+        ConflictException,
+      );
+    },
+  );
 });

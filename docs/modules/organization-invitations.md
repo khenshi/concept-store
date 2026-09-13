@@ -78,6 +78,14 @@ disposable test database, never application database resets.
 
 ## Frontend behavior
 
+### Expanded backend verification (Part 5)
+
+Current backend totals are 202 unit, 68 HTTP, and 33 PostgreSQL tests. Repeated
+database runs verify one membership/grant set for simultaneous acceptance,
+mutually exclusive acceptance/revocation, and rollback of membership plus claimed
+invitation when the actual branch grant insert fails. Existing-member/lost-claim
+and unavailable-token conditions also have focused service coverage.
+
 Owners manage invitations from the organization member workflow. A separate
 token route previews and accepts invitations.
 

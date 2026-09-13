@@ -282,6 +282,57 @@ describe('Milestone 1 organization access (e2e)', () => {
     }
   });
 
+  it.each([
+    { method: 'get', suffix: 'branches', body: {}, status: 200 },
+    { method: 'put', suffix: `branches/${BRANCH_ID}`, body: {}, status: 204 },
+    {
+      method: 'delete',
+      suffix: `branches/${BRANCH_ID}`,
+      body: {},
+      status: 204,
+    },
+    {
+      method: 'patch',
+      suffix: 'merchant',
+      body: { merchantId: BRANCH_ID },
+      status: 200,
+    },
+  ] as const)(
+    'enforces authentication and owner role on $method $suffix',
+    async ({ method, suffix, body, status }) => {
+      const path = `/organizations/${ORGANIZATION_ID}/members/${CASHIER_ID}/${suffix}`;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      await request(app.getHttpServer())[method](path).send(body).expect(401);
+      for (const role of [
+        OrganizationRole.MANAGER,
+        OrganizationRole.CASHIER,
+        OrganizationRole.MERCHANT,
+      ]) {
+        prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
+          role,
+        });
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        await request(app.getHttpServer())
+          [method](path)
+          .set(
+            'Authorization',
+            `Bearer ${accessToken(OWNER_ID, 'owner@example.test')}`,
+          )
+          .send(body)
+          .expect(403);
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      await request(app.getHttpServer())
+        [method](path)
+        .set(
+          'Authorization',
+          `Bearer ${accessToken(OWNER_ID, 'owner@example.test')}`,
+        )
+        .send(body)
+        .expect(status);
+    },
+  );
+
   it('reserves member listing and membership changes for owners', async () => {
     prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
       role: OrganizationRole.MANAGER,

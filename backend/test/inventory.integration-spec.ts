@@ -59,6 +59,278 @@ const balance = () =>
   prisma.branchInventory.findUniqueOrThrow({ where: { id: inventoryId } });
 
 describe('PostgreSQL inventory integrity and concurrency', () => {
+  it('rolls back membership and invitation claim when a branch grant insertion fails', async () => {
+    const invites = new OrganizationInvitationsService(
+      prisma as unknown as PrismaService,
+    );
+    const actor = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const recipient = await prisma.user.create({
+      data: {
+        firstName: 'Invited',
+        lastName: 'User',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    const invitation = await invites.create(organizationId, actor, {
+      email: recipient.email,
+      role: 'MERCHANT',
+      merchantId,
+      branchIds: [branchId],
+    });
+    // Trigger exists only in this run's isolated schema; fail the actual grant write.
+    await admin.query(
+      `CREATE FUNCTION fail_test_grant() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."userId" = '${recipient.id}' THEN RAISE EXCEPTION 'Test grant failure'; END IF; RETURN NEW; END $$`,
+    );
+    await admin.query(
+      'CREATE TRIGGER fail_test_grant BEFORE INSERT ON "BranchMembership" FOR EACH ROW EXECUTE FUNCTION fail_test_grant()',
+    );
+    try {
+      await expect(
+        invites.accept(invitation.token, recipient),
+      ).rejects.toThrow();
+      expect(
+        await prisma.organizationMembership.count({
+          where: { organizationId, userId: recipient.id },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.branchMembership.count({
+          where: { organizationId, userId: recipient.id },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.organizationInvitation.findUnique({
+          where: { id: invitation.invitation.id },
+        }),
+      ).toMatchObject({ acceptedAt: null, acceptedById: null });
+    } finally {
+      await admin.query('DROP TRIGGER fail_test_grant ON "BranchMembership"');
+      await admin.query('DROP FUNCTION fail_test_grant()');
+    }
+  });
+  const retryConflict = async (operation: () => Promise<unknown>) => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await operation();
+      } catch (error: unknown) {
+        if (
+          !(error instanceof Error) ||
+          !error.message.includes('concurrently') ||
+          attempt === 4
+        )
+          throw error;
+      }
+    }
+  };
+
+  it('does not retain explicit grants after concurrent owner promotion', async () => {
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    const results = await Promise.allSettled([
+      memberships.setBranch(organizationId, userId, branchId, true),
+      retryConflict(() =>
+        memberships.updateRole(organizationId, userId, { role: 'OWNER' }),
+      ),
+    ]);
+    expect(results[1]).toMatchObject({ status: 'fulfilled' });
+    expect(
+      await prisma.organizationMembership.findUnique({
+        where: { organizationId_userId: { organizationId, userId } },
+      }),
+    ).toMatchObject({ role: 'OWNER', merchantId: null });
+    expect(
+      await prisma.branchMembership.count({
+        where: { organizationId, userId },
+      }),
+    ).toBe(0);
+  });
+
+  it('does not retain assignments after concurrent membership removal', async () => {
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    const results = await Promise.allSettled([
+      memberships.setBranch(organizationId, userId, branchId, true),
+      retryConflict(() => memberships.remove(organizationId, userId)),
+    ]);
+    expect(results[1]).toMatchObject({ status: 'fulfilled' });
+    expect(
+      await prisma.organizationMembership.count({
+        where: { organizationId, userId },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.branchMembership.count({
+        where: { organizationId, userId },
+      }),
+    ).toBe(0);
+  });
+
+  it('clears merchant links when relinking races with a nonmerchant role change', async () => {
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MERCHANT', merchantId },
+    });
+    const results = await Promise.allSettled([
+      memberships.setMerchant(organizationId, userId, merchantId),
+      retryConflict(() =>
+        memberships.updateRole(organizationId, userId, { role: 'CASHIER' }),
+      ),
+    ]);
+    if (results[1].status === 'rejected')
+      throw new Error(JSON.stringify(results[1].reason));
+    expect(results[1]).toMatchObject({ status: 'fulfilled' });
+    expect(
+      await prisma.organizationMembership.findUnique({
+        where: { organizationId_userId: { organizationId, userId } },
+      }),
+    ).toMatchObject({ role: 'CASHIER', merchantId: null });
+  });
+
+  it('retains one owner when two owners are concurrently demoted', async () => {
+    const second = await prisma.user.create({
+      data: {
+        firstName: 'Second',
+        lastName: 'Owner',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    await prisma.organizationMembership.createMany({
+      data: [userId, second.id].map((userId) => ({
+        organizationId,
+        userId,
+        role: 'OWNER' as const,
+      })),
+    });
+    const results = await Promise.allSettled(
+      [userId, second.id].map((target) =>
+        memberships.updateRole(organizationId, target, { role: 'MANAGER' }),
+      ),
+    );
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(
+      1,
+    );
+    expect(
+      await prisma.organizationMembership.count({
+        where: { organizationId, role: 'OWNER' },
+      }),
+    ).toBe(1);
+  });
+
+  it('creates one membership and grant set for simultaneous invitation acceptance', async () => {
+    const invites = new OrganizationInvitationsService(
+      prisma as unknown as PrismaService,
+    );
+    const actor = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const recipient = await prisma.user.create({
+      data: {
+        firstName: 'Invited',
+        lastName: 'User',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    const invitation = await invites.create(organizationId, actor, {
+      email: recipient.email,
+      role: 'MERCHANT',
+      merchantId,
+      branchIds: [branchId, otherBranchId],
+    });
+    const results = await Promise.allSettled(
+      Array.from({ length: 6 }, () =>
+        invites.accept(invitation.token, recipient),
+      ),
+    );
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(
+      1,
+    );
+    expect(
+      await prisma.organizationMembership.count({
+        where: { organizationId, userId: recipient.id },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.branchMembership.count({
+        where: { organizationId, userId: recipient.id },
+      }),
+    ).toBe(2);
+  });
+
+  it('never both revokes and accepts a pending invitation concurrently', async () => {
+    const invites = new OrganizationInvitationsService(
+      prisma as unknown as PrismaService,
+    );
+    const actor = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+    });
+    const recipient = await prisma.user.create({
+      data: {
+        firstName: 'Invited',
+        lastName: 'User',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    const invitation = await invites.create(organizationId, actor, {
+      email: recipient.email,
+      role: 'CASHIER',
+      branchIds: [branchId],
+    });
+    const results = await Promise.allSettled([
+      invites.accept(invitation.token, recipient),
+      invites.revoke(organizationId, invitation.invitation.id),
+    ]);
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(
+      1,
+    );
+    const saved = await prisma.organizationInvitation.findUniqueOrThrow({
+      where: { id: invitation.invitation.id },
+    });
+    expect(Boolean(saved.acceptedAt)).not.toBe(Boolean(saved.revokedAt));
+    expect(
+      await prisma.branchMembership.count({
+        where: { organizationId, userId: recipient.id },
+      }),
+    ).toBe(saved.acceptedAt ? 1 : 0);
+  });
+
+  it('fresh database context loses branch visibility after revoke and changes merchant visibility after relink', async () => {
+    const branches = new BranchesService(prisma as unknown as PrismaService);
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    await memberships.setBranch(organizationId, userId, branchId, true);
+    const context = { organizationId, userId, role: 'MANAGER' as const };
+    expect(await branches.findAll(organizationId, context)).toHaveLength(1);
+    await memberships.setBranch(organizationId, userId, branchId, false);
+    expect(await branches.findAll(organizationId, context)).toEqual([]);
+    await memberships.updateRole(organizationId, userId, {
+      role: 'MERCHANT',
+      merchantId,
+    });
+    const other = await prisma.merchant.create({
+      data: {
+        organizationId,
+        name: 'Other',
+        contactName: 'Other Contact',
+        phone: '09171234567',
+      },
+    });
+    await memberships.setMerchant(organizationId, userId, other.id);
+    const fresh = await prisma.organizationMembership.findUniqueOrThrow({
+      where: { organizationId_userId: { organizationId, userId } },
+    });
+    expect(await products.findAll(organizationId, {}, fresh)).toEqual([]);
+    await expect(
+      products.findOne(organizationId, productId, fresh),
+    ).rejects.toThrow();
+  });
   it('filters assigned manager reads and projects merchant own-placement reads without contacts or actors', async () => {
     const branches = new BranchesService(prisma as unknown as PrismaService);
     const merchants = new MerchantsService(prisma as unknown as PrismaService);

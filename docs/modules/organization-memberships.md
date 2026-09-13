@@ -69,7 +69,18 @@ Invitation grant acceptance is delivered in Part 3; backend resource-access
 filtering and role-specific projections are delivered in Part 4. Frontend alignment
 remains later approved parts.
 
-## Frontend behavior
+## Backend verification (Part 5)
+
+Backend format/lint/build, 202 unit tests, 68 HTTP tests, and 33 PostgreSQL tests
+pass. The database suite passed three consecutive runs. Coverage includes grants
+racing with owner promotion/member removal, merchant relinking racing with role
+changes, concurrent owner demotions, fresh access after revoke/relink, and tenant-safe
+query scopes. Membership raw-lock serialization/deadlock errors (40001/40P01),
+including Prisma adapter metadata, now map to the intended retryable 409 response.
+Other database errors retain their existing behavior. No schema/stock/frontend
+behavior changes are included in this verification part.
+
+## Existing frontend behavior
 
 The existing frontend still shows Members to owners/managers, but the backend now
 rejects manager member-list requests. Frontend alignment and merchant role-selection

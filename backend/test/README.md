@@ -5,6 +5,13 @@ for HTTP request/guard tests. HTTP tests bind temporary local server ports.
 
 ## PostgreSQL integration tests
 
+The suite covers inventory integrity and branch/merchant access, including concurrent
+assignment versus owner promotion/removal, relinking versus role changes, last-owner
+preservation, simultaneous invitation acceptance, acceptance versus revocation,
+and failed grant rollback. Failed grant injection uses a temporary trigger only
+inside the run's random schema, removed in a finally block. Conflict retries in
+tests model explicit client retries; the API returns 409 rather than hiding retries.
+
 `npm run test:integration` requires an explicit `TEST_DATABASE_URL` pointing to a
 disposable PostgreSQL test database. It never falls back to application
 `DATABASE_URL`, loads application environment files, resets a database, or runs

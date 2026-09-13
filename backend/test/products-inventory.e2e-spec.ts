@@ -134,6 +134,26 @@ describe('Products and inventory HTTP boundaries', () => {
       .expect(404);
     expect(inventory.findAll).not.toHaveBeenCalled();
   });
+  it('rejects unassigned manager stock writes before touching the ledger', async () => {
+    prisma.branch.findFirst.mockResolvedValueOnce(null);
+    await http()
+      .post(`${inventoryPath}/${item}/receipts`)
+      .auth(token(manager), { type: 'bearer' })
+      .send({ quantity: 1, reason: 'Delivery', requestId: item })
+      .expect(404);
+    expect(stock.receive).not.toHaveBeenCalled();
+  });
+  it('hides cross-merchant inventory and movement IDs', async () => {
+    for (const suffix of ['', '/movements']) {
+      prisma.branchInventory.findFirst.mockResolvedValueOnce(null);
+      await http()
+        .get(`${inventoryPath}/${item}${suffix}`)
+        .auth(token(merchant), { type: 'bearer' })
+        .expect(404);
+    }
+    expect(inventory.findOne).not.toHaveBeenCalled();
+    expect(inventory.findMovements).not.toHaveBeenCalled();
+  });
   it('accepts merchant read routes after scoped object checks', async () => {
     await http()
       .get(`${inventoryPath}/${item}/movements`)
