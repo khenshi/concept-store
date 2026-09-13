@@ -520,7 +520,93 @@ describe('Products and inventory HTTP boundaries', () => {
         sku: 'VA-01',
         barcode: '001Ab',
       }),
+      actor,
     );
+  });
+
+  it('passes validated opening stock and the authenticated owner to product creation', async () => {
+    await http()
+      .post(productsPath)
+      .auth(token(), { type: 'bearer' })
+      .send({
+        merchantId: item,
+        name: ' Vase ',
+        requestId: item.toUpperCase(),
+        initialInventory: {
+          branchId: branch.toUpperCase(),
+          sellingPrice: ' 12.50 ',
+          quantity: 3,
+        },
+      })
+      .expect(201);
+    expect(products.create).toHaveBeenCalledWith(
+      org,
+      expect.objectContaining({
+        name: 'Vase',
+        requestId: item,
+        initialInventory: {
+          branchId: branch,
+          sellingPrice: '12.50',
+          quantity: 3,
+        },
+      }),
+      actor,
+    );
+  });
+
+  it.each([manager, cashier, merchant])(
+    'denies opening stock creation for non-owner %s',
+    async (userId) => {
+      await http()
+        .post(productsPath)
+        .auth(token(userId), { type: 'bearer' })
+        .send({
+          merchantId: item,
+          name: 'Vase',
+          requestId: item,
+          initialInventory: {
+            branchId: branch,
+            sellingPrice: '1',
+            quantity: 1,
+          },
+        })
+        .expect(403);
+      expect(products.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { requestId: item },
+    { initialInventory: { branchId: branch, sellingPrice: '1', quantity: 1 } },
+    { requestId: item, initialInventory: null },
+    {
+      requestId: item,
+      initialInventory: { branchId: branch, sellingPrice: '1', quantity: '1' },
+    },
+    {
+      requestId: item,
+      initialInventory: {
+        branchId: branch,
+        sellingPrice: '1',
+        quantity: 2147483648,
+      },
+    },
+    {
+      requestId: item,
+      initialInventory: {
+        branchId: branch,
+        sellingPrice: '1',
+        quantity: 1,
+        createdById: actor,
+      },
+    },
+  ])('rejects invalid opening stock at the HTTP boundary %j', async (extra) => {
+    await http()
+      .post(productsPath)
+      .auth(token(), { type: 'bearer' })
+      .send({ merchantId: item, name: 'Vase', ...extra })
+      .expect(400);
+    expect(products.create).not.toHaveBeenCalled();
   });
 
   it('derives stock actor from the JWT, not a submitted field', async () => {

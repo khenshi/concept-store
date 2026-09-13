@@ -50,6 +50,46 @@ it does not grant access to these product-management routes.
 - Merchant foreign keys include organization scope. Deletion is restrictive;
   there is no product deletion endpoint.
 
+## Optional opening stock API
+
+Product creation optionally accepts `initialInventory: { branchId, sellingPrice,
+quantity }` together with a UUID v4 `requestId`. Both must be supplied together;
+null, malformed and unknown nested fields are rejected. `branchId` is an explicitly
+selected same-organization branch. Price is positive PHP decimal text with up to
+ten integer and two fractional digits; quantity is a whole number `1..2147483647`.
+Requests omitting both preserve product-only creation without any stock record.
+This backend option is not yet exposed in the new-product frontend form.
+
+For a new opening-stock command, current owner membership, non-deleted actor,
+tenant branch and active tenant merchant are checked inside a serializable
+PostgreSQL transaction. Product creation, one branch placement with the opening
+balance and one RECEIPT movement commit together or roll back together. The server
+sets the reason to `Initial stock on product creation` and attributes the receipt
+to the authenticated owner. Other branches are untouched. The existing placement
+endpoint still creates zero-stock placements and does not accept opening stock.
+
+Product stores nullable private `creationRequestId`, `creationActorId` and canonical
+`creationCommand` metadata, protected by a complete-group check, actor foreign key
+and unique `(organizationId, creationRequestId)` index. All product responses use
+the existing public projection and never expose this metadata. Receipt request
+IDs are generated independently in the existing movement namespace.
+
+The same tenant, actor, request ID and normalized command returns the original
+product ID without writing again, including products without SKU/barcode. Replay
+rechecks current owner and branch access, compares stored original creation input
+rather than mutable product/price/stock state, and returns the product's current
+public identity. Later merchant lifecycle changes do not invalidate an already
+committed command. Different actor/content reuse returns `409` with
+`PRODUCT_CREATE_REQUEST_CONFLICT` and no original-command disclosure. Concurrent
+unique-request recovery is read-only; a serialization rollback returns `409`
+`PRODUCT_CREATE_RETRY`, requiring an explicit same-command retry. There are no
+automatic mutation retries or new generic idempotency entities.
+
+Unit/DTO/HTTP and disposable PostgreSQL coverage validates bounds, private response
+keys, owner/tenant/branch/actor isolation, legacy creation, later-edit replay,
+conflicting and concurrent retries, constraints and actual insertion rollback at
+each write. No application database is migrated, reset or seeded for verification.
+
 ## Listing and placements
 
 Product directory search matches name/SKU case-insensitively and barcode

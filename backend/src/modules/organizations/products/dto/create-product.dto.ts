@@ -1,13 +1,66 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import { IsOptional, IsString, IsUUID, Length, Matches } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  Length,
+  Matches,
+  IsObject,
+  ValidateIf,
+  ValidateNested,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
+} from 'class-validator';
+import { ProductOpeningInventoryDto } from './product-opening-inventory.dto';
 import {
   normalizeOptionalSku,
   trimOptionalString,
   trimRequiredString,
 } from './product-dto.transforms';
 
+@ValidatorConstraint({ name: 'openingStockRequestPair', async: false })
+class OpeningStockRequestPair implements ValidatorConstraintInterface {
+  validate(_value: unknown, args: ValidationArguments): boolean {
+    return (args.object as CreateProductDto).initialInventory !== undefined;
+  }
+
+  defaultMessage(): string {
+    return 'requestId requires initialInventory';
+  }
+}
+
 export class CreateProductDto {
+  @ApiPropertyOptional({
+    type: ProductOpeningInventoryDto,
+    description:
+      'Optional opening stock; requires requestId. Omit for product-only creation.',
+  })
+  @ValidateIf(
+    (_object: CreateProductDto, value: unknown) => value !== undefined,
+  )
+  @IsObject()
+  @ValidateNested()
+  @Type(() => ProductOpeningInventoryDto)
+  initialInventory?: ProductOpeningInventoryDto;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Required only with initialInventory; retain for same-command retry.',
+  })
+  @ValidateIf(
+    (object: CreateProductDto, value: unknown) =>
+      object.initialInventory !== undefined || value !== undefined,
+  )
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() : value,
+  )
+  @IsUUID('4')
+  @Validate(OpeningStockRequestPair)
+  requestId?: string;
   @ApiProperty({
     format: 'uuid',
     description:

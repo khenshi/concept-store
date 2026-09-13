@@ -1,6 +1,6 @@
 # Current Implementation Plan
 
-**Status:** Approved; Part 1 implemented, awaiting review before committing.
+**Status:** Approved; Part 1 reviewed and committed as `44c01aa`; Part 2 implemented, awaiting review (uncommitted).
 
 # Inventory Navigation and Optional Opening Stock
 
@@ -94,8 +94,24 @@ form confirmation, pending-write switching locks and revoked/stale-read protecti
 Existing backend APIs and stock/product-creation behavior are unchanged. Frontend
 lint/typecheck/build, changed-file formatting, diff checks and 443 tests across
 69 files pass. Unrelated inventory API/root package/audit edits are untouched.
-Rendered QA decision remains pending for this milestone. Parts 2 and 3 have not
-been implemented.
+Rendered QA decision remains pending for this milestone. Part 3 has not been
+implemented.
+
+Part 2 delivery: strict paired optional `initialInventory`/UUID request input on
+the existing owner product-create endpoint; atomic product, branch placement and
+owner-attributed opening RECEIPT; minimal private nullable creation metadata with
+tenant request uniqueness and database constraints. Current owner/actor/branch
+checks run inside the transaction. Canonical same-command replay survives later
+edits, returns the original product ID and current public identity, and never
+duplicates stock; conflicting reuse is private. Serializable rollbacks require
+explicit retries; concurrent unique recovery is read-only. All product response
+paths exclude creation metadata. Existing product-only and zero-stock placement
+behavior remains unchanged. Backend formatting/lint/build, Prisma validation/
+format/generation, 301 unit tests, 116 HTTP tests and 126 disposable PostgreSQL
+tests across three suites pass. Database tests verify actual rollback at each
+write, concurrent no-code requests, bounds, access changes and tenant isolation;
+the application database was not migrated/reset/seeded. Module documentation is
+updated. Unrelated inventory API/root package/audit edits are untouched.
 
 1. Inventory sidebar entry, authorized branch-selection/dropdown, active navigation,
    Back to branch removal and scoped form/pending guards; frontend tests/docs.

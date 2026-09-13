@@ -64,17 +64,22 @@ export class ProductsController {
   @OrganizationRoles(OrganizationRole.OWNER)
   @Post()
   @ApiOperation({
-    summary: 'Create an active product owned by an active merchant',
+    summary: 'Create an active product with optional atomic opening inventory',
   })
   @ApiCreatedResponse({ type: ProductResponseDto })
   @ApiConflictResponse({
-    description: 'Inactive merchant or duplicate SKU/barcode',
+    description:
+      'Inactive merchant, duplicate identifiers, conflicting request ID or retryable transaction conflict',
   })
   create(
     @CurrentOrganization() organization: OrganizationContext,
     @Body() dto: CreateProductDto,
   ): Promise<ProductRecord> {
-    return this.productsService.create(organization.organizationId, dto);
+    return this.productsService.create(
+      organization.organizationId,
+      dto,
+      organization.userId,
+    );
   }
 
   @Get()

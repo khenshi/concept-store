@@ -10,6 +10,70 @@ const pipe = new ValidationPipe({
 });
 
 describe('Product request validation', () => {
+  const initialInventory = {
+    branchId: merchantId,
+    sellingPrice: '0.01',
+    quantity: 1,
+  };
+
+  it('normalizes opening identifiers and price while retaining integer bounds', async () => {
+    await expect(
+      pipe.transform(
+        {
+          merchantId,
+          name: 'Vase',
+          requestId: merchantId.toUpperCase(),
+          initialInventory: {
+            ...initialInventory,
+            sellingPrice: ' 9999999999.99 ',
+            quantity: 2147483647,
+          },
+        },
+        { type: 'body', metatype: CreateProductDto },
+      ),
+    ).resolves.toMatchObject({
+      requestId: merchantId,
+      initialInventory: {
+        ...initialInventory,
+        sellingPrice: '9999999999.99',
+        quantity: 2147483647,
+      },
+    });
+  });
+
+  it.each([
+    { requestId: merchantId },
+    { initialInventory },
+    { initialInventory: null, requestId: merchantId },
+    { initialInventory: [], requestId: merchantId },
+    { requestId: 'invalid', initialInventory },
+    ...[0, -1, 1.5, '1', 2147483648, null].map((quantity) => ({
+      requestId: merchantId,
+      initialInventory: { ...initialInventory, quantity },
+    })),
+    ...['0', '-1', '1.001', '10000000000', 1, null].map((sellingPrice) => ({
+      requestId: merchantId,
+      initialInventory: { ...initialInventory, sellingPrice },
+    })),
+    {
+      requestId: merchantId,
+      initialInventory: { ...initialInventory, branchId: 'foreign' },
+    },
+    {
+      requestId: merchantId,
+      initialInventory: { ...initialInventory, reason: 'Client reason' },
+    },
+    { creationActorId: merchantId },
+    { creationRequestId: merchantId },
+    { creationCommand: {} },
+  ])('rejects invalid opening stock input %j', async (extra) => {
+    await expect(
+      pipe.transform(
+        { merchantId, name: 'Vase', ...extra },
+        { type: 'body', metatype: CreateProductDto },
+      ),
+    ).rejects.toThrow();
+  });
   it('normalizes name and SKU without losing barcode case or zeroes', async () => {
     await expect(
       pipe.transform(

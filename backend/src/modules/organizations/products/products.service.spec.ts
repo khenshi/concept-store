@@ -6,6 +6,7 @@ import {
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { ProductsService } from './products.service';
+import { productSelect } from './products.types';
 
 describe('ProductsService', () => {
   const prisma = {
@@ -35,6 +36,7 @@ describe('ProductsService', () => {
       select: { status: true },
     });
     expect(prisma.product.create).toHaveBeenCalledWith({
+      select: productSelect,
       data: {
         organizationId: 'org',
         merchantId: 'merchant',
@@ -74,6 +76,7 @@ describe('ProductsService', () => {
       status: 'ACTIVE',
     });
     expect(prisma.product.findMany).toHaveBeenCalledWith({
+      select: productSelect,
       where: {
         organizationId: 'org',
         merchantId: 'merchant',
@@ -106,6 +109,7 @@ describe('ProductsService', () => {
   it('edits inactive profiles and clears identifiers without changing merchant or status', async () => {
     await service.update('org', 'product', { sku: null, barcode: null });
     expect(prisma.product.update).toHaveBeenCalledWith({
+      select: productSelect,
       where: { id: 'product', organizationId: 'org' },
       data: { name: undefined, sku: null, barcode: null },
     });
@@ -114,6 +118,7 @@ describe('ProductsService', () => {
   it('status updates write only lifecycle state', async () => {
     await service.updateStatus('org', 'product', { status: 'ACTIVE' });
     expect(prisma.product.update).toHaveBeenCalledWith({
+      select: productSelect,
       where: { id: 'product', organizationId: 'org' },
       data: { status: 'ACTIVE' },
     });

@@ -1,6 +1,19 @@
-import type { Product } from '../../../generated/prisma/client';
+import type { Prisma } from '../../../generated/prisma/client';
 
-export type ProductRecord = Product;
+export const productSelect = {
+  id: true,
+  organizationId: true,
+  merchantId: true,
+  name: true,
+  sku: true,
+  barcode: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProductSelect;
+export type ProductRecord = Prisma.ProductGetPayload<{
+  select: typeof productSelect;
+}>;
 
 export interface ProductInventoryRecord {
   id: string;

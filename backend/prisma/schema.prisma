@@ -25,6 +25,7 @@ model User {
   sessions                        UserSession[]
   inventoryMovements              InventoryMovement[]
   sales                           Sale[]
+  openingStockProducts            Product[]                @relation("ProductCreationActor")
 
   @@index([deletedAt])
 }
@@ -110,15 +111,19 @@ model Branch {
 }
 
 model Product {
-  id             String        @id @default(uuid())
-  organizationId String
-  merchantId     String
-  name           String
-  sku            String?
-  barcode        String?
-  status         ProductStatus @default(ACTIVE)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                String        @id @default(uuid())
+  organizationId    String
+  merchantId        String
+  name              String
+  sku               String?
+  barcode           String?
+  status            ProductStatus @default(ACTIVE)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  creationRequestId String?       @db.Uuid
+  creationActorId   String?
+  creationCommand   Json?         @db.JsonB
+  creationActor     User?         @relation("ProductCreationActor", fields: [creationActorId], references: [id], onDelete: Restrict)
 
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   merchant     Merchant          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
@@ -126,6 +131,7 @@ model Product {
   saleItems    SaleItem[]
 
   @@unique([organizationId, sku])
+  @@unique([organizationId, creationRequestId])
   @@unique([organizationId, barcode])
   @@unique([id, organizationId])
   @@unique([id, organizationId, merchantId])

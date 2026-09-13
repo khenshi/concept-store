@@ -28,6 +28,13 @@ rollback and lock-controlled concurrent price/lifecycle changes. A transaction
 serialized before a lifecycle change may retain its old valid snapshots; every
 subsequent new checkout must observe the inactive state and be denied.
 
+Product opening-stock tests cover atomic Product/placement/RECEIPT insertion,
+exact price and integer bounds, legacy product-only creation, private response
+projections, fresh owner/tenant/branch/actor checks, canonical replay after later
+edits, conflicting/concurrent commands without SKU/barcode, and request metadata
+constraints. Temporary triggers inject actual failures at each of the three writes;
+all records must roll back. Explicit retries model recovery, never automatic API writes.
+
 `npm run test:integration` requires an explicit `TEST_DATABASE_URL` pointing to a
 disposable PostgreSQL test database. It never falls back to application
 `DATABASE_URL`, loads application environment files, resets a database, or runs
@@ -48,7 +55,8 @@ Once PostgreSQL is ready, from `backend/`:
 TEST_DATABASE_URL=postgresql://postgres:inventory-test-only@127.0.0.1:55439/concept_store_test npm run test:integration
 ```
 
-Each suite creates a random `inventory_test_<uuid>` or `sales_test_<uuid>` schema, applies repository SQL
+Each suite creates a random `inventory_test_<uuid>`, `sales_test_<uuid>` or
+`opening_test_<uuid>` schema, applies repository SQL
 migrations there, uses that schema for Prisma/pg connections, and drops only that
 schema after verification. Baseline public-schema creation is omitted to keep
 setup isolated. No existing schema objects are modified. An interrupted process
