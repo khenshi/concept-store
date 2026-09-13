@@ -18,7 +18,10 @@ granting the cashier BGC access. Snapshots and canonical commands are included.
 These examples do not call the application checkout API. Scoped sales-read APIs
 show the cashier's Makati sales, managers' assigned-branch sales and the linked
 merchant's Amihan items/subtotals only, including its historical BGC card sale.
-Checkout and sales-read behavior is documented under Sales; screens come later.
+The POS and Sales screens expose these same scoped examples: staff open branch
+history/receipt details, while the linked merchant's Sales entry discovers historical
+Makati/BGC branches and shows Amihan items/subtotals without other-merchant,
+cashier or payment information. Only staff receive full internal receipt printing.
 
 Access examples assign the manager and cashier to Makati, link the
 merchant member to Amihan Home Studio, and attach a BGC grant to the pending

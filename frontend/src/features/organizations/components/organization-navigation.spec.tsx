@@ -5,6 +5,35 @@ import { OrganizationNavigation } from './organization-navigation';
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 
 describe('OrganizationNavigation', () => {
+  it('shows merchant sales navigation only when allowed, including collapsed active detail destinations', () => {
+    vi.mocked(usePathname).mockReturnValue('/app/organizations/org/sales');
+    const view = render(<OrganizationNavigation organizationId="org" />);
+    expect(
+      screen.queryByRole('link', { name: 'Sales' }),
+    ).not.toBeInTheDocument();
+    view.rerender(
+      <OrganizationNavigation organizationId="org" showSales collapsed />,
+    );
+    expect(screen.getByRole('link', { name: 'Sales' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Sales' })).toHaveAttribute(
+      'title',
+      'Sales',
+    );
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/org/branches/branch/sales/sale',
+    );
+    view.rerender(<OrganizationNavigation organizationId="org" showSales />);
+    expect(screen.getByRole('link', { name: 'Sales' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Branches' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
   it('shows product navigation only when allowed and marks profiles active', () => {
     vi.mocked(usePathname).mockReturnValue(
       '/app/organizations/organization-id/products/product-id',

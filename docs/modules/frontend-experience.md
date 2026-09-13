@@ -185,7 +185,8 @@ and blur. The cart is memory-only, with exact PHP estimates. Role-aware entry
 points and branch/org scope clearing preserve
 the backend's authorization boundaries. Outgoing links and organization-menu
 navigation warn before discarding a cart; history navigation clears on unmount.
-Rendered POS browser QA remains pending for this milestone.
+Rendered POS browser QA was explicitly waived for this milestone on September 13,
+2026, including responsive, keyboard/dialog, zoom and print checks.
 
 ## POS payment and completion
 
@@ -199,4 +200,19 @@ Price conflicts require another review, stock/lifecycle failures require correct
 and successful completion clears the cart and renders persisted receipt snapshots.
 Catalog refresh and printing failures retry reads/printing only. Print CSS exposes
 only the internal receipt, not workspace controls or private retry data. Browser
-responsive/dialog/zoom/print QA remains pending, without an inherited waiver.
+responsive/dialog/zoom/print QA was explicitly waived for this milestone on
+September 13, 2026, without inheriting a prior milestone's waiver.
+
+## Sales history and own-sale views
+
+Staff branch sales lists/details use divided warm-stone panels, bounded pagination
+and validated half-open UTC filters. They render saved transaction names/amounts,
+not live catalog replacements. Detail refresh and internal printing retry only
+reads/printing. Merchants receive a Sales navigation/overview entry with historical
+identity-only selling branches, then reduced own-item lists/details labeled Own
+items subtotal. Their views have no cashier/payment/whole-total data, print or
+checkout controls. Separate strict runtime contracts reject stale-role full receipt
+responses instead of falling back to staff data. Scope changes unmount old read
+state; loading/error/empty states and read-only access refresh preserve isolation.
+The new September 13, 2026 waiver covers these POS/sales screens; automated checks
+do not certify rendered accessibility or printing.

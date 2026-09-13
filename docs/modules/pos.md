@@ -106,7 +106,8 @@ catalog refresh retries only the read and preserves the receipt. Printing uses a
 receipt-only print surface without shell/cart controls, and shows print-dialog or
 failure feedback without claiming the printer succeeded. Print cancellation/failure
 can retry printing only. Receipts are internal transaction records, not fiscal/tax
-invoices. Sales-history and merchant own-sale screens are not yet implemented.
+invoices. POS links to branch history and the saved receipt detail; merchant own-sale
+screens remain separate and do not expose full receipt/print controls.
 
 ## Verification
 
@@ -121,6 +122,8 @@ validation, exact estimates, cart clearing, access revocation and navigation gua
 Payment/receipt tests cover exact cash/manual validation, pending/unknown locking,
 unchanged and edited command IDs, route recovery, isolated attempt state, explicit
 price re-review, failed post-completion catalog reads and print-only retries.
-Frontend formatting, type checking, lint, all 353 tests across 60 files and the
-production build pass. Rendered browser QA remains pending, not covered by the
-previous access-control milestone waiver.
+Frontend formatting, type checking, lint, all 401 tests across 63 files and the
+production build pass. The user
+explicitly waived rendered responsive, keyboard/dialog, zoom and print QA for this
+POS/sales milestone on September 13, 2026. This is a new waiver, separate from access
+control. Automated dialog and print tests do not certify browser-rendered behavior.

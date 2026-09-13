@@ -21,3 +21,8 @@ The completed branch and merchant access-control implementation record, with
 final verification and the September 13, 2026 rendered-QA waiver, is retained in
 [`branch-and-merchant-access-control-2026-09-13.md`](branch-and-merchant-access-control-2026-09-13.md).
 All eight parts were reviewed and approved; the archive does not authorize new work.
+
+The completed branch POS checkout and sales implementation record, with final
+verification and a separate September 13, 2026 rendered-QA waiver, is retained in
+[`branch-pos-checkout-and-sales-2026-09-13.md`](branch-pos-checkout-and-sales-2026-09-13.md).
+All seven parts were reviewed and approved; this record does not authorize new work.

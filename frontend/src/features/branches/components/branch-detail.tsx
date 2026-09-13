@@ -150,7 +150,7 @@ function ScopedBranchDetail({
         title={branch.name}
         description={
           organization.role === 'MERCHANT'
-            ? 'Read-only branch identity. Only your merchant’s inventory is available.'
+            ? 'Read-only branch identity. Only your merchant’s inventory and own sales are available.'
             : addressFor(branch)
         }
         action={
@@ -232,6 +232,29 @@ function ScopedBranchDetail({
           </div>
         </OperationalPanel>
       ) : null}
+      <OperationalPanel
+        title={
+          organization.role === 'MERCHANT' ? 'Your sales' : 'Sales history'
+        }
+        description={
+          organization.role === 'MERCHANT'
+            ? 'Read only sales involving your linked business in this branch.'
+            : organization.role === 'CASHIER'
+              ? 'Review your own completed sales and internal receipts in this assigned branch.'
+              : 'Review completed branch sales and internal receipts.'
+        }
+      >
+        <div className="p-6">
+          <Link
+            className={buttonStyles({ variant: 'secondary' })}
+            href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}
+          >
+            {organization.role === 'MERCHANT'
+              ? 'View own sales'
+              : 'View sales history'}
+          </Link>
+        </div>
+      </OperationalPanel>
       {editing && canManage && 'addressLine1' in branch ? (
         <BranchForm
           branch={branch}

@@ -10,6 +10,9 @@ of the same product have independent prices and balances. No transfer,
 reservation, purchasing, or deletion workflow is provided. The separate
 [sales checkout API](sales.md) atomically creates SALE deductions in this history;
 existing receipt/adjustment endpoints and role permissions remain unchanged.
+Staff receipts and merchant own-item sales are available in separate sales history
+screens, never through the private sale-item link in inventory movement responses.
+Cashier POS access does not grant inventory history or stock mutation access.
 
 ## API and authorization
 

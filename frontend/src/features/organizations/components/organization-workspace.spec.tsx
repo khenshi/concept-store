@@ -54,9 +54,15 @@ describe('OrganizationWorkspace', () => {
       expect(
         screen.getByRole('link', { name: /Products/ }),
       ).toBeInTheDocument();
-      expect(
-        screen.queryByRole('link', { name: /Sales/ }),
-      ).not.toBeInTheDocument();
+      if (role === 'MERCHANT')
+        expect(screen.getByRole('link', { name: /Sales/ })).toHaveAttribute(
+          'href',
+          '/app/organizations/org/sales',
+        );
+      else
+        expect(
+          screen.queryByRole('link', { name: /Sales/ }),
+        ).not.toBeInTheDocument();
     },
   );
   it.each(['CASHIER'] as const)(

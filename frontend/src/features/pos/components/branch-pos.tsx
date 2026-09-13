@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BackLink } from '@/shared/components/ui/back-link';
-import { Button } from '@/shared/components/ui/button';
+import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
@@ -589,6 +590,12 @@ function ScopedBranchPos({
         title={`${branch?.name ?? 'Branch'} POS`}
         description="Build a branch-specific cart, review payment and complete one sale. Prices and stock are estimates until server checkout."
       />
+      <Link
+        className={buttonStyles({ variant: 'secondary', className: 'mb-6' })}
+        href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}
+      >
+        View sales history
+      </Link>
       {notice ? <StatusNotice>{notice}</StatusNotice> : null}
       {completed ? (
         <OperationalPanel
@@ -597,6 +604,15 @@ function ScopedBranchPos({
         >
           <div className="p-5 sm:p-6">
             <SaleReceipt sale={completed} />
+            <Link
+              className={buttonStyles({
+                variant: 'secondary',
+                className: 'mt-4',
+              })}
+              href={`/app/organizations/${organizationId}/branches/${branchId}/sales/${completed.id}`}
+            >
+              Open saved receipt
+            </Link>
             <Button
               variant="quiet"
               className="mt-4"

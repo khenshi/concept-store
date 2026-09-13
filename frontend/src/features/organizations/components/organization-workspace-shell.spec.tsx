@@ -124,6 +124,15 @@ describe('OrganizationWorkspaceShell', () => {
       expect(
         sidebar.getByRole('link', { name: 'Merchants' }),
       ).toBeInTheDocument();
+      if (role === 'MERCHANT')
+        expect(sidebar.getByRole('link', { name: 'Sales' })).toHaveAttribute(
+          'href',
+          '/app/organizations/org/sales',
+        );
+      else
+        expect(
+          sidebar.queryByRole('link', { name: 'Sales' }),
+        ).not.toBeInTheDocument();
     },
   );
 

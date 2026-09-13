@@ -4,6 +4,10 @@ Owners, assigned managers and assigned cashiers can open the branch's POS cart
 from branch details. Merchants have no POS entry point. This dedicated catalog
 workflow does not grant cashiers product, merchant or inventory management access.
 See [Branch POS](pos.md) for cart behavior and scope.
+Accessible branch details also link to staff sales history or merchant own sales.
+Historical merchant selling branches are discoverable through the separate Sales
+workspace entry, without granting general branch/address access. Merchants receive
+no POS or full receipt-print action; cashiers retain no inventory management access.
 
 **Status:** Implemented
 

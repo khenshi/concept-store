@@ -58,5 +58,17 @@ The command enables Node's experimental VM modules for Prisma's dynamic imports
 inside Jest. A VM-modules warning is expected.
 
 Cleanup the example container with `docker stop concept-store-inventory-test`.
-Its `--rm` flag removes the container and disposable data; no mounted volume is
-used. Docker image cache is retained.
+Its `--rm` flag removes the container and its anonymous image-created data volume;
+no host application-data directory or named persistent volume is attached.
+Docker image cache is retained.
+
+## POS and sales screen verification
+
+From `frontend/`, run `npm run format:check`, `npm run typecheck`, `npm run lint`,
+`npm test` and `npm run build`. Tests cover scoped role-specific sales contracts,
+historical merchant branches, exact own subtotals, UTC filters/pagination, stale
+read clearing, staff receipt/print-only retries and merchant private-data denial,
+alongside cart/payment/unknown-command recovery. These do not require application
+database reset or seeding. The user explicitly waived rendered responsive,
+keyboard/dialog, zoom and print QA for POS/sales on September 13, 2026; native
+dialog shims and mocked printing do not certify browser-rendered behavior.

@@ -100,6 +100,14 @@ export function OrganizationWorkspace({
       visible: true,
       icon: 'account',
     },
+    {
+      label: 'Sales',
+      description:
+        'View historical sales involving only your linked merchant business.',
+      href: `/app/organizations/${organizationId}/sales`,
+      visible: organization.role === 'MERCHANT',
+      icon: 'store',
+    },
   ];
 
   return (

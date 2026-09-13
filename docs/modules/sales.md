@@ -1,6 +1,6 @@
 # Sales
 
-**Status:** Persistence, checkout/scoped read APIs, POS payment confirmation and completion receipt printing implemented. Sales-history screens are not yet implemented.
+**Status:** Implemented, including staff history/receipts and read-only merchant own-sale screens. Rendered QA explicitly waived September 13, 2026.
 
 ## Implemented scope
 
@@ -148,9 +148,57 @@ counts or other-merchant branches are exposed; explicit assignments alone do not
 add a branch to this historical list. This focused lookup does not widen existing
 general branch-detail or inventory access. Staff details return the persisted full
 snapshot shape from checkout completion for internal receipt rendering.
-No mutable sale/receipt routes or sales-history screens are added.
+No mutable sale/receipt routes are provided.
+
+## Workspace screens
+
+```text
+/app/organizations/:organizationId/sales
+/app/organizations/:organizationId/branches/:branchId/sales
+/app/organizations/:organizationId/branches/:branchId/sales/:saleId
+```
+
+Branch details expose sales history for owners/managers/cashiers and own sales for
+merchants. POS links to branch history and the saved completion receipt. Staff
+lists show receipt code/time, saved branch identity, exact total and saved cashier/
+payment method. Cashier copy describes only their own sales; backend filtering
+remains authoritative. Staff detail renders immutable receipt snapshots and offers
+internal browser printing, never a checkout or sale mutation. Refresh/print retries
+perform only reads/printing.
+
+Merchants receive a Sales workspace/sidebar entry. Its identity-only historical
+selling-branch lookup avoids general branch/address APIs and includes past selling
+branches without current placement/assignment. Assigned branch details may instead
+open an empty own-sales list. Empty lookup explains missing sales or merchant-profile
+link and asks the owner to configure access. Merchant lists/details display only
+own items, snapshot branch identity, receipt code/time and `Own items subtotal`.
+They have no full receipt, print, POS or payment controls. The reduced runtime
+schemas reject unexpected sale/item fields, including cashier/payment/whole-total
+data, rather than falling back to staff contracts after a stale role change.
+
+Lists default to 50 per page, with previous/next bounded pagination and optional
+strict UTC From-inclusive/Until-exclusive filters. Applying/clearing filters resets
+page to one. Counts are labeled permitted sales, never aggregate monetary reports;
+merchant counts include only own matching sales. Responses validate IDs/scope,
+pagination, exact line amounts/subtotals and distinct records before rendering.
+Separate loading, empty/range-empty and failed/revoked access states offer read-only
+retry and Refresh access. User/organization/role/branch/sale changes reset screen
+state; obsolete reads cannot restore old staff receipts or merchant data. Refresh
+clears stale data and print controls before making another authorized read.
+
+The user explicitly waived rendered responsive, keyboard/dialog, zoom and print
+QA for this POS/sales milestone on September 13, 2026. Automated tests do not
+certify rendered layout, modal focus containment, contrast or actual printing.
 
 ## Verification and development examples
+
+Final milestone verification passes: Prisma format/validate/generate, backend
+format/lint/build, 258 unit tests, 106 HTTP tests and 99 PostgreSQL integration
+tests (twice consecutively), plus frontend format/typecheck/lint, 401 tests across
+63 files and production build. All migrations and the demo seed were checked only
+in a disposable PostgreSQL 17 container: three sales, exact totals and balanced
+ledgers. The container and temporary data were removed; no application database
+was migrated/reset. Rendered QA was waived rather than performed.
 
 PostgreSQL tests use explicit disposable databases and random isolated schemas.
 They cover payment and monetary bounds, scoped relationships, uniqueness,

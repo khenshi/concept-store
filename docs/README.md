@@ -22,7 +22,7 @@ Documentation is separated by purpose:
 - [Merchant profiles](modules/merchant-profiles.md)
 - [Products](modules/products.md)
 - [Branch inventory](modules/branch-inventory.md)
-- [Sales persistence, checkout, scoped reads and internal receipts](modules/sales.md)
+- [Sales history, merchant own-sale views and internal receipts](modules/sales.md)
 - [Branch POS catalog, cart and payment confirmation](modules/pos.md)
 - [Frontend experience](modules/frontend-experience.md)
 
@@ -31,6 +31,12 @@ branches, merchant profiles, products, and inventory. Owners manage access;
 managers/cashiers require assignments, while linked merchants read only their own
 business and selling-branch stock. Rendered QA was explicitly waived for this
 milestone; automated verification does not certify rendered accessibility.
+
+Branch POS checkout and sales history are implemented, including cash/manual
+GCash/card confirmation, atomic stock deductions, safe same-ID retries, staff
+internal receipts and merchant own-item historical views. The user separately
+waived rendered responsive, keyboard/dialog, zoom and print QA for this milestone
+on September 13, 2026; automated tests do not certify rendered layout or printing.
 
 ## Planning
 
