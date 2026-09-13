@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -27,12 +27,14 @@ import type {
 } from '../model/inventory.types';
 import { InventoryPriceForm } from './inventory-price-form';
 import { InventoryStockForm } from './inventory-stock-form';
+import { InventoryBranchSelector } from './inventory-branch-selector';
 
 export function InventoryDetail(props: InventoryDetailScope) {
+  const { user } = useAuth();
   const { organization } = useOrganizationWorkspaceContext();
   return (
     <ScopedInventoryDetail
-      key={`${props.organizationId}:${props.branchId}:${props.inventoryId}:${organization?.role}`}
+      key={`${props.organizationId}:${props.branchId}:${props.inventoryId}:${organization?.role}:${user?.id}`}
       {...props}
     />
   );
@@ -62,12 +64,26 @@ function ScopedInventoryDetail({
     'price' | 'receipt' | 'adjustment' | null
   >(null);
   const [revision, setRevision] = useState(0);
+  const dirty = useRef(false);
+  const readGeneration = useRef(0);
+  const accessLost = useCallback(() => {
+    readGeneration.current++;
+    dirty.current = false;
+    setInventory(null);
+    setBranch(null);
+    setMovements([]);
+    setLoading(false);
+    setError(
+      'Access to this placement is unavailable. Ask an owner to review your branch assignments or merchant link.',
+    );
+  }, []);
   useEffect(() => {
     if (!allowed) return;
     let active = true;
+    const generation = ++readGeneration.current;
     async function load() {
       await Promise.resolve();
-      if (!active) return;
+      if (!active || generation !== readGeneration.current) return;
       setLoading(true);
       setError(null);
       setInventory(null);
@@ -80,20 +96,20 @@ function ScopedInventoryDetail({
           getInventoryBranch(request, scope),
           listMovements(request, scope, organization?.role),
         ]);
-        if (active) {
+        if (active && generation === readGeneration.current) {
           setInventory(item);
           setBranch(location);
           setMovements(history);
         }
       } catch (cause) {
-        if (active)
+        if (active && generation === readGeneration.current)
           setError(
             cause instanceof ApiError
               ? cause.message
               : 'Inventory and movement history could not be refreshed.',
           );
       } finally {
-        if (active) setLoading(false);
+        if (active && generation === readGeneration.current) setLoading(false);
       }
     }
     void load();
@@ -124,10 +140,38 @@ function ScopedInventoryDetail({
       Back to branch inventory
     </BackLink>
   );
+  const branchSelector = (
+    <InventoryBranchSelector
+      organizationId={organizationId}
+      branchId={branchId}
+      role={organization!.role}
+      disabled={pendingOperation !== null}
+      onAccessDenied={accessLost}
+      beforeChange={() => {
+        if (
+          pendingOperation !== null ||
+          (dirty.current &&
+            !window.confirm(
+              'Discard this unsaved inventory form and change branches?',
+            ))
+        )
+          return false;
+        dirty.current = false;
+        readGeneration.current++;
+        setInventory(null);
+        setBranch(null);
+        setMovements([]);
+        setSuccess(null);
+        setLoading(true);
+        return true;
+      }}
+    />
+  );
   if (loading)
     return (
       <OperationalPage>
         {back}
+        {branchSelector}
         {success ? <StatusNotice>{success}</StatusNotice> : null}
         <ListSkeleton label="Refreshing current stock and movement history" />
       </OperationalPage>
@@ -137,6 +181,7 @@ function ScopedInventoryDetail({
     return (
       <OperationalPage>
         {back}
+        {branchSelector}
         {success ? <StatusNotice>{success}</StatusNotice> : null}
         <RequestError
           message={error ?? 'Inventory unavailable.'}
@@ -146,16 +191,9 @@ function ScopedInventoryDetail({
     );
   const scope = { organizationId, branchId, inventoryId };
   const saved = (message: string) => {
+    dirty.current = false;
     setSuccess(message);
     setRevision((value) => value + 1);
-  };
-  const accessLost = () => {
-    setInventory(null);
-    setBranch(null);
-    setMovements([]);
-    setError(
-      'Access to this placement is unavailable. Ask an owner to review your branch assignments or merchant link.',
-    );
   };
   return (
     <OperationalPage>
@@ -164,6 +202,7 @@ function ScopedInventoryDetail({
         title={inventory.product.name}
         description={`${branch.name} · ${inventory.product.merchant.name} · ${inventory.product.status === 'ACTIVE' ? 'Active' : 'Inactive'} product`}
       />
+      {branchSelector}
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel title="Current placement">
         <dl className="grid gap-5 p-6 sm:grid-cols-3">
@@ -196,7 +235,11 @@ function ScopedInventoryDetail({
         </p>
       </OperationalPanel>
       {canWrite ? (
-        <>
+        <div
+          onChangeCapture={() => {
+            dirty.current = true;
+          }}
+        >
           <OperationalPanel title="Branch selling price">
             <fieldset
               className="min-w-0 border-0 p-0"
@@ -269,7 +312,7 @@ function ScopedInventoryDetail({
               />
             </fieldset>
           </OperationalPanel>
-        </>
+        </div>
       ) : null}
       <OperationalPanel
         title="Movement history"

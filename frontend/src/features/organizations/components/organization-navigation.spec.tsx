@@ -5,6 +5,25 @@ import { OrganizationNavigation } from './organization-navigation';
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 
 describe('OrganizationNavigation', () => {
+  it('marks inventory details active instead of Branches and hides Inventory when not allowed', () => {
+    vi.mocked(usePathname).mockReturnValue(
+      '/app/organizations/org/branches/branch/inventory/item',
+    );
+    const view = render(
+      <OrganizationNavigation organizationId="org" showInventory collapsed />,
+    );
+    expect(screen.getByRole('link', { name: 'Inventory' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Branches' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    view.rerender(<OrganizationNavigation organizationId="org" />);
+    expect(
+      screen.queryByRole('link', { name: 'Inventory' }),
+    ).not.toBeInTheDocument();
+  });
   it('marks branch checkout as POS instead of Branches and hides unauthorized POS', () => {
     vi.mocked(usePathname).mockReturnValue(
       '/app/organizations/org/branches/branch/pos',

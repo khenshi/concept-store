@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -15,6 +15,15 @@ import {
   scope,
 } from '../model/inventory.test-fixtures';
 import { InventoryDetail } from './inventory-detail';
+import { listBranches } from '@/features/branches/api/branch-api';
+const { push, router } = vi.hoisted(() => {
+  const push = vi.fn();
+  return { push, router: { push } };
+});
+vi.mock('next/navigation', () => ({ useRouter: () => router }));
+vi.mock('@/features/branches/api/branch-api', () => ({
+  listBranches: vi.fn(),
+}));
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
@@ -31,9 +40,48 @@ vi.mock('../api/inventory-api', () => ({
 }));
 
 describe('InventoryDetail workflows', () => {
+  it('retains edits when a branch switch is cancelled and navigates to the new directory on confirmation', async () => {
+    vi.mocked(listBranches).mockResolvedValue([
+      { id: scope.branchId, name: branch.name, code: branch.code },
+      { id: 'other', name: 'BGC', code: 'BGC' },
+    ] as never);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    const quantity = screen.getByRole('textbox', { name: 'Units to receive' });
+    fireEvent.change(quantity, { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Inventory branch' }));
+    fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
+    expect(push).not.toHaveBeenCalled();
+    expect(quantity).toHaveValue('3');
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('combobox', { name: 'Inventory branch' }));
+    fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
+    expect(push).toHaveBeenCalledWith(
+      `/app/organizations/${scope.organizationId}/branches/other/inventory`,
+    );
+    expect(
+      screen.queryByRole('textbox', { name: 'Units to receive' }),
+    ).not.toBeInTheDocument();
+  });
+  it('disables branch switching while a stock write is pending', async () => {
+    vi.mocked(receiveStock).mockReturnValue(new Promise(() => {}));
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    submitReceipt();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('combobox', { name: 'Inventory branch' }),
+      ).toBeDisabled(),
+    );
+    expect(push).not.toHaveBeenCalled();
+  });
   const request = vi.fn();
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(listBranches).mockResolvedValue([
+      { id: scope.branchId, name: branch.name, code: branch.code },
+    ] as never);
     vi.mocked(useAuth).mockReturnValue({ request } as never);
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { role: 'MANAGER' },

@@ -12,6 +12,7 @@ const navigationIcons: Record<string, IconName> = {
   members: 'users',
   sales: 'store',
   pos: 'store',
+  inventory: 'store',
 };
 
 export function OrganizationNavigation({
@@ -21,6 +22,7 @@ export function OrganizationNavigation({
   showProducts = false,
   showSales = false,
   showPos = false,
+  showInventory = false,
   collapsed = false,
   onNavigate,
 }: {
@@ -30,11 +32,19 @@ export function OrganizationNavigation({
   showProducts?: boolean;
   showSales?: boolean;
   showPos?: boolean;
+  showInventory?: boolean;
   collapsed?: boolean;
   onNavigate?(): void;
 }) {
   const pathname = usePathname();
   const basePath = `/app/organizations/${organizationId}`;
+  const inventoryRoute =
+    showInventory &&
+    (pathname === `${basePath}/inventory` ||
+      pathname.startsWith(`${basePath}/inventory/`) ||
+      (pathname.startsWith(`${basePath}/branches/`) &&
+        pathname.slice(`${basePath}/branches/`.length).split('/')[1] ===
+          'inventory'));
   const posRoute =
     showPos &&
     (pathname === `${basePath}/pos` ||
@@ -50,6 +60,12 @@ export function OrganizationNavigation({
         pathname.slice(`${basePath}/branches/`.length).split('/')[1] ===
           'sales'));
   const destinations = [
+    {
+      key: 'inventory',
+      label: 'Inventory',
+      href: `${basePath}/inventory`,
+      visible: showInventory,
+    },
     { key: 'pos', label: 'POS', href: `${basePath}/pos`, visible: showPos },
     { key: 'overview', label: 'Overview', href: basePath, visible: true },
     {
@@ -95,25 +111,29 @@ export function OrganizationNavigation({
             key={destination.key}
             className={`flex min-h-11 items-center rounded-control border border-transparent text-sm font-medium text-muted no-underline transition-colors hover:bg-subtle hover:text-ink aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:font-semibold aria-[current=page]:text-ink ${collapsed ? 'justify-center px-2' : 'gap-3 px-3 py-2.5'}`}
             aria-current={
-              destination.key === 'pos'
-                ? posRoute
+              destination.key === 'inventory'
+                ? inventoryRoute
                   ? 'page'
                   : undefined
-                : destination.key === 'sales'
-                  ? ownSalesRoute
+                : destination.key === 'pos'
+                  ? posRoute
                     ? 'page'
                     : undefined
-                  : destination.key === 'branches' &&
-                      (ownSalesRoute || posRoute)
-                    ? undefined
-                    : destination.key === 'overview'
-                      ? pathname === basePath
-                        ? 'page'
-                        : undefined
-                      : pathname === destination.href ||
-                          pathname.startsWith(`${destination.href}/`)
-                        ? 'page'
-                        : undefined
+                  : destination.key === 'sales'
+                    ? ownSalesRoute
+                      ? 'page'
+                      : undefined
+                    : destination.key === 'branches' &&
+                        (ownSalesRoute || posRoute || inventoryRoute)
+                      ? undefined
+                      : destination.key === 'overview'
+                        ? pathname === basePath
+                          ? 'page'
+                          : undefined
+                        : pathname === destination.href ||
+                            pathname.startsWith(`${destination.href}/`)
+                          ? 'page'
+                          : undefined
             }
             href={destination.href}
             onClick={onNavigate}

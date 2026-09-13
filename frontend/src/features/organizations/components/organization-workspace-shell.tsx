@@ -67,6 +67,7 @@ export function OrganizationWorkspaceShell({
         showProducts={canManage}
         showSales={organization.role === 'MERCHANT'}
         showPos={organization.role !== 'MERCHANT'}
+        showInventory={organization.role !== 'CASHIER'}
         collapsed={collapsed}
         onNavigate={closeMenu}
       />

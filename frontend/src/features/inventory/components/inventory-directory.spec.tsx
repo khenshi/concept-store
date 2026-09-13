@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
@@ -6,6 +12,11 @@ import { merchant } from '@/features/products/model/product.test-fixtures';
 import { getInventoryBranch, listInventory } from '../api/inventory-api';
 import { branch, inventory, scope } from '../model/inventory.test-fixtures';
 import { InventoryDirectory } from './inventory-directory';
+import { listBranches } from '@/features/branches/api/branch-api';
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/features/branches/api/branch-api', () => ({
+  listBranches: vi.fn(),
+}));
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
@@ -26,9 +37,31 @@ vi.mock('./inventory-placement-form', () => ({
 }));
 
 describe('InventoryDirectory workflows', () => {
+  it('does not let an obsolete inventory read restore data after branch-list revocation', async () => {
+    let finish!: (items: (typeof inventory)[]) => void;
+    vi.mocked(listInventory).mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    vi.mocked(listBranches).mockResolvedValue([]);
+    render(<InventoryDirectory {...scope} />);
+    await screen.findByRole('alert');
+    await act(async () => finish([inventory]));
+    expect(screen.queryByText('PHP 850.00')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Inventory access is unavailable',
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Back to branch' }),
+    ).not.toBeInTheDocument();
+  });
   const request = vi.fn();
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(listBranches).mockResolvedValue([
+      { id: scope.branchId, name: branch.name, code: branch.code },
+    ] as never);
     vi.mocked(useAuth).mockReturnValue({ request } as never);
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { role: 'OWNER' },

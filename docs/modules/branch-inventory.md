@@ -1,6 +1,6 @@
 # Branch Inventory
 
-**Status:** Implemented; rendered visual/accessibility QA explicitly waived
+**Status:** Implemented. Original inventory rendered QA waived; new navigation refinement rendered QA pending.
 
 ## Responsibilities
 
@@ -102,6 +102,31 @@ checklist is retained in the
 [completed plan](../plans/archive/products-and-branch-inventory-2026-09-12.md).
 
 ## Workspace UI
+
+Inventory is now an organization sidebar/mobile destination for owners, managers
+and merchants, never cashiers. `/app/organizations/:organizationId/inventory`
+requires an explicit branch choice, even with one accessible branch. The labeled
+branch dropdown also appears in inventory directories and placement details.
+Options reuse existing authorized general branch reads: tenant branches for owners,
+assigned branches for managers and assignment/own-placement-accessible branches for
+merchants. Merchant historical-sales branch lookup is not used or widened.
+Inventory directory/detail routes mark Inventory, not Branches, as active.
+
+Normal Back to branch is removed; detail-to-inventory navigation and existing
+branch/product shortcuts remain. Branch changes open the chosen directory, clear
+old filters/placement data/form drafts and invalidate previous reads. Unsaved
+inventory forms require confirmation; cancellation retains the current branch and
+inputs. Pending placement/price/stock writes disable branch switching. User changes
+also reset scoped inventory state. Missing current-branch access or denied branch
+reads clear data and controls; old in-flight reads cannot restore cleared data.
+Branch selection includes loading, empty/unassigned and retryable failed-read states.
+
+This navigation part does not change APIs, stock rules or product creation. Optional
+opening stock on NEW-product creation is a later approved part, not implemented yet.
+Frontend lint, type checking, production build, changed-file formatting and all
+443 tests across 69 files pass. Unrelated existing inventory-api.ts formatting is
+preserved. Rendered navigation/dropdown/keyboard/zoom QA remains pending a new user
+waiver or browser access; the original inventory waiver does not certify this part.
 
 Frontend inventory views match backend enforcement: owners/managers retain stock
 controls in accessible branches, while merchants see own placements/history only.

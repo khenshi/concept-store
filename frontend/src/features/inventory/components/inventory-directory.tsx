@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import type { ProductStatus } from '@/features/products/model/product.types';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { BackLink } from '@/shared/components/ui/back-link';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
@@ -30,12 +29,14 @@ import type {
   InventoryScope,
 } from '../model/inventory.types';
 import { InventoryPlacementForm } from './inventory-placement-form';
+import { InventoryBranchSelector } from './inventory-branch-selector';
 
 export function InventoryDirectory(props: InventoryScope) {
+  const { user } = useAuth();
   const { organization } = useOrganizationWorkspaceContext();
   return (
     <ScopedInventoryDirectory
-      key={`${props.organizationId}:${props.branchId}:${organization?.role}`}
+      key={`${props.organizationId}:${props.branchId}:${organization?.role}:${user?.id}`}
       {...props}
     />
   );
@@ -65,14 +66,29 @@ function ScopedInventoryDirectory({
   const [success, setSuccess] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState(false);
+  const dirty = useRef(false);
+  const readGeneration = useRef(0);
+  const accessLost = useCallback(() => {
+    readGeneration.current++;
+    dirty.current = false;
+    setCreating(false);
+    setItems([]);
+    setBranch(null);
+    setMerchants([]);
+    setError(
+      'Inventory access is unavailable. Ask an owner to check your branch assignment or merchant link.',
+    );
+    setLoading(false);
+  }, []);
   const [revision, setRevision] = useState(0);
   const q = useDebouncedValue(search);
   useEffect(() => {
     if (!allowed) return;
     let active = true;
+    const generation = ++readGeneration.current;
     async function load() {
       await Promise.resolve();
-      if (!active) return;
+      if (!active || generation !== readGeneration.current) return;
       setLoading(true);
       setError(null);
       setBranch(null);
@@ -89,20 +105,20 @@ function ScopedInventoryDirectory({
           }),
           listMerchants(request, organizationId, {}, organization?.role),
         ]);
-        if (active) {
+        if (active && generation === readGeneration.current) {
           setBranch(location);
           setItems(inventory);
           setMerchants(profiles);
         }
       } catch (cause) {
-        if (active)
+        if (active && generation === readGeneration.current)
           setError(
             cause instanceof ApiError
               ? cause.message
               : 'Branch inventory could not be loaded.',
           );
       } finally {
-        if (active) setLoading(false);
+        if (active && generation === readGeneration.current) setLoading(false);
       }
     }
     void load();
@@ -130,18 +146,41 @@ function ScopedInventoryDirectory({
     );
   return (
     <OperationalPage>
-      <BackLink
-        href={`/app/organizations/${organizationId}/branches/${branchId}`}
-      >
-        Back to branch
-      </BackLink>
       <PageHeader
-        title={branch ? `${branch.name} inventory` : 'Branch inventory'}
+        title="Inventory"
         description={
           canWrite
             ? 'Maintain this branch’s independent PHP prices and whole-unit stock.'
             : 'Read your merchant’s placements only. Prices, quantities, and history are specific to this branch.'
         }
+      />
+      <InventoryBranchSelector
+        organizationId={organizationId}
+        branchId={branchId}
+        role={organization!.role}
+        disabled={pending}
+        onAccessDenied={accessLost}
+        beforeChange={() => {
+          if (
+            pending ||
+            (dirty.current &&
+              !window.confirm(
+                'Discard this unsaved inventory form and change branches?',
+              ))
+          )
+            return false;
+          dirty.current = false;
+          setCreating(false);
+          readGeneration.current++;
+          setItems([]);
+          setBranch(null);
+          setSearch('');
+          setMerchantId('');
+          setStatus('');
+          setSuccess(null);
+          setLoading(true);
+          return true;
+        }}
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
@@ -159,6 +198,7 @@ function ScopedInventoryDirectory({
               disabled={loading || Boolean(error)}
               onClick={() => {
                 setSuccess(null);
+                dirty.current = false;
                 setCreating(true);
               }}
             >
@@ -263,25 +303,45 @@ function ScopedInventoryDirectory({
         )}
       </OperationalPanel>
       {creating && canWrite ? (
-        <FormDialog
-          title="Add product placement"
-          description={`Place an existing product in ${branch?.name ?? 'this branch'} with its own selling price and stock tracking.`}
-          pending={pending}
-          onClose={() => setCreating(false)}
+        <div
+          onChangeCapture={() => {
+            dirty.current = true;
+          }}
+          onClickCapture={(event) => {
+            if (
+              event.target instanceof HTMLElement &&
+              event.target.closest('[role="option"]')
+            )
+              dirty.current = true;
+          }}
         >
-          <InventoryPlacementForm
-            scope={{ organizationId, branchId }}
-            onPendingChange={setPending}
-            onCancel={() => setCreating(false)}
-            onSaved={() => {
+          <FormDialog
+            title="Add product placement"
+            description={`Place an existing product in ${branch?.name ?? 'this branch'} with its own selling price and stock tracking.`}
+            pending={pending}
+            onClose={() => {
+              dirty.current = false;
               setCreating(false);
-              setSuccess(
-                'Product placement created with zero stock. Receive opening stock separately.',
-              );
-              setRevision((value) => value + 1);
             }}
-          />
-        </FormDialog>
+          >
+            <InventoryPlacementForm
+              scope={{ organizationId, branchId }}
+              onPendingChange={setPending}
+              onCancel={() => {
+                dirty.current = false;
+                setCreating(false);
+              }}
+              onSaved={() => {
+                dirty.current = false;
+                setCreating(false);
+                setSuccess(
+                  'Product placement created with zero stock. Receive opening stock separately.',
+                );
+                setRevision((value) => value + 1);
+              }}
+            />
+          </FormDialog>
+        </div>
       ) : null}
     </OperationalPage>
   );

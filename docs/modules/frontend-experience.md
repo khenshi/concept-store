@@ -1,5 +1,19 @@
 # Frontend Experience
 
+## Inventory navigation refinement
+
+Inventory now appears in sidebar/mobile navigation for owners, managers and
+merchants, with inventory directory/detail routes active under this entry rather
+than Branches. The organization Inventory entry offers explicit authorized branch
+selection; directories/details share a labeled branch dropdown. Normal Back to
+branch is removed, while detail-to-inventory and existing shortcuts remain.
+Switching branch confirms unsaved form discard and blocks pending writes; scoped
+data/filters reset and obsolete reads cannot restore data after access loss.
+Cashiers remain denied and merchants retain own-only inventory. No backend or
+new-product opening-stock behavior changes in this part. All 443 frontend tests,
+lint, type checking, production build and changed-file formatting pass. Rendered QA
+for this milestone is pending browser access or a new explicit waiver.
+
 ## POS navigation refinement
 
 Staff sidebar/mobile navigation now includes POS, with branch checkout routes
