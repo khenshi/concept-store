@@ -5,6 +5,14 @@ for HTTP request/guard tests. HTTP tests bind temporary local server ports.
 
 ## PostgreSQL integration tests
 
+Refund persistence tests cover tenant/branch/original-sale-item/merchant/price
+constraints, exact monetary capacity, manual methods, duplicate command/line keys,
+zero/partial/full restock representation, exact positive RETURN linkage, rollback,
+preserved source snapshots/actors and private inventory projections. An upgrade
+fixture creates sales and RECEIPT/SALE movements before the refund migration and
+verifies unchanged data afterward. These tests validate persistence only; they do
+not imply that the refund command/read/report/frontend workflow is implemented.
+
 Reports tests validate staff/merchant database aggregation, fixed payment
 reconciliation, distinct own transactions in mixed sales, exact high-capacity
 amounts and integer quantities, UTC half-open boundaries, more than one history
@@ -64,7 +72,7 @@ TEST_DATABASE_URL=postgresql://postgres:inventory-test-only@127.0.0.1:55439/conc
 ```
 
 Each suite creates a random `inventory_test_<uuid>`, `sales_test_<uuid>` or
-`opening_test_<uuid>` or `reports_test_<uuid>` schema, applies repository SQL
+`opening_test_<uuid>`, `reports_test_<uuid>` or `refunds_test_<uuid>` schema, applies repository SQL
 migrations there, uses that schema for Prisma/pg connections, and drops only that
 schema after verification. Baseline public-schema creation is omitted to keep
 setup isolated. No existing schema objects are modified. An interrupted process

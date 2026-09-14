@@ -25,6 +25,7 @@ model User {
   sessions                        UserSession[]
   inventoryMovements              InventoryMovement[]
   sales                           Sale[]
+  refunds                         Refund[]
   openingStockProducts            Product[]                @relation("ProductCreationActor")
 
   @@index([deletedAt])
@@ -57,6 +58,7 @@ model Organization {
   merchants   Merchant[]
   products    Product[]
   sales       Sale[]
+  refunds     Refund[]
 }
 
 model Merchant {
@@ -77,7 +79,8 @@ model Merchant {
   memberships OrganizationMembership[]
   invitations OrganizationInvitation[]
 
-  saleItems SaleItem[]
+  saleItems   SaleItem[]
+  refundItems RefundItem[]
 
   @@unique([organizationId, code])
   @@unique([id, organizationId])
@@ -104,6 +107,7 @@ model Branch {
   memberships      BranchMembership[]
   invitationGrants InvitationBranch[]
   sales            Sale[]
+  refunds          Refund[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, name])
@@ -175,13 +179,16 @@ model InventoryMovement {
   requestId         String
   createdAt         DateTime              @default(now())
   saleItemId        String?
+  refundItemId      String?
 
-  inventory BranchInventory @relation(fields: [branchInventoryId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
-  createdBy User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  saleItem  SaleItem?       @relation(fields: [saleItemId, organizationId, branchId, branchInventoryId], references: [id, organizationId, branchId, branchInventoryId], onDelete: Restrict)
+  inventory  BranchInventory @relation(fields: [branchInventoryId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
+  createdBy  User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  saleItem   SaleItem?       @relation(fields: [saleItemId, organizationId, branchId, branchInventoryId], references: [id, organizationId, branchId, branchInventoryId], onDelete: Restrict)
+  refundItem RefundItem?     @relation(fields: [refundItemId, organizationId, branchId, branchInventoryId, quantityChange], references: [id, organizationId, branchId, branchInventoryId, restockQuantity], onDelete: Restrict, onUpdate: Restrict, map: "InventoryMovement_refundItem_scope_fkey")
 
   @@unique([organizationId, requestId])
   @@unique([saleItemId, organizationId, branchId, branchInventoryId], map: "InventoryMovement_saleItem_scope_key")
+  @@unique([refundItemId, organizationId, branchId, branchInventoryId, quantityChange], map: "InventoryMovement_refundItem_scope_key")
   @@index([organizationId, branchId, branchInventoryId, createdAt, id], map: "InventoryMovement_history_idx")
 }
 
@@ -209,6 +216,7 @@ model Sale {
   branch       Branch       @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
   createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
   items        SaleItem[]
+  refunds      Refund[]
 
   @@unique([organizationId, receiptCode])
   @@unique([organizationId, requestId])
@@ -234,15 +242,72 @@ model SaleItem {
   unitPrice         Decimal @db.Decimal(12, 2)
   lineTotal         Decimal @db.Decimal(22, 2)
 
-  sale      Sale               @relation(fields: [saleId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
-  inventory BranchInventory    @relation(fields: [branchInventoryId, organizationId, branchId, productId], references: [id, organizationId, branchId, productId], onDelete: Restrict)
-  product   Product            @relation(fields: [productId, organizationId, merchantId], references: [id, organizationId, merchantId], onDelete: Restrict)
-  merchant  Merchant           @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  movement  InventoryMovement?
+  sale        Sale               @relation(fields: [saleId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
+  inventory   BranchInventory    @relation(fields: [branchInventoryId, organizationId, branchId, productId], references: [id, organizationId, branchId, productId], onDelete: Restrict)
+  product     Product            @relation(fields: [productId, organizationId, merchantId], references: [id, organizationId, merchantId], onDelete: Restrict)
+  merchant    Merchant           @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  movement    InventoryMovement?
+  refundItems RefundItem[]
 
   @@unique([saleId, branchInventoryId])
   @@unique([id, organizationId, branchId, branchInventoryId], map: "SaleItem_inventory_scope_key")
+  @@unique([id, organizationId, branchId, saleId, branchInventoryId, merchantId, unitPrice], map: "SaleItem_refund_source_key")
   @@index([organizationId, merchantId, branchId, saleId], map: "SaleItem_merchant_sales_idx")
+}
+
+/// Completed-only manual refund records. Row-local payment checks are defined in SQL.
+model Refund {
+  id               String            @id @default(uuid())
+  organizationId   String
+  branchId         String
+  saleId           String
+  refundCode       String
+  requestId        String            @db.Uuid
+  createdById      String
+  completedAt      DateTime          @default(now())
+  reason           String
+  paymentMethod    SalePaymentMethod
+  paymentReference String?
+  total            Decimal           @db.Decimal(24, 2)
+  refundCommand    Json              @db.JsonB
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sale         Sale         @relation(fields: [saleId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict, onUpdate: Restrict, map: "Refund_sale_scope_fkey")
+  createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items        RefundItem[]
+
+  @@unique([organizationId, refundCode])
+  @@unique([organizationId, requestId])
+  @@unique([id, organizationId, branchId, saleId], map: "Refund_sale_scope_key")
+  @@index([organizationId, branchId, saleId, completedAt, id], map: "Refund_sale_history_idx")
+  @@index([organizationId, branchId, completedAt, id], map: "Refund_branch_reports_idx")
+}
+
+/// Original source price and placement are enforced by a composite foreign key.
+model RefundItem {
+  id                String  @id @default(uuid())
+  organizationId    String
+  branchId          String
+  saleId            String
+  refundId          String
+  saleItemId        String
+  branchInventoryId String
+  merchantId        String
+  quantity          Int
+  restockQuantity   Int     @default(0)
+  unitPrice         Decimal @db.Decimal(12, 2)
+  lineTotal         Decimal @db.Decimal(22, 2)
+
+  refund   Refund             @relation(fields: [refundId, organizationId, branchId, saleId], references: [id, organizationId, branchId, saleId], onDelete: Restrict, onUpdate: Restrict, map: "RefundItem_refund_scope_fkey")
+  saleItem SaleItem           @relation(fields: [saleItemId, organizationId, branchId, saleId, branchInventoryId, merchantId, unitPrice], references: [id, organizationId, branchId, saleId, branchInventoryId, merchantId, unitPrice], onDelete: Restrict, onUpdate: Restrict, map: "RefundItem_saleItem_source_fkey")
+  merchant Merchant           @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  movement InventoryMovement?
+
+  @@unique([refundId, saleItemId])
+  @@unique([id, organizationId, branchId, branchInventoryId, restockQuantity], map: "RefundItem_movement_scope_key")
+  @@index([organizationId, branchId, saleId, saleItemId], map: "RefundItem_returned_quantity_idx")
+  @@index([organizationId, merchantId, branchId, refundId], map: "RefundItem_merchant_refunds_idx")
 }
 
 model OrganizationMembership {
@@ -338,6 +403,7 @@ enum InventoryMovementType {
   RECEIPT
   ADJUSTMENT
   SALE
+  RETURN
 }
 
 enum SalePaymentMethod {

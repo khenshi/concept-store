@@ -2,6 +2,11 @@
 
 **Status:** Implemented; original inventory and current navigation/opening-stock rendered QA explicitly waived.
 
+The [Refund persistence foundation](refunds.md) adds a constrained positive RETURN
+movement with a private refund-item link. No existing inventory command creates
+this movement, and no refund workflow is available yet. Existing response
+selections omit both private sale/refund links and retain merchant actor exclusion.
+
 ## Responsibilities
 
 Maintain one quantity-tracked placement per product/branch, a branch-specific PHP

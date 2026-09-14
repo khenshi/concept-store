@@ -6,6 +6,10 @@ merchant reports remain own-item-only and never expose payment/whole-sale totals
 
 **Status:** Implemented, including staff POS history/receipts and separate read-only merchant own-sale screens. Rendered QA explicitly waived September 13, 2026, separately for the original milestone and navigation refinement.
 
+The [Refund persistence foundation](refunds.md) now references original sales and
+saved items with tenant-safe keys. No refund API or workflow is available yet;
+these original sale/checkout/history contracts remain unchanged.
+
 ## Implemented scope
 
 `Sale` stores a completed transaction with organization/branch scope, creator,
