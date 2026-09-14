@@ -91,3 +91,14 @@ historical Reports versus Inventory/POS, tenant/user/role resets, access-refresh
 callback invalidation, late lookups, cancelled changes and unresolved checkout/
 refund locks. New rendered navigation/dropdown/focus QA remains the final part;
 earlier milestone waivers do not cover this refinement.
+
+Final shared-branch frontend regressions were rerun successfully: changed-file
+formatting, lint/type checking, 702 tests across 83 files and production build.
+Backend/schema/database behavior is unchanged; no Docker/database checks were
+needed. Unrelated edits and the existing multiple-lockfile build warning were
+preserved. The user explicitly waived rendered page-switching/dropdown/keyboard/
+focus QA for shared branch selection on September 14, 2026, separately from earlier
+milestone waivers. Those checks were not performed; automated checks do not certify
+rendered layout or accessibility. Both parts were reviewed and approved; the
+[completed shared branch-selection plan](../plans/archive/shared-branch-selection-2026-09-14.md)
+is archived.

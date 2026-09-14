@@ -1,5 +1,11 @@
 # Archived Implementation Plans
 
+The completed shared branch-selection refinement for POS, Inventory and Reports,
+with both reviewed parts, final verification and its September 14, 2026 rendered-QA
+waiver, is retained in
+[`shared-branch-selection-2026-09-14.md`](shared-branch-selection-2026-09-14.md).
+This historical record does not authorize further implementation.
+
 Superseded later-milestone implementation plans are not active instructions.
 The pre-rollback documents remain available on the local branch
 `archive/pre-foundation-rollback-2026-09-11` and in Git history.

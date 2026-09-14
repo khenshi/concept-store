@@ -199,6 +199,17 @@ Merchant POS denial, cashier assignments and existing sale/payment/receipt contr
 are unchanged. Frontend checks pass with 702 tests across 83 files; new rendered
 navigation/dropdown/focus QA remains pending the final refinement part.
 
+Final shared-branch regressions pass changed-file formatting, lint/type checking,
+702 frontend tests and production build. Existing cart/payment, checkout/refund
+unknown-command recovery and navigation cancellation tests remain passing. No
+backend/database changes or Docker tests were needed. Rendered page-switching/
+dropdown/keyboard/focus QA for shared branch selection was explicitly waived by
+the user on September 14, 2026, separately from prior milestone waivers. Those
+checks were not performed; automated checks do not certify rendered behavior.
+Both delivery parts were reviewed and approved; the
+[completed shared branch-selection plan](../plans/archive/shared-branch-selection-2026-09-14.md)
+is archived.
+
 Branch details expose sales history for owners/managers/cashiers and own sales for
 merchants. POS completion links to its saved receipt within History. Staff
 lists show receipt code/time, saved branch identity, exact total and saved cashier/

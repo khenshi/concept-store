@@ -162,6 +162,16 @@ rules and report contracts are unchanged. Frontend checks pass with 702 tests
 across 83 files; new rendered navigation/dropdown/focus QA remains pending final
 delivery, independently of earlier Reports/refund QA waivers.
 
+Final shared-branch frontend checks were rerun successfully: changed-file
+formatting, lint/type checking, 702 tests across 83 files and production build.
+Report date/scope/privacy regressions remain passing; backend/database contracts
+are unchanged. The user explicitly waived rendered page-switching/dropdown/
+keyboard/focus QA for shared branch selection on September 14, 2026, independently
+of earlier Reports/refund waivers. Those checks were not performed; automated
+tests do not certify rendered behavior. Both parts were reviewed and approved;
+the [completed shared branch-selection plan](../plans/archive/shared-branch-selection-2026-09-14.md)
+is archived.
+
 From/Through inputs are visibly labeled Philippines, inclusive (`Asia/Manila`).
 Today is computed in that timezone independently of browser timezone. Fields
 validate on each input after 300 ms, immediately on blur and on Apply; invalid

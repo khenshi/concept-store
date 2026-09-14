@@ -142,6 +142,17 @@ Reports access never grants Inventory access. No inventory API/schema changes ar
 included in this navigation refinement. Frontend checks pass with 702 tests across
 83 files; new rendered navigation/dropdown/focus QA remains pending final delivery.
 
+Final shared-branch regressions pass changed-file formatting, lint/type checking,
+all 702 frontend tests and production build, including cancelled form switching
+and pending write guards. No backend/database changes or tests are included in
+this refinement. The user explicitly waived rendered page-switching/dropdown/
+keyboard/focus QA for shared branch selection on September 14, 2026. These browser
+checks were not performed; automated tests do not certify rendered behavior.
+This new waiver is independent of earlier Inventory/refund waivers. Both delivery
+parts were reviewed and approved; the
+[completed shared branch-selection plan](../plans/archive/shared-branch-selection-2026-09-14.md)
+is archived.
+
 The navigation part does not change inventory APIs or stock rules. The Products
 create API now optionally creates one branch placement and balanced opening RECEIPT
 atomically with a new product; see [Products](products.md). The frontend new-product
