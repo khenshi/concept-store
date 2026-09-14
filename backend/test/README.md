@@ -5,6 +5,14 @@ for HTTP request/guard tests. HTTP tests bind temporary local server ports.
 
 ## PostgreSQL integration tests
 
+Reports tests validate staff/merchant database aggregation, fixed payment
+reconciliation, distinct own transactions in mixed sales, exact high-capacity
+amounts and integer quantities, UTC half-open boundaries, more than one history
+page, current roles/grants/profile links, private projections, branch/tenant
+isolation and historical totals after live edits. A paused report transaction
+lets another checkout commit between summary/payment queries to verify a consistent
+snapshot. Report reads must leave sales, balances and ledger history unchanged.
+
 The suite covers inventory integrity and branch/merchant access, including concurrent
 assignment versus owner promotion/removal, relinking versus role changes, last-owner
 preservation, simultaneous invitation acceptance, acceptance versus revocation,
@@ -56,7 +64,7 @@ TEST_DATABASE_URL=postgresql://postgres:inventory-test-only@127.0.0.1:55439/conc
 ```
 
 Each suite creates a random `inventory_test_<uuid>`, `sales_test_<uuid>` or
-`opening_test_<uuid>` schema, applies repository SQL
+`opening_test_<uuid>` or `reports_test_<uuid>` schema, applies repository SQL
 migrations there, uses that schema for Prisma/pg connections, and drops only that
 schema after verification. Baseline public-schema creation is omitted to keep
 setup isolated. No existing schema objects are modified. An interrupted process

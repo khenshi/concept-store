@@ -1,0 +1,207 @@
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { JwtModule, JwtService } from '@nestjs/jwt';
+import { Test } from '@nestjs/testing';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import request from 'supertest';
+import { OrganizationRole, Prisma } from '../src/generated/prisma/client';
+import { PrismaService } from '../src/infrastructure/database/prisma.service';
+import { AuthGuard } from '../src/modules/auth/auth.guard';
+import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
+import { ReportsController } from '../src/modules/organizations/reports/reports.controller';
+import { ReportsService } from '../src/modules/organizations/reports/reports.service';
+
+const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const actor = '11111111-1111-4111-8111-111111111111';
+const path = `/organizations/${org}/branches/${branch}/reports/sales`;
+const lookup = `/organizations/${org}/reports/sales/branches`;
+const valid = { from: '2026-09-01T00:00:00Z', until: '2026-09-02T00:00:00Z' };
+describe('Reports HTTP and OpenAPI boundaries', () => {
+  let app: INestApplication;
+  let jwt: JwtService;
+  let role: OrganizationRole;
+  const prisma = {
+    user: { findFirst: jest.fn() },
+    organizationMembership: { findUnique: jest.fn() },
+    branch: { findFirst: jest.fn(), findMany: jest.fn() },
+    $queryRaw: jest.fn(),
+    $transaction: jest.fn(),
+  };
+  // Nest getHttpServer is an untyped Supertest boundary.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+  const http = () => request(app.getHttpServer());
+  const token = () =>
+    jwt.sign({ email: 'report@example.test' }, { subject: actor });
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      imports: [JwtModule.register({ secret: 'reports-test-only' })],
+      controllers: [ReportsController],
+      providers: [
+        ReportsService,
+        AuthGuard,
+        OrganizationAccessGuard,
+        Reflector,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    app = module.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        transform: true,
+        whitelist: true,
+        forbidNonWhitelisted: true,
+      }),
+    );
+    await app.init();
+    jwt = module.get(JwtService);
+  });
+  afterAll(async () => app.close());
+  beforeEach(() => {
+    jest.resetAllMocks();
+    role = 'OWNER';
+    prisma.user.findFirst.mockResolvedValue({ id: actor });
+    prisma.organizationMembership.findUnique.mockImplementation(
+      ({
+        where,
+      }: {
+        where: { organizationId_userId: { organizationId: string } };
+      }) =>
+        Promise.resolve(
+          where.organizationId_userId.organizationId === org
+            ? { role, merchantId: role === 'MERCHANT' ? actor : null }
+            : null,
+        ),
+    );
+    prisma.branch.findFirst.mockResolvedValue({
+      id: branch,
+      name: 'Branch',
+      code: null,
+    });
+    prisma.branch.findMany.mockResolvedValue([
+      { id: branch, name: 'Branch', code: null },
+    ]);
+    prisma.$transaction.mockImplementation(
+      (callback: (client: typeof prisma) => unknown) => callback(prisma),
+    );
+    prisma.$queryRaw.mockImplementation((sql: Prisma.Sql) =>
+      Promise.resolve(
+        sql.sql.includes('GROUP BY')
+          ? []
+          : [{ grossSales: '0.00', transactionCount: '0', unitsSold: '0' }],
+      ),
+    );
+  });
+  it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
+    'allows authorized %s summary and identity lookup',
+    async (current) => {
+      role = current;
+      const response = await http()
+        .get(path)
+        .auth(token(), { type: 'bearer' })
+        .query(valid)
+        .expect(200);
+      expect(response.body).toMatchObject({
+        scope: current === 'MERCHANT' ? 'MERCHANT' : 'STAFF',
+        from: '2026-09-01T00:00:00.000Z',
+        until: '2026-09-02T00:00:00.000Z',
+      });
+      await http()
+        .get(lookup)
+        .auth(token(), { type: 'bearer' })
+        .expect(200, [{ id: branch, name: 'Branch', code: null }]);
+    },
+  );
+  it.each([path, lookup])(
+    'requires authentication and denies cashier on %s',
+    async (url) => {
+      await http()
+        .get(url)
+        .query(url === path ? valid : {})
+        .expect(401);
+      role = 'CASHIER';
+      await http()
+        .get(url)
+        .auth(token(), { type: 'bearer' })
+        .query(url === path ? valid : {})
+        .expect(403);
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
+  it('hides guessed organizations and inaccessible branches', async () => {
+    await http()
+      .get(path.replace(org, branch))
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(404);
+    prisma.branch.findFirst.mockResolvedValue(null);
+    await http()
+      .get(path)
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(404);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+  it.each([
+    {},
+    { from: valid.from },
+    { ...valid, from: '2026-02-30T00:00:00Z' },
+    { ...valid, until: valid.from },
+    { ...valid, until: '2026-08-01T00:00:00Z' },
+    { from: '2025-01-01T00:00:00Z', until: '2026-01-03T00:00:00Z' },
+    { ...valid, until: '2026-09-02T08:00:00+08:00' },
+    { ...valid, merchantId: actor },
+    { ...valid, page: 1 },
+  ])('rejects strict fields and invalid ranges %j', async (query) => {
+    await http()
+      .get(path)
+      .auth(token(), { type: 'bearer' })
+      .query(query)
+      .expect(400);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+  it('rejects lookup filters and malformed UUIDs', async () => {
+    await http()
+      .get(lookup)
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(400);
+    await http()
+      .get(path.replace(branch, 'bad'))
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(400);
+    await http()
+      .get(path.replace(org, 'bad'))
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(400);
+  });
+  it('documents separate discriminated staff and merchant contracts and required ranges', () => {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().addBearerAuth(undefined, 'access-token').build(),
+    );
+    const schemas = document.components?.schemas;
+    expect(schemas?.MerchantSalesReportResponseDto).toMatchObject({
+      properties: {
+        scope: { enum: ['MERCHANT'] },
+        ownGrossSales: { type: 'string' },
+      },
+    });
+    expect(schemas?.MerchantSalesReportResponseDto).not.toHaveProperty(
+      'properties.payments',
+    );
+    expect(
+      document.paths[
+        '/organizations/{organizationId}/branches/{branchId}/reports/sales'
+      ].get?.parameters,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'from', required: true }),
+        expect.objectContaining({ name: 'until', required: true }),
+      ]),
+    );
+  });
+});

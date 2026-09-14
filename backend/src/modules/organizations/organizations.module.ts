@@ -27,10 +27,13 @@ import {
   MerchantSalesBranchesController,
 } from './sales/sales-read.controller';
 import { SalesReadService } from './sales/sales-read.service';
+import { ReportsController } from './reports/reports.controller';
+import { ReportsService } from './reports/reports.service';
 
 @Module({
   imports: [AuthModule],
   controllers: [
+    ReportsController,
     OrganizationsController,
     OrganizationMembershipsController,
     BranchesController,
@@ -45,6 +48,7 @@ import { SalesReadService } from './sales/sales-read.service';
     MerchantSalesBranchesController,
   ],
   providers: [
+    ReportsService,
     OrganizationsService,
     OrganizationMembershipsService,
     BranchesService,

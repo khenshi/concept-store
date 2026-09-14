@@ -38,6 +38,11 @@ The separate [historical own-sales branch lookup](sales.md) returns identity onl
 for merchants with matching historical sale items. It grants no address/general
 branch-detail access and does not change these existing branch routes.
 
+The [Reports branch lookup](reports.md) also returns identity only: all tenant
+branches for owners, assigned branches for managers and assigned/historical-own-sale
+branches for merchants. It does not grant general branch/address/inventory access.
+Cashiers cannot use Reports and retain their existing branch/POS access.
+
 ## Data and rules
 
 `Branch` belongs to one organization and contains name, optional code, address

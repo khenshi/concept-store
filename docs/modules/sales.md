@@ -1,5 +1,9 @@
 # Sales
 
+Separate read-only [Sales Reports](reports.md) aggregate permitted completed
+branch sales. They do not change these history/checkout routes or cashier access;
+merchant reports remain own-item-only and never expose payment/whole-sale totals.
+
 **Status:** Implemented, including staff POS history/receipts and separate read-only merchant own-sale screens. Rendered QA explicitly waived September 13, 2026, separately for the original milestone and navigation refinement.
 
 ## Implemented scope
