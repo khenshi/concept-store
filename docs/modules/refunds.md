@@ -1,8 +1,8 @@
 # Item Returns and Manual Refunds
 
 **Status:** Persistence, create/replay API, staff/merchant history/detail with
-remaining quantities and refund-aware Reports API implemented. Refund forms and
-rendered report refund/net cards are not implemented yet.
+remaining quantities, refund-aware Reports API/cards and sale-detail refund UI
+implemented. New rendered refund QA remains pending final verification.
 
 ## Implemented scope
 
@@ -11,9 +11,61 @@ immutable completed sale. The create API records manually issued refunds and
 optionally restocks original placements through linked RETURN movements. Existing
 checkout, sale/history responses and receipt/adjustment commands are unchanged.
 Reports API now summarizes gross/refunded/net sales by separate sale and refund
-completion dates, while existing report cards remain gross-only. Existing
-inventory screens accept positive RETURN history and label it Return; no refund
-dialog or new inventory stock command is added.
+completion dates, with separate gross/refund/net report cards. Existing
+inventory screens accept positive RETURN history and label it Return; no separate
+inventory stock command is added. Refund controls live beside the original sale
+in existing POS Sales History; merchants use their existing own-sale detail.
+
+## Sale-detail frontend workflow
+
+Owner/manager detail loads saved refund history with ten rows per page and
+all-page remaining/returned/restocked quantities. Return items opens the shared
+native scroll-contained form dialog. Each original line shows saved identity,
+unit price, remaining units and distinct whole-unit return/restock inputs.
+Exhausted lines cannot start another return. Restocking defaults to zero and
+targets only the original sold placement; non-restocked units do not change stock.
+The exact BigInt estimate is advisory; the backend derives the persisted amount.
+
+Reason, quantities and applicable reference validate on every input after 300 ms,
+immediately on blur and on submit. Invalid submit focuses the first invalid field.
+The actual refund method defaults to the original sale method but may differ.
+Changing it clears reference and confirmation. Noncash references are manual and
+unverified; cash sends no reference. Explicit confirmation that money was already
+refunded outside the system is required. No provider operation or discretionary
+refund amount is offered.
+
+Before POST, a memory-only organization/user-scoped attempt retains the exact
+command and request ID. Pending submissions freeze fields and block duplicates,
+Escape, backdrop/cancel dismissal, in-app link/programmatic POS navigation and
+normal page unloading. Network/timeout/server errors, malformed completion and
+request-ID conflicts retain the frozen command. Retry same refund explicitly
+resends the unchanged command/ID to retrieve its outcome, never issues money again
+or silently creates a new request. A later denial does not discard an earlier
+unknown attempt. Database retry guidance also retains the unchanged command.
+
+Known initial validation rejection permits correction; identical corrected retry
+keeps its ID, while changed content gets a new ID. Initial over-return/stock
+overflow closes the dialog and refreshes quantities for fresh review, without
+automatic retry. Current-access denial clears the original sale, print controls
+and refund records. The navigation lock lives beside sale access rather than
+loaded refund records so denied reads do not drop an unresolved attempt.
+
+Confirmed completion closes the dialog and refreshes history/remaining quantities.
+Failed follow-up reads retain completion feedback and permit GET-only retry, never
+another POST. No inventory editor is mounted here; subsequent inventory reads show
+the committed original-placement RETURN movements. Attempts survive component
+unmount/remount in memory, including late completion for the original actor, but
+are not persistent/offline drafts and cannot survive a full process/page restart.
+An unresolved other-sale attempt blocks new refunds and links staff to its original
+sale; a completed other-sale attempt asks for original-sale read acknowledgement.
+
+Saved staff refund detail displays immutable reason, actual method/reference,
+amount and original returned/restocked lines, without edit/delete or printing.
+Merchants independently decode only reduced own-line/subtotal records, including
+saved branch identity, and have no create, staff/payment/actor or refund-print
+exposure. Cashiers mount no refund history reads or management controls. Sale
+detail remounts on organization/user/role/branch/sale changes; obsolete reads cannot
+restore privileged records. Backend fresh object authorization remains authoritative.
 
 ## Records and precise types
 
@@ -246,3 +298,23 @@ original lines remain exact. Read-only checks compare original sales/refunds,
 inventory and movements before/after reads. Existing command/race regressions
 continue to pass. No schema/migration or frontend changes are included in this
 read-only part, and the application database is untouched.
+
+## Frontend delivery verification
+
+Frontend formatting, lint, type checking, production build and 680 tests across
+82 files pass. Ninety added tests cover strict staff/merchant contracts, exact
+capacity arithmetic, identity/scope substitution, remaining/pagination invariants,
+debounced/blur/submit validation, explicit manual confirmation, separate actual
+methods, pending locks, unchanged-ID recovery, malformed outcomes, subsequent
+access denial, known quantity conflicts, unmount/late completion, GET-only recovery,
+merchant privacy and refund-only negative report periods. One unchanged Inventory
+branch-selector test initially raced branch loading; its focused rerun and the
+full suite rerun passed without changing Inventory implementation or tests.
+
+This frontend-only part adds no schema, migration or backend change and does not
+start Docker or touch any database. Part 4's backend/PostgreSQL verification remains
+recorded in Reports; final regressions belong to Part 6. The existing multiple-
+lockfile build warning remains outside scope. New rendered responsive, native
+dialog/focus, keyboard/dropdown and 200% zoom checks are pending final verification
+and require browser access or a new explicit refund-specific waiver. Prior
+POS/Inventory/Reports waivers do not cover these screens.

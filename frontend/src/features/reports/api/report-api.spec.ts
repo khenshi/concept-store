@@ -20,6 +20,15 @@ const empty = {
   grossSales: '0.00',
   transactionCount: '0',
   unitsSold: '0',
+  refundedAmount: '0.00',
+  refundCount: '0',
+  returnedUnits: '0',
+  netRecordedSales: '0.00',
+  refundMethods: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
+    paymentMethod,
+    refundedAmount: '0.00',
+    refundCount: '0',
+  })),
   payments: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
     paymentMethod,
     grossSales: '0.00',
@@ -85,6 +94,10 @@ describe('merchant Reports API', () => {
     ownGrossSales: '25.00',
     ownTransactionCount: '1',
     ownUnitsSold: '2',
+    ownRefundedAmount: '0.00',
+    ownRefundCount: '0',
+    ownReturnedUnits: '0',
+    ownNetRecordedSales: '25.00',
   };
   it('uses the same scoped read route without fetching staff history, profiles or payments', async () => {
     const request = vi.fn().mockResolvedValue(own);

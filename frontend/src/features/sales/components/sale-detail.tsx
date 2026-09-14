@@ -18,6 +18,12 @@ import { SaleReceipt } from '@/features/pos/components/sale-receipt';
 import type { MerchantSale } from '../model/sales.schemas';
 import { getSale } from '../api/sales-api';
 import { SalesAccess } from './sales-access';
+import { RefundHistory } from '@/features/refunds/components/refund-history';
+import { useRefundNavigationGuard } from '@/features/refunds/model/refund-navigation';
+import {
+  refundAttemptKey,
+  useRefundAttempt,
+} from '@/features/refunds/model/refund-attempt';
 
 export function SaleDetail(
   props: PosScope & { saleId: string; embedded?: boolean },
@@ -76,7 +82,17 @@ function ScopedSaleDetail({
   role,
   embedded = false,
 }: PosScope & { saleId: string; role: OrganizationRole; embedded?: boolean }) {
-  const { request } = useAuth();
+  const { request, user } = useAuth();
+  useRefundNavigationGuard(refundAttemptKey(organizationId, user?.id ?? ''), {
+    organizationId,
+    branchId,
+    saleId,
+  });
+  const refundAttempt = useRefundAttempt(
+    refundAttemptKey(organizationId, user?.id ?? ''),
+  );
+  const refundPending = refundAttempt?.state === 'pending';
+  const refundUnresolved = refundPending || refundAttempt?.state === 'unknown';
   const { refreshOrganization } = useOrganizationWorkspaceContext();
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof getSale>
@@ -135,6 +151,7 @@ function ScopedSaleDetail({
         action={
           <Button
             variant="quiet"
+            disabled={refundUnresolved}
             onClick={() => setRevision((value) => value + 1)}
           >
             Refresh sale
@@ -159,9 +176,21 @@ function ScopedSaleDetail({
           </div>
         )}
       </OperationalPanel>
+      {result && role !== 'CASHIER' ? (
+        <RefundHistory
+          scope={{ organizationId, branchId, saleId }}
+          sale={result.sale}
+          role={role}
+          onDenied={(message) => {
+            setResult(null);
+            setError(message);
+          }}
+        />
+      ) : null}
       <Button
         variant="quiet"
         className="mt-4"
+        disabled={refundPending}
         onClick={() => void refreshOrganization()}
       >
         Refresh access

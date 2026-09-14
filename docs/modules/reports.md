@@ -1,7 +1,7 @@
 # Sales Reports
 
-**Status:** Refund-aware backend API implemented. Existing owner/manager/merchant
-Reports screens still display gross sales; refund/net cards remain a later part.
+**Status:** Refund-aware backend API and owner/manager/merchant report cards
+implemented. New refund-specific rendered QA remains pending final verification.
 
 ## Responsibilities and exclusions
 
@@ -14,8 +14,8 @@ settlements, exports, rankings, trends, printing or payment verification are
 provided. Reports never mutate sales, inventory, payments or ledger history.
 No report entities, migration, analytics infrastructure or new indexes are added.
 The [manual refund API](refunds.md) records completed returns separately without
-editing original sales. Existing frontend cards/payment rows remain gross-only
-until the later UI part; the expanded response now also contains refund/net figures.
+editing original sales. Frontend cards display separate gross/refunded/net figures;
+staff gross sale payments and actual refund methods remain separate breakdowns.
 
 ## API
 
@@ -118,13 +118,19 @@ with explicit STAFF/MERCHANT discriminator mappings.
 
 ## Owner/manager workspace
 
-The current workspace below remains gross-only. Minimal runtime compatibility
-accepts the complete expanded refund group and validates exact net/method/count/
-unit reconciliation, while retaining legacy gross-only decoding when the entire
-group is absent. An incomplete group is rejected, never silently zero-filled.
-Merchant contracts independently accept only the complete own refund group,
-without staff fallback or private fields. Refund/net cards and date-basis
-explanation remain the later approved frontend part.
+Runtime schemas require the complete expanded refund group and validate exact
+signed net/method/count/unit reconciliation. Missing or incomplete groups and
+legacy gross-only responses are rejected, never silently zero-filled. Merchant
+contracts independently require the own refund group, without staff fallback or
+private fields. Aggregate values render as exact strings without number rounding.
+
+Existing gross cards retain original sale counts/units. Separate cards show refunded
+amount, completed refund count, returned units and net recorded sales. Staff gets
+three actual refund-method amount/count rows independently of gross sale payments;
+there is no payment-method netting or available-cash claim. Date guidance explains
+sale completion versus refund processing dates, including older original sales and
+negative net periods. A refund-only period displays its refund/net values without
+incorrect no-activity feedback. Empty periods display explicit zeros for both streams.
 
 Reports appears in expanded/collapsed sidebar and mobile navigation for owners
 and managers. Both organization and branch Reports routes mark Reports active
@@ -156,7 +162,8 @@ branch/range correspondence, canonical exact money/integer strings, three distin
 payment methods and summary reconciliation before rendering. Merchant/private,
 malformed or stale-scope responses are rejected. Aggregate values render without
 floating-point conversion or single-sale size limits. Empty periods still show
-zero summaries and all three payment rows, with explicit no-sales feedback.
+zero gross/refund/net summaries and all three sale/refund-method rows, with explicit
+no-activity feedback when both streams are empty.
 Labels distinguish gross recorded sales from profit/payouts and manual unverified
 GCash/card from payment-provider reconciliation.
 
@@ -179,7 +186,10 @@ access. There is no profile selector or combined branch total.
 Separate strict MERCHANT runtime validation and own-only cards display Own gross
 recorded sales, Transactions containing own items and Own units sold. Matching
 transactions are distinct sales containing own items; mixed sales contribute
-only own item amounts/units. No staff fallback, payment breakdown, whole-sale
+only own item amounts/units. Additional own-only cards display Own refunded amount,
+Own net recorded sales and matching refund/returned-unit counts. Refund dates are
+independent of the original sale date and own net may be negative, not profit or
+payouts. No staff fallback, payment/refund-method breakdown, whole-sale
 amounts/counts, cashier, contact, private metadata, print or mutation controls are
 rendered or fetched. Extra/private/staff-shaped responses fail the read rather
 than being silently stripped or converted. Own aggregates retain exact unlimited
@@ -260,3 +270,15 @@ reconciliation and merchant private-field denial. No new rendered screens/cards
 are included; future refund UI needs its own rendered QA or waiver. Tests apply
 migrations only in disposable random schemas. No application database is migrated,
 reset or seeded.
+
+## Refund-aware frontend verification
+
+The refund UI part passes frontend changed-file formatting, lint, type checking,
+production build and 680 tests across 82 files. Expanded report tests verify
+required complete groups (no legacy fake-zero fallback), refund-only negative
+periods, independent gross-payment/refund-method panels, processing-date guidance
+and merchant own-only cards without payment/private exposure. Existing exact-
+capacity, signed arithmetic and date/scope/read-only regressions remain passing.
+No backend/schema/database/infrastructure changes are included in this UI part.
+New refund-aware rendered QA remains pending final verification; the historical
+Reports waiver above applies only to the prior gross-only milestone.

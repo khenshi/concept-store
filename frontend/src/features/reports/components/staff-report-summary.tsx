@@ -4,7 +4,7 @@ import type { StaffSalesReport } from '../model/report.schemas';
 export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
   return (
     <>
-      {report.transactionCount === '0' ? (
+      {report.transactionCount === '0' && report.refundCount === '0' ? (
         <p role="status" className="mt-5 text-sm text-muted">
           No completed sales in this branch for the applied period.
         </p>
@@ -26,8 +26,39 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
           </div>
         ))}
       </dl>
+      <dl
+        aria-label="Refund and net summary"
+        className="mt-5 grid min-w-0 gap-px rounded-panel border border-hairline bg-hairline sm:grid-cols-3"
+      >
+        {[
+          ['Refunded amount', report.refundedAmount],
+          ['Net recorded sales', report.netRecordedSales],
+        ].map(([label, value]) => (
+          <div key={label} className="min-w-0 bg-surface p-5 sm:p-6">
+            <dt className="text-sm text-muted">{label}</dt>
+            <dd className="mt-3 break-all text-xl font-semibold tabular-nums">
+              <span>PHP </span>
+              <span>{value}</span>
+            </dd>
+          </div>
+        ))}
+        <div className="min-w-0 bg-surface p-5 sm:p-6">
+          <dt className="text-sm text-muted">
+            Completed refunds / returned units
+          </dt>
+          <dd className="mt-3 text-xl font-semibold tabular-nums">
+            {report.refundCount} / {report.returnedUnits}
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-4 text-sm text-muted">
+        Gross sales use sale completion dates. Refunds use refund processing
+        dates, even for older sales. Net is gross minus refunds and can be
+        negative; it is not profit or available cash. Sale counts and units sold
+        remain gross.
+      </p>
       <OperationalPanel
-        title="Payment summary"
+        title="Gross sale payments"
         description="Recorded sale totals, not cash tender, available cash or provider reconciliation. GCash and card payments are manual and unverified."
       >
         <ul
@@ -51,6 +82,34 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
                 <p className="mt-1 text-muted">
                   Transactions: {payment.transactionCount}
                 </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </OperationalPanel>
+      <OperationalPanel
+        title="Actual refund methods"
+        description="Separate manual refund amounts, not netted against sale payments. The refund method may differ from the original payment. No provider processing or verification."
+      >
+        <ul
+          aria-label="Refund method breakdown"
+          className="divide-y divide-hairline"
+        >
+          {report.refundMethods.map((row) => (
+            <li
+              key={row.paymentMethod}
+              className="grid min-w-0 gap-3 p-5 sm:grid-cols-2 sm:p-6"
+            >
+              <strong>
+                {row.paymentMethod === 'CASH'
+                  ? 'Cash refunds'
+                  : row.paymentMethod === 'GCASH'
+                    ? 'GCash refunds (manual)'
+                    : 'Card refunds (manual)'}
+              </strong>
+              <div className="min-w-0 break-all text-sm tabular-nums">
+                <p>Refunded: PHP {row.refundedAmount}</p>
+                <p>Refunds: {row.refundCount}</p>
               </div>
             </li>
           ))}

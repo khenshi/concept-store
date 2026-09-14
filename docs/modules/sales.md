@@ -10,8 +10,12 @@ The separate [manual refund API](refunds.md) references original sales and saved
 items with tenant-safe keys. It records partial/full whole-item returns and optional
 original-placement restocking without editing the sale. These original
 sale/checkout/history contracts remain unchanged. Separate staff/own-merchant
-refund history/detail APIs provide remaining original returnable quantities;
-refund forms are not yet available.
+refund history/detail APIs provide remaining original returnable quantities.
+Owner/manager sale detail offers a return/refund dialog and saved refund history;
+merchant detail shows only own returned lines/subtotals. Cashier detail does not
+fetch refund APIs or mount refund-management controls. Original receipt printing
+remains unchanged; refund records have no print operation. See the
+[refund workflow](refunds.md) for confirmation, validation and retry safety.
 
 ## Implemented scope
 

@@ -21,6 +21,15 @@ export const report = {
   grossSales: '60.00',
   transactionCount: '3',
   unitsSold: '5',
+  refundedAmount: '0.00',
+  refundCount: '0',
+  returnedUnits: '0',
+  netRecordedSales: '60.00',
+  refundMethods: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
+    paymentMethod,
+    refundedAmount: '0.00',
+    refundCount: '0',
+  })),
   payments: [
     {
       paymentMethod: 'CASH' as const,
@@ -41,6 +50,21 @@ export const report = {
 };
 
 describe('strict staff report contracts', () => {
+  it('requires the complete refund group rather than pretending legacy gross-only data has zeros', () => {
+    const legacy = Object.fromEntries(
+      Object.entries(report).filter(
+        ([key]) =>
+          ![
+            'refundedAmount',
+            'refundCount',
+            'returnedUnits',
+            'netRecordedSales',
+            'refundMethods',
+          ].includes(key),
+      ),
+    );
+    expect(staffSalesReportSchema.safeParse(legacy).success).toBe(false);
+  });
   it('accepts reconciled reports and fully zero empty periods', () => {
     expect(staffSalesReportSchema.parse(report)).toEqual(report);
     expect(
@@ -49,6 +73,7 @@ describe('strict staff report contracts', () => {
         grossSales: '0.00',
         transactionCount: '0',
         unitsSold: '0',
+        netRecordedSales: '0.00',
         payments: report.payments.map((p) => ({
           ...p,
           grossSales: '0.00',
@@ -63,6 +88,7 @@ describe('strict staff report contracts', () => {
     const huge = {
       ...report,
       grossSales,
+      netRecordedSales: grossSales,
       transactionCount,
       unitsSold: transactionCount,
       payments: report.payments.map((p, i) => ({
@@ -152,6 +178,10 @@ describe('strict merchant own-sales contracts', () => {
     ownGrossSales: '25.00',
     ownTransactionCount: '1',
     ownUnitsSold: '2',
+    ownRefundedAmount: '0.00',
+    ownRefundCount: '0',
+    ownReturnedUnits: '0',
+    ownNetRecordedSales: '25.00',
   };
   it('accepts only own totals and distinct matching transaction counts', () => {
     expect(merchantSalesReportSchema.parse(own)).toEqual(own);
@@ -161,6 +191,7 @@ describe('strict merchant own-sales contracts', () => {
         ownGrossSales: '0.00',
         ownTransactionCount: '0',
         ownUnitsSold: '0',
+        ownNetRecordedSales: '0.00',
       }).success,
     ).toBe(true);
   });
@@ -199,6 +230,7 @@ describe('strict merchant own-sales contracts', () => {
       merchantSalesReportSchema.parse({
         ...own,
         ownGrossSales: '999999999999999999999999999999.01',
+        ownNetRecordedSales: '999999999999999999999999999999.01',
         ownTransactionCount: '9007199254740993',
         ownUnitsSold: '9007199254740994',
       }).ownTransactionCount,

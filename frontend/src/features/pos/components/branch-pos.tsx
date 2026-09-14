@@ -360,6 +360,7 @@ function ScopedBranchPos({
       return true;
     }
     function programmatic(event: Event) {
+      if (event.defaultPrevented) return;
       const href = (event as CustomEvent<{ href: string }>).detail?.href;
       if (typeof href === 'string' && !leaving(href)) event.preventDefault();
     }

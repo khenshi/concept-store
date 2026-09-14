@@ -44,6 +44,15 @@ const report: StaffSalesReport = {
   grossSales: '60.00',
   transactionCount: '3',
   unitsSold: '5',
+  refundedAmount: '0.00',
+  refundCount: '0',
+  returnedUnits: '0',
+  netRecordedSales: '60.00',
+  refundMethods: (['CASH', 'GCASH', 'CARD'] as const).map((paymentMethod) => ({
+    paymentMethod,
+    refundedAmount: '0.00',
+    refundCount: '0',
+  })),
   payments: [
     { paymentMethod: 'CASH', grossSales: '10.00', transactionCount: '1' },
     { paymentMethod: 'GCASH', grossSales: '20.00', transactionCount: '1' },
@@ -325,6 +334,7 @@ describe('staff Reports workspace', () => {
         report={{
           ...report,
           grossSales: '999999999999999999999999999999.01',
+          netRecordedSales: '999999999999999999999999999999.01',
           transactionCount: '9007199254740993',
           unitsSold: '9007199254740994',
         }}
@@ -339,6 +349,7 @@ describe('staff Reports workspace', () => {
         report={{
           ...report,
           grossSales: '0.00',
+          netRecordedSales: '0.00',
           transactionCount: '0',
           unitsSold: '0',
           payments: report.payments.map((p) => ({
@@ -351,7 +362,9 @@ describe('staff Reports workspace', () => {
     );
     expect(screen.getByRole('status')).toHaveTextContent('No completed sales');
     expect(
-      within(screen.getByRole('list')).getAllByRole('listitem'),
+      within(
+        screen.getByRole('list', { name: 'Payment breakdown' }),
+      ).getAllByRole('listitem'),
     ).toHaveLength(3);
     expect(
       screen.queryByRole('button', { name: /export|print/i }),
@@ -366,6 +379,10 @@ describe('staff Reports workspace', () => {
       ownGrossSales: '25.00',
       ownTransactionCount: '1',
       ownUnitsSold: '2',
+      ownRefundedAmount: '0.00',
+      ownRefundCount: '0',
+      ownReturnedUnits: '0',
+      ownNetRecordedSales: '25.00',
     };
     beforeEach(() => {
       context('MERCHANT');
@@ -437,6 +454,7 @@ describe('staff Reports workspace', () => {
               ...own,
               ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
               ownGrossSales: '0.00',
+              ownNetRecordedSales: '0.00',
               ownTransactionCount: '0',
               ownUnitsSold: '0',
             },
@@ -549,6 +567,7 @@ describe('staff Reports workspace', () => {
           report={{
             ...own,
             ownGrossSales: '999999999999999999999999999999.01',
+            ownNetRecordedSales: '999999999999999999999999999999.01',
             ownTransactionCount: '9007199254740993',
             ownUnitsSold: '9007199254740994',
           }}

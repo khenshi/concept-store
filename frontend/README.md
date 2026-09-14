@@ -44,3 +44,16 @@ Keep route files thin: they should compose feature components instead of owning
 business behavior. Feature-specific code stays inside its feature; only code
 that is genuinely reusable across domains belongs in `shared`. Tests are
 co-located with the implementation they exercise.
+
+## Refund workflow checks
+
+The focused return/refund feature lives in `src/features/refunds/`, composed into
+existing authorized sale detail. Run `npm test -- src/features/refunds` for strict
+staff/merchant contracts, all-page remaining quantities, live validation, explicit
+manual-money confirmation, locked unchanged-request recovery and read-only retry
+tests. Report refund/net presentation tests live beside Reports components.
+
+Attempts are memory-only and scoped to organization plus authenticated user; there
+are no persistent/offline refund drafts. jsdom models dialog open/close only and
+does not verify native focus containment, responsive layout or rendered zoom.
+New refund screens require their own browser QA or explicit waiver in final review.

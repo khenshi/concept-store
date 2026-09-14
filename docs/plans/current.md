@@ -3,7 +3,8 @@
 **Status:** Approved, including the recommended defaults; Part 1 persistence
 reviewed and committed as `a830c47`. Part 2 API reviewed and committed as
 `97c4b08`. Part 3 reads reviewed and committed as `7d21ede`. Part 4 report
-aggregation implemented, awaiting review; Parts 5–6 are not implemented.
+aggregation reviewed and committed as `975d471`. Part 5 frontend reviewed and
+approved for commit. Part 6 final verification is next.
 
 # Item Returns and Manual Refunds MVP
 
@@ -233,8 +234,28 @@ and 590 frontend tests pass. New coverage adds five unit, three HTTP,
 17 PostgreSQL and 21 frontend schema tests, including independent processing dates,
 negative periods, own mixed refunds, high capacity, concurrent snapshots,
 read-only preservation and private contract rejection. No schema/migration or
-infrastructure is added. Stop for review before committing Part 4; Parts 5–6
-remain excluded from this delivery.
+infrastructure is added. Reviewed and committed as `975d471`; Parts 5–6
+were excluded from that delivery.
+
+Part 5 delivery: existing staff sale detail adds a native return/refund dialog,
+saved paginated history/details and all-page remaining quantities; merchant detail
+shows strict reduced own-return records only, and cashiers mount no refund reads or
+controls. Input validates after 300 ms, immediately on blur/submit, with original-
+price estimates, zero-default original-placement restock and explicit already-
+refunded-money confirmation. Organization/actor memory attempts freeze command/ID
+through pending/unknown outcomes, block unsafe navigation/dismissal and require
+explicit unchanged-ID retry. Confirmed success refreshes reads; failed follow-up
+reads never replay POST. Fresh quantity conflicts require review, access denial
+clears saved records and obsolete reads cannot restore privileged data. Reports
+now require complete refund groups and display separate gross/refund/net cards,
+actual staff refund methods and own-only merchant figures with processing-date/
+negative-net guidance. Module/frontend docs reflect implemented behavior.
+Frontend changed-file formatting, lint, type checking, production build and 680
+tests across 82 files pass, including 90 new tests. An unchanged Inventory selector
+test initially raced branch loading; focused and full reruns passed without edits.
+No backend/schema/migration/infrastructure or database operation is added. New
+rendered refund QA and final regressions remain Part 6. Reviewed and approved
+for commit; the plan is not archived.
 
 1. Schema/migration, precise refund types, tenant-safe relationships and RETURN
    movement constraints; isolated PostgreSQL persistence tests and module docs.

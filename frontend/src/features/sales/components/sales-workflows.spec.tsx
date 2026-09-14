@@ -22,6 +22,7 @@ import {
 import { MerchantSalesBranches } from './merchant-sales-branches';
 import { BranchSales } from './branch-sales';
 import { SaleDetail } from './sale-detail';
+import { emptyPage } from '@/features/refunds/model/refund.test-fixtures';
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
   '@/features/organizations/components/organization-workspace-context',
@@ -198,7 +199,9 @@ describe('read-only scoped sales workflows', () => {
     expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
   });
   it('shows only own historical items on merchant detail without receipt printing', async () => {
-    request.mockResolvedValue(ownSale);
+    request.mockImplementation(async (path: string) =>
+      path.includes('/refunds') ? { ...emptyPage, scope: 'MERCHANT' } : ownSale,
+    );
     render(<SaleDetail {...scope} saleId={ownSale.id} />);
     await screen.findByText(product.name);
     expect(
@@ -217,7 +220,9 @@ describe('read-only scoped sales workflows', () => {
     'prints persisted detail for %s with no checkout writes',
     async (role) => {
       workspace(role);
-      request.mockResolvedValue(completedSale);
+      request.mockImplementation(async (path: string) =>
+        path.includes('/refunds') ? emptyPage : completedSale,
+      );
       const print = vi.spyOn(window, 'print').mockImplementation(() => {});
       render(<SaleDetail {...scope} saleId={completedSale.id} />);
       const button = await screen.findByRole('button', {
@@ -227,7 +232,13 @@ describe('read-only scoped sales workflows', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Refresh sale' }));
       await screen.findByRole('button', { name: 'Print internal receipt' });
       expect(print).toHaveBeenCalledTimes(1);
-      expect(request).toHaveBeenCalledTimes(2);
+      await waitFor(() =>
+        expect(
+          request.mock.calls.filter(
+            (call) => !(call[0] as string).includes('/refunds'),
+          ),
+        ).toHaveLength(2),
+      );
       expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
     },
   );
