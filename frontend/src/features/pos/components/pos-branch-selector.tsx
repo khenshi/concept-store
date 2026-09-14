@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
@@ -13,6 +13,10 @@ import {
   checkoutAttemptKey,
   getCheckoutAttempt,
 } from '../model/checkout-attempt';
+import {
+  getRefundAttempt,
+  refundAttemptKey,
+} from '@/features/refunds/model/refund-attempt';
 
 export function PosBranchSelector({
   organizationId,
@@ -20,12 +24,16 @@ export function PosBranchSelector({
   role,
   disabled = false,
   onAccessDenied,
+  preferredBranchId,
+  rememberBranch,
 }: {
   organizationId: string;
   branchId?: string;
   role: OrganizationRole;
   disabled?: boolean;
   onAccessDenied?(): void;
+  preferredBranchId?: string | null;
+  rememberBranch?(branchId: string): void;
 }) {
   const { request, user } = useAuth();
   const router = useRouter();
@@ -35,12 +43,15 @@ export function PosBranchSelector({
   > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const resumed = useRef<string | null>(null);
   useEffect(() => {
     let active = true;
     listPosBranches(request, organizationId, role)
       .then((result) => {
         if (!active) return;
         setBranches(result);
+        if (branchId && result.some((branch) => branch.id === branchId))
+          rememberBranch?.(branchId);
         if (branchId && !result.some((branch) => branch.id === branchId))
           onAccessDenied?.();
       })
@@ -56,7 +67,49 @@ export function PosBranchSelector({
     return () => {
       active = false;
     };
-  }, [request, organizationId, role, branchId, revision, onAccessDenied]);
+  }, [
+    request,
+    organizationId,
+    role,
+    branchId,
+    revision,
+    onAccessDenied,
+    rememberBranch,
+  ]);
+  function navigate(next: string) {
+    if (disabled) return false;
+    const attempt =
+      user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
+    const refund =
+      user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
+    if (
+      (attempt && attempt.state !== 'completed') ||
+      (refund && refund.state !== 'completed')
+    )
+      return false;
+    const href = `/app/organizations/${organizationId}/branches/${next}/pos`;
+    if (!allowPosNavigation(href)) return false;
+    resumed.current = next;
+    rememberBranch?.(next);
+    router.push(href);
+    return true;
+  }
+  useEffect(() => {
+    if (
+      branchId ||
+      !preferredBranchId ||
+      !branches ||
+      error ||
+      disabled ||
+      resumed.current === preferredBranchId
+    )
+      return;
+    if (
+      branches.some((branch) => branch.id === preferredBranchId) &&
+      navigate(preferredBranchId)
+    )
+      resumed.current = preferredBranchId;
+  });
   return (
     <div className="my-6 max-w-xl">
       <label htmlFor={id} className="mb-2 block text-sm font-medium text-ink">
@@ -76,12 +129,7 @@ export function PosBranchSelector({
             !branches?.some((branch) => branch.id === next)
           )
             return;
-          const attempt =
-            user &&
-            getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
-          if (attempt && attempt.state !== 'completed') return;
-          const href = `/app/organizations/${organizationId}/branches/${next}/pos`;
-          if (allowPosNavigation(href)) router.push(href);
+          navigate(next);
         }}
       >
         <option value="" disabled>
@@ -97,6 +145,16 @@ export function PosBranchSelector({
       {branches?.length === 0 ? (
         <p role="status" className="mt-3 text-sm text-muted">
           No accessible branches. Ask an owner to check your branch assignments.
+        </p>
+      ) : null}
+      {!branchId &&
+      preferredBranchId &&
+      branches &&
+      !error &&
+      !branches.some((branch) => branch.id === preferredBranchId) ? (
+        <p role="status" className="mt-3 text-sm text-muted">
+          The selected branch is unavailable in POS. Choose an accessible
+          branch.
         </p>
       ) : null}
       {error ? (

@@ -12,6 +12,15 @@ import type { ReportBranch } from '../model/report.schemas';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
 import { MerchantReportGuidance } from './merchant-report-guidance';
+import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
+import {
+  getCheckoutAttempt,
+  checkoutAttemptKey,
+} from '@/features/pos/model/checkout-attempt';
+import {
+  getRefundAttempt,
+  refundAttemptKey,
+} from '@/features/refunds/model/refund-attempt';
 
 export function ReportsEntry({ organizationId }: { organizationId: string }) {
   return (
@@ -33,13 +42,31 @@ function ScopedReportsEntry({
   organizationId: string;
   merchant: boolean;
 }) {
-  const { request } = useAuth();
-  const { refreshOrganization } = useOrganizationWorkspaceContext();
+  const { request, user } = useAuth();
+  const { refreshOrganization, selectedBranchId, setSelectedBranchId } =
+    useOrganizationWorkspaceContext();
   const router = useRouter();
   const [branches, setBranches] = useState<ReportBranch[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
+  const resumed = useRef<string | null>(null);
+  function navigate(branchId: string) {
+    const checkout =
+      user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
+    const refund =
+      user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
+    if (
+      (checkout && checkout.state !== 'completed') ||
+      (refund && refund.state !== 'completed')
+    )
+      return;
+    const href = `/app/organizations/${organizationId}/branches/${branchId}/reports`;
+    if (!allowPosNavigation(href)) return;
+    resumed.current = branchId;
+    setSelectedBranchId(branchId);
+    router.push(href);
+  }
   useEffect(() => {
     const current = ++generation.current;
     let active = true;
@@ -61,6 +88,15 @@ function ScopedReportsEntry({
       active = false;
     };
   }, [request, organizationId, revision]);
+  useEffect(() => {
+    if (
+      selectedBranchId &&
+      branches?.some((branch) => branch.id === selectedBranchId) &&
+      !error &&
+      resumed.current !== selectedBranchId
+    )
+      navigate(selectedBranchId);
+  });
   return (
     <OperationalPage>
       <PageHeader
@@ -75,12 +111,17 @@ function ScopedReportsEntry({
       <ReportBranchPicker
         branches={branches}
         loading={branches === null && error === null}
-        onChange={(branchId) =>
-          router.push(
-            `/app/organizations/${organizationId}/branches/${branchId}/reports`,
-          )
-        }
+        onChange={navigate}
       />
+      {selectedBranchId &&
+      branches &&
+      !error &&
+      !branches.some((branch) => branch.id === selectedBranchId) ? (
+        <p role="status" className="text-sm text-muted">
+          The selected branch is unavailable in Reports. Choose an accessible
+          branch.
+        </p>
+      ) : null}
       {branches?.length === 0 ? (
         <p role="status" className="text-sm text-muted">
           {merchant

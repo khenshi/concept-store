@@ -112,7 +112,11 @@ checklist is retained in the
 
 Inventory is now an organization sidebar/mobile destination for owners, managers
 and merchants, never cashiers. `/app/organizations/:organizationId/inventory`
-requires an explicit branch choice, even with one accessible branch. The labeled
+reuses the shared POS/Inventory/Reports branch only after its own accessible branch
+lookup validates it. Without a remembered choice, it requires explicit selection,
+even with one accessible branch. An unavailable choice shows access feedback and
+the picker, without a different-branch fallback or erasing another feature's choice.
+The labeled
 branch dropdown also appears in inventory directories and placement details.
 Options reuse existing authorized general branch reads: tenant branches for owners,
 assigned branches for managers and assignment/own-placement-accessible branches for
@@ -127,6 +131,16 @@ inputs. Pending placement/price/stock writes disable branch switching. User chan
 also reset scoped inventory state. Missing current-branch access or denied branch
 reads clear data and controls; old in-flight reads cannot restore cleared data.
 Branch selection includes loading, empty/unassigned and retryable failed-read states.
+
+Authorized explicit inventory branch URLs override the remembered choice. Inventory
+directory/detail dropdown changes also update the shared workspace branch after
+existing write/unsaved-edit and POS/refund navigation guards permit them. Cancellation
+preserves the remembered branch and edits. Organization/user/role changes clear
+selection; same-role access refresh revalidates it. This remembers only branch
+identity in memory, not filters or opening-stock defaults. Merchant historical
+Reports access never grants Inventory access. No inventory API/schema changes are
+included in this navigation refinement. Frontend checks pass with 702 tests across
+83 files; new rendered navigation/dropdown/focus QA remains pending final delivery.
 
 The navigation part does not change inventory APIs or stock rules. The Products
 create API now optionally creates one branch placement and balanced opening RECEIPT

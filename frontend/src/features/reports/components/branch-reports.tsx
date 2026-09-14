@@ -34,6 +34,15 @@ import { ReportDateFilter } from './report-date-filter';
 import { StaffReportSummary } from './staff-report-summary';
 import { MerchantReportSummary } from './merchant-report-summary';
 import { MerchantReportGuidance } from './merchant-report-guidance';
+import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
+import {
+  getCheckoutAttempt,
+  checkoutAttemptKey,
+} from '@/features/pos/model/checkout-attempt';
+import {
+  getRefundAttempt,
+  refundAttemptKey,
+} from '@/features/refunds/model/refund-attempt';
 
 export function BranchReports(props: {
   organizationId: string;
@@ -60,8 +69,9 @@ function ScopedBranchReports({
   branchId: string;
   merchant: boolean;
 }) {
-  const { request } = useAuth();
-  const { refreshOrganization } = useOrganizationWorkspaceContext();
+  const { request, user } = useAuth();
+  const { refreshOrganization, setSelectedBranchId } =
+    useOrganizationWorkspaceContext();
   const router = useRouter();
   const [draft, setDraft] = useState(todayInPhilippines);
   const [applied, setApplied] = useState<ReportDateRange>(draft);
@@ -100,6 +110,7 @@ function ScopedBranchReports({
         if (!active || current !== generation.current) return;
         setBranches(items);
         setReport(result);
+        setSelectedBranchId(branchId);
       } catch (cause) {
         if (!active || current !== generation.current) return;
         setReport(null);
@@ -120,7 +131,15 @@ function ScopedBranchReports({
     return () => {
       active = false;
     };
-  }, [request, organizationId, branchId, applied, revision, merchant]);
+  }, [
+    request,
+    organizationId,
+    branchId,
+    applied,
+    revision,
+    merchant,
+    setSelectedBranchId,
+  ]);
   const validDraft = reportDateRangeSchema.safeParse(draft).success;
   return (
     <OperationalPage>
@@ -138,10 +157,21 @@ function ScopedBranchReports({
         loading={loading}
         branchId={branchId}
         onChange={(next) => {
+          const checkout =
+            user &&
+            getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
+          const refund =
+            user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
+          if (
+            (checkout && checkout.state !== 'completed') ||
+            (refund && refund.state !== 'completed')
+          )
+            return;
+          const href = `/app/organizations/${organizationId}/branches/${next}/reports`;
+          if (!allowPosNavigation(href)) return;
+          setSelectedBranchId(next);
           invalidate();
-          router.push(
-            `/app/organizations/${organizationId}/branches/${next}/reports`,
-          );
+          router.push(href);
         }}
       />
       <OperationalPanel

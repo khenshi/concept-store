@@ -28,6 +28,8 @@ interface OrganizationWorkspaceContextValue {
   organizationStatus: Exclude<LoadStatus, 'idle'>;
   organizationError: string | null;
   refreshOrganization(): Promise<void>;
+  selectedBranchId: string | null;
+  setSelectedBranchId(branchId: string): void;
   branches: BranchView[];
   branchesStatus: LoadStatus;
   branchesError: string | null;
@@ -46,9 +48,10 @@ export function OrganizationWorkspaceProvider(props: {
   organizationId: string;
   children: ReactNode;
 }) {
+  const { user } = useAuth();
   return (
     <ScopedOrganizationWorkspaceProvider
-      key={props.organizationId}
+      key={`${props.organizationId}:${user?.id ?? ''}`}
       {...props}
     />
   );
@@ -78,6 +81,33 @@ function ScopedOrganizationWorkspaceProvider({
   const branchesStatusRef = useRef<LoadStatus>('idle');
   const branchGeneration = useRef(0);
   const organizationGeneration = useRef(0);
+  const [selection, setSelection] = useState<{
+    branchId: string;
+    role: OrganizationAccess['role'];
+  } | null>(null);
+  const currentRole = useRef<OrganizationAccess['role'] | null>(null);
+  const [accessGeneration, setAccessGeneration] = useState(0);
+  const setSelectedBranchId = useCallback(
+    (branchId: string) => {
+      if (
+        !organization ||
+        organization.id !== organizationId ||
+        !branchId ||
+        accessGeneration !== organizationGeneration.current
+      )
+        return;
+      setSelection((previous) =>
+        previous?.branchId === branchId && previous.role === organization.role
+          ? previous
+          : { branchId, role: organization.role },
+      );
+    },
+    [organization, organizationId, accessGeneration],
+  );
+  const selectedBranchId =
+    organization?.role === selection?.role
+      ? (selection?.branchId ?? null)
+      : null;
 
   const clearBranches = useCallback(() => {
     branchGeneration.current += 1;
@@ -91,6 +121,7 @@ function ScopedOrganizationWorkspaceProvider({
 
   const refreshOrganization = useCallback(async () => {
     const generation = ++organizationGeneration.current;
+    setAccessGeneration(generation);
     clearBranches();
     setOrganization(null);
     setOrganizationStatus('loading');
@@ -98,6 +129,8 @@ function ScopedOrganizationWorkspaceProvider({
     try {
       const result = await getOrganization(request, organizationId);
       if (generation !== organizationGeneration.current) return;
+      if (currentRole.current !== result.role) setSelection(null);
+      currentRole.current = result.role;
       setOrganization(result);
       setOrganizationStatus('ready');
     } catch (cause: unknown) {
@@ -112,9 +145,12 @@ function ScopedOrganizationWorkspaceProvider({
   useEffect(() => {
     let active = true;
     const generation = ++organizationGeneration.current;
+    setAccessGeneration(generation);
     void getOrganization(request, organizationId)
       .then((result) => {
         if (!active || generation !== organizationGeneration.current) return;
+        if (currentRole.current !== result.role) setSelection(null);
+        currentRole.current = result.role;
         setOrganization(result);
         setOrganizationStatus('ready');
       })
@@ -194,6 +230,8 @@ function ScopedOrganizationWorkspaceProvider({
       organizationStatus,
       organizationError,
       refreshOrganization,
+      selectedBranchId,
+      setSelectedBranchId,
       branches,
       branchesStatus,
       branchesError,
@@ -206,6 +244,8 @@ function ScopedOrganizationWorkspaceProvider({
       organizationStatus,
       organizationError,
       refreshOrganization,
+      selectedBranchId,
+      setSelectedBranchId,
       branches,
       branchesStatus,
       branchesError,

@@ -185,6 +185,20 @@ Old staff `.../sales` and `.../sales/:saleId` deep links redirect to their POS
 equivalents; merchants continue using these separate own-sale routes without POS
 access. Pending/uncertain checkout prevents hiding recovery behind History.
 
+POS now shares its selected branch with Inventory and Reports through the persistent
+organization workspace. Organization POS entry reuses the remembered branch only
+after the existing authorized POS branch lookup validates access. With no choice,
+selection remains explicit even for one branch; inaccessible remembered choices
+show the picker/access feedback without fallback. Authorized explicit POS URLs
+take precedence, including the shared history shell. Dropdown changes update the
+common branch only after current pending/unknown checkout/refund and cart-discard
+navigation guards permit the transition. Cancelled changes preserve the choice.
+Organization/user/role changes reset it; same-role access refresh revalidates it.
+The preference is memory-only, not a persistent cart/draft or an access grant.
+Merchant POS denial, cashier assignments and existing sale/payment/receipt contracts
+are unchanged. Frontend checks pass with 702 tests across 83 files; new rendered
+navigation/dropdown/focus QA remains pending the final refinement part.
+
 Branch details expose sales history for owners/managers/cashiers and own sales for
 merchants. POS completion links to its saved receipt within History. Staff
 lists show receipt code/time, saved branch identity, exact total and saved cashier/

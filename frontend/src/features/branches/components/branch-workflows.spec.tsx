@@ -105,6 +105,8 @@ beforeEach(() => {
     organizationStatus: 'ready',
     organizationError: null,
     refreshOrganization,
+    selectedBranchId: null,
+    setSelectedBranchId: vi.fn(),
     branches: [branch, secondBranch],
     branchesStatus: 'ready',
     branchesError: null,

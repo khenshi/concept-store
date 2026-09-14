@@ -47,7 +47,7 @@ function ScopedInventoryDirectory({
   branchId,
 }: InventoryScope) {
   const { request } = useAuth();
-  const { organization, organizationStatus } =
+  const { organization, organizationStatus, setSelectedBranchId } =
     useOrganizationWorkspaceContext();
   const allowed =
     organization?.role === 'OWNER' ||
@@ -160,6 +160,7 @@ function ScopedInventoryDirectory({
         role={organization!.role}
         disabled={pending}
         onAccessDenied={accessLost}
+        rememberBranch={setSelectedBranchId}
         beforeChange={() => {
           if (
             pending ||

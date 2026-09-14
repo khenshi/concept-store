@@ -142,12 +142,25 @@ instead of Branches:
 /app/organizations/:organizationId/branches/:branchId/reports
 ```
 
-The organization entry reads only the Reports identity lookup and requires an
-explicit branch choice, even with one accessible branch. There is no All branches
+The organization entry reads only the Reports identity lookup and reuses the shared
+POS/Inventory/Reports branch if that lookup grants access. With no remembered choice,
+it requires explicit branch selection, even with one accessible branch. An
+inaccessible choice shows access feedback and the picker without selecting an
+alternative or discarding another feature's valid preference. There is no All branches
 total or silent fallback. The branch workspace rechecks the lookup before its
 summary read and offers a labeled branch dropdown without a back button. Cashiers
 cannot mount report reads. Merchants use the separate own-only view below;
 existing merchant Sales remains unchanged.
+
+Authorized explicit Reports URLs override the remembered choice after their scoped
+report read succeeds. Reports dropdown changes update the common workspace branch
+only after pending/unknown checkout/refund and programmatic navigation guards permit
+the transition. Organization/user/role changes clear selection; same-role access
+refresh revalidates it. Reports historical merchant choices never grant Inventory
+or POS access. Only branch identity is remembered in memory; applied date reset
+rules and report contracts are unchanged. Frontend checks pass with 702 tests
+across 83 files; new rendered navigation/dropdown/focus QA remains pending final
+delivery, independently of earlier Reports/refund QA waivers.
 
 From/Through inputs are visibly labeled Philippines, inclusive (`Asia/Manila`).
 Today is computed in that timezone independently of browser timezone. Fields
@@ -178,7 +191,8 @@ feedback and safe read-only retry/access-refresh actions.
 ## Merchant workspace
 
 Merchants now have Reports in sidebar/mobile navigation, alongside unchanged
-read-only Sales. The same thin routes require explicit branch selection and use
+read-only Sales. The same thin routes reuse the validated remembered branch or
+require explicit selection when no usable choice exists, and use
 the Reports identity lookup, not general branch/address/inventory or profile
 directory reads. Assigned and historical own-selling branches remain selectable
 regardless of the applied period; an empty period does not remove historical

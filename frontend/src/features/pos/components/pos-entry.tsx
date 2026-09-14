@@ -20,6 +20,8 @@ export function PosEntry({ organizationId }: { organizationId: string }) {
     organizationStatus,
     organizationError,
     refreshOrganization,
+    selectedBranchId,
+    setSelectedBranchId,
   } = useOrganizationWorkspaceContext();
   const attempt = useCheckoutAttempt(
     checkoutAttemptKey(organizationId, user?.id ?? ''),
@@ -55,6 +57,8 @@ export function PosEntry({ organizationId }: { organizationId: string }) {
         organizationId={organizationId}
         role={organization.role}
         disabled={Boolean(unresolved)}
+        preferredBranchId={selectedBranchId}
+        rememberBranch={setSelectedBranchId}
       />
       {unresolved ? (
         <p role="alert">

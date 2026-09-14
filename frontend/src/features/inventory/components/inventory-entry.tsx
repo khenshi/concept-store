@@ -15,6 +15,8 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
     organizationStatus,
     organizationError,
     refreshOrganization,
+    selectedBranchId,
+    setSelectedBranchId,
   } = useOrganizationWorkspaceContext();
   if (!organization || organization.id !== organizationId)
     return (
@@ -53,6 +55,8 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
         key={`${organizationId}:${user?.id}:${organization.role}`}
         organizationId={organizationId}
         role={organization.role}
+        preferredBranchId={selectedBranchId}
+        rememberBranch={setSelectedBranchId}
       />
     </OperationalPage>
   );

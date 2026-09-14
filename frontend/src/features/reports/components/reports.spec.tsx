@@ -62,11 +62,14 @@ const report: StaffSalesReport = {
 const request = vi.fn();
 const push = vi.fn();
 const refreshOrganization = vi.fn();
+const setSelectedBranchId = vi.fn();
 function context(role = 'OWNER', id = 'org', status = 'ready') {
   vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
     organization: { id, name: 'Store', role },
     organizationStatus: status,
     refreshOrganization,
+    selectedBranchId: null,
+    setSelectedBranchId,
   } as unknown as ReturnType<typeof useOrganizationWorkspaceContext>);
 }
 function deferred<T>() {

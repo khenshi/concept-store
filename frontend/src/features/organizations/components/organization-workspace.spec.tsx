@@ -25,6 +25,8 @@ function context(
     organizationStatus: status,
     organizationError: 'Workspace unavailable',
     refreshOrganization,
+    selectedBranchId: null,
+    setSelectedBranchId: vi.fn(),
     branches: [],
     branchesStatus: 'idle',
     branchesError: null,

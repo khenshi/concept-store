@@ -67,3 +67,27 @@ Workspace scope changes reset cached data. Access refresh clears branch cache;
 obsolete branch responses cannot restore data from an earlier access scope.
 The branch directory refreshes accessible branches on entry. Access checks are
 performed by the backend on current membership/assignments, not cached JWT claims.
+
+The persistent organization workspace holds one in-memory selected branch ID shared
+by POS, Inventory and Reports. Each feature validates the remembered choice with
+its own authorized branch lookup before reusing it; remembering an ID is never an
+access grant. With no choice, the existing explicit picker remains. If unavailable
+for the destination, that feature shows its picker/access feedback without choosing
+an alternative or erasing a choice still valid for another feature.
+
+Validated explicit branch routes take precedence. Dropdown changes update the
+shared choice only after navigation/write/unsaved-change guards allow the change.
+Organization switching resets the choice, including returning to the old tenant;
+user changes/sign-out reset both choice and workspace caches. Current role changes
+clear the choice permanently. Same-role access refresh retains the preference but
+forces feature lookups to revalidate; callbacks from older access generations
+cannot overwrite it. No local/session storage, full-reload persistence, form/date
+preference or new API/schema is added.
+
+Shared branch integration passes frontend formatting, lint, type checking, build
+and 702 tests across 83 files. The 22 new tests cover cross-page reuse, authorized
+direct-route precedence, explicit empty choices, feature-specific access, merchant
+historical Reports versus Inventory/POS, tenant/user/role resets, access-refresh
+callback invalidation, late lookups, cancelled changes and unresolved checkout/
+refund locks. New rendered navigation/dropdown/focus QA remains the final part;
+earlier milestone waivers do not cover this refinement.

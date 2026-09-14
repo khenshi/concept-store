@@ -99,6 +99,7 @@ function ScopedBranchPos({
   history,
 }: BranchPosProps & { role: 'OWNER' | 'MANAGER' | 'CASHIER' }) {
   const { request, user } = useAuth();
+  const { setSelectedBranchId } = useOrganizationWorkspaceContext();
   const attemptKey = checkoutAttemptKey(organizationId, user?.id ?? '');
   const attempt = useCheckoutAttempt(attemptKey);
   const recovering = Boolean(
@@ -677,6 +678,7 @@ function ScopedBranchPos({
         role={role}
         disabled={paying || recovering || !branchReady || Boolean(branchError)}
         onAccessDenied={denyAccess}
+        rememberBranch={setSelectedBranchId}
       />
       <nav
         aria-label="POS pages"
