@@ -26,3 +26,9 @@ The completed branch POS checkout and sales implementation record, with final
 verification and a separate September 13, 2026 rendered-QA waiver, is retained in
 [`branch-pos-checkout-and-sales-2026-09-13.md`](branch-pos-checkout-and-sales-2026-09-13.md).
 All seven parts were reviewed and approved; this record does not authorize new work.
+
+The completed Inventory navigation and optional new-product opening-stock record,
+including all three reviewed commits and the September 14, 2026 rendered-QA waiver,
+is retained in
+[`inventory-navigation-and-optional-opening-stock-2026-09-14.md`](inventory-navigation-and-optional-opening-stock-2026-09-14.md).
+This historical record does not authorize additional implementation.
