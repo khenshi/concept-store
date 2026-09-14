@@ -10,8 +10,19 @@ constraints, exact monetary capacity, manual methods, duplicate command/line key
 zero/partial/full restock representation, exact positive RETURN linkage, rollback,
 preserved source snapshots/actors and private inventory projections. An upgrade
 fixture creates sales and RECEIPT/SALE movements before the refund migration and
-verifies unchanged data afterward. These tests validate persistence only; they do
-not imply that the refund command/read/report/frontend workflow is implemented.
+verifies unchanged data afterward. That suite validates persistence only.
+
+The separate refund-command suite exercises the real create/replay service:
+partial/full/multiple returns, original-price exact arithmetic and 100-line maximum
+capacity, manual methods, current roles/grants/deleted users, foreign source items,
+canonical/conflicting replay, inactive original placements, zero restock and
+whole-command stock-overflow rollback. Temporary schema-local triggers inject
+Refund/RefundItem/RETURN-movement write failures and are removed in finally blocks.
+Concurrent over-return, identical/conflicting commands and checkout/receipt/
+adjustment races reconcile immutable ledger history with stock. Test-side explicit
+unchanged-command retries model 409 recovery; the API never silently retries writes.
+Refund reads/report figures/forms remain later parts. Full backend regressions now
+pass 354 unit, 169 HTTP and 200 PostgreSQL tests across six integration suites.
 
 Reports tests validate staff/merchant database aggregation, fixed payment
 reconciliation, distinct own transactions in mixed sales, exact high-capacity

@@ -6,9 +6,11 @@ merchant reports remain own-item-only and never expose payment/whole-sale totals
 
 **Status:** Implemented, including staff POS history/receipts and separate read-only merchant own-sale screens. Rendered QA explicitly waived September 13, 2026, separately for the original milestone and navigation refinement.
 
-The [Refund persistence foundation](refunds.md) now references original sales and
-saved items with tenant-safe keys. No refund API or workflow is available yet;
-these original sale/checkout/history contracts remain unchanged.
+The separate [manual refund API](refunds.md) references original sales and saved
+items with tenant-safe keys. It records partial/full whole-item returns and optional
+original-placement restocking without editing the sale. These original
+sale/checkout/history contracts remain unchanged; refund reads/forms are not yet
+available.
 
 ## Implemented scope
 
@@ -41,7 +43,8 @@ merchant consistency. A sale cannot repeat a placement.
 The database checks are row-local. The checkout service additionally derives the
 sum of all items and creates every matching deduction in one transaction. There
 is no sale/item update or delete endpoint, payment entity, pending-sale state,
-or refund workflow. The POS completion screen supports internal receipt printing.
+or sale-edit workflow. The separate refund API preserves these original records.
+The POS completion screen supports internal receipt printing.
 
 ## Checkout API and authorization
 

@@ -110,6 +110,16 @@ describe('InventoryDetail workflows', () => {
       screen.queryByRole('button', { name: /delete movement|edit movement/i }),
     ).not.toBeInTheDocument();
   });
+  it('labels positive return movements as returns, not adjustments', async () => {
+    vi.mocked(listMovements).mockResolvedValue([
+      { ...movement, type: 'RETURN', reason: 'Returned goods restocked' },
+    ]);
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Returned goods restocked');
+    expect(
+      screen.getByLabelText('Inventory movement history'),
+    ).toHaveTextContent('Return');
+  });
   it('shows own merchant history without actors or any stock writes', async () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { role: 'MERCHANT' },

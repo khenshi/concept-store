@@ -118,6 +118,18 @@ describe('Branch inventory API contracts', () => {
       }),
     );
   });
+  it('accepts positive returns while stripping private links and merchant actors', async () => {
+    const returned = { ...movement, type: 'RETURN', quantityChange: 1 };
+    request.mockResolvedValue([{ ...returned, refundItemId: 'private-link' }]);
+    await expect(listMovements(request, scope)).resolves.toEqual([returned]);
+    const { createdById, ...own } = returned;
+    expect(createdById).toBe(movement.createdById);
+    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual([
+      own,
+    ]);
+    request.mockResolvedValue([{ ...returned, quantityChange: -1 }]);
+    await expect(listMovements(request, scope)).rejects.toThrow();
+  });
   it.each([
     { quantity: -1 },
     { sellingPrice: 850 },

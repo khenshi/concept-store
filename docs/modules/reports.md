@@ -6,10 +6,13 @@
 
 Read-only summaries of completed branch sales, using persisted Sale/SaleItem
 amounts and quantities. Reports describe gross recorded sales, not profit, net
-sales, cash available, commissions or merchant payouts. No refunds, shifts,
+sales, cash available, commissions or merchant payouts. No refund figures, shifts,
 settlements, exports, rankings, trends, printing or payment verification are
 provided. Reports never mutate sales, inventory, payments or ledger history.
 No report entities, migration, analytics infrastructure or new indexes are added.
+The [manual refund create API](refunds.md) is implemented separately, but current
+Reports do not subtract or summarize those records. Refund-aware/net reporting
+remains a later approved part; current totals must still be interpreted as gross.
 
 ## API
 

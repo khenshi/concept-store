@@ -343,7 +343,9 @@ function ScopedInventoryDetail({
                       ? 'Receipt'
                       : movement.type === 'SALE'
                         ? 'Sale'
-                        : 'Adjustment'}
+                        : movement.type === 'RETURN'
+                          ? 'Return'
+                          : 'Adjustment'}
                   </strong>
                   <p className="mt-1 text-sm">{movement.reason}</p>
                   <p className="mt-2 text-xs text-muted">

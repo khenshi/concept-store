@@ -2,10 +2,12 @@
 
 **Status:** Implemented; original inventory and current navigation/opening-stock rendered QA explicitly waived.
 
-The [Refund persistence foundation](refunds.md) adds a constrained positive RETURN
-movement with a private refund-item link. No existing inventory command creates
-this movement, and no refund workflow is available yet. Existing response
-selections omit both private sale/refund links and retain merchant actor exclusion.
+The [manual refund API](refunds.md) atomically creates constrained positive RETURN
+movements when staff restock original sold placements. Existing receipt/adjustment
+commands do not create returns. Response selections omit private sale/refund links
+and retain merchant actor exclusion. Inventory schemas accept positive RETURN
+deltas and the existing history labels them Return, not Adjustment. Refund reasons
+are not exposed through stock history; RETURN uses Returned goods restocked.
 
 ## Responsibilities
 

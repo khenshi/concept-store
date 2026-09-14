@@ -72,7 +72,7 @@ const movementObjectSchema = z.object({
   organizationId: z.uuidv4(),
   branchId: z.uuidv4(),
   branchInventoryId: z.uuidv4(),
-  type: z.enum(['RECEIPT', 'ADJUSTMENT', 'SALE']),
+  type: z.enum(['RECEIPT', 'ADJUSTMENT', 'SALE', 'RETURN']),
   quantityChange: z
     .number()
     .int()
@@ -87,16 +87,17 @@ const movementObjectSchema = z.object({
 });
 const validReceipt = (value: { type: string; quantityChange: number }) =>
   (value.type !== 'RECEIPT' || value.quantityChange > 0) &&
+  (value.type !== 'RETURN' || value.quantityChange > 0) &&
   (value.type !== 'SALE' || value.quantityChange < 0);
 export const merchantMovementSchema = movementObjectSchema
   .omit({ createdById: true })
   .refine(
     validReceipt,
-    'Receipt delta must be positive; sale delta must be negative.',
+    'Receipt/return delta must be positive; sale delta must be negative.',
   );
 export const movementResponseSchema = movementObjectSchema.refine(
   validReceipt,
-  'Receipt delta must be positive; sale delta must be negative.',
+  'Receipt/return delta must be positive; sale delta must be negative.',
 );
 export const movementListSchema = z.array(movementResponseSchema);
 export const inventoryBranchSchema = z.object({

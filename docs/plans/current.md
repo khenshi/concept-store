@@ -1,7 +1,8 @@
 # Current Implementation Plan
 
 **Status:** Approved, including the recommended defaults; Part 1 persistence
-implemented and ready for review, not committed. Parts 2–6 are not implemented.
+reviewed and committed as `a830c47`. Part 2 API implemented, awaiting review;
+Parts 3–6 are not implemented.
 
 # Item Returns and Manual Refunds MVP
 
@@ -180,7 +181,23 @@ Prisma format/validate/generate and backend format/lint/build, 329 unit tests,
 includes pre-migration history preservation, field/relationship/capacity checks,
 rollback and private projections. One unchanged POS HTTP assertion initially
 failed with 404 and passed in the subsequent full rerun; no POS code was changed.
-Refund/Sales/Inventory/test docs are updated. Stop for review before committing.
+Refund/Sales/Inventory/test docs are updated. Reviewed and committed as `a830c47`.
+
+Part 2 delivery: staff-only create/refund replay API with fresh transaction-level
+membership/non-deleted-user/role/branch checks, strict normalized command and explicit
+manual refund confirmation. Original-price totals, cumulative quantity limits,
+bounded original-placement restocking and linked positive RETURN ledger writes are
+atomic. Replay compares original actor and canonical command before remaining/live
+checks; serialization/deadlock recovery is read-only and otherwise asks for explicit
+unchanged-ID retry. Responses/OpenAPI exclude private request/command/actor fields.
+Minimal existing inventory-history compatibility accepts/labels RETURN without adding
+a refund form or changing inventory mutation permissions. Refund/Sales/Inventory/
+Reports/test docs distinguish implemented commands from later reads/report figures.
+Backend format/lint/build, 354 unit, 169 HTTP and 200 disposable PostgreSQL tests
+pass, including 25 new service, 36 HTTP and 19 real command tests. Frontend
+format/lint/typecheck/build and 569 tests across 75 files verify RETURN compatibility.
+Stop for review;
+Part 2 is not committed. Parts 3–6 remain excluded from this delivery.
 
 1. Schema/migration, precise refund types, tenant-safe relationships and RETURN
    movement constraints; isolated PostgreSQL persistence tests and module docs.
