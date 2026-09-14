@@ -3,6 +3,36 @@ import { moneyCents } from '@/features/pos/model/checkout';
 
 const amount = z.string().regex(/^(?:0|[1-9]\d*)\.\d{2}$/);
 const integer = z.string().regex(/^(?:0|[1-9]\d*)$/);
+const signedAmount = z.string().regex(/^(?!-0\.00$)-?(?:0|[1-9]\d*)\.\d{2}$/);
+const refundMethodSchema = z
+  .object({
+    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
+    refundedAmount: amount,
+    refundCount: integer,
+  })
+  .strict();
+function validRefunds(
+  gross: string,
+  refunded: string,
+  count: string,
+  units: string,
+  net: string,
+) {
+  if (
+    !amount.safeParse(gross).success ||
+    !amount.safeParse(refunded).success ||
+    !integer.safeParse(count).success ||
+    !integer.safeParse(units).success ||
+    !signedAmount.safeParse(net).success
+  )
+    return false;
+  return (
+    BigInt(net.replace('.', '')) === moneyCents(gross) - moneyCents(refunded) &&
+    (BigInt(count) === BigInt(0)
+      ? moneyCents(refunded) === BigInt(0) && BigInt(units) === BigInt(0)
+      : moneyCents(refunded) > BigInt(0) && BigInt(units) >= BigInt(count))
+  );
+}
 const utc = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/)
@@ -45,9 +75,71 @@ export const staffSalesReportSchema = z
     transactionCount: integer,
     unitsSold: integer,
     payments: paymentSchema.array().length(3),
+    // Transitional compatibility: accept legacy gross-only reports, but an expanded
+    // response must provide and reconcile the entire refund group. Cards arrive later.
+    refundedAmount: amount.optional(),
+    refundCount: integer.optional(),
+    returnedUnits: integer.optional(),
+    netRecordedSales: signedAmount.optional(),
+    refundMethods: refundMethodSchema.array().length(3).optional(),
   })
   .strict()
   .superRefine((report, context) => {
+    if (
+      [
+        report.refundedAmount,
+        report.refundCount,
+        report.returnedUnits,
+        report.netRecordedSales,
+        report.refundMethods,
+      ].some((value) => value !== undefined)
+    ) {
+      const {
+        refundedAmount,
+        refundCount,
+        returnedUnits,
+        netRecordedSales,
+        refundMethods,
+      } = report;
+      if (
+        refundedAmount === undefined ||
+        refundCount === undefined ||
+        returnedUnits === undefined ||
+        netRecordedSales === undefined ||
+        refundMethods === undefined ||
+        !validRefunds(
+          report.grossSales,
+          refundedAmount,
+          refundCount,
+          returnedUnits,
+          netRecordedSales,
+        ) ||
+        refundMethods.some(
+          (row) =>
+            !amount.safeParse(row.refundedAmount).success ||
+            !integer.safeParse(row.refundCount).success,
+        ) ||
+        new Set(refundMethods.map((row) => row.paymentMethod)).size !== 3 ||
+        refundMethods.reduce(
+          (sum, row) => sum + moneyCents(row.refundedAmount),
+          BigInt(0),
+        ) !== moneyCents(refundedAmount) ||
+        refundMethods.reduce(
+          (sum, row) => sum + BigInt(row.refundCount),
+          BigInt(0),
+        ) !== BigInt(refundCount) ||
+        refundMethods.some(
+          (row) =>
+            (BigInt(row.refundCount) === BigInt(0)) !==
+            (moneyCents(row.refundedAmount) === BigInt(0)),
+        )
+      )
+        context.addIssue({
+          code: 'custom',
+          message:
+            'Refund totals, methods and net recorded sales do not reconcile.',
+        });
+    }
     if (
       !reportQuerySchema.safeParse({ from: report.from, until: report.until })
         .success
@@ -106,9 +198,45 @@ export const merchantSalesReportSchema = z
     ownGrossSales: amount,
     ownTransactionCount: integer,
     ownUnitsSold: integer,
+    ownRefundedAmount: amount.optional(),
+    ownRefundCount: integer.optional(),
+    ownReturnedUnits: integer.optional(),
+    ownNetRecordedSales: signedAmount.optional(),
   })
   .strict()
   .superRefine((report, context) => {
+    if (
+      [
+        report.ownRefundedAmount,
+        report.ownRefundCount,
+        report.ownReturnedUnits,
+        report.ownNetRecordedSales,
+      ].some((value) => value !== undefined)
+    ) {
+      const {
+        ownRefundedAmount,
+        ownRefundCount,
+        ownReturnedUnits,
+        ownNetRecordedSales,
+      } = report;
+      if (
+        ownRefundedAmount === undefined ||
+        ownRefundCount === undefined ||
+        ownReturnedUnits === undefined ||
+        ownNetRecordedSales === undefined ||
+        !validRefunds(
+          report.ownGrossSales,
+          ownRefundedAmount,
+          ownRefundCount,
+          ownReturnedUnits,
+          ownNetRecordedSales,
+        )
+      )
+        context.addIssue({
+          code: 'custom',
+          message: 'Own refunds and net recorded sales do not reconcile.',
+        });
+    }
     if (
       !reportQuerySchema.safeParse({ from: report.from, until: report.until })
         .success

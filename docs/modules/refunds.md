@@ -1,8 +1,8 @@
 # Item Returns and Manual Refunds
 
-**Status:** Persistence, create/replay API and staff/merchant refund history/detail
-with remaining-quantity reads implemented. Refund-aware reports and refund forms
-are not implemented yet.
+**Status:** Persistence, create/replay API, staff/merchant history/detail with
+remaining quantities and refund-aware Reports API implemented. Refund forms and
+rendered report refund/net cards are not implemented yet.
 
 ## Implemented scope
 
@@ -10,7 +10,8 @@ Refund and RefundItem records preserve partial/full whole-item returns against a
 immutable completed sale. The create API records manually issued refunds and
 optionally restocks original placements through linked RETURN movements. Existing
 checkout, sale/history responses and receipt/adjustment commands are unchanged.
-Reports still describe gross sales only, without refund/net figures. Existing
+Reports API now summarizes gross/refunded/net sales by separate sale and refund
+completion dates, while existing report cards remain gross-only. Existing
 inventory screens accept positive RETURN history and label it Return; no refund
 dialog or new inventory stock command is added.
 
@@ -188,7 +189,7 @@ remaining quantities and rows within a response. Reads never mutate sales,
 refunds, stock or movements. Original saved prices/names/ownership/branch identity
 survive current price, name and lifecycle edits. Swagger describes separate
 scope-discriminated staff and merchant list/detail schemas. Refund forms and
-report deduction/aggregation remain later parts, not implied by these routes.
+rendered report refund/net cards remain later parts, not implied by these routes.
 
 ## Persistence verification
 

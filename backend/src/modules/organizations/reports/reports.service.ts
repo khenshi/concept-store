@@ -9,13 +9,29 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { branchScope } from '../authorization/resource-access';
 import type { SalesReportQueryDto } from './dto/sales-report-query.dto';
-import type { ReportPaymentResponseDto, SalesReport } from './reports.types';
+import type {
+  ReportPaymentResponseDto,
+  ReportRefundMethodResponseDto,
+  SalesReport,
+} from './reports.types';
 
 type Aggregate = {
   grossSales: string;
   transactionCount: string;
   unitsSold: string;
 };
+type RefundAggregate = {
+  refundedAmount: string;
+  refundCount: string;
+  returnedUnits: string;
+};
+// Aggregate money has no single-sale size limit; integer cents avoid Decimal precision caps.
+export function netRecordedSales(gross: string, refunded: string) {
+  const cents =
+    BigInt(gross.replace('.', '')) - BigInt(refunded.replace('.', ''));
+  const absolute = cents < 0n ? -cents : cents;
+  return `${cents < 0n ? '-' : ''}${absolute / 100n}.${(absolute % 100n).toString().padStart(2, '0')}`;
+}
 const identitySelect = { id: true, name: true, code: true } as const;
 
 @Injectable()
@@ -87,6 +103,14 @@ export class ReportsService {
             ownGrossSales: own.grossSales,
             ownTransactionCount: own.transactionCount,
             ownUnitsSold: own.unitsSold,
+            ...(await this.ownRefunds(
+              tx,
+              current,
+              branchId,
+              from,
+              until,
+              own.grossSales,
+            )),
           };
         }
         const [summary] = await tx.$queryRaw<Aggregate[]>(Prisma.sql`
@@ -116,10 +140,78 @@ export class ReportsService {
               transactionCount: '0',
             },
         );
-        return { ...range, scope: 'STAFF', ...summary, payments };
+        const [refunds] = await tx.$queryRaw<RefundAggregate[]>(Prisma.sql`
+          WITH matched_refunds AS (
+            SELECT "id", "total" FROM "Refund"
+            WHERE "organizationId" = ${current.organizationId} AND "branchId" = ${branchId}
+              AND "completedAt" >= ${from} AND "completedAt" < ${until}
+          )
+          SELECT COALESCE(SUM("total")::text, '0.00') AS "refundedAmount", COUNT(*)::text AS "refundCount",
+            (SELECT COALESCE(SUM(i."quantity"::numeric)::text, '0') FROM "RefundItem" i JOIN matched_refunds r ON r."id" = i."refundId"
+             WHERE i."organizationId" = ${current.organizationId} AND i."branchId" = ${branchId}) AS "returnedUnits"
+          FROM matched_refunds
+        `);
+        const refundRows = await tx.$queryRaw<
+          ReportRefundMethodResponseDto[]
+        >(Prisma.sql`
+          SELECT "paymentMethod", SUM("total")::text AS "refundedAmount", COUNT(*)::text AS "refundCount"
+          FROM "Refund" WHERE "organizationId" = ${current.organizationId} AND "branchId" = ${branchId}
+            AND "completedAt" >= ${from} AND "completedAt" < ${until}
+          GROUP BY "paymentMethod"
+        `);
+        const refundMethods = (['CASH', 'GCASH', 'CARD'] as const).map(
+          (paymentMethod) =>
+            refundRows.find((row) => row.paymentMethod === paymentMethod) ?? {
+              paymentMethod,
+              refundedAmount: '0.00',
+              refundCount: '0',
+            },
+        );
+        return {
+          ...range,
+          scope: 'STAFF',
+          ...summary,
+          payments,
+          ...refunds,
+          netRecordedSales: netRecordedSales(
+            summary.grossSales,
+            refunds.refundedAmount,
+          ),
+          refundMethods,
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
+  }
+
+  private async ownRefunds(
+    tx: Prisma.TransactionClient,
+    context: OrganizationContext,
+    branchId: string,
+    from: Date,
+    until: Date,
+    gross: string,
+  ) {
+    const own = context.merchantId
+      ? (
+          await tx.$queryRaw<RefundAggregate[]>(Prisma.sql`
+      SELECT COALESCE(SUM(i."lineTotal")::text, '0.00') AS "refundedAmount",
+        COUNT(DISTINCT i."refundId")::text AS "refundCount",
+        COALESCE(SUM(i."quantity"::numeric)::text, '0') AS "returnedUnits"
+      FROM "RefundItem" i JOIN "Refund" r
+        ON r."id" = i."refundId" AND r."organizationId" = i."organizationId" AND r."branchId" = i."branchId" AND r."saleId" = i."saleId"
+      WHERE i."organizationId" = ${context.organizationId} AND i."branchId" = ${branchId} AND i."merchantId" = ${context.merchantId}
+        AND r."organizationId" = ${context.organizationId} AND r."branchId" = ${branchId}
+        AND r."completedAt" >= ${from} AND r."completedAt" < ${until}
+    `)
+        )[0]
+      : { refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' };
+    return {
+      ownRefundedAmount: own.refundedAmount,
+      ownRefundCount: own.refundCount,
+      ownReturnedUnits: own.returnedUnits,
+      ownNetRecordedSales: netRecordedSales(gross, own.refundedAmount),
+    };
   }
 
   private async currentContext(

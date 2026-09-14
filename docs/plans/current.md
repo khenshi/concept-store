@@ -2,7 +2,8 @@
 
 **Status:** Approved, including the recommended defaults; Part 1 persistence
 reviewed and committed as `a830c47`. Part 2 API reviewed and committed as
-`97c4b08`. Part 3 reads implemented, awaiting review; Parts 4–6 are not implemented.
+`97c4b08`. Part 3 reads reviewed and committed as `7d21ede`. Part 4 report
+aggregation implemented, awaiting review; Parts 5–6 are not implemented.
 
 # Item Returns and Manual Refunds MVP
 
@@ -211,8 +212,29 @@ docs reflect the separate contracts. Prisma validation and backend format/lint/b
 adds 10 unit, 17 HTTP and 14 PostgreSQL tests, including more than 50 refunds,
 exact maximum-capacity own reads, current-access changes, private projections,
 read-only preservation and a concurrent refund snapshot. No new schema/migration,
-frontend/refund forms or report figures are included. Stop for review before
-committing Part 3; Parts 4–6 remain excluded from this delivery.
+frontend/refund forms or report figures are included. Reviewed and committed as
+`7d21ede`; Parts 4–6 were excluded from that delivery.
+
+Part 4 delivery: existing staff/merchant report API adds exact refunded amounts,
+distinct matching refund counts, returned units and signed net recorded sales,
+recognized by refund completion date independently of original sale date. Gross
+sale counts/units/payments remain unchanged; staff gets a separate fixed actual
+refund-method array. Merchant queries aggregate only current-linked historical
+refund items, without method/private/whole totals. Sale/refund streams aggregate
+separately in PostgreSQL and all fresh access/aggregates share one repeatable-read
+snapshot. BigInt cents subtraction supports unlimited aggregate size without
+rounding or negative zero. OpenAPI/module/test docs reflect expanded contracts.
+Minimal frontend schema compatibility reconciles complete expanded refund groups,
+while preserving legacy gross-only decoding when the entire group is absent; no
+new cards/dialogs or fake default refund values are added. Part 5 still owns
+rendered refund/net cards and refund workflows. Prisma validation, backend/frontend
+formatting/lint/type checks/builds, 369 unit, 189 HTTP, 231 disposable PostgreSQL
+and 590 frontend tests pass. New coverage adds five unit, three HTTP,
+17 PostgreSQL and 21 frontend schema tests, including independent processing dates,
+negative periods, own mixed refunds, high capacity, concurrent snapshots,
+read-only preservation and private contract rejection. No schema/migration or
+infrastructure is added. Stop for review before committing Part 4; Parts 5–6
+remain excluded from this delivery.
 
 1. Schema/migration, precise refund types, tenant-safe relationships and RETURN
    movement constraints; isolated PostgreSQL persistence tests and module docs.

@@ -4,7 +4,8 @@ import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
 export class ReportPaymentResponseDto {
   @ApiProperty({
     enum: ['CASH', 'GCASH', 'CARD'],
-    description: 'GCASH and CARD are manual, unverified payments',
+    description:
+      'Original gross sale method; GCASH and CARD are manual, unverified payments',
   })
   paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
   @ApiProperty({
@@ -35,6 +36,17 @@ class ReportScopeResponseDto {
   until!: string;
 }
 
+export class ReportRefundMethodResponseDto {
+  @ApiProperty({
+    enum: ['CASH', 'GCASH', 'CARD'],
+    description:
+      'Actual manual refund method, independent of original sale method',
+  })
+  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
+  @ApiProperty({ example: '25.00' }) refundedAmount!: string;
+  @ApiProperty({ example: '1', pattern: '^\\d+$' }) refundCount!: string;
+}
+
 export class StaffSalesReportResponseDto extends ReportScopeResponseDto {
   @ApiProperty({ enum: ['STAFF'] })
   scope!: 'STAFF';
@@ -50,11 +62,35 @@ export class StaffSalesReportResponseDto extends ReportScopeResponseDto {
   unitsSold!: string;
   @ApiProperty({
     type: ReportPaymentResponseDto,
+    description:
+      'Gross sale payments only; never netted against refund methods',
     isArray: true,
     minItems: 3,
     maxItems: 3,
   })
   payments!: ReportPaymentResponseDto[];
+  @ApiProperty({
+    example: '25.00',
+    description:
+      'Exact PHP refunded amount recognized on refund completion date',
+  })
+  refundedAmount!: string;
+  @ApiProperty({ example: '1', pattern: '^\\d+$' }) refundCount!: string;
+  @ApiProperty({ example: '2', pattern: '^\\d+$' }) returnedUnits!: string;
+  @ApiProperty({
+    example: '-25.00',
+    description:
+      'Exact signed gross minus refunds; may be negative, not profit or available cash',
+  })
+  netRecordedSales!: string;
+  @ApiProperty({
+    type: [ReportRefundMethodResponseDto],
+    description:
+      'Separate actual refund methods, not available cash or provider reconciliation',
+    minItems: 3,
+    maxItems: 3,
+  })
+  refundMethods!: ReportRefundMethodResponseDto[];
 }
 
 export class MerchantSalesReportResponseDto extends ReportScopeResponseDto {
@@ -73,6 +109,19 @@ export class MerchantSalesReportResponseDto extends ReportScopeResponseDto {
   ownTransactionCount!: string;
   @ApiProperty({ example: '3', pattern: '^\\d+$' })
   ownUnitsSold!: string;
+  @ApiProperty({ example: '25.00' }) ownRefundedAmount!: string;
+  @ApiProperty({
+    example: '1',
+    pattern: '^\\d+$',
+    description: 'Distinct refunds containing own items only',
+  })
+  ownRefundCount!: string;
+  @ApiProperty({ example: '2', pattern: '^\\d+$' }) ownReturnedUnits!: string;
+  @ApiProperty({
+    example: '-25.00',
+    description: 'Exact signed own gross minus own refunds',
+  })
+  ownNetRecordedSales!: string;
 }
 
 export type SalesReport =

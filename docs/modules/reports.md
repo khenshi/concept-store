@@ -1,18 +1,21 @@
 # Sales Reports
 
-**Status:** Backend API and owner/manager/merchant Reports screens implemented.
+**Status:** Refund-aware backend API implemented. Existing owner/manager/merchant
+Reports screens still display gross sales; refund/net cards remain a later part.
 
 ## Responsibilities and exclusions
 
-Read-only summaries of completed branch sales, using persisted Sale/SaleItem
-amounts and quantities. Reports describe gross recorded sales, not profit, net
-sales, cash available, commissions or merchant payouts. No refund figures, shifts,
+Read-only summaries of completed branch sales and item refunds, using persisted
+Sale/SaleItem and Refund/RefundItem amounts and quantities. Gross sales use sale
+completion dates; refunds use refund completion dates independently of the
+original sale date. Net recorded sales is gross minus refunds and may be negative;
+it is not profit, available cash, commissions or merchant payouts. No shifts,
 settlements, exports, rankings, trends, printing or payment verification are
 provided. Reports never mutate sales, inventory, payments or ledger history.
 No report entities, migration, analytics infrastructure or new indexes are added.
-The [manual refund create API](refunds.md) is implemented separately, but current
-Reports do not subtract or summarize those records. Refund-aware/net reporting
-remains a later approved part; current totals must still be interpreted as gross.
+The [manual refund API](refunds.md) records completed returns separately without
+editing original sales. Existing frontend cards/payment rows remain gross-only
+until the later UI part; the expanded response now also contains refund/net figures.
 
 ## API
 
@@ -61,34 +64,67 @@ totals. The separate lookup does not widen general branch/address/inventory rout
 ## Responses and aggregation
 
 Staff summary has `scope: STAFF`, `branch`, `from`, `until`, `grossSales`,
-`transactionCount`, `unitsSold` and `payments`. A fixed CASH, GCASH, CARD array
+`transactionCount`, `unitsSold`, `payments`, `refundedAmount`, `refundCount`,
+`returnedUnits`, `netRecordedSales` and `refundMethods`. A fixed CASH, GCASH, CARD array
 contains `paymentMethod`, `grossSales` and `transactionCount`; missing methods
 return zeros. GCash/card are manual, unverified payments. Cash amounts sum sale
 totals, not tender/change. Each sale contributes once, regardless of item count.
 Units sum quantities from its tenant/branch-scoped items. Payment totals/counts
 reconcile to the staff summary within the same snapshot.
 
+Refunded amount sums each matching completed Refund total once. Refund count
+counts matching completed refunds; returned units sum all matching RefundItem
+quantities, regardless of restocking. A separate fixed CASH, GCASH, CARD
+refundMethods array contains paymentMethod, refundedAmount and refundCount,
+including explicit missing-method zeros. Those amounts/counts reconcile to the
+refund summary. Actual refund method may differ from original sale method; methods
+are never netted together or described as available cash/provider reconciliation.
+Original transactionCount/unitsSold and gross payment breakdown are unchanged,
+not net counts/units.
+
 Merchant summary is a separate response with `scope: MERCHANT`, `branch`, `from`,
-`until`, `ownGrossSales`, `ownTransactionCount` and `ownUnitsSold`. Only own
+`until`, `ownGrossSales`, `ownTransactionCount`, `ownUnitsSold`,
+`ownRefundedAmount`, `ownRefundCount`, `ownReturnedUnits` and
+`ownNetRecordedSales`. Only own
 historical item amounts/quantities are aggregated; own transaction count counts
 distinct sales containing those items. A mixed sale contributes only own items
 and one matching transaction. Even an own-only sale never returns a staff report.
 The merchant query does not select whole-sale total, payment fields, cashier IDs,
 other merchants' item/count data, contacts or private request/command metadata.
+Own refunds sum only historically owned RefundItem amounts/quantities for the
+current profile and count distinct refunds containing own items. Multiple own
+lines contribute one matching refund, and other-only refunds contribute nothing.
+There is no merchant payment/refund-method breakdown or whole-refund total,
+reason, actor or private refund command selection. Own net is own gross minus own
+refunds. Assigned unlinked merchants retain explicit own-only zeros.
 
-Amounts are exact nonnegative two-decimal PHP strings without single-sale size
-limits. Counts/units are nonnegative integer strings, avoiding JSON/JavaScript
+Gross/refunded amounts are exact nonnegative two-decimal PHP strings without
+single-sale size limits. Net uses canonical signed two-decimal strings, without
+negative zero. Counts/units are nonnegative integer strings, avoiding JSON/JavaScript
 numeric overflow. Empty authorized periods return `0.00` amounts and `0` counts/
 units. PostgreSQL numeric SUM/COUNT queries aggregate the whole matching period,
 not a paginated history page or frontend estimates. Parameterized Prisma SQL binds
 tenant/branch/profile/time values; no client data is interpolated into SQL text.
-Sales totals and quantities use separate aggregation to avoid item-join inflation.
-Existing tenant/branch/completion-time and merchant-item indexes are retained.
+Sale/refund streams and parent totals/item quantities use separate PostgreSQL
+aggregation to avoid item-join or sale/refund-join inflation. Refund queries filter
+Refund completion dates, never require the original Sale to be in the period.
+Exact signed net subtraction uses BigInt cents without a Decimal precision cap.
+Authorization, summaries and both method arrays share one REPEATABLE READ
+snapshot. Existing scoped history/report indexes are retained; no additional
+schema/migration/index is introduced by this part.
 
 Swagger/OpenAPI describes required ranges, errors and separate response schemas
 with explicit STAFF/MERCHANT discriminator mappings.
 
 ## Owner/manager workspace
+
+The current workspace below remains gross-only. Minimal runtime compatibility
+accepts the complete expanded refund group and validates exact net/method/count/
+unit reconciliation, while retaining legacy gross-only decoding when the entire
+group is absent. An incomplete group is rejected, never silently zero-filled.
+Merchant contracts independently accept only the complete own refund group,
+without staff fallback or private fields. Refund/net cards and date-basis
+explanation remain the later approved frontend part.
 
 Reports appears in expanded/collapsed sidebar and mobile navigation for owners
 and managers. Both organization and branch Reports routes mark Reports active
@@ -201,3 +237,26 @@ performed; automated checks do not certify rendered layout or accessibility.
 This is a new Reports-specific waiver, not inherited from prior milestones.
 All three delivery parts have been reviewed and approved. The completed plan is
 archived after the final implementation commit.
+
+## Refund-aware aggregation verification
+
+Prisma validation, backend format/lint/build, 369 unit tests across 33 suites,
+189 HTTP tests across six suites and 231 disposable PostgreSQL tests across six
+suites pass. Added coverage includes five unit, three HTTP and 17 PostgreSQL
+tests, plus expanded existing capacity/zero/private-key assertions. Tests verify
+actual refund methods, mixed own lines/distinct refunds, refund-only negative
+periods, original-sale-outside-period recognition, half-open/millisecond boundaries,
+more than 50 refunds, inactive history/current links, assigned own-only zeros,
+branch/tenant scope and unchanged persisted data. Concurrent refunds prove staff
+summary/method rows and merchant own sale/refund streams share one snapshot;
+subsequent reads see the committed refund. An initial unrelated-branch fixture
+lacked a merchant assignment; it was corrected and the full PostgreSQL rerun passed.
+
+Frontend changed-file formatting, lint, type checking, production build and 590
+tests across 75 files pass. The 21 new schema tests cover complete expanded and
+legacy compatibility, negative/refund-only periods, canonical zero, incomplete
+groups, signed-net validation, exact unlimited arithmetic, method/count/unit
+reconciliation and merchant private-field denial. No new rendered screens/cards
+are included; future refund UI needs its own rendered QA or waiver. Tests apply
+migrations only in disposable random schemas. No application database is migrated,
+reset or seeded.

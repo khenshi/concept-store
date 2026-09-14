@@ -88,7 +88,9 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       Promise.resolve(
         sql.sql.includes('GROUP BY')
           ? []
-          : [{ grossSales: '0.00', transactionCount: '0', unitsSold: '0' }],
+          : sql.sql.includes('"Refund"')
+            ? [{ refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' }]
+            : [{ grossSales: '0.00', transactionCount: '0', unitsSold: '0' }],
       ),
     );
   });
@@ -188,11 +190,27 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       properties: {
         scope: { enum: ['MERCHANT'] },
         ownGrossSales: { type: 'string' },
+        ownRefundedAmount: { type: 'string' },
+        ownRefundCount: { type: 'string' },
+        ownReturnedUnits: { type: 'string' },
+        ownNetRecordedSales: { type: 'string' },
       },
     });
     expect(schemas?.MerchantSalesReportResponseDto).not.toHaveProperty(
       'properties.payments',
     );
+    expect(schemas?.MerchantSalesReportResponseDto).not.toHaveProperty(
+      'properties.refundMethods',
+    );
+    expect(schemas?.StaffSalesReportResponseDto).toMatchObject({
+      properties: {
+        refundedAmount: { type: 'string' },
+        refundCount: { type: 'string' },
+        returnedUnits: { type: 'string' },
+        netRecordedSales: { type: 'string' },
+        refundMethods: { type: 'array' },
+      },
+    });
     expect(
       document.paths[
         '/organizations/{organizationId}/branches/{branchId}/reports/sales'
@@ -204,4 +222,83 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       ]),
     );
   });
+  it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
+    'returns exact scoped refund and negative net fields for %s',
+    async (current) => {
+      role = current;
+      prisma.$queryRaw.mockImplementation((sql: Prisma.Sql) =>
+        Promise.resolve(
+          sql.sql.includes('"Refund"')
+            ? sql.sql.includes('GROUP BY')
+              ? [
+                  {
+                    paymentMethod: 'CARD',
+                    refundedAmount: '25.00',
+                    refundCount: '1',
+                  },
+                ]
+              : [
+                  {
+                    refundedAmount: '25.00',
+                    refundCount: '1',
+                    returnedUnits: '2',
+                  },
+                ]
+            : sql.sql.includes('GROUP BY')
+              ? []
+              : [{ grossSales: '0.00', transactionCount: '0', unitsSold: '0' }],
+        ),
+      );
+      const response = await http()
+        .get(path)
+        .auth(token(), { type: 'bearer' })
+        .query(valid)
+        .expect(200);
+      expect(response.body).toMatchObject(
+        current === 'MERCHANT'
+          ? {
+              scope: 'MERCHANT',
+              ownRefundedAmount: '25.00',
+              ownRefundCount: '1',
+              ownReturnedUnits: '2',
+              ownNetRecordedSales: '-25.00',
+            }
+          : {
+              scope: 'STAFF',
+              refundedAmount: '25.00',
+              refundCount: '1',
+              returnedUnits: '2',
+              netRecordedSales: '-25.00',
+              refundMethods: [
+                {
+                  paymentMethod: 'CASH',
+                  refundedAmount: '0.00',
+                  refundCount: '0',
+                },
+                {
+                  paymentMethod: 'GCASH',
+                  refundedAmount: '0.00',
+                  refundCount: '0',
+                },
+                {
+                  paymentMethod: 'CARD',
+                  refundedAmount: '25.00',
+                  refundCount: '1',
+                },
+              ],
+            },
+      );
+      if (current === 'MERCHANT')
+        for (const field of [
+          'payments',
+          'refundMethods',
+          'refundedAmount',
+          'refundCount',
+          'returnedUnits',
+          'netRecordedSales',
+          'paymentReference',
+        ])
+          expect(response.body).not.toHaveProperty(field);
+    },
+  );
 });

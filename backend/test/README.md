@@ -27,8 +27,8 @@ tied-time ordering beyond 50 records, historical inactive/shared/relinked profil
 fresh role/grant/user access and foreign IDs. A paused history count lets another
 refund commit before remaining/page queries, proving one repeatable-read snapshot.
 Read-only preservation and maximum-capacity own subtotal/quantity checks compare
-saved history and stock. Report figures/forms remain later parts. Full backend
-regressions now pass 364 unit, 186 HTTP and 214 PostgreSQL tests across six
+saved history and stock. Refund forms and rendered report cards remain later parts.
+Full backend regressions now pass 369 unit, 189 HTTP and 231 PostgreSQL tests across six
 integration suites.
 
 Reports tests validate staff/merchant database aggregation, fixed payment
@@ -38,6 +38,13 @@ page, current roles/grants/profile links, private projections, branch/tenant
 isolation and historical totals after live edits. A paused report transaction
 lets another checkout commit between summary/payment queries to verify a consistent
 snapshot. Report reads must leave sales, balances and ledger history unchanged.
+Refund-aware report tests use real refund commands and additionally check separate
+actual refund methods, distinct own refunds in mixed lines, processing-date
+recognition independent of original sale dates, refund-only negative net periods,
+millisecond boundaries, more than 50 refunds, high-capacity own totals/units and
+current links/access. Paused staff and merchant report reads let another refund
+commit between aggregate queries, proving a consistent snapshot. Reads preserve
+original sales, completed refunds, stock and movements.
 
 The suite covers inventory integrity and branch/merchant access, including concurrent
 assignment versus owner promotion/removal, relinking versus role changes, last-owner

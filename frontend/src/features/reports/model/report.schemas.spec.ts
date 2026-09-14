@@ -216,3 +216,193 @@ describe('strict merchant own-sales contracts', () => {
       expect(merchantSalesReportSchema.safeParse(invalid).success).toBe(false);
   });
 });
+
+describe('expanded refund-aware report compatibility', () => {
+  const refunded = {
+    ...report,
+    refundedAmount: '70.01',
+    refundCount: '2',
+    returnedUnits: '3',
+    netRecordedSales: '-10.01',
+    refundMethods: [
+      { paymentMethod: 'CASH', refundedAmount: '0.00', refundCount: '0' },
+      { paymentMethod: 'GCASH', refundedAmount: '10.00', refundCount: '1' },
+      { paymentMethod: 'CARD', refundedAmount: '60.01', refundCount: '1' },
+    ],
+  };
+  const own = {
+    scope: 'MERCHANT',
+    branch,
+    ...range,
+    ownGrossSales: '0.00',
+    ownTransactionCount: '0',
+    ownUnitsSold: '0',
+    ownRefundedAmount: '25.00',
+    ownRefundCount: '1',
+    ownReturnedUnits: '2',
+    ownNetRecordedSales: '-25.00',
+  };
+  it('accepts complete negative-net staff and own refund-only periods', () => {
+    expect(staffSalesReportSchema.parse(refunded)).toEqual(refunded);
+    expect(merchantSalesReportSchema.parse(own)).toEqual(own);
+  });
+  it('accepts explicit zero refunds and canonical zero net without negative zero', () => {
+    expect(
+      staffSalesReportSchema.safeParse({
+        ...report,
+        refundedAmount: '0.00',
+        refundCount: '0',
+        returnedUnits: '0',
+        netRecordedSales: '60.00',
+        refundMethods: refunded.refundMethods.map((row) => ({
+          ...row,
+          refundedAmount: '0.00',
+          refundCount: '0',
+        })),
+      }).success,
+    ).toBe(true);
+    expect(
+      merchantSalesReportSchema.safeParse({
+        ...own,
+        ownRefundedAmount: '0.00',
+        ownRefundCount: '0',
+        ownReturnedUnits: '0',
+        ownNetRecordedSales: '0.00',
+      }).success,
+    ).toBe(true);
+  });
+  it.each([
+    'refundedAmount',
+    'refundCount',
+    'returnedUnits',
+    'netRecordedSales',
+    'refundMethods',
+  ])('rejects incomplete staff refund groups without %s', (key) => {
+    expect(
+      staffSalesReportSchema.safeParse({ ...refunded, [key]: undefined })
+        .success,
+    ).toBe(false);
+  });
+  it.each([
+    'ownRefundedAmount',
+    'ownRefundCount',
+    'ownReturnedUnits',
+    'ownNetRecordedSales',
+  ])('rejects incomplete own refund groups without %s', (key) => {
+    expect(
+      merchantSalesReportSchema.safeParse({ ...own, [key]: undefined }).success,
+    ).toBe(false);
+  });
+  it.each(['-0.00', '+10.01', '-010.01', '-10.0', '-1e1', 'NaN', '10.01'])(
+    'rejects noncanonical or unreconciled signed net %s safely',
+    (netRecordedSales) => {
+      expect(
+        staffSalesReportSchema.safeParse({ ...refunded, netRecordedSales })
+          .success,
+      ).toBe(false);
+      expect(
+        merchantSalesReportSchema.safeParse({
+          ...own,
+          ownNetRecordedSales: netRecordedSales,
+        }).success,
+      ).toBe(false);
+    },
+  );
+  it('rejects mismatched method sums/counts, duplicate methods and impossible returned units', () => {
+    for (const invalid of [
+      { ...refunded, refundCount: '3' },
+      { ...refunded, returnedUnits: '1' },
+      { ...refunded, refundedAmount: '-70.01' },
+      { ...refunded, refundMethods: refunded.refundMethods.slice(1) },
+      {
+        ...refunded,
+        refundMethods: [
+          refunded.refundMethods[0],
+          refunded.refundMethods[1],
+          refunded.refundMethods[1],
+        ],
+      },
+      {
+        ...refunded,
+        refundMethods: refunded.refundMethods.map((row) => ({
+          ...row,
+          refundedAmount: 'NaN',
+        })),
+      },
+      {
+        ...refunded,
+        refundMethods: refunded.refundMethods.map((row) => ({
+          ...row,
+          refundCount: '1e1',
+        })),
+      },
+    ])
+      expect(staffSalesReportSchema.safeParse(invalid).success).toBe(false);
+    expect(
+      merchantSalesReportSchema.safeParse({ ...own, ownReturnedUnits: '0' })
+        .success,
+    ).toBe(false);
+    expect(
+      merchantSalesReportSchema.safeParse({ ...own, ownRefundCount: '0' })
+        .success,
+    ).toBe(false);
+  });
+  it('reconciles unlimited exact aggregate money above Decimal precision limits', () => {
+    const gross = '9999999999999999999999999999999999999999999999999999.99';
+    const refund = '9999999999999999999999999999999999999999999999999999.98';
+    const huge = {
+      ...report,
+      grossSales: gross,
+      payments: report.payments.map((row, i) => ({
+        ...row,
+        grossSales: i ? '0.00' : gross,
+        transactionCount: i ? '0' : '3',
+      })),
+      refundedAmount: refund,
+      refundCount: '1',
+      returnedUnits: '1',
+      netRecordedSales: '0.01',
+      refundMethods: refunded.refundMethods.map((row, i) => ({
+        ...row,
+        refundedAmount: i ? '0.00' : refund,
+        refundCount: i ? '0' : '1',
+      })),
+    };
+    expect(staffSalesReportSchema.parse(huge).netRecordedSales).toBe('0.01');
+    expect(
+      merchantSalesReportSchema.parse({
+        ...own,
+        ownGrossSales: gross,
+        ownTransactionCount: '1',
+        ownUnitsSold: '1',
+        ownRefundedAmount: refund,
+        ownNetRecordedSales: '0.01',
+      }).ownNetRecordedSales,
+    ).toBe('0.01');
+  });
+  it('does not permit staff refund data or private metadata in own responses', () => {
+    for (const field of [
+      'refundMethods',
+      'refundedAmount',
+      'refundCount',
+      'returnedUnits',
+      'netRecordedSales',
+      'reason',
+      'createdById',
+      'refundCommand',
+    ])
+      expect(
+        merchantSalesReportSchema.safeParse({ ...own, [field]: 'PRIVATE' })
+          .success,
+      ).toBe(false);
+    expect(
+      staffSalesReportSchema.safeParse({
+        ...refunded,
+        refundMethods: refunded.refundMethods.map((row) => ({
+          ...row,
+          paymentReference: 'PRIVATE',
+        })),
+      }).success,
+    ).toBe(false);
+  });
+});

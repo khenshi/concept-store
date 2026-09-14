@@ -1,6 +1,6 @@
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
-import { ReportsService } from './reports.service';
+import { ReportsService, netRecordedSales } from './reports.service';
 
 describe('ReportsService', () => {
   const tx = {
@@ -37,7 +37,11 @@ describe('ReportsService', () => {
       ])
       .mockResolvedValueOnce([
         { paymentMethod: 'CASH', grossSales: '25.00', transactionCount: '1' },
-      ]);
+      ])
+      .mockResolvedValueOnce([
+        { refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' },
+      ])
+      .mockResolvedValueOnce([]);
   });
   it('uses one repeatable-read snapshot and zero-fills a fixed payment breakdown', async () => {
     await expect(
@@ -89,6 +93,14 @@ describe('ReportsService', () => {
     });
   });
   it('uses only own item columns for a freshly linked merchant and never queries payments', async () => {
+    tx.$queryRaw
+      .mockReset()
+      .mockResolvedValueOnce([
+        { grossSales: '25.00', transactionCount: '1', unitsSold: '2' },
+      ])
+      .mockResolvedValueOnce([
+        { refundedAmount: '12.50', refundCount: '1', returnedUnits: '1' },
+      ]);
     tx.organizationMembership.findUnique.mockResolvedValue({
       role: 'MERCHANT',
       merchantId: 'linked',
@@ -103,6 +115,10 @@ describe('ReportsService', () => {
         'ownGrossSales',
         'ownTransactionCount',
         'ownUnitsSold',
+        'ownRefundedAmount',
+        'ownRefundCount',
+        'ownReturnedUnits',
+        'ownNetRecordedSales',
       ].sort(),
     );
     expect(result).toMatchObject({
@@ -111,13 +127,25 @@ describe('ReportsService', () => {
       ownTransactionCount: '1',
       ownUnitsSold: '2',
     });
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
     const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
     expect(sql.values).toContain('linked');
     expect(sql.sql).toContain('COUNT(DISTINCT');
     expect(sql.sql).not.toMatch(
       /"total"|paymentMethod|cashTender|createdById|checkoutCommand/,
     );
+    const refundSql = (tx.$queryRaw.mock.calls[1] as [Prisma.Sql])[0];
+    expect(refundSql.values).toContain('linked');
+    expect(refundSql.sql).toContain('COUNT(DISTINCT');
+    expect(refundSql.sql).not.toMatch(
+      /"total"|paymentMethod|createdById|refundCommand|reason|paymentReference/,
+    );
+    expect(result).toMatchObject({
+      ownRefundedAmount: '12.50',
+      ownRefundCount: '1',
+      ownReturnedUnits: '1',
+      ownNetRecordedSales: '12.50',
+    });
   });
   it('returns empty own-only totals for an assigned unlinked merchant without running aggregate SQL', async () => {
     tx.organizationMembership.findUnique.mockResolvedValue({
@@ -143,6 +171,10 @@ describe('ReportsService', () => {
           transactionCount: '9007199254740993',
           unitsSold: '18446744073709551616',
         },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' },
       ])
       .mockResolvedValueOnce([]);
     await expect(
@@ -230,5 +262,49 @@ describe('ReportsService', () => {
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
     expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
+  it.each([
+    ['0.00', '0.01', '-0.01'],
+    ['1.00', '2.01', '-1.01'],
+    ['25.00', '25.00', '0.00'],
+    [
+      '9999999999999999999999999999999999999999999999999999.99',
+      '9999999999999999999999999999999999999999999999999999.98',
+      '0.01',
+    ],
+  ])('subtracts exact unlimited money %s minus %s', (gross, refund, net) =>
+    expect(netRecordedSales(gross, refund)).toBe(net),
+  );
+  it('keeps refund-method totals separate from sale payments and binds processing dates', async () => {
+    tx.$queryRaw
+      .mockReset()
+      .mockResolvedValueOnce([
+        { grossSales: '25.00', transactionCount: '1', unitsSold: '2' },
+      ])
+      .mockResolvedValueOnce([
+        { paymentMethod: 'CASH', grossSales: '25.00', transactionCount: '1' },
+      ])
+      .mockResolvedValueOnce([
+        { refundedAmount: '37.50', refundCount: '2', returnedUnits: '3' },
+      ])
+      .mockResolvedValueOnce([
+        { paymentMethod: 'CARD', refundedAmount: '37.50', refundCount: '2' },
+      ]);
+    expect(await service.sales(context, 'branch', query)).toMatchObject({
+      grossSales: '25.00',
+      refundedAmount: '37.50',
+      refundCount: '2',
+      returnedUnits: '3',
+      netRecordedSales: '-12.50',
+      refundMethods: [
+        { paymentMethod: 'CASH', refundedAmount: '0.00', refundCount: '0' },
+        { paymentMethod: 'GCASH', refundedAmount: '0.00', refundCount: '0' },
+        { paymentMethod: 'CARD', refundedAmount: '37.50', refundCount: '2' },
+      ],
+    });
+    const refundSql = (tx.$queryRaw.mock.calls[2] as [Prisma.Sql])[0];
+    expect(refundSql.values).toContain('org');
+    expect(refundSql.values).toContain('branch');
+    expect(refundSql.sql).not.toContain('JOIN "Sale"');
   });
 });
