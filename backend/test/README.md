@@ -21,8 +21,15 @@ Refund/RefundItem/RETURN-movement write failures and are removed in finally bloc
 Concurrent over-return, identical/conflicting commands and checkout/receipt/
 adjustment races reconcile immutable ledger history with stock. Test-side explicit
 unchanged-command retries model 409 recovery; the API never silently retries writes.
-Refund reads/report figures/forms remain later parts. Full backend regressions now
-pass 354 unit, 169 HTTP and 200 PostgreSQL tests across six integration suites.
+Refund history/detail checks additionally cover strict staff/merchant selections,
+mixed own-only refunds/counts, all-page remaining quantities, empty/past-end pages,
+tied-time ordering beyond 50 records, historical inactive/shared/relinked profiles,
+fresh role/grant/user access and foreign IDs. A paused history count lets another
+refund commit before remaining/page queries, proving one repeatable-read snapshot.
+Read-only preservation and maximum-capacity own subtotal/quantity checks compare
+saved history and stock. Report figures/forms remain later parts. Full backend
+regressions now pass 364 unit, 186 HTTP and 214 PostgreSQL tests across six
+integration suites.
 
 Reports tests validate staff/merchant database aggregation, fixed payment
 reconciliation, distinct own transactions in mixed sales, exact high-capacity

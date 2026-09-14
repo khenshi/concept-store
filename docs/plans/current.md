@@ -1,8 +1,8 @@
 # Current Implementation Plan
 
 **Status:** Approved, including the recommended defaults; Part 1 persistence
-reviewed and committed as `a830c47`. Part 2 API implemented, awaiting review;
-Parts 3–6 are not implemented.
+reviewed and committed as `a830c47`. Part 2 API reviewed and committed as
+`97c4b08`. Part 3 reads implemented, awaiting review; Parts 4–6 are not implemented.
 
 # Item Returns and Manual Refunds MVP
 
@@ -196,8 +196,23 @@ Reports/test docs distinguish implemented commands from later reads/report figur
 Backend format/lint/build, 354 unit, 169 HTTP and 200 disposable PostgreSQL tests
 pass, including 25 new service, 36 HTTP and 19 real command tests. Frontend
 format/lint/typecheck/build and 569 tests across 75 files verify RETURN compatibility.
-Stop for review;
-Part 2 is not committed. Parts 3–6 remain excluded from this delivery.
+Reviewed and committed as `97c4b08`. Parts 3–6 were excluded from that delivery.
+
+Part 3 delivery: the two approved GET routes provide bounded stable refund
+history/detail and all-refund remaining original item quantities. Fresh membership,
+role, non-deleted-user, manager grants and merchant profile checks share one
+repeatable-read snapshot with counts/sums/page rows. Merchants use historical own
+sale scope and separately selected reduced own-item responses/counts/subtotals,
+without whole totals, payment fields, private reason, actor, contacts or commands.
+Remaining quantities cover all completed refunds, including empty/past-end pages;
+staff and merchant counts/lines never mix scopes. Swagger and Refund/Sales/test
+docs reflect the separate contracts. Prisma validation and backend format/lint/build,
+364 unit, 186 HTTP and 214 disposable PostgreSQL tests pass. New read coverage
+adds 10 unit, 17 HTTP and 14 PostgreSQL tests, including more than 50 refunds,
+exact maximum-capacity own reads, current-access changes, private projections,
+read-only preservation and a concurrent refund snapshot. No new schema/migration,
+frontend/refund forms or report figures are included. Stop for review before
+committing Part 3; Parts 4–6 remain excluded from this delivery.
 
 1. Schema/migration, precise refund types, tenant-safe relationships and RETURN
    movement constraints; isolated PostgreSQL persistence tests and module docs.

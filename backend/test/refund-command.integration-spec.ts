@@ -7,6 +7,7 @@ import { Prisma, PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { CheckoutService } from '../src/modules/organizations/sales/checkout.service';
 import { RefundsService } from '../src/modules/organizations/refunds/refunds.service';
+import { RefundReadService } from '../src/modules/organizations/refunds/refund-read.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
 import type { CreateRefundDto } from '../src/modules/organizations/refunds/dto/create-refund.dto';
 import type { OrganizationContext } from '../src/modules/organizations/authorization/organization-authorization.types';
@@ -24,6 +25,25 @@ const prisma = new PrismaClient({
   ),
 });
 const refunds = new RefundsService(prisma as unknown as PrismaService);
+const reads = new RefundReadService(prisma as unknown as PrismaService);
+const history = (context = owner(), page = 1, limit = 50) =>
+  reads.findAll(context, branchId, saleId, { page, limit });
+async function merchantActor(index = 0) {
+  const userId = await actor('MERCHANT');
+  const item = await prisma.saleItem.findUniqueOrThrow({
+    where: { id: saleItems[index] },
+  });
+  await prisma.organizationMembership.update({
+    where: { organizationId_userId: { organizationId, userId } },
+    data: { merchantId: item.merchantId },
+  });
+  return {
+    organizationId,
+    userId,
+    role: 'MERCHANT' as const,
+    merchantId: item.merchantId,
+  };
+}
 const checkout = new CheckoutService(prisma as unknown as PrismaService);
 const stocks = new InventoryStockService(prisma as unknown as PrismaService);
 let organizationId: string,
@@ -184,6 +204,492 @@ describe('PostgreSQL refund commands and concurrency', () => {
     saleItems = inventories.map(
       (id) => sale.items.find((item) => item.branchInventoryId === id)!.id,
     );
+  });
+  it('returns empty history and complete original remaining quantities without writes', async () => {
+    const original = await prisma.sale.findUniqueOrThrow({
+      where: { id: saleId },
+      include: { items: true },
+    });
+    expect(await history()).toMatchObject({
+      scope: 'STAFF',
+      items: [],
+      total: 0,
+      totalPages: 0,
+    });
+    expect((await history()).remainingItems).toEqual(
+      expect.arrayContaining([
+        {
+          saleItemId: saleItems[0],
+          soldQuantity: 10,
+          returnedQuantity: 0,
+          restockedQuantity: 0,
+          remainingQuantity: 10,
+        },
+        {
+          saleItemId: saleItems[1],
+          soldQuantity: 5,
+          returnedQuantity: 0,
+          restockedQuantity: 0,
+          remainingQuantity: 5,
+        },
+      ]),
+    );
+    expect(
+      await prisma.sale.findUniqueOrThrow({
+        where: { id: saleId },
+        include: { items: true },
+      }),
+    ).toEqual(original);
+    expect(await balance()).toBe(90);
+  });
+  it('paginates beyond 50 refunds while remaining quantities cover every page', async () => {
+    const sale = await checkout.complete(owner(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '750.00',
+      items: [
+        {
+          branchInventoryId: inventories[0],
+          quantity: 60,
+          expectedUnitPrice: '12.50',
+        },
+      ],
+    });
+    const ids: string[] = [];
+    for (let n = 0; n < 55; n++)
+      ids.push(
+        (
+          await refunds.complete(owner(), branchId, sale.id, {
+            ...command(1, 0),
+            items: [
+              { saleItemId: sale.items[0].id, quantity: 1, restockQuantity: 0 },
+            ],
+          })
+        ).id,
+      );
+    const tied = new Date('2026-09-14T00:00:00Z');
+    await prisma.refund.updateMany({
+      where: { organizationId, saleId: sale.id },
+      data: { completedAt: tied },
+    });
+    const first = await reads.findAll(owner(), branchId, sale.id, {
+      page: 1,
+      limit: 50,
+    });
+    const second = await reads.findAll(owner(), branchId, sale.id, {
+      page: 2,
+      limit: 50,
+    });
+    const past = await reads.findAll(owner(), branchId, sale.id, {
+      page: 3,
+      limit: 50,
+    });
+    expect(first).toMatchObject({
+      total: 55,
+      totalPages: 2,
+      remainingItems: [
+        {
+          soldQuantity: 60,
+          returnedQuantity: 55,
+          restockedQuantity: 0,
+          remainingQuantity: 5,
+        },
+      ],
+    });
+    expect(first.items).toHaveLength(50);
+    expect(second.items).toHaveLength(5);
+    expect(past.items).toEqual([]);
+    expect(second.remainingItems).toEqual(first.remainingItems);
+    expect(past.remainingItems).toEqual(first.remainingItems);
+    expect([...first.items, ...second.items].map((row) => row.id)).toEqual(
+      ids.sort().reverse(),
+    );
+    const merchant = await merchantActor();
+    const ownPage = await reads.findAll(merchant, branchId, sale.id, {
+      page: 2,
+      limit: 50,
+    });
+    expect(ownPage).toMatchObject({
+      scope: 'MERCHANT',
+      total: 55,
+      totalPages: 2,
+    });
+    expect(ownPage.items).toHaveLength(5);
+    expect(ownPage.remainingItems).toEqual(first.remainingItems);
+  });
+  it('returns the exact saved staff result, never command/request/actor fields', async () => {
+    const refund = await record({
+      ...command(),
+      paymentMethod: 'CARD',
+      paymentReference: 'MANUAL-CARD',
+    });
+    const persisted = () =>
+      Promise.all([
+        prisma.sale.findMany({
+          where: { organizationId },
+          include: { items: true },
+          orderBy: { id: 'asc' },
+        }),
+        prisma.refund.findMany({
+          where: { organizationId },
+          include: { items: true },
+          orderBy: { id: 'asc' },
+        }),
+        prisma.branchInventory.findMany({
+          where: { organizationId },
+          orderBy: { id: 'asc' },
+        }),
+        prisma.inventoryMovement.findMany({
+          where: { organizationId },
+          orderBy: { id: 'asc' },
+        }),
+      ]);
+    const before = await persisted();
+    expect(await reads.findOne(owner(), branchId, saleId, refund.id)).toEqual(
+      refund,
+    );
+    expect((await history()).items).toEqual([refund]);
+    for (const key of ['refundCommand', 'requestId', 'createdById'])
+      expect((await history()).items[0]).not.toHaveProperty(key);
+    expect(await persisted()).toEqual(before);
+  });
+  it('selects only own mixed refund lines, counts and remaining quantities for merchants', async () => {
+    const merchant = await merchantActor();
+    const mixed = await record({
+      ...command(),
+      paymentMethod: 'GCASH',
+      paymentReference: 'PRIVATE',
+      reason: 'PRIVATE REASON',
+      items: [
+        { saleItemId: saleItems[0], quantity: 2, restockQuantity: 1 },
+        { saleItemId: saleItems[1], quantity: 1, restockQuantity: 0 },
+      ],
+    });
+    const other = await record({
+      ...command(),
+      items: [{ saleItemId: saleItems[1], quantity: 1, restockQuantity: 0 }],
+    });
+    const result = await history(merchant);
+    expect(result).toMatchObject({
+      scope: 'MERCHANT',
+      total: 1,
+      remainingItems: [
+        {
+          saleItemId: saleItems[0],
+          soldQuantity: 10,
+          returnedQuantity: 2,
+          restockedQuantity: 1,
+          remainingQuantity: 8,
+        },
+      ],
+      items: [
+        {
+          ownItemsSubtotal: '25.00',
+          items: [
+            { saleItemId: saleItems[0], quantity: 2, restockQuantity: 1 },
+          ],
+        },
+      ],
+    });
+    const detail = await reads.findOne(merchant, branchId, saleId, mixed.id);
+    expect(detail).toEqual(result.items[0]);
+    expect(Object.keys(detail).sort()).toEqual(
+      [
+        'scope',
+        'id',
+        'saleId',
+        'receiptCode',
+        'refundCode',
+        'completedAt',
+        'branchId',
+        'branchName',
+        'branchCode',
+        'ownItemsSubtotal',
+        'items',
+      ].sort(),
+    );
+    expect(detail.items).toHaveLength(1);
+    expect(Object.keys(detail.items[0]).sort()).toEqual(
+      [
+        'id',
+        'saleItemId',
+        'productId',
+        'productName',
+        'sku',
+        'barcode',
+        'merchantName',
+        'quantity',
+        'restockQuantity',
+        'unitPrice',
+        'lineTotal',
+      ].sort(),
+    );
+    expect(JSON.stringify(result)).not.toMatch(
+      /PRIVATE|paymentMethod|paymentReference|createdById|refundCommand|addressLine1|contactName/,
+    );
+    await expect(
+      reads.findOne(merchant, branchId, saleId, other.id),
+    ).rejects.toThrow('Refund not found');
+  });
+  it('allows an own original sale with no own refund yet without exposing other refunds', async () => {
+    const merchant = await merchantActor(1);
+    await record();
+    expect(await history(merchant)).toMatchObject({
+      scope: 'MERCHANT',
+      total: 0,
+      items: [],
+      remainingItems: [
+        {
+          saleItemId: saleItems[1],
+          soldQuantity: 5,
+          returnedQuantity: 0,
+          restockedQuantity: 0,
+          remainingQuantity: 5,
+        },
+      ],
+    });
+  });
+  it('preserves own historical reads without assignments after lifecycle and display edits', async () => {
+    const merchant = await merchantActor();
+    const refund = await record();
+    const before = await reads.findOne(merchant, branchId, saleId, refund.id);
+    const item = await prisma.saleItem.findUniqueOrThrow({
+      where: { id: saleItems[0] },
+    });
+    await prisma.merchant.update({
+      where: { id: item.merchantId },
+      data: { status: 'ENDED', name: 'Renamed' },
+    });
+    await prisma.product.update({
+      where: { id: item.productId },
+      data: { status: 'INACTIVE', name: 'Renamed' },
+    });
+    await prisma.branch.update({
+      where: { id: branchId },
+      data: { name: 'Renamed' },
+    });
+    expect(await reads.findOne(merchant, branchId, saleId, refund.id)).toEqual(
+      before,
+    );
+    expect((await history(merchant)).total).toBe(1);
+    const shared = await merchantActor();
+    expect(await history(shared)).toEqual(await history(merchant));
+  });
+  it('rechecks profile relinking/unlinking rather than stale request context', async () => {
+    const merchant = await merchantActor();
+    const refund = await record();
+    const otherItem = await prisma.saleItem.findUniqueOrThrow({
+      where: { id: saleItems[1] },
+    });
+    await prisma.organizationMembership.update({
+      where: {
+        organizationId_userId: { organizationId, userId: merchant.userId },
+      },
+      data: { merchantId: otherItem.merchantId },
+    });
+    expect(await history(merchant)).toMatchObject({
+      scope: 'MERCHANT',
+      total: 0,
+      remainingItems: [{ saleItemId: saleItems[1] }],
+    });
+    await expect(
+      reads.findOne(merchant, branchId, saleId, refund.id),
+    ).rejects.toThrow('Refund not found');
+    await prisma.organizationMembership.update({
+      where: {
+        organizationId_userId: { organizationId, userId: merchant.userId },
+      },
+      data: { merchantId: null },
+    });
+    await expect(history(merchant)).rejects.toThrow('Sale not found');
+  });
+  it('does not let an assigned unrelated merchant guess another sale or refund', async () => {
+    const userId = await actor('MERCHANT');
+    await prisma.branchMembership.create({
+      data: { organizationId, branchId, userId },
+    });
+    const unrelated = await prisma.merchant.create({
+      data: {
+        organizationId,
+        name: 'Unrelated',
+        contactName: 'Test',
+        phone: '09171234567',
+      },
+    });
+    await prisma.organizationMembership.update({
+      where: { organizationId_userId: { organizationId, userId } },
+      data: { merchantId: unrelated.id },
+    });
+    const refund = await record();
+    await expect(
+      history({ organizationId, userId, role: 'MERCHANT' }),
+    ).rejects.toThrow('Sale not found');
+    await expect(
+      reads.findOne(
+        { organizationId, userId, role: 'MERCHANT' },
+        branchId,
+        saleId,
+        refund.id,
+      ),
+    ).rejects.toThrow('Sale not found');
+  });
+  it('requires current manager assignment for both history and detail', async () => {
+    const userId = await actor('MANAGER');
+    const context = { organizationId, userId, role: 'OWNER' as const };
+    const refund = await record();
+    await expect(history(context)).rejects.toThrow('Branch not found');
+    await prisma.branchMembership.create({
+      data: { organizationId, branchId, userId },
+    });
+    expect((await history(context)).scope).toBe('STAFF');
+    expect(await reads.findOne(context, branchId, saleId, refund.id)).toEqual(
+      refund,
+    );
+    await prisma.branchMembership.deleteMany({
+      where: { organizationId, branchId, userId },
+    });
+    await expect(
+      reads.findOne(context, branchId, saleId, refund.id),
+    ).rejects.toThrow('Branch not found');
+  });
+  it.each(['CASHIER', 'deleted', 'removed'])(
+    'denies refund reads after current access becomes %s',
+    async (change) => {
+      const userId = await actor('OWNER');
+      const context = { organizationId, userId, role: 'OWNER' as const };
+      const refund = await record();
+      if (change === 'CASHIER')
+        await prisma.organizationMembership.update({
+          where: { organizationId_userId: { organizationId, userId } },
+          data: { role: 'CASHIER' },
+        });
+      if (change === 'deleted')
+        await prisma.user.update({
+          where: { id: userId },
+          data: { deletedAt: new Date() },
+        });
+      if (change === 'removed')
+        await prisma.organizationMembership.delete({
+          where: { organizationId_userId: { organizationId, userId } },
+        });
+      await expect(history(context)).rejects.toThrow(
+        change === 'CASHIER' ? 'cannot read refunds' : 'Organization not found',
+      );
+      await expect(
+        reads.findOne(context, branchId, saleId, refund.id),
+      ).rejects.toThrow(
+        change === 'CASHIER' ? 'cannot read refunds' : 'Organization not found',
+      );
+    },
+  );
+  it('uses not-found for absent, wrong-sale, wrong-branch and foreign-tenant guesses', async () => {
+    const refund = await record();
+    await expect(
+      reads.findOne(owner(), branchId, saleId, randomUUID()),
+    ).rejects.toThrow('Refund not found');
+    await expect(
+      reads.findOne(owner(), otherBranchId, saleId, refund.id),
+    ).rejects.toThrow('Sale not found');
+    const another = await checkout.complete(owner(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '12.50',
+      items: [
+        {
+          branchInventoryId: inventories[0],
+          quantity: 1,
+          expectedUnitPrice: '12.50',
+        },
+      ],
+    });
+    await expect(
+      reads.findOne(owner(), branchId, another.id, refund.id),
+    ).rejects.toThrow('Refund not found');
+    const org = await prisma.organization.create({ data: { name: 'Foreign' } });
+    await prisma.organizationMembership.create({
+      data: { organizationId: org.id, userId: ownerId, role: 'OWNER' },
+    });
+    await expect(
+      reads.findAll({ ...owner(), organizationId: org.id }, branchId, saleId, {
+        page: 1,
+        limit: 50,
+      }),
+    ).rejects.toThrow('Branch not found');
+    await expect(
+      reads.findOne(
+        { ...owner(), organizationId: org.id },
+        branchId,
+        saleId,
+        refund.id,
+      ),
+    ).rejects.toThrow('Branch not found');
+  });
+  it('keeps history count, rows and remaining quantities in one snapshot during another refund', async () => {
+    const first = await record(command(2, 1));
+    let captured!: () => void, release!: () => void;
+    const ready = new Promise<void>((done) => {
+      captured = done;
+    });
+    const resumed = new Promise<void>((done) => {
+      release = done;
+    });
+    const facade = {
+      $transaction: (
+        callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
+        options: { isolationLevel: Prisma.TransactionIsolationLevel },
+      ) =>
+        prisma.$transaction(
+          async (tx) => {
+            const intercepted = {
+              ...tx,
+              refund: {
+                ...tx.refund,
+                count: async (args: Prisma.RefundCountArgs) => {
+                  const result = await tx.refund.count(args);
+                  captured();
+                  await resumed;
+                  return result;
+                },
+              },
+            } as unknown as Prisma.TransactionClient;
+            return callback(intercepted);
+          },
+          { ...options, timeout: 15000 },
+        ),
+    };
+    const pending = new RefundReadService(
+      facade as unknown as PrismaService,
+    ).findAll(owner(), branchId, saleId, { page: 1, limit: 50 });
+    try {
+      await ready;
+      await record(command(3, 2));
+    } finally {
+      release();
+    }
+    expect(await pending).toMatchObject({
+      total: 1,
+      items: [{ id: first.id }],
+      remainingItems: expect.arrayContaining([
+        expect.objectContaining({
+          saleItemId: saleItems[0],
+          returnedQuantity: 2,
+          restockedQuantity: 1,
+          remainingQuantity: 8,
+        }),
+      ]) as unknown,
+    });
+    expect(await history()).toMatchObject({
+      total: 2,
+      remainingItems: expect.arrayContaining([
+        expect.objectContaining({
+          saleItemId: saleItems[0],
+          returnedQuantity: 5,
+          restockedQuantity: 3,
+          remainingQuantity: 5,
+        }),
+      ]) as unknown,
+    });
+    await ledger();
   });
   it.each(['CASH', 'GCASH', 'CARD'] as const)(
     'records exact %s refunds against a real mixed checkout without changing the original sale',
@@ -629,5 +1135,26 @@ describe('PostgreSQL refund commands and concurrency', () => {
       where: { organizationId, branchId, id: { in: maximum } },
     });
     expect(restored.every((item) => item.quantity === 2147483647)).toBe(true);
+    expect(await reads.findOne(owner(), branchId, sale.id, result.id)).toEqual(
+      result,
+    );
+    const merchant = await merchantActor();
+    const own = await reads.findOne(merchant, branchId, sale.id, result.id);
+    expect(own).toMatchObject({ scope: 'MERCHANT', ownItemsSubtotal: total });
+    expect(own.items).toHaveLength(100);
+    const remaining = await reads.findAll(merchant, branchId, sale.id, {
+      page: 1,
+      limit: 50,
+    });
+    expect(remaining.remainingItems).toHaveLength(100);
+    expect(
+      remaining.remainingItems.every(
+        (item) =>
+          item.soldQuantity === 2147483647 &&
+          item.returnedQuantity === 2147483647 &&
+          item.restockedQuantity === 2147483647 &&
+          item.remainingQuantity === 0,
+      ),
+    ).toBe(true);
   });
 });

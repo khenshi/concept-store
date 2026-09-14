@@ -1,8 +1,8 @@
 # Item Returns and Manual Refunds
 
-**Status:** Persistence and create/replay API implemented. Refund history/detail
-reads, remaining-quantity responses, refund-aware reports and refund forms are not
-implemented yet.
+**Status:** Persistence, create/replay API and staff/merchant refund history/detail
+with remaining-quantity reads implemented. Refund-aware reports and refund forms
+are not implemented yet.
 
 ## Implemented scope
 
@@ -136,8 +136,59 @@ overflow returns 409 STOCK_OVERFLOW. Those conflicts require refresh/review.
 original receipt code, reason, actual manual method/reference, exact two-decimal
 total and original saved item identities/ownership/prices plus returned/restocked
 quantities. It excludes requestId, refundCommand and actor attribution. The
-Swagger contract describes the command, response and conflicts. There are no
-refund GET routes yet; persisted actor attribution is internal, not a response.
+Swagger contract describes the command, response and conflicts. Persisted actor
+attribution is internal, not a response.
+
+## History/detail reads and remaining quantities
+
+```text
+GET /organizations/:organizationId/branches/:branchId/sales/:saleId/refunds?page=&limit=
+GET /organizations/:organizationId/branches/:branchId/sales/:saleId/refunds/:refundId
+```
+
+OWNER reads tenant branches; MANAGER requires a current assignment. MERCHANT may
+read an original sale only when it contains items owned by the currently linked
+profile. Historical own-sale access does not require a current branch assignment
+or active product/merchant/placement. A branch assignment by itself never exposes
+another merchant's sale/refund. Unlinked merchants and sales without own items
+return 404; CASHIER is denied, without changing existing cashier own-sale APIs.
+Current membership, non-deleted-user state, role, branch grants and profile link
+are reloaded inside each read transaction. Wrong tenant/branch/sale/refund or
+refunds without matching own items use the same not-found behavior as absent IDs.
+
+List accepts integer page 1..21474836 (default 1) and limit 1..100 (default 50).
+No date/merchant/payment filter is accepted. Unknown, malformed and repeated-array
+queries are rejected; detail accepts no query fields. Path IDs require UUID v4
+and normalize to lowercase. Records order by completedAt descending then ID
+descending, with items by original sale-item ID ascending. Empty or past-end pages
+return an empty items array without losing remaining quantities.
+
+The list response includes scope, items, page, limit, total, totalPages and
+remainingItems. Each remaining entry has original saleItemId, soldQuantity,
+returnedQuantity, restockedQuantity and remainingQuantity. These integer quantities
+cover every completed refund, independent of page bounds; original items without
+returns have explicit zero totals. Staff see all original sale items and all
+matching refunds. Merchant counts/pages and remaining entries cover only own
+original items and refunds containing own items. Restocking is not subtracted a
+second time from returnable quantities.
+
+Staff list/detail rows use the immutable create-response STAFF contract, including
+exact total, actual payment method/reference and reason, but no actor/request/
+private command. Merchant rows use a separate MERCHANT contract: refund/sale IDs,
+receipt/refund code, completion time, saved branch ID/name/code, only matching own
+item snapshots with return/restock quantities and exact ownItemsSubtotal. They
+never select or return whole refund/sale totals, payment fields, reason, actor,
+other item counts/identities, inventory placement IDs, contacts or private command
+metadata. Shared linked profiles have the same own history; relinking/unlinking
+changes subsequent reads, without trusting stale request context.
+
+All authorization, counts, full cumulative sums and page rows share one
+REPEATABLE READ snapshot. A concurrent refund cannot produce mismatched counts,
+remaining quantities and rows within a response. Reads never mutate sales,
+refunds, stock or movements. Original saved prices/names/ownership/branch identity
+survive current price, name and lifecycle edits. Swagger describes separate
+scope-discriminated staff and merchant list/detail schemas. Refund forms and
+report deduction/aggregation remain later parts, not implied by these routes.
 
 ## Persistence verification
 
@@ -174,8 +225,23 @@ Concurrent over-return, identical/conflicting request IDs, checkout and
 receipt/adjustment races reconcile stock with immutable ledger history.
 
 Frontend formatting/lint/type checking, 569 tests across 75 files and production
-build verify the
-small RETURN inventory-history compatibility update. No new refund screen is
-included; rendered refund QA remains required in the later frontend/final parts.
+build verify the small RETURN inventory-history compatibility update. No new refund
+screen is included; rendered refund QA remains required in the later frontend/final parts.
 All PostgreSQL migrations/tests use isolated disposable schemas, never application
 database migration, reset or seed.
+
+## History/detail verification
+
+Prisma validation, backend formatting/lint/build, 364 unit tests across 33 suites,
+186 HTTP tests across six suites and 214 disposable PostgreSQL tests across six
+suites pass. New read coverage adds 10 unit, 17 HTTP and 14 PostgreSQL tests.
+Tests cover empty/past-end pages, tied-time stable ordering beyond 50 refunds,
+all-page cumulative quantities, explicit saved staff results, strict reduced
+merchant keys/selections, mixed ownership, other-only refund denial, no-own-refund
+history, inactive historical records, shared profiles, relinking/unlinking, current
+manager grants/roles, removed/deleted users, foreign IDs and concurrent snapshot
+consistency. Maximum-capacity own subtotals and 100 fully returned/restocked
+original lines remain exact. Read-only checks compare original sales/refunds,
+inventory and movements before/after reads. Existing command/race regressions
+continue to pass. No schema/migration or frontend changes are included in this
+read-only part, and the application database is untouched.

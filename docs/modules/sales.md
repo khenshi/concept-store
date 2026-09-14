@@ -9,8 +9,9 @@ merchant reports remain own-item-only and never expose payment/whole-sale totals
 The separate [manual refund API](refunds.md) references original sales and saved
 items with tenant-safe keys. It records partial/full whole-item returns and optional
 original-placement restocking without editing the sale. These original
-sale/checkout/history contracts remain unchanged; refund reads/forms are not yet
-available.
+sale/checkout/history contracts remain unchanged. Separate staff/own-merchant
+refund history/detail APIs provide remaining original returnable quantities;
+refund forms are not yet available.
 
 ## Implemented scope
 

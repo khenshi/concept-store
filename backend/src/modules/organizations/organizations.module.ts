@@ -31,10 +31,13 @@ import { ReportsController } from './reports/reports.controller';
 import { ReportsService } from './reports/reports.service';
 import { RefundsController } from './refunds/refunds.controller';
 import { RefundsService } from './refunds/refunds.service';
+import { RefundReadController } from './refunds/refund-read.controller';
+import { RefundReadService } from './refunds/refund-read.service';
 
 @Module({
   imports: [AuthModule],
   controllers: [
+    RefundReadController,
     RefundsController,
     ReportsController,
     OrganizationsController,
@@ -51,6 +54,7 @@ import { RefundsService } from './refunds/refunds.service';
     MerchantSalesBranchesController,
   ],
   providers: [
+    RefundReadService,
     RefundsService,
     ReportsService,
     OrganizationsService,
