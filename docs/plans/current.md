@@ -1,6 +1,6 @@
 # Current Implementation Plan
 
-**Status:** Approved by the user; Part 1 reviewed and approved for commit. Part 2 follows; Part 3 is not implemented.
+**Status:** Approved; Part 1 reviewed and committed as `854169f`; Part 2 implemented and ready for review, not committed. Part 3 is not implemented.
 
 # Branch Sales Reporting MVP
 
@@ -172,8 +172,24 @@ change is included. Backend format/lint/build, 329 unit tests, 133 HTTP tests an
 concurrent-checkout snapshot consistency, later edits, mixed ownership, more than
 one history page, range boundaries, exact capacity, revoked access, private keys
 and tenant/branch isolation. Reports/Sales/Branches/test docs are updated. The
-application database and unrelated edits are untouched. Stop for review before
-committing this part; rendered Reports QA remains for the later frontend parts.
+application database and unrelated edits are untouched. This part was reviewed
+and committed as `854169f`; rendered Reports QA remains for the frontend parts.
+
+Part 2 delivery: thin Reports routes and staff-only sidebar/mobile navigation;
+explicit identity-only branch selection, labeled branch dropdown and no back
+button. Philippines inclusive calendar dates default to local today, convert to
+half-open UTC, and validate after 300 ms/on blur/on Apply with invalid-field focus.
+Staff summary/payment rows retain exact string values and manual/unverified labels.
+Strict runtime contracts reject wrong scope/private data and validate payment
+reconciliation and requested branch/range. Applying a period, changing branch,
+refreshing, failing/revoking a read or changing user/tenant/role clears scoped data;
+late responses cannot restore it. Missing branches never select a fallback.
+Invalid drafts block refresh/retry/Apply reads; retry remains read-only. Merchant
+Reports navigation/screens are intentionally not exposed and cashier access is
+denied. Frontend formatting/lint/typecheck/build and 532 tests across 75 files pass;
+Reports/frontend module docs are updated. Backend/application DB and unrelated
+edits remain untouched. Stop for review before committing Part 2. Merchant own-only
+delivery and new Reports rendered QA or explicit waiver remain Part 3.
 
 1. Backend report DTOs/contracts/OpenAPI, scoped branch lookup and staff/merchant
    database aggregates; unit/HTTP/disposable PostgreSQL tests and Reports module

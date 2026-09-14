@@ -1,5 +1,29 @@
 # Frontend Experience
 
+## Staff sales reports
+
+Owners/managers now have Reports in sidebar/mobile navigation, with both Reports
+routes active under that entry rather than Branches. The entry requires explicit
+selection from the identity-only authorized Reports branch lookup, even with one
+branch. The branch workspace offers a labeled dropdown, inclusive Philippines
+From/Through dates and separate Apply/Refresh actions, with no back button.
+Dates default to Philippines today independently of browser timezone; validation
+is debounced 300 ms per input, immediate on blur and final on Apply with invalid
+field focus. Typing does not read, invalid drafts block reads, and the applied
+period remains visibly labeled. Date/branch changes and failed/revoked reads clear
+old data; scoped guards prevent obsolete responses from restoring totals.
+
+Operational cards/payment rows display exact gross recorded sales, transactions
+and units without numeric rounding. Strict staff contracts verify branch/range
+scope and three-method reconciliation; GCash/card remain explicitly manual and
+unverified. Loading, missing assignments, empty periods, failure and denied access
+offer safe read/access refresh. Cashiers cannot fetch Reports; merchant Reports
+navigation/UI is not exposed yet, and existing Sales/POS/Inventory is unchanged.
+All 532 frontend tests across 75 files, lint/typecheck, changed-source formatting
+and production build pass. Rendered Reports responsive/dropdown/date/keyboard/
+focus/zoom QA remains pending for final delivery; prior milestone waivers do not
+cover these screens. See [Sales Reports](reports.md).
+
 ## Inventory navigation refinement
 
 Inventory now appears in sidebar/mobile navigation for owners, managers and

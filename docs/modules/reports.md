@@ -1,6 +1,7 @@
 # Sales Reports
 
-**Status:** Backend API implemented; frontend Reports screens are not implemented yet.
+**Status:** Backend API and owner/manager Reports screens implemented. Merchant
+Reports navigation and own-only screens are not implemented yet.
 
 ## Responsibilities and exclusions
 
@@ -27,8 +28,8 @@ Summary requires both strict UTC `from` (inclusive) and `until` (exclusive)
 timestamps ending in Z with at most millisecond precision. `from < until` and
 the range cannot exceed 366 days. Applied ranges return normalized UTC timestamps.
 Branch lookup accepts no query parameters. The backend does not infer a local
-calendar day or timezone. Philippines calendar date inputs belong to the later
-approved frontend part, not this API implementation.
+calendar day or timezone. The frontend converts inclusive Philippines calendar
+dates into the required half-open UTC range.
 
 ## Authorization and branch lookup
 
@@ -85,6 +86,49 @@ Existing tenant/branch/completion-time and merchant-item indexes are retained.
 Swagger/OpenAPI describes required ranges, errors and separate response schemas
 with explicit STAFF/MERCHANT discriminator mappings.
 
+## Owner/manager workspace
+
+Reports appears in expanded/collapsed sidebar and mobile navigation for owners
+and managers. Both organization and branch Reports routes mark Reports active
+instead of Branches:
+
+```text
+/app/organizations/:organizationId/reports
+/app/organizations/:organizationId/branches/:branchId/reports
+```
+
+The organization entry reads only the Reports identity lookup and requires an
+explicit branch choice, even with one accessible branch. There is no All branches
+total or silent fallback. The branch workspace rechecks the lookup before its
+summary read and offers a labeled branch dropdown without a back button. Cashiers
+cannot mount report reads. Merchant Reports navigation remains hidden until the
+separate own-only screen is delivered; existing merchant Sales remains unchanged.
+
+From/Through inputs are visibly labeled Philippines, inclusive (`Asia/Manila`).
+Today is computed in that timezone independently of browser timezone. Fields
+validate on each input after 300 ms, immediately on blur and on Apply; invalid
+submission focuses the first invalid field. Same-day periods are valid, with a
+maximum of 366 inclusive days. Typing does not fetch; Apply sets a new period.
+Refresh/retry read the visibly labeled applied period, never write, and are blocked
+while the draft dates are invalid. Branch changes reset the period to Philippines
+today. There are no persistent report drafts.
+
+Strict runtime schemas validate identity-only distinct options, STAFF scope,
+branch/range correspondence, canonical exact money/integer strings, three distinct
+payment methods and summary reconciliation before rendering. Merchant/private,
+malformed or stale-scope responses are rejected. Aggregate values render without
+floating-point conversion or single-sale size limits. Empty periods still show
+zero summaries and all three payment rows, with explicit no-sales feedback.
+Labels distinguish gross recorded sales from profit/payouts and manual unverified
+GCash/card from payment-provider reconciliation.
+
+Apply, branch changes and refresh clear old totals/options; failed or revoked reads
+cannot retain stale summary/payment rows. Generation/unmount guards ignore late
+responses after period, branch, organization, role or user changes. Access refresh
+uses organization context; unavailable branches never cause automatic navigation.
+Loading, no assigned branches, empty period, failure and denied access have distinct
+feedback and safe read-only retry/access-refresh actions.
+
 ## Verification and delivery
 
 Backend formatting/lint/build, 329 unit tests, 133 HTTP tests and 146 PostgreSQL
@@ -102,6 +146,14 @@ schemas, applying existing migrations and dropping only their test schema. No
 application database is migrated, reset or seeded. See
 [backend test setup](../../backend/test/README.md).
 
-Frontend sidebar, dropdown, Philippines date conversion and staff/merchant views
-remain approved later parts in docs/plans/current.md. Rendered Reports QA needs
-browser access or a new explicit waiver; previous milestones' waivers do not apply.
+Frontend checks pass: 532 tests across 75 files, lint, type checking, changed-source
+formatting and production build. New tests cover explicit branch choice, sidebar/
+mobile role visibility, Philippines midnight/date conversion, inclusive range
+limits, debounce/blur/Apply/focus, read-only retries, missing/revoked access, branch/
+date/user/role scope resets, late responses, exact large totals/counts and rejection
+of malformed/private/wrong-scope data. Backend behavior is unchanged by this part.
+
+Merchant frontend delivery remains the next approved part in docs/plans/current.md.
+Rendered Reports responsive/dropdown/date/keyboard/focus/200% zoom QA is pending;
+it needs browser access or a new explicit waiver. Previous milestones' waivers do
+not apply, and automated checks do not certify rendered layout or accessibility.

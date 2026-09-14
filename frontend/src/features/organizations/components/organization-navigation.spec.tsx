@@ -5,6 +5,41 @@ import { OrganizationNavigation } from './organization-navigation';
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 
 describe('OrganizationNavigation', () => {
+  it.each([
+    '/reports',
+    '/branches/branch/reports',
+    '/branches/branch/reports/detail',
+  ])('marks Reports active instead of Branches at %s', (suffix) => {
+    vi.mocked(usePathname).mockReturnValue(`/app/organizations/org${suffix}`);
+    const view = render(
+      <OrganizationNavigation organizationId="org" showReports collapsed />,
+    );
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute(
+      'title',
+      'Reports',
+    );
+    expect(screen.getByRole('link', { name: 'Branches' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    view.rerender(<OrganizationNavigation organizationId="org" />);
+    expect(
+      screen.queryByRole('link', { name: 'Reports' }),
+    ).not.toBeInTheDocument();
+  });
+  it.each(['/reports-other', '/branches/branch/reports-other'])(
+    'does not mark unrelated Reports prefixes active at %s',
+    (suffix) => {
+      vi.mocked(usePathname).mockReturnValue(`/app/organizations/org${suffix}`);
+      render(<OrganizationNavigation organizationId="org" showReports />);
+      expect(screen.getByRole('link', { name: 'Reports' })).not.toHaveAttribute(
+        'aria-current',
+      );
+    },
+  );
   it('marks inventory details active instead of Branches and hides Inventory when not allowed', () => {
     vi.mocked(usePathname).mockReturnValue(
       '/app/organizations/org/branches/branch/inventory/item',

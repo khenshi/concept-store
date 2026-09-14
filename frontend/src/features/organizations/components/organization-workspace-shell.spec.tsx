@@ -153,6 +153,42 @@ describe('OrganizationWorkspaceShell', () => {
     },
   );
 
+  it.each(['OWNER', 'MANAGER', 'MERCHANT', 'CASHIER'] as const)(
+    'exposes staff Reports in sidebar and mobile navigation only for staff: %s',
+    (role) => {
+      context(role);
+      vi.mocked(usePathname).mockReturnValue(
+        '/app/organizations/org/branches/branch/reports',
+      );
+      renderShell();
+      const sidebar = within(
+        screen.getByRole('complementary', { name: 'Workspace sidebar' }),
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+      const mobile = within(
+        screen.getByRole('dialog', { name: 'Workspace navigation' }),
+      );
+      for (const region of [sidebar, mobile]) {
+        if (role === 'OWNER' || role === 'MANAGER') {
+          expect(region.getByRole('link', { name: 'Reports' })).toHaveAttribute(
+            'href',
+            '/app/organizations/org/reports',
+          );
+          expect(region.getByRole('link', { name: 'Reports' })).toHaveAttribute(
+            'aria-current',
+            'page',
+          );
+          expect(
+            region.getByRole('link', { name: 'Branches' }),
+          ).not.toHaveAttribute('aria-current');
+        } else
+          expect(
+            region.queryByRole('link', { name: 'Reports' }),
+          ).not.toBeInTheDocument();
+      }
+    },
+  );
+
   it('restores and updates sidebar preference while keeping organization switching available', async () => {
     window.localStorage.setItem('kapwesto.sidebar.collapsed', 'true');
     renderShell();

@@ -1,0 +1,40 @@
+import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
+import {
+  reportBranchesSchema,
+  reportQuerySchema,
+  staffSalesReportSchema,
+  type ReportQuery,
+} from '../model/report.schemas';
+
+export async function listReportBranches(
+  request: AuthenticatedRequest,
+  organizationId: string,
+) {
+  return reportBranchesSchema.parse(
+    await request<unknown>(
+      `/organizations/${encodeURIComponent(organizationId)}/reports/sales/branches`,
+    ),
+  );
+}
+export async function getStaffSalesReport(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: ReportQuery,
+) {
+  const query = reportQuerySchema.parse(input);
+  const report = staffSalesReportSchema.parse(
+    await request<unknown>(
+      `/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/reports/sales?${new URLSearchParams(query)}`,
+    ),
+  );
+  if (
+    report.branch.id !== branchId ||
+    Date.parse(report.from) !== Date.parse(query.from) ||
+    Date.parse(report.until) !== Date.parse(query.until)
+  )
+    throw new Error(
+      'The report response does not match the selected branch and period.',
+    );
+  return report;
+}
