@@ -27,9 +27,10 @@ import { ProductForm } from './product-form';
 
 export function ProductDirectory(props: { organizationId: string }) {
   const { organization } = useOrganizationWorkspaceContext();
+  const { user } = useAuth();
   return (
     <ScopedProductDirectory
-      key={`${props.organizationId}:${organization?.role}`}
+      key={`${props.organizationId}:${organization?.role}:${user?.id}`}
       {...props}
     />
   );
@@ -61,7 +62,7 @@ function ScopedProductDirectory({
   const [revision, setRevision] = useState(0);
   const q = useDebouncedValue(search);
   useEffect(() => {
-    if (!allowed) return;
+    if (!allowed || creating) return;
     let active = true;
     async function load() {
       await Promise.resolve();
@@ -100,6 +101,7 @@ function ScopedProductDirectory({
     };
   }, [
     allowed,
+    creating,
     organization,
     request,
     organizationId,
@@ -159,12 +161,14 @@ function ScopedProductDirectory({
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Product name, SKU, or barcode"
               className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm"
+              disabled={creating}
             />
           </FilterField>
           <FilterField id="product-filter-merchant" label="Merchant">
             <SelectControl
               id="product-filter-merchant"
               value={merchantId}
+              disabled={creating}
               onValueChange={setMerchantId}
             >
               <option value="">All merchants</option>
@@ -179,6 +183,7 @@ function ScopedProductDirectory({
             <SelectControl
               id="product-filter-status"
               value={status}
+              disabled={creating}
               onValueChange={(value) => setStatus(value as ProductStatus | '')}
             >
               <option value="">All statuses</option>
@@ -248,7 +253,7 @@ function ScopedProductDirectory({
       {creating && canEdit ? (
         <FormDialog
           title="Add a product"
-          description="Choose its merchant and record its identity. New products start active, without branch stock or a global price."
+          description="Choose its merchant and record its identity. Optionally add initial stock to one explicitly selected branch with its own selling price."
           pending={pending}
           onClose={() => setCreating(false)}
         >
@@ -257,9 +262,11 @@ function ScopedProductDirectory({
             merchants={merchants}
             onCancel={() => setCreating(false)}
             onPendingChange={setPending}
-            onSaved={(saved) => {
+            onSaved={(saved, withOpeningStock) => {
               setCreating(false);
-              setSuccess(`${saved.name} was created successfully.`);
+              setSuccess(
+                `${saved.name} was created successfully.${withOpeningStock ? ' Initial stock is recorded in the selected branch.' : ''}`,
+              );
               setRevision((value) => value + 1);
             }}
           />

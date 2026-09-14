@@ -8,6 +8,8 @@ import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { ProductsService } from '../src/modules/organizations/products/products.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
 import { CreateProductDto } from '../src/modules/organizations/products/dto/create-product.dto';
+import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
+import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
 
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString)
@@ -43,6 +45,52 @@ const counts = async () =>
   ]);
 
 describe('PostgreSQL atomic product opening stock', () => {
+  it('exposes opening stock through existing inventory, product-placement and POS reads only in the selected branch', async () => {
+    const inventory = new BranchInventoryService(
+      prisma as unknown as PrismaService,
+    );
+    const catalog = new PosCatalogService(prisma as unknown as PrismaService);
+    const context = { organizationId, userId: actorId, role: 'OWNER' as const };
+    const created = await products.create(
+      organizationId,
+      { ...command(), sku: 'OPENING-SKU', barcode: '001Opening' },
+      actorId,
+    );
+    expect(
+      await products.findInventory(organizationId, created.id, context),
+    ).toEqual([
+      expect.objectContaining({
+        branchId,
+        productId: created.id,
+        quantity: 3,
+        sellingPrice: '12.50',
+      }),
+    ]);
+    expect(
+      await inventory.findAll(organizationId, branchId, {}, context),
+    ).toEqual([
+      expect.objectContaining({
+        productId: created.id,
+        quantity: 3,
+        sellingPrice: '12.50',
+      }),
+    ]);
+    expect(await catalog.findAll(context, branchId)).toEqual([
+      expect.objectContaining({
+        productId: created.id,
+        quantity: 3,
+        sellingPrice: '12.50',
+        eligible: true,
+      }),
+    ]);
+    expect(await catalog.findByCode(context, branchId, '001Opening')).toEqual([
+      expect.objectContaining({ productId: created.id }),
+    ]);
+    expect(
+      await inventory.findAll(organizationId, otherBranchId, {}, context),
+    ).toEqual([]);
+    expect(await catalog.findAll(context, otherBranchId)).toEqual([]);
+  });
   beforeAll(async () => {
     await admin.connect();
     await admin.query(`CREATE SCHEMA "${schema}"`);

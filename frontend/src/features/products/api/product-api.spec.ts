@@ -14,6 +14,34 @@ import {
 } from '../model/product.test-fixtures';
 
 describe('Product API contracts', () => {
+  it('sends opening stock in one product-create request and strips private response metadata', async () => {
+    const request = vi.fn().mockResolvedValue({
+      ...product,
+      creationCommand: { secret: true },
+      creationActorId: merchant.id,
+      creationRequestId: product.id,
+    });
+    const input = {
+      merchantId: merchant.id,
+      name: product.name,
+      sku: null,
+      barcode: null,
+      requestId: product.id,
+      initialInventory: {
+        branchId: placement.branchId,
+        sellingPrice: '0.01',
+        quantity: 1,
+      },
+    };
+    await expect(
+      createProduct(request, organizationId, input),
+    ).resolves.toEqual(product);
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(
+      `/organizations/${organizationId}/products`,
+      expect.objectContaining({ method: 'POST', body: JSON.stringify(input) }),
+    );
+  });
   const request = vi.fn();
   beforeEach(() => vi.resetAllMocks());
   it('encodes search/filter values and validates directory responses', async () => {

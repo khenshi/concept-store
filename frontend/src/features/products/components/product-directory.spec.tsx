@@ -9,11 +9,13 @@ import {
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
+import { listBranches } from '@/features/branches/api/branch-api';
 import { createProduct, listProducts } from '../api/product-api';
 import {
   merchant,
   organizationId,
   product,
+  placement,
 } from '../model/product.test-fixtures';
 import { ProductDirectory } from './product-directory';
 
@@ -24,6 +26,9 @@ vi.mock(
 );
 vi.mock('@/features/merchants/api/merchant-api', () => ({
   listMerchants: vi.fn(),
+}));
+vi.mock('@/features/branches/api/branch-api', () => ({
+  listBranches: vi.fn(),
 }));
 vi.mock('../api/product-api', () => ({
   listProducts: vi.fn(),
@@ -42,6 +47,7 @@ describe('ProductDirectory workflows', () => {
     } as never);
     vi.mocked(listMerchants).mockResolvedValue([merchant]);
     vi.mocked(listProducts).mockResolvedValue([product]);
+    vi.mocked(listBranches).mockResolvedValue([placement.branch]);
   });
   it.each(['CASHIER'])(
     'does not request or show product controls for %s',
@@ -122,6 +128,91 @@ describe('ProductDirectory workflows', () => {
     expect(
       screen.queryByRole('button', { name: 'Add product' }),
     ).not.toBeInTheDocument();
+  });
+  it('retains successful opening creation when the subsequent directory refresh fails, and retries reads only', async () => {
+    vi.mocked(createProduct).mockResolvedValue(product);
+    vi.mocked(listProducts)
+      .mockResolvedValueOnce([product])
+      .mockRejectedValueOnce(new Error('Read offline'))
+      .mockResolvedValueOnce([product]);
+    render(<ProductDirectory organizationId={organizationId} />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add product' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    const modal = within(screen.getByRole('dialog'));
+    fireEvent.click(modal.getByRole('combobox', { name: 'Merchant' }));
+    fireEvent.click(modal.getByRole('option', { name: merchant.name }));
+    fireEvent.change(modal.getByRole('textbox', { name: 'Product name' }), {
+      target: { value: 'Vase' },
+    });
+    fireEvent.click(modal.getByRole('checkbox', { name: 'Add initial stock' }));
+    await waitFor(() =>
+      expect(
+        modal.getByRole('combobox', { name: 'Initial stock branch' }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(
+      modal.getByRole('combobox', { name: 'Initial stock branch' }),
+    );
+    fireEvent.click(modal.getByRole('option', { name: 'Makati · MKT' }));
+    fireEvent.change(
+      modal.getByRole('textbox', { name: 'Branch selling price (PHP)' }),
+      { target: { value: '12.50' } },
+    );
+    fireEvent.change(
+      modal.getByRole('textbox', { name: 'Initial stock quantity' }),
+      { target: { value: '3' } },
+    );
+    fireEvent.click(modal.getByRole('button', { name: 'Create product' }));
+    await screen.findByText(
+      `${product.name} was created successfully. Initial stock is recorded in the selected branch.`,
+    );
+    await screen.findByText('The product directory could not be loaded.');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await screen.findByRole('link', { name: `View ${product.name}` });
+    expect(createProduct).toHaveBeenCalledTimes(1);
+  });
+  it('keeps the dialog open and filters locked during uncertain opening-stock recovery', async () => {
+    vi.mocked(createProduct).mockRejectedValue(new Error('Unknown outcome'));
+    render(<ProductDirectory organizationId={organizationId} />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add product' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    const dialog = screen.getByRole('dialog');
+    const modal = within(dialog);
+    fireEvent.click(modal.getByRole('combobox', { name: 'Merchant' }));
+    fireEvent.click(modal.getByRole('option', { name: merchant.name }));
+    fireEvent.change(modal.getByRole('textbox', { name: 'Product name' }), {
+      target: { value: 'Vase' },
+    });
+    fireEvent.click(modal.getByRole('checkbox', { name: 'Add initial stock' }));
+    await waitFor(() =>
+      expect(
+        modal.getByRole('combobox', { name: 'Initial stock branch' }),
+      ).toBeEnabled(),
+    );
+    fireEvent.click(
+      modal.getByRole('combobox', { name: 'Initial stock branch' }),
+    );
+    fireEvent.click(modal.getByRole('option', { name: 'Makati · MKT' }));
+    fireEvent.change(
+      modal.getByRole('textbox', { name: 'Branch selling price (PHP)' }),
+      { target: { value: '12.50' } },
+    );
+    fireEvent.change(
+      modal.getByRole('textbox', { name: 'Initial stock quantity' }),
+      { target: { value: '3' } },
+    );
+    fireEvent.click(modal.getByRole('button', { name: 'Create product' }));
+    await modal.findByRole('button', { name: 'Retry same creation' });
+    fireEvent(dialog, new Event('cancel', { bubbles: true, cancelable: true }));
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toBeDisabled();
+    expect(modal.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    expect(createProduct).toHaveBeenCalledTimes(1);
   });
   it('creates a product in a dialog, announces success, and reloads the list', async () => {
     vi.mocked(createProduct).mockResolvedValue(product);

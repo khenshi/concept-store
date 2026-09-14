@@ -12,7 +12,30 @@ data/filters reset and obsolete reads cannot restore data after access loss.
 Cashiers remain denied and merchants retain own-only inventory. No backend or
 new-product opening-stock behavior changes in this part. All 443 frontend tests,
 lint, type checking, production build and changed-file formatting pass. Rendered QA
-for this milestone is pending browser access or a new explicit waiver.
+was pending at Part 1 delivery and explicitly waived for this milestone on
+September 14, 2026. Rendered behavior is not certified by automated checks.
+
+## Optional new-product opening stock
+
+The owner Create product dialog now offers off-by-default Add initial stock with
+an explicit tenant branch dropdown, branch PHP selling price and whole-unit
+quantity. No branch is silently selected. Enabled submission requires loaded
+branches and valid complete stock fields; loading, failure and empty states cannot
+fall back to product-only creation. Disabling removes the section and omits stock
+input/request ID. Existing-product editing and Add product placement are unchanged.
+Aligned shared controls validate each changed field after 300 ms, immediately on
+blur and finally on submit, focusing the first invalid control.
+
+One atomic API command saves product and opening inventory. Failed opening saves
+freeze the submitted input/request ID for explicit Retry same creation, preventing
+duplicate stock after an uncertain response. Pending/recovery locks fields,
+dismissal and voluntary link navigation, with document-leaving protection; no
+automatic writes or persistent drafts are introduced. Directory filters/scoped
+refreshes pause while the dialog is open. Confirmed creation success remains
+distinct from failed post-save reads, whose retry cannot write again. All 472
+frontend tests across 70 files, lint/typecheck/build and changed-file formatting
+pass. The user waived rendered responsive, keyboard/dialog and zoom QA for both
+Inventory navigation and this form on September 14, 2026. See [Products](products.md).
 
 ## POS navigation refinement
 
@@ -209,6 +232,7 @@ restoration, and safe dismissal. Shared fields support opt-in hints above inputs
 to preserve the branch form's established field layout; other fields retain hints
 below by default. Branch search/filter behavior, API requests, normalization,
 authorization, tenant scoping, and optional-field clearing are unchanged.
+
 ## Branch POS cart delivery
 
 Branch POS uses the existing warm-stone operational panels, consistent text fields

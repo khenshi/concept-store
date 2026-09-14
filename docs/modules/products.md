@@ -58,7 +58,8 @@ null, malformed and unknown nested fields are rejected. `branchId` is an explici
 selected same-organization branch. Price is positive PHP decimal text with up to
 ten integer and two fractional digits; quantity is a whole number `1..2147483647`.
 Requests omitting both preserve product-only creation without any stock record.
-This backend option is not yet exposed in the new-product frontend form.
+The owner new-product form exposes this option, off by default. Product editing
+does not offer opening stock.
 
 For a new opening-stock command, current owner membership, non-deleted actor,
 tenant branch and active tenant merchant are checked inside a serializable
@@ -119,6 +120,40 @@ automated tests. The unperformed checklist is retained in the
 [completed plan](../plans/archive/products-and-branch-inventory-2026-09-12.md).
 
 ## Workspace UI
+
+The new-product dialog includes optional Add initial stock with an explicit branch
+dropdown, PHP price and whole-unit quantity. Branches are read only after enabling
+the section, using the existing authorized owner branch API. No branch is selected
+automatically, even when only one exists. Loading, empty and failed branch reads
+block enabled opening-stock creation; read-only Retry branches never writes a
+product. Disabling the section removes its controls/errors and omits both opening
+inventory and request ID from the legacy product-only command. Obsolete branch
+responses are ignored.
+
+Changed fields validate after 300 ms, on blur immediately and finally on submit;
+invalid submit focuses the first invalid control. Price stays decimal text and
+quantity becomes a bounded numeric integer for the API. One create request carries
+the entire product/opening-stock command, never separate placement/receipt writes.
+Pending saves disable all fields, toggle, repeat submission and dialog dismissal.
+Failed opening-stock saves retain the normalized submitted input and UUID: fields,
+Cancel and dismissal remain locked while an explicit Retry same creation resends
+exactly that command, including after repeated failures. There are no automatic
+mutation retries. Navigation links are blocked during pending/recovery and leaving
+the document invokes the browser's unsaved-work protection. Recovery is in-memory
+only; forced unmount/reload is not a persistent/offline draft workflow.
+
+Directory filters remain locked and scoped reads pause while the dialog is open,
+so background refreshes cannot replace its merchant choices. Role/tenant/user
+changes reset the directory scope. Confirmed success closes the form and announces
+creation separately from any subsequent directory-read failure; read retry only
+reloads data and never resubmits creation. Existing inventory and POS reads expose
+the opening balance/price only in the chosen branch without API changes.
+
+Part 3 frontend format/lint/typecheck/build and 472 tests across 70 files pass;
+127 disposable PostgreSQL tests include inventory/POS read integration. Rendered
+Inventory sidebar/dropdown and new-product dialog responsive, keyboard and zoom
+QA was explicitly waived for this milestone on September 14, 2026. Automated
+dialog tests do not certify browser-rendered behavior.
 
 Frontend controls now match backend access: only owners create/edit/change status;
 managers and merchants read available products and filtered branch placements.

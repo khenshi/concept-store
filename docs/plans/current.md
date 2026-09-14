@@ -1,6 +1,6 @@
 # Current Implementation Plan
 
-**Status:** Approved; Part 1 reviewed and committed as `44c01aa`; Part 2 implemented, awaiting review (uncommitted).
+**Status:** All three parts implemented and approved. Parts 1 and 2 committed as `44c01aa` and `fb105de`; Part 3 approved for commit. Rendered QA waived.
 
 # Inventory Navigation and Optional Opening Stock
 
@@ -94,8 +94,8 @@ form confirmation, pending-write switching locks and revoked/stale-read protecti
 Existing backend APIs and stock/product-creation behavior are unchanged. Frontend
 lint/typecheck/build, changed-file formatting, diff checks and 443 tests across
 69 files pass. Unrelated inventory API/root package/audit edits are untouched.
-Rendered QA decision remains pending for this milestone. Part 3 has not been
-implemented.
+Rendered QA was pending at Part 1 delivery and has now been explicitly waived for
+this milestone by the user on September 14, 2026.
 
 Part 2 delivery: strict paired optional `initialInventory`/UUID request input on
 the existing owner product-create endpoint; atomic product, branch placement and
@@ -112,6 +112,23 @@ tests across three suites pass. Database tests verify actual rollback at each
 write, concurrent no-code requests, bounds, access changes and tenant isolation;
 the application database was not migrated/reset/seeded. Module documentation is
 updated. Unrelated inventory API/root package/audit edits are untouched.
+
+Part 3 delivery: owner new-product modal now offers off-by-default Add initial
+stock, explicit authorized branch choice, exact PHP text price and bounded whole
+quantity. Branch loading/empty/error states block enabled submission and have
+read-only retry; disabling omits stock fields and request ID. Every input validates
+after 300 ms, immediately on blur and on submit with invalid-field focus. One API
+command creates everything. Failed opening-stock saves retain frozen normalized
+input and request ID for explicit same-command recovery; pending/recovery protects
+fields, toggle, dismissal and voluntary navigation, without automatic writes or
+persistent drafts. Directory filters/read refreshes cannot replace an open form's
+merchant choices. Success remains separate from failed directory refresh and
+read-only retry. Existing inventory/product-placement/POS read integration is
+verified against real isolated PostgreSQL. Frontend formatting/lint/typecheck/build
+and 472 tests across 70 files pass, with 127 PostgreSQL tests across three suites;
+backend lint and diff checks pass. Unrelated changes remain untouched. Rendered
+responsive, keyboard/dialog and zoom QA is waived, not certified. The user approved
+Part 3 and final completion; commit this part and archive the completed plan.
 
 1. Inventory sidebar entry, authorized branch-selection/dropdown, active navigation,
    Back to branch removal and scoped form/pending guards; frontend tests/docs.
@@ -139,6 +156,7 @@ Validate/format/generate Prisma after the narrowly scoped migration. Never migra
 reset or seed the application database for testing.
 
 Rendered sidebar/dropdown/product-modal responsive, keyboard/dialog and zoom QA
-needs browser access or a new explicit waiver for this milestone. Previous POS and
-inventory waivers do not carry over. The user approved this plan; the completed POS
+was explicitly waived by the user for this milestone on September 14, 2026.
+Those rendered checks were not performed or certified. Previous POS and inventory
+waivers were not reused. The user approved this plan; the completed POS
 refinement remains historical in its archive.

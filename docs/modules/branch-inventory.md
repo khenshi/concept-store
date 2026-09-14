@@ -1,6 +1,6 @@
 # Branch Inventory
 
-**Status:** Implemented. Original inventory rendered QA waived; new navigation refinement rendered QA pending.
+**Status:** Implemented; original inventory and current navigation/opening-stock rendered QA explicitly waived.
 
 ## Responsibilities
 
@@ -124,12 +124,15 @@ Branch selection includes loading, empty/unassigned and retryable failed-read st
 The navigation part does not change inventory APIs or stock rules. The Products
 create API now optionally creates one branch placement and balanced opening RECEIPT
 atomically with a new product; see [Products](products.md). The frontend new-product
-form option is not implemented yet. Existing Add product placement remains a
+form now offers this owner-only optional section with explicit branch selection.
+Existing Add product placement remains a
 zero-stock workflow, with no opening-stock fields.
 Frontend lint, type checking, production build, changed-file formatting and all
 443 tests across 69 files pass. Unrelated existing inventory-api.ts formatting is
-preserved. Rendered navigation/dropdown/keyboard/zoom QA remains pending a new user
-waiver or browser access; the original inventory waiver does not certify this part.
+preserved. Rendered navigation/dropdown/keyboard/zoom QA was pending at Part 1
+delivery. The user subsequently
+waived rendered responsive, keyboard/dialog and zoom QA for this milestone on
+September 14, 2026; automated tests do not certify those rendered behaviors.
 
 Frontend inventory views match backend enforcement: owners/managers retain stock
 controls in accessible branches, while merchants see own placements/history only.

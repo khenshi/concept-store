@@ -5,6 +5,56 @@ import {
 } from './product.schemas';
 
 describe('Product schemas', () => {
+  const identity = {
+    merchantId: '11111111-1111-4111-8111-111111111111',
+    name: 'Vase',
+    sku: '',
+    barcode: '',
+  };
+  const opening = {
+    branchId: identity.merchantId,
+    sellingPrice: '0.01',
+    quantity: '1',
+  };
+  it('normalizes opening text to a numeric quantity without converting price to floating point', () => {
+    expect(
+      productCreateSchema.parse({
+        ...identity,
+        requestId: identity.merchantId,
+        initialInventory: {
+          ...opening,
+          sellingPrice: ' 9999999999.99 ',
+          quantity: '2147483647',
+        },
+      }),
+    ).toMatchObject({
+      initialInventory: {
+        ...opening,
+        sellingPrice: '9999999999.99',
+        quantity: 2147483647,
+      },
+    });
+  });
+  it.each([
+    { requestId: identity.merchantId },
+    { initialInventory: opening },
+    ...['', '0', '-1', '1.5', '1e2', '2147483648'].map((quantity) => ({
+      requestId: identity.merchantId,
+      initialInventory: { ...opening, quantity },
+    })),
+    ...['0', '-1', '1.001', '10000000000', 1].map((sellingPrice) => ({
+      requestId: identity.merchantId,
+      initialInventory: { ...opening, sellingPrice },
+    })),
+    {
+      requestId: identity.merchantId,
+      initialInventory: { ...opening, branchId: '' },
+    },
+  ])('rejects invalid conditional opening stock %j', (extra) => {
+    expect(
+      productCreateSchema.safeParse({ ...identity, ...extra }).success,
+    ).toBe(false);
+  });
   it('normalizes SKU but preserves barcode identity', () => {
     expect(
       productCreateSchema.parse({
