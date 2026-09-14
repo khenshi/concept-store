@@ -2,7 +2,8 @@
 
 **Status:** Persistence, create/replay API, staff/merchant history/detail with
 remaining quantities, refund-aware Reports API/cards and sale-detail refund UI
-implemented. New rendered refund QA remains pending final verification.
+implemented. Final automated checks passed; rendered refund QA explicitly waived
+September 14, 2026. All six delivery parts reviewed and approved; plan archived.
 
 ## Implemented scope
 
@@ -318,3 +319,25 @@ lockfile build warning remains outside scope. New rendered responsive, native
 dialog/focus, keyboard/dropdown and 200% zoom checks are pending final verification
 and require browser access or a new explicit refund-specific waiver. Prior
 POS/Inventory/Reports waivers do not cover these screens.
+
+## Final automated verification
+
+Part 5 was reviewed and committed as e002181. Final regressions pass Prisma
+validation/client generation, backend formatting/lint/build, 369 unit tests,
+189 HTTP tests, 231 PostgreSQL integration tests and frontend lint/type checking/
+build/changed-file formatting with 680 tests. The existing migration-upgrade test
+reconfirms original sales/items, inventory balances and RECEIPT/SALE history are
+preserved without creating refunds. Existing command concurrency, atomic rollback,
+history privacy and report snapshot/date regressions all pass.
+
+Only random isolated schemas in disposable PostgreSQL were used; the test container
+and temporary data were removed. The application database was not migrated/reset/
+seeded. Full frontend formatting flags only the unrelated user-edited Inventory API
+file, which remains untouched. The pre-existing multiple-lockfile warning remains.
+The user explicitly waived rendered refund responsive, native dialog/keyboard/
+focus, dropdown and 200% zoom QA on September 14, 2026, including refund-aware
+Reports. Those checks were not performed; automated checks do not certify rendered
+layout, native focus containment or accessibility. This new refund-specific waiver
+is independent of earlier POS/Inventory/Reports waivers. All six parts were reviewed
+and approved. The completed plan is archived in
+[Item Returns and Manual Refunds MVP](../plans/archive/item-returns-and-manual-refunds-mvp-2026-09-14.md).

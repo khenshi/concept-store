@@ -1,7 +1,8 @@
 # Sales Reports
 
 **Status:** Refund-aware backend API and owner/manager/merchant report cards
-implemented. New refund-specific rendered QA remains pending final verification.
+implemented. Final automated checks passed; refund-specific rendered QA explicitly
+waived September 14, 2026. Final refund milestone reviewed and approved.
 
 ## Responsibilities and exclusions
 
@@ -282,3 +283,16 @@ capacity, signed arithmetic and date/scope/read-only regressions remain passing.
 No backend/schema/database/infrastructure changes are included in this UI part.
 New refund-aware rendered QA remains pending final verification; the historical
 Reports waiver above applies only to the prior gross-only milestone.
+
+Final refund milestone regressions pass Prisma validation/generation, backend
+format/lint/build, 369 unit, 189 HTTP and 231 disposable PostgreSQL tests, plus
+frontend changed-file formatting, lint/typecheck/build and 680 tests. Report
+independent-date/negative-net, exact method/own totals, read-only privacy and
+concurrent-snapshot checks all pass. The temporary database container/data were
+removed, without application database operations. The user explicitly waived new
+refund-aware responsive, dialog/keyboard/focus, dropdown and 200% zoom QA on
+September 14, 2026, separately from the historical gross-only Reports waiver.
+Those checks were not performed; automated checks do not certify rendered layout
+or accessibility. Final delivery was reviewed and approved; the completed refund
+plan is archived in
+[Item Returns and Manual Refunds MVP](../plans/archive/item-returns-and-manual-refunds-mvp-2026-09-14.md).

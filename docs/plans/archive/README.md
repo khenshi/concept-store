@@ -32,3 +32,9 @@ including all three reviewed commits and the September 14, 2026 rendered-QA waiv
 is retained in
 [`inventory-navigation-and-optional-opening-stock-2026-09-14.md`](inventory-navigation-and-optional-opening-stock-2026-09-14.md).
 This historical record does not authorize additional implementation.
+
+The completed Item Returns and Manual Refunds MVP record, including all six reviewed
+parts, final automated verification and the September 14, 2026 refund-specific
+rendered-QA waiver, is retained in
+[`item-returns-and-manual-refunds-mvp-2026-09-14.md`](item-returns-and-manual-refunds-mvp-2026-09-14.md).
+This historical record does not authorize additional implementation.

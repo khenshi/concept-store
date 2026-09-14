@@ -27,7 +27,9 @@ tied-time ordering beyond 50 records, historical inactive/shared/relinked profil
 fresh role/grant/user access and foreign IDs. A paused history count lets another
 refund commit before remaining/page queries, proving one repeatable-read snapshot.
 Read-only preservation and maximum-capacity own subtotal/quantity checks compare
-saved history and stock. Refund forms and rendered report cards remain later parts.
+saved history and stock. Refund forms/history and report refund/net cards are now
+implemented in the frontend; final rendered refund QA was explicitly waived
+September 14, 2026.
 Full backend regressions now pass 369 unit, 189 HTTP and 231 PostgreSQL tests across six
 integration suites.
 
@@ -110,6 +112,28 @@ Cleanup the example container with `docker stop concept-store-inventory-test`.
 Its `--rm` flag removes the container and its anonymous image-created data volume;
 no host application-data directory or named persistent volume is attached.
 Docker image cache is retained.
+
+## Final refund milestone verification
+
+Final automated verification passes Prisma validation/client generation, backend
+formatting/lint/build, 369 unit tests across 33 suites, 189 HTTP tests across six
+suites and 231 PostgreSQL tests across six suites. Frontend lint/typecheck/build,
+changed-file formatting and all 680 tests across 82 files pass. Full frontend
+format:check flags only the unrelated user-edited inventory-api.ts; it was preserved.
+The existing multiple-lockfile build warning is also preserved outside scope.
+
+All migration/upgrade and PostgreSQL integrity/race tests ran in random isolated
+schemas in a disposable PostgreSQL 17 container without host data or named-volume
+mounts. The refund upgrade test verifies existing sale/item/RECEIPT/SALE history
+and balances remain unchanged after the migration, without creating refund records.
+The container and temporary test data were removed afterward; image cache remains.
+No application database was migrated, reset or seeded.
+
+The user explicitly waived rendered refund responsive, native dialog/keyboard/
+focus, dropdown and 200% zoom QA on September 14, 2026, including refund-aware
+Reports. Those browser checks were not performed; automated tests do not certify
+rendered layout or accessibility. This is a new refund-specific waiver, not an
+inherited POS/Inventory/Reports waiver.
 
 ## POS and sales screen verification
 
