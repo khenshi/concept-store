@@ -96,3 +96,44 @@ export const staffSalesReportSchema = z
 export type ReportBranch = z.infer<typeof reportBranchSchema>;
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
 export type StaffSalesReport = z.infer<typeof staffSalesReportSchema>;
+
+export const merchantSalesReportSchema = z
+  .object({
+    scope: z.literal('MERCHANT'),
+    branch: reportBranchSchema,
+    from: utc,
+    until: utc,
+    ownGrossSales: amount,
+    ownTransactionCount: integer,
+    ownUnitsSold: integer,
+  })
+  .strict()
+  .superRefine((report, context) => {
+    if (
+      !reportQuerySchema.safeParse({ from: report.from, until: report.until })
+        .success
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'Invalid own-sales report range.',
+      });
+    if (
+      !amount.safeParse(report.ownGrossSales).success ||
+      !integer.safeParse(report.ownTransactionCount).success ||
+      !integer.safeParse(report.ownUnitsSold).success
+    )
+      return;
+    const count = BigInt(report.ownTransactionCount);
+    if (
+      count === BigInt(0)
+        ? moneyCents(report.ownGrossSales) !== BigInt(0) ||
+          BigInt(report.ownUnitsSold) !== BigInt(0)
+        : moneyCents(report.ownGrossSales) <= BigInt(0) ||
+          BigInt(report.ownUnitsSold) < count
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'Own-sales amounts, transactions and units are inconsistent.',
+      });
+  });
+export type MerchantSalesReport = z.infer<typeof merchantSalesReportSchema>;

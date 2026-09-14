@@ -12,18 +12,28 @@ import {
 } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
-import { getStaffSalesReport, listReportBranches } from '../api/report-api';
+import {
+  getStaffSalesReport,
+  getMerchantSalesReport,
+  listReportBranches,
+} from '../api/report-api';
 import {
   reportDateRangeSchema,
   reportUtcRange,
   todayInPhilippines,
   type ReportDateRange,
 } from '../model/report-dates';
-import type { ReportBranch, StaffSalesReport } from '../model/report.schemas';
+import type {
+  ReportBranch,
+  StaffSalesReport,
+  MerchantSalesReport,
+} from '../model/report.schemas';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
 import { ReportDateFilter } from './report-date-filter';
 import { StaffReportSummary } from './staff-report-summary';
+import { MerchantReportSummary } from './merchant-report-summary';
+import { MerchantReportGuidance } from './merchant-report-guidance';
 
 export function BranchReports(props: {
   organizationId: string;
@@ -31,8 +41,12 @@ export function BranchReports(props: {
 }) {
   return (
     <ReportAccess organizationId={props.organizationId}>
-      {(scope) => (
-        <ScopedBranchReports key={`${scope}:${props.branchId}`} {...props} />
+      {(scope, role) => (
+        <ScopedBranchReports
+          key={`${scope}:${props.branchId}`}
+          {...props}
+          merchant={role === 'MERCHANT'}
+        />
       )}
     </ReportAccess>
   );
@@ -40,9 +54,11 @@ export function BranchReports(props: {
 function ScopedBranchReports({
   organizationId,
   branchId,
+  merchant,
 }: {
   organizationId: string;
   branchId: string;
+  merchant: boolean;
 }) {
   const { request } = useAuth();
   const { refreshOrganization } = useOrganizationWorkspaceContext();
@@ -50,7 +66,9 @@ function ScopedBranchReports({
   const [draft, setDraft] = useState(todayInPhilippines);
   const [applied, setApplied] = useState<ReportDateRange>(draft);
   const [branches, setBranches] = useState<ReportBranch[] | null>(null);
-  const [report, setReport] = useState<StaffSalesReport | null>(null);
+  const [report, setReport] = useState<
+    StaffSalesReport | MerchantSalesReport | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
@@ -76,12 +94,9 @@ function ScopedBranchReports({
             404,
             'This branch is no longer available to your Reports access.',
           );
-        const result = await getStaffSalesReport(
-          request,
-          organizationId,
-          branchId,
-          reportUtcRange(applied),
-        );
+        const result = await (
+          merchant ? getMerchantSalesReport : getStaffSalesReport
+        )(request, organizationId, branchId, reportUtcRange(applied));
         if (!active || current !== generation.current) return;
         setBranches(items);
         setReport(result);
@@ -105,14 +120,19 @@ function ScopedBranchReports({
     return () => {
       active = false;
     };
-  }, [request, organizationId, branchId, applied, revision]);
+  }, [request, organizationId, branchId, applied, revision, merchant]);
   const validDraft = reportDateRangeSchema.safeParse(draft).success;
   return (
     <OperationalPage>
       <PageHeader
-        title="Sales reports"
-        description="Gross recorded sales for one branch. These totals are not profit, net sales or merchant payouts."
+        title={merchant ? 'Own-sales reports' : 'Sales reports'}
+        description={
+          merchant
+            ? 'Gross recorded sales of your own items only, not whole-branch sales. Transactions count distinct sales containing your items.'
+            : 'Gross recorded sales for one branch. These totals are not profit, net sales or merchant payouts.'
+        }
       />
+      {merchant ? <MerchantReportGuidance /> : null}
       <ReportBranchPicker
         branches={branches}
         loading={loading}
@@ -171,7 +191,7 @@ function ScopedBranchReports({
               {error} Correct the report dates before retrying.
             </p>
           )}
-          {denied ? (
+          {denied && !merchant ? (
             <button
               type="button"
               className={buttonStyles({
@@ -185,7 +205,20 @@ function ScopedBranchReports({
           ) : null}
         </>
       ) : report ? (
-        <StaffReportSummary report={report} />
+        report.scope === 'MERCHANT' ? (
+          <MerchantReportSummary report={report} />
+        ) : (
+          <StaffReportSummary report={report} />
+        )
+      ) : null}
+      {merchant ? (
+        <button
+          type="button"
+          className={buttonStyles({ variant: 'secondary', className: 'mt-4' })}
+          onClick={() => void refreshOrganization()}
+        >
+          Refresh access
+        </button>
       ) : null}
     </OperationalPage>
   );

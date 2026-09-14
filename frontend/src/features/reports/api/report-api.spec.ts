@@ -1,4 +1,8 @@
-import { getStaffSalesReport, listReportBranches } from './report-api';
+import {
+  getStaffSalesReport,
+  getMerchantSalesReport,
+  listReportBranches,
+} from './report-api';
 
 const branch = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -71,4 +75,56 @@ describe('report reads', () => {
       ).rejects.toThrow();
     },
   );
+});
+
+describe('merchant Reports API', () => {
+  const own = {
+    scope: 'MERCHANT',
+    branch,
+    ...range,
+    ownGrossSales: '25.00',
+    ownTransactionCount: '1',
+    ownUnitsSold: '2',
+  };
+  it('uses the same scoped read route without fetching staff history, profiles or payments', async () => {
+    const request = vi.fn().mockResolvedValue(own);
+    expect(
+      await getMerchantSalesReport(request, 'org/path', branch.id, range),
+    ).toEqual(own);
+    expect(request).toHaveBeenCalledExactlyOnceWith(
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales?${new URLSearchParams(range)}`,
+    );
+  });
+  it.each([
+    empty,
+    { ...own, payments: [] },
+    { ...own, ownGrossSales: '25.0' },
+    {
+      ...own,
+      branch: { ...branch, id: '22222222-2222-4222-8222-222222222222' },
+    },
+    { ...own, until: '2026-09-15T16:00:00.000Z' },
+  ])(
+    'rejects private, staff or stale branch/range responses with no fallback',
+    async (response) => {
+      await expect(
+        getMerchantSalesReport(
+          vi.fn().mockResolvedValue(response),
+          'org',
+          branch.id,
+          range,
+        ),
+      ).rejects.toThrow();
+    },
+  );
+  it('does not read an invalid merchant period', async () => {
+    const request = vi.fn();
+    await expect(
+      getMerchantSalesReport(request, 'org', branch.id, {
+        ...range,
+        until: range.from,
+      }),
+    ).rejects.toThrow();
+    expect(request).not.toHaveBeenCalled();
+  });
 });

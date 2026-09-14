@@ -1,6 +1,6 @@
 # Current Implementation Plan
 
-**Status:** Approved; Part 1 reviewed and committed as `854169f`; Part 2 implemented and ready for review, not committed. Part 3 is not implemented.
+**Status:** All three parts reviewed and approved; Part 1 committed as `854169f` and Part 2 as `d26539e`. Part 3 approved for commit and plan archival. Rendered Reports QA explicitly waived September 14, 2026.
 
 # Branch Sales Reporting MVP
 
@@ -188,8 +188,25 @@ Invalid drafts block refresh/retry/Apply reads; retry remains read-only. Merchan
 Reports navigation/screens are intentionally not exposed and cashier access is
 denied. Frontend formatting/lint/typecheck/build and 532 tests across 75 files pass;
 Reports/frontend module docs are updated. Backend/application DB and unrelated
-edits remain untouched. Stop for review before committing Part 2. Merchant own-only
-delivery and new Reports rendered QA or explicit waiver remain Part 3.
+edits remain untouched. Part 2 was reviewed and committed as `d26539e`.
+
+Part 3 delivery: merchant Reports sidebar/mobile access and separate strict
+MERCHANT runtime reader/schema with own-only gross sales, distinct matching
+transactions and units cards. Staff/private fields fail closed without fallback;
+no payments, whole-sale totals/counts, actors, contacts, profile directory reads,
+print/export or writes are exposed. Explicit assigned/historical branch choices
+remain independent of the period. Missing-access and empty-own states explain
+assignments/profile links without guessing that zero sales proves an absent link.
+Always-available access refresh unmounts old reads and reloads current grants/link
+data; late prior-role/profile/date responses cannot restore scoped values.
+Existing Sales/POS/Inventory remain unchanged. Final checks pass: 567 frontend
+tests across 75 files, frontend lint/typecheck/format/build, backend format/lint/
+build and 329 unit, 133 HTTP and 146 disposable PostgreSQL tests. The test container
+was stopped/auto-removed; application DB and unrelated edits remain untouched.
+Reports/frontend/test docs are updated. The user explicitly waived rendered
+Reports responsive/dropdown/date-input/keyboard/focus/200% zoom QA on September 14,
+2026; those checks were not performed. Part 3 was reviewed and approved for
+commit and archival.
 
 1. Backend report DTOs/contracts/OpenAPI, scoped branch lookup and staff/merchant
    database aggregates; unit/HTTP/disposable PostgreSQL tests and Reports module

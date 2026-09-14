@@ -154,7 +154,7 @@ describe('OrganizationWorkspaceShell', () => {
   );
 
   it.each(['OWNER', 'MANAGER', 'MERCHANT', 'CASHIER'] as const)(
-    'exposes staff Reports in sidebar and mobile navigation only for staff: %s',
+    'exposes Reports in sidebar and mobile navigation only for allowed roles: %s',
     (role) => {
       context(role);
       vi.mocked(usePathname).mockReturnValue(
@@ -169,7 +169,7 @@ describe('OrganizationWorkspaceShell', () => {
         screen.getByRole('dialog', { name: 'Workspace navigation' }),
       );
       for (const region of [sidebar, mobile]) {
-        if (role === 'OWNER' || role === 'MANAGER') {
+        if (role !== 'CASHIER') {
           expect(region.getByRole('link', { name: 'Reports' })).toHaveAttribute(
             'href',
             '/app/organizations/org/reports',

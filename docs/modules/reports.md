@@ -1,7 +1,6 @@
 # Sales Reports
 
-**Status:** Backend API and owner/manager Reports screens implemented. Merchant
-Reports navigation and own-only screens are not implemented yet.
+**Status:** Backend API and owner/manager/merchant Reports screens implemented.
 
 ## Responsibilities and exclusions
 
@@ -101,8 +100,8 @@ The organization entry reads only the Reports identity lookup and requires an
 explicit branch choice, even with one accessible branch. There is no All branches
 total or silent fallback. The branch workspace rechecks the lookup before its
 summary read and offers a labeled branch dropdown without a back button. Cashiers
-cannot mount report reads. Merchant Reports navigation remains hidden until the
-separate own-only screen is delivered; existing merchant Sales remains unchanged.
+cannot mount report reads. Merchants use the separate own-only view below;
+existing merchant Sales remains unchanged.
 
 From/Through inputs are visibly labeled Philippines, inclusive (`Asia/Manila`).
 Today is computed in that timezone independently of browser timezone. Fields
@@ -129,6 +128,41 @@ uses organization context; unavailable branches never cause automatic navigation
 Loading, no assigned branches, empty period, failure and denied access have distinct
 feedback and safe read-only retry/access-refresh actions.
 
+## Merchant workspace
+
+Merchants now have Reports in sidebar/mobile navigation, alongside unchanged
+read-only Sales. The same thin routes require explicit branch selection and use
+the Reports identity lookup, not general branch/address/inventory or profile
+directory reads. Assigned and historical own-selling branches remain selectable
+regardless of the applied period; an empty period does not remove historical
+access. There is no profile selector or combined branch total.
+
+Separate strict MERCHANT runtime validation and own-only cards display Own gross
+recorded sales, Transactions containing own items and Own units sold. Matching
+transactions are distinct sales containing own items; mixed sales contribute
+only own item amounts/units. No staff fallback, payment breakdown, whole-sale
+amounts/counts, cashier, contact, private metadata, print or mutation controls are
+rendered or fetched. Extra/private/staff-shaped responses fail the read rather
+than being silently stripped or converted. Own aggregates retain exact unlimited
+money and integer strings and must have consistent empty/count/unit invariants.
+
+Merchants share the Philippines date validation and scoped read guards. Applying
+dates, switching branches, refreshing and failing/revoking access clear old own
+totals; late staff/own responses cannot restore data after role, user, period or
+access refresh changes. Refresh access is always available and clears organization
+context/read state before reloading current grants and profile-linked totals.
+Backend report reads independently enforce the current link inside their snapshot;
+there is no client profile ID used to authorize or calculate totals.
+
+Guidance explains current linked historical ownership, assignment versus own-only
+access and owner-managed profile links. No accessible branches has separate
+assignment/historical-access feedback. An empty own period shows zero own cards
+and explains that missing profile links can also cause zeros in assigned branches.
+The identity-only API does not disclose link status, so the frontend does not
+claim an empty period proves a missing link. This avoids extra contact-bearing
+profile reads or widening the approved Reports response. Access/links may be
+checked with an owner, then refreshed; no alternate branch is silently selected.
+
 ## Verification and delivery
 
 Backend formatting/lint/build, 329 unit tests, 133 HTTP tests and 146 PostgreSQL
@@ -146,14 +180,21 @@ schemas, applying existing migrations and dropping only their test schema. No
 application database is migrated, reset or seeded. See
 [backend test setup](../../backend/test/README.md).
 
-Frontend checks pass: 532 tests across 75 files, lint, type checking, changed-source
+Frontend checks pass: 567 tests across 75 files, lint, type checking, changed-source
 formatting and production build. New tests cover explicit branch choice, sidebar/
 mobile role visibility, Philippines midnight/date conversion, inclusive range
 limits, debounce/blur/Apply/focus, read-only retries, missing/revoked access, branch/
 date/user/role scope resets, late responses, exact large totals/counts and rejection
-of malformed/private/wrong-scope data. Backend behavior is unchanged by this part.
+of malformed/private/wrong-scope data. Merchant regressions additionally cover
+own-only values, explicit assigned/historical choices, missing/empty guidance,
+date-independent historical options, revoked access/read-only retries, access
+refresh after link changes, late staff/own responses and strict private-field
+rejection. Final backend format/lint/build and all unit/HTTP/PostgreSQL suites
+were rerun successfully; backend behavior is unchanged by the frontend parts.
 
-Merchant frontend delivery remains the next approved part in docs/plans/current.md.
-Rendered Reports responsive/dropdown/date/keyboard/focus/200% zoom QA is pending;
-it needs browser access or a new explicit waiver. Previous milestones' waivers do
-not apply, and automated checks do not certify rendered layout or accessibility.
+The user explicitly waived rendered Reports responsive/dropdown/date-input/
+keyboard/focus/200% zoom QA on September 14, 2026. Those browser checks were not
+performed; automated checks do not certify rendered layout or accessibility.
+This is a new Reports-specific waiver, not inherited from prior milestones.
+All three delivery parts have been reviewed and approved. The completed plan is
+archived after the final implementation commit.

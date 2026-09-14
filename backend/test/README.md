@@ -88,3 +88,18 @@ alongside cart/payment/unknown-command recovery. These do not require applicatio
 database reset or seeding. The user explicitly waived rendered responsive,
 keyboard/dialog, zoom and print QA for POS/sales on September 13, 2026; native
 dialog shims and mocked printing do not certify browser-rendered behavior.
+
+## Reports screen verification
+
+Reports frontend checks cover explicit identity-only branch choice, allowed sidebar/
+mobile roles, inclusive Philippines dates independent of browser timezone, bounded
+UTC conversion, debounce/blur/Apply validation, exact large strings, staff payment
+reconciliation and separate merchant own-only/private-field rejection. Scoped
+regressions cover late responses, changed periods/roles/users, revoked branches and
+access refresh after profile relinking. Read retry never writes sales/stock/payments.
+Changed-source formatting, lint/typecheck/build and all 567 frontend tests pass.
+Final backend checks pass: format/lint/build, 329 unit tests, 133 HTTP tests and 146
+isolated PostgreSQL tests. The Reports test container was stopped/auto-removed;
+the application database was untouched. Rendered Reports responsive/dropdown/date/
+keyboard/focus/200% zoom QA was explicitly waived on September 14, 2026, not
+inherited from POS/Inventory waivers. Those browser checks were not performed.

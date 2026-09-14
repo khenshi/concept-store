@@ -11,7 +11,7 @@ export function ReportAccess({
   children,
 }: {
   organizationId: string;
-  children(scope: string): ReactNode;
+  children(scope: string, role: 'OWNER' | 'MANAGER' | 'MERCHANT'): ReactNode;
 }) {
   const { user } = useAuth();
   const {
@@ -37,15 +37,18 @@ export function ReportAccess({
         )}
       </OperationalPage>
     );
-  if (organization.role !== 'OWNER' && organization.role !== 'MANAGER')
+  if (
+    organization.role !== 'OWNER' &&
+    organization.role !== 'MANAGER' &&
+    organization.role !== 'MERCHANT'
+  )
     return (
       <OperationalPage>
-        <p role="alert">
-          {organization.role === 'MERCHANT'
-            ? 'Merchant Reports are not available yet. Your own-sales history remains available in Sales.'
-            : 'Your organization role cannot access Reports.'}
-        </p>
+        <p role="alert">Your organization role cannot access Reports.</p>
       </OperationalPage>
     );
-  return children(`${organizationId}:${organization.role}:${user?.id}`);
+  return children(
+    `${organizationId}:${organization.role}:${user?.id}`,
+    organization.role,
+  );
 }

@@ -13,7 +13,9 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import { ReportsEntry } from './reports-entry';
 import { BranchReports } from './branch-reports';
 import { StaffReportSummary } from './staff-report-summary';
+import { MerchantReportSummary } from './merchant-report-summary';
 import type { StaffSalesReport } from '../model/report.schemas';
+import type { MerchantSalesReport } from '../model/report.schemas';
 
 vi.mock('next/navigation', () => ({ useRouter: vi.fn() }));
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -112,7 +114,7 @@ describe('staff Reports workspace', () => {
       `/app/organizations/org/branches/${branch.id}/reports`,
     );
   });
-  it.each(['CASHIER', 'MERCHANT'])(
+  it.each(['CASHIER'])(
     'does not read or render staff Reports for %s',
     (role) => {
       context(role);
@@ -354,5 +356,209 @@ describe('staff Reports workspace', () => {
     expect(
       screen.queryByRole('button', { name: /export|print/i }),
     ).not.toBeInTheDocument();
+  });
+
+  describe('merchant own-only workspace', () => {
+    const own: MerchantSalesReport = {
+      scope: 'MERCHANT',
+      branch,
+      ...range,
+      ownGrossSales: '25.00',
+      ownTransactionCount: '1',
+      ownUnitsSold: '2',
+    };
+    beforeEach(() => {
+      context('MERCHANT');
+      request.mockImplementation(async (path: string) =>
+        path.endsWith('/reports/sales/branches')
+          ? [branch, second]
+          : {
+              ...own,
+              branch: path.includes(`/branches/${second.id}/`)
+                ? second
+                : branch,
+              ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
+            },
+      );
+    });
+    it('shows own amounts only, without payment/whole-sale/actor data or mutation/print controls', async () => {
+      render(<BranchReports organizationId="org" branchId={branch.id} />);
+      await screen.findByText('PHP 25.00');
+      expect(
+        screen.getByRole('heading', { name: 'Own-sales reports' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Transactions containing own items'),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('list', { name: 'Payment breakdown' }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /print|export|checkout|pay/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        request.mock.calls.every(
+          (call) => call.length === 1 && call[0].includes('/reports/sales'),
+        ),
+      ).toBe(true);
+    });
+    it('requires explicit historical/assigned branch choice and offers link/access guidance', async () => {
+      render(<ReportsEntry organizationId="org" />);
+      await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
+      expect(screen.getByRole('combobox')).toHaveTextContent('Choose a branch');
+      expect(
+        screen.getByText(/An assignment alone does not grant whole-branch/),
+      ).toBeInTheDocument();
+      expect(push).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
+      expect(push).toHaveBeenCalledWith(
+        `/app/organizations/org/branches/${second.id}/reports`,
+      );
+      expect(request).toHaveBeenCalledTimes(1);
+    });
+    it('explains no assigned/historical access without inventing a link state or fallback', async () => {
+      request.mockResolvedValue([]);
+      render(<ReportsEntry organizationId="org" />);
+      expect(await screen.findByRole('status')).toHaveTextContent(
+        'No assigned or historical own-selling branches',
+      );
+      expect(screen.getByRole('combobox')).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+      expect(refreshOrganization).toHaveBeenCalled();
+      expect(push).not.toHaveBeenCalled();
+    });
+    it('keeps historical branch choices in an empty period and explains unlinked assigned zeros', async () => {
+      request.mockImplementation(async (path: string) =>
+        path.endsWith('/reports/sales/branches')
+          ? [branch, second]
+          : {
+              ...own,
+              ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
+              ownGrossSales: '0.00',
+              ownTransactionCount: '0',
+              ownUnitsSold: '0',
+            },
+      );
+      render(<BranchReports organizationId="org" branchId={branch.id} />);
+      await screen.findByText(/No recorded own-item sales in this branch/);
+      expect(
+        screen.getByText(/If your profile is not linked/),
+      ).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText('From (Philippines, inclusive)'), {
+        target: { value: '2026-09-13' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+      await screen.findByText('PHP 0.00');
+      fireEvent.click(screen.getByRole('combobox'));
+      expect(
+        screen.getByRole('option', { name: 'South (MAIN)' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('list', { name: 'Payment breakdown' }),
+      ).not.toBeInTheDocument();
+    });
+    it.each(['STAFF', 'PRIVATE'])(
+      'clears old own values and rejects %s data on refresh',
+      async (kind) => {
+        render(<BranchReports organizationId="org" branchId={branch.id} />);
+        await screen.findByText('PHP 25.00');
+        request
+          .mockResolvedValueOnce([branch])
+          .mockResolvedValueOnce(
+            kind === 'STAFF' ? report : { ...own, payments: report.payments },
+          );
+        fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
+        expect(screen.queryByText('PHP 25.00')).not.toBeInTheDocument();
+        await screen.findByRole('alert');
+        expect(
+          screen.queryByRole('list', { name: 'Payment breakdown' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
+      },
+    );
+    it('clears and reloads current-link data on access refresh, ignoring a prior profile response', async () => {
+      const old = deferred<MerchantSalesReport>();
+      request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
+      const view = render(
+        <BranchReports organizationId="org" branchId={branch.id} />,
+      );
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+      context('MERCHANT', 'org', 'loading');
+      view.rerender(
+        <BranchReports organizationId="org" branchId={branch.id} />,
+      );
+      await act(async () => old.resolve({ ...own, ownGrossSales: '99.00' }));
+      expect(screen.queryByText('PHP 99.00')).not.toBeInTheDocument();
+      context('MERCHANT');
+      view.rerender(
+        <BranchReports organizationId="org" branchId={branch.id} />,
+      );
+      await screen.findByText('PHP 25.00');
+      expect(request).toHaveBeenCalledTimes(4);
+    });
+    it('clears own summary on revoked branch access and allows read-only retry', async () => {
+      render(<BranchReports organizationId="org" branchId={branch.id} />);
+      await screen.findByText('PHP 25.00');
+      request.mockResolvedValueOnce([second]);
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
+      await screen.findByRole('alert');
+      expect(screen.queryByText('PHP 25.00')).not.toBeInTheDocument();
+      expect(push).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      await screen.findByText('PHP 25.00');
+      expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
+    });
+    it('ignores a late staff response after changing to the merchant role', async () => {
+      context('OWNER');
+      const old = deferred<StaffSalesReport>();
+      request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
+      const view = render(
+        <BranchReports organizationId="org" branchId={branch.id} />,
+      );
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+      context('MERCHANT');
+      view.rerender(
+        <BranchReports organizationId="org" branchId={branch.id} />,
+      );
+      await screen.findByText('PHP 25.00');
+      await act(async () => old.resolve(report));
+      expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('list', { name: 'Payment breakdown' }),
+      ).not.toBeInTheDocument();
+    });
+    it('rejects an obsolete own response after applying a new period', async () => {
+      const old = deferred<MerchantSalesReport>();
+      request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
+      render(<BranchReports organizationId="org" branchId={branch.id} />);
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+      fireEvent.change(screen.getByLabelText('From (Philippines, inclusive)'), {
+        target: { value: '2026-09-13' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+      await screen.findByText('PHP 25.00');
+      await act(async () => old.resolve({ ...own, ownGrossSales: '99.00' }));
+      expect(screen.queryByText('PHP 99.00')).not.toBeInTheDocument();
+    });
+    it('renders large own amounts and counters exactly without payments', () => {
+      render(
+        <MerchantReportSummary
+          report={{
+            ...own,
+            ownGrossSales: '999999999999999999999999999999.01',
+            ownTransactionCount: '9007199254740993',
+            ownUnitsSold: '9007199254740994',
+          }}
+        />,
+      );
+      expect(
+        screen.getByText('PHP 999999999999999999999999999999.01'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('9007199254740993')).toBeInTheDocument();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    });
   });
 });

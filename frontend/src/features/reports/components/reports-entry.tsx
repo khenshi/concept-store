@@ -11,17 +11,28 @@ import { listReportBranches } from '../api/report-api';
 import type { ReportBranch } from '../model/report.schemas';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
+import { MerchantReportGuidance } from './merchant-report-guidance';
 
 export function ReportsEntry({ organizationId }: { organizationId: string }) {
   return (
     <ReportAccess organizationId={organizationId}>
-      {(scope) => (
-        <ScopedReportsEntry key={scope} organizationId={organizationId} />
+      {(scope, role) => (
+        <ScopedReportsEntry
+          key={scope}
+          organizationId={organizationId}
+          merchant={role === 'MERCHANT'}
+        />
       )}
     </ReportAccess>
   );
 }
-function ScopedReportsEntry({ organizationId }: { organizationId: string }) {
+function ScopedReportsEntry({
+  organizationId,
+  merchant,
+}: {
+  organizationId: string;
+  merchant: boolean;
+}) {
   const { request } = useAuth();
   const { refreshOrganization } = useOrganizationWorkspaceContext();
   const router = useRouter();
@@ -54,8 +65,13 @@ function ScopedReportsEntry({ organizationId }: { organizationId: string }) {
     <OperationalPage>
       <PageHeader
         title="Reports"
-        description="Choose one branch to view its gross recorded sales, transaction count, units sold and payment summary."
+        description={
+          merchant
+            ? 'Choose one branch to view your own gross recorded sales, matching transactions and units sold.'
+            : 'Choose one branch to view its gross recorded sales, transaction count, units sold and payment summary.'
+        }
       />
+      {merchant ? <MerchantReportGuidance /> : null}
       <ReportBranchPicker
         branches={branches}
         loading={branches === null && error === null}
@@ -67,8 +83,9 @@ function ScopedReportsEntry({ organizationId }: { organizationId: string }) {
       />
       {branches?.length === 0 ? (
         <p role="status" className="text-sm text-muted">
-          No accessible report branches. Ask an owner to check your branch
-          assignments or create a branch.
+          {merchant
+            ? 'No assigned or historical own-selling branches are available. Ask an owner to check your merchant profile link and branch assignments.'
+            : 'No accessible report branches. Ask an owner to check your branch assignments or create a branch.'}
         </p>
       ) : null}
       {error ? (
@@ -82,7 +99,7 @@ function ScopedReportsEntry({ organizationId }: { organizationId: string }) {
           }}
         />
       ) : null}
-      {error || branches?.length === 0 ? (
+      {merchant || error || branches?.length === 0 ? (
         <button
           type="button"
           className="mt-4 text-sm underline"

@@ -17,12 +17,33 @@ Operational cards/payment rows display exact gross recorded sales, transactions
 and units without numeric rounding. Strict staff contracts verify branch/range
 scope and three-method reconciliation; GCash/card remain explicitly manual and
 unverified. Loading, missing assignments, empty periods, failure and denied access
-offer safe read/access refresh. Cashiers cannot fetch Reports; merchant Reports
-navigation/UI is not exposed yet, and existing Sales/POS/Inventory is unchanged.
+offer safe read/access refresh. Cashiers cannot fetch Reports; merchants use the
+separate own-only Reports view, and existing Sales/POS/Inventory is unchanged.
 All 532 frontend tests across 75 files, lint/typecheck, changed-source formatting
 and production build pass. Rendered Reports responsive/dropdown/date/keyboard/
 focus/zoom QA remains pending for final delivery; prior milestone waivers do not
-cover these screens. See [Sales Reports](reports.md).
+cover these screens. That pending QA was subsequently waived for Reports on
+September 14, 2026, as recorded below. See [Sales Reports](reports.md).
+
+## Merchant own-sales reports
+
+Merchant sidebar/mobile navigation now includes Reports alongside unchanged Sales.
+The shared branch/date workspace uses a separate strict MERCHANT reader/schema
+and own-only cards: Own gross recorded sales, Transactions containing own items
+and Own units sold. No whole-sale/payment/actor/contact data, print/export or
+mutation controls are fetched/rendered, and staff/private responses fail closed.
+Historical branches remain selectable in empty periods; no fallback branch or
+profile selector is introduced. Guidance explains assigned versus historical
+own-selling access, zero periods and owner-managed links without asserting that
+zero sales proves a missing link. Always-available access refresh clears scoped
+reads and reloads current grants/link-derived totals; late prior-role/profile/
+period responses cannot restore old data.
+
+Final checks pass: 567 frontend tests across 75 files, lint/typecheck, changed-source
+formatting and production build, plus all backend regressions. The user explicitly
+waived rendered Reports responsive/dropdown/date-input/keyboard/focus/200% zoom QA
+on September 14, 2026. Those checks were not performed, and automated tests do not
+certify rendered layout/accessibility. This waiver is specific to Reports.
 
 ## Inventory navigation refinement
 

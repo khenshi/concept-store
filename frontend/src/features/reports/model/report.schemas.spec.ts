@@ -2,6 +2,7 @@ import {
   reportBranchesSchema,
   reportQuerySchema,
   staffSalesReportSchema,
+  merchantSalesReportSchema,
 } from './report.schemas';
 
 export const branch = {
@@ -140,5 +141,78 @@ describe('strict staff report contracts', () => {
     expect(
       reportBranchesSchema.safeParse([{ ...branch, id: 'not-a-uuid' }]).success,
     ).toBe(false);
+  });
+});
+
+describe('strict merchant own-sales contracts', () => {
+  const own = {
+    scope: 'MERCHANT',
+    branch,
+    ...range,
+    ownGrossSales: '25.00',
+    ownTransactionCount: '1',
+    ownUnitsSold: '2',
+  };
+  it('accepts only own totals and distinct matching transaction counts', () => {
+    expect(merchantSalesReportSchema.parse(own)).toEqual(own);
+    expect(
+      merchantSalesReportSchema.safeParse({
+        ...own,
+        ownGrossSales: '0.00',
+        ownTransactionCount: '0',
+        ownUnitsSold: '0',
+      }).success,
+    ).toBe(true);
+  });
+  it.each([
+    'payments',
+    'paymentMethod',
+    'paymentReference',
+    'cashTender',
+    'change',
+    'cashierId',
+    'total',
+    'grossSales',
+    'transactionCount',
+    'unitsSold',
+    'items',
+    'contactName',
+    'phone',
+    'requestId',
+  ])(
+    'rejects private/staff field %s rather than silently stripping it',
+    (key) => {
+      expect(
+        merchantSalesReportSchema.safeParse({ ...own, [key]: 'private' })
+          .success,
+      ).toBe(false);
+    },
+  );
+  it('rejects staff reports even if they describe a single-merchant sale', () => {
+    expect(merchantSalesReportSchema.safeParse(report).success).toBe(false);
+    expect(
+      merchantSalesReportSchema.safeParse({ ...own, scope: 'STAFF' }).success,
+    ).toBe(false);
+  });
+  it('retains exact large own amounts and counters without sale-size limits', () => {
+    expect(
+      merchantSalesReportSchema.parse({
+        ...own,
+        ownGrossSales: '999999999999999999999999999999.01',
+        ownTransactionCount: '9007199254740993',
+        ownUnitsSold: '9007199254740994',
+      }).ownTransactionCount,
+    ).toBe('9007199254740993');
+  });
+  it('rejects malformed counts/amounts and impossible own totals safely', () => {
+    for (const invalid of [
+      { ...own, ownGrossSales: '25' },
+      { ...own, ownTransactionCount: '-1' },
+      { ...own, ownUnitsSold: '0' },
+      { ...own, ownTransactionCount: '0' },
+      { ...own, ownGrossSales: '0.00' },
+      { ...own, until: range.from },
+    ])
+      expect(merchantSalesReportSchema.safeParse(invalid).success).toBe(false);
   });
 });
