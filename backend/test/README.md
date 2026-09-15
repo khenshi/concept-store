@@ -5,6 +5,25 @@ for HTTP request/guard tests. HTTP tests bind temporary local server ports.
 
 ## PostgreSQL integration tests
 
+Reports analytics Part 1 adds backend-only summary/daily/top-product snapshot
+reads. Verification passes 372 unit tests (34 suites), 199 HTTP tests (six suites)
+and 238 PostgreSQL tests (six suites), plus Prisma validation, format/lint/build.
+Analytics coverage includes zero-filled Manila/partial-day boundaries, distinct
+mixed-line counts, independent older-sale refunds, refund-only negative products,
+ten-of-N exact ranking, original saved identity/time/ID ties, large exact money/
+units, fresh grants/links/user access and reduced merchant/private projections.
+Existing capacity and more-than-one-page fixtures exercise analytics too. Paused
+checkout and staff/merchant refund reads reconcile summary, trends and rankings
+within one repeatable-read snapshot. Read-only comparisons preserve original
+sales/refunds, inventory and ledger. A fixture now uses returned inventory IDs
+instead of assuming checkout result order; the full rerun passes. No frontend or
+schema changes, application migration/reset/seed, or rendered QA in this part.
+One later HTTP regression pass intermittently returned 401 rather than expected
+400 in an unchanged refund-command validation test; complete prior HTTP runs
+passed, and the immediate full rerun passed all 199 tests. This unrelated
+behavior was not modified. The disposable analytics
+container and temporary data were removed; its image cache remains.
+
 Refund persistence tests cover tenant/branch/original-sale-item/merchant/price
 constraints, exact monetary capacity, manual methods, duplicate command/line keys,
 zero/partial/full restock representation, exact positive RETURN linkage, rollback,

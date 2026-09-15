@@ -11,8 +11,10 @@ Sale/SaleItem and Refund/RefundItem amounts and quantities. Gross sales use sale
 completion dates; refunds use refund completion dates independently of the
 original sale date. Net recorded sales is gross minus refunds and may be negative;
 it is not profit, available cash, commissions or merchant payouts. No shifts,
-settlements, exports, rankings, trends, printing or payment verification are
-provided. Reports never mutate sales, inventory, payments or ledger history.
+settlements, exports, printing or payment verification are provided. A separate
+analytics API adds daily trends and top-product rankings; the existing frontend
+still uses the unchanged summary endpoint. Reports never mutate sales, inventory,
+payments or ledger history.
 No report entities, migration, analytics infrastructure or new indexes are added.
 The [manual refund API](refunds.md) records completed returns separately without
 editing original sales. Frontend cards display separate gross/refunded/net figures;
@@ -23,6 +25,7 @@ staff gross sale payments and actual refund methods remain separate breakdowns.
 ```text
 GET /organizations/:organizationId/reports/sales/branches
 GET /organizations/:organizationId/branches/:branchId/reports/sales?from=&until=
+GET /organizations/:organizationId/branches/:branchId/reports/sales/analytics?from=&until=
 ```
 
 Authentication and current organization membership are required. OWNER, MANAGER
@@ -34,7 +37,8 @@ Summary requires both strict UTC `from` (inclusive) and `until` (exclusive)
 timestamps ending in Z with at most millisecond precision. `from < until` and
 the range cannot exceed 366 days. Applied ranges return normalized UTC timestamps.
 Branch lookup accepts no query parameters. The backend does not infer a local
-calendar day or timezone. The frontend converts inclusive Philippines calendar
+calendar day for summary reads. Analytics labels dates in Asia/Manila after exact
+UTC filtering. The frontend converts inclusive Philippines calendar
 dates into the required half-open UTC range.
 
 ## Authorization and branch lookup
@@ -116,6 +120,60 @@ schema/migration/index is introduced by this part.
 
 Swagger/OpenAPI describes required ranges, errors and separate response schemas
 with explicit STAFF/MERCHANT discriminator mappings.
+
+## Analytics API (backend delivery Part 1)
+
+The analytics route accepts the same strict range, UUID and unknown-field rules.
+It returns the existing role-appropriate summary plus `dailyTrends`, `topProducts`
+and canonical integer-string `totalProducts`. Existing summary/lookup responses
+remain unchanged. Fresh membership/user/role/link/grants, branch identity, summary,
+methods, daily aggregates, product count, ranking and saved labels share one
+REPEATABLE READ transaction. No client profile, role, ranking or limit overrides.
+
+Daily rows cover every intersecting Asia/Manila date, ascending and zero-filled.
+The UTC interval is filtered before bucketing; exclusive midnight contributes no
+extra date. Maximum 366-day duration may intersect 367 dates for partial-day API
+ranges. Sales use original completion dates and refunds independently use refund
+completion dates, including older original sales. Staff rows contain `date`,
+`grossSales`, `transactionCount`, `unitsSold`, `refundedAmount`, `refundCount`,
+`returnedUnits`, `netRecordedSales`. Merchant rows use only the corresponding
+own-prefixed fields plus `date`. Distinct parent counts prevent mixed/multiple
+lines inflating counts. Daily totals reconcile to the same snapshot summary.
+
+Products group by historical `productId`, include either sales or refunds in the
+period, and rank by exact gross descending, units descending, product ID ascending.
+At most ten rows are returned; `totalProducts` counts all contributing products.
+A truncated ranking subtotal is not the whole report total. Refund-only products
+have zero gross/units and possibly negative net. Sale/refund streams aggregate
+separately in PostgreSQL to prevent join multiplication; only bounded results are
+loaded, not paginated histories or live catalog records.
+
+Each product row has `productId`, `productName`, nullable `sku`/`barcode`, saved
+`merchantName` and gross/units/refunded/returned/net fields (own-prefixed for
+merchants). Identity comes from the latest contributing original SaleItem snapshot
+by original Sale.completedAt descending, then SaleItem.id descending; originals
+outside the range may contribute through matching refunds. Live renames, prices
+and inactive states do not rewrite those labels. Merchant aggregation and label
+selection are restricted to the current linked profile, never other mixed-sale
+items, private actors/commands, contacts or payment methods. Assigned unlinked
+merchants receive zero-filled own days and empty products. Historical Reports
+access does not widen POS or Inventory.
+
+Money/counts/units retain exact unlimited canonical strings; BigInt cents compute
+signed net without negative zero. No schema, migration, index or infrastructure
+changes, and no frontend redesign is delivered in this part. New rendered QA is
+required separately for future dashboard delivery.
+
+Part 1 verification passes Prisma validation, backend formatting/lint/build,
+372 unit tests across 34 suites, 199 HTTP tests across six suites and 238
+PostgreSQL tests across six suites. Added analytics tests cover Manila zero-fill/
+partial-day boundaries, mixed distinct counts, independent older-sale refunds,
+deterministic ten-of-N ranking and saved identity ties, exact large money/units,
+fresh access/relinking, reduced private-key projections and unchanged persisted
+sales/refunds/stock/ledger. Paused concurrent checkout and staff/merchant refund
+reads verify summary, daily rows and product rankings share one snapshot. The
+test fixture was corrected to use returned inventory IDs rather than assume
+checkout item order. Implementation is uncommitted pending Part 1 review.
 
 ## Owner/manager workspace
 

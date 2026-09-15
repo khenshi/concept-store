@@ -9,6 +9,10 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { branchScope } from '../authorization/resource-access';
 import type { SalesReportQueryDto } from './dto/sales-report-query.dto';
+import { readAnalytics } from './sales-analytics';
+import type { SalesAnalytics } from './sales-analytics.types';
+import { netRecordedSales } from './report-money';
+export { netRecordedSales } from './report-money';
 import type {
   ReportPaymentResponseDto,
   ReportRefundMethodResponseDto,
@@ -25,13 +29,6 @@ type RefundAggregate = {
   refundCount: string;
   returnedUnits: string;
 };
-// Aggregate money has no single-sale size limit; integer cents avoid Decimal precision caps.
-export function netRecordedSales(gross: string, refunded: string) {
-  const cents =
-    BigInt(gross.replace('.', '')) - BigInt(refunded.replace('.', ''));
-  const absolute = cents < 0n ? -cents : cents;
-  return `${cents < 0n ? '-' : ''}${absolute / 100n}.${(absolute % 100n).toString().padStart(2, '0')}`;
-}
 const identitySelect = { id: true, name: true, code: true } as const;
 
 @Injectable()
@@ -57,6 +54,23 @@ export class ReportsService {
     branchId: string,
     query: SalesReportQueryDto,
   ): Promise<SalesReport> {
+    return this.read(context, branchId, query, false);
+  }
+
+  async analytics(
+    context: OrganizationContext,
+    branchId: string,
+    query: SalesReportQueryDto,
+  ): Promise<SalesAnalytics> {
+    return this.read(context, branchId, query, true) as Promise<SalesAnalytics>;
+  }
+
+  private async read(
+    context: OrganizationContext,
+    branchId: string,
+    query: SalesReportQueryDto,
+    analytics: boolean,
+  ) {
     const from = new Date(query.from);
     const until = new Date(query.until);
     const duration = until.getTime() - from.getTime();
@@ -99,7 +113,7 @@ export class ReportsService {
             : { grossSales: '0.00', transactionCount: '0', unitsSold: '0' };
           return {
             ...range,
-            scope: 'MERCHANT',
+            scope: 'MERCHANT' as const,
             ownGrossSales: own.grossSales,
             ownTransactionCount: own.transactionCount,
             ownUnitsSold: own.unitsSold,
@@ -111,6 +125,9 @@ export class ReportsService {
               until,
               own.grossSales,
             )),
+            ...(analytics
+              ? await readAnalytics(tx, current, branchId, from, until)
+              : {}),
           };
         }
         const [summary] = await tx.$queryRaw<Aggregate[]>(Prisma.sql`
@@ -169,7 +186,7 @@ export class ReportsService {
         );
         return {
           ...range,
-          scope: 'STAFF',
+          scope: 'STAFF' as const,
           ...summary,
           payments,
           ...refunds,
@@ -178,6 +195,9 @@ export class ReportsService {
             refunds.refundedAmount,
           ),
           refundMethods,
+          ...(analytics
+            ? await readAnalytics(tx, current, branchId, from, until)
+            : {}),
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },

@@ -114,18 +114,18 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
         .expect(200, [{ id: branch, name: 'Branch', code: null }]);
     },
   );
-  it.each([path, lookup])(
+  it.each([path, lookup, `${path}/analytics`])(
     'requires authentication and denies cashier on %s',
     async (url) => {
       await http()
         .get(url)
-        .query(url === path ? valid : {})
+        .query(url === lookup ? {} : valid)
         .expect(401);
       role = 'CASHIER';
       await http()
         .get(url)
         .auth(token(), { type: 'bearer' })
-        .query(url === path ? valid : {})
+        .query(url === lookup ? {} : valid)
         .expect(403);
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
       expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -186,6 +186,23 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       new DocumentBuilder().addBearerAuth(undefined, 'access-token').build(),
     );
     const schemas = document.components?.schemas;
+    expect(schemas?.StaffSalesAnalyticsResponseDto).toHaveProperty(
+      'properties.dailyTrends.maxItems',
+      367,
+    );
+    expect(schemas?.MerchantSalesAnalyticsResponseDto).toHaveProperty(
+      'properties.topProducts.maxItems',
+      10,
+    );
+    expect(schemas?.MerchantSalesAnalyticsResponseDto).not.toHaveProperty(
+      'properties.payments',
+    );
+    expect(schemas?.MerchantDailyTrendDto).not.toHaveProperty(
+      'properties.grossSales',
+    );
+    expect(schemas?.MerchantTopProductDto).not.toHaveProperty(
+      'properties.refundedAmount',
+    );
     expect(schemas?.MerchantSalesReportResponseDto).toMatchObject({
       properties: {
         scope: { enum: ['MERCHANT'] },
@@ -221,6 +238,83 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
         expect.objectContaining({ name: 'until', required: true }),
       ]),
     );
+  });
+  it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
+    'returns reduced analytics for %s without changing legacy summary',
+    async (current) => {
+      role = current;
+      const summary = await http()
+        .get(path)
+        .auth(token(), { type: 'bearer' })
+        .query(valid)
+        .expect(200);
+      const response = await http()
+        .get(`${path}/analytics`)
+        .auth(token(), { type: 'bearer' })
+        .query(valid)
+        .expect(200);
+      expect(response.body).toEqual({
+        ...summary.body,
+        dailyTrends: ['2026-09-01', '2026-09-02'].map((date) =>
+          current === 'MERCHANT'
+            ? {
+                date,
+                ownGrossSales: '0.00',
+                ownUnitsSold: '0',
+                ownRefundedAmount: '0.00',
+                ownReturnedUnits: '0',
+                ownNetRecordedSales: '0.00',
+                ownTransactionCount: '0',
+                ownRefundCount: '0',
+              }
+            : {
+                date,
+                grossSales: '0.00',
+                unitsSold: '0',
+                refundedAmount: '0.00',
+                returnedUnits: '0',
+                netRecordedSales: '0.00',
+                transactionCount: '0',
+                refundCount: '0',
+              },
+        ),
+        topProducts: [],
+        totalProducts: '0',
+      });
+    },
+  );
+  it.each([
+    { ...valid, merchantId: actor },
+    { ...valid, limit: 20 },
+    { ...valid, role: 'OWNER' },
+    { from: valid.from },
+    { ...valid, until: valid.from },
+  ])('rejects analytics overrides and invalid ranges %j', async (query) => {
+    await http()
+      .get(`${path}/analytics`)
+      .auth(token(), { type: 'bearer' })
+      .query(query)
+      .expect(400);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+  it('rejects malformed and inaccessible analytics identities before aggregation', async () => {
+    await http()
+      .get(`${path}/analytics`.replace(branch, 'bad'))
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(400);
+    await http()
+      .get(`${path}/analytics`.replace(org, branch))
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(404);
+    prisma.branch.findFirst.mockResolvedValue(null);
+    await http()
+      .get(`${path}/analytics`)
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(404);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
   });
   it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
     'returns exact scoped refund and negative net fields for %s',

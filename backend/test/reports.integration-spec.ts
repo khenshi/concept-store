@@ -134,6 +134,300 @@ async function read(userId = ownerId) {
 }
 
 describe('PostgreSQL branch sales reporting', () => {
+  it('analytics reconciles mixed lines, zero-filled dates, independent refunds and saved product identity', async () => {
+    const [sale] = await mixedSales();
+    await refund(
+      sale,
+      [
+        [0, 1],
+        [1, 2],
+        [2, 1],
+      ],
+      'CARD',
+      '2026-09-02T16:00:00Z',
+    );
+    const applied = { from: range.from, until: '2026-09-04T16:00:00Z' };
+    const result = await reports.analytics(context(), branchId, applied);
+    expect(result.scope).toBe('STAFF');
+    if (result.scope !== 'STAFF') throw new Error('Wrong scope');
+    expect(result.dailyTrends).toEqual([
+      {
+        date: '2026-09-02',
+        grossSales: '72.53',
+        transactionCount: '3',
+        unitsSold: '13',
+        refundedAmount: '0.00',
+        refundCount: '0',
+        returnedUnits: '0',
+        netRecordedSales: '72.53',
+      },
+      {
+        date: '2026-09-03',
+        grossSales: '0.00',
+        transactionCount: '0',
+        unitsSold: '0',
+        refundedAmount: '17.52',
+        refundCount: '1',
+        returnedUnits: '4',
+        netRecordedSales: '-17.52',
+      },
+      {
+        date: '2026-09-04',
+        grossSales: '0.00',
+        transactionCount: '0',
+        unitsSold: '0',
+        refundedAmount: '0.00',
+        refundCount: '0',
+        returnedUnits: '0',
+        netRecordedSales: '0.00',
+      },
+    ]);
+    expect(
+      result.topProducts.map((row) => [
+        row.productName,
+        row.grossSales,
+        row.unitsSold,
+        row.refundedAmount,
+        row.returnedUnits,
+        row.netRecordedSales,
+      ]),
+    ).toEqual([
+      ['Product 0', '37.50', '3', '12.50', '1', '25.00'],
+      ['Product 2', '35.00', '7', '5.00', '1', '30.00'],
+      ['Product 1', '0.03', '3', '0.02', '2', '0.01'],
+    ]);
+    expect(result.totalProducts).toBe('3');
+    expect(
+      await reports.analytics(context(managerId), branchId, applied),
+    ).toEqual(result);
+    await prisma.product.updateMany({
+      where: { organizationId },
+      data: { name: 'Live rename', status: 'INACTIVE' },
+    });
+    await prisma.merchant.updateMany({
+      where: { organizationId },
+      data: { name: 'Live merchant rename' },
+    });
+    expect(await reports.analytics(context(), branchId, applied)).toEqual(
+      result,
+    );
+    const own = await reports.analytics(
+      context(merchantUserId),
+      branchId,
+      applied,
+    );
+    expect(own.scope).toBe('MERCHANT');
+    if (own.scope !== 'MERCHANT') throw new Error('Wrong scope');
+    expect(own.ownGrossSales).toBe('37.53');
+    expect(own.dailyTrends[0]).toHaveProperty('ownTransactionCount', '2');
+    expect(own.dailyTrends[1]).toMatchObject({
+      ownRefundCount: '1',
+      ownRefundedAmount: '12.52',
+    });
+    expect(own.topProducts.map((row) => row.productName)).toEqual([
+      'Product 0',
+      'Product 1',
+    ]);
+    expect(Object.keys(own.topProducts[0]).sort()).toEqual(
+      [
+        'productId',
+        'productName',
+        'sku',
+        'barcode',
+        'merchantName',
+        'ownGrossSales',
+        'ownUnitsSold',
+        'ownRefundedAmount',
+        'ownReturnedUnits',
+        'ownNetRecordedSales',
+      ].sort(),
+    );
+  });
+  it('analytics includes refund-only products whose original sale lies outside exact partial-day boundaries', async () => {
+    const sale = await complete('CASH', [[0, 2]]);
+    await refund(sale, [[0, 1]], 'CASH', '2026-09-02T15:59:59.999Z');
+    const result = await reports.analytics(context(), branchId, {
+      from: '2026-09-02T15:59:59.999Z',
+      until: '2026-09-02T16:00:00.001Z',
+    });
+    expect(result).toMatchObject({
+      grossSales: '0.00',
+      refundedAmount: '12.50',
+      netRecordedSales: '-12.50',
+      totalProducts: '1',
+      dailyTrends: [
+        {
+          date: '2026-09-02',
+          refundedAmount: '12.50',
+          refundCount: '1',
+          netRecordedSales: '-12.50',
+        },
+        {
+          date: '2026-09-03',
+          refundedAmount: '0.00',
+          refundCount: '0',
+          netRecordedSales: '0.00',
+        },
+      ],
+      topProducts: [
+        {
+          productName: 'Product 0',
+          grossSales: '0.00',
+          unitsSold: '0',
+          refundedAmount: '12.50',
+          returnedUnits: '1',
+          netRecordedSales: '-12.50',
+        },
+      ],
+    });
+    const excluded = await reports.analytics(context(), branchId, {
+      from: '2026-09-02T15:00:00Z',
+      until: '2026-09-02T15:59:59.999Z',
+    });
+    expect(excluded).toMatchObject({
+      topProducts: [],
+      totalProducts: '0',
+      refundedAmount: '0.00',
+    });
+  });
+  it('analytics ranks ten of all matching products deterministically and picks latest original snapshot', async () => {
+    const placements: string[] = [];
+    for (let index = 0; index < 12; index++) {
+      const product = await products.create(
+        organizationId,
+        {
+          merchantId,
+          name: `Tie ${index}`,
+          requestId: randomUUID(),
+          initialInventory: { branchId, sellingPrice: '1.00', quantity: 10 },
+        },
+        ownerId,
+      );
+      placements.push(
+        (
+          await prisma.branchInventory.findFirstOrThrow({
+            where: { organizationId, productId: product.id },
+          })
+        ).id,
+      );
+    }
+    const first = await checkout.complete(context(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '100.00',
+      items: placements.map((branchInventoryId) => ({
+        branchInventoryId,
+        quantity: 1,
+        expectedUnitPrice: '1.00',
+      })),
+    });
+    await prisma.sale.update({
+      where: { id: first.id },
+      data: { completedAt: new Date('2026-09-01T18:00:00Z') },
+    });
+    const ids = first.items.map((row) => row.productId).sort();
+    const result = await reports.analytics(context(), branchId, range);
+    expect(result.totalProducts).toBe('12');
+    expect(result.topProducts.map((row) => row.productId)).toEqual(
+      ids.slice(0, 10),
+    );
+    const productId = first.items[0].productId;
+    await prisma.product.update({
+      where: { id: productId },
+      data: { name: 'Latest saved identity' },
+    });
+    const second = await checkout.complete(context(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '100.00',
+      items: [
+        {
+          branchInventoryId: first.items[0].branchInventoryId,
+          quantity: 1,
+          expectedUnitPrice: '1.00',
+        },
+      ],
+    });
+    await prisma.sale.update({
+      where: { id: second.id },
+      data: { completedAt: new Date('2026-09-01T19:00:00Z') },
+    });
+    expect(
+      (await reports.analytics(context(), branchId, range)).topProducts[0],
+    ).toMatchObject({ productId, productName: 'Latest saved identity' });
+    await prisma.sale.update({
+      where: { id: second.id },
+      data: { completedAt: new Date('2026-09-01T18:00:00Z') },
+    });
+    const snapshots = await prisma.saleItem.findMany({
+      where: { organizationId, productId },
+      orderBy: { id: 'desc' },
+    });
+    expect(
+      (await reports.analytics(context(), branchId, range)).topProducts[0]
+        .productName,
+    ).toBe(snapshots[0].productName);
+  });
+  it('analytics enforces fresh role, grants, links, tenant and assigned unlinked zeros', async () => {
+    await mixedSales();
+    await expect(
+      reports.analytics(context(cashierId), branchId, range),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      reports.analytics(context(managerId), emptyBranchId, range),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      reports.analytics(
+        { ...context(), organizationId: randomUUID() },
+        branchId,
+        range,
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      reports.analytics(context(), randomUUID(), range),
+    ).rejects.toMatchObject({ status: 404 });
+    await prisma.branchMembership.deleteMany({
+      where: { organizationId, userId: managerId },
+    });
+    await expect(
+      reports.analytics(context(managerId), branchId, range),
+    ).rejects.toMatchObject({ status: 404 });
+    await prisma.organizationMembership.update({
+      where: {
+        organizationId_userId: { organizationId, userId: merchantUserId },
+      },
+      data: { merchantId: otherMerchantId },
+    });
+    expect(
+      (
+        await reports.analytics(context(merchantUserId), branchId, range)
+      ).topProducts.map((row) => row.productName),
+    ).toEqual(['Product 2']);
+    await prisma.organizationMembership.update({
+      where: {
+        organizationId_userId: { organizationId, userId: merchantUserId },
+      },
+      data: { merchantId: null },
+    });
+    await expect(
+      reports.analytics(context(merchantUserId), branchId, range),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(
+      await reports.analytics(context(merchantUserId), emptyBranchId, range),
+    ).toMatchObject({
+      ownGrossSales: '0.00',
+      dailyTrends: [{ ownGrossSales: '0.00', ownRefundedAmount: '0.00' }],
+      topProducts: [],
+      totalProducts: '0',
+    });
+    await prisma.user.update({
+      where: { id: ownerId },
+      data: { deletedAt: new Date() },
+    });
+    await expect(
+      reports.analytics(context(), branchId, range),
+    ).rejects.toMatchObject({ status: 404 });
+  });
   beforeAll(async () => {
     await admin.connect();
     await admin.query(`CREATE SCHEMA "${schema}"`);
@@ -472,10 +766,14 @@ describe('PostgreSQL branch sales reporting', () => {
         },
       })
     ).id;
-    for (const id of [foreignBranch, randomUUID()])
+    for (const id of [foreignBranch, randomUUID()]) {
       await expect(reports.sales(context(), id, range)).rejects.toMatchObject({
         status: 404,
       });
+      await expect(
+        reports.analytics(context(), id, range),
+      ).rejects.toMatchObject({ status: 404 });
+    }
     await expect(
       reports.sales(
         { ...context(), organizationId: foreignOrg },
@@ -592,6 +890,42 @@ describe('PostgreSQL branch sales reporting', () => {
       ownRefundCount: '1',
       ownNetRecordedSales: '0.00',
     });
+    const analytics = await reports.analytics(context(), branchId, range);
+    expect(analytics).toMatchObject({
+      grossSales: money(cents * 3n),
+      refundedAmount: money(cents * 3n),
+      dailyTrends: [
+        {
+          grossSales: money(cents * 3n),
+          refundedAmount: money(cents * 3n),
+          unitsSold: '6442450941',
+          returnedUnits: '6442450941',
+          netRecordedSales: '0.00',
+        },
+      ],
+    });
+    expect(analytics.topProducts).toHaveLength(3);
+    for (const row of analytics.topProducts)
+      expect(row).toMatchObject({
+        grossSales: money(cents),
+        refundedAmount: money(cents),
+        unitsSold: '2147483647',
+        returnedUnits: '2147483647',
+        netRecordedSales: '0.00',
+      });
+    expect(
+      await reports.analytics(context(merchantUserId), branchId, range),
+    ).toMatchObject({
+      ownGrossSales: money(cents * 2n),
+      ownRefundedAmount: money(cents * 2n),
+      dailyTrends: [
+        {
+          ownUnitsSold: '4294967294',
+          ownReturnedUnits: '4294967294',
+          ownNetRecordedSales: '0.00',
+        },
+      ],
+    });
   });
   it('counts more than one history page without reading paginated history', async () => {
     for (let index = 0; index < 51; index++) await complete('CARD', [[0, 1]]);
@@ -604,6 +938,12 @@ describe('PostgreSQL branch sales reporting', () => {
       ownGrossSales: '637.50',
       ownTransactionCount: '51',
       ownUnitsSold: '51',
+    });
+    expect(await reports.analytics(context(), branchId, range)).toMatchObject({
+      dailyTrends: [
+        { grossSales: '637.50', transactionCount: '51', unitsSold: '51' },
+      ],
+      topProducts: [{ grossSales: '637.50', unitsSold: '51' }],
     });
   });
   it('does not mutate recorded sales, balances or ledger history during report reads', async () => {
@@ -632,64 +972,85 @@ describe('PostgreSQL branch sales reporting', () => {
       ]),
     ).toEqual(before);
   });
-  it('keeps summary and payment rows in the same snapshot while another checkout commits', async () => {
-    await complete('CASH', [[0, 1]]);
-    let captured!: () => void;
-    let release!: () => void;
-    const ready = new Promise<void>((done) => {
-      captured = done;
-    });
-    const resumed = new Promise<void>((done) => {
-      release = done;
-    });
-    const facade = {
-      $transaction: (
-        callback: (tx: Prisma.TransactionClient) => Promise<SalesReport>,
-        options: { isolationLevel: Prisma.TransactionIsolationLevel },
-      ) =>
-        prisma.$transaction(
-          async (tx) => {
-            const intercepted = {
-              ...tx,
-              $queryRaw: async <T>(query: Prisma.Sql): Promise<T> => {
-                const result = await tx.$queryRaw<T>(query);
-                if (query.sql.includes('WITH matched')) {
-                  captured();
-                  await resumed;
-                }
-                return result;
-              },
-            } as unknown as Prisma.TransactionClient;
-            return callback(intercepted);
-          },
-          { ...options, timeout: 15000 },
-        ),
-    };
-    const snapshotReports = new ReportsService(
-      facade as unknown as PrismaService,
-    );
-    const pending = snapshotReports.sales(context(), branchId, range);
-    try {
-      await ready;
-      await complete('GCASH', [[0, 1]]);
-    } finally {
-      release();
-    }
-    expect(await pending).toMatchObject({
-      grossSales: '12.50',
-      transactionCount: '1',
-      unitsSold: '1',
-      payments: [
-        { paymentMethod: 'CASH', grossSales: '12.50', transactionCount: '1' },
-        { paymentMethod: 'GCASH', grossSales: '0.00', transactionCount: '0' },
-        { paymentMethod: 'CARD', grossSales: '0.00', transactionCount: '0' },
-      ],
-    });
-    expect(await read()).toMatchObject({
-      grossSales: '25.00',
-      transactionCount: '2',
-    });
-  });
+  it.each([false, true])(
+    'keeps summary and payment rows (analytics %s) in the same snapshot while another checkout commits',
+    async (analytics) => {
+      await complete('CASH', [[0, 1]]);
+      let captured!: () => void;
+      let release!: () => void;
+      const ready = new Promise<void>((done) => {
+        captured = done;
+      });
+      const resumed = new Promise<void>((done) => {
+        release = done;
+      });
+      const facade = {
+        $transaction: (
+          callback: (tx: Prisma.TransactionClient) => Promise<SalesReport>,
+          options: { isolationLevel: Prisma.TransactionIsolationLevel },
+        ) =>
+          prisma.$transaction(
+            async (tx) => {
+              const intercepted = {
+                ...tx,
+                $queryRaw: async <T>(query: Prisma.Sql): Promise<T> => {
+                  const result = await tx.$queryRaw<T>(query);
+                  if (query.sql.includes('WITH matched')) {
+                    captured();
+                    await resumed;
+                  }
+                  return result;
+                },
+              } as unknown as Prisma.TransactionClient;
+              return callback(intercepted);
+            },
+            { ...options, timeout: 15000 },
+          ),
+      };
+      const snapshotReports = new ReportsService(
+        facade as unknown as PrismaService,
+      );
+      const pending = analytics
+        ? snapshotReports.analytics(context(), branchId, range)
+        : snapshotReports.sales(context(), branchId, range);
+      try {
+        await ready;
+        await complete('GCASH', [[0, 1]]);
+      } finally {
+        release();
+      }
+      if (analytics) {
+        expect(await pending).toMatchObject({
+          totalProducts: '1',
+          dailyTrends: [
+            { grossSales: '12.50', transactionCount: '1', unitsSold: '1' },
+          ],
+          topProducts: [
+            { productName: 'Product 0', grossSales: '12.50', unitsSold: '1' },
+          ],
+        });
+        expect(
+          await reports.analytics(context(), branchId, range),
+        ).toMatchObject({
+          topProducts: [{ grossSales: '25.00', unitsSold: '2' }],
+        });
+      }
+      expect(await pending).toMatchObject({
+        grossSales: '12.50',
+        transactionCount: '1',
+        unitsSold: '1',
+        payments: [
+          { paymentMethod: 'CASH', grossSales: '12.50', transactionCount: '1' },
+          { paymentMethod: 'GCASH', grossSales: '0.00', transactionCount: '0' },
+          { paymentMethod: 'CARD', grossSales: '0.00', transactionCount: '0' },
+        ],
+      });
+      expect(await read()).toMatchObject({
+        grossSales: '25.00',
+        transactionCount: '2',
+      });
+    },
+  );
   it.each(['CASH', 'GCASH', 'CARD'] as const)(
     'reconciles actual %s refunds separately from original sale payments',
     async (method) => {
@@ -1053,11 +1414,19 @@ describe('PostgreSQL branch sales reporting', () => {
     await read(managerId);
     await read(merchantUserId);
     await reports.branches(context(merchantUserId));
+    await reports.analytics(context(), branchId, range);
+    await reports.analytics(context(managerId), branchId, range);
+    await reports.analytics(context(merchantUserId), branchId, range);
     expect(await persisted()).toEqual(before);
   });
-  it.each(['OWNER', 'MERCHANT'] as const)(
-    'keeps %s sale/refund streams in a single snapshot during a concurrent refund',
-    async (role) => {
+  it.each([
+    ['OWNER', false],
+    ['MERCHANT', false],
+    ['OWNER', true],
+    ['MERCHANT', true],
+  ] as const)(
+    'keeps %s sale/refund streams (analytics %s) in a single snapshot during a concurrent refund',
+    async (role, analytics) => {
       const sale = await complete('CASH', [[0, 3]]);
       await refund(sale, [[0, 1]]);
       let captured!: () => void, release!: () => void;
@@ -1093,14 +1462,57 @@ describe('PostgreSQL branch sales reporting', () => {
           ),
       };
       const userId = role === 'OWNER' ? ownerId : merchantUserId;
-      const pending = new ReportsService(
-        facade as unknown as PrismaService,
-      ).sales(context(userId), branchId, range);
+      const snapshot = new ReportsService(facade as unknown as PrismaService);
+      const pending = analytics
+        ? snapshot.analytics(context(userId), branchId, range)
+        : snapshot.sales(context(userId), branchId, range);
       try {
         await ready;
         await refund(sale, [[0, 1]], 'CARD');
       } finally {
         release();
+      }
+      if (analytics) {
+        expect(await pending).toMatchObject({
+          totalProducts: '1',
+          dailyTrends: [
+            role === 'OWNER'
+              ? {
+                  grossSales: '37.50',
+                  refundedAmount: '12.50',
+                  refundCount: '1',
+                  netRecordedSales: '25.00',
+                }
+              : {
+                  ownGrossSales: '37.50',
+                  ownRefundedAmount: '12.50',
+                  ownRefundCount: '1',
+                  ownNetRecordedSales: '25.00',
+                },
+          ],
+          topProducts: [
+            role === 'OWNER'
+              ? {
+                  grossSales: '37.50',
+                  refundedAmount: '12.50',
+                  netRecordedSales: '25.00',
+                }
+              : {
+                  ownGrossSales: '37.50',
+                  ownRefundedAmount: '12.50',
+                  ownNetRecordedSales: '25.00',
+                },
+          ],
+        });
+        expect(
+          await reports.analytics(context(userId), branchId, range),
+        ).toMatchObject({
+          topProducts: [
+            role === 'OWNER'
+              ? { refundedAmount: '25.00' }
+              : { ownRefundedAmount: '25.00' },
+          ],
+        });
       }
       expect(await pending).toMatchObject(
         role === 'OWNER'

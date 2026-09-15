@@ -31,6 +31,10 @@ import {
 } from './dto/sales-report-query.dto';
 import { ReportsService } from './reports.service';
 import {
+  MerchantSalesAnalyticsResponseDto,
+  StaffSalesAnalyticsResponseDto,
+} from './sales-analytics.types';
+import {
   MerchantSalesReportResponseDto,
   StaffSalesReportResponseDto,
 } from './reports.types';
@@ -44,7 +48,12 @@ import {
 )
 @ApiTags('reports')
 @ApiBearerAuth('access-token')
-@ApiExtraModels(StaffSalesReportResponseDto, MerchantSalesReportResponseDto)
+@ApiExtraModels(
+  StaffSalesReportResponseDto,
+  MerchantSalesReportResponseDto,
+  StaffSalesAnalyticsResponseDto,
+  MerchantSalesAnalyticsResponseDto,
+)
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
 @ApiForbiddenResponse({ description: 'Cashiers cannot access Reports' })
 @ApiNotFoundResponse({
@@ -56,6 +65,34 @@ import {
 })
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
+
+  @Get('branches/:branchId/reports/sales/analytics')
+  @ApiOperation({
+    summary:
+      'Read one authorized snapshot of summary, Manila daily trends and top ten saved products',
+  })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffSalesAnalyticsResponseDto) },
+        { $ref: getSchemaPath(MerchantSalesAnalyticsResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffSalesAnalyticsResponseDto),
+          MERCHANT: getSchemaPath(MerchantSalesAnalyticsResponseDto),
+        },
+      },
+    },
+  })
+  analytics(
+    @CurrentOrganization() context: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: SalesReportQueryDto,
+  ) {
+    return this.reports.analytics(context, branchId.toLowerCase(), query);
+  }
 
   @Get('reports/sales/branches')
   @ApiOperation({
