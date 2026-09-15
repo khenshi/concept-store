@@ -35,6 +35,28 @@ vi.mock('./inventory-placement-form', () => ({
     <button onClick={onSaved}>Complete test placement</button>
   ),
 }));
+vi.mock('./inventory-stock-form', () => ({
+  InventoryStockForm: ({
+    mode,
+    onSaved,
+    onPendingChange,
+    onAccessLost,
+  }: {
+    mode: 'receipt' | 'adjustment';
+    onSaved(): void;
+    onPendingChange(pending: boolean): void;
+    onAccessLost(): void;
+  }) => (
+    <div>
+      <input aria-label="Test stock reason" />
+      <button onClick={onSaved}>
+        Complete test {mode === 'receipt' ? 'receipt' : 'correction'}
+      </button>
+      <button onClick={() => onPendingChange(true)}>Start test write</button>
+      <button onClick={onAccessLost}>Lose test access</button>
+    </div>
+  ),
+}));
 
 describe('InventoryDirectory workflows', () => {
   it('does not let an obsolete inventory read restore data after branch-list revocation', async () => {
@@ -124,6 +146,53 @@ describe('InventoryDirectory workflows', () => {
     await waitFor(() => expect(listInventory).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+  it.each([
+    ['Receive stock', 'receipt'],
+    ['Correct stock', 'correction'],
+  ])(
+    'opens the row-level %s modal and refreshes after success',
+    async (label, action) => {
+      render(<InventoryDirectory {...scope} />);
+      await screen.findByText('PHP 850.00');
+      fireEvent.click(screen.getByRole('button', { name: label }));
+      expect(
+        screen.getByRole('dialog', {
+          name: new RegExp(
+            `${label === 'Receive stock' ? 'Receive' : 'Correct'} ${inventory.product.name}`,
+          ),
+        }),
+      ).toBeVisible();
+      fireEvent.click(
+        screen.getByRole('button', { name: `Complete test ${action}` }),
+      );
+      await waitFor(() => expect(listInventory).toHaveBeenCalledTimes(2));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent(
+        `Stock ${action} recorded for ${inventory.product.name}`,
+      );
+    },
+  );
+  it('prevents concurrent row actions while a quick stock write is pending', async () => {
+    render(<InventoryDirectory {...scope} />);
+    await screen.findByText('PHP 850.00');
+    fireEvent.click(screen.getByRole('button', { name: 'Receive stock' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start test write' }));
+    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(
+      screen.getByRole('combobox', { name: 'Inventory branch' }),
+    ).toBeDisabled();
+  });
+  it('clears inventory and quick controls when a row action loses access', async () => {
+    render(<InventoryDirectory {...scope} />);
+    await screen.findByText('PHP 850.00');
+    fireEvent.click(screen.getByRole('button', { name: 'Correct stock' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lose test access' }));
+    expect(screen.queryByText('PHP 850.00')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Inventory access is unavailable',
+    );
+  });
   it('shows only own merchant placements with no placement creation', async () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { role: 'MERCHANT' },
@@ -135,6 +204,12 @@ describe('InventoryDirectory workflows', () => {
     });
     expect(
       screen.queryByRole('button', { name: 'Add product placement' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Receive stock' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Correct stock' }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/matching own placements/)).toBeInTheDocument();
   });

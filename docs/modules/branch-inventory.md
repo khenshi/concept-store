@@ -189,6 +189,12 @@ responses as well as full owner/manager responses.
 - The directory includes debounced product search, merchant/product-status filters,
   responsive divided rows, exact PHP prices, and whole-unit balances. Empty,
   filtered-empty, loading, and retryable errors have distinct feedback.
+- Owner/manager rows expose Receive stock and Correct stock quick actions in
+  focused dialogs; the product identity still links to full placement details.
+  These dialogs reuse the stock forms' live validation, receipt idempotency,
+  correction confirmation, pending-write exclusion and access-loss handling.
+  Success closes the dialog and refreshes authoritative branch inventory.
+  Merchants remain read-only and receive no row mutation actions.
 - Placement creation uses the shared scroll-contained native dialog, with focus
   restoration and pending dismissal protection. One searchable product combobox
   performs both filtering and selection; search remains organization-scoped,

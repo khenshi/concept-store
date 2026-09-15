@@ -30,6 +30,7 @@ import type {
 } from '../model/inventory.types';
 import { InventoryPlacementForm } from './inventory-placement-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
+import { InventoryStockForm } from './inventory-stock-form';
 
 export function InventoryDirectory(props: InventoryScope) {
   const { user } = useAuth();
@@ -65,6 +66,10 @@ function ScopedInventoryDirectory({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [stockAction, setStockAction] = useState<{
+    inventory: BranchInventory;
+    mode: 'receipt' | 'adjustment';
+  } | null>(null);
   const [pending, setPending] = useState(false);
   const dirty = useRef(false);
   const readGeneration = useRef(0);
@@ -72,6 +77,7 @@ function ScopedInventoryDirectory({
     readGeneration.current++;
     dirty.current = false;
     setCreating(false);
+    setStockAction(null);
     setItems([]);
     setBranch(null);
     setMerchants([]);
@@ -172,6 +178,7 @@ function ScopedInventoryDirectory({
             return false;
           dirty.current = false;
           setCreating(false);
+          setStockAction(null);
           readGeneration.current++;
           setItems([]);
           setBranch(null);
@@ -275,29 +282,70 @@ function ScopedInventoryDirectory({
             className="m-0 list-none divide-y divide-hairline p-0"
           >
             {items.map((item) => (
-              <li key={item.id}>
+              <li
+                key={item.id}
+                className="grid min-w-0 gap-3 px-6 py-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+              >
                 <Link
                   href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
                   aria-label={`View ${item.product.name} inventory`}
-                  className="grid min-w-0 gap-3 px-6 py-5 text-ink no-underline hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+                  className="min-w-0 break-words text-ink no-underline hover:underline"
                 >
-                  <div className="min-w-0 break-words">
-                    <strong className="block text-sm font-semibold">
-                      {item.product.name}
-                    </strong>
-                    <span className="mt-1 block text-xs text-muted">
-                      {item.product.merchant.name} ·{' '}
-                      {item.product.status === 'ACTIVE' ? 'Active' : 'Inactive'}{' '}
-                      · SKU {item.product.sku ?? 'not set'}
-                    </span>
-                  </div>
-                  <span className="text-sm tabular-nums">
-                    PHP {item.sellingPrice}
-                  </span>
-                  <span className="text-sm tabular-nums">
-                    {item.quantity.toLocaleString()} units
+                  <strong className="block text-sm font-semibold">
+                    {item.product.name}
+                  </strong>
+                  <span className="mt-1 block text-xs text-muted">
+                    {item.product.merchant.name} ·{' '}
+                    {item.product.status === 'ACTIVE' ? 'Active' : 'Inactive'} ·
+                    SKU {item.product.sku ?? 'not set'}
                   </span>
                 </Link>
+                <span className="text-sm tabular-nums">
+                  PHP {item.sellingPrice}
+                </span>
+                <span className="text-sm tabular-nums">
+                  {item.quantity.toLocaleString()} units
+                </span>
+                {canWrite ? (
+                  <div
+                    className="flex flex-wrap gap-x-3 gap-y-2 sm:col-span-3 lg:col-span-1 lg:justify-end"
+                    aria-label={`${item.product.name} stock actions`}
+                  >
+                    <button
+                      type="button"
+                      className={buttonStyles({
+                        variant: 'quiet',
+                        className: 'min-h-9 px-2 py-1 text-xs',
+                      })}
+                      disabled={pending}
+                      onClick={() => {
+                        dirty.current = false;
+                        setSuccess(null);
+                        setStockAction({ inventory: item, mode: 'receipt' });
+                      }}
+                    >
+                      Receive stock
+                    </button>
+                    <button
+                      type="button"
+                      className={buttonStyles({
+                        variant: 'quiet',
+                        className: 'min-h-9 px-2 py-1 text-xs',
+                      })}
+                      disabled={pending}
+                      onClick={() => {
+                        dirty.current = false;
+                        setSuccess(null);
+                        setStockAction({
+                          inventory: item,
+                          mode: 'adjustment',
+                        });
+                      }}
+                    >
+                      Correct stock
+                    </button>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -337,6 +385,52 @@ function ScopedInventoryDirectory({
                 setCreating(false);
                 setSuccess(
                   'Product placement created with zero stock. Receive opening stock separately.',
+                );
+                setRevision((value) => value + 1);
+              }}
+            />
+          </FormDialog>
+        </div>
+      ) : null}
+      {stockAction && canWrite ? (
+        <div
+          onChangeCapture={() => {
+            dirty.current = true;
+          }}
+          onClickCapture={(event) => {
+            if (
+              event.target instanceof HTMLButtonElement &&
+              event.target.getAttribute('aria-pressed') !== null
+            )
+              dirty.current = true;
+          }}
+        >
+          <FormDialog
+            title={`${stockAction.mode === 'receipt' ? 'Receive' : 'Correct'} ${stockAction.inventory.product.name} stock`}
+            description={`${branch?.name ?? 'This branch'} currently shows ${stockAction.inventory.quantity.toLocaleString()} units. This action affects only this branch placement.`}
+            pending={pending}
+            onClose={() => {
+              dirty.current = false;
+              setStockAction(null);
+            }}
+          >
+            <InventoryStockForm
+              scope={{
+                organizationId,
+                branchId,
+                inventoryId: stockAction.inventory.id,
+              }}
+              inventory={stockAction.inventory}
+              mode={stockAction.mode}
+              onPendingChange={setPending}
+              onAccessLost={accessLost}
+              onSaved={() => {
+                const action =
+                  stockAction.mode === 'receipt' ? 'receipt' : 'correction';
+                dirty.current = false;
+                setStockAction(null);
+                setSuccess(
+                  `Stock ${action} recorded for ${stockAction.inventory.product.name}. Refreshing branch inventory.`,
                 );
                 setRevision((value) => value + 1);
               }}

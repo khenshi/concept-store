@@ -126,6 +126,9 @@ the signed delta and estimated stock while keeping
 the server authoritative; pending writes disable repeat/concurrent actions. Stock
 retry IDs remain unchanged for unchanged failed commands, and success reloads
 current inventory instead of treating historical movement balances as current.
+Owner/manager inventory rows also provide direct Receive stock and Correct stock
+dialogs using those same safeguards; merchant rows remain read-only. Product
+identity continues to link to the full placement and movement-history screen.
 Expanded API/component workflows pass alongside regressions (236 frontend tests),
 typecheck, lint, formatting, and production build. Test-only native dialog shims
 model open/close state, not actual top-layer display or browser focus containment.
