@@ -21,7 +21,7 @@ const prisma = new PrismaClient({
   ),
 });
 
-async function fixture() {
+async function fixture(legacySchema = false) {
   const organization = await prisma.organization.create({
     data: { name: randomUUID() },
   });
@@ -58,15 +58,35 @@ async function fixture() {
       name: 'Original goods',
     },
   });
-  const inventory = await prisma.branchInventory.create({
-    data: {
-      organizationId: organization.id,
-      branchId: branch.id,
-      productId: product.id,
-      sellingPrice: '12.50',
-      quantity: 3,
-    },
-  });
+  const inventory = legacySchema
+    ? await (async () => {
+        const id = randomUUID();
+        const now = new Date();
+        await admin.query(
+          'INSERT INTO "BranchInventory" ("id", "organizationId", "branchId", "productId", "sellingPrice", "quantity", "createdAt", "updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+          [id, organization.id, branch.id, product.id, '12.50', 3, now, now],
+        );
+        return {
+          id,
+          organizationId: organization.id,
+          branchId: branch.id,
+          productId: product.id,
+          sellingPrice: new Prisma.Decimal('12.50'),
+          quantity: 3,
+          lowStockThreshold: 5,
+          createdAt: now,
+          updatedAt: now,
+        };
+      })()
+    : await prisma.branchInventory.create({
+        data: {
+          organizationId: organization.id,
+          branchId: branch.id,
+          productId: product.id,
+          sellingPrice: '12.50',
+          quantity: 3,
+        },
+      });
   const sale = await prisma.sale.create({
     data: {
       organizationId: organization.id,
@@ -174,7 +194,7 @@ describe('PostgreSQL refund persistence', () => {
       .filter((name) => /^\d/.test(name))
       .sort()) {
       if (directory === '20260914020000_add_refund_persistence') {
-        legacy = await fixture();
+        legacy = await fixture(true);
         for (const movement of [
           { type: 'RECEIPT', delta: 13, after: 13, itemId: null },
           { type: 'SALE', delta: -10, after: 3, itemId: legacy.item.id },

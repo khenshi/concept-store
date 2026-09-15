@@ -1,5 +1,11 @@
 # Archived Implementation Plans
 
+The completed branch inventory replenishment-visibility record, including all
+three reviewed implementation commits, final automated verification and the
+September 16, 2026 rendered-QA waiver, is retained in
+[`branch-inventory-replenishment-visibility-2026-09-16.md`](branch-inventory-replenishment-visibility-2026-09-16.md).
+This historical record does not authorize additional implementation.
+
 The completed shared branch-selection refinement for POS, Inventory and Reports,
 with both reviewed parts, final verification and its September 14, 2026 rendered-QA
 waiver, is retained in

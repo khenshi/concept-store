@@ -1,6 +1,6 @@
 # Branch Inventory
 
-**Status:** Implemented; original inventory and current navigation/opening-stock rendered QA explicitly waived.
+**Status:** Implemented; final replenishment-visibility rendered QA explicitly waived.
 
 The later inventory workflow usability refinement passes the complete frontend
 suite (751 tests across 88 files), lint, type checking, formatting and production
@@ -114,10 +114,11 @@ whitelisting reject malformed IDs and unexpected fields.
 
 ## Delivery state
 
-The replenishment-visibility work is being delivered in reviewable parts; current
-verification totals are recorded in its current plan. Earlier delivery passed
-backend formatting/lint/build, 171 unit tests, 59 HTTP e2e tests, and 18 PostgreSQL
-integration tests pass. Dedicated coverage includes request normalization, roles,
+Final automated replenishment-visibility verification passes Prisma formatting,
+validation and generation, backend formatting/lint/build, 410 unit tests across
+34 suites, 211 HTTP tests across six suites, and 240 PostgreSQL tests across six
+integration suites. Frontend formatting/lint/type checking, all 765 tests across
+89 files, and the production build pass. Dedicated coverage includes request normalization, roles,
 tenant/branch access, lifecycle, precise prices, bounded writes, actor attribution,
 and retry conflicts. Actual PostgreSQL 17 verification exercises migration
 constraints, failed movement rollback, concurrent receipts and withdrawals,
@@ -129,11 +130,10 @@ coverage and regressions pass (236 tests total), along with typecheck, lint,
 formatting, and production build. Coverage includes scoped contracts, candidates,
 filters, placement/price forms, request errors, history, historical-replay refresh,
 failed-refresh read retry, pending write exclusion, and role-aware data denial.
-The user explicitly waived rendered visual/accessibility QA on September 12,
-2026 after declining browser access. Native rendered modal, viewport, contrast,
-zoom, and keyboard behavior are not certified by automated tests. The unperformed
-checklist is retained in the
-[completed plan](../plans/archive/products-and-branch-inventory-2026-09-12.md).
+Rendered status badges, filters, threshold forms, branch health cards, responsive
+layout, keyboard/focus behavior, non-color communication and 200% zoom QA were
+explicitly waived September 16, 2026. Those checks were not performed, and
+automated tests do not certify rendered behavior or accessibility.
 
 ## Workspace UI
 

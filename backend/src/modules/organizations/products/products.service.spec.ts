@@ -138,12 +138,34 @@ describe('ProductsService', () => {
 
   it('returns exact independent placement prices', async () => {
     prisma.branchInventory.findMany.mockResolvedValue([
-      { id: 'one', sellingPrice: new Prisma.Decimal('0.01') },
-      { id: 'two', sellingPrice: new Prisma.Decimal('9999999999.99') },
+      {
+        id: 'one',
+        sellingPrice: new Prisma.Decimal('0.01'),
+        quantity: 5,
+        lowStockThreshold: 5,
+      },
+      {
+        id: 'two',
+        sellingPrice: new Prisma.Decimal('9999999999.99'),
+        quantity: 6,
+        lowStockThreshold: 5,
+      },
     ]);
     await expect(service.findInventory('org', 'product')).resolves.toEqual([
-      { id: 'one', sellingPrice: '0.01' },
-      { id: 'two', sellingPrice: '9999999999.99' },
+      {
+        id: 'one',
+        sellingPrice: '0.01',
+        quantity: 5,
+        lowStockThreshold: 5,
+        stockStatus: 'LOW_STOCK',
+      },
+      {
+        id: 'two',
+        sellingPrice: '9999999999.99',
+        quantity: 6,
+        lowStockThreshold: 5,
+        stockStatus: 'IN_STOCK',
+      },
     ]);
     expect(prisma.branchInventory.findMany).toHaveBeenCalledWith(
       expect.objectContaining({

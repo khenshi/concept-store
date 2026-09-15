@@ -1,13 +1,19 @@
-# Current Implementation Plan
+# Completed Implementation Plan
 
-**Status:** Approved September 15, 2026. Implementing by reviewable parts; each
-part remains uncommitted until reviewed and approved.
+**Status:** Completed and archived September 16, 2026. This historical plan
+authorizes no further implementation.
 
 Part 1 was reviewed, approved and committed as `ae193ff`. Part 2 was reviewed,
-approved and committed as `1e75552`. Part 3 implementation is complete and
-remains uncommitted for review. Backend format/lint/build, 91 focused inventory
-unit tests and 106 focused HTTP authorization tests pass. Frontend format/lint,
-type checking, all 765 tests across 89 files and the production build pass.
+approved and committed as `1e75552`. Part 3 was reviewed, approved and committed
+as `0648991`. Part 4 automated verification is complete: Prisma format,
+validation and generation; backend format/lint/build, 410 unit tests across 34
+suites, 211 HTTP tests across six suites and 240 PostgreSQL tests across six
+suites; and frontend format/lint/type checking, all 765 tests across 89 files and
+the production build pass. The disposable PostgreSQL 17 container and temporary
+data were removed. Rendered status/filter/form, branch-health, responsive,
+keyboard/focus, non-color and 200% zoom QA was explicitly waived September 16,
+2026 and was not performed. Automated tests do not certify those rendered
+behaviors. The final verification/archive changes remain uncommitted for review.
 
 ## Branch inventory replenishment visibility
 

@@ -106,3 +106,8 @@ edit action. Successful create/edit operations update the workspace cache and
 announce the affected branch. Edit requests still explicitly send `null` when
 clearing optional code, second address line, or postal code. API scoping,
 authorization, schema validation, and normalization are unchanged.
+
+Rendered branch inventory-health card layout, filtered-link behavior, keyboard/
+focus behavior, non-color communication and 200% zoom QA were explicitly waived
+September 16, 2026. Automated tests cover the contracts and state transitions but
+do not certify those rendered behaviors.

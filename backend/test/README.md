@@ -1,5 +1,16 @@
 # Backend verification
 
+Final branch-inventory replenishment-visibility verification passes Prisma
+format/validation/generation, backend format/lint/build, 410 unit tests across 34
+suites, 211 HTTP tests across six suites, and 240 PostgreSQL tests across six
+suites. The refund persistence upgrade fixture now inserts its pre-threshold
+placement through legacy-schema SQL before applying refund and threshold
+migrations, preserving its upgrade boundary while allowing the current Prisma
+client after migration. The full rerun passes. Integration tests used random
+isolated schemas in a PostgreSQL 17 `--rm` container without host or named
+volumes; the container and temporary data were removed afterward. The application
+database was not migrated, reset, or seeded.
+
 Run `npm test -- --runInBand` for unit tests and `npm run test:e2e -- --runInBand`
 for HTTP request/guard tests. HTTP tests bind temporary local server ports.
 
