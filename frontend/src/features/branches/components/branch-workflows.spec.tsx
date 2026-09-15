@@ -15,6 +15,7 @@ import type { Branch } from '../model/branch.types';
 import { BranchManagement } from './branch-management';
 import { BranchDetail } from './branch-detail';
 import { BranchForm } from './branch-form';
+import { getInventoryHealthSummary } from '@/features/inventory/api/inventory-api';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
@@ -25,6 +26,9 @@ vi.mock('../api/branch-api', () => ({
   createBranch: vi.fn(),
   updateBranch: vi.fn(),
   getBranch: vi.fn(),
+}));
+vi.mock('@/features/inventory/api/inventory-api', () => ({
+  getInventoryHealthSummary: vi.fn(),
 }));
 
 const request = vi.fn();
@@ -93,6 +97,11 @@ it('places Add branch in the directory panel and omits the title eyebrow', () =>
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(getInventoryHealthSummary).mockResolvedValue({
+    inStock: 7,
+    lowStock: 2,
+    outOfStock: 1,
+  });
   workspace = {
     organizationId: 'org',
     organization: {
@@ -408,11 +417,21 @@ describe('BranchDetail', () => {
       '/app/organizations/org/branches/branch-id/inventory',
     );
     const actionGrid = screen
-      .getByRole('link', { name: 'Manage inventory' })
+      .getByRole('link', { name: 'Open POS cart' })
       .closest('.grid');
     expect(actionGrid).toHaveClass('xl:grid-cols-3');
     expect(actionGrid).toContainElement(
       screen.getByRole('link', { name: 'Open POS cart' }),
+    );
+    expect(screen.getByRole('link', { name: 'Low stock: 2' })).toHaveAttribute(
+      'href',
+      '/app/organizations/org/branches/branch-id/inventory?stockStatus=LOW_STOCK',
+    );
+    expect(
+      screen.getByRole('link', { name: 'Out of stock: 1' }),
+    ).toHaveAttribute(
+      'href',
+      '/app/organizations/org/branches/branch-id/inventory?stockStatus=OUT_OF_STOCK',
     );
     expect(actionGrid).toContainElement(
       screen.getByRole('link', { name: 'View sales history' }),
@@ -471,6 +490,14 @@ describe('BranchDetail', () => {
           'href',
           '/app/organizations/org/branches/branch-id/inventory',
         );
+        expect(screen.getByLabelText('Your inventory health')).toBeVisible();
+        expect(
+          screen.getByText(
+            'Counts include only your merchant’s placements in this branch.',
+          ),
+        ).toBeVisible();
+      } else {
+        expect(getInventoryHealthSummary).not.toHaveBeenCalled();
       }
     },
   );
@@ -491,5 +518,50 @@ describe('BranchDetail', () => {
     expect(
       screen.getByRole('link', { name: 'Back to branches' }),
     ).toHaveAttribute('href', '/app/organizations/org/branches');
+  });
+
+  it('keeps inventory-summary failure local and retries it', async () => {
+    vi.mocked(getInventoryHealthSummary)
+      .mockRejectedValueOnce(new Error('Unavailable'))
+      .mockResolvedValueOnce({ inStock: 0, lowStock: 0, outOfStock: 0 });
+    render(<BranchDetail organizationId="org" branchId="branch-id" />);
+    await screen.findByRole('heading', { name: 'Makati Main' });
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Inventory health could not be loaded.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(
+      await screen.findByRole('link', { name: 'Low stock: 0' }),
+    ).toBeVisible();
+    expect(getInventoryHealthSummary).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not restore an obsolete summary after inventory access is lost', async () => {
+    let resolveSummary!: (value: {
+      inStock: number;
+      lowStock: number;
+      outOfStock: number;
+    }) => void;
+    vi.mocked(getInventoryHealthSummary).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSummary = resolve;
+      }),
+    );
+    const view = render(
+      <BranchDetail organizationId="org" branchId="branch-id" />,
+    );
+    await screen.findByRole('heading', { name: 'Makati Main' });
+    workspace.organization = { ...workspace.organization!, role: 'CASHIER' };
+    view.rerender(<BranchDetail organizationId="org" branchId="branch-id" />);
+    await screen.findByRole('heading', { name: 'Makati Main' });
+    await act(async () =>
+      resolveSummary({ inStock: 7, lowStock: 2, outOfStock: 1 }),
+    );
+    expect(
+      screen.queryByLabelText('Branch inventory health'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Low stock: 2' }),
+    ).not.toBeInTheDocument();
   });
 });

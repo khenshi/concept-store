@@ -34,7 +34,9 @@ import { InventoryBranchSelector } from './inventory-branch-selector';
 import { InventoryStockForm } from './inventory-stock-form';
 import { InventoryStockStatusBadge } from './inventory-stock-status';
 
-export function InventoryDirectory(props: InventoryScope) {
+export function InventoryDirectory(
+  props: InventoryScope & { initialStockStatus?: InventoryStockStatus },
+) {
   const { user } = useAuth();
   const { organization } = useOrganizationWorkspaceContext();
   return (
@@ -48,7 +50,8 @@ export function InventoryDirectory(props: InventoryScope) {
 function ScopedInventoryDirectory({
   organizationId,
   branchId,
-}: InventoryScope) {
+  initialStockStatus,
+}: InventoryScope & { initialStockStatus?: InventoryStockStatus }) {
   const { request } = useAuth();
   const { organization, organizationStatus, setSelectedBranchId } =
     useOrganizationWorkspaceContext();
@@ -64,7 +67,9 @@ function ScopedInventoryDirectory({
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
   const [status, setStatus] = useState<ProductStatus | ''>('');
-  const [stockStatus, setStockStatus] = useState<InventoryStockStatus | ''>('');
+  const [stockStatus, setStockStatus] = useState<InventoryStockStatus | ''>(
+    initialStockStatus ?? '',
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

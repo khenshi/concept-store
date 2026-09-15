@@ -94,6 +94,11 @@ export const inventoryResponseSchema = z.object({
   }),
 });
 export const inventoryListSchema = z.array(inventoryResponseSchema);
+export const inventoryHealthSummarySchema = z.object({
+  inStock: z.number().int().min(0),
+  lowStock: z.number().int().min(0),
+  outOfStock: z.number().int().min(0),
+});
 const movementObjectSchema = z.object({
   id: z.uuidv4(),
   organizationId: z.uuidv4(),

@@ -3,6 +3,7 @@ import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BranchInventoryService } from './branch-inventory.service';
 import { inventoryMovementSelect } from './inventory.types';
+import { inventoryScope } from '../authorization/resource-access';
 
 describe('BranchInventoryService', () => {
   const prisma = {
@@ -210,6 +211,36 @@ describe('BranchInventoryService', () => {
     ).resolves.toEqual([
       expect.objectContaining({ id: 'low', stockStatus: 'LOW_STOCK' }),
     ]);
+  });
+
+  it('summarizes only role-scoped placements using the shared status rules', async () => {
+    prisma.branchInventory.findMany.mockResolvedValue([
+      { quantity: 0, lowStockThreshold: 0 },
+      { quantity: 1, lowStockThreshold: 5 },
+      { quantity: 5, lowStockThreshold: 5 },
+      { quantity: 6, lowStockThreshold: 5 },
+      { quantity: 1, lowStockThreshold: 0 },
+    ]);
+    const context = {
+      organizationId: 'org',
+      userId: 'merchant-user',
+      role: 'MERCHANT',
+      merchantId: 'merchant',
+      branchIds: ['branch'],
+    } as const;
+    await expect(service.summarize('org', 'branch', context)).resolves.toEqual({
+      inStock: 2,
+      lowStock: 2,
+      outOfStock: 1,
+    });
+    expect(prisma.branchInventory.findMany).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'org',
+        branchId: 'branch',
+        AND: [inventoryScope(context)],
+      },
+      select: { quantity: true, lowStockThreshold: true },
+    });
   });
 
   it('history queries enforce placement access and stable scoped ordering', async () => {

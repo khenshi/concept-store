@@ -6,6 +6,7 @@ import {
   movementListSchema,
   movementResponseSchema,
   merchantMovementSchema,
+  inventoryHealthSummarySchema,
 } from '../model/inventory.schemas';
 import type {
   InventoryScope,
@@ -28,6 +29,14 @@ export async function getInventoryBranch(
   scope: InventoryScope,
 ) {
   return inventoryBranchSchema.parse(await request<unknown>(branchPath(scope)));
+}
+export async function getInventoryHealthSummary(
+  request: AuthenticatedRequest,
+  scope: InventoryScope,
+) {
+  return inventoryHealthSummarySchema.parse(
+    await request<unknown>(`${path(scope)}/summary`),
+  );
 }
 export async function listInventory(
   request: AuthenticatedRequest,

@@ -3,10 +3,11 @@
 **Status:** Approved September 15, 2026. Implementing by reviewable parts; each
 part remains uncommitted until reviewed and approved.
 
-Part 1 was reviewed, approved and committed as `ae193ff`. Part 2 implementation
-is complete and remains uncommitted for review. Backend format/lint/build, 155
-focused unit/DTO tests and 102 focused HTTP e2e tests pass. Frontend format/lint,
-type checking, all 761 tests across 89 files and the production build pass.
+Part 1 was reviewed, approved and committed as `ae193ff`. Part 2 was reviewed,
+approved and committed as `1e75552`. Part 3 implementation is complete and
+remains uncommitted for review. Backend format/lint/build, 91 focused inventory
+unit tests and 106 focused HTTP authorization tests pass. Frontend format/lint,
+type checking, all 765 tests across 89 files and the production build pass.
 
 ## Branch inventory replenishment visibility
 

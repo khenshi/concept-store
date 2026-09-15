@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
@@ -17,6 +17,8 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import { getBranch } from '../api/branch-api';
 import { BranchForm } from './branch-form';
 import type { BranchView } from '../model/branch.types';
+import { getInventoryHealthSummary } from '@/features/inventory/api/inventory-api';
+import type { InventoryHealthSummary } from '@/features/inventory/model/inventory.types';
 
 function addressFor(branch: BranchView): string {
   if (!('addressLine1' in branch))
@@ -65,39 +67,63 @@ function ScopedBranchDetail({
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [inventoryHealth, setInventoryHealth] =
+    useState<InventoryHealthSummary | null>(null);
+  const [inventoryHealthError, setInventoryHealthError] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const readGeneration = useRef(0);
+  const canViewInventory =
+    organization?.role === 'OWNER' ||
+    organization?.role === 'MANAGER' ||
+    organization?.role === 'MERCHANT';
 
-  const load = useCallback(async () => {
-    setError(null);
-    setBranch(null);
-    try {
-      setBranch(
-        await getBranch(request, organizationId, branchId, organization?.role),
-      );
-    } catch {
-      setError('The branch details could not be loaded.');
-    }
-  }, [branchId, organization, organizationId, request]);
+  const load = useCallback(() => setRevision((value) => value + 1), []);
 
   useEffect(() => {
     let active = true;
+    const generation = ++readGeneration.current;
     if (!organization) return;
     void Promise.resolve()
       .then(() => {
         if (!active) return;
         setBranch(null);
+        setInventoryHealth(null);
+        setInventoryHealthError(false);
         setError(null);
+        if (canViewInventory)
+          void getInventoryHealthSummary(request, {
+            organizationId,
+            branchId,
+          })
+            .then((value) => {
+              if (active && generation === readGeneration.current)
+                setInventoryHealth(value);
+            })
+            .catch(() => {
+              if (active && generation === readGeneration.current)
+                setInventoryHealthError(true);
+            });
         return getBranch(request, organizationId, branchId, organization.role);
       })
       .then((result) => {
-        if (active && result) setBranch(result);
+        if (!active || generation !== readGeneration.current || !result) return;
+        setBranch(result);
       })
       .catch(() => {
-        if (active) setError('The branch details could not be loaded.');
+        if (active && generation === readGeneration.current)
+          setError('The branch details could not be loaded.');
       });
     return () => {
       active = false;
     };
-  }, [branchId, organization, organizationId, request]);
+  }, [
+    branchId,
+    canViewInventory,
+    organization,
+    organizationId,
+    request,
+    revision,
+  ]);
 
   if (!organization)
     return (
@@ -124,7 +150,7 @@ function ScopedBranchDetail({
           <RequestError
             className="mt-6 rounded-panel border border-hairline bg-surface p-6"
             message={error}
-            onRetry={() => void load()}
+            onRetry={load}
           />
         ) : (
           <ListSkeleton
@@ -208,7 +234,48 @@ function ScopedBranchDetail({
                 : 'Read only your merchant’s placements, prices, quantities, and movement history.'
             }
           >
-            <div className="p-6">
+            <div className="grid gap-5 p-6">
+              {inventoryHealthError ? (
+                <RequestError
+                  message="Inventory health could not be loaded."
+                  onRetry={load}
+                />
+              ) : inventoryHealth ? (
+                <dl
+                  className="grid grid-cols-3 gap-3"
+                  aria-label={
+                    organization.role === 'MERCHANT'
+                      ? 'Your inventory health'
+                      : 'Branch inventory health'
+                  }
+                >
+                  <InventoryHealthCount
+                    label="In stock"
+                    count={inventoryHealth.inStock}
+                    href={`/app/organizations/${organizationId}/branches/${branchId}/inventory?stockStatus=IN_STOCK`}
+                    tone="success"
+                  />
+                  <InventoryHealthCount
+                    label="Low stock"
+                    count={inventoryHealth.lowStock}
+                    href={`/app/organizations/${organizationId}/branches/${branchId}/inventory?stockStatus=LOW_STOCK`}
+                    tone="warning"
+                  />
+                  <InventoryHealthCount
+                    label="Out of stock"
+                    count={inventoryHealth.outOfStock}
+                    href={`/app/organizations/${organizationId}/branches/${branchId}/inventory?stockStatus=OUT_OF_STOCK`}
+                    tone="danger"
+                  />
+                </dl>
+              ) : (
+                <ListSkeleton label="Loading inventory health" rows={1} />
+              )}
+              <p className="text-xs text-muted">
+                {organization.role === 'MERCHANT'
+                  ? 'Counts include only your merchant’s placements in this branch.'
+                  : 'Counts reflect all placements visible in this branch.'}
+              </p>
               <Link
                 className={buttonStyles({ variant: 'secondary' })}
                 href={`/app/organizations/${organizationId}/branches/${branchId}/inventory`}
@@ -271,5 +338,37 @@ function ScopedBranchDetail({
         />
       ) : null}
     </OperationalPage>
+  );
+}
+
+function InventoryHealthCount({
+  label,
+  count,
+  href,
+  tone,
+}: {
+  label: string;
+  count: number;
+  href: string;
+  tone: 'success' | 'warning' | 'danger';
+}) {
+  const toneClass = {
+    success: 'border-success/20 bg-success/5 text-success',
+    warning: 'border-warning/20 bg-warning/5 text-warning',
+    danger: 'border-danger/20 bg-danger/5 text-danger',
+  }[tone];
+  return (
+    <div className={`min-w-0 rounded-control border p-3 ${toneClass}`}>
+      <dt className="break-words text-xs font-medium">{label}</dt>
+      <dd className="mt-1 text-xl font-semibold tabular-nums">
+        <Link
+          className="text-inherit"
+          href={href}
+          aria-label={`${label}: ${count}`}
+        >
+          {count.toLocaleString()}
+        </Link>
+      </dd>
+    </div>
   );
 }

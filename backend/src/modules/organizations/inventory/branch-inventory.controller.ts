@@ -27,6 +27,7 @@ import {
 import { OrganizationRole } from '../../../generated/prisma/client';
 import {
   BranchInventoryResponseDto,
+  InventoryHealthSummaryResponseDto,
   InventoryMovementResponseDto,
 } from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
@@ -47,6 +48,7 @@ import {
 import { InventoryStockService } from './inventory-stock.service';
 import type {
   BranchInventoryRecord,
+  InventoryHealthSummary,
   InventoryMovementRecord,
 } from './inventory.types';
 
@@ -111,6 +113,20 @@ export class BranchInventoryController {
       organization.organizationId,
       branchId,
       query,
+      organization,
+    );
+  }
+
+  @Get('summary')
+  @ApiOperation({ summary: 'Summarize visible stock health in this branch' })
+  @ApiOkResponse({ type: InventoryHealthSummaryResponseDto })
+  summarize(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+  ): Promise<InventoryHealthSummary> {
+    return this.inventoryService.summarize(
+      organization.organizationId,
+      branchId,
       organization,
     );
   }

@@ -11,6 +11,12 @@ the available actions without exposing inaccessible destinations.
 Historical merchant selling branches are discoverable through the separate Sales
 workspace entry, without granting general branch/address access. Merchants receive
 no POS or full receipt-print action; cashiers retain no inventory management access.
+The inventory action also shows current in-stock, low-stock and out-of-stock
+placement counts. Low/out-of-stock count links open the branch Inventory directory
+with the corresponding filter already selected, where the existing row-level
+Receive stock action remains available. Merchant labels and counts explicitly
+cover only their own visible placements; cashiers receive neither the inventory
+action nor a summary request.
 
 **Status:** Implemented
 
@@ -62,6 +68,9 @@ tenant-safe placement relations. Its backend workflows are documented in
 [Branch Inventory](branch-inventory.md). Owner/manager branch details expose a
 Manage inventory link to the branch-scoped inventory workspace. Merchants receive
 a View own inventory link; cashiers receive no inventory action.
+Summary failures remain local to the inventory action and can be retried without
+hiding otherwise available branch information. Obsolete summary responses are
+discarded after branch, role, user or access changes.
 
 ## Frontend
 

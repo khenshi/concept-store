@@ -147,6 +147,19 @@ describe('InventoryDirectory workflows', () => {
     await waitFor(() => expect(listInventory).toHaveBeenCalledTimes(2));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+  it('applies a stock-status filter supplied by a branch health link', async () => {
+    render(<InventoryDirectory {...scope} initialStockStatus="LOW_STOCK" />);
+    await waitFor(() =>
+      expect(listInventory).toHaveBeenCalledWith(
+        request,
+        { organizationId: scope.organizationId, branchId: scope.branchId },
+        expect.objectContaining({ stockStatus: 'LOW_STOCK' }),
+      ),
+    );
+    expect(
+      screen.getByRole('combobox', { name: 'Stock status' }),
+    ).toHaveTextContent('Low stock');
+  });
   it.each([
     ['Receive stock', 'receipt'],
     ['Correct stock', 'correction'],

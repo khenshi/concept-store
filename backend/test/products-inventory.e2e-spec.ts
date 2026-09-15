@@ -55,6 +55,7 @@ describe('Products and inventory HTTP boundaries', () => {
     findOne: jest.fn(),
     updatePrice: jest.fn(),
     updateThreshold: jest.fn(),
+    summarize: jest.fn(),
     findMovements: jest.fn(),
   };
   const stock = { receive: jest.fn(), adjust: jest.fn() };
@@ -152,6 +153,7 @@ describe('Products and inventory HTTP boundaries', () => {
     `${productsPath}/${item}`,
     `${productsPath}/${item}/inventory`,
     inventoryPath,
+    `${inventoryPath}/summary`,
     `${inventoryPath}/${item}`,
     `${inventoryPath}/${item}/movements`,
   ];
@@ -385,6 +387,17 @@ describe('Products and inventory HTTP boundaries', () => {
       branch,
       item,
       expect.objectContaining({ role: 'MERCHANT' }),
+    );
+  });
+  it('passes trusted merchant scope to the inventory health summary', async () => {
+    await http()
+      .get(`${inventoryPath}/summary`)
+      .auth(token(merchant), { type: 'bearer' })
+      .expect(200);
+    expect(inventory.summarize).toHaveBeenCalledWith(
+      org,
+      branch,
+      expect.objectContaining({ role: 'MERCHANT', merchantId: null }),
     );
   });
   it.each(reads)('requires authentication on %s', async (path) => {

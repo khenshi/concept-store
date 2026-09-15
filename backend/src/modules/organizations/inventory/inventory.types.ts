@@ -36,6 +36,12 @@ export interface BranchInventoryRecord {
   };
 }
 
+export interface InventoryHealthSummary {
+  inStock: number;
+  lowStock: number;
+  outOfStock: number;
+}
+
 export enum InventoryStockStatus {
   IN_STOCK = 'IN_STOCK',
   LOW_STOCK = 'LOW_STOCK',

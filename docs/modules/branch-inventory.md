@@ -32,6 +32,7 @@ Cashier POS access does not grant inventory history or stock mutation access.
 ```text
 POST  /organizations/:organizationId/branches/:branchId/inventory
 GET   /organizations/:organizationId/branches/:branchId/inventory?q=&merchantId=&status=&stockStatus=
+GET   /organizations/:organizationId/branches/:branchId/inventory/summary
 GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId
 PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/price
 PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/threshold
@@ -73,6 +74,12 @@ whitelisting reject malformed IDs and unexpected fields.
   Merchant/product-status/derived-stock-status filters are optional and compose
   without widening the role-aware placement scope. Lists order by product name
   then inventory ID and are not paginated.
+- The summary route returns only `inStock`, `lowStock`, and `outOfStock` counts.
+  It derives them from the same current quantity/threshold rules and role-aware
+  placement scope as directory reads. Owners and assigned managers see the
+  authorized branch; linked merchants see own placements only; cashiers are
+  denied. Empty authorized scopes return three zeroes and no product or merchant
+  details.
 - Composite foreign keys prevent cross-tenant product/branch placements and
   cross-branch movement references. Database checks protect prices, quantities
   and nonnegative thresholds. The migration backfills existing placements to `5`.

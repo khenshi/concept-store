@@ -354,6 +354,12 @@ export class BranchInventoryResponseDto {
   product!: InventoryProductResponseDto;
 }
 
+export class InventoryHealthSummaryResponseDto {
+  @ApiProperty({ type: 'integer', minimum: 0 }) inStock!: number;
+  @ApiProperty({ type: 'integer', minimum: 0 }) lowStock!: number;
+  @ApiProperty({ type: 'integer', minimum: 0 }) outOfStock!: number;
+}
+
 export class InventoryMovementResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;

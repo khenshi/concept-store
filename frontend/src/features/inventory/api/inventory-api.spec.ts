@@ -3,6 +3,7 @@ import {
   createPlacement,
   getInventory,
   getInventoryBranch,
+  getInventoryHealthSummary,
   listInventory,
   listMovements,
   receiveStock,
@@ -40,6 +41,14 @@ describe('Branch inventory API contracts', () => {
     expect(request).toHaveBeenLastCalledWith(
       `${base}/${scope.inventoryId}/movements`,
     );
+  });
+  it('reads aggregate stock health without product details', async () => {
+    const summary = { inStock: 3, lowStock: 2, outOfStock: 1 };
+    request.mockResolvedValue(summary);
+    await expect(getInventoryHealthSummary(request, scope)).resolves.toEqual(
+      summary,
+    );
+    expect(request).toHaveBeenCalledWith(`${base}/summary`);
   });
   it('placement and price commands never submit stock quantities', async () => {
     request.mockResolvedValue(inventory);

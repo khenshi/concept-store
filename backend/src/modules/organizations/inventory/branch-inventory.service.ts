@@ -19,7 +19,9 @@ import {
   inventoryProductSelect,
   inventoryMovementSelect,
   deriveInventoryStockStatus,
+  InventoryStockStatus,
   type BranchInventoryRecord,
+  type InventoryHealthSummary,
   type InventoryMovementRecord,
 } from './inventory.types';
 
@@ -124,6 +126,32 @@ export class BranchInventoryService {
     });
     if (!inventory) throw new NotFoundException('Branch inventory not found');
     return this.toRecord(inventory);
+  }
+
+  async summarize(
+    organizationId: string,
+    branchId: string,
+    context?: OrganizationContext,
+  ): Promise<InventoryHealthSummary> {
+    await this.resolveBranch(organizationId, branchId);
+    const placements = await this.prisma.branchInventory.findMany({
+      where: {
+        organizationId,
+        branchId,
+        ...(context ? { AND: [inventoryScope(context)] } : {}),
+      },
+      select: { quantity: true, lowStockThreshold: true },
+    });
+    return placements.reduce<InventoryHealthSummary>(
+      (summary, placement) => {
+        const status = deriveInventoryStockStatus(placement);
+        if (status === InventoryStockStatus.OUT_OF_STOCK) summary.outOfStock++;
+        else if (status === InventoryStockStatus.LOW_STOCK) summary.lowStock++;
+        else summary.inStock++;
+        return summary;
+      },
+      { inStock: 0, lowStock: 0, outOfStock: 0 },
+    );
   }
 
   async updatePrice(
