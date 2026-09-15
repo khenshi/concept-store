@@ -24,6 +24,16 @@ passed, and the immediate full rerun passed all 199 tests. This unrelated
 behavior was not modified. The disposable analytics
 container and temporary data were removed; its image cache remains.
 
+Final Reports-redesign regression verification passes Prisma validation/generation,
+backend formatting/lint/build, 372 unit tests across 34 suites, 199 HTTP tests across
+six suites and 238 PostgreSQL tests across six suites. The final PostgreSQL run used
+random disposable schemas in a PostgreSQL 17 `--rm` container without host or named
+volumes; the container/data were removed afterward. No application database was
+migrated, reset or seeded. Frontend final results are recorded in the Reports module
+documentation. The user explicitly waived rendered redesign responsive, keyboard/
+focus, control, chart/table, 200% zoom and non-color checks September 15, 2026;
+those checks were not performed and automated tests do not certify them.
+
 Refund persistence tests cover tenant/branch/original-sale-item/merchant/price
 constraints, exact monetary capacity, manual methods, duplicate command/line keys,
 zero/partial/full restock representation, exact positive RETURN linkage, rollback,

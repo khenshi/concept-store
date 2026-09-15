@@ -352,7 +352,17 @@ reserved for final Part 4.
 Focused Reports checks pass 151 tests across ten files; the complete frontend suite
 passes 742 tests across 87 files, changed-file formatting, lint, sequential build
 and typecheck. The existing multiple-lockfile warning is unchanged. Part 3 is
-uncommitted pending review.
+reviewed and committed. Final automated verification passes Prisma validation/
+generation, backend format/lint/build, 372 unit tests, 199 HTTP tests and 238
+disposable PostgreSQL tests; frontend changed-Reports formatting, lint, 742 tests
+across 87 files, production build and sequential typecheck. No application database
+was migrated/reset/seeded, and the disposable PostgreSQL container/data were removed.
+The user explicitly waived rendered redesign QA at 320/768/1024/1440, keyboard/
+focus, date/branch controls, 200% zoom and non-color chart identification on
+September 15, 2026. Those checks were not performed; automated tests do not certify
+rendered layout or accessibility. This new waiver covers the redesigned staff and
+merchant analytics screens and is not inherited from historical Reports waivers.
+Part 4 is complete and uncommitted pending final review.
 
 ## Verification and delivery
 

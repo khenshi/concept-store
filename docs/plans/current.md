@@ -1,8 +1,10 @@
 # Current Implementation Plan
 
 **Status:** Approved September 15, 2026. Part 1 reviewed and committed as
-`131f9ab`; Part 2 reviewed and committed as `4c5f7b3`. Part 3 implemented,
-uncommitted and awaiting review. Part 4 has not started. The user confirmed
+`131f9ab`; Part 2 reviewed and committed as `4c5f7b3`; Part 3 reviewed and
+committed as `f3cde6a`. Part 4 is complete and uncommitted pending final review;
+the user explicitly waived redesign-specific rendered QA September 15, 2026.
+The user confirmed
 including sales trends and top-selling products, grouped by product ID and ranked
 by gross sales.
 
@@ -237,7 +239,25 @@ unlinked zeros, current-link refresh/relinking, historical branches, role/user/d
 branch resets and obsolete responses retain existing guards. The shared chart
 renderer receives only reduced presentation rows, uses bounded BigInt ratios and
 cannot introduce a staff API fallback. No backend/schema/infrastructure changes.
-Part 3 is uncommitted pending review; final checks and rendered QA/waiver are Part 4.
+Part 3 was reviewed and committed; final checks and rendered QA/waiver are Part 4.
 Changed-file formatting, lint, sequential production build/typecheck, 151 focused
 Reports tests across ten files and all 742 frontend tests across 87 files pass.
 The existing multiple-lockfile warning and unrelated user changes remain untouched.
+
+### Part 4 verification
+
+Final automated checks pass: Prisma validation/client generation; backend format,
+lint, build, 372 unit tests across 34 suites, 199 HTTP tests across six suites and
+238 PostgreSQL tests across six disposable random schemas; frontend changed-
+Reports formatting, lint, 742 tests across 87 files, production build and sequential
+typecheck. The existing multiple-lockfile warning remains unchanged. The PostgreSQL
+17 container used no host/named volume and is removed after verification; no
+application database was migrated, reset or seeded.
+
+The user explicitly waived rendered responsive checks at 320/768/1024/1440,
+date/branch controls, chart/table keyboard/focus, 200% zoom and non-color chart
+identification on September 15, 2026. Those checks were not performed and automated
+tests do not certify rendered layout or accessibility. This waiver is specific to
+the redesigned staff and merchant analytics screens and is not inherited from prior
+Reports waivers. Part 4 is complete and uncommitted pending final review; commit and
+archive only after approval.
