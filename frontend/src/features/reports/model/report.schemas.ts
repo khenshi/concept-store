@@ -239,3 +239,187 @@ export const merchantSalesReportSchema = z
       });
   });
 export type MerchantSalesReport = z.infer<typeof merchantSalesReportSchema>;
+
+const analyticsIdentity = z
+  .object({
+    productId: z.uuidv4(),
+    productName: z.string().min(1),
+    sku: z.string().nullable(),
+    barcode: z.string().nullable(),
+    merchantName: z.string().min(1),
+  })
+  .strict();
+const staffDailyTrend = z
+  .object({
+    date: z.iso.date(),
+    grossSales: amount,
+    transactionCount: integer,
+    unitsSold: integer,
+    refundedAmount: amount,
+    refundCount: integer,
+    returnedUnits: integer,
+    netRecordedSales: signedAmount,
+  })
+  .strict();
+const staffTopProduct = analyticsIdentity
+  .extend({
+    grossSales: amount,
+    unitsSold: integer,
+    refundedAmount: amount,
+    returnedUnits: integer,
+    netRecordedSales: signedAmount,
+  })
+  .strict();
+
+function manilaDay(date: Date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)!.value;
+  return `${value('year').padStart(4, '0')}-${value('month')}-${value('day')}`;
+}
+function expectedTrendDays(from: string, until: string) {
+  const first = Date.parse(`${manilaDay(new Date(from))}T00:00:00Z`);
+  const last = Date.parse(
+    `${manilaDay(new Date(Date.parse(until) - 1))}T00:00:00Z`,
+  );
+  return Array.from({ length: (last - first) / 86400000 + 1 }, (_, index) =>
+    new Date(first + index * 86400000).toISOString().slice(0, 10),
+  );
+}
+function analyticsValid(
+  report: {
+    from: string;
+    until: string;
+    grossSales: string;
+    transactionCount: string;
+    unitsSold: string;
+    refundedAmount: string;
+    refundCount: string;
+    returnedUnits: string;
+    dailyTrends: z.infer<typeof staffDailyTrend>[];
+    topProducts: z.infer<typeof staffTopProduct>[];
+    totalProducts: string;
+  },
+  context: z.RefinementCtx,
+) {
+  const days = expectedTrendDays(report.from, report.until);
+  const sumMoney = (field: 'grossSales' | 'refundedAmount') =>
+    report.dailyTrends.reduce(
+      (sum, row) => sum + moneyCents(row[field]),
+      BigInt(0),
+    );
+  const sumInteger = (
+    field: 'transactionCount' | 'unitsSold' | 'refundCount' | 'returnedUnits',
+  ) =>
+    report.dailyTrends.reduce(
+      (sum, row) => sum + BigInt(row[field]),
+      BigInt(0),
+    );
+  const productIds = report.topProducts.map((row) => row.productId);
+  const productsValid = report.topProducts.every((row, index) => {
+    const previous = report.topProducts[index - 1];
+    return (
+      validRefunds(
+        row.grossSales,
+        row.refundedAmount,
+        row.refundedAmount === '0.00' ? '0' : '1',
+        row.returnedUnits,
+        row.netRecordedSales,
+      ) &&
+      (row.grossSales === '0.00'
+        ? row.unitsSold === '0'
+        : BigInt(row.unitsSold) > BigInt(0)) &&
+      (!previous ||
+        moneyCents(report.topProducts[index - 1].grossSales) >
+          moneyCents(row.grossSales) ||
+        (report.topProducts[index - 1].grossSales === row.grossSales &&
+          (BigInt(report.topProducts[index - 1].unitsSold) >
+            BigInt(row.unitsSold) ||
+            (report.topProducts[index - 1].unitsSold === row.unitsSold &&
+              report.topProducts[index - 1].productId < row.productId))))
+    );
+  });
+  if (
+    days.length > 367 ||
+    report.dailyTrends.length !== days.length ||
+    report.dailyTrends.some(
+      (row, index) =>
+        row.date !== days[index] ||
+        !validRefunds(
+          row.grossSales,
+          row.refundedAmount,
+          row.refundCount,
+          row.returnedUnits,
+          row.netRecordedSales,
+        ) ||
+        (BigInt(row.transactionCount) === BigInt(0)
+          ? row.grossSales !== '0.00' || row.unitsSold !== '0'
+          : moneyCents(row.grossSales) <= BigInt(0) ||
+            BigInt(row.unitsSold) < BigInt(row.transactionCount)),
+    ) ||
+    sumMoney('grossSales') !== moneyCents(report.grossSales) ||
+    sumMoney('refundedAmount') !== moneyCents(report.refundedAmount) ||
+    sumInteger('transactionCount') !== BigInt(report.transactionCount) ||
+    sumInteger('unitsSold') !== BigInt(report.unitsSold) ||
+    sumInteger('refundCount') !== BigInt(report.refundCount) ||
+    sumInteger('returnedUnits') !== BigInt(report.returnedUnits) ||
+    report.topProducts.length > 10 ||
+    (BigInt(report.totalProducts) <= BigInt(10)
+      ? BigInt(report.totalProducts) !== BigInt(report.topProducts.length)
+      : report.topProducts.length !== 10) ||
+    new Set(productIds).size !== productIds.length ||
+    !productsValid
+  )
+    context.addIssue({
+      code: 'custom',
+      message: 'Analytics trends, totals or product ranking do not reconcile.',
+    });
+}
+
+export const staffSalesAnalyticsSchema = z
+  .object({
+    scope: z.literal('STAFF'),
+    branch: reportBranchSchema,
+    from: utc,
+    until: utc,
+    grossSales: amount,
+    transactionCount: integer,
+    unitsSold: integer,
+    payments: paymentSchema.array().length(3),
+    refundedAmount: amount,
+    refundCount: integer,
+    returnedUnits: integer,
+    netRecordedSales: signedAmount,
+    refundMethods: refundMethodSchema.array().length(3),
+    dailyTrends: staffDailyTrend.array().min(1).max(367),
+    topProducts: staffTopProduct.array().max(10),
+    totalProducts: integer,
+  })
+  .strict()
+  .superRefine((report, context) => {
+    if (
+      !staffSalesReportSchema.safeParse({
+        scope: report.scope,
+        branch: report.branch,
+        from: report.from,
+        until: report.until,
+        grossSales: report.grossSales,
+        transactionCount: report.transactionCount,
+        unitsSold: report.unitsSold,
+        payments: report.payments,
+        refundedAmount: report.refundedAmount,
+        refundCount: report.refundCount,
+        returnedUnits: report.returnedUnits,
+        netRecordedSales: report.netRecordedSales,
+        refundMethods: report.refundMethods,
+      }).success
+    )
+      context.addIssue({ code: 'custom', message: 'Invalid staff summary.' });
+    analyticsValid(report, context);
+  });
+export type StaffSalesAnalytics = z.infer<typeof staffSalesAnalyticsSchema>;

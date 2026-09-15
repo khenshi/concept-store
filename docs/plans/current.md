@@ -1,7 +1,8 @@
 # Current Implementation Plan
 
-**Status:** Approved September 15, 2026; Part 1 implemented, uncommitted and
-awaiting review. Parts 2–4 have not started. The user confirmed
+**Status:** Approved September 15, 2026. Part 1 reviewed and committed as
+`131f9ab`. Part 2 implemented, uncommitted and awaiting review. Parts 3–4 have
+not started. The user confirmed
 including sales trends and top-selling products, grouped by product ID and ranked
 by gross sales.
 
@@ -190,4 +191,31 @@ the complete database suite passes. One unchanged refund HTTP validation test
 intermittently returned 401; the immediate full rerun passed all 199 tests, with
 no refund changes. The disposable container/data were removed. Rendered QA
 belongs to future UI parts.
-Unrelated user changes are preserved. Stop for review before committing Part 1.
+Unrelated user changes are preserved. Part 1 was reviewed and committed before
+Part 2 began.
+
+### Part 2 delivery
+
+Implemented the strict STAFF analytics client/API and owner/manager dashboard.
+The page now uses the single analytics snapshot for four primary cards, secondary
+units/refund metrics, gross-versus-refund and signed-net SVG trends, an expandable
+exact daily table, a horizontally contained Top N of total-products table using
+saved identity, and side-by-side gross-payment/actual-refund method panels. Charts
+normalize exact BigInt ratios into bounded pixel coordinates while all displayed
+amounts and validation arithmetic remain exact strings/BigInt. Zero, negative,
+refund-only and large values are represented without unsupported comparisons,
+profit, status, visitor, inventory, current-price or export claims.
+
+The strict schema rejects unexpected fields and validates staff summary/methods,
+branch/range scope, contiguous zero-filled Manila dates, daily reconciliation,
+signed nets, unique/bounded products, exact gross/units/ID ordering and ten-of-N
+semantics. Existing branch/date Apply, 300 ms validation, refresh, access, pending
+write navigation locks and generation guards now clear/load all staff dashboard
+panels together. Merchants retain their previous own-summary request/view until
+Part 3 and never request staff analytics. No backend/schema/infrastructure changes.
+Part 2 is uncommitted pending review. Changed-file formatting, lint, sequential
+type checking, production build, 131 focused Reports tests across eight files and
+all 722 frontend tests across 85 files pass. An initial parallel typecheck/build
+attempt raced on build-generated `.next/types`; both checks pass when correctly
+run sequentially. The existing multiple-lockfile build warning and unrelated
+Inventory/root/audit changes remain untouched. Rendered QA remains Part 4 work.

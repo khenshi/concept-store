@@ -14,7 +14,10 @@ import { ReportsEntry } from './reports-entry';
 import { BranchReports } from './branch-reports';
 import { StaffReportSummary } from './staff-report-summary';
 import { MerchantReportSummary } from './merchant-report-summary';
-import type { StaffSalesReport } from '../model/report.schemas';
+import type {
+  StaffSalesAnalytics,
+  StaffSalesReport,
+} from '../model/report.schemas';
 import type { MerchantSalesReport } from '../model/report.schemas';
 
 vi.mock('next/navigation', () => ({ useRouter: vi.fn() }));
@@ -59,6 +62,58 @@ const report: StaffSalesReport = {
     { paymentMethod: 'CARD', grossSales: '30.00', transactionCount: '1' },
   ],
 };
+const analyticsReport: StaffSalesAnalytics = {
+  ...report,
+  dailyTrends: [
+    {
+      date: '2026-09-14',
+      grossSales: '60.00',
+      transactionCount: '3',
+      unitsSold: '5',
+      refundedAmount: '0.00',
+      refundCount: '0',
+      returnedUnits: '0',
+      netRecordedSales: '60.00',
+    },
+  ],
+  topProducts: [
+    {
+      productId: '33333333-3333-4333-8333-333333333333',
+      productName: 'Canvas tote',
+      sku: 'TOTE-1',
+      barcode: null,
+      merchantName: 'Local maker',
+      grossSales: '60.00',
+      unitsSold: '5',
+      refundedAmount: '0.00',
+      returnedUnits: '0',
+      netRecordedSales: '60.00',
+    },
+  ],
+  totalProducts: '1',
+};
+function analyticsFor(path: string): StaffSalesAnalytics {
+  const query = new URLSearchParams(path.split('?')[1]);
+  const from = query.get('from') ?? range.from;
+  const until = query.get('until') ?? range.until;
+  const count = (Date.parse(until) - Date.parse(from)) / 86400000;
+  const dailyTrends = Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.parse(from) + (index + 1) * 86400000)
+      .toISOString()
+      .slice(0, 10);
+    return index === count - 1
+      ? { ...analyticsReport.dailyTrends[0], date }
+      : {
+          ...analyticsReport.dailyTrends[0],
+          date,
+          grossSales: '0.00',
+          transactionCount: '0',
+          unitsSold: '0',
+          netRecordedSales: '0.00',
+        };
+  });
+  return { ...analyticsReport, from, until, dailyTrends };
+}
 const request = vi.fn();
 const push = vi.fn();
 const refreshOrganization = vi.fn();
@@ -97,7 +152,7 @@ describe('staff Reports workspace', () => {
       path.endsWith('/reports/sales/branches')
         ? [branch, second]
         : {
-            ...report,
+            ...(path.includes('/analytics') ? analyticsFor(path) : report),
             branch: path.includes(`/branches/${second.id}/`) ? second : branch,
             ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
           },
@@ -155,7 +210,7 @@ describe('staff Reports workspace', () => {
   it('reads today in Philippines after authorized lookup and displays manual payment labels', async () => {
     context('MANAGER');
     render(<BranchReports organizationId="org" branchId={branch.id} />);
-    expect(await screen.findByText('PHP 60.00')).toBeInTheDocument();
+    expect((await screen.findAllByText('PHP 60.00'))[0]).toBeInTheDocument();
     expect(request.mock.calls[0][0]).toBe(
       '/organizations/org/reports/sales/branches',
     );
@@ -165,8 +220,8 @@ describe('staff Reports workspace', () => {
     expect(screen.getByLabelText('From (Philippines, inclusive)')).toHaveValue(
       '2026-09-14',
     );
-    expect(screen.getByText('GCash (manual, unverified)')).toBeInTheDocument();
-    expect(screen.getByText('Card (manual, unverified)')).toBeInTheDocument();
+    expect(screen.getAllByText('GCash (manual, unverified)')).toHaveLength(2);
+    expect(screen.getAllByText('Card (manual, unverified)')).toHaveLength(2);
   });
   it('does not fetch a summary for an inaccessible branch or select a fallback', async () => {
     request.mockResolvedValue([second]);
@@ -179,7 +234,7 @@ describe('staff Reports workspace', () => {
   });
   it('blocks invalid dates, does not read while typing, and reads only on valid Apply', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     const from = screen.getByLabelText('From (Philippines, inclusive)');
     fireEvent.change(from, { target: { value: '' } });
     expect(
@@ -198,7 +253,7 @@ describe('staff Reports workspace', () => {
   });
   it('clears old totals/payment rows on failed or revoked refresh and retries reads only', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     request.mockRejectedValueOnce(new ApiError(403, 'Reports access revoked'));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
@@ -211,11 +266,11 @@ describe('staff Reports workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
     expect(refreshOrganization).toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
   });
   it('rejects late responses after applying a different period', async () => {
-    const old = deferred<StaffSalesReport>();
+    const old = deferred<StaffSalesAnalytics>();
     request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
@@ -223,10 +278,10 @@ describe('staff Reports workspace', () => {
       target: { value: '2026-09-13' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     await act(async () =>
       old.resolve({
-        ...report,
+        ...analyticsReport,
         grossSales: '99.00',
         payments: report.payments.map((payment, i) =>
           i ? payment : { ...payment, grossSales: '49.00' },
@@ -242,7 +297,7 @@ describe('staff Reports workspace', () => {
     const view = render(
       <BranchReports organizationId="org" branchId={branch.id} />,
     );
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     context('CASHIER');
     view.rerender(<BranchReports organizationId="org" branchId={branch.id} />);
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
@@ -260,24 +315,24 @@ describe('staff Reports workspace', () => {
     const view = render(
       <BranchReports organizationId="org" branchId={branch.id} />,
     );
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     fireEvent.change(screen.getByLabelText('From (Philippines, inclusive)'), {
       target: { value: '2026-09-13' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     view.rerender(<BranchReports organizationId="org" branchId={second.id} />);
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     expect(screen.getByLabelText('From (Philippines, inclusive)')).toHaveValue(
       '2026-09-14',
     );
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     expect(request.mock.calls.at(-1)?.[0]).toContain(
-      `/branches/${second.id}/reports/sales?${new URLSearchParams(range)}`,
+      `/branches/${second.id}/reports/sales/analytics?${new URLSearchParams(range)}`,
     );
   });
   it('ignores an old user response after the authenticated user changes', async () => {
-    const old = deferred<StaffSalesReport>();
+    const old = deferred<StaffSalesAnalytics>();
     request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
     const view = render(
       <BranchReports organizationId="org" branchId={branch.id} />,
@@ -288,10 +343,10 @@ describe('staff Reports workspace', () => {
       user: { id: 'new-user' },
     } as unknown as ReturnType<typeof useAuth>);
     view.rerender(<BranchReports organizationId="org" branchId={branch.id} />);
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     await act(async () =>
       old.resolve({
-        ...report,
+        ...analyticsReport,
         grossSales: '99.00',
         payments: report.payments.map((payment, i) =>
           i ? payment : { ...payment, grossSales: '49.00' },
@@ -302,7 +357,7 @@ describe('staff Reports workspace', () => {
   });
   it('rejects staff-shaped fallback after a role change at the API boundary', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     request.mockResolvedValueOnce([branch]).mockResolvedValueOnce({
       scope: 'MERCHANT',
       branch,
@@ -320,7 +375,7 @@ describe('staff Reports workspace', () => {
   });
   it('clears totals before branch navigation without a back button', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
-    await screen.findByText('PHP 60.00');
+    await screen.findAllByText('PHP 60.00');
     fireEvent.click(screen.getByRole('combobox'));
     fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
@@ -534,7 +589,7 @@ describe('staff Reports workspace', () => {
     });
     it('ignores a late staff response after changing to the merchant role', async () => {
       context('OWNER');
-      const old = deferred<StaffSalesReport>();
+      const old = deferred<StaffSalesAnalytics>();
       request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
       const view = render(
         <BranchReports organizationId="org" branchId={branch.id} />,
@@ -545,7 +600,7 @@ describe('staff Reports workspace', () => {
         <BranchReports organizationId="org" branchId={branch.id} />,
       );
       await screen.findByText('PHP 25.00');
-      await act(async () => old.resolve(report));
+      await act(async () => old.resolve(analyticsReport));
       expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
       expect(
         screen.queryByRole('list', { name: 'Payment breakdown' }),

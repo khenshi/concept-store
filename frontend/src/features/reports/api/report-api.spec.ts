@@ -1,5 +1,6 @@
 import {
   getStaffSalesReport,
+  getStaffSalesAnalytics,
   getMerchantSalesReport,
   listReportBranches,
 } from './report-api';
@@ -35,6 +36,23 @@ const empty = {
     transactionCount: '0',
   })),
 };
+const analyticsEmpty = {
+  ...empty,
+  dailyTrends: [
+    {
+      date: '2026-09-14',
+      grossSales: '0.00',
+      transactionCount: '0',
+      unitsSold: '0',
+      refundedAmount: '0.00',
+      refundCount: '0',
+      returnedUnits: '0',
+      netRecordedSales: '0.00',
+    },
+  ],
+  topProducts: [],
+  totalProducts: '0',
+};
 
 describe('report reads', () => {
   it('uses the identity-only Reports lookup and encodes tenant identifiers', async () => {
@@ -53,6 +71,37 @@ describe('report reads', () => {
       `/organizations/org/branches/${branch.id}/reports/sales?${new URLSearchParams(range)}`,
     );
   });
+  it('reads one strict staff analytics snapshot from the focused route', async () => {
+    const request = vi.fn().mockResolvedValue(analyticsEmpty);
+    expect(
+      await getStaffSalesAnalytics(request, 'org/path', branch.id, range),
+    ).toEqual(analyticsEmpty);
+    expect(request).toHaveBeenCalledExactlyOnceWith(
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/analytics?${new URLSearchParams(range)}`,
+    );
+  });
+  it.each([
+    empty,
+    { ...analyticsEmpty, totalProducts: '-1' },
+    { ...analyticsEmpty, dailyTrends: analyticsEmpty.dailyTrends.slice(1) },
+    { ...analyticsEmpty, cashierId: 'private' },
+    {
+      ...analyticsEmpty,
+      branch: { ...branch, id: '22222222-2222-4222-8222-222222222222' },
+    },
+  ])(
+    'rejects incomplete, inconsistent, private or stale analytics %#',
+    async (response) => {
+      await expect(
+        getStaffSalesAnalytics(
+          vi.fn().mockResolvedValue(response),
+          'org',
+          branch.id,
+          range,
+        ),
+      ).rejects.toThrow();
+    },
+  );
   it('blocks invalid ranges before making any request', async () => {
     const request = vi.fn();
     await expect(

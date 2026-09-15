@@ -175,6 +175,48 @@ reads verify summary, daily rows and product rankings share one snapshot. The
 test fixture was corrected to use returned inventory IDs rather than assume
 checkout item order. Implementation is uncommitted pending Part 1 review.
 
+## Owner/manager analytics dashboard
+
+Owners and managers request the strict STAFF analytics endpoint after the existing
+identity-only branch access check. All cards, charts, daily details, rankings and
+method breakdowns load and clear as one response. Applied branch/range correspondence
+is checked before rendering; stale, failed, private or malformed responses cannot
+leave old panels visible. Date Apply/debounce/focus, shared branch preference,
+read-only retries, pending-write navigation locks and generation guards are
+preserved. Merchants continue using their separate summary endpoint/view until
+their own analytics delivery.
+
+Four primary cards show gross recorded sales, refunded amount, net recorded sales
+and completed transactions. Supporting metrics retain units sold, completed refunds
+and returned units. Copy states that net is gross minus refunds, may be negative and
+is not profit, payout or available cash. Gross-payment and actual-refund methods
+remain distinct side-by-side panels; manual GCash/card remain unverified.
+
+Repo-native SVG panels show daily gross versus dashed refunds and signed daily net,
+with a visible zero line and Asia/Manila basis. Line style and text labels distinguish
+series without relying on color. A keyboard-expandable semantic table provides all
+exact daily values. BigInt performs unlimited accounting/validation arithmetic;
+SVG coordinates use only bounded integer ratios, never direct unlimited-money Number
+conversion. Constant, zero and negative series retain stable geometry.
+
+The products table shows rank, saved name/ID, nullable SKU/barcode, saved merchant,
+units/gross/returns/refunds/net and “Top X of N.” It uses contained horizontal
+scrolling and real headers. It has no photos, current price, inventory status or
+claim that bounded rows reconcile to report totals. Empty/refund-only periods remain
+explicit.
+
+The strict runtime contract rejects unexpected/private/merchant fields and validates
+the complete staff summary, exact branch/range, 1–367 contiguous Manila dates, daily
+reconciliation, canonical signed nets, unique products, at most ten rows, exact
+gross/units/ID ordering and ten-of-N row count. Tests cover API paths, stale scope,
+date/ranking/reconciliation failures, unlimited exact values, accessible tables,
+negative/refund-only rendering, Apply/branch/role/user resets and late reads. Part 2
+is uncommitted pending review. Changed-file formatting, lint, sequential typecheck,
+production build, 131 Reports tests across eight files and all 722 frontend tests
+across 85 files pass. A parallel typecheck/build attempt raced on generated
+`.next/types`; both pass sequentially. The existing multiple-lockfile warning is
+unchanged. Rendered QA belongs to Part 4 and needs a new waiver or browser run.
+
 ## Owner/manager workspace
 
 Runtime schemas require the complete expanded refund group and validate exact

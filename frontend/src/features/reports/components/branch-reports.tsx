@@ -13,7 +13,7 @@ import {
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import {
-  getStaffSalesReport,
+  getStaffSalesAnalytics,
   getMerchantSalesReport,
   listReportBranches,
 } from '../api/report-api';
@@ -25,13 +25,13 @@ import {
 } from '../model/report-dates';
 import type {
   ReportBranch,
-  StaffSalesReport,
+  StaffSalesAnalytics,
   MerchantSalesReport,
 } from '../model/report.schemas';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
 import { ReportDateFilter } from './report-date-filter';
-import { StaffReportSummary } from './staff-report-summary';
+import { StaffAnalyticsDashboard } from './staff-analytics-dashboard';
 import { MerchantReportSummary } from './merchant-report-summary';
 import { MerchantReportGuidance } from './merchant-report-guidance';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
@@ -77,7 +77,7 @@ function ScopedBranchReports({
   const [applied, setApplied] = useState<ReportDateRange>(draft);
   const [branches, setBranches] = useState<ReportBranch[] | null>(null);
   const [report, setReport] = useState<
-    StaffSalesReport | MerchantSalesReport | null
+    StaffSalesAnalytics | MerchantSalesReport | null
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,7 +105,7 @@ function ScopedBranchReports({
             'This branch is no longer available to your Reports access.',
           );
         const result = await (
-          merchant ? getMerchantSalesReport : getStaffSalesReport
+          merchant ? getMerchantSalesReport : getStaffSalesAnalytics
         )(request, organizationId, branchId, reportUtcRange(applied));
         if (!active || current !== generation.current) return;
         setBranches(items);
@@ -148,7 +148,7 @@ function ScopedBranchReports({
         description={
           merchant
             ? 'Gross recorded sales of your own items only, not whole-branch sales. Transactions count distinct sales containing your items.'
-            : 'Gross recorded sales for one branch. These totals are not profit, net sales or merchant payouts.'
+            : 'Recorded sales and refunds for one branch, with daily trends and top products. Net recorded sales is not profit or merchant payouts.'
         }
       />
       {merchant ? <MerchantReportGuidance /> : null}
@@ -238,7 +238,7 @@ function ScopedBranchReports({
         report.scope === 'MERCHANT' ? (
           <MerchantReportSummary report={report} />
         ) : (
-          <StaffReportSummary report={report} />
+          <StaffAnalyticsDashboard report={report} />
         )
       ) : null}
       {merchant ? (

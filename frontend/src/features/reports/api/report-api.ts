@@ -4,6 +4,7 @@ import {
   reportQuerySchema,
   staffSalesReportSchema,
   merchantSalesReportSchema,
+  staffSalesAnalyticsSchema,
   type ReportQuery,
 } from '../model/report.schemas';
 
@@ -36,6 +37,29 @@ export async function getStaffSalesReport(
   )
     throw new Error(
       'The report response does not match the selected branch and period.',
+    );
+  return report;
+}
+
+export async function getStaffSalesAnalytics(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: ReportQuery,
+) {
+  const query = reportQuerySchema.parse(input);
+  const report = staffSalesAnalyticsSchema.parse(
+    await request<unknown>(
+      `/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/reports/sales/analytics?${new URLSearchParams(query)}`,
+    ),
+  );
+  if (
+    report.branch.id !== branchId ||
+    Date.parse(report.from) !== Date.parse(query.from) ||
+    Date.parse(report.until) !== Date.parse(query.until)
+  )
+    throw new Error(
+      'The analytics response does not match the selected branch and period.',
     );
   return report;
 }
