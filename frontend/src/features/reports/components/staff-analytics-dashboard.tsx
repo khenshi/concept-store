@@ -21,18 +21,24 @@ function points(values: bigint[], min: bigint, max: bigint) {
     })
     .join(' ');
 }
+export interface AnalyticsTrendRow {
+  date: string;
+  grossSales: string;
+  refundedAmount: string;
+  netRecordedSales: string;
+}
 function TrendChart({
-  report,
+  rows,
   kind,
+  own,
 }: {
-  report: StaffSalesAnalytics;
+  rows: AnalyticsTrendRow[];
   kind: 'activity' | 'net';
+  own: boolean;
 }) {
-  const gross = report.dailyTrends.map((row) => cents(row.grossSales));
-  const refunds = report.dailyTrends.map((row) => cents(row.refundedAmount));
-  const net = report.dailyTrends.map((row) =>
-    BigInt(row.netRecordedSales.replace('.', '')),
-  );
+  const gross = rows.map((row) => cents(row.grossSales));
+  const refunds = rows.map((row) => cents(row.refundedAmount));
+  const net = rows.map((row) => BigInt(row.netRecordedSales.replace('.', '')));
   const values =
     kind === 'activity'
       ? [...gross, ...refunds, BigInt(0)]
@@ -44,9 +50,9 @@ function TrendChart({
     value > result ? value : result,
   );
   const labels = [
-    report.dailyTrends[0],
-    report.dailyTrends[Math.floor((report.dailyTrends.length - 1) / 2)],
-    report.dailyTrends.at(-1),
+    rows[0],
+    rows[Math.floor((rows.length - 1) / 2)],
+    rows.at(-1),
   ].filter(
     (row, index, rows) =>
       row &&
@@ -58,8 +64,8 @@ function TrendChart({
         <div>
           <h2 className="font-semibold">
             {kind === 'activity'
-              ? 'Gross sales and refunds'
-              : 'Net recorded sales'}
+              ? `${own ? 'Own gross sales' : 'Gross sales'} and refunds`
+              : `${own ? 'Own net recorded sales' : 'Net recorded sales'}`}
           </h2>
           <p className="mt-1 text-xs text-muted">
             Daily, Asia/Manila · zero line shown
@@ -71,11 +77,13 @@ function TrendChart({
         >
           {kind === 'activity' ? (
             <>
-              <span>━ Gross sales</span>
-              <span>┄ Refunds</span>
+              <span>━ {own ? 'Own gross sales' : 'Gross sales'}</span>
+              <span>┄ {own ? 'Own refunds' : 'Refunds'}</span>
             </>
           ) : (
-            <span>━ Net recorded sales</span>
+            <span>
+              ━ {own ? 'Own net recorded sales' : 'Net recorded sales'}
+            </span>
           )}
         </div>
       </div>
@@ -132,6 +140,21 @@ function TrendChart({
   );
 }
 
+export function AnalyticsTrendCharts({
+  rows,
+  own = false,
+}: {
+  rows: AnalyticsTrendRow[];
+  own?: boolean;
+}) {
+  return (
+    <div className="mt-6 grid gap-4 xl:grid-cols-2">
+      <TrendChart rows={rows} kind="activity" own={own} />
+      <TrendChart rows={rows} kind="net" own={own} />
+    </div>
+  );
+}
+
 export function StaffAnalyticsDashboard({
   report,
 }: {
@@ -183,10 +206,7 @@ export function StaffAnalyticsDashboard({
         Returned units: {report.returnedUnits}. Net is not profit, payout or
         available cash. Refunds use their own completion dates.
       </p>
-      <div className="mt-6 grid gap-4 xl:grid-cols-2">
-        <TrendChart report={report} kind="activity" />
-        <TrendChart report={report} kind="net" />
-      </div>
+      <AnalyticsTrendCharts rows={report.dailyTrends} />
       <details className="mt-4 rounded-panel border border-hairline bg-surface">
         <summary className="min-h-11 cursor-pointer px-5 py-3 text-sm font-semibold">
           View exact daily data

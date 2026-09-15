@@ -19,6 +19,7 @@ import type {
   StaffSalesReport,
 } from '../model/report.schemas';
 import type { MerchantSalesReport } from '../model/report.schemas';
+import type { MerchantSalesAnalytics } from '../model/report.schemas';
 
 vi.mock('next/navigation', () => ({ useRouter: vi.fn() }));
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -442,13 +443,69 @@ describe('staff Reports workspace', () => {
       ownReturnedUnits: '0',
       ownNetRecordedSales: '25.00',
     };
+    const ownAnalytics: MerchantSalesAnalytics = {
+      ...own,
+      dailyTrends: [
+        {
+          date: '2026-09-14',
+          ownGrossSales: '25.00',
+          ownTransactionCount: '1',
+          ownUnitsSold: '2',
+          ownRefundedAmount: '0.00',
+          ownRefundCount: '0',
+          ownReturnedUnits: '0',
+          ownNetRecordedSales: '25.00',
+        },
+      ],
+      topProducts: [
+        {
+          productId: '44444444-4444-4444-8444-444444444444',
+          productName: 'Own saved product',
+          sku: null,
+          barcode: null,
+          merchantName: 'Own merchant',
+          ownGrossSales: '25.00',
+          ownUnitsSold: '2',
+          ownRefundedAmount: '0.00',
+          ownReturnedUnits: '0',
+          ownNetRecordedSales: '25.00',
+        },
+      ],
+      totalProducts: '1',
+    };
+    function ownAnalyticsFor(path: string) {
+      const query = new URLSearchParams(path.split('?')[1]);
+      const from = query.get('from') ?? range.from;
+      const until = query.get('until') ?? range.until;
+      const count = (Date.parse(until) - Date.parse(from)) / 86400000;
+      return {
+        ...ownAnalytics,
+        from,
+        until,
+        dailyTrends: Array.from({ length: count }, (_, index) => {
+          const date = new Date(Date.parse(from) + (index + 1) * 86400000)
+            .toISOString()
+            .slice(0, 10);
+          return index === count - 1
+            ? { ...ownAnalytics.dailyTrends[0], date }
+            : {
+                ...ownAnalytics.dailyTrends[0],
+                date,
+                ownGrossSales: '0.00',
+                ownTransactionCount: '0',
+                ownUnitsSold: '0',
+                ownNetRecordedSales: '0.00',
+              };
+        }),
+      };
+    }
     beforeEach(() => {
       context('MERCHANT');
       request.mockImplementation(async (path: string) =>
         path.endsWith('/reports/sales/branches')
           ? [branch, second]
           : {
-              ...own,
+              ...ownAnalyticsFor(path),
               branch: path.includes(`/branches/${second.id}/`)
                 ? second
                 : branch,
@@ -458,13 +515,13 @@ describe('staff Reports workspace', () => {
     });
     it('shows own amounts only, without payment/whole-sale/actor data or mutation/print controls', async () => {
       render(<BranchReports organizationId="org" branchId={branch.id} />);
-      await screen.findByText('PHP 25.00');
+      await screen.findAllByText('PHP 25.00');
       expect(
         screen.getByRole('heading', { name: 'Own-sales reports' }),
       ).toBeInTheDocument();
-      expect(
-        screen.getByText('Transactions containing own items'),
-      ).toBeInTheDocument();
+      expect(screen.getAllByText('Transactions with own items')).toHaveLength(
+        2,
+      );
       expect(
         screen.queryByRole('list', { name: 'Payment breakdown' }),
       ).not.toBeInTheDocument();
@@ -477,6 +534,7 @@ describe('staff Reports workspace', () => {
           (call) => call.length === 1 && call[0].includes('/reports/sales'),
         ),
       ).toBe(true);
+      expect(request.mock.calls[1][0]).toContain('/reports/sales/analytics?');
     });
     it('requires explicit historical/assigned branch choice and offers link/access guidance', async () => {
       render(<ReportsEntry organizationId="org" />);
@@ -509,16 +567,25 @@ describe('staff Reports workspace', () => {
         path.endsWith('/reports/sales/branches')
           ? [branch, second]
           : {
-              ...own,
+              ...ownAnalyticsFor(path),
               ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
               ownGrossSales: '0.00',
               ownNetRecordedSales: '0.00',
               ownTransactionCount: '0',
               ownUnitsSold: '0',
+              dailyTrends: ownAnalyticsFor(path).dailyTrends.map((row) => ({
+                ...row,
+                ownGrossSales: '0.00',
+                ownTransactionCount: '0',
+                ownUnitsSold: '0',
+                ownNetRecordedSales: '0.00',
+              })),
+              topProducts: [],
+              totalProducts: '0',
             },
       );
       render(<BranchReports organizationId="org" branchId={branch.id} />);
-      await screen.findByText(/No recorded own-item sales in this branch/);
+      await screen.findByText(/No completed sales or refunds involving your/);
       expect(
         screen.getByText(/If your profile is not linked/),
       ).toBeInTheDocument();
@@ -526,7 +593,7 @@ describe('staff Reports workspace', () => {
         target: { value: '2026-09-13' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
-      await screen.findByText('PHP 0.00');
+      await screen.findAllByText('PHP 0.00');
       fireEvent.click(screen.getByRole('combobox'));
       expect(
         screen.getByRole('option', { name: 'South (MAIN)' }),
@@ -539,7 +606,7 @@ describe('staff Reports workspace', () => {
       'clears old own values and rejects %s data on refresh',
       async (kind) => {
         render(<BranchReports organizationId="org" branchId={branch.id} />);
-        await screen.findByText('PHP 25.00');
+        await screen.findAllByText('PHP 25.00');
         request
           .mockResolvedValueOnce([branch])
           .mockResolvedValueOnce(
@@ -555,7 +622,7 @@ describe('staff Reports workspace', () => {
       },
     );
     it('clears and reloads current-link data on access refresh, ignoring a prior profile response', async () => {
-      const old = deferred<MerchantSalesReport>();
+      const old = deferred<MerchantSalesAnalytics>();
       request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
       const view = render(
         <BranchReports organizationId="org" branchId={branch.id} />,
@@ -566,25 +633,27 @@ describe('staff Reports workspace', () => {
       view.rerender(
         <BranchReports organizationId="org" branchId={branch.id} />,
       );
-      await act(async () => old.resolve({ ...own, ownGrossSales: '99.00' }));
+      await act(async () =>
+        old.resolve({ ...ownAnalytics, ownGrossSales: '99.00' }),
+      );
       expect(screen.queryByText('PHP 99.00')).not.toBeInTheDocument();
       context('MERCHANT');
       view.rerender(
         <BranchReports organizationId="org" branchId={branch.id} />,
       );
-      await screen.findByText('PHP 25.00');
+      await screen.findAllByText('PHP 25.00');
       expect(request).toHaveBeenCalledTimes(4);
     });
     it('clears own summary on revoked branch access and allows read-only retry', async () => {
       render(<BranchReports organizationId="org" branchId={branch.id} />);
-      await screen.findByText('PHP 25.00');
+      await screen.findAllByText('PHP 25.00');
       request.mockResolvedValueOnce([second]);
       fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
       await screen.findByRole('alert');
       expect(screen.queryByText('PHP 25.00')).not.toBeInTheDocument();
       expect(push).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-      await screen.findByText('PHP 25.00');
+      await screen.findAllByText('PHP 25.00');
       expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
     });
     it('ignores a late staff response after changing to the merchant role', async () => {
@@ -599,15 +668,16 @@ describe('staff Reports workspace', () => {
       view.rerender(
         <BranchReports organizationId="org" branchId={branch.id} />,
       );
-      await screen.findByText('PHP 25.00');
+      await screen.findAllByText('PHP 25.00');
       await act(async () => old.resolve(analyticsReport));
       expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
+      expect(request.mock.calls[1][0]).not.toContain('/reports/sales?');
       expect(
         screen.queryByRole('list', { name: 'Payment breakdown' }),
       ).not.toBeInTheDocument();
     });
     it('rejects an obsolete own response after applying a new period', async () => {
-      const old = deferred<MerchantSalesReport>();
+      const old = deferred<MerchantSalesAnalytics>();
       request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
@@ -615,8 +685,10 @@ describe('staff Reports workspace', () => {
         target: { value: '2026-09-13' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
-      await screen.findByText('PHP 25.00');
-      await act(async () => old.resolve({ ...own, ownGrossSales: '99.00' }));
+      await screen.findAllByText('PHP 25.00');
+      await act(async () =>
+        old.resolve({ ...ownAnalytics, ownGrossSales: '99.00' }),
+      );
       expect(screen.queryByText('PHP 99.00')).not.toBeInTheDocument();
     });
     it('renders large own amounts and counters exactly without payments', () => {

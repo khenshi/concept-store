@@ -211,7 +211,7 @@ reconciliation, canonical signed nets, unique products, at most ten rows, exact
 gross/units/ID ordering and ten-of-N row count. Tests cover API paths, stale scope,
 date/ranking/reconciliation failures, unlimited exact values, accessible tables,
 negative/refund-only rendering, Apply/branch/role/user resets and late reads. Part 2
-is uncommitted pending review. Changed-file formatting, lint, sequential typecheck,
+was reviewed and committed. Changed-file formatting, lint, sequential typecheck,
 production build, 131 Reports tests across eight files and all 722 frontend tests
 across 85 files pass. A parallel typecheck/build attempt raced on generated
 `.next/types`; both pass sequentially. The existing multiple-lockfile warning is
@@ -308,8 +308,8 @@ directory reads. Assigned and historical own-selling branches remain selectable
 regardless of the applied period; an empty period does not remove historical
 access. There is no profile selector or combined branch total.
 
-Separate strict MERCHANT runtime validation and own-only cards display Own gross
-recorded sales, Transactions containing own items and Own units sold. Matching
+Separate strict MERCHANT analytics validation and own-only cards display Own gross
+recorded sales, Transactions with own items and Own units sold. Matching
 transactions are distinct sales containing own items; mixed sales contribute
 only own item amounts/units. Additional own-only cards display Own refunded amount,
 Own net recorded sales and matching refund/returned-unit counts. Refund dates are
@@ -319,6 +319,12 @@ amounts/counts, cashier, contact, private metadata, print or mutation controls a
 rendered or fetched. Extra/private/staff-shaped responses fail the read rather
 than being silently stripped or converted. Own aggregates retain exact unlimited
 money and integer strings and must have consistent empty/count/unit invariants.
+Merchants request the reduced analytics route directly, never a staff response
+that is later hidden. Own-prefixed daily trends and an exact expandable daily table
+use Asia/Manila dates. The Top X of N own-products table shows only saved historical
+identity and own gross/units/refund/net fields. It has no live price, inventory
+status or other merchants' products. The shared SVG renderer receives an explicit
+reduced row projection and cannot expose method or private response data.
 
 Merchants share the Philippines date validation and scoped read guards. Applying
 dates, switching branches, refreshing and failing/revoking access clear old own
@@ -336,6 +342,17 @@ The identity-only API does not disclose link status, so the frontend does not
 claim an empty period proves a missing link. This avoids extra contact-bearing
 profile reads or widening the approved Reports response. Access/links may be
 checked with an owner, then refreshed; no alternate branch is silently selected.
+Strict own analytics checks independently enforce contiguous/reconciled days,
+canonical unlimited values and signed net, unique deterministic bounded product
+ranking and ten-of-N count. Staff, unprefixed, method, actor, contact and private
+metadata cause response rejection rather than fallback. Assigned unlinked profiles
+receive zero-filled own trends and no products; refund-only historical items remain
+visible with negative own net. Part 3 is uncommitted pending review. Rendered QA is
+reserved for final Part 4.
+Focused Reports checks pass 151 tests across ten files; the complete frontend suite
+passes 742 tests across 87 files, changed-file formatting, lint, sequential build
+and typecheck. The existing multiple-lockfile warning is unchanged. Part 3 is
+uncommitted pending review.
 
 ## Verification and delivery
 

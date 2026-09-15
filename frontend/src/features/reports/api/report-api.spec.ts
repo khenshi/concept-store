@@ -2,6 +2,7 @@ import {
   getStaffSalesReport,
   getStaffSalesAnalytics,
   getMerchantSalesReport,
+  getMerchantSalesAnalytics,
   listReportBranches,
 } from './report-api';
 
@@ -148,6 +149,80 @@ describe('merchant Reports API', () => {
     ownReturnedUnits: '0',
     ownNetRecordedSales: '25.00',
   };
+  const ownAnalytics = {
+    ...own,
+    dailyTrends: [
+      {
+        date: '2026-09-14',
+        ownGrossSales: '25.00',
+        ownTransactionCount: '1',
+        ownUnitsSold: '2',
+        ownRefundedAmount: '0.00',
+        ownRefundCount: '0',
+        ownReturnedUnits: '0',
+        ownNetRecordedSales: '25.00',
+      },
+    ],
+    topProducts: [
+      {
+        productId: '33333333-3333-4333-8333-333333333333',
+        productName: 'Own product',
+        sku: null,
+        barcode: null,
+        merchantName: 'Own merchant',
+        ownGrossSales: '25.00',
+        ownUnitsSold: '2',
+        ownRefundedAmount: '0.00',
+        ownReturnedUnits: '0',
+        ownNetRecordedSales: '25.00',
+      },
+    ],
+    totalProducts: '1',
+  };
+  it('uses only the reduced merchant analytics route and contract', async () => {
+    const request = vi.fn().mockResolvedValue(ownAnalytics);
+    expect(
+      await getMerchantSalesAnalytics(request, 'org/path', branch.id, range),
+    ).toEqual(ownAnalytics);
+    expect(request).toHaveBeenCalledExactlyOnceWith(
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/analytics?${new URLSearchParams(range)}`,
+    );
+  });
+  it.each([
+    analyticsEmpty,
+    { ...ownAnalytics, payments: [] },
+    {
+      ...ownAnalytics,
+      dailyTrends: ownAnalytics.dailyTrends.map((row) => ({
+        ...row,
+        grossSales: '25.00',
+      })),
+    },
+    {
+      ...ownAnalytics,
+      topProducts: ownAnalytics.topProducts.map((row) => ({
+        ...row,
+        contactName: 'private',
+      })),
+    },
+    { ...ownAnalytics, ownGrossSales: '24.00' },
+    {
+      ...ownAnalytics,
+      branch: { ...branch, id: '22222222-2222-4222-8222-222222222222' },
+    },
+  ])(
+    'rejects staff, private, malformed or stale merchant analytics %#',
+    async (response) => {
+      await expect(
+        getMerchantSalesAnalytics(
+          vi.fn().mockResolvedValue(response),
+          'org',
+          branch.id,
+          range,
+        ),
+      ).rejects.toThrow();
+    },
+  );
   it('uses the same scoped read route without fetching staff history, profiles or payments', async () => {
     const request = vi.fn().mockResolvedValue(own);
     expect(

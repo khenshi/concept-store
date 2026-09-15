@@ -14,7 +14,7 @@ import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import {
   getStaffSalesAnalytics,
-  getMerchantSalesReport,
+  getMerchantSalesAnalytics,
   listReportBranches,
 } from '../api/report-api';
 import {
@@ -26,13 +26,13 @@ import {
 import type {
   ReportBranch,
   StaffSalesAnalytics,
-  MerchantSalesReport,
+  MerchantSalesAnalytics,
 } from '../model/report.schemas';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
 import { ReportDateFilter } from './report-date-filter';
 import { StaffAnalyticsDashboard } from './staff-analytics-dashboard';
-import { MerchantReportSummary } from './merchant-report-summary';
+import { MerchantAnalyticsDashboard } from './merchant-analytics-dashboard';
 import { MerchantReportGuidance } from './merchant-report-guidance';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
 import {
@@ -77,7 +77,7 @@ function ScopedBranchReports({
   const [applied, setApplied] = useState<ReportDateRange>(draft);
   const [branches, setBranches] = useState<ReportBranch[] | null>(null);
   const [report, setReport] = useState<
-    StaffSalesAnalytics | MerchantSalesReport | null
+    StaffSalesAnalytics | MerchantSalesAnalytics | null
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,7 +105,7 @@ function ScopedBranchReports({
             'This branch is no longer available to your Reports access.',
           );
         const result = await (
-          merchant ? getMerchantSalesReport : getStaffSalesAnalytics
+          merchant ? getMerchantSalesAnalytics : getStaffSalesAnalytics
         )(request, organizationId, branchId, reportUtcRange(applied));
         if (!active || current !== generation.current) return;
         setBranches(items);
@@ -236,7 +236,7 @@ function ScopedBranchReports({
         </>
       ) : report ? (
         report.scope === 'MERCHANT' ? (
-          <MerchantReportSummary report={report} />
+          <MerchantAnalyticsDashboard report={report} />
         ) : (
           <StaffAnalyticsDashboard report={report} />
         )

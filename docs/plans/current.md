@@ -1,8 +1,8 @@
 # Current Implementation Plan
 
 **Status:** Approved September 15, 2026. Part 1 reviewed and committed as
-`131f9ab`. Part 2 implemented, uncommitted and awaiting review. Parts 3–4 have
-not started. The user confirmed
+`131f9ab`; Part 2 reviewed and committed as `4c5f7b3`. Part 3 implemented,
+uncommitted and awaiting review. Part 4 has not started. The user confirmed
 including sales trends and top-selling products, grouped by product ID and ranked
 by gross sales.
 
@@ -213,9 +213,31 @@ semantics. Existing branch/date Apply, 300 ms validation, refresh, access, pendi
 write navigation locks and generation guards now clear/load all staff dashboard
 panels together. Merchants retain their previous own-summary request/view until
 Part 3 and never request staff analytics. No backend/schema/infrastructure changes.
-Part 2 is uncommitted pending review. Changed-file formatting, lint, sequential
+Part 2 was reviewed and committed. Changed-file formatting, lint, sequential
 type checking, production build, 131 focused Reports tests across eight files and
 all 722 frontend tests across 85 files pass. An initial parallel typecheck/build
 attempt raced on build-generated `.next/types`; both checks pass when correctly
 run sequentially. The existing multiple-lockfile build warning and unrelated
 Inventory/root/audit changes remain untouched. Rendered QA remains Part 4 work.
+
+### Part 3 delivery
+
+Implemented a separately strict MERCHANT analytics contract, read path and own-only
+dashboard. Merchants now request the reduced analytics response directly; there is
+no staff-response fetch, fallback or hidden method data. Own-prefixed summary cards,
+daily trends, exact expandable table and saved-identity Top X of N products cover
+current-linked historical items only. Copy retains assignment/profile-link and
+refund-date guidance and explicitly excludes whole-branch figures, profit/payouts,
+other merchants and staff payment/refund methods.
+
+The merchant schema independently validates branch/range, contiguous Manila days,
+own daily reconciliation, negative/refund-only periods, exact nets and deterministic
+bounded own-product rankings, rejecting staff/private/unprefixed fields. Assigned
+unlinked zeros, current-link refresh/relinking, historical branches, role/user/date/
+branch resets and obsolete responses retain existing guards. The shared chart
+renderer receives only reduced presentation rows, uses bounded BigInt ratios and
+cannot introduce a staff API fallback. No backend/schema/infrastructure changes.
+Part 3 is uncommitted pending review; final checks and rendered QA/waiver are Part 4.
+Changed-file formatting, lint, sequential production build/typecheck, 151 focused
+Reports tests across ten files and all 742 frontend tests across 87 files pass.
+The existing multiple-lockfile warning and unrelated user changes remain untouched.

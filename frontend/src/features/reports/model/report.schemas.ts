@@ -423,3 +423,103 @@ export const staffSalesAnalyticsSchema = z
     analyticsValid(report, context);
   });
 export type StaffSalesAnalytics = z.infer<typeof staffSalesAnalyticsSchema>;
+
+const merchantDailyTrend = z
+  .object({
+    date: z.iso.date(),
+    ownGrossSales: amount,
+    ownTransactionCount: integer,
+    ownUnitsSold: integer,
+    ownRefundedAmount: amount,
+    ownRefundCount: integer,
+    ownReturnedUnits: integer,
+    ownNetRecordedSales: signedAmount,
+  })
+  .strict();
+const merchantTopProduct = analyticsIdentity
+  .extend({
+    ownGrossSales: amount,
+    ownUnitsSold: integer,
+    ownRefundedAmount: amount,
+    ownReturnedUnits: integer,
+    ownNetRecordedSales: signedAmount,
+  })
+  .strict();
+export const merchantSalesAnalyticsSchema = z
+  .object({
+    scope: z.literal('MERCHANT'),
+    branch: reportBranchSchema,
+    from: utc,
+    until: utc,
+    ownGrossSales: amount,
+    ownTransactionCount: integer,
+    ownUnitsSold: integer,
+    ownRefundedAmount: amount,
+    ownRefundCount: integer,
+    ownReturnedUnits: integer,
+    ownNetRecordedSales: signedAmount,
+    dailyTrends: merchantDailyTrend.array().min(1).max(367),
+    topProducts: merchantTopProduct.array().max(10),
+    totalProducts: integer,
+  })
+  .strict()
+  .superRefine((report, context) => {
+    if (
+      !merchantSalesReportSchema.safeParse({
+        scope: report.scope,
+        branch: report.branch,
+        from: report.from,
+        until: report.until,
+        ownGrossSales: report.ownGrossSales,
+        ownTransactionCount: report.ownTransactionCount,
+        ownUnitsSold: report.ownUnitsSold,
+        ownRefundedAmount: report.ownRefundedAmount,
+        ownRefundCount: report.ownRefundCount,
+        ownReturnedUnits: report.ownReturnedUnits,
+        ownNetRecordedSales: report.ownNetRecordedSales,
+      }).success
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'Invalid merchant summary.',
+      });
+    analyticsValid(
+      {
+        from: report.from,
+        until: report.until,
+        grossSales: report.ownGrossSales,
+        transactionCount: report.ownTransactionCount,
+        unitsSold: report.ownUnitsSold,
+        refundedAmount: report.ownRefundedAmount,
+        refundCount: report.ownRefundCount,
+        returnedUnits: report.ownReturnedUnits,
+        dailyTrends: report.dailyTrends.map((row) => ({
+          date: row.date,
+          grossSales: row.ownGrossSales,
+          transactionCount: row.ownTransactionCount,
+          unitsSold: row.ownUnitsSold,
+          refundedAmount: row.ownRefundedAmount,
+          refundCount: row.ownRefundCount,
+          returnedUnits: row.ownReturnedUnits,
+          netRecordedSales: row.ownNetRecordedSales,
+        })),
+        topProducts: report.topProducts.map((row) => ({
+          productId: row.productId,
+          productName: row.productName,
+          sku: row.sku,
+          barcode: row.barcode,
+          merchantName: row.merchantName,
+          grossSales: row.ownGrossSales,
+          unitsSold: row.ownUnitsSold,
+          refundedAmount: row.ownRefundedAmount,
+          returnedUnits: row.ownReturnedUnits,
+          netRecordedSales: row.ownNetRecordedSales,
+        })),
+        totalProducts: report.totalProducts,
+      },
+      context,
+    );
+  });
+export type MerchantSalesAnalytics = z.infer<
+  typeof merchantSalesAnalyticsSchema
+>;
