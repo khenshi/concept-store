@@ -140,6 +140,78 @@ describe('BranchInventoryService', () => {
     );
   });
 
+  it('threshold edits write only the threshold under branch and tenant scope', async () => {
+    prisma.branchInventory.update.mockResolvedValue({
+      sellingPrice: new Prisma.Decimal('12.50'),
+      quantity: 5,
+      lowStockThreshold: 0,
+    });
+    await expect(
+      service.updateThreshold('org', 'branch', 'inventory', {
+        lowStockThreshold: 0,
+      }),
+    ).resolves.toMatchObject({
+      quantity: 5,
+      lowStockThreshold: 0,
+      stockStatus: 'IN_STOCK',
+    });
+    expect(prisma.branchInventory.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'inventory', organizationId: 'org', branchId: 'branch' },
+        data: { lowStockThreshold: 0 },
+      }),
+    );
+  });
+
+  it.each([
+    [0, 0, 'OUT_OF_STOCK'],
+    [0, 5, 'OUT_OF_STOCK'],
+    [1, 5, 'LOW_STOCK'],
+    [5, 5, 'LOW_STOCK'],
+    [6, 5, 'IN_STOCK'],
+    [1, 0, 'IN_STOCK'],
+  ] as const)(
+    'derives quantity %s and threshold %s as %s',
+    async (quantity, lowStockThreshold, stockStatus) => {
+      prisma.branchInventory.findUnique.mockResolvedValue({
+        sellingPrice: new Prisma.Decimal('12.50'),
+        quantity,
+        lowStockThreshold,
+      });
+      await expect(
+        service.findOne('org', 'branch', 'inventory'),
+      ).resolves.toMatchObject({ stockStatus });
+    },
+  );
+
+  it('filters using the same derived stock status returned by the API', async () => {
+    prisma.branchInventory.findMany.mockResolvedValue([
+      {
+        id: 'empty',
+        sellingPrice: new Prisma.Decimal('12.50'),
+        quantity: 0,
+        lowStockThreshold: 5,
+      },
+      {
+        id: 'low',
+        sellingPrice: new Prisma.Decimal('12.50'),
+        quantity: 5,
+        lowStockThreshold: 5,
+      },
+      {
+        id: 'healthy',
+        sellingPrice: new Prisma.Decimal('12.50'),
+        quantity: 6,
+        lowStockThreshold: 5,
+      },
+    ]);
+    await expect(
+      service.findAll('org', 'branch', { stockStatus: 'LOW_STOCK' }),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: 'low', stockStatus: 'LOW_STOCK' }),
+    ]);
+  });
+
   it('history queries enforce placement access and stable scoped ordering', async () => {
     await service.findMovements('org', 'branch', 'inventory');
     expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith({

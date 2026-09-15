@@ -58,6 +58,23 @@ export const productCreateFieldsSchema = productProfileSchema.extend({
             .min(1, 'Initial stock must be at least one unit.')
             .max(2147483647, 'Initial stock cannot exceed 2147483647 units.'),
         ),
+      lowStockThreshold: z
+        .union([
+          z.number(),
+          z
+            .string()
+            .trim()
+            .regex(/^\d+$/, 'Enter a whole number from 0 to 2147483647.')
+            .transform(Number),
+        ])
+        .pipe(
+          z
+            .number()
+            .int()
+            .min(0, 'Threshold cannot be negative.')
+            .max(2147483647, 'Threshold cannot exceed 2147483647.'),
+        )
+        .default(5),
     })
     .optional(),
 });
@@ -90,6 +107,8 @@ export const productPlacementResponseSchema = z.object({
   productId: z.uuidv4(),
   sellingPrice: z.string().regex(/^(?=.*[1-9])\d{1,10}\.\d{2}$/),
   quantity: z.number().int().min(0).max(2147483647),
+  lowStockThreshold: z.number().int().min(0).max(2147483647),
+  stockStatus: z.enum(['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK']),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   branch: z.object({

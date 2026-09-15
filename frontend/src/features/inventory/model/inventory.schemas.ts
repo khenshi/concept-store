@@ -12,8 +12,33 @@ export const inventoryPriceSchema = z
 export const priceInputSchema = z.object({
   sellingPrice: inventoryPriceSchema,
 });
+export const stockStatusSchema = z.enum([
+  'IN_STOCK',
+  'LOW_STOCK',
+  'OUT_OF_STOCK',
+]);
+export const lowStockThresholdInputSchema = z
+  .union([
+    z.number(),
+    z
+      .string()
+      .trim()
+      .regex(/^\d+$/, 'Enter a whole number from 0 to 2147483647.')
+      .transform(Number),
+  ])
+  .pipe(
+    z
+      .number()
+      .int()
+      .min(0, 'Threshold cannot be negative.')
+      .max(2147483647, 'Threshold cannot exceed 2147483647.'),
+  );
+export const thresholdInputSchema = z.object({
+  lowStockThreshold: lowStockThresholdInputSchema,
+});
 export const placementInputSchema = priceInputSchema.extend({
   productId: z.uuidv4('Choose an active product.'),
+  lowStockThreshold: lowStockThresholdInputSchema,
 });
 const integerInput = z
   .string()
@@ -50,6 +75,8 @@ export const inventoryResponseSchema = z.object({
   productId: z.uuidv4(),
   sellingPrice: z.string().regex(/^(?=.*[1-9])\d{1,10}\.\d{2}$/),
   quantity: z.number().int().min(0).max(2147483647),
+  lowStockThreshold: z.number().int().min(0).max(2147483647),
+  stockStatus: stockStatusSchema,
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   product: z.object({

@@ -22,6 +22,7 @@ import type { ProductInventoryRecord, ProductRecord } from './products.types';
 import { productSelect } from './products.types';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { inventoryScope, productScope } from '../authorization/resource-access';
+import { deriveInventoryStockStatus } from '../inventory/inventory.types';
 
 @Injectable()
 export class ProductsService {
@@ -163,6 +164,7 @@ export class ProductsService {
     return placements.map((placement) => ({
       ...placement,
       sellingPrice: placement.sellingPrice.toFixed(2),
+      stockStatus: deriveInventoryStockStatus(placement),
     }));
   }
 

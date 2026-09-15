@@ -22,6 +22,7 @@ export interface BranchInventoryRecord {
   sellingPrice: string;
   quantity: number;
   lowStockThreshold: number;
+  stockStatus: InventoryStockStatus;
   createdAt: Date;
   updatedAt: Date;
   product: {
@@ -33,6 +34,22 @@ export interface BranchInventoryRecord {
     status: ProductStatus;
     merchant: { id: string; name: string; status: MerchantStatus };
   };
+}
+
+export enum InventoryStockStatus {
+  IN_STOCK = 'IN_STOCK',
+  LOW_STOCK = 'LOW_STOCK',
+  OUT_OF_STOCK = 'OUT_OF_STOCK',
+}
+
+export function deriveInventoryStockStatus(input: {
+  quantity: number;
+  lowStockThreshold: number;
+}): InventoryStockStatus {
+  if (input.quantity === 0) return InventoryStockStatus.OUT_OF_STOCK;
+  if (input.lowStockThreshold > 0 && input.quantity <= input.lowStockThreshold)
+    return InventoryStockStatus.LOW_STOCK;
+  return InventoryStockStatus.IN_STOCK;
 }
 
 export type InventoryMovementRecord = Omit<

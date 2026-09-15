@@ -49,7 +49,9 @@ describe('ProductProfile workflows', () => {
       <ProductProfile organizationId={organizationId} productId={product.id} />,
     );
     expect(await screen.findByText('PHP 850.00')).toBeInTheDocument();
-    expect(screen.getByText('10 units')).toBeInTheDocument();
+    expect(
+      screen.getByText(/10 units · In stock · threshold 5/),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Makati · MKT' })).toHaveAttribute(
       'href',
       `/app/organizations/${organizationId}/branches/${placement.branchId}/inventory/${placement.id}`,

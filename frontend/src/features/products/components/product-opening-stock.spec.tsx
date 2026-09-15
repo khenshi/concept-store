@@ -120,6 +120,7 @@ describe('Optional new-product opening stock', () => {
         branchId: placement.branchId,
         sellingPrice: '12.50',
         quantity: 3,
+        lowStockThreshold: 5,
       },
     });
     expect(createProduct).toHaveBeenCalledTimes(1);

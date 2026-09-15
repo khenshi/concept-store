@@ -35,10 +35,11 @@ import { OrganizationAccessGuard } from '../authorization/organization-access.gu
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
-import { ListProductsQueryDto } from '../products/dto/list-products-query.dto';
 import { BranchInventoryService } from './branch-inventory.service';
 import { CreateBranchInventoryDto } from './dto/create-branch-inventory.dto';
 import { InventoryPriceDto } from './dto/inventory-price.dto';
+import { InventoryThresholdDto } from './dto/inventory-threshold.dto';
+import { ListBranchInventoryQueryDto } from './dto/list-branch-inventory-query.dto';
 import {
   AdjustInventoryDto,
   ReceiveInventoryDto,
@@ -104,13 +105,34 @@ export class BranchInventoryController {
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
-    @Query() query: ListProductsQueryDto,
+    @Query() query: ListBranchInventoryQueryDto,
   ) {
     return this.inventoryService.findAll(
       organization.organizationId,
       branchId,
       query,
       organization,
+    );
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+  @Patch(':inventoryId/threshold')
+  @ApiOperation({
+    summary: 'Edit this placement low-stock threshold without changing stock',
+  })
+  @ApiOkResponse({ type: BranchInventoryResponseDto })
+  updateThreshold(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Param('inventoryId', new ParseUUIDPipe({ version: '4' }))
+    inventoryId: string,
+    @Body() dto: InventoryThresholdDto,
+  ): Promise<BranchInventoryRecord> {
+    return this.inventoryService.updateThreshold(
+      organization.organizationId,
+      branchId,
+      inventoryId,
+      dto,
     );
   }
 

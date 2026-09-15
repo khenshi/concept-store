@@ -2,6 +2,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { InventoryPriceDto } from './inventory-price.dto';
 import { CreateBranchInventoryDto } from './create-branch-inventory.dto';
 import { AdjustInventoryDto, ReceiveInventoryDto } from './stock-command.dto';
+import { InventoryThresholdDto } from './inventory-threshold.dto';
+import { ListBranchInventoryQueryDto } from './list-branch-inventory-query.dto';
 
 const requestId = '11111111-1111-4111-8111-111111111111';
 const pipe = new ValidationPipe({
@@ -11,6 +13,51 @@ const pipe = new ValidationPipe({
 });
 
 describe('Inventory request validation', () => {
+  it.each([0, 5, 2147483647])(
+    'accepts threshold update %s',
+    async (lowStockThreshold) => {
+      await expect(
+        pipe.transform(
+          { lowStockThreshold },
+          { type: 'body', metatype: InventoryThresholdDto },
+        ),
+      ).resolves.toMatchObject({ lowStockThreshold });
+    },
+  );
+
+  it.each([-1, 1.5, '5', 2147483648, null, undefined])(
+    'rejects threshold update %s',
+    async (lowStockThreshold) => {
+      await expect(
+        pipe.transform(
+          { lowStockThreshold },
+          { type: 'body', metatype: InventoryThresholdDto },
+        ),
+      ).rejects.toThrow();
+    },
+  );
+
+  it.each(['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'])(
+    'accepts stock-status filter %s',
+    async (stockStatus) => {
+      await expect(
+        pipe.transform(
+          { stockStatus },
+          { type: 'query', metatype: ListBranchInventoryQueryDto },
+        ),
+      ).resolves.toMatchObject({ stockStatus });
+    },
+  );
+
+  it('rejects an unknown stock-status filter', async () => {
+    await expect(
+      pipe.transform(
+        { stockStatus: 'LOW' },
+        { type: 'query', metatype: ListBranchInventoryQueryDto },
+      ),
+    ).rejects.toThrow();
+  });
+
   it.each([undefined, 0, 5, 2147483647])(
     'accepts placement threshold %s',
     async (lowStockThreshold) => {

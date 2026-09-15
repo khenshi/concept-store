@@ -64,6 +64,7 @@ describe('InventoryPlacementForm', () => {
       expect(createPlacement).toHaveBeenCalledWith(request, scope, {
         productId: product.id,
         sellingPrice: '925.50',
+        lowStockThreshold: 5,
       }),
     );
     expect(onSaved).toHaveBeenCalledOnce();

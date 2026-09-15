@@ -26,7 +26,8 @@ type Field =
   | 'merchantId'
   | 'branchId'
   | 'sellingPrice'
-  | 'quantity';
+  | 'quantity'
+  | 'lowStockThreshold';
 export function ProductForm({
   organizationId,
   merchants,
@@ -115,6 +116,7 @@ export function ProductForm({
             branchId: data.get('branchId'),
             sellingPrice: data.get('sellingPrice'),
             quantity: data.get('quantity'),
+            lowStockThreshold: data.get('lowStockThreshold'),
           },
         }
       : identity;
@@ -355,6 +357,7 @@ export function ProductForm({
                   branchId: undefined,
                   sellingPrice: undefined,
                   quantity: undefined,
+                  lowStockThreshold: undefined,
                 }));
               }}
             />
@@ -419,7 +422,7 @@ export function ProductForm({
                   </button>
                 ) : null}
               </div>
-              <div className="grid min-w-0 items-start gap-5 sm:grid-cols-2">
+              <div className="grid min-w-0 items-start gap-5 sm:grid-cols-3">
                 <TextField
                   name="sellingPrice"
                   label="Branch selling price (PHP)"
@@ -438,6 +441,17 @@ export function ProductForm({
                   error={errors.quantity}
                   disabled={disabled}
                   hint="Whole units, from 1 to 2147483647."
+                  containerClassName="content-start"
+                />
+                <TextField
+                  name="lowStockThreshold"
+                  label="Low-stock threshold"
+                  required
+                  inputMode="numeric"
+                  defaultValue="5"
+                  error={errors.lowStockThreshold}
+                  disabled={disabled}
+                  hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
                   containerClassName="content-start"
                 />
               </div>

@@ -193,6 +193,8 @@ export class ProductInventoryResponseDto {
       'Per-branch low-stock threshold; zero disables low-stock warnings',
   })
   lowStockThreshold!: number;
+  @ApiProperty({ enum: ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'] })
+  stockStatus!: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
   @ApiProperty({ type: InventoryBranchResponseDto })
@@ -344,6 +346,8 @@ export class BranchInventoryResponseDto {
       'Per-branch low-stock threshold; zero disables low-stock warnings',
   })
   lowStockThreshold!: number;
+  @ApiProperty({ enum: ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'] })
+  stockStatus!: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
   @ApiProperty({ type: InventoryProductResponseDto })

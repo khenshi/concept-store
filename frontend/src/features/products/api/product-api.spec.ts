@@ -31,6 +31,7 @@ describe('Product API contracts', () => {
         branchId: placement.branchId,
         sellingPrice: '0.01',
         quantity: 1,
+        lowStockThreshold: 5,
       },
     };
     await expect(

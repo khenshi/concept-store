@@ -61,6 +61,8 @@ The threshold is an optional integer `0..2147483647` and defaults to `5`.
 Requests omitting both preserve product-only creation without any stock record.
 The owner new-product form exposes this option, off by default. Product editing
 does not offer opening stock.
+The opening-stock form starts the threshold at `5`, validates every edit after a
+short debounce, and explains that `0` disables only the low-stock warning.
 
 For a new opening-stock command, current owner membership, non-deleted actor,
 tenant branch and active tenant merchant are checked inside a serializable
@@ -72,6 +74,10 @@ endpoint still creates zero-stock placements and does not accept opening stock.
 That endpoint now accepts the same optional threshold independently of opening
 stock. Omitting or explicitly supplying `5` produces the same canonical opening-
 stock retry command; an explicit `0` is preserved.
+
+Product placement reads expose both the saved branch threshold and the stock
+status derived by the inventory module. The product profile displays this branch-
+specific status and threshold; neither is a product-wide default.
 
 Product stores nullable private `creationRequestId`, `creationActorId` and canonical
 `creationCommand` metadata, protected by a complete-group check, actor foreign key

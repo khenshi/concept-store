@@ -54,6 +54,7 @@ describe('Products and inventory HTTP boundaries', () => {
     findAll: jest.fn(),
     findOne: jest.fn(),
     updatePrice: jest.fn(),
+    updateThreshold: jest.fn(),
     findMovements: jest.fn(),
   };
   const stock = { receive: jest.fn(), adjust: jest.fn() };
@@ -436,6 +437,12 @@ describe('Products and inventory HTTP boundaries', () => {
       status: 200,
     },
     {
+      method: 'patch',
+      path: `${inventoryPath}/${item}/threshold`,
+      body: { lowStockThreshold: 3 },
+      status: 200,
+    },
+    {
       method: 'post',
       path: `${inventoryPath}/${item}/receipts`,
       body: { quantity: 1, reason: 'Delivery', requestId: item },
@@ -666,6 +673,18 @@ describe('Products and inventory HTTP boundaries', () => {
         .send({ sellingPrice })
         .expect(400);
       expect(inventory.updatePrice).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([-1, 1.5, '5', 2147483648, null])(
+    'rejects invalid threshold at the HTTP boundary %s',
+    async (lowStockThreshold) => {
+      await http()
+        .patch(`${inventoryPath}/${item}/threshold`)
+        .auth(token(), { type: 'bearer' })
+        .send({ lowStockThreshold })
+        .expect(400);
+      expect(inventory.updateThreshold).not.toHaveBeenCalled();
     },
   );
 });

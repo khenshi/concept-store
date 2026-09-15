@@ -27,10 +27,12 @@ import type {
   BranchInventory,
   InventoryBranch,
   InventoryScope,
+  InventoryStockStatus,
 } from '../model/inventory.types';
 import { InventoryPlacementForm } from './inventory-placement-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
 import { InventoryStockForm } from './inventory-stock-form';
+import { InventoryStockStatusBadge } from './inventory-stock-status';
 
 export function InventoryDirectory(props: InventoryScope) {
   const { user } = useAuth();
@@ -62,6 +64,7 @@ function ScopedInventoryDirectory({
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
   const [status, setStatus] = useState<ProductStatus | ''>('');
+  const [stockStatus, setStockStatus] = useState<InventoryStockStatus | ''>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -108,6 +111,7 @@ function ScopedInventoryDirectory({
             q: q.trim() || undefined,
             merchantId: merchantId || undefined,
             status: status || undefined,
+            stockStatus: stockStatus || undefined,
           }),
           listMerchants(request, organizationId, {}, organization?.role),
         ]);
@@ -140,6 +144,7 @@ function ScopedInventoryDirectory({
     q,
     merchantId,
     status,
+    stockStatus,
     revision,
   ]);
   if (organizationStatus === 'loading')
@@ -185,6 +190,7 @@ function ScopedInventoryDirectory({
               setSearch('');
               setMerchantId('');
               setStatus('');
+              setStockStatus('');
               setSuccess(null);
               setLoading(true);
               return true;
@@ -218,7 +224,7 @@ function ScopedInventoryDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar className="grid gap-4 md:grid-cols-3">
+        <OperationalToolbar className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <FilterField id="inventory-search" label="Search">
             <input
               id="inventory-search"
@@ -229,6 +235,20 @@ function ScopedInventoryDirectory({
               placeholder="Product, SKU, or barcode"
               className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm"
             />
+          </FilterField>
+          <FilterField id="inventory-stock-status" label="Stock status">
+            <SelectControl
+              id="inventory-stock-status"
+              value={stockStatus}
+              onValueChange={(value) =>
+                setStockStatus(value as InventoryStockStatus | '')
+              }
+            >
+              <option value="">All stock statuses</option>
+              <option value="IN_STOCK">In stock</option>
+              <option value="LOW_STOCK">Low stock</option>
+              <option value="OUT_OF_STOCK">Out of stock</option>
+            </SelectControl>
           </FilterField>
           <FilterField id="inventory-merchant" label="Merchant">
             <SelectControl
@@ -267,12 +287,12 @@ function ScopedInventoryDirectory({
         ) : !items.length ? (
           <div className="p-6 text-center">
             <h3 className="font-semibold">
-              {search || merchantId || status
+              {search || merchantId || status || stockStatus
                 ? 'No placements match these filters'
                 : 'No product placements yet'}
             </h3>
             <p className="mt-2 text-sm text-muted">
-              {search || merchantId || status
+              {search || merchantId || status || stockStatus
                 ? 'Try another search or filter.'
                 : canWrite
                   ? 'Place an active product here with a branch-specific price, then receive stock separately.'
@@ -307,7 +327,13 @@ function ScopedInventoryDirectory({
                   PHP {item.sellingPrice}
                 </span>
                 <span className="text-sm tabular-nums">
-                  {item.quantity.toLocaleString()} units
+                  <strong className="block font-semibold">
+                    <InventoryStockStatusBadge status={item.stockStatus} />
+                  </strong>
+                  <span className="mt-1 block text-xs text-muted">
+                    {item.quantity.toLocaleString()} units · threshold{' '}
+                    {item.lowStockThreshold.toLocaleString()}
+                  </span>
                 </span>
                 {canWrite ? (
                   <div

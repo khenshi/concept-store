@@ -31,9 +31,10 @@ Cashier POS access does not grant inventory history or stock mutation access.
 
 ```text
 POST  /organizations/:organizationId/branches/:branchId/inventory
-GET   /organizations/:organizationId/branches/:branchId/inventory?q=&merchantId=&status=
+GET   /organizations/:organizationId/branches/:branchId/inventory?q=&merchantId=&status=&stockStatus=
 GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId
 PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/price
+PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/threshold
 POST  /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/receipts
 POST  /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/adjustments
 GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/movements
@@ -61,11 +62,17 @@ whitelisting reject malformed IDs and unexpected fields.
 - Price edits change only price, not quantity. Existing inactive product/merchant
   records remain editable and readable.
 - Inventory and product-placement responses include the bounded integer threshold
-  alongside product identity and merchant name/status. Threshold status/filtering
-  and mutation are not yet exposed in the current delivery part.
+  and a derived `IN_STOCK`, `LOW_STOCK`, or `OUT_OF_STOCK` status alongside
+  product identity and merchant name/status. Out of stock always means zero;
+  positive stock at or below a positive threshold is low; all other positive
+  stock is in stock. A zero threshold disables only the low-stock warning.
+- Threshold edits accept only integers from `0..2147483647` and change neither
+  quantity, price nor movement history. Owners and assigned managers may edit;
+  merchants retain own-placement read access only.
 - Search matches product name/SKU case-insensitively and barcode case-sensitively.
-  Merchant/product-status filters are optional. Lists order by product name then
-  inventory ID and are not paginated.
+  Merchant/product-status/derived-stock-status filters are optional and compose
+  without widening the role-aware placement scope. Lists order by product name
+  then inventory ID and are not paginated.
 - Composite foreign keys prevent cross-tenant product/branch placements and
   cross-branch movement references. Database checks protect prices, quantities
   and nonnegative thresholds. The migration backfills existing placements to `5`.
@@ -100,7 +107,9 @@ whitelisting reject malformed IDs and unexpected fields.
 
 ## Delivery state
 
-Backend formatting/lint/build, 171 unit tests, 59 HTTP e2e tests, and 18 PostgreSQL
+The replenishment-visibility work is being delivered in reviewable parts; current
+verification totals are recorded in its current plan. Earlier delivery passed
+backend formatting/lint/build, 171 unit tests, 59 HTTP e2e tests, and 18 PostgreSQL
 integration tests pass. Dedicated coverage includes request normalization, roles,
 tenant/branch access, lifecycle, precise prices, bounded writes, actor attribution,
 and retry conflicts. Actual PostgreSQL 17 verification exercises migration

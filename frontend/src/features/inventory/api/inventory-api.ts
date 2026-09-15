@@ -1,5 +1,4 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
-import type { ProductFilters } from '@/features/products/model/product.types';
 import {
   inventoryBranchSchema,
   inventoryListSchema,
@@ -11,6 +10,7 @@ import {
 import type {
   InventoryScope,
   InventoryDetailScope,
+  InventoryFilters,
 } from '../model/inventory.types';
 
 const branchPath = (scope: InventoryScope) =>
@@ -32,7 +32,7 @@ export async function getInventoryBranch(
 export async function listInventory(
   request: AuthenticatedRequest,
   scope: InventoryScope,
-  filters: ProductFilters = {},
+  filters: InventoryFilters = {},
 ) {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(filters))
@@ -44,10 +44,26 @@ export async function listInventory(
 export async function createPlacement(
   request: AuthenticatedRequest,
   scope: InventoryScope,
-  input: { productId: string; sellingPrice: string },
+  input: {
+    productId: string;
+    sellingPrice: string;
+    lowStockThreshold: number;
+  },
 ) {
   return inventoryResponseSchema.parse(
     await request<unknown>(path(scope), json('POST', input)),
+  );
+}
+export async function updateInventoryThreshold(
+  request: AuthenticatedRequest,
+  scope: InventoryDetailScope,
+  lowStockThreshold: number,
+) {
+  return inventoryResponseSchema.parse(
+    await request<unknown>(
+      `${detail(scope)}/threshold`,
+      json('PATCH', { lowStockThreshold }),
+    ),
   );
 }
 export async function getInventory(

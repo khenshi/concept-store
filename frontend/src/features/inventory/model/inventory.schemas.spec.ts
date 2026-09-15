@@ -2,9 +2,24 @@ import {
   adjustmentInputSchema,
   inventoryPriceSchema,
   receiptInputSchema,
+  thresholdInputSchema,
 } from './inventory.schemas';
 
 describe('Inventory input schemas', () => {
+  it.each(['0', '5', 2147483647])('accepts threshold %s', (value) => {
+    expect(
+      thresholdInputSchema.parse({ lowStockThreshold: value })
+        .lowStockThreshold,
+    ).toBe(Number(value));
+  });
+  it.each(['-1', '1.5', '2147483648', '', null])(
+    'rejects threshold %s',
+    (value) => {
+      expect(
+        thresholdInputSchema.safeParse({ lowStockThreshold: value }).success,
+      ).toBe(false);
+    },
+  );
   it.each(['0.01', '1', '9999999999.99', ' 12.50 '])(
     'accepts decimal-string price %s',
     (value) => {

@@ -1,4 +1,5 @@
 import type { Prisma } from '../../../generated/prisma/client';
+import type { InventoryStockStatus } from '../inventory/inventory.types';
 
 export const productSelect = {
   id: true,
@@ -23,6 +24,7 @@ export interface ProductInventoryRecord {
   sellingPrice: string;
   quantity: number;
   lowStockThreshold: number;
+  stockStatus: InventoryStockStatus;
   createdAt: Date;
   updatedAt: Date;
   branch: { id: string; name: string; code: string | null };

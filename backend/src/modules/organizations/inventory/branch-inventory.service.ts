@@ -9,14 +9,16 @@ import {
   ProductStatus,
 } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
-import type { ListProductsQueryDto } from '../products/dto/list-products-query.dto';
 import type { CreateBranchInventoryDto } from './dto/create-branch-inventory.dto';
 import type { InventoryPriceDto } from './dto/inventory-price.dto';
+import type { InventoryThresholdDto } from './dto/inventory-threshold.dto';
+import type { ListBranchInventoryQueryDto } from './dto/list-branch-inventory-query.dto';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { inventoryScope } from '../authorization/resource-access';
 import {
   inventoryProductSelect,
   inventoryMovementSelect,
+  deriveInventoryStockStatus,
   type BranchInventoryRecord,
   type InventoryMovementRecord,
 } from './inventory.types';
@@ -55,7 +57,7 @@ export class BranchInventoryService {
         },
         include: { product: { select: inventoryProductSelect } },
       });
-      return { ...inventory, sellingPrice: inventory.sellingPrice.toFixed(2) };
+      return this.toRecord(inventory);
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -64,7 +66,7 @@ export class BranchInventoryService {
   async findAll(
     organizationId: string,
     branchId: string,
-    query: ListProductsQueryDto,
+    query: ListBranchInventoryQueryDto,
     context?: OrganizationContext,
   ): Promise<BranchInventoryRecord[]> {
     await this.resolveBranch(organizationId, branchId);
@@ -98,10 +100,11 @@ export class BranchInventoryService {
       include: { product: { select: inventoryProductSelect } },
       orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
     });
-    return inventory.map((item) => ({
-      ...item,
-      sellingPrice: item.sellingPrice.toFixed(2),
-    }));
+    return inventory
+      .map((item) => this.toRecord(item))
+      .filter(
+        (item) => !query.stockStatus || item.stockStatus === query.stockStatus,
+      );
   }
 
   async findOne(
@@ -120,7 +123,7 @@ export class BranchInventoryService {
       include: { product: { select: inventoryProductSelect } },
     });
     if (!inventory) throw new NotFoundException('Branch inventory not found');
-    return { ...inventory, sellingPrice: inventory.sellingPrice.toFixed(2) };
+    return this.toRecord(inventory);
   }
 
   async updatePrice(
@@ -136,7 +139,26 @@ export class BranchInventoryService {
         data: { sellingPrice: new Prisma.Decimal(dto.sellingPrice) },
         include: { product: { select: inventoryProductSelect } },
       });
-      return { ...inventory, sellingPrice: inventory.sellingPrice.toFixed(2) };
+      return this.toRecord(inventory);
+    } catch (error: unknown) {
+      this.rethrowKnownError(error);
+    }
+  }
+
+  async updateThreshold(
+    organizationId: string,
+    branchId: string,
+    inventoryId: string,
+    dto: InventoryThresholdDto,
+  ): Promise<BranchInventoryRecord> {
+    await this.findOne(organizationId, branchId, inventoryId);
+    try {
+      const inventory = await this.prisma.branchInventory.update({
+        where: { id: inventoryId, organizationId, branchId },
+        data: { lowStockThreshold: dto.lowStockThreshold },
+        include: { product: { select: inventoryProductSelect } },
+      });
+      return this.toRecord(inventory);
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -172,6 +194,25 @@ export class BranchInventoryService {
       select: { id: true },
     });
     if (!branch) throw new NotFoundException('Branch not found');
+  }
+
+  private toRecord<
+    T extends {
+      sellingPrice: Prisma.Decimal;
+      quantity: number;
+      lowStockThreshold: number;
+    },
+  >(
+    inventory: T,
+  ): Omit<T, 'sellingPrice'> & {
+    sellingPrice: string;
+    stockStatus: ReturnType<typeof deriveInventoryStockStatus>;
+  } {
+    return {
+      ...inventory,
+      sellingPrice: inventory.sellingPrice.toFixed(2),
+      stockStatus: deriveInventoryStockStatus(inventory),
+    };
   }
 
   private rethrowKnownError(error: unknown): never {

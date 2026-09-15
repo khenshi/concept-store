@@ -21,6 +21,8 @@ export const inventory: BranchInventory = {
   productId: placement.productId,
   sellingPrice: placement.sellingPrice,
   quantity: placement.quantity,
+  lowStockThreshold: placement.lowStockThreshold,
+  stockStatus: placement.stockStatus,
   createdAt: placement.createdAt,
   updatedAt: placement.updatedAt,
   product: {

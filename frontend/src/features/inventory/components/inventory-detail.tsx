@@ -26,8 +26,10 @@ import type {
   InventoryMovementView,
 } from '../model/inventory.types';
 import { InventoryPriceForm } from './inventory-price-form';
+import { InventoryThresholdForm } from './inventory-threshold-form';
 import { InventoryStockForm } from './inventory-stock-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
+import { InventoryStockStatusBadge } from './inventory-stock-status';
 
 export function InventoryDetail(props: InventoryDetailScope) {
   const { user } = useAuth();
@@ -61,7 +63,7 @@ function ScopedInventoryDetail({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pendingOperation, setPendingOperation] = useState<
-    'price' | 'receipt' | 'adjustment' | null
+    'price' | 'threshold' | 'receipt' | 'adjustment' | null
   >(null);
   const [revision, setRevision] = useState(0);
   const dirty = useRef(false);
@@ -207,7 +209,7 @@ function ScopedInventoryDetail({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel title="Current placement">
-        <dl className="grid gap-5 p-6 sm:grid-cols-3">
+        <dl className="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-xs text-muted">Branch price</dt>
             <dd className="mt-1 font-semibold tabular-nums">
@@ -219,6 +221,15 @@ function ScopedInventoryDetail({
             <dd className="mt-1 font-semibold tabular-nums">
               {inventory.quantity.toLocaleString()} units
             </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Stock status</dt>
+            <dd className="mt-1 font-semibold">
+              <InventoryStockStatusBadge status={inventory.stockStatus} />
+            </dd>
+            <p className="mt-1 text-xs text-muted tabular-nums">
+              Threshold: {inventory.lowStockThreshold.toLocaleString()}
+            </p>
           </div>
           <div>
             <dt className="text-xs text-muted">Product identity</dt>
@@ -242,26 +253,52 @@ function ScopedInventoryDetail({
             dirty.current = true;
           }}
         >
-          <OperationalPanel title="Branch selling price">
-            <fieldset
-              className="min-w-0 border-0 p-0"
-              disabled={
-                pendingOperation !== null && pendingOperation !== 'price'
-              }
-            >
-              <InventoryPriceForm
-                onAccessLost={accessLost}
-                scope={scope}
-                inventory={inventory}
-                onPendingChange={(pending) =>
-                  setPendingOperation(pending ? 'price' : null)
+          <div className="grid min-w-0 gap-x-6 lg:grid-cols-2">
+            <OperationalPanel title="Branch selling price">
+              <fieldset
+                className="min-w-0 border-0 p-0"
+                disabled={
+                  pendingOperation !== null && pendingOperation !== 'price'
                 }
-                onSaved={() =>
-                  saved('Branch price saved. Refreshing the current placement.')
+              >
+                <InventoryPriceForm
+                  onAccessLost={accessLost}
+                  scope={scope}
+                  inventory={inventory}
+                  onPendingChange={(pending) =>
+                    setPendingOperation(pending ? 'price' : null)
+                  }
+                  onSaved={() =>
+                    saved(
+                      'Branch price saved. Refreshing the current placement.',
+                    )
+                  }
+                />
+              </fieldset>
+            </OperationalPanel>
+            <OperationalPanel title="Low-stock threshold">
+              <fieldset
+                className="min-w-0 border-0 p-0"
+                disabled={
+                  pendingOperation !== null && pendingOperation !== 'threshold'
                 }
-              />
-            </fieldset>
-          </OperationalPanel>
+              >
+                <InventoryThresholdForm
+                  onAccessLost={accessLost}
+                  scope={scope}
+                  inventory={inventory}
+                  onPendingChange={(pending) =>
+                    setPendingOperation(pending ? 'threshold' : null)
+                  }
+                  onSaved={() =>
+                    saved(
+                      'Low-stock threshold saved. Refreshing the current placement.',
+                    )
+                  }
+                />
+              </fieldset>
+            </OperationalPanel>
+          </div>
           <div className="grid min-w-0 gap-x-6 lg:grid-cols-2">
             <OperationalPanel
               title="Receive stock"

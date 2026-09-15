@@ -32,6 +32,8 @@ export const placement: ProductPlacement = {
   productId: product.id,
   sellingPrice: '850.00',
   quantity: 10,
+  lowStockThreshold: 5,
+  stockStatus: 'IN_STOCK',
   createdAt: merchant.createdAt,
   updatedAt: merchant.updatedAt,
   branch: {

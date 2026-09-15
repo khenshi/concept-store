@@ -7,6 +7,7 @@ import {
   listMovements,
   receiveStock,
   updateInventoryPrice,
+  updateInventoryThreshold,
 } from './inventory-api';
 import {
   branch,
@@ -25,8 +26,14 @@ describe('Branch inventory API contracts', () => {
       .mockResolvedValueOnce(inventory)
       .mockResolvedValueOnce(branch)
       .mockResolvedValueOnce([movement]);
-    await listInventory(request, scope, { q: '001Ab', status: 'ACTIVE' });
-    expect(request).toHaveBeenLastCalledWith(`${base}?q=001Ab&status=ACTIVE`);
+    await listInventory(request, scope, {
+      q: '001Ab',
+      status: 'ACTIVE',
+      stockStatus: 'LOW_STOCK',
+    });
+    expect(request).toHaveBeenLastCalledWith(
+      `${base}?q=001Ab&status=ACTIVE&stockStatus=LOW_STOCK`,
+    );
     await expect(getInventory(request, scope)).resolves.toEqual(inventory);
     await expect(getInventoryBranch(request, scope)).resolves.toEqual(branch);
     await expect(listMovements(request, scope)).resolves.toEqual([movement]);
@@ -39,6 +46,7 @@ describe('Branch inventory API contracts', () => {
     await createPlacement(request, scope, {
       productId: inventory.productId,
       sellingPrice: '925.50',
+      lowStockThreshold: 5,
     });
     expect(request).toHaveBeenLastCalledWith(
       base,
@@ -47,6 +55,7 @@ describe('Branch inventory API contracts', () => {
         body: JSON.stringify({
           productId: inventory.productId,
           sellingPrice: '925.50',
+          lowStockThreshold: 5,
         }),
       }),
     );
@@ -56,6 +65,14 @@ describe('Branch inventory API contracts', () => {
       expect.objectContaining({
         method: 'PATCH',
         body: '{"sellingPrice":"0.01"}',
+      }),
+    );
+    await updateInventoryThreshold(request, scope, 0);
+    expect(request).toHaveBeenLastCalledWith(
+      `${base}/${scope.inventoryId}/threshold`,
+      expect.objectContaining({
+        method: 'PATCH',
+        body: '{"lowStockThreshold":0}',
       }),
     );
   });

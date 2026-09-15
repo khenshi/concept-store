@@ -28,6 +28,7 @@ import type {
   ProductPlacement,
   ProductStatus,
 } from '../model/product.types';
+import { inventoryStockStatusLabel } from '@/features/inventory/components/inventory-stock-status';
 import { ProductForm } from './product-form';
 
 export function ProductProfile(props: {
@@ -304,7 +305,9 @@ function ScopedProductProfile({
                   PHP {placement.sellingPrice}
                 </span>
                 <span className="text-sm tabular-nums">
-                  {placement.quantity.toLocaleString()} units
+                  {placement.quantity.toLocaleString()} units ·{' '}
+                  {inventoryStockStatusLabel(placement.stockStatus)} · threshold{' '}
+                  {placement.lowStockThreshold.toLocaleString()}
                 </span>
               </li>
             ))}

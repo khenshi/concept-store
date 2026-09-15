@@ -40,8 +40,9 @@ export function InventoryPlacementForm({
   const [search, setSearch] = useState('');
   const [productId, setProductId] = useState('');
   const [price, setPrice] = useState('');
+  const [threshold, setThreshold] = useState('5');
   const [errors, setErrors] = useState<
-    Partial<Record<'productId' | 'sellingPrice', string>>
+    Partial<Record<'productId' | 'sellingPrice' | 'lowStockThreshold', string>>
   >({});
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -49,9 +50,9 @@ export function InventoryPlacementForm({
   const [pending, setPending] = useState(false);
   const [revision, setRevision] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const timers = useRef<Partial<Record<'productId' | 'sellingPrice', number>>>(
-    {},
-  );
+  const timers = useRef<
+    Partial<Record<'productId' | 'sellingPrice' | 'lowStockThreshold', number>>
+  >({});
   const q = useDebouncedValue(search);
   const { organizationId, branchId } = scope;
   useEffect(
@@ -101,9 +102,10 @@ export function InventoryPlacementForm({
     };
   }, [request, organizationId, branchId, q, revision]);
   function validate(
-    field: 'productId' | 'sellingPrice',
+    field: 'productId' | 'sellingPrice' | 'lowStockThreshold',
     id: string,
     sellingPrice: string,
+    lowStockThreshold: string,
     immediate = false,
   ) {
     window.clearTimeout(timers.current[field]);
@@ -111,6 +113,7 @@ export function InventoryPlacementForm({
       const parsed = placementInputSchema.safeParse({
         productId: id,
         sellingPrice,
+        lowStockThreshold,
       });
       setErrors((current) => ({
         ...current,
@@ -130,6 +133,7 @@ export function InventoryPlacementForm({
     const parsed = placementInputSchema.safeParse({
       productId,
       sellingPrice: price,
+      lowStockThreshold: threshold,
     });
     if (!parsed.success) {
       setErrors(
@@ -182,15 +186,15 @@ export function InventoryPlacementForm({
           setSearch(value);
           setProductId('');
           setSelectedProduct(null);
-          validate('productId', '', price);
+          validate('productId', '', price, threshold);
         }}
         onSelect={(product) => {
           setProductId(product.id);
           setSelectedProduct(product);
           setSearch(productLabel(product));
-          validate('productId', product.id, price);
+          validate('productId', product.id, price, threshold);
         }}
-        onBlur={() => validate('productId', productId, price, true)}
+        onBlur={() => validate('productId', productId, price, threshold, true)}
       />
       <TextField
         label="Selling price (PHP)"
@@ -201,11 +205,30 @@ export function InventoryPlacementForm({
         disabled={pending}
         onChange={(event) => {
           setPrice(event.target.value);
-          validate('sellingPrice', productId, event.target.value);
+          validate('sellingPrice', productId, event.target.value, threshold);
         }}
-        onBlur={() => validate('sellingPrice', productId, price, true)}
+        onBlur={() =>
+          validate('sellingPrice', productId, price, threshold, true)
+        }
         required
         hint="Positive price with up to two decimal places. This branch may charge a different price."
+      />
+      <TextField
+        label="Low-stock threshold"
+        name="lowStockThreshold"
+        inputMode="numeric"
+        value={threshold}
+        error={errors.lowStockThreshold}
+        disabled={pending}
+        onChange={(event) => {
+          setThreshold(event.target.value);
+          validate('lowStockThreshold', productId, price, event.target.value);
+        }}
+        onBlur={() =>
+          validate('lowStockThreshold', productId, price, threshold, true)
+        }
+        required
+        hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
       />
       <p className="text-sm text-muted">
         Placement starts with zero stock. Receive opening stock separately. No
