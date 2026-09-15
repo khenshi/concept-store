@@ -136,6 +136,25 @@ describe('InventoryStockForm', () => {
     fireEvent.blur(reason);
     expect(reason).toHaveAttribute('aria-invalid', 'true');
   });
+  it('fills an auditable reason from a common-reason action and permits custom text', () => {
+    render(
+      <InventoryStockForm
+        scope={scope}
+        inventory={inventory}
+        mode="receipt"
+        onSaved={vi.fn()}
+        onPendingChange={vi.fn()}
+      />,
+    );
+    const reason = screen.getByRole('textbox', { name: 'Reason' });
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier delivery' }));
+    expect(reason).toHaveValue('Supplier delivery');
+    expect(
+      screen.getByRole('button', { name: 'Supplier delivery' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.change(reason, { target: { value: 'Shipment PO-1042' } });
+    expect(reason).toHaveValue('Shipment PO-1042');
+  });
   it('blocks inactive receiving and leaves corrections available', () => {
     const inactive = {
       ...inventory,

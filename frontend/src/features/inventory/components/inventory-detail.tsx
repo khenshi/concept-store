@@ -261,58 +261,60 @@ function ScopedInventoryDetail({
               />
             </fieldset>
           </OperationalPanel>
-          <OperationalPanel
-            title="Receive stock"
-            description="Record a receipt of positive whole units with a required reason."
-          >
-            <fieldset
-              className="min-w-0 border-0 p-0"
-              disabled={
-                pendingOperation !== null && pendingOperation !== 'receipt'
-              }
+          <div className="grid min-w-0 gap-x-6 lg:grid-cols-2">
+            <OperationalPanel
+              title="Receive stock"
+              description="Record positive whole units and why they entered this branch."
             >
-              <InventoryStockForm
-                onAccessLost={accessLost}
-                mode="receipt"
-                scope={scope}
-                inventory={inventory}
-                onPendingChange={(pending) =>
-                  setPendingOperation(pending ? 'receipt' : null)
+              <fieldset
+                className="min-w-0 border-0 p-0"
+                disabled={
+                  pendingOperation !== null && pendingOperation !== 'receipt'
                 }
-                onSaved={() =>
-                  saved(
-                    'Stock receipt recorded. Refreshing current stock and history.',
-                  )
-                }
-              />
-            </fieldset>
-          </OperationalPanel>
-          <OperationalPanel
-            title="Correct stock"
-            description="Review a signed adjustment before applying it. Corrections remain available for inactive products or merchants."
-          >
-            <fieldset
-              className="min-w-0 border-0 p-0"
-              disabled={
-                pendingOperation !== null && pendingOperation !== 'adjustment'
-              }
+              >
+                <InventoryStockForm
+                  onAccessLost={accessLost}
+                  mode="receipt"
+                  scope={scope}
+                  inventory={inventory}
+                  onPendingChange={(pending) =>
+                    setPendingOperation(pending ? 'receipt' : null)
+                  }
+                  onSaved={() =>
+                    saved(
+                      'Stock receipt recorded. Refreshing current stock and history.',
+                    )
+                  }
+                />
+              </fieldset>
+            </OperationalPanel>
+            <OperationalPanel
+              title="Correct stock"
+              description="Review a signed correction before applying it. Available for inactive products or merchants."
             >
-              <InventoryStockForm
-                onAccessLost={accessLost}
-                mode="adjustment"
-                scope={scope}
-                inventory={inventory}
-                onPendingChange={(pending) =>
-                  setPendingOperation(pending ? 'adjustment' : null)
+              <fieldset
+                className="min-w-0 border-0 p-0"
+                disabled={
+                  pendingOperation !== null && pendingOperation !== 'adjustment'
                 }
-                onSaved={() =>
-                  saved(
-                    'Stock adjustment recorded. Refreshing current stock and history.',
-                  )
-                }
-              />
-            </fieldset>
-          </OperationalPanel>
+              >
+                <InventoryStockForm
+                  onAccessLost={accessLost}
+                  mode="adjustment"
+                  scope={scope}
+                  inventory={inventory}
+                  onPendingChange={(pending) =>
+                    setPendingOperation(pending ? 'adjustment' : null)
+                  }
+                  onSaved={() =>
+                    saved(
+                      'Stock adjustment recorded. Refreshing current stock and history.',
+                    )
+                  }
+                />
+              </fieldset>
+            </OperationalPanel>
+          </div>
         </div>
       ) : null}
       <OperationalPanel

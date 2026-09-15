@@ -38,7 +38,7 @@ describe('InventoryPlacementForm', () => {
         screen.getByRole('combobox', { name: 'Product' }),
       ).not.toBeDisabled(),
     );
-    fireEvent.click(screen.getByRole('combobox', { name: 'Product' }));
+    fireEvent.focus(screen.getByRole('combobox', { name: 'Product' }));
     fireEvent.click(
       screen.getByRole('option', { name: `${product.name} · ${product.sku}` }),
     );
@@ -112,10 +112,9 @@ describe('InventoryPlacementForm', () => {
       />,
     );
     await select();
-    fireEvent.change(
-      screen.getByRole('searchbox', { name: 'Find a product' }),
-      { target: { value: '001Ab' } },
-    );
+    fireEvent.change(screen.getByRole('combobox', { name: 'Product' }), {
+      target: { value: '001Ab' },
+    });
     await waitFor(() =>
       expect(listProducts).toHaveBeenLastCalledWith(
         request,
@@ -123,6 +122,23 @@ describe('InventoryPlacementForm', () => {
         { status: 'ACTIVE', q: '001Ab' },
       ),
     );
+  });
+  it('uses one searchable product picker and supports Enter selection', async () => {
+    render(
+      <InventoryPlacementForm
+        scope={scope}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onPendingChange={vi.fn()}
+      />,
+    );
+    const picker = await screen.findByRole('combobox', { name: 'Product' });
+    await waitFor(() => expect(picker).toBeEnabled());
+    expect(screen.queryByText('Choose a product')).not.toBeInTheDocument();
+    fireEvent.focus(picker);
+    fireEvent.keyDown(picker, { key: 'Enter' });
+    expect(picker).toHaveValue(`${product.name} · ${product.sku}`);
+    expect(screen.getByText(/Selected:/)).toHaveTextContent(product.name);
   });
   it('preserves inputs after a placement conflict', async () => {
     vi.mocked(createPlacement).mockRejectedValue(

@@ -169,6 +169,15 @@ export function InventoryStockForm({
     inventory.product.status === 'ACTIVE' &&
     inventory.product.merchant.status === 'ACTIVE';
   const unavailable = mode === 'receipt' && !active;
+  const reasonSuggestions =
+    mode === 'receipt'
+      ? ['Supplier delivery', 'Opening stock', 'Counted stock received']
+      : ['Stock count correction', 'Damaged stock', 'Data entry correction'];
+  const updateReason = (value: string) => {
+    command.current = null;
+    setReason(value);
+    validate('reason', quantity, value);
+  };
   return (
     <>
       <form className="grid gap-4 p-6" noValidate onSubmit={submit}>
@@ -205,6 +214,32 @@ export function InventoryStockForm({
               : 'A signed whole-unit delta, for example +5 or -2; never a replacement total.'
           }
         />
+        <fieldset className="grid min-w-0 gap-2 border-0 p-0">
+          <legend className="text-label font-semibold text-ink">
+            Common reasons
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {reasonSuggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                className={buttonStyles({
+                  variant: reason === suggestion ? 'primary' : 'secondary',
+                  className: 'min-h-9 px-3 py-1.5 text-xs',
+                })}
+                disabled={pending || unavailable}
+                aria-pressed={reason === suggestion}
+                onClick={() => updateReason(suggestion)}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs leading-5 text-muted">
+            Choose a common reason or enter a specific reason below. It is kept
+            in the immutable stock history.
+          </p>
+        </fieldset>
         <TextField
           label="Reason"
           name="reason"
@@ -213,10 +248,7 @@ export function InventoryStockForm({
           error={errors.reason}
           disabled={pending || unavailable}
           onChange={(event) => {
-            const value = event.target.value;
-            command.current = null;
-            setReason(value);
-            validate('reason', quantity, value);
+            updateReason(event.target.value);
           }}
           onBlur={() => validate('reason', quantity, reason, true)}
           required

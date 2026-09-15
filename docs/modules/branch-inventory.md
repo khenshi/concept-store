@@ -190,11 +190,14 @@ responses as well as full owner/manager responses.
   responsive divided rows, exact PHP prices, and whole-unit balances. Empty,
   filtered-empty, loading, and retryable errors have distinct feedback.
 - Placement creation uses the shared scroll-contained native dialog, with focus
-  restoration and pending dismissal protection. Search is organization-scoped;
+  restoration and pending dismissal protection. One searchable product combobox
+  performs both filtering and selection; search remains organization-scoped,
   active products of active merchants are offered and existing branch placements
   are excluded. Creation accepts price/product only and starts at zero stock.
-- Price, receiving, and correction forms are separate and use shared aligned
-  fields. Input validation runs after 300 ms, immediately on blur, and on submit.
+- Price remains separate; receiving and correction panels appear side by side at
+  suitable widths and stack on smaller screens. Stock forms offer common reason
+  actions plus an editable custom reason field. Reasons remain required ledger
+  data. Input validation runs after 300 ms, immediately on blur, and on submit.
   Invalid submissions focus the first invalid field; errors preserve input.
 - Price remains a decimal string through validation, JSON, and display. Changing
   one branch price never writes a quantity or another branch's placement.

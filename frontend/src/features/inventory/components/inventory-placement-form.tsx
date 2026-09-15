@@ -1,13 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
 import { listProducts } from '@/features/products/api/product-api';
 import type { Product } from '@/features/products/model/product.types';
 import { buttonStyles } from '@/shared/components/ui/button';
-import { SelectControl } from '@/shared/components/ui/select-control';
 import {
   TextField,
   focusFirstInvalidField,
@@ -152,84 +158,40 @@ export function InventoryPlacementForm({
       onPendingChange(false);
     }
   }
-  // Keep the selected product visible when searching for another candidate.
-  const options =
-    selectedProduct && !products.some((item) => item.id === productId)
-      ? [selectedProduct, ...products]
-      : products;
   return (
-    <form
-      className="mt-6 grid gap-5"
-      noValidate
-      onSubmit={submit}
-      onBlur={(event) => {
-        if (
-          event.target instanceof HTMLButtonElement &&
-          event.target.id === 'placement-product'
-        )
-          validate('productId', productId, price, true);
-      }}
-    >
+    <form className="mt-6 grid gap-5" noValidate onSubmit={submit}>
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}
-      <TextField
-        label="Find a product"
-        name="search"
-        type="search"
-        maxLength={254}
-        value={search}
-        disabled={pending}
-        onChange={(event) => setSearch(event.target.value)}
-        hint="Search active products in this organization by name, SKU, or barcode."
-      />
       {loadError ? (
         <RequestError
           message={loadError}
           onRetry={() => setRevision((value) => value + 1)}
         />
       ) : null}
-      <div className="grid gap-2">
-        <label htmlFor="placement-product" className="text-label font-semibold">
-          Product
-        </label>
-        <SelectControl
-          id="placement-product"
-          value={productId}
-          disabled={pending || loading || Boolean(loadError)}
-          required
-          aria-invalid={Boolean(errors.productId)}
-          aria-describedby="placement-product-hint"
-          onValueChange={(id) => {
-            setProductId(id);
-            setSelectedProduct(products.find((item) => item.id === id) ?? null);
-            validate('productId', id, price);
-          }}
-        >
-          <option value="">
-            {loading ? 'Loading available products…' : 'Choose a product'}
-          </option>
-          {options.map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.name}
-              {product.sku ? ` · ${product.sku}` : ''}
-            </option>
-          ))}
-        </SelectControl>
-        <p
-          id="placement-product-hint"
-          className={`text-xs ${errors.productId ? 'text-danger' : 'text-muted'}`}
-        >
-          {errors.productId ??
-            (loading
-              ? 'Loading…'
-              : !products.length
-                ? 'No available products match. Already placed or inactive products are excluded.'
-                : 'Only active products with active merchants and no placement in this branch are offered.')}
-        </p>
-      </div>
+      <ProductPicker
+        products={products}
+        selectedProduct={selectedProduct}
+        search={search}
+        loading={loading}
+        disabled={pending || loading || Boolean(loadError)}
+        error={errors.productId}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setProductId('');
+          setSelectedProduct(null);
+          validate('productId', '', price);
+        }}
+        onSelect={(product) => {
+          setProductId(product.id);
+          setSelectedProduct(product);
+          setSearch(productLabel(product));
+          validate('productId', product.id, price);
+        }}
+        onBlur={() => validate('productId', productId, price, true)}
+      />
       <TextField
         label="Selling price (PHP)"
         name="sellingPrice"
@@ -253,7 +215,7 @@ export function InventoryPlacementForm({
         <button
           className={buttonStyles({ variant: 'primary' })}
           type="submit"
-          disabled={pending || loading || Boolean(loadError) || !options.length}
+          disabled={pending || loading || Boolean(loadError) || !productId}
           aria-busy={pending}
         >
           {pending ? 'Saving…' : 'Create placement'}
@@ -268,5 +230,153 @@ export function InventoryPlacementForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function productLabel(product: Product) {
+  return `${product.name}${product.sku ? ` · ${product.sku}` : ''}`;
+}
+
+function ProductPicker({
+  products,
+  selectedProduct,
+  search,
+  loading,
+  disabled,
+  error,
+  onSearchChange,
+  onSelect,
+  onBlur,
+}: {
+  products: Product[];
+  selectedProduct: Product | null;
+  search: string;
+  loading: boolean;
+  disabled: boolean;
+  error?: string;
+  onSearchChange(value: string): void;
+  onSelect(product: Product): void;
+  onBlur(): void;
+}) {
+  const id = useId();
+  const listboxId = `${id}-results`;
+  const container = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const focusResult = (index: number) => {
+    container.current
+      ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
+      .item(index)
+      ?.focus();
+  };
+  const moveResultFocus = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const offset = event.key === 'ArrowDown' ? 1 : -1;
+      focusResult((index + offset + products.length) % products.length);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setOpen(false);
+      container.current?.querySelector('input')?.focus();
+    }
+  };
+  return (
+    <div
+      ref={container}
+      className="relative grid min-w-0 gap-2"
+      onBlur={(event) => {
+        if (
+          event.relatedTarget instanceof Node &&
+          container.current?.contains(event.relatedTarget)
+        )
+          return;
+        setOpen(false);
+        onBlur();
+      }}
+    >
+      <label className="text-label font-semibold text-ink" htmlFor={id}>
+        Product
+      </label>
+      <input
+        id={id}
+        type="search"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-controls={listboxId}
+        aria-expanded={open}
+        aria-invalid={Boolean(error)}
+        aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`}
+        autoComplete="off"
+        maxLength={254}
+        value={search}
+        disabled={disabled}
+        placeholder={
+          loading
+            ? 'Loading available products…'
+            : 'Search by name, SKU, or barcode'
+        }
+        className="min-h-11 w-full min-w-0 rounded-control border border-control-border bg-surface px-3 py-2.5 text-body text-ink placeholder:text-faint focus-visible:border-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger"
+        onFocus={() => setOpen(true)}
+        onChange={(event) => {
+          onSearchChange(event.target.value);
+          setOpen(true);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' && products.length) {
+            event.preventDefault();
+            setOpen(true);
+            window.requestAnimationFrame(() => focusResult(0));
+          } else if (event.key === 'Enter' && open && products.length) {
+            event.preventDefault();
+            onSelect(products[0]);
+            setOpen(false);
+          } else if (event.key === 'Escape') {
+            setOpen(false);
+          }
+        }}
+      />
+      <p id={`${id}-hint`} className="text-xs leading-5 text-muted">
+        {loading
+          ? 'Loading…'
+          : selectedProduct
+            ? `Selected: ${productLabel(selectedProduct)}`
+            : !products.length
+              ? 'No available products match. Already placed or inactive products are excluded.'
+              : 'Type to filter eligible products, then choose one result.'}
+      </p>
+      {error ? (
+        <p id={`${id}-error`} className="text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
+      {open && !disabled && products.length ? (
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-label="Available products"
+          className="absolute top-full right-0 left-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-control border border-hairline bg-surface p-1.5 shadow-floating"
+        >
+          {products.map((product, index) => (
+            <button
+              key={product.id}
+              type="button"
+              role="option"
+              aria-selected={product.id === selectedProduct?.id}
+              tabIndex={-1}
+              className={`flex min-h-11 w-full items-center rounded-compact border-0 px-3 py-2.5 text-left text-sm text-ink hover:bg-subtle ${product.id === selectedProduct?.id ? 'bg-selected font-semibold' : 'bg-surface'}`}
+              onKeyDown={(event) => moveResultFocus(event, index)}
+              onClick={() => {
+                onSelect(product);
+                setOpen(false);
+              }}
+            >
+              {productLabel(product)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -115,10 +115,14 @@ waived rendered visual/accessibility QA for these screens on September 12, 2026;
 this is a separate waiver from the historical refactor waiver below.
 
 Branch inventory now uses the same operational system for scoped directories,
-placement creation, independently priced stock, separate price/receipt/correction
-forms, and immutable history. Branch and product details provide owner/manager
-inventory links. Placement selection is searchable and bounded within the native
-dialog. Corrections confirm the signed delta and estimated stock while keeping
+placement creation, independently priced stock, price/stock controls, and
+immutable history. Branch and product details provide owner/manager inventory
+links. Placement selection uses one searchable product combobox bounded within
+the native dialog instead of separate search and selection inputs. Receipt and
+correction panels share a responsive two-column row on suitable viewports and
+stack on smaller screens. Common reason actions fill the still-editable required
+reason field so every manual movement remains explainable. Corrections confirm
+the signed delta and estimated stock while keeping
 the server authoritative; pending writes disable repeat/concurrent actions. Stock
 retry IDs remain unchanged for unchanged failed commands, and success reloads
 current inventory instead of treating historical movement balances as current.
