@@ -106,13 +106,16 @@ function ScopedReportsEntry({
             ? 'Choose one branch to view your own gross recorded sales, matching transactions and units sold.'
             : 'Choose one branch to view its gross recorded sales, transaction count, units sold and payment summary.'
         }
+        action={
+          <ReportBranchPicker
+            branches={branches}
+            loading={branches === null && error === null}
+            onChange={navigate}
+            compact
+          />
+        }
       />
       {merchant ? <MerchantReportGuidance /> : null}
-      <ReportBranchPicker
-        branches={branches}
-        loading={branches === null && error === null}
-        onChange={navigate}
-      />
       {selectedBranchId &&
       branches &&
       !error &&

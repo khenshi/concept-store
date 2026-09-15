@@ -28,6 +28,9 @@ vi.mock(
   '@/features/organizations/components/organization-workspace-context',
   () => ({ useOrganizationWorkspaceContext: vi.fn() }),
 );
+vi.mock('./sales-branch-selector', () => ({
+  SalesBranchSelector: () => <div>Sales branch selector</div>,
+}));
 describe('read-only scoped sales workflows', () => {
   const request = vi.fn();
   const refreshOrganization = vi.fn();

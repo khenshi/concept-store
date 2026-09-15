@@ -27,6 +27,7 @@ export function InventoryBranchSelector({
   onAccessDenied,
   preferredBranchId,
   rememberBranch,
+  compact = false,
 }: {
   organizationId: string;
   branchId?: string;
@@ -36,6 +37,7 @@ export function InventoryBranchSelector({
   onAccessDenied?(): void;
   preferredBranchId?: string | null;
   rememberBranch?(branchId: string): void;
+  compact?: boolean;
 }) {
   const { request, user } = useAuth();
   const router = useRouter();
@@ -126,7 +128,7 @@ export function InventoryBranchSelector({
       resumed.current = preferredBranchId;
   });
   return (
-    <div className="my-6 max-w-xl">
+    <div className={compact ? 'w-full min-w-56 max-w-sm' : 'my-6 max-w-xl'}>
       <label htmlFor={id} className="mb-2 block text-sm font-medium">
         Inventory branch
       </label>

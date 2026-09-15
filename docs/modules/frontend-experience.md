@@ -235,6 +235,11 @@ The workspace sidebar remains 15.5rem expanded or 4.5rem collapsed and offers
 organization switching in both modes. Navigation uses neutral selected surfaces,
 borders, visible labels, and a shared internal outline SVG icon set. Existing
 role checks, destination paths, and the skip-to-content link are preserved.
+Visible destinations are grouped into Branch operations (POS, Inventory, Sales
+and Reports) and Organization (Overview, Branches, Merchants, Products and
+Members). Collapsed navigation retains accessible group and destination names.
+Branch-scoped operational selectors occupy the PageHeader action area on wider
+screens and stack below the title block on narrow screens.
 
 The mobile navigation drawer uses a native modal dialog for top-layer display,
 background interaction blocking, and browser focus containment. It focuses Close

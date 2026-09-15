@@ -3,9 +3,9 @@
 **Status:** Approved September 15, 2026. Implementing by reviewable parts; each
 part remains uncommitted until reviewed and approved.
 
-Parts 1 and 2 were reviewed and approved. Part 1 is committed as `18b7737`;
-Part 2 is ready to commit. Part 3 is now in progress and will remain uncommitted
-until review.
+Parts 1 through 3 were reviewed and approved. Parts 1 and 2 are committed as
+`18b7737` and `535f246`; Part 3 is ready to commit. Final verification is in
+progress.
 
 ## Inventory workflow and branch workspace usability
 

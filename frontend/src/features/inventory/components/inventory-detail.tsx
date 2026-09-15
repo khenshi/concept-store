@@ -166,6 +166,7 @@ function ScopedInventoryDetail({
         setLoading(true);
         return true;
       }}
+      compact
     />
   );
   if (loading)
@@ -202,8 +203,8 @@ function ScopedInventoryDetail({
       <PageHeader
         title={inventory.product.name}
         description={`${branch.name} · ${inventory.product.merchant.name} · ${inventory.product.status === 'ACTIVE' ? 'Active' : 'Inactive'} product`}
+        action={branchSelector}
       />
-      {branchSelector}
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel title="Current placement">
         <dl className="grid gap-5 p-6 sm:grid-cols-3">

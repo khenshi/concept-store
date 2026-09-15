@@ -50,13 +50,16 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
             ? 'Choose a branch to view only your merchant’s inventory.'
             : 'Choose a branch to manage its independent prices, stock and movement history.'
         }
-      />
-      <InventoryBranchSelector
-        key={`${organizationId}:${user?.id}:${organization.role}`}
-        organizationId={organizationId}
-        role={organization.role}
-        preferredBranchId={selectedBranchId}
-        rememberBranch={setSelectedBranchId}
+        action={
+          <InventoryBranchSelector
+            key={`${organizationId}:${user?.id}:${organization.role}`}
+            organizationId={organizationId}
+            role={organization.role}
+            preferredBranchId={selectedBranchId}
+            rememberBranch={setSelectedBranchId}
+            compact
+          />
+        }
       />
     </OperationalPage>
   );

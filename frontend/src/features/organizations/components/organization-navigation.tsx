@@ -69,7 +69,7 @@ export function OrganizationNavigation({
       (pathname.startsWith(`${basePath}/branches/`) &&
         pathname.slice(`${basePath}/branches/`.length).split('/')[1] ===
           'sales'));
-  const destinations = [
+  const branchDestinations = [
     {
       key: 'reports',
       label: 'Reports',
@@ -83,6 +83,8 @@ export function OrganizationNavigation({
       visible: showInventory,
     },
     { key: 'pos', label: 'POS', href: `${basePath}/pos`, visible: showPos },
+  ];
+  const organizationDestinations = [
     { key: 'overview', label: 'Overview', href: basePath, visible: true },
     {
       key: 'branches',
@@ -103,12 +105,6 @@ export function OrganizationNavigation({
       visible: showProducts,
     },
     {
-      key: 'sales',
-      label: 'Sales',
-      href: `${basePath}/sales`,
-      visible: showSales,
-    },
-    {
       key: 'members',
       label: 'Members',
       href: `${basePath}/members`,
@@ -116,59 +112,87 @@ export function OrganizationNavigation({
     },
   ];
 
-  return (
-    <nav className="mt-4 grid gap-1" aria-label="Organization">
-      {!collapsed ? (
-        <p className="px-3 pb-2 text-xs font-medium text-muted">Workspace</p>
-      ) : null}
-      {destinations.map((destination) =>
-        destination.visible ? (
-          <Link
-            key={destination.key}
-            className={`flex min-h-11 items-center rounded-control border border-transparent text-sm font-medium text-muted no-underline transition-colors hover:bg-subtle hover:text-ink aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:font-semibold aria-[current=page]:text-ink ${collapsed ? 'justify-center px-2' : 'gap-3 px-3 py-2.5'}`}
-            aria-current={
-              destination.key === 'reports'
-                ? reportsRoute
+  branchDestinations.push({
+    key: 'sales',
+    label: 'Sales',
+    href: `${basePath}/sales`,
+    visible: showSales,
+  });
+  const renderDestination = (
+    destination: (typeof branchDestinations)[number],
+  ) =>
+    destination.visible ? (
+      <Link
+        key={destination.key}
+        className={`flex min-h-11 items-center rounded-control border border-transparent text-sm font-medium text-muted no-underline transition-colors hover:bg-subtle hover:text-ink aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:font-semibold aria-[current=page]:text-ink ${collapsed ? 'justify-center px-2' : 'gap-3 px-3 py-2.5'}`}
+        aria-current={
+          destination.key === 'reports'
+            ? reportsRoute
+              ? 'page'
+              : undefined
+            : destination.key === 'inventory'
+              ? inventoryRoute
+                ? 'page'
+                : undefined
+              : destination.key === 'pos'
+                ? posRoute
                   ? 'page'
                   : undefined
-                : destination.key === 'inventory'
-                  ? inventoryRoute
+                : destination.key === 'sales'
+                  ? ownSalesRoute
                     ? 'page'
                     : undefined
-                  : destination.key === 'pos'
-                    ? posRoute
-                      ? 'page'
-                      : undefined
-                    : destination.key === 'sales'
-                      ? ownSalesRoute
+                  : destination.key === 'branches' &&
+                      (ownSalesRoute ||
+                        posRoute ||
+                        inventoryRoute ||
+                        reportsRoute)
+                    ? undefined
+                    : destination.key === 'overview'
+                      ? pathname === basePath
                         ? 'page'
                         : undefined
-                      : destination.key === 'branches' &&
-                          (ownSalesRoute ||
-                            posRoute ||
-                            inventoryRoute ||
-                            reportsRoute)
-                        ? undefined
-                        : destination.key === 'overview'
-                          ? pathname === basePath
-                            ? 'page'
-                            : undefined
-                          : pathname === destination.href ||
-                              pathname.startsWith(`${destination.href}/`)
-                            ? 'page'
-                            : undefined
-            }
-            href={destination.href}
-            onClick={onNavigate}
-            title={collapsed ? destination.label : undefined}
-          >
-            <Icon name={navigationIcons[destination.key]} />
-            <span className={collapsed ? 'sr-only' : ''}>
-              {destination.label}
-            </span>
-          </Link>
-        ) : null,
-      )}
+                      : pathname === destination.href ||
+                          pathname.startsWith(`${destination.href}/`)
+                        ? 'page'
+                        : undefined
+        }
+        href={destination.href}
+        onClick={onNavigate}
+        title={collapsed ? destination.label : undefined}
+      >
+        <Icon name={navigationIcons[destination.key]} />
+        <span className={collapsed ? 'sr-only' : ''}>{destination.label}</span>
+      </Link>
+    ) : null;
+  return (
+    <nav className="mt-4 grid gap-5" aria-label="Organization workspace">
+      <section aria-labelledby="branch-operations-navigation">
+        <h2
+          id="branch-operations-navigation"
+          className={
+            collapsed ? 'sr-only' : 'px-3 pb-2 text-xs font-medium text-muted'
+          }
+        >
+          Branch operations
+        </h2>
+        <div className="grid gap-1">
+          {branchDestinations.map(renderDestination)}
+        </div>
+      </section>
+      <section aria-labelledby="organization-navigation">
+        <h2
+          id="organization-navigation"
+          className={
+            collapsed ? 'sr-only' : 'px-3 pb-2 text-xs font-medium text-muted'
+          }
+        >
+          Organization
+        </h2>
+        <div className="grid gap-1">
+          {organizationDestinations.map(renderDestination)}
+        </div>
+      </section>
     </nav>
   );
 }

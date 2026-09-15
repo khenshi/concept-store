@@ -18,6 +18,7 @@ import { SaleReceipt } from '@/features/pos/components/sale-receipt';
 import type { MerchantSale } from '../model/sales.schemas';
 import { getSale } from '../api/sales-api';
 import { SalesAccess } from './sales-access';
+import { SalesBranchSelector } from './sales-branch-selector';
 import { RefundHistory } from '@/features/refunds/components/refund-history';
 import { useRefundNavigationGuard } from '@/features/refunds/model/refund-navigation';
 import {
@@ -142,6 +143,14 @@ function ScopedSaleDetail({
             role === 'MERCHANT'
               ? 'Read-only historical items owned by your currently linked merchant business.'
               : 'Immutable completed transaction snapshots. Internal record, not a fiscal/tax invoice.'
+          }
+          action={
+            role === 'MERCHANT' ? (
+              <SalesBranchSelector
+                organizationId={organizationId}
+                branchId={branchId}
+              />
+            ) : undefined
           }
         />
       ) : null}

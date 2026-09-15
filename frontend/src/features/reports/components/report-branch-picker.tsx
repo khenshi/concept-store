@@ -8,15 +8,17 @@ export function ReportBranchPicker({
   branchId = '',
   loading = branches === null,
   onChange,
+  compact = false,
 }: {
   branches: ReportBranch[] | null;
   branchId?: string;
   loading?: boolean;
   onChange(branchId: string): void;
+  compact?: boolean;
 }) {
   const id = useId();
   return (
-    <div className="my-6 max-w-xl">
+    <div className={compact ? 'w-full min-w-56 max-w-sm' : 'my-6 max-w-xl'}>
       <label htmlFor={id} className="mb-2 block text-sm font-medium">
         Reports branch
       </label>

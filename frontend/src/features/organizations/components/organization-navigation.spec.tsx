@@ -5,6 +5,36 @@ import { OrganizationNavigation } from './organization-navigation';
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 
 describe('OrganizationNavigation', () => {
+  it('groups branch operations separately from organization-wide pages', () => {
+    vi.mocked(usePathname).mockReturnValue('/app/organizations/org');
+    render(
+      <OrganizationNavigation
+        organizationId="org"
+        showPos
+        showInventory
+        showReports
+        showProducts
+      />,
+    );
+    const operations = screen
+      .getByRole('heading', { name: 'Branch operations' })
+      .closest('section')!;
+    expect(operations).toContainElement(
+      screen.getByRole('link', { name: 'POS' }),
+    );
+    expect(operations).toContainElement(
+      screen.getByRole('link', { name: 'Inventory' }),
+    );
+    const organization = screen
+      .getByRole('heading', { name: 'Organization' })
+      .closest('section')!;
+    expect(organization).toContainElement(
+      screen.getByRole('link', { name: 'Overview' }),
+    );
+    expect(organization).toContainElement(
+      screen.getByRole('link', { name: 'Products' }),
+    );
+  });
   it.each([
     '/reports',
     '/branches/branch/reports',

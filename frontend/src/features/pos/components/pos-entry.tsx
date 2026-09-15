@@ -51,14 +51,17 @@ export function PosEntry({ organizationId }: { organizationId: string }) {
       <PageHeader
         title="POS"
         description="Choose an authorized branch to start a branch-specific cart."
-      />
-      <PosBranchSelector
-        key={`${organizationId}:${user?.id}:${organization.role}`}
-        organizationId={organizationId}
-        role={organization.role}
-        disabled={Boolean(unresolved)}
-        preferredBranchId={selectedBranchId}
-        rememberBranch={setSelectedBranchId}
+        action={
+          <PosBranchSelector
+            key={`${organizationId}:${user?.id}:${organization.role}`}
+            organizationId={organizationId}
+            role={organization.role}
+            disabled={Boolean(unresolved)}
+            preferredBranchId={selectedBranchId}
+            rememberBranch={setSelectedBranchId}
+            compact
+          />
+        }
       />
       {unresolved ? (
         <p role="alert">

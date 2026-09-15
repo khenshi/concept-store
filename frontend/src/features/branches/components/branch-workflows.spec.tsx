@@ -407,6 +407,16 @@ describe('BranchDetail', () => {
       'href',
       '/app/organizations/org/branches/branch-id/inventory',
     );
+    const actionGrid = screen
+      .getByRole('link', { name: 'Manage inventory' })
+      .closest('.grid');
+    expect(actionGrid).toHaveClass('xl:grid-cols-3');
+    expect(actionGrid).toContainElement(
+      screen.getByRole('link', { name: 'Open POS cart' }),
+    );
+    expect(actionGrid).toContainElement(
+      screen.getByRole('link', { name: 'View sales history' }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Edit branch' }));
     const form = screen.getByRole('form', { name: 'Edit branch' });
     fireEvent.change(within(form).getByLabelText('Branch name'), {

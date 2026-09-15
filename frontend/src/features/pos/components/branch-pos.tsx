@@ -670,15 +670,20 @@ function ScopedBranchPos({
       <PageHeader
         title="POS"
         description="Build a branch-specific cart, review payment and complete one sale. Prices and stock are estimates until server checkout."
-      />
-      <PosBranchSelector
-        key={String(cartActive)}
-        organizationId={organizationId}
-        branchId={branchId}
-        role={role}
-        disabled={paying || recovering || !branchReady || Boolean(branchError)}
-        onAccessDenied={denyAccess}
-        rememberBranch={setSelectedBranchId}
+        action={
+          <PosBranchSelector
+            key={String(cartActive)}
+            organizationId={organizationId}
+            branchId={branchId}
+            role={role}
+            disabled={
+              paying || recovering || !branchReady || Boolean(branchError)
+            }
+            onAccessDenied={denyAccess}
+            rememberBranch={setSelectedBranchId}
+            compact
+          />
+        }
       />
       <nav
         aria-label="POS pages"

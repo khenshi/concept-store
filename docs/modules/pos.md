@@ -64,6 +64,8 @@ Sales History are route-backed navigation tabs under one persistent POS layout,
 header and branch dropdown. History uses `.../pos/sales`; saved receipt detail uses
 `.../pos/sales/:saleId` with History active. Old staff sales list/detail links redirect
 into this workspace, while merchant own-sales routes remain unchanged.
+The dropdown is rendered in the page-header action area, horizontally opposite
+the title on wider screens and stacked by the shared header on narrow screens.
 
 Branch changes confirm
 discarding nonempty carts, invalidate obsolete code lookups and clear payment

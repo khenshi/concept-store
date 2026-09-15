@@ -227,6 +227,11 @@ own items, snapshot branch identity, receipt code/time and `Own items subtotal`.
 They have no full receipt, print, POS or payment controls. The reduced runtime
 schemas reject unexpected sale/item fields, including cashier/payment/whole-total
 data, rather than falling back to staff contracts after a stale role change.
+Merchant branch sales and sale-detail headers expose a Sales branch dropdown
+using only that identity-only historical own-selling branch lookup. A selection
+navigates to the chosen branch's own-sales list and updates shared branch memory
+only after existing checkout/refund navigation guards allow it. Staff sales remain
+inside POS and therefore use the POS header selector.
 
 Lists default to 50 per page, with previous/next bounded pagination and optional
 strict UTC From-inclusive/Until-exclusive filters. Applying/clearing filters resets

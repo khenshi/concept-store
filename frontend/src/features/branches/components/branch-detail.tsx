@@ -198,63 +198,65 @@ function ScopedBranchDetail({
           ) : null}
         </dl>
       </OperationalPanel>
-      {canManage || organization.role === 'MERCHANT' ? (
+      <div className="grid min-w-0 gap-x-5 xl:grid-cols-3">
+        {canManage || organization.role === 'MERCHANT' ? (
+          <OperationalPanel
+            title="Branch inventory"
+            description={
+              canManage
+                ? 'Maintain this branch’s independent product prices, stock, and movement history.'
+                : 'Read only your merchant’s placements, prices, quantities, and movement history.'
+            }
+          >
+            <div className="p-6">
+              <Link
+                className={buttonStyles({ variant: 'secondary' })}
+                href={`/app/organizations/${organizationId}/branches/${branchId}/inventory`}
+              >
+                {canManage ? 'Manage inventory' : 'View own inventory'}
+              </Link>
+            </div>
+          </OperationalPanel>
+        ) : null}
+        {organization.role !== 'MERCHANT' ? (
+          <OperationalPanel
+            title="Point of sale"
+            description="Build a branch cart using SKU/barcode input or product search, then record cash or manual GCash/card payment."
+          >
+            <div className="p-6">
+              <Link
+                className={buttonStyles({ variant: 'primary' })}
+                href={`/app/organizations/${organizationId}/branches/${branchId}/pos`}
+              >
+                Open POS cart
+              </Link>
+            </div>
+          </OperationalPanel>
+        ) : null}
         <OperationalPanel
-          title="Branch inventory"
+          title={
+            organization.role === 'MERCHANT' ? 'Your sales' : 'Sales history'
+          }
           description={
-            canManage
-              ? 'Maintain this branch’s independent product prices, stock, and movement history.'
-              : 'Read only your merchant’s placements, prices, quantities, and movement history.'
+            organization.role === 'MERCHANT'
+              ? 'Read only sales involving your linked business in this branch.'
+              : organization.role === 'CASHIER'
+                ? 'Review your own completed sales and internal receipts in this assigned branch.'
+                : 'Review completed branch sales and internal receipts.'
           }
         >
           <div className="p-6">
             <Link
               className={buttonStyles({ variant: 'secondary' })}
-              href={`/app/organizations/${organizationId}/branches/${branchId}/inventory`}
+              href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}
             >
-              {canManage ? 'Manage inventory' : 'View own inventory'}
+              {organization.role === 'MERCHANT'
+                ? 'View own sales'
+                : 'View sales history'}
             </Link>
           </div>
         </OperationalPanel>
-      ) : null}
-      {organization.role !== 'MERCHANT' ? (
-        <OperationalPanel
-          title="Point of sale"
-          description="Build a branch cart using SKU/barcode input or product search, then record cash or manual GCash/card payment."
-        >
-          <div className="p-6">
-            <Link
-              className={buttonStyles({ variant: 'primary' })}
-              href={`/app/organizations/${organizationId}/branches/${branchId}/pos`}
-            >
-              Open POS cart
-            </Link>
-          </div>
-        </OperationalPanel>
-      ) : null}
-      <OperationalPanel
-        title={
-          organization.role === 'MERCHANT' ? 'Your sales' : 'Sales history'
-        }
-        description={
-          organization.role === 'MERCHANT'
-            ? 'Read only sales involving your linked business in this branch.'
-            : organization.role === 'CASHIER'
-              ? 'Review your own completed sales and internal receipts in this assigned branch.'
-              : 'Review completed branch sales and internal receipts.'
-        }
-      >
-        <div className="p-6">
-          <Link
-            className={buttonStyles({ variant: 'secondary' })}
-            href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}
-          >
-            {organization.role === 'MERCHANT'
-              ? 'View own sales'
-              : 'View sales history'}
-          </Link>
-        </div>
-      </OperationalPanel>
+      </div>
       {editing && canManage && 'addressLine1' in branch ? (
         <BranchForm
           branch={branch}

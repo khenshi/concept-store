@@ -150,30 +150,34 @@ function ScopedBranchReports({
             ? 'Gross recorded sales of your own items only, not whole-branch sales. Transactions count distinct sales containing your items.'
             : 'Recorded sales and refunds for one branch, with daily trends and top products. Net recorded sales is not profit or merchant payouts.'
         }
+        action={
+          <ReportBranchPicker
+            branches={branches}
+            loading={loading}
+            branchId={branchId}
+            onChange={(next) => {
+              const checkout =
+                user &&
+                getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
+              const refund =
+                user &&
+                getRefundAttempt(refundAttemptKey(organizationId, user.id));
+              if (
+                (checkout && checkout.state !== 'completed') ||
+                (refund && refund.state !== 'completed')
+              )
+                return;
+              const href = `/app/organizations/${organizationId}/branches/${next}/reports`;
+              if (!allowPosNavigation(href)) return;
+              setSelectedBranchId(next);
+              invalidate();
+              router.push(href);
+            }}
+            compact
+          />
+        }
       />
       {merchant ? <MerchantReportGuidance /> : null}
-      <ReportBranchPicker
-        branches={branches}
-        loading={loading}
-        branchId={branchId}
-        onChange={(next) => {
-          const checkout =
-            user &&
-            getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
-          const refund =
-            user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
-          if (
-            (checkout && checkout.state !== 'completed') ||
-            (refund && refund.state !== 'completed')
-          )
-            return;
-          const href = `/app/organizations/${organizationId}/branches/${next}/reports`;
-          if (!allowPosNavigation(href)) return;
-          setSelectedBranchId(next);
-          invalidate();
-          router.push(href);
-        }}
-      />
       <OperationalPanel
         title="Report period"
         description="Philippines calendar dates (Asia/Manila, UTC+08:00). From and Through are inclusive."

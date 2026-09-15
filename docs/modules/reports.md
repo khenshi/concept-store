@@ -258,7 +258,9 @@ only after pending/unknown checkout/refund and programmatic navigation guards pe
 the transition. Organization/user/role changes clear selection; same-role access
 refresh revalidates it. Reports historical merchant choices never grant Inventory
 or POS access. Only branch identity is remembered in memory; applied date reset
-rules and report contracts are unchanged. Frontend checks pass with 702 tests
+rules and report contracts are unchanged. The Reports branch dropdown is in the
+page-header action area on both the entry and scoped dashboard, retaining its
+explicit label and existing access checks. Frontend checks pass with 702 tests
 across 83 files; new rendered navigation/dropdown/focus QA remains pending final
 delivery, independently of earlier Reports/refund QA waivers.
 

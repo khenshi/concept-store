@@ -159,36 +159,39 @@ function ScopedInventoryDirectory({
             ? 'Maintain this branch’s independent PHP prices and whole-unit stock.'
             : 'Read your merchant’s placements only. Prices, quantities, and history are specific to this branch.'
         }
-      />
-      <InventoryBranchSelector
-        organizationId={organizationId}
-        branchId={branchId}
-        role={organization!.role}
-        disabled={pending}
-        onAccessDenied={accessLost}
-        rememberBranch={setSelectedBranchId}
-        beforeChange={() => {
-          if (
-            pending ||
-            (dirty.current &&
-              !window.confirm(
-                'Discard this unsaved inventory form and change branches?',
-              ))
-          )
-            return false;
-          dirty.current = false;
-          setCreating(false);
-          setStockAction(null);
-          readGeneration.current++;
-          setItems([]);
-          setBranch(null);
-          setSearch('');
-          setMerchantId('');
-          setStatus('');
-          setSuccess(null);
-          setLoading(true);
-          return true;
-        }}
+        action={
+          <InventoryBranchSelector
+            organizationId={organizationId}
+            branchId={branchId}
+            role={organization!.role}
+            disabled={pending}
+            onAccessDenied={accessLost}
+            rememberBranch={setSelectedBranchId}
+            beforeChange={() => {
+              if (
+                pending ||
+                (dirty.current &&
+                  !window.confirm(
+                    'Discard this unsaved inventory form and change branches?',
+                  ))
+              )
+                return false;
+              dirty.current = false;
+              setCreating(false);
+              setStockAction(null);
+              readGeneration.current++;
+              setItems([]);
+              setBranch(null);
+              setSearch('');
+              setMerchantId('');
+              setStatus('');
+              setSuccess(null);
+              setLoading(true);
+              return true;
+            }}
+            compact
+          />
+        }
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel

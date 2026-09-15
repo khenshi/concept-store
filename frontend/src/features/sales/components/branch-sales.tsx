@@ -19,6 +19,7 @@ import type { PosScope } from '@/features/pos/model/pos.types';
 import { salesQuerySchema, type SalesQuery } from '../model/sales.schemas';
 import { listSales } from '../api/sales-api';
 import { SalesAccess } from './sales-access';
+import { SalesBranchSelector } from './sales-branch-selector';
 
 export function BranchSales(
   props: PosScope & { embedded?: boolean; active?: boolean },
@@ -122,6 +123,14 @@ function ScopedBranchSales({
                 : role === 'CASHIER'
                   ? 'Your completed sales in this assigned branch.'
                   : 'Completed sales in this permitted branch.'
+            }
+            action={
+              merchant ? (
+                <SalesBranchSelector
+                  organizationId={organizationId}
+                  branchId={branchId}
+                />
+              ) : undefined
             }
           />
         </>
