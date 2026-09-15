@@ -250,6 +250,12 @@ their normal workflow semantics.
 
 ## Verification status
 
+The inventory workflow and branch workspace usability milestone passes frontend
+formatting, lint, type checking, all 751 tests across 88 files and production
+build. No backend/database behavior changed. The user explicitly waived rendered
+responsive layout, modal/menu, searchable-picker keyboard/focus and 200% zoom QA
+on September 15, 2026; those behaviors are not certified by automated tests.
+
 Frontend unit/component tests, type checking, linting, formatting of changed
 sources, production compilation, and a legacy-style source scan are checked after
 each part. This does not certify rendered accessibility or responsive layout.

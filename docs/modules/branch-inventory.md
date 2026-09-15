@@ -2,6 +2,11 @@
 
 **Status:** Implemented; original inventory and current navigation/opening-stock rendered QA explicitly waived.
 
+The later inventory workflow usability refinement passes the complete frontend
+suite (751 tests across 88 files), lint, type checking, formatting and production
+build. Its rendered responsive, modal, searchable-picker keyboard/focus and 200%
+zoom QA was explicitly waived September 15, 2026 and was not performed.
+
 The [manual refund API](refunds.md) atomically creates constrained positive RETURN
 movements when staff restock original sold placements. Existing receipt/adjustment
 commands do not create returns. Response selections omit private sale/refund links
