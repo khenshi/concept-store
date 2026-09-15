@@ -362,7 +362,9 @@ focus, date/branch controls, 200% zoom and non-color chart identification on
 September 15, 2026. Those checks were not performed; automated tests do not certify
 rendered layout or accessibility. This new waiver covers the redesigned staff and
 merchant analytics screens and is not inherited from historical Reports waivers.
-Part 4 is complete and uncommitted pending final review.
+Part 4 was reviewed and committed. The completed
+[Reports dashboard redesign and sales analytics plan](../plans/archive/reports-dashboard-redesign-and-sales-analytics-2026-09-15.md)
+is archived.
 
 ## Verification and delivery
 
