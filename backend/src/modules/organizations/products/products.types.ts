@@ -22,6 +22,7 @@ export interface ProductInventoryRecord {
   productId: string;
   sellingPrice: string;
   quantity: number;
+  lowStockThreshold: number;
   createdAt: Date;
   updatedAt: Date;
   branch: { id: string; name: string; code: string | null };

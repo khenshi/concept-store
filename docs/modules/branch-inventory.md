@@ -17,8 +17,9 @@ are not exposed through stock history; RETURN uses Returned goods restocked.
 ## Responsibilities
 
 Maintain one quantity-tracked placement per product/branch, a branch-specific PHP
-selling price, and immutable receiving/adjustment history. Different placements
-of the same product have independent prices and balances. No transfer,
+selling price, a per-placement low-stock threshold, and immutable receiving/
+adjustment history. Different placements of the same product have independent
+prices, thresholds and balances. No transfer,
 reservation, purchasing, or deletion workflow is provided. The separate
 [sales checkout API](sales.md) atomically creates SALE deductions in this history;
 existing receipt/adjustment endpoints and role permissions remain unchanged.
@@ -49,20 +50,25 @@ whitelisting reject malformed IDs and unexpected fields.
 
 ## Placements and prices
 
-- Placement creation accepts product ID and price, starts at zero stock, and
-  creates no opening movement. Duplicate product/branch placement returns `409`.
+- Placement creation accepts product ID, price and an optional nonnegative whole-
+  unit `lowStockThreshold`. It defaults to `5`, starts at zero stock, and creates
+  no opening movement. Setting the threshold to `0` is retained for the later
+  low-warning opt-out behavior. Duplicate product/branch placement returns `409`.
 - New placements require an active product and active merchant.
 - Price requests use positive decimal strings with at most 10 integer and two
   fractional digits. Numeric JSON values, scientific notation, and zero are
   rejected. Prisma Decimal stores prices; responses have exactly two decimals.
 - Price edits change only price, not quantity. Existing inactive product/merchant
   records remain editable and readable.
-- Inventory responses include product identity and merchant name/status.
+- Inventory and product-placement responses include the bounded integer threshold
+  alongside product identity and merchant name/status. Threshold status/filtering
+  and mutation are not yet exposed in the current delivery part.
 - Search matches product name/SKU case-insensitively and barcode case-sensitively.
   Merchant/product-status filters are optional. Lists order by product name then
   inventory ID and are not paginated.
 - Composite foreign keys prevent cross-tenant product/branch placements and
-  cross-branch movement references. Database checks protect prices and quantities.
+  cross-branch movement references. Database checks protect prices, quantities
+  and nonnegative thresholds. The migration backfills existing placements to `5`.
 
 ## Stock commands and history
 

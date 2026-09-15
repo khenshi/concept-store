@@ -191,6 +191,7 @@ export class ProductsService {
         branchId: opening.branchId.toLowerCase(),
         sellingPrice: new Prisma.Decimal(opening.sellingPrice).toFixed(2),
         quantity: opening.quantity,
+        lowStockThreshold: opening.lowStockThreshold ?? 5,
       },
     };
     const authorize = async (tx: Prisma.TransactionClient) => {
@@ -272,6 +273,7 @@ export class ProductsService {
                 command.initialInventory.sellingPrice,
               ),
               quantity: command.initialInventory.quantity,
+              lowStockThreshold: command.initialInventory.lowStockThreshold,
             },
             select: { id: true },
           });

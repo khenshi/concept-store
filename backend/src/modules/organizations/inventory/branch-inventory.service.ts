@@ -51,6 +51,7 @@ export class BranchInventoryService {
           branchId,
           productId: dto.productId,
           sellingPrice: new Prisma.Decimal(dto.sellingPrice),
+          lowStockThreshold: dto.lowStockThreshold ?? 5,
         },
         include: { product: { select: inventoryProductSelect } },
       });

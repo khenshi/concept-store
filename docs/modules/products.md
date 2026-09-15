@@ -53,10 +53,11 @@ it does not grant access to these product-management routes.
 ## Optional opening stock API
 
 Product creation optionally accepts `initialInventory: { branchId, sellingPrice,
-quantity }` together with a UUID v4 `requestId`. Both must be supplied together;
+quantity, lowStockThreshold? }` together with a UUID v4 `requestId`. Both must be supplied together;
 null, malformed and unknown nested fields are rejected. `branchId` is an explicitly
 selected same-organization branch. Price is positive PHP decimal text with up to
 ten integer and two fractional digits; quantity is a whole number `1..2147483647`.
+The threshold is an optional integer `0..2147483647` and defaults to `5`.
 Requests omitting both preserve product-only creation without any stock record.
 The owner new-product form exposes this option, off by default. Product editing
 does not offer opening stock.
@@ -68,6 +69,9 @@ balance and one RECEIPT movement commit together or roll back together. The serv
 sets the reason to `Initial stock on product creation` and attributes the receipt
 to the authenticated owner. Other branches are untouched. The existing placement
 endpoint still creates zero-stock placements and does not accept opening stock.
+That endpoint now accepts the same optional threshold independently of opening
+stock. Omitting or explicitly supplying `5` produces the same canonical opening-
+stock retry command; an explicit `0` is preserved.
 
 Product stores nullable private `creationRequestId`, `creationActorId` and canonical
 `creationCommand` metadata, protected by a complete-group check, actor foreign key

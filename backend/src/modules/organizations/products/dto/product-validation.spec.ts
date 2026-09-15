@@ -27,6 +27,7 @@ describe('Product request validation', () => {
             ...initialInventory,
             sellingPrice: ' 9999999999.99 ',
             quantity: 2147483647,
+            lowStockThreshold: 0,
           },
         },
         { type: 'body', metatype: CreateProductDto },
@@ -37,7 +38,27 @@ describe('Product request validation', () => {
         ...initialInventory,
         sellingPrice: '9999999999.99',
         quantity: 2147483647,
+        lowStockThreshold: 0,
       },
+    });
+  });
+
+  it('accepts an omitted threshold and the maximum explicit threshold', async () => {
+    await expect(
+      pipe.transform(
+        {
+          merchantId,
+          name: 'Vase',
+          requestId: merchantId,
+          initialInventory: {
+            ...initialInventory,
+            lowStockThreshold: 2147483647,
+          },
+        },
+        { type: 'body', metatype: CreateProductDto },
+      ),
+    ).resolves.toMatchObject({
+      initialInventory: { lowStockThreshold: 2147483647 },
     });
   });
 
@@ -50,6 +71,10 @@ describe('Product request validation', () => {
     ...[0, -1, 1.5, '1', 2147483648, null].map((quantity) => ({
       requestId: merchantId,
       initialInventory: { ...initialInventory, quantity },
+    })),
+    ...[-1, 1.5, '5', 2147483648, null].map((lowStockThreshold) => ({
+      requestId: merchantId,
+      initialInventory: { ...initialInventory, lowStockThreshold },
     })),
     ...['0', '-1', '1.001', '10000000000', 1, null].map((sellingPrice) => ({
       requestId: merchantId,

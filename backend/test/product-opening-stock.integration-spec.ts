@@ -45,6 +45,41 @@ const counts = async () =>
   ]);
 
 describe('PostgreSQL atomic product opening stock', () => {
+  it('persists an explicit zero threshold without changing opening stock atomicity', async () => {
+    const created = await products.create(
+      organizationId,
+      {
+        ...command(),
+        name: 'Zero threshold product',
+        initialInventory: {
+          branchId,
+          sellingPrice: '8.50',
+          quantity: 2,
+          lowStockThreshold: 0,
+        },
+      },
+      actorId,
+    );
+    await expect(
+      prisma.branchInventory.findUniqueOrThrow({
+        where: {
+          organizationId_branchId_productId: {
+            organizationId,
+            branchId,
+            productId: created.id,
+          },
+        },
+      }),
+    ).resolves.toMatchObject({ quantity: 2, lowStockThreshold: 0 });
+    await expect(
+      prisma.inventoryMovement.count({
+        where: {
+          organizationId,
+          inventory: { productId: created.id },
+        },
+      }),
+    ).resolves.toBe(1);
+  });
   it('exposes opening stock through existing inventory, product-placement and POS reads only in the selected branch', async () => {
     const inventory = new BranchInventoryService(
       prisma as unknown as PrismaService,
@@ -64,6 +99,7 @@ describe('PostgreSQL atomic product opening stock', () => {
         productId: created.id,
         quantity: 3,
         sellingPrice: '12.50',
+        lowStockThreshold: 5,
       }),
     ]);
     expect(
@@ -73,6 +109,7 @@ describe('PostgreSQL atomic product opening stock', () => {
         productId: created.id,
         quantity: 3,
         sellingPrice: '12.50',
+        lowStockThreshold: 5,
       }),
     ]);
     expect(await catalog.findAll(context, branchId)).toEqual([

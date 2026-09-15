@@ -185,6 +185,14 @@ export class ProductInventoryResponseDto {
   sellingPrice!: string;
   @ApiProperty({ minimum: 0, maximum: 2147483647, type: 'integer' })
   quantity!: number;
+  @ApiProperty({
+    type: 'integer',
+    minimum: 0,
+    maximum: 2147483647,
+    description:
+      'Per-branch low-stock threshold; zero disables low-stock warnings',
+  })
+  lowStockThreshold!: number;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
   @ApiProperty({ type: InventoryBranchResponseDto })
@@ -328,6 +336,14 @@ export class BranchInventoryResponseDto {
   sellingPrice!: string;
   @ApiProperty({ type: 'integer', minimum: 0, maximum: 2147483647 })
   quantity!: number;
+  @ApiProperty({
+    type: 'integer',
+    minimum: 0,
+    maximum: 2147483647,
+    description:
+      'Per-branch low-stock threshold; zero disables low-stock warnings',
+  })
+  lowStockThreshold!: number;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
   @ApiProperty({ type: InventoryProductResponseDto })

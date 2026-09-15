@@ -30,14 +30,17 @@ describe('BranchInventoryService', () => {
     prisma.branchInventory.create.mockResolvedValue({
       sellingPrice: new Prisma.Decimal('12.50'),
       quantity: 0,
+      lowStockThreshold: 5,
     });
     prisma.branchInventory.findUnique.mockResolvedValue({
       sellingPrice: new Prisma.Decimal('12.50'),
       quantity: 5,
+      lowStockThreshold: 5,
     });
     prisma.branchInventory.update.mockResolvedValue({
       sellingPrice: new Prisma.Decimal('13.75'),
       quantity: 5,
+      lowStockThreshold: 5,
     });
   });
 
@@ -55,6 +58,26 @@ describe('BranchInventoryService', () => {
           branchId: 'branch',
           productId: 'product',
           sellingPrice: new Prisma.Decimal('12.50'),
+          lowStockThreshold: 5,
+        },
+      }),
+    );
+  });
+
+  it('stores an explicit per-branch threshold including zero', async () => {
+    await service.create('org', 'branch', {
+      productId: 'product',
+      sellingPrice: '12.50',
+      lowStockThreshold: 0,
+    });
+    expect(prisma.branchInventory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          organizationId: 'org',
+          branchId: 'branch',
+          productId: 'product',
+          sellingPrice: new Prisma.Decimal('12.50'),
+          lowStockThreshold: 0,
         },
       }),
     );

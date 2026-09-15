@@ -524,6 +524,23 @@ describe('Products and inventory HTTP boundaries', () => {
     );
   });
 
+  it('passes a validated placement threshold without tenant fields', async () => {
+    await http()
+      .post(inventoryPath)
+      .auth(token(), { type: 'bearer' })
+      .send({
+        productId: item,
+        sellingPrice: '12.50',
+        lowStockThreshold: 0,
+      })
+      .expect(201);
+    expect(inventory.create).toHaveBeenCalledWith(org, branch, {
+      productId: item,
+      sellingPrice: '12.50',
+      lowStockThreshold: 0,
+    });
+  });
+
   it('passes validated opening stock and the authenticated owner to product creation', async () => {
     await http()
       .post(productsPath)
@@ -536,6 +553,7 @@ describe('Products and inventory HTTP boundaries', () => {
           branchId: branch.toUpperCase(),
           sellingPrice: ' 12.50 ',
           quantity: 3,
+          lowStockThreshold: 0,
         },
       })
       .expect(201);
@@ -548,6 +566,7 @@ describe('Products and inventory HTTP boundaries', () => {
           branchId: branch,
           sellingPrice: '12.50',
           quantity: 3,
+          lowStockThreshold: 0,
         },
       }),
       actor,

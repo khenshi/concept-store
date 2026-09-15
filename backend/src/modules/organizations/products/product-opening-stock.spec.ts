@@ -38,6 +38,7 @@ describe('Product opening stock transactions', () => {
       branchId: 'branch',
       sellingPrice: '12.50',
       quantity: 3,
+      lowStockThreshold: 5,
     },
   };
   const error = (code: string) =>
@@ -104,6 +105,7 @@ describe('Product opening stock transactions', () => {
         productId: 'product',
         sellingPrice: new Prisma.Decimal('12.50'),
         quantity: 3,
+        lowStockThreshold: 5,
       },
     });
     expect(tx.inventoryMovement.create).toHaveBeenCalledWith({
@@ -128,6 +130,7 @@ describe('Product opening stock transactions', () => {
       creationCommand: {
         initialInventory: {
           quantity: 3,
+          lowStockThreshold: 5,
           sellingPrice: '12.50',
           branchId: 'branch',
         },

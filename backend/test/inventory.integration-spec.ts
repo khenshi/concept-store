@@ -583,7 +583,11 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     expect((await balance()).sellingPrice.toFixed(2)).toBe('0.01');
     expect(
       await inventory.findOne(organizationId, otherBranchId, second.id),
-    ).toMatchObject({ quantity: 0, sellingPrice: '9999999999.99' });
+    ).toMatchObject({
+      quantity: 0,
+      sellingPrice: '9999999999.99',
+      lowStockThreshold: 5,
+    });
   });
 
   it('manages branch grants, role clearing, merchant links and removal with real membership locks', async () => {
@@ -933,6 +937,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
 
   it.each([
     { quantity: -1 },
+    { lowStockThreshold: -1 },
     { sellingPrice: '0' },
     { sellingPrice: '-1' },
     { sellingPrice: 'NaN' },

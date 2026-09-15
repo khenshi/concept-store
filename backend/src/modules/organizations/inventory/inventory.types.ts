@@ -21,6 +21,7 @@ export interface BranchInventoryRecord {
   productId: string;
   sellingPrice: string;
   quantity: number;
+  lowStockThreshold: number;
   createdAt: Date;
   updatedAt: Date;
   product: {
