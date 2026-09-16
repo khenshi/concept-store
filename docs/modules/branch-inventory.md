@@ -99,6 +99,15 @@ does not modify stock or movements, and exposes no actor, sale or refund links.
 Cashiers and merchants cannot call it. It is an advisory diagnostic, not a
 stock-repair command.
 
+The Inventory directory offers an on-demand Stock integrity panel to owners
+and managers after branch access is verified. It makes no diagnostic request
+until the user starts a check, then shows loading, no-mismatch, mismatch, and
+retryable error states. Results link to existing placement details and can be
+loaded in bounded pages. A rerun clears previous results; branch, user, role,
+access, and successful stock-write changes clear them as well. Merchant and
+cashier views neither show this panel nor request its data. No correction
+control is available from a mismatch.
+
 - Receipt requires a positive integer quantity, trimmed 2–500 character reason,
   and UUID request ID. Product and merchant must be active for a new receipt.
 - Adjustment requires a nonzero signed integer delta, reason, and request ID.

@@ -7,6 +7,7 @@ import {
   movementResponseSchema,
   merchantMovementSchema,
   inventoryHealthSummarySchema,
+  inventoryReconciliationPageSchema,
 } from '../model/inventory.schemas';
 import type {
   InventoryScope,
@@ -36,6 +37,17 @@ export async function getInventoryHealthSummary(
 ) {
   return inventoryHealthSummarySchema.parse(
     await request<unknown>(`${path(scope)}/summary`),
+  );
+}
+export async function getInventoryReconciliation(
+  request: AuthenticatedRequest,
+  scope: InventoryScope,
+  cursor?: string,
+) {
+  const query = new URLSearchParams({ limit: '25' });
+  if (cursor) query.set('cursor', cursor);
+  return inventoryReconciliationPageSchema.parse(
+    await request<unknown>(`${path(scope)}/reconciliation?${query}`),
   );
 }
 export async function listInventory(

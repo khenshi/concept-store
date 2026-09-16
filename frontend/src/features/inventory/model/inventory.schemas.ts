@@ -99,6 +99,20 @@ export const inventoryHealthSummarySchema = z.object({
   lowStock: z.number().int().min(0),
   outOfStock: z.number().int().min(0),
 });
+export const inventoryReconciliationPageSchema = z.object({
+  items: z.array(
+    z.object({
+      inventoryId: z.uuidv4(),
+      productId: z.uuidv4(),
+      productName: z.string(),
+      sku: z.string().nullable(),
+      recordedQuantity: z.number().int().min(0).max(2147483647),
+      ledgerQuantity: z.string().regex(/^-?\d+$/),
+      difference: z.string().regex(/^-?\d+$/),
+    }),
+  ),
+  nextCursor: z.uuidv4().nullable(),
+});
 const movementObjectSchema = z.object({
   id: z.uuidv4(),
   organizationId: z.uuidv4(),

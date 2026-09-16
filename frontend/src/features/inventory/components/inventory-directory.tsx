@@ -33,6 +33,7 @@ import { InventoryPlacementForm } from './inventory-placement-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
 import { InventoryStockForm } from './inventory-stock-form';
 import { InventoryStockStatusBadge } from './inventory-stock-status';
+import { InventoryReconciliation } from './inventory-reconciliation';
 
 export function InventoryDirectory(
   props: InventoryScope & { initialStockStatus?: InventoryStockStatus },
@@ -385,6 +386,13 @@ function ScopedInventoryDirectory({
           </ul>
         )}
       </OperationalPanel>
+      {canWrite && branch && !loading && !error ? (
+        <InventoryReconciliation
+          key={`${organizationId}:${branchId}:${revision}`}
+          organizationId={organizationId}
+          branchId={branchId}
+        />
+      ) : null}
       {creating && canWrite ? (
         <div
           onChangeCapture={() => {

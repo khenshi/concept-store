@@ -5,6 +5,7 @@ import type {
   inventoryBranchSchema,
   merchantMovementSchema,
   inventoryHealthSummarySchema,
+  inventoryReconciliationPageSchema,
 } from './inventory.schemas';
 
 export type BranchInventory = z.infer<typeof inventoryResponseSchema>;
@@ -14,6 +15,9 @@ export type InventoryMovementView =
 export type InventoryBranch = z.infer<typeof inventoryBranchSchema>;
 export type InventoryHealthSummary = z.infer<
   typeof inventoryHealthSummarySchema
+>;
+export type InventoryReconciliationPage = z.infer<
+  typeof inventoryReconciliationPageSchema
 >;
 export type InventoryStockStatus = BranchInventory['stockStatus'];
 export interface InventoryFilters {

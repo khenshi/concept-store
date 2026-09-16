@@ -9,7 +9,11 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
 import { merchant } from '@/features/products/model/product.test-fixtures';
-import { getInventoryBranch, listInventory } from '../api/inventory-api';
+import {
+  getInventoryBranch,
+  getInventoryReconciliation,
+  listInventory,
+} from '../api/inventory-api';
 import { branch, inventory, scope } from '../model/inventory.test-fixtures';
 import { InventoryDirectory } from './inventory-directory';
 import { listBranches } from '@/features/branches/api/branch-api';
@@ -29,6 +33,7 @@ vi.mock('@/features/merchants/api/merchant-api', () => ({
 vi.mock('../api/inventory-api', () => ({
   getInventoryBranch: vi.fn(),
   listInventory: vi.fn(),
+  getInventoryReconciliation: vi.fn(),
 }));
 vi.mock('./inventory-placement-form', () => ({
   InventoryPlacementForm: ({ onSaved }: { onSaved(): void }) => (
@@ -106,6 +111,67 @@ describe('InventoryDirectory workflows', () => {
       'href',
       `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/inventory/${scope.inventoryId}`,
     );
+  });
+  it.each(['OWNER', 'MANAGER'])(
+    'offers on-demand stock integrity only to %s staff',
+    async (role) => {
+      vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+        organization: { role },
+        organizationStatus: 'ready',
+      } as never);
+      vi.mocked(getInventoryReconciliation).mockResolvedValue({
+        items: [],
+        nextCursor: null,
+      });
+      render(<InventoryDirectory {...scope} />);
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Check stock integrity' }),
+      );
+      expect(
+        await screen.findByText(/No stock\/ledger mismatch was found/),
+      ).toBeInTheDocument();
+      expect(getInventoryReconciliation).toHaveBeenCalledWith(
+        request,
+        {
+          organizationId: scope.organizationId,
+          branchId: scope.branchId,
+        },
+        undefined,
+      );
+    },
+  );
+  it('removes diagnostic results after a role change', async () => {
+    vi.mocked(getInventoryReconciliation).mockResolvedValue({
+      items: [
+        {
+          inventoryId: scope.inventoryId,
+          productId: inventory.productId,
+          productName: inventory.product.name,
+          sku: inventory.product.sku,
+          recordedQuantity: 10,
+          ledgerQuantity: '9',
+          difference: '1',
+        },
+      ],
+      nextCursor: null,
+    });
+    const { rerender } = render(<InventoryDirectory {...scope} />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Check stock integrity' }),
+    );
+    await screen.findByRole('list', { name: 'Stock integrity mismatches' });
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    rerender(<InventoryDirectory {...scope} />);
+    expect(
+      screen.queryByRole('list', { name: 'Stock integrity mismatches' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Run check again' }),
+    ).not.toBeInTheDocument();
+    expect(getInventoryReconciliation).toHaveBeenCalledTimes(1);
   });
   it('sends branch-scoped search and merchant/product lifecycle filters', async () => {
     render(<InventoryDirectory {...scope} />);
@@ -226,6 +292,10 @@ describe('InventoryDirectory workflows', () => {
       screen.queryByRole('button', { name: 'Correct stock' }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/matching own placements/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Check stock integrity' }),
+    ).not.toBeInTheDocument();
+    expect(getInventoryReconciliation).not.toHaveBeenCalled();
   });
   it('explains an assigned merchant branch with no own inventory', async () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({

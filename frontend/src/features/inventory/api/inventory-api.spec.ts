@@ -4,6 +4,7 @@ import {
   getInventory,
   getInventoryBranch,
   getInventoryHealthSummary,
+  getInventoryReconciliation,
   listInventory,
   listMovements,
   receiveStock,
@@ -49,6 +50,32 @@ describe('Branch inventory API contracts', () => {
       summary,
     );
     expect(request).toHaveBeenCalledWith(`${base}/summary`);
+  });
+  it('reads bounded branch reconciliation pages and validates their contract', async () => {
+    const mismatch = {
+      inventoryId: scope.inventoryId,
+      productId: inventory.productId,
+      productName: inventory.product.name,
+      sku: inventory.product.sku,
+      recordedQuantity: 10,
+      ledgerQuantity: '9',
+      difference: '1',
+    };
+    const page = { items: [mismatch], nextCursor: scope.inventoryId };
+    request.mockResolvedValue(page);
+    await expect(getInventoryReconciliation(request, scope)).resolves.toEqual(
+      page,
+    );
+    expect(request).toHaveBeenLastCalledWith(`${base}/reconciliation?limit=25`);
+    await getInventoryReconciliation(request, scope, scope.inventoryId);
+    expect(request).toHaveBeenLastCalledWith(
+      `${base}/reconciliation?limit=25&cursor=${scope.inventoryId}`,
+    );
+    request.mockResolvedValue({
+      items: [{ ...mismatch, ledgerQuantity: 9 }],
+      nextCursor: null,
+    });
+    await expect(getInventoryReconciliation(request, scope)).rejects.toThrow();
   });
   it('placement and price commands never submit stock quantities', async () => {
     request.mockResolvedValue(inventory);
