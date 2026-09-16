@@ -9,6 +9,7 @@ import { CheckoutService } from '../src/modules/organizations/sales/checkout.ser
 import { RefundsService } from '../src/modules/organizations/refunds/refunds.service';
 import { RefundReadService } from '../src/modules/organizations/refunds/refund-read.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
+import { InventoryReconciliationService } from '../src/modules/organizations/inventory/inventory-reconciliation.service';
 import type { CreateRefundDto } from '../src/modules/organizations/refunds/dto/create-refund.dto';
 import type { OrganizationContext } from '../src/modules/organizations/authorization/organization-authorization.types';
 const connectionString = process.env.TEST_DATABASE_URL;
@@ -46,6 +47,9 @@ async function merchantActor(index = 0) {
 }
 const checkout = new CheckoutService(prisma as unknown as PrismaService);
 const stocks = new InventoryStockService(prisma as unknown as PrismaService);
+const reconciliation = new InventoryReconciliationService(
+  prisma as unknown as PrismaService,
+);
 let organizationId: string,
   branchId: string,
   otherBranchId: string,
@@ -1055,9 +1059,44 @@ describe('PostgreSQL refund commands and concurrency', () => {
       }
       throw new Error('Explicit checkout retry bound exhausted');
     };
-    await Promise.all([retry(command(2, 2)), sell()]);
+    const snapshots = Array.from({ length: 8 }, () =>
+      reconciliation.reconcile(owner(), branchId, { limit: 25 }),
+    );
+    const results = await Promise.all([
+      ...snapshots,
+      retry(command(2, 2)),
+      sell(),
+    ]);
+    expect(results.slice(0, snapshots.length)).toEqual(
+      Array.from({ length: snapshots.length }, () => ({
+        items: [],
+        nextCursor: null,
+      })),
+    );
     expect(await balance()).toBe(91);
     await ledger();
+    await stocks.adjust(organizationId, branchId, inventories[0], ownerId, {
+      requestId: randomUUID(),
+      quantityChange: -1,
+      reason: 'Correction',
+    });
+    expect(
+      await reconciliation.reconcile(owner(), branchId, { limit: 25 }),
+    ).toEqual({ items: [], nextCursor: null });
+    expect(
+      new Set(
+        (
+          await prisma.inventoryMovement.findMany({
+            where: {
+              organizationId,
+              branchId,
+              branchInventoryId: inventories[0],
+            },
+            select: { type: true },
+          })
+        ).map((movement) => movement.type),
+      ),
+    ).toEqual(new Set(['RECEIPT', 'SALE', 'RETURN', 'ADJUSTMENT']));
   });
   it('refunds and restocks the maximum 100-line price/quantity capacity without rounding', async () => {
     const merchantId = (

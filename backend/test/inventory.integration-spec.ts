@@ -7,6 +7,7 @@ import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
+import { InventoryReconciliationService } from '../src/modules/organizations/inventory/inventory-reconciliation.service';
 import { ProductsService } from '../src/modules/organizations/products/products.service';
 import { OrganizationMembershipsService } from '../src/modules/organizations/memberships/organization-memberships.service';
 import { OrganizationInvitationsService } from '../src/modules/organizations/invitations/organization-invitations.service';
@@ -29,6 +30,9 @@ const prisma = new PrismaClient({
 });
 const stock = new InventoryStockService(prisma as unknown as PrismaService);
 const inventory = new BranchInventoryService(
+  prisma as unknown as PrismaService,
+);
+const reconciliation = new InventoryReconciliationService(
   prisma as unknown as PrismaService,
 );
 const products = new ProductsService(prisma as unknown as PrismaService);
@@ -568,6 +572,110 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         sellingPrice: '12.50',
       })
     ).id;
+  });
+
+  it('reports only exact stock/ledger mismatches and never changes stock', async () => {
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'OWNER' },
+    });
+    const context = { organizationId, userId, role: 'OWNER' as const };
+    const scan = (limit = 25, cursor?: string) =>
+      reconciliation.reconcile(context, branchId, { limit, cursor });
+    expect(await scan()).toEqual({ items: [], nextCursor: null });
+    await receive(7);
+    await adjust(-2);
+    expect(await scan()).toEqual({ items: [], nextCursor: null });
+    await prisma.branchInventory.update({
+      where: { id: inventoryId },
+      data: { quantity: 6 },
+    });
+    expect(await scan()).toEqual({
+      items: [
+        {
+          inventoryId,
+          productId,
+          productName: 'Product',
+          sku: 'SKU',
+          recordedQuantity: 6,
+          ledgerQuantity: '5',
+          difference: '1',
+        },
+      ],
+      nextCursor: null,
+    });
+    expect(
+      await prisma.inventoryMovement.count({
+        where: { organizationId, branchId, branchInventoryId: inventoryId },
+      }),
+    ).toBe(2);
+    expect((await balance()).quantity).toBe(6);
+  });
+
+  it('paginates mismatches and isolates branches and manager assignments', async () => {
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    await prisma.branchMembership.create({
+      data: { organizationId, userId, branchId },
+    });
+    const anotherProduct = await products.create(organizationId, {
+      merchantId,
+      name: 'Second product',
+      sku: randomUUID(),
+    });
+    const another = await inventory.create(organizationId, branchId, {
+      productId: anotherProduct.id,
+      sellingPrice: '1.00',
+    });
+    const otherPlacement = await inventory.create(
+      organizationId,
+      otherBranchId,
+      {
+        productId,
+        sellingPrice: '1.00',
+      },
+    );
+    await prisma.branchInventory.updateMany({
+      where: { id: { in: [inventoryId, another.id, otherPlacement.id] } },
+      data: { quantity: 1 },
+    });
+    const context = { organizationId, userId, role: 'MANAGER' as const };
+    const first = await reconciliation.reconcile(context, branchId, {
+      limit: 1,
+    });
+    expect(first.items).toHaveLength(1);
+    expect(first.nextCursor).toBe(first.items[0].inventoryId);
+    const second = await reconciliation.reconcile(context, branchId, {
+      limit: 1,
+      cursor: first.nextCursor!,
+    });
+    expect(second.items).toHaveLength(1);
+    expect(second.nextCursor).toBeNull();
+    expect(
+      new Set(
+        [...first.items, ...second.items].map((item) => item.inventoryId),
+      ),
+    ).toEqual(new Set([inventoryId, another.id]));
+    await expect(
+      reconciliation.reconcile(context, otherBranchId, { limit: 25 }),
+    ).rejects.toThrow('Branch not found');
+    const foreign = await prisma.organization.create({
+      data: { name: randomUUID() },
+    });
+    await expect(
+      reconciliation.reconcile(
+        { ...context, organizationId: foreign.id },
+        branchId,
+        { limit: 25 },
+      ),
+    ).rejects.toThrow('Organization not found');
+    await prisma.organizationMembership.update({
+      where: { organizationId_userId: { organizationId, userId } },
+      data: { role: 'MERCHANT', merchantId },
+    });
+    await expect(
+      reconciliation.reconcile(context, branchId, { limit: 25 }),
+    ).rejects.toThrow('Inventory diagnostics require staff access');
   });
 
   it('keeps branch prices and quantities independent', async () => {

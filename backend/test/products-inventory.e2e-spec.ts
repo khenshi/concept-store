@@ -12,6 +12,7 @@ import { ProductsService } from '../src/modules/organizations/products/products.
 import { BranchInventoryController } from '../src/modules/organizations/inventory/branch-inventory.controller';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
+import { InventoryReconciliationService } from '../src/modules/organizations/inventory/inventory-reconciliation.service';
 import { PosCatalogController } from '../src/modules/organizations/pos/pos-catalog.controller';
 import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
 import { CheckoutController } from '../src/modules/organizations/sales/checkout.controller';
@@ -59,6 +60,7 @@ describe('Products and inventory HTTP boundaries', () => {
     findMovements: jest.fn(),
   };
   const stock = { receive: jest.fn(), adjust: jest.fn() };
+  const reconciliation = { reconcile: jest.fn() };
   const checkout = { complete: jest.fn() };
   const sales = {
     findAll: jest.fn(),
@@ -123,6 +125,7 @@ describe('Products and inventory HTTP boundaries', () => {
         { provide: ProductsService, useValue: products },
         { provide: BranchInventoryService, useValue: inventory },
         { provide: InventoryStockService, useValue: stock },
+        { provide: InventoryReconciliationService, useValue: reconciliation },
         PosCatalogService,
         { provide: CheckoutService, useValue: checkout },
         { provide: SalesReadService, useValue: sales },
@@ -142,7 +145,14 @@ describe('Products and inventory HTTP boundaries', () => {
   afterAll(async () => app.close());
   beforeEach(() => {
     jest.clearAllMocks();
-    for (const service of [products, inventory, stock, checkout, sales]) {
+    for (const service of [
+      products,
+      inventory,
+      stock,
+      reconciliation,
+      checkout,
+      sales,
+    ]) {
       for (const method of Object.values(service))
         method.mockResolvedValue({ id: item });
     }
@@ -157,6 +167,51 @@ describe('Products and inventory HTTP boundaries', () => {
     `${inventoryPath}/${item}`,
     `${inventoryPath}/${item}/movements`,
   ];
+  it('limits reconciliation to staff and validates its bounded query', async () => {
+    const path = `${inventoryPath}/reconciliation`;
+    await http().get(path).expect(401);
+    for (const userId of [cashier, merchant])
+      await http()
+        .get(path)
+        .auth(token(userId), { type: 'bearer' })
+        .expect(403);
+    expect(reconciliation.reconcile).not.toHaveBeenCalled();
+    for (const suffix of [
+      '?limit=0',
+      '?limit=101',
+      '?limit=1.5',
+      '?cursor=bad',
+      '?other=x',
+    ])
+      await http()
+        .get(path + suffix)
+        .auth(token(), { type: 'bearer' })
+        .expect(400);
+    expect(reconciliation.reconcile).not.toHaveBeenCalled();
+    for (const userId of [actor, manager]) {
+      await http()
+        .get(path + '?limit=2&cursor=' + item)
+        .auth(token(userId), { type: 'bearer' })
+        .expect(200);
+      expect(reconciliation.reconcile).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          organizationId: org,
+          userId,
+          role: roles.get(userId),
+        }),
+        branch,
+        expect.objectContaining({ limit: 2, cursor: item }),
+      );
+    }
+    reconciliation.reconcile.mockClear();
+    prisma.branch.findFirst.mockResolvedValueOnce(null);
+    await http().get(path).auth(token(manager), { type: 'bearer' }).expect(404);
+    await http()
+      .get(path.replace(org, item))
+      .auth(token(), { type: 'bearer' })
+      .expect(404);
+    expect(reconciliation.reconcile).not.toHaveBeenCalled();
+  });
   const posPath = `/organizations/${org}/branches/${branch}/pos/products`;
   const salesPath = `/organizations/${org}/branches/${branch}/sales`;
   it.each([actor, manager, cashier, merchant])(

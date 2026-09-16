@@ -33,6 +33,7 @@ Cashier POS access does not grant inventory history or stock mutation access.
 POST  /organizations/:organizationId/branches/:branchId/inventory
 GET   /organizations/:organizationId/branches/:branchId/inventory?q=&merchantId=&status=&stockStatus=
 GET   /organizations/:organizationId/branches/:branchId/inventory/summary
+GET   /organizations/:organizationId/branches/:branchId/inventory/reconciliation?limit=&cursor=
 GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId
 PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/price
 PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/threshold
@@ -85,6 +86,18 @@ whitelisting reject malformed IDs and unexpected fields.
   and nonnegative thresholds. The migration backfills existing placements to `5`.
 
 ## Stock commands and history
+
+The read-only reconciliation route is limited to owners and managers (only
+assigned branches for managers). It returns only mismatched placements, ordered
+by placement ID with a default page size of 25 and maximum of 100. The optional
+UUID cursor is the last returned placement ID. Each result contains product ID,
+name and SKU, saved quantity, exact decimal-string sum of all signed RECEIPT,
+ADJUSTMENT, SALE and RETURN deltas, and saved-minus-ledger difference. A missing
+ledger counts as zero; an empty page with no next cursor means no mismatches
+were found in that branch. The comparison uses one repeatable-read snapshot,
+does not modify stock or movements, and exposes no actor, sale or refund links.
+Cashiers and merchants cannot call it. It is an advisory diagnostic, not a
+stock-repair command.
 
 - Receipt requires a positive integer quantity, trimmed 2–500 character reason,
   and UUID request ID. Product and merchant must be active for a new receipt.

@@ -17,6 +17,7 @@ import { ProductsService } from './products/products.service';
 import { BranchInventoryController } from './inventory/branch-inventory.controller';
 import { BranchInventoryService } from './inventory/branch-inventory.service';
 import { InventoryStockService } from './inventory/inventory-stock.service';
+import { InventoryReconciliationService } from './inventory/inventory-reconciliation.service';
 import { ResourceAccessGuard } from './authorization/resource-access.guard';
 import { PosCatalogController } from './pos/pos-catalog.controller';
 import { PosCatalogService } from './pos/pos-catalog.service';
@@ -67,6 +68,7 @@ import { RefundReadService } from './refunds/refund-read.service';
     ProductsService,
     BranchInventoryService,
     InventoryStockService,
+    InventoryReconciliationService,
     PosCatalogService,
     CheckoutService,
     SalesReadService,

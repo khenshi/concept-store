@@ -360,6 +360,34 @@ export class InventoryHealthSummaryResponseDto {
   @ApiProperty({ type: 'integer', minimum: 0 }) outOfStock!: number;
 }
 
+export class InventoryReconciliationMismatchResponseDto {
+  @ApiProperty({ format: 'uuid' }) inventoryId!: string;
+  @ApiProperty({ format: 'uuid' }) productId!: string;
+  @ApiProperty() productName!: string;
+  @ApiProperty({ type: String, nullable: true }) sku!: string | null;
+  @ApiProperty({ type: 'integer', minimum: 0 }) recordedQuantity!: number;
+  @ApiProperty({
+    type: String,
+    description: 'Exact signed sum of all movement deltas',
+  })
+  ledgerQuantity!: string;
+  @ApiProperty({
+    type: String,
+    description: 'Recorded quantity minus ledger sum',
+  })
+  difference!: string;
+}
+
+export class InventoryReconciliationPageResponseDto {
+  @ApiProperty({
+    type: InventoryReconciliationMismatchResponseDto,
+    isArray: true,
+  })
+  items!: InventoryReconciliationMismatchResponseDto[];
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  nextCursor!: string | null;
+}
+
 export class InventoryMovementResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;

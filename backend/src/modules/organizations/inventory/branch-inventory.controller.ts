@@ -28,6 +28,7 @@ import { OrganizationRole } from '../../../generated/prisma/client';
 import {
   BranchInventoryResponseDto,
   InventoryHealthSummaryResponseDto,
+  InventoryReconciliationPageResponseDto,
   InventoryMovementResponseDto,
 } from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
@@ -46,6 +47,9 @@ import {
   ReceiveInventoryDto,
 } from './dto/stock-command.dto';
 import { InventoryStockService } from './inventory-stock.service';
+import { InventoryReconciliationService } from './inventory-reconciliation.service';
+import { InventoryReconciliationQueryDto } from './dto/inventory-reconciliation-query.dto';
+import type { InventoryReconciliationPage } from './inventory-reconciliation.types';
 import type {
   BranchInventoryRecord,
   InventoryHealthSummary,
@@ -81,6 +85,7 @@ export class BranchInventoryController {
   constructor(
     private readonly inventoryService: BranchInventoryService,
     private readonly stockService: InventoryStockService,
+    private readonly reconciliationService: InventoryReconciliationService,
   ) {}
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
@@ -129,6 +134,20 @@ export class BranchInventoryController {
       branchId,
       organization,
     );
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+  @Get('reconciliation')
+  @ApiOperation({
+    summary: 'List read-only stock/ledger mismatches in this branch',
+  })
+  @ApiOkResponse({ type: InventoryReconciliationPageResponseDto })
+  reconcile(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: InventoryReconciliationQueryDto,
+  ): Promise<InventoryReconciliationPage> {
+    return this.reconciliationService.reconcile(organization, branchId, query);
   }
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
