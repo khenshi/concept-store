@@ -354,6 +354,20 @@ export class BranchInventoryResponseDto {
   product!: InventoryProductResponseDto;
 }
 
+export class BranchInventoryPageResponseDto {
+  @ApiProperty({ type: BranchInventoryResponseDto, isArray: true })
+  items!: BranchInventoryResponseDto[];
+  @ApiProperty({ type: String, nullable: true })
+  nextCursor!: string | null;
+}
+
+export class EligibleProductsPageResponseDto {
+  @ApiProperty({ type: ProductResponseDto, isArray: true })
+  items!: ProductResponseDto[];
+  @ApiProperty({ type: String, nullable: true })
+  nextCursor!: string | null;
+}
+
 export class InventoryHealthSummaryResponseDto {
   @ApiProperty({ type: 'integer', minimum: 0 }) inStock!: number;
   @ApiProperty({ type: 'integer', minimum: 0 }) lowStock!: number;

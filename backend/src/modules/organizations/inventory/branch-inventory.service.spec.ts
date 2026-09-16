@@ -1,5 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '../../../generated/prisma/client';
+import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BranchInventoryService } from './branch-inventory.service';
 import { inventoryMovementSelect } from './inventory.types';
@@ -8,12 +8,17 @@ import { inventoryScope } from '../authorization/resource-access';
 describe('BranchInventoryService', () => {
   const prisma = {
     branch: { findUnique: jest.fn() },
-    product: { findUnique: jest.fn() },
+    product: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
     merchant: { findUnique: jest.fn() },
     branchInventory: {
       fields: { lowStockThreshold: 'threshold-field' },
       create: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
@@ -51,6 +56,8 @@ describe('BranchInventoryService', () => {
     });
     prisma.inventoryMovement.findMany.mockResolvedValue([]);
     prisma.inventoryMovement.findFirst.mockResolvedValue({ id: 'cursor' });
+    prisma.branchInventory.findFirst.mockResolvedValue({ id: 'cursor' });
+    prisma.product.findFirst.mockResolvedValue({ id: 'cursor' });
   });
 
   it('creates a zero-stock placement with decimal price and no opening movement', async () => {
@@ -204,9 +211,10 @@ describe('BranchInventoryService', () => {
     ]);
     await expect(
       service.findAll('org', 'branch', { stockStatus: 'LOW_STOCK' }),
-    ).resolves.toEqual([
-      expect.objectContaining({ id: 'low', stockStatus: 'LOW_STOCK' }),
-    ]);
+    ).resolves.toEqual({
+      items: [expect.objectContaining({ id: 'low', stockStatus: 'LOW_STOCK' })],
+      nextCursor: null,
+    });
     expect(prisma.branchInventory.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         // Jest's nested matcher is intentionally untyped.
@@ -217,6 +225,169 @@ describe('BranchInventoryService', () => {
         }),
       }),
     );
+  });
+
+  it('bounds inventory pages and rejects cursors from another filter or role', async () => {
+    const firstId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const secondId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const owner = {
+      organizationId: 'org',
+      userId: 'owner',
+      role: OrganizationRole.OWNER,
+    };
+    const row = (id: string) => ({
+      id,
+      sellingPrice: new Prisma.Decimal('12.50'),
+      quantity: 1,
+      lowStockThreshold: 5,
+    });
+    prisma.branchInventory.findMany.mockResolvedValueOnce([
+      row(firstId),
+      row(secondId),
+    ]);
+    const first = await service.findAll(
+      'org',
+      'branch',
+      { limit: 1, q: 'cup' },
+      owner,
+    );
+    expect(first.items).toHaveLength(1);
+    expect(first.nextCursor).toMatch(new RegExp(`^${firstId}\\.[0-9a-f]{64}$`));
+    expect(prisma.branchInventory.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 2,
+        orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
+      }),
+    );
+    await expect(
+      service.findAll(
+        'org',
+        'branch',
+        {
+          limit: 1,
+          q: 'plate',
+          cursor: first.nextCursor!,
+        },
+        owner,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.findAll(
+        'org',
+        'branch',
+        {
+          limit: 1,
+          q: 'cup',
+          cursor: first.nextCursor!,
+        },
+        { ...owner, role: OrganizationRole.MANAGER },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.branchInventory.findFirst).not.toHaveBeenCalled();
+    prisma.branchInventory.findMany.mockResolvedValueOnce([row(secondId)]);
+    const next = await service.findAll(
+      'org',
+      'branch',
+      {
+        limit: 1,
+        q: 'cup',
+        cursor: first.nextCursor!,
+      },
+      owner,
+    );
+    expect(next).toMatchObject({ nextCursor: null, items: [{ id: secondId }] });
+    expect(prisma.branchInventory.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Jest's nested matcher is intentionally untyped.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: expect.objectContaining({
+          id: firstId,
+          organizationId: 'org',
+          branchId: 'branch',
+        }),
+      }),
+    );
+    prisma.branchInventory.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      service.findAll(
+        'org',
+        'branch',
+        {
+          limit: 1,
+          q: 'cup',
+          cursor: first.nextCursor!,
+        },
+        owner,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('returns only bounded, active and not-yet-placed picker candidates under manager scope', async () => {
+    const manager = {
+      organizationId: 'org',
+      userId: 'manager',
+      role: OrganizationRole.MANAGER,
+    };
+    const firstId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+    const secondId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    prisma.product.findMany.mockResolvedValueOnce([
+      { id: firstId },
+      { id: secondId },
+    ]);
+    const first = await service.eligibleProducts(
+      'org',
+      'branch',
+      { limit: 1, q: 'cup' },
+      manager,
+    );
+    expect(first.items).toEqual([{ id: firstId }]);
+    expect(first.nextCursor).toBeTruthy();
+    expect(prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 2,
+        // Jest's nested matcher is intentionally untyped.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: expect.objectContaining({
+          organizationId: 'org',
+          status: 'ACTIVE',
+          merchant: { organizationId: 'org', status: 'ACTIVE' },
+          AND: [
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            expect.objectContaining({ inventory: expect.any(Object) }),
+            {
+              inventory: {
+                none: { organizationId: 'org', branchId: 'branch' },
+              },
+            },
+          ],
+        }),
+      }),
+    );
+    await expect(
+      service.eligibleProducts(
+        'org',
+        'branch',
+        {
+          limit: 1,
+          q: 'other',
+          cursor: first.nextCursor!,
+        },
+        manager,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    prisma.product.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      service.eligibleProducts(
+        'org',
+        'branch',
+        {
+          limit: 1,
+          q: 'cup',
+          cursor: first.nextCursor!,
+        },
+        manager,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('summarizes only role-scoped placements using the shared status rules', async () => {

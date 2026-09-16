@@ -27,6 +27,8 @@ import {
 import { OrganizationRole } from '../../../generated/prisma/client';
 import {
   BranchInventoryResponseDto,
+  BranchInventoryPageResponseDto,
+  EligibleProductsPageResponseDto,
   InventoryHealthSummaryResponseDto,
   InventoryReconciliationPageResponseDto,
   InventoryMovementResponseDto,
@@ -42,6 +44,7 @@ import { CreateBranchInventoryDto } from './dto/create-branch-inventory.dto';
 import { InventoryPriceDto } from './dto/inventory-price.dto';
 import { InventoryThresholdDto } from './dto/inventory-threshold.dto';
 import { ListBranchInventoryQueryDto } from './dto/list-branch-inventory-query.dto';
+import { EligibleProductsQueryDto } from './dto/eligible-products-query.dto';
 import {
   AdjustInventoryDto,
   ReceiveInventoryDto,
@@ -109,13 +112,32 @@ export class BranchInventoryController {
 
   @Get()
   @ApiOperation({ summary: 'List and filter inventory in this branch' })
-  @ApiOkResponse({ type: BranchInventoryResponseDto, isArray: true })
+  @ApiOkResponse({ type: BranchInventoryPageResponseDto })
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Query() query: ListBranchInventoryQueryDto,
   ) {
     return this.inventoryService.findAll(
+      organization.organizationId,
+      branchId,
+      query,
+      organization,
+    );
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+  @Get('eligible-products')
+  @ApiOperation({
+    summary: 'Page active products eligible for placement in this branch',
+  })
+  @ApiOkResponse({ type: EligibleProductsPageResponseDto })
+  eligibleProducts(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: EligibleProductsQueryDto,
+  ) {
+    return this.inventoryService.eligibleProducts(
       organization.organizationId,
       branchId,
       query,

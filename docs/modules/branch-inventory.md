@@ -12,10 +12,15 @@ build, and 776 tests. The opt-in performance fixture and before/after plans are
 recorded in [the measurement note](../development/inventory-pos-performance-2026-09-16.md).
 The user explicitly waived rendered responsive, keyboard/focus, and 200% zoom
 QA for the Inventory diagnostic and history screens. Those checks were not
-performed. Repeated HTTP-suite runs also exposed intermittent 401/404 status
-mismatches in existing Reports and Products/Inventory tests; focused runs and
-subsequent full runs passed, so this remains a test-stability follow-up rather
-than a claimed deterministic failure.
+performed. The later HTTP reliability part gave all six HTTP suites one
+persistent local listener per suite; 30 consecutive full runs passed without
+changing runtime authorization or expected responses.
+
+The current bounded-read backend part changes the directory response from an
+array to a page and adds the eligible-product read. PostgreSQL integration,
+backend unit, HTTP, lint and build checks pass. The existing frontend still
+consumes the former array contract; adapting its directory and picker is the
+next approved part and must land before this milestone is usable end-to-end.
 
 The later inventory workflow usability refinement passes the complete frontend
 suite (751 tests across 88 files), lint, type checking, formatting and production
@@ -46,7 +51,8 @@ Cashier POS access does not grant inventory history or stock mutation access.
 
 ```text
 POST  /organizations/:organizationId/branches/:branchId/inventory
-GET   /organizations/:organizationId/branches/:branchId/inventory?q=&merchantId=&status=&stockStatus=
+GET   /organizations/:organizationId/branches/:branchId/inventory?q=&merchantId=&status=&stockStatus=&limit=&cursor=
+GET   /organizations/:organizationId/branches/:branchId/inventory/eligible-products?q=&limit=&cursor=
 GET   /organizations/:organizationId/branches/:branchId/inventory/summary
 GET   /organizations/:organizationId/branches/:branchId/inventory/reconciliation?limit=&cursor=
 GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId
@@ -89,9 +95,22 @@ whitelisting reject malformed IDs and unexpected fields.
 - Search matches product name/SKU case-insensitively and barcode case-sensitively.
   Merchant/product-status/derived-stock-status filters are optional and compose
   without widening the role-aware placement scope. Lists order by product name
-  then inventory ID and are not paginated. Stock-status filtering is applied in
-  PostgreSQL using the same zero/threshold rules as the displayed status; the
-  unfiltered directory still returns all matching placements.
+  then inventory ID. The directory now returns `{ items, nextCursor }`, with
+  default page size 50 and maximum 100. Each database read asks for at most
+  `limit + 1` placements. Stock-status filtering is applied in PostgreSQL
+  using the same zero/threshold rules as the displayed status. A cursor is
+  valid only for the same organization, branch, member/role, and active filters;
+  a missing or incompatible cursor returns 404 without revealing rows.
+- The staff-only `eligible-products` read returns `{ items, nextCursor }` with
+  the same 50/100 bounds and stable product-name/ID order. It includes only
+  active products of active merchants not yet placed in the selected branch.
+  Owners may see all tenant products; assigned managers keep their existing
+  product scope (products placed in at least one of their assigned branches),
+  so a completely unplaced product is not newly exposed to managers. Search
+  retains case-insensitive name/SKU and case-sensitive barcode matching.
+  Merchant and cashier callers are denied. Eligibility is advisory: the
+  placement create operation remains authoritative and returns 409 for a
+  concurrent duplicate.
 - The summary route returns only `inStock`, `lowStock`, and `outOfStock` counts.
   It derives them from the same current quantity/threshold rules and role-aware
   placement scope as directory reads. Owners and assigned managers see the

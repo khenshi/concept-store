@@ -407,7 +407,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       sellingPrice: '15.00',
     });
     expect(
-      await inventory.findAll(organizationId, branchId, {}, merchant),
+      (await inventory.findAll(organizationId, branchId, {}, merchant)).items,
     ).toHaveLength(1);
     expect(
       await inventory.summarize(organizationId, branchId, merchant),
@@ -417,14 +417,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       outOfStock: 0,
     });
     expect(
-      await inventory.findAll(
-        organizationId,
-        branchId,
-        {
-          stockStatus: InventoryStockStatus.OUT_OF_STOCK,
-        },
-        merchant,
-      ),
+      (
+        await inventory.findAll(
+          organizationId,
+          branchId,
+          {
+            stockStatus: InventoryStockStatus.OUT_OF_STOCK,
+          },
+          merchant,
+        )
+      ).items,
     ).toEqual([]);
     expect(
       await inventory.summarize(organizationId, branchId, manager),
@@ -640,12 +642,131 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         { stockStatus: status },
         context,
       );
-      expect(filtered.map((item) => item.id)).toEqual(
-        all
+      expect(filtered.items.map((item) => item.id)).toEqual(
+        all.items
           .filter((item) => item.stockStatus === status)
           .map((item) => item.id),
       );
     }
+  });
+
+  it('traverses bounded inventory pages and scopes picker candidates to assigned branches', async () => {
+    const owner = { organizationId, userId, role: 'OWNER' as const };
+    const names = ['Alpha', 'Bravo', 'Charlie'];
+    for (const name of names) {
+      const product = await products.create(organizationId, {
+        merchantId,
+        name,
+        sku: randomUUID(),
+      });
+      await inventory.create(organizationId, branchId, {
+        productId: product.id,
+        sellingPrice: '2.00',
+      });
+    }
+    const bulkProducts = Array.from({ length: 125 }, (_, index) => ({
+      id: randomUUID(),
+      organizationId,
+      merchantId,
+      name: `Paged ${String(index).padStart(3, '0')}`,
+      sku: `PAGE-${randomUUID()}`,
+    }));
+    await prisma.product.createMany({ data: bulkProducts });
+    await prisma.branchInventory.createMany({
+      data: bulkProducts.map((product) => ({
+        organizationId,
+        branchId,
+        productId: product.id,
+        sellingPrice: '2.00',
+      })),
+    });
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await inventory.findAll(
+        organizationId,
+        branchId,
+        { limit: 37, cursor },
+        owner,
+      );
+      expect(page.items.length).toBeLessThanOrEqual(37);
+      seen.push(...page.items.map((item) => item.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor);
+    expect(seen).toHaveLength(129);
+    expect(new Set(seen).size).toBe(129);
+
+    const foreignCursor = await inventory.findAll(
+      organizationId,
+      branchId,
+      { limit: 1 },
+      owner,
+    );
+    await expect(
+      inventory.findAll(
+        organizationId,
+        otherBranchId,
+        { limit: 1, cursor: foreignCursor.nextCursor! },
+        owner,
+      ),
+    ).rejects.toThrow();
+
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    for (const id of [branchId, otherBranchId])
+      await prisma.branchMembership.create({
+        data: { organizationId, branchId: id, userId },
+      });
+    const manager = { organizationId, userId, role: 'MANAGER' as const };
+    const otherProduct = await products.create(organizationId, {
+      merchantId,
+      name: 'Eligible elsewhere',
+      sku: randomUUID(),
+    });
+    await inventory.create(organizationId, otherBranchId, {
+      productId: otherProduct.id,
+      sellingPrice: '3.00',
+    });
+    const unplaced = await products.create(organizationId, {
+      merchantId,
+      name: 'Unplaced',
+      sku: randomUUID(),
+    });
+    const managerCandidates = await inventory.eligibleProducts(
+      organizationId,
+      branchId,
+      { limit: 1 },
+      manager,
+    );
+    expect(managerCandidates.items.map((item) => item.id)).toEqual([
+      otherProduct.id,
+    ]);
+    const ownerCandidates = await inventory.eligibleProducts(
+      organizationId,
+      branchId,
+      { limit: 1 },
+      owner,
+    );
+    expect(ownerCandidates.items.map((item) => item.id)).toEqual([
+      otherProduct.id,
+    ]);
+    expect(ownerCandidates.nextCursor).toBeTruthy();
+    const next = await inventory.eligibleProducts(
+      organizationId,
+      branchId,
+      { limit: 1, cursor: ownerCandidates.nextCursor! },
+      owner,
+    );
+    expect(next.items.map((item) => item.id)).toEqual([unplaced.id]);
+    await expect(
+      inventory.eligibleProducts(
+        organizationId,
+        branchId,
+        { limit: 1, cursor: ownerCandidates.nextCursor! },
+        manager,
+      ),
+    ).rejects.toThrow();
   });
 
   it('pages large movement history without exposing a foreign cursor or merchant actors', async () => {

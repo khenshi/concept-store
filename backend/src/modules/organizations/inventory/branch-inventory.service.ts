@@ -14,8 +14,15 @@ import type { InventoryPriceDto } from './dto/inventory-price.dto';
 import type { InventoryThresholdDto } from './dto/inventory-threshold.dto';
 import type { ListBranchInventoryQueryDto } from './dto/list-branch-inventory-query.dto';
 import type { MovementHistoryQueryDto } from './dto/movement-history-query.dto';
+import type { EligibleProductsQueryDto } from './dto/eligible-products-query.dto';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
-import { inventoryScope } from '../authorization/resource-access';
+import { inventoryScope, productScope } from '../authorization/resource-access';
+import { productSelect, type ProductRecord } from '../products/products.types';
+import {
+  decodeInventoryCursor,
+  encodeInventoryCursor,
+  type InventoryCursorScope,
+} from './inventory-page-cursor';
 import {
   inventoryProductSelect,
   inventoryMovementSelect,
@@ -72,8 +79,9 @@ export class BranchInventoryService {
     branchId: string,
     query: ListBranchInventoryQueryDto,
     context?: OrganizationContext,
-  ): Promise<BranchInventoryRecord[]> {
+  ): Promise<{ items: BranchInventoryRecord[]; nextCursor: string | null }> {
     await this.resolveBranch(organizationId, branchId);
+    const limit = query.limit ?? 50;
     if (query.merchantId) {
       const merchant = await this.prisma.merchant.findUnique({
         where: { id: query.merchantId, organizationId },
@@ -81,31 +89,123 @@ export class BranchInventoryService {
       });
       if (!merchant) throw new NotFoundException('Merchant not found');
     }
-    const inventory = await this.prisma.branchInventory.findMany({
-      where: {
+    const where: Prisma.BranchInventoryWhereInput = {
+      organizationId,
+      branchId,
+      ...(context ? { AND: [inventoryScope(context)] } : {}),
+      ...(query.stockStatus ? this.stockStatusWhere(query.stockStatus) : {}),
+      product: {
         organizationId,
-        branchId,
-        ...(context ? { AND: [inventoryScope(context)] } : {}),
-        ...(query.stockStatus ? this.stockStatusWhere(query.stockStatus) : {}),
-        product: {
-          organizationId,
-          ...(query.merchantId ? { merchantId: query.merchantId } : {}),
-          ...(query.status ? { status: query.status } : {}),
-          ...(query.q
-            ? {
-                OR: [
-                  { name: { contains: query.q, mode: 'insensitive' } },
-                  { sku: { contains: query.q, mode: 'insensitive' } },
-                  { barcode: { contains: query.q } },
-                ],
-              }
-            : {}),
-        },
+        ...(query.merchantId ? { merchantId: query.merchantId } : {}),
+        ...(query.status ? { status: query.status } : {}),
+        ...(query.q
+          ? {
+              OR: [
+                { name: { contains: query.q, mode: 'insensitive' } },
+                { sku: { contains: query.q, mode: 'insensitive' } },
+                { barcode: { contains: query.q } },
+              ],
+            }
+          : {}),
       },
+    };
+    const scope: InventoryCursorScope = {
+      kind: 'inventory',
+      organizationId,
+      branchId,
+      context,
+      filters: {
+        q: query.q,
+        merchantId: query.merchantId,
+        status: query.status,
+        stockStatus: query.stockStatus,
+      },
+    };
+    const cursorId = query.cursor
+      ? decodeInventoryCursor(query.cursor, scope)
+      : undefined;
+    if (cursorId) {
+      const existing = await this.prisma.branchInventory.findFirst({
+        where: { ...where, id: cursorId },
+        select: { id: true },
+      });
+      if (!existing) throw new NotFoundException('Page cursor not found');
+    }
+    const inventory = await this.prisma.branchInventory.findMany({
+      where,
       include: { product: { select: inventoryProductSelect } },
       orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
+      take: limit + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
     });
-    return inventory.map((item) => this.toRecord(item));
+    const page = inventory.slice(0, limit);
+    return {
+      items: page.map((item) => this.toRecord(item)),
+      nextCursor:
+        inventory.length > limit
+          ? encodeInventoryCursor(page[page.length - 1].id, scope)
+          : null,
+    };
+  }
+
+  async eligibleProducts(
+    organizationId: string,
+    branchId: string,
+    query: EligibleProductsQueryDto,
+    context: OrganizationContext,
+  ): Promise<{ items: ProductRecord[]; nextCursor: string | null }> {
+    await this.resolveBranch(organizationId, branchId);
+    const limit = query.limit ?? 50;
+    const where: Prisma.ProductWhereInput = {
+      organizationId,
+      status: ProductStatus.ACTIVE,
+      merchant: { organizationId, status: MerchantStatus.ACTIVE },
+      AND: [
+        productScope(context),
+        { inventory: { none: { organizationId, branchId } } },
+      ],
+      ...(query.q
+        ? {
+            OR: [
+              { name: { contains: query.q, mode: 'insensitive' } },
+              { sku: { contains: query.q, mode: 'insensitive' } },
+              { barcode: { contains: query.q } },
+            ],
+          }
+        : {}),
+    };
+    const scope: InventoryCursorScope = {
+      kind: 'eligible-products',
+      organizationId,
+      branchId,
+      context,
+      filters: { q: query.q },
+    };
+    const cursorId = query.cursor
+      ? decodeInventoryCursor(query.cursor, scope)
+      : undefined;
+    if (cursorId) {
+      const existing = await this.prisma.product.findFirst({
+        where: { ...where, id: cursorId },
+        select: { id: true },
+      });
+      if (!existing) throw new NotFoundException('Page cursor not found');
+    }
+    const products = await this.prisma.product.findMany({
+      where,
+      select: productSelect,
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      take: limit + 1,
+      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+    });
+    const page = products.slice(0, limit);
+    return {
+      items: page,
+      nextCursor:
+        products.length > limit
+          ? encodeInventoryCursor(page[page.length - 1].id, scope)
+          : null,
+    };
   }
 
   async findOne(

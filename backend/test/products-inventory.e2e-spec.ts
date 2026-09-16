@@ -53,6 +53,7 @@ describe('Products and inventory HTTP boundaries', () => {
   const inventory = {
     create: jest.fn(),
     findAll: jest.fn(),
+    eligibleProducts: jest.fn(),
     findOne: jest.fn(),
     updatePrice: jest.fn(),
     updateThreshold: jest.fn(),
@@ -216,6 +217,50 @@ describe('Products and inventory HTTP boundaries', () => {
       .auth(token(), { type: 'bearer' })
       .expect(404);
     expect(reconciliation.reconcile).not.toHaveBeenCalled();
+  });
+  it('validates bounded directory and placement-picker pages at the HTTP boundary', async () => {
+    const picker = `${inventoryPath}/eligible-products`;
+    await http().get(picker).expect(401);
+    for (const userId of [cashier, merchant])
+      await http()
+        .get(picker)
+        .auth(token(userId), { type: 'bearer' })
+        .expect(403);
+    for (const path of [inventoryPath, picker]) {
+      for (const suffix of [
+        '?limit=0',
+        '?limit=101',
+        '?limit=1.5',
+        '?cursor=bad',
+        '?other=x',
+      ])
+        await http()
+          .get(path + suffix)
+          .auth(token(), { type: 'bearer' })
+          .expect(400);
+    }
+    expect(inventory.findAll).not.toHaveBeenCalled();
+    expect(inventory.eligibleProducts).not.toHaveBeenCalled();
+    await http()
+      .get(inventoryPath + '?limit=2&q=cup')
+      .auth(token(), { type: 'bearer' })
+      .expect(200);
+    expect(inventory.findAll).toHaveBeenCalledWith(
+      org,
+      branch,
+      expect.objectContaining({ limit: 2, q: 'cup' }),
+      expect.objectContaining({ role: 'OWNER' }),
+    );
+    await http()
+      .get(picker + '?limit=2&q=cup')
+      .auth(token(manager), { type: 'bearer' })
+      .expect(200);
+    expect(inventory.eligibleProducts).toHaveBeenCalledWith(
+      org,
+      branch,
+      expect.objectContaining({ limit: 2, q: 'cup' }),
+      expect.objectContaining({ role: 'MANAGER', userId: manager }),
+    );
   });
   const posPath = `/organizations/${org}/branches/${branch}/pos/products`;
   const salesPath = `/organizations/${org}/branches/${branch}/sales`;

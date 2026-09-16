@@ -103,7 +103,7 @@ describe('PostgreSQL atomic product opening stock', () => {
       }),
     ]);
     expect(
-      await inventory.findAll(organizationId, branchId, {}, context),
+      (await inventory.findAll(organizationId, branchId, {}, context)).items,
     ).toEqual([
       expect.objectContaining({
         productId: created.id,
@@ -124,7 +124,8 @@ describe('PostgreSQL atomic product opening stock', () => {
       expect.objectContaining({ productId: created.id }),
     ]);
     expect(
-      await inventory.findAll(organizationId, otherBranchId, {}, context),
+      (await inventory.findAll(organizationId, otherBranchId, {}, context))
+        .items,
     ).toEqual([]);
     expect(await catalog.findAll(context, otherBranchId)).toEqual([]);
   });

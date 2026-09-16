@@ -101,7 +101,7 @@ or silence it with retries.
    explicit waiver. Update `docs/modules/`, stop for final review, then commit
    and archive only after approval.
 
-### Part 1 verification (uncommitted, awaiting review)
+### Part 1 verification (committed as `acb7c80`)
 
 The intermittent statuses reproduced during repeated full HTTP runs: one
 Products/Inventory 200 became 404 in 10 baseline runs; a later authorized
@@ -117,6 +117,23 @@ change; no runtime authorization or expected HTTP status was changed. The
 full suite then passed 30 consecutive runs (213 tests per run), as did backend
 lint and build. This supports a request-listener lifecycle cause, though an
 intermittent failure cannot be ruled out absolutely by finite repeated runs.
+
+### Part 2 backend read status (uncommitted, awaiting review)
+
+The branch directory now returns a bounded `{ items, nextCursor }` page,
+ordered by product name and placement ID. The staff-only eligible-product
+endpoint returns the same shape ordered by product name and ID. Both default
+to 50, cap at 100, query only `limit + 1` rows, and validate cursor existence
+inside the same tenant, branch, role/member scope and filters. The manager
+picker does not widen the existing product scope; placement creation keeps its
+database-backed duplicate conflict. The OpenAPI and module contracts have
+been updated.
+
+Validation so far: 413 backend unit tests, 214 HTTP tests, 245 PostgreSQL
+integration tests (one pre-existing skip), backend lint and build passed. A
+129-placement branch fixture traversed all pages without duplicates. The
+frontend has not yet been adapted to the new response shape; this is the next
+part and the milestone is not end-to-end complete until then.
 
 ### Explicit exclusions
 
