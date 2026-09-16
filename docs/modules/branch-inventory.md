@@ -16,11 +16,12 @@ performed. The later HTTP reliability part gave all six HTTP suites one
 persistent local listener per suite; 30 consecutive full runs passed without
 changing runtime authorization or expected responses.
 
-The current bounded-read backend part changes the directory response from an
-array to a page and adds the eligible-product read. PostgreSQL integration,
-backend unit, HTTP, lint and build checks pass. The existing frontend still
-consumes the former array contract; adapting its directory and picker is the
-next approved part and must land before this milestone is usable end-to-end.
+The current bounded-read work changes the directory response from an array to
+a page and adds the eligible-product read. The frontend now consumes both
+contracts with paged, stale-response-safe loading. Backend PostgreSQL
+integration, unit, HTTP, lint and build checks and the full frontend suite,
+lint, typecheck and production build pass. Rendered QA remains for the final
+verification part.
 
 The later inventory workflow usability refinement passes the complete frontend
 suite (751 tests across 88 files), lint, type checking, formatting and production
@@ -278,8 +279,12 @@ responses as well as full owner/manager responses.
   matching counts explicitly describe own placements, never branch-wide totals;
   empty assigned branches explain that assignments cannot expose others' stock.
 - The directory includes debounced product search, merchant/product-status filters,
-  responsive divided rows, exact PHP prices, and whole-unit balances. Empty,
-  filtered-empty, loading, and retryable errors have distinct feedback.
+  responsive divided rows, exact PHP prices, and whole-unit balances. It loads
+  50 placements initially and offers a Load more control while a next page is
+  available. Counts say displayed rows when more pages remain. Filter, branch,
+  role, access and successful-write changes discard prior pages and cursors;
+  late responses cannot restore stale rows. Empty, filtered-empty, loading,
+  and retryable first/later-page errors have distinct feedback.
 - Owner/manager rows expose Receive stock and Correct stock quick actions in
   focused dialogs; the product identity still links to full placement details.
   These dialogs reuse the stock forms' live validation, receipt idempotency,
@@ -288,9 +293,13 @@ responses as well as full owner/manager responses.
   Merchants remain read-only and receive no row mutation actions.
 - Placement creation uses the shared scroll-contained native dialog, with focus
   restoration and pending dismissal protection. One searchable product combobox
-  performs both filtering and selection; search remains organization-scoped,
-  active products of active merchants are offered and existing branch placements
-  are excluded. Creation accepts price/product only and starts at zero stock.
+  performs both filtering and selection. It now reads bounded branch-scoped
+  eligible-product pages instead of fetching all products, merchants and branch
+  placements. Search remains debounced; Load more exposes later candidates and
+  stale responses are ignored. The backend offers active products of active
+  merchants, excludes existing placements and preserves manager visibility.
+  Creation accepts price/product only and starts at zero stock. A concurrent
+  duplicate still returns the backend conflict without losing the draft.
 - Price remains separate; receiving and correction panels appear side by side at
   suitable widths and stack on smaller screens. Stock forms offer common reason
   actions plus an editable custom reason field. Reasons remain required ledger

@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { merchantStatusSchema } from '@/features/merchants/model/merchant.schemas';
-import { productStatusSchema } from '@/features/products/model/product.schemas';
+import {
+  productResponseSchema,
+  productStatusSchema,
+} from '@/features/products/model/product.schemas';
 
 export const inventoryPriceSchema = z
   .string()
@@ -93,7 +96,19 @@ export const inventoryResponseSchema = z.object({
     }),
   }),
 });
-export const inventoryListSchema = z.array(inventoryResponseSchema);
+const inventoryPageCursorSchema = z
+  .string()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.[0-9a-f]{64}$/,
+  );
+export const inventoryPageSchema = z.object({
+  items: z.array(inventoryResponseSchema),
+  nextCursor: inventoryPageCursorSchema.nullable(),
+});
+export const eligibleProductsPageSchema = z.object({
+  items: z.array(productResponseSchema),
+  nextCursor: inventoryPageCursorSchema.nullable(),
+});
 export const inventoryHealthSummarySchema = z.object({
   inStock: z.number().int().min(0),
   lowStock: z.number().int().min(0),

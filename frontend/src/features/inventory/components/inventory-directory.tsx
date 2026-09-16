@@ -64,6 +64,9 @@ function ScopedInventoryDirectory({
     organization?.role === 'OWNER' || organization?.role === 'MANAGER';
   const [branch, setBranch] = useState<InventoryBranch | null>(null);
   const [items, setItems] = useState<BranchInventory[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const [merchants, setMerchants] = useState<MerchantView[]>([]);
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
@@ -88,6 +91,9 @@ function ScopedInventoryDirectory({
     setCreating(false);
     setStockAction(null);
     setItems([]);
+    setNextCursor(null);
+    setLoadingMore(false);
+    setMoreError(null);
     setBranch(null);
     setMerchants([]);
     setError(
@@ -108,6 +114,9 @@ function ScopedInventoryDirectory({
       setError(null);
       setBranch(null);
       setItems([]);
+      setNextCursor(null);
+      setLoadingMore(false);
+      setMoreError(null);
       setMerchants([]);
       try {
         const scope = { organizationId, branchId };
@@ -123,7 +132,8 @@ function ScopedInventoryDirectory({
         ]);
         if (active && generation === readGeneration.current) {
           setBranch(location);
-          setItems(inventory);
+          setItems(inventory.items);
+          setNextCursor(inventory.nextCursor);
           setMerchants(profiles);
         }
       } catch (cause) {
@@ -153,6 +163,38 @@ function ScopedInventoryDirectory({
     stockStatus,
     revision,
   ]);
+  async function loadMore() {
+    if (!nextCursor || loading || loadingMore || error) return;
+    const generation = readGeneration.current;
+    const cursor = nextCursor;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const page = await listInventory(
+        request,
+        { organizationId, branchId },
+        {
+          q: q.trim() || undefined,
+          merchantId: merchantId || undefined,
+          status: status || undefined,
+          stockStatus: stockStatus || undefined,
+        },
+        cursor,
+      );
+      if (generation !== readGeneration.current) return;
+      setItems((current) => [...current, ...page.items]);
+      setNextCursor(page.nextCursor);
+    } catch (cause) {
+      if (generation === readGeneration.current)
+        setMoreError(
+          cause instanceof ApiError
+            ? cause.message
+            : 'More placements could not be loaded.',
+        );
+    } finally {
+      if (generation === readGeneration.current) setLoadingMore(false);
+    }
+  }
   if (organizationStatus === 'loading')
     return <ListSkeleton label="Loading branch inventory" />;
   if (!allowed)
@@ -192,6 +234,9 @@ function ScopedInventoryDirectory({
               setStockAction(null);
               readGeneration.current++;
               setItems([]);
+              setNextCursor(null);
+              setLoadingMore(false);
+              setMoreError(null);
               setBranch(null);
               setSearch('');
               setMerchantId('');
@@ -211,7 +256,7 @@ function ScopedInventoryDirectory({
         description={
           loading
             ? 'Loading inventory…'
-            : `${items.length} matching ${canWrite ? '' : 'own '}placements`
+            : `${items.length} ${nextCursor ? 'displayed' : 'matching'} ${canWrite ? '' : 'own '}placements${nextCursor ? ' · more available' : ''}`
         }
         action={
           canWrite ? (
@@ -385,6 +430,28 @@ function ScopedInventoryDirectory({
             ))}
           </ul>
         )}
+        {!loading && !error && nextCursor ? (
+          <div className="border-t border-hairline px-6 py-4">
+            {moreError ? (
+              <p role="alert" className="mb-3 text-sm text-danger">
+                {moreError}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'secondary' })}
+              disabled={loadingMore}
+              aria-busy={loadingMore}
+              onClick={() => void loadMore()}
+            >
+              {loadingMore
+                ? 'Loading more…'
+                : moreError
+                  ? 'Retry loading more'
+                  : 'Load more placements'}
+            </button>
+          </div>
+        ) : null}
       </OperationalPanel>
       {canWrite && branch && !loading && !error ? (
         <InventoryReconciliation

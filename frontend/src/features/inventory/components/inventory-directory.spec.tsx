@@ -65,7 +65,10 @@ vi.mock('./inventory-stock-form', () => ({
 
 describe('InventoryDirectory workflows', () => {
   it('does not let an obsolete inventory read restore data after branch-list revocation', async () => {
-    let finish!: (items: (typeof inventory)[]) => void;
+    let finish!: (page: {
+      items: (typeof inventory)[];
+      nextCursor: null;
+    }) => void;
     vi.mocked(listInventory).mockReturnValue(
       new Promise((resolve) => {
         finish = resolve;
@@ -74,7 +77,7 @@ describe('InventoryDirectory workflows', () => {
     vi.mocked(listBranches).mockResolvedValue([]);
     render(<InventoryDirectory {...scope} />);
     await screen.findByRole('alert');
-    await act(async () => finish([inventory]));
+    await act(async () => finish({ items: [inventory], nextCursor: null }));
     expect(screen.queryByText('PHP 850.00')).not.toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Inventory access is unavailable',
@@ -95,7 +98,10 @@ describe('InventoryDirectory workflows', () => {
       organizationStatus: 'ready',
     } as never);
     vi.mocked(getInventoryBranch).mockResolvedValue(branch);
-    vi.mocked(listInventory).mockResolvedValue([inventory]);
+    vi.mocked(listInventory).mockResolvedValue({
+      items: [inventory],
+      nextCursor: null,
+    });
     vi.mocked(listMerchants).mockResolvedValue([merchant]);
   });
   it('displays branch price and stock with scoped placement navigation', async () => {
@@ -111,6 +117,92 @@ describe('InventoryDirectory workflows', () => {
       'href',
       `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/inventory/${scope.inventoryId}`,
     );
+  });
+  it('loads another bounded page and labels the count as displayed rows', async () => {
+    const cursor = `${inventory.id}.${'a'.repeat(64)}`;
+    const nextItem = {
+      ...inventory,
+      id: '55555555-5555-4555-8555-555555555555',
+      product: { ...inventory.product, name: 'Another product' },
+    };
+    vi.mocked(listInventory)
+      .mockResolvedValueOnce({ items: [inventory], nextCursor: cursor })
+      .mockResolvedValueOnce({ items: [nextItem], nextCursor: null });
+    render(<InventoryDirectory {...scope} />);
+    expect(
+      await screen.findByText(/1 displayed placements/),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Load more placements' }),
+    );
+    expect(
+      await screen.findByRole('link', {
+        name: 'View Another product inventory',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/2 matching placements/)).toBeInTheDocument();
+    expect(listInventory).toHaveBeenLastCalledWith(
+      request,
+      { organizationId: scope.organizationId, branchId: scope.branchId },
+      {
+        q: undefined,
+        merchantId: undefined,
+        status: undefined,
+        stockStatus: undefined,
+      },
+      cursor,
+    );
+  });
+  it('keeps loaded rows and retries a failed later page', async () => {
+    const cursor = `${inventory.id}.${'a'.repeat(64)}`;
+    vi.mocked(listInventory)
+      .mockResolvedValueOnce({ items: [inventory], nextCursor: cursor })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ items: [], nextCursor: null });
+    render(<InventoryDirectory {...scope} />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Load more placements' }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'More placements could not be loaded',
+    );
+    expect(screen.getByText('PHP 850.00')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading more' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Retry loading more' }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+  it('ignores a later page that resolves after the search changes', async () => {
+    const cursor = `${inventory.id}.${'a'.repeat(64)}`;
+    const oldPageItem = {
+      ...inventory,
+      id: '55555555-5555-4555-8555-555555555555',
+      product: { ...inventory.product, name: 'Old page product' },
+    };
+    let finish!: (page: {
+      items: (typeof inventory)[];
+      nextCursor: null;
+    }) => void;
+    vi.mocked(listInventory)
+      .mockResolvedValueOnce({ items: [inventory], nextCursor: cursor })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      )
+      .mockResolvedValueOnce({ items: [], nextCursor: null });
+    render(<InventoryDirectory {...scope} />);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Load more placements' }),
+    );
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), {
+      target: { value: 'new' },
+    });
+    await waitFor(() => expect(listInventory).toHaveBeenCalledTimes(3));
+    await act(async () => finish({ items: [oldPageItem], nextCursor: null }));
+    expect(screen.queryByText('Old page product')).not.toBeInTheDocument();
   });
   it.each(['OWNER', 'MANAGER'])(
     'offers on-demand stock integrity only to %s staff',
@@ -302,7 +394,7 @@ describe('InventoryDirectory workflows', () => {
       organization: { role: 'MERCHANT' },
       organizationStatus: 'ready',
     } as never);
-    vi.mocked(listInventory).mockResolvedValue([]);
+    vi.mocked(listInventory).mockResolvedValue({ items: [], nextCursor: null });
     render(<InventoryDirectory {...scope} />);
     expect(
       await screen.findByText(/never grants access to another merchant/),
@@ -318,7 +410,7 @@ describe('InventoryDirectory workflows', () => {
     expect(getInventoryBranch).not.toHaveBeenCalled();
   });
   it('distinguishes empty and filtered-empty results', async () => {
-    vi.mocked(listInventory).mockResolvedValue([]);
+    vi.mocked(listInventory).mockResolvedValue({ items: [], nextCursor: null });
     render(<InventoryDirectory {...scope} />);
     await screen.findByText('No product placements yet');
     fireEvent.click(screen.getByRole('combobox', { name: 'Product status' }));

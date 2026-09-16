@@ -1,7 +1,8 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
 import {
   inventoryBranchSchema,
-  inventoryListSchema,
+  inventoryPageSchema,
+  eligibleProductsPageSchema,
   inventoryResponseSchema,
   movementResponseSchema,
   movementPageSchema,
@@ -54,12 +55,27 @@ export async function listInventory(
   request: AuthenticatedRequest,
   scope: InventoryScope,
   filters: InventoryFilters = {},
+  cursor?: string,
 ) {
-  const query = new URLSearchParams();
+  const query = new URLSearchParams({ limit: '50' });
   for (const [key, value] of Object.entries(filters))
     if (value) query.set(key, value);
-  return inventoryListSchema.parse(
-    await request<unknown>(`${path(scope)}${query.size ? `?${query}` : ''}`),
+  if (cursor) query.set('cursor', cursor);
+  return inventoryPageSchema.parse(
+    await request<unknown>(`${path(scope)}?${query}`),
+  );
+}
+export async function listEligibleProducts(
+  request: AuthenticatedRequest,
+  scope: InventoryScope,
+  q?: string,
+  cursor?: string,
+) {
+  const query = new URLSearchParams({ limit: '50' });
+  if (q) query.set('q', q);
+  if (cursor) query.set('cursor', cursor);
+  return eligibleProductsPageSchema.parse(
+    await request<unknown>(`${path(scope)}/eligible-products?${query}`),
   );
 }
 export async function createPlacement(

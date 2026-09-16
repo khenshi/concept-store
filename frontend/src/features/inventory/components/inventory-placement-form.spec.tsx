@@ -1,26 +1,21 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
-import { listMerchants } from '@/features/merchants/api/merchant-api';
-import { listProducts } from '@/features/products/api/product-api';
-import {
-  merchant,
-  product,
-} from '@/features/products/model/product.test-fixtures';
-import { createPlacement, listInventory } from '../api/inventory-api';
+import { product } from '@/features/products/model/product.test-fixtures';
+import { createPlacement, listEligibleProducts } from '../api/inventory-api';
 import { inventory, scope } from '../model/inventory.test-fixtures';
 import { InventoryPlacementForm } from './inventory-placement-form';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
-vi.mock('@/features/merchants/api/merchant-api', () => ({
-  listMerchants: vi.fn(),
-}));
-vi.mock('@/features/products/api/product-api', () => ({
-  listProducts: vi.fn(),
-}));
 vi.mock('../api/inventory-api', () => ({
   createPlacement: vi.fn(),
-  listInventory: vi.fn(),
+  listEligibleProducts: vi.fn(),
 }));
 
 describe('InventoryPlacementForm', () => {
@@ -28,9 +23,10 @@ describe('InventoryPlacementForm', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(useAuth).mockReturnValue({ request } as never);
-    vi.mocked(listProducts).mockResolvedValue([product]);
-    vi.mocked(listMerchants).mockResolvedValue([merchant]);
-    vi.mocked(listInventory).mockResolvedValue([]);
+    vi.mocked(listEligibleProducts).mockResolvedValue({
+      items: [product],
+      nextCursor: null,
+    });
   });
   const select = async () => {
     await waitFor(() =>
@@ -69,16 +65,11 @@ describe('InventoryPlacementForm', () => {
     );
     expect(onSaved).toHaveBeenCalledOnce();
   });
-  it('excludes already-placed products and products without active merchants', async () => {
-    vi.mocked(listInventory).mockResolvedValue([inventory]);
-    vi.mocked(listProducts).mockResolvedValue([
-      product,
-      {
-        ...product,
-        id: '11111111-1111-4111-8111-111111111111',
-        merchantId: '22222222-2222-4222-8222-222222222222',
-      },
-    ]);
+  it('uses only branch-scoped eligible products returned by the server', async () => {
+    vi.mocked(listEligibleProducts).mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
     render(
       <InventoryPlacementForm
         scope={scope}
@@ -95,15 +86,13 @@ describe('InventoryPlacementForm', () => {
     expect(
       screen.getByRole('button', { name: 'Create placement' }),
     ).toBeDisabled();
-    expect(listProducts).toHaveBeenCalledWith(request, scope.organizationId, {
-      status: 'ACTIVE',
-      q: undefined,
-    });
-    expect(listMerchants).toHaveBeenCalledWith(request, scope.organizationId, {
-      status: 'ACTIVE',
-    });
+    expect(listEligibleProducts).toHaveBeenCalledWith(
+      request,
+      { organizationId: scope.organizationId, branchId: scope.branchId },
+      undefined,
+    );
   });
-  it('debounces organization-scoped product search', async () => {
+  it('debounces branch-scoped eligible-product search', async () => {
     render(
       <InventoryPlacementForm
         scope={scope}
@@ -117,11 +106,119 @@ describe('InventoryPlacementForm', () => {
       target: { value: '001Ab' },
     });
     await waitFor(() =>
-      expect(listProducts).toHaveBeenLastCalledWith(
+      expect(listEligibleProducts).toHaveBeenLastCalledWith(
         request,
-        scope.organizationId,
-        { status: 'ACTIVE', q: '001Ab' },
+        { organizationId: scope.organizationId, branchId: scope.branchId },
+        '001Ab',
       ),
+    );
+  });
+  it('loads more eligible products and ignores stale later-page responses', async () => {
+    const cursor = `${product.id}.${'a'.repeat(64)}`;
+    const second = {
+      ...product,
+      id: '11111111-1111-4111-8111-111111111111',
+      name: 'Second eligible product',
+    };
+    let finish!: (page: {
+      items: (typeof product)[];
+      nextCursor: null;
+    }) => void;
+    vi.mocked(listEligibleProducts)
+      .mockResolvedValueOnce({ items: [product], nextCursor: cursor })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      )
+      .mockResolvedValueOnce({ items: [], nextCursor: null });
+    render(
+      <InventoryPlacementForm
+        scope={scope}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onPendingChange={vi.fn()}
+      />,
+    );
+    const picker = await screen.findByRole('combobox', { name: 'Product' });
+    await waitFor(() => expect(picker).toBeEnabled());
+    fireEvent.focus(picker);
+    fireEvent.click(screen.getByRole('button', { name: 'Load more products' }));
+    expect(listEligibleProducts).toHaveBeenLastCalledWith(
+      request,
+      { organizationId: scope.organizationId, branchId: scope.branchId },
+      undefined,
+      cursor,
+    );
+    fireEvent.change(picker, { target: { value: 'new' } });
+    await waitFor(() => expect(listEligibleProducts).toHaveBeenCalledTimes(3));
+    await act(async () => finish({ items: [second], nextCursor: null }));
+    expect(
+      screen.queryByRole('option', { name: `${second.name} · ${second.sku}` }),
+    ).not.toBeInTheDocument();
+  });
+  it('makes later-page products selectable by keyboard', async () => {
+    const cursor = `${product.id}.${'a'.repeat(64)}`;
+    const second = {
+      ...product,
+      id: '11111111-1111-4111-8111-111111111111',
+      name: 'Second eligible product',
+    };
+    vi.mocked(listEligibleProducts)
+      .mockResolvedValueOnce({ items: [product], nextCursor: cursor })
+      .mockResolvedValueOnce({ items: [second], nextCursor: null });
+    render(
+      <InventoryPlacementForm
+        scope={scope}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onPendingChange={vi.fn()}
+      />,
+    );
+    const picker = await screen.findByRole('combobox', { name: 'Product' });
+    await waitFor(() => expect(picker).toBeEnabled());
+    fireEvent.focus(picker);
+    fireEvent.click(screen.getByRole('button', { name: 'Load more products' }));
+    const option = await screen.findByRole('option', {
+      name: `${second.name} · ${second.sku}`,
+    });
+    option.focus();
+    fireEvent.keyDown(option, { key: 'ArrowUp' });
+    expect(
+      screen.getByRole('option', { name: `${product.name} · ${product.sku}` }),
+    ).toHaveFocus();
+    fireEvent.click(option);
+    expect(picker).toHaveValue(`${second.name} · ${second.sku}`);
+  });
+  it('retries a failed later candidate page without losing the current choice', async () => {
+    const cursor = `${product.id}.${'a'.repeat(64)}`;
+    vi.mocked(listEligibleProducts)
+      .mockResolvedValueOnce({ items: [product], nextCursor: cursor })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ items: [], nextCursor: null });
+    render(
+      <InventoryPlacementForm
+        scope={scope}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onPendingChange={vi.fn()}
+      />,
+    );
+    const picker = await screen.findByRole('combobox', { name: 'Product' });
+    await waitFor(() => expect(picker).toBeEnabled());
+    fireEvent.focus(picker);
+    fireEvent.click(screen.getByRole('button', { name: 'Load more products' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'More available products could not be loaded',
+    );
+    expect(
+      screen.getByRole('option', { name: `${product.name} · ${product.sku}` }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry loading more' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Retry loading more' }),
+      ).not.toBeInTheDocument(),
     );
   });
   it('uses one searchable product picker and supports Enter selection', async () => {

@@ -6,6 +6,7 @@ import {
   getInventoryHealthSummary,
   getInventoryReconciliation,
   listInventory,
+  listEligibleProducts,
   listMovements,
   receiveStock,
   updateInventoryPrice,
@@ -17,6 +18,9 @@ import {
   movement,
   scope,
 } from '../model/inventory.test-fixtures';
+import { product } from '@/features/products/model/product.test-fixtures';
+
+const cursor = `${inventory.id}.${'a'.repeat(64)}`;
 
 describe('Branch inventory API contracts', () => {
   const request = vi.fn();
@@ -24,7 +28,7 @@ describe('Branch inventory API contracts', () => {
   beforeEach(() => vi.resetAllMocks());
   it('scopes directory, detail, branch identity, and history reads', async () => {
     request
-      .mockResolvedValueOnce([inventory])
+      .mockResolvedValueOnce({ items: [inventory], nextCursor: null })
       .mockResolvedValueOnce(inventory)
       .mockResolvedValueOnce(branch)
       .mockResolvedValueOnce({ items: [movement], nextCursor: null });
@@ -34,7 +38,7 @@ describe('Branch inventory API contracts', () => {
       stockStatus: 'LOW_STOCK',
     });
     expect(request).toHaveBeenLastCalledWith(
-      `${base}?q=001Ab&status=ACTIVE&stockStatus=LOW_STOCK`,
+      `${base}?limit=50&q=001Ab&status=ACTIVE&stockStatus=LOW_STOCK`,
     );
     await expect(getInventory(request, scope)).resolves.toEqual(inventory);
     await expect(getInventoryBranch(request, scope)).resolves.toEqual(branch);
@@ -45,6 +49,28 @@ describe('Branch inventory API contracts', () => {
     expect(request).toHaveBeenLastCalledWith(
       `${base}/${scope.inventoryId}/movements?limit=50`,
     );
+  });
+  it('parses bounded inventory and eligible-product pages with cursors', async () => {
+    request.mockResolvedValueOnce({ items: [inventory], nextCursor: cursor });
+    await expect(listInventory(request, scope)).resolves.toEqual({
+      items: [inventory],
+      nextCursor: cursor,
+    });
+    request.mockResolvedValueOnce({ items: [], nextCursor: null });
+    await listInventory(request, scope, { q: 'cup' }, cursor);
+    expect(request).toHaveBeenLastCalledWith(
+      `${base}?limit=50&q=cup&cursor=${encodeURIComponent(cursor)}`,
+    );
+    request.mockResolvedValueOnce({ items: [product], nextCursor: null });
+    await expect(listEligibleProducts(request, scope, 'cup')).resolves.toEqual({
+      items: [product],
+      nextCursor: null,
+    });
+    expect(request).toHaveBeenLastCalledWith(
+      `${base}/eligible-products?limit=50&q=cup`,
+    );
+    request.mockResolvedValueOnce({ items: [], nextCursor: 'bad' });
+    await expect(listInventory(request, scope)).rejects.toThrow();
   });
   it('reads aggregate stock health without product details', async () => {
     const summary = { inStock: 3, lowStock: 2, outOfStock: 1 };

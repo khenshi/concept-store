@@ -118,7 +118,7 @@ full suite then passed 30 consecutive runs (213 tests per run), as did backend
 lint and build. This supports a request-listener lifecycle cause, though an
 intermittent failure cannot be ruled out absolutely by finite repeated runs.
 
-### Part 2 backend read status (uncommitted, awaiting review)
+### Part 2 backend read status (committed as `af48532`)
 
 The branch directory now returns a bounded `{ items, nextCursor }` page,
 ordered by product name and placement ID. The staff-only eligible-product
@@ -132,8 +132,19 @@ been updated.
 Validation so far: 413 backend unit tests, 214 HTTP tests, 245 PostgreSQL
 integration tests (one pre-existing skip), backend lint and build passed. A
 129-placement branch fixture traversed all pages without duplicates. The
-frontend has not yet been adapted to the new response shape; this is the next
-part and the milestone is not end-to-end complete until then.
+frontend had not yet been adapted at the end of this reviewed part.
+
+### Part 3 frontend status (uncommitted, awaiting review)
+
+The Inventory directory now loads 50 placements initially, appends later pages
+on demand, labels displayed versus complete row counts truthfully, and clears
+old pages after filter/context changes or successful writes. The placement
+combobox now reads the branch-scoped eligible-product pages rather than full
+product, merchant and inventory lists; its debounced search, later-page
+selection, pending/error feedback and duplicate-conflict draft retention remain.
+Generation checks ignore responses from superseded reads. Focused API/UI tests
+and the full 783-test frontend suite pass, as do lint, sequential typecheck and
+production build. Rendered QA is reserved for the final verification part.
 
 ### Explicit exclusions
 

@@ -10,8 +10,6 @@ import {
 } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
-import { listMerchants } from '@/features/merchants/api/merchant-api';
-import { listProducts } from '@/features/products/api/product-api';
 import type { Product } from '@/features/products/model/product.types';
 import { buttonStyles } from '@/shared/components/ui/button';
 import {
@@ -20,7 +18,7 @@ import {
 } from '@/shared/components/ui/text-field';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
-import { createPlacement, listInventory } from '../api/inventory-api';
+import { createPlacement, listEligibleProducts } from '../api/inventory-api';
 import { placementInputSchema } from '../model/inventory.schemas';
 import type { InventoryScope } from '../model/inventory.types';
 
@@ -37,6 +35,9 @@ export function InventoryPlacementForm({
 }) {
   const { request } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [productId, setProductId] = useState('');
   const [price, setPrice] = useState('');
@@ -53,6 +54,7 @@ export function InventoryPlacementForm({
   const timers = useRef<
     Partial<Record<'productId' | 'sellingPrice' | 'lowStockThreshold', number>>
   >({});
+  const readGeneration = useRef(0);
   const q = useDebouncedValue(search);
   const { organizationId, branchId } = scope;
   useEffect(
@@ -63,37 +65,35 @@ export function InventoryPlacementForm({
   );
   useEffect(() => {
     let active = true;
+    const generation = ++readGeneration.current;
     async function load() {
       await Promise.resolve();
-      if (!active) return;
+      if (!active || generation !== readGeneration.current) return;
       setLoading(true);
       setLoadError(null);
+      setProducts([]);
+      setNextCursor(null);
+      setMoreError(null);
+      setLoadingMore(false);
       try {
-        const [items, profiles, placed] = await Promise.all([
-          listProducts(request, organizationId, {
-            status: 'ACTIVE',
-            q: q.trim() || undefined,
-          }),
-          listMerchants(request, organizationId, { status: 'ACTIVE' }),
-          listInventory(request, { organizationId, branchId }),
-        ]);
-        const merchantIds = new Set(profiles.map((profile) => profile.id));
-        const placedIds = new Set(
-          placed.map((placement) => placement.productId),
+        const page = await listEligibleProducts(
+          request,
+          { organizationId, branchId },
+          q.trim() || undefined,
         );
-        const candidates = items.filter(
-          (item) => merchantIds.has(item.merchantId) && !placedIds.has(item.id),
-        );
-        if (active) setProducts(candidates);
+        if (active && generation === readGeneration.current) {
+          setProducts(page.items);
+          setNextCursor(page.nextCursor);
+        }
       } catch (cause) {
-        if (active)
+        if (active && generation === readGeneration.current)
           setLoadError(
             cause instanceof ApiError
               ? cause.message
               : 'Available products could not be loaded.',
           );
       } finally {
-        if (active) setLoading(false);
+        if (active && generation === readGeneration.current) setLoading(false);
       }
     }
     void load();
@@ -101,6 +101,32 @@ export function InventoryPlacementForm({
       active = false;
     };
   }, [request, organizationId, branchId, q, revision]);
+  async function loadMore() {
+    if (!nextCursor || loading || loadingMore || loadError) return;
+    const generation = readGeneration.current;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const page = await listEligibleProducts(
+        request,
+        { organizationId, branchId },
+        q.trim() || undefined,
+        nextCursor,
+      );
+      if (generation !== readGeneration.current) return;
+      setProducts((current) => [...current, ...page.items]);
+      setNextCursor(page.nextCursor);
+    } catch (cause) {
+      if (generation === readGeneration.current)
+        setMoreError(
+          cause instanceof ApiError
+            ? cause.message
+            : 'More available products could not be loaded.',
+        );
+    } finally {
+      if (generation === readGeneration.current) setLoadingMore(false);
+    }
+  }
   function validate(
     field: 'productId' | 'sellingPrice' | 'lowStockThreshold',
     id: string,
@@ -180,9 +206,18 @@ export function InventoryPlacementForm({
         selectedProduct={selectedProduct}
         search={search}
         loading={loading}
+        nextCursor={nextCursor}
+        loadingMore={loadingMore}
+        moreError={moreError}
         disabled={pending || loading || Boolean(loadError)}
         error={errors.productId}
         onSearchChange={(value) => {
+          readGeneration.current++;
+          setProducts([]);
+          setNextCursor(null);
+          setMoreError(null);
+          setLoadingMore(false);
+          setLoading(true);
           setSearch(value);
           setProductId('');
           setSelectedProduct(null);
@@ -195,6 +230,7 @@ export function InventoryPlacementForm({
           validate('productId', product.id, price, threshold);
         }}
         onBlur={() => validate('productId', productId, price, threshold, true)}
+        onLoadMore={() => void loadMore()}
       />
       <TextField
         label="Selling price (PHP)"
@@ -265,21 +301,29 @@ function ProductPicker({
   selectedProduct,
   search,
   loading,
+  nextCursor,
+  loadingMore,
+  moreError,
   disabled,
   error,
   onSearchChange,
   onSelect,
   onBlur,
+  onLoadMore,
 }: {
   products: Product[];
   selectedProduct: Product | null;
   search: string;
   loading: boolean;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  moreError: string | null;
   disabled: boolean;
   error?: string;
   onSearchChange(value: string): void;
   onSelect(product: Product): void;
   onBlur(): void;
+  onLoadMore(): void;
 }) {
   const id = useId();
   const listboxId = `${id}-results`;
@@ -374,30 +418,49 @@ function ProductPicker({
           {error}
         </p>
       ) : null}
-      {open && !disabled && products.length ? (
-        <div
-          id={listboxId}
-          role="listbox"
-          aria-label="Available products"
-          className="absolute top-full right-0 left-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-control border border-hairline bg-surface p-1.5 shadow-floating"
-        >
-          {products.map((product, index) => (
-            <button
-              key={product.id}
-              type="button"
-              role="option"
-              aria-selected={product.id === selectedProduct?.id}
-              tabIndex={-1}
-              className={`flex min-h-11 w-full items-center rounded-compact border-0 px-3 py-2.5 text-left text-sm text-ink hover:bg-subtle ${product.id === selectedProduct?.id ? 'bg-selected font-semibold' : 'bg-surface'}`}
-              onKeyDown={(event) => moveResultFocus(event, index)}
-              onClick={() => {
-                onSelect(product);
-                setOpen(false);
-              }}
-            >
-              {productLabel(product)}
-            </button>
-          ))}
+      {open && !disabled && (products.length || nextCursor) ? (
+        <div className="absolute top-full right-0 left-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-control border border-hairline bg-surface p-1.5 shadow-floating">
+          <div id={listboxId} role="listbox" aria-label="Available products">
+            {products.map((product, index) => (
+              <button
+                key={product.id}
+                type="button"
+                role="option"
+                aria-selected={product.id === selectedProduct?.id}
+                tabIndex={-1}
+                className={`flex min-h-11 w-full items-center rounded-compact border-0 px-3 py-2.5 text-left text-sm text-ink hover:bg-subtle ${product.id === selectedProduct?.id ? 'bg-selected font-semibold' : 'bg-surface'}`}
+                onKeyDown={(event) => moveResultFocus(event, index)}
+                onClick={() => {
+                  onSelect(product);
+                  setOpen(false);
+                }}
+              >
+                {productLabel(product)}
+              </button>
+            ))}
+          </div>
+          {nextCursor ? (
+            <div className="border-t border-hairline p-2">
+              {moreError ? (
+                <p role="alert" className="mb-2 text-xs text-danger">
+                  {moreError}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                className={buttonStyles({ variant: 'quiet' })}
+                disabled={loadingMore}
+                aria-busy={loadingMore}
+                onClick={onLoadMore}
+              >
+                {loadingMore
+                  ? 'Loading more…'
+                  : moreError
+                    ? 'Retry loading more'
+                    : 'Load more products'}
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
