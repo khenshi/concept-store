@@ -54,6 +54,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       }),
     );
     await app.init();
+    await app.listen(0, '127.0.0.1');
     jwt = module.get(JwtService);
   });
   afterAll(async () => app.close());

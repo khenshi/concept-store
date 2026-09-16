@@ -147,6 +147,7 @@ describe('Merchant profiles (e2e)', () => {
       }),
     );
     await app.init();
+    await app.listen(0, '127.0.0.1');
     jwtService = moduleRef.get(JwtService);
   });
 
