@@ -1,6 +1,21 @@
 # Branch Inventory
 
-**Status:** Implemented; final replenishment-visibility rendered QA explicitly waived.
+**Status:** Implemented; rendered QA for inventory integrity/performance and
+earlier replenishment visibility was explicitly waived.
+
+The later inventory integrity/performance milestone adds read-only staff
+reconciliation, database-side stock filters/counts, and bounded movement
+history. Final automated verification on September 16, 2026 passed Prisma
+validation; backend formatting, lint, build, 411 unit tests, 213 HTTP tests,
+and 244 PostgreSQL integration tests; and frontend formatting, lint, typecheck,
+build, and 776 tests. The opt-in performance fixture and before/after plans are
+recorded in [the measurement note](../development/inventory-pos-performance-2026-09-16.md).
+The user explicitly waived rendered responsive, keyboard/focus, and 200% zoom
+QA for the Inventory diagnostic and history screens. Those checks were not
+performed. Repeated HTTP-suite runs also exposed intermittent 401/404 status
+mismatches in existing Reports and Products/Inventory tests; focused runs and
+subsequent full runs passed, so this remains a test-stability follow-up rather
+than a claimed deterministic failure.
 
 The later inventory workflow usability refinement passes the complete frontend
 suite (751 tests across 88 files), lint, type checking, formatting and production

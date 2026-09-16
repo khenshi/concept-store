@@ -1,5 +1,11 @@
 # Archived Implementation Plans
 
+The completed Inventory integrity and measured Inventory/POS performance plan,
+including its four reviewed parts, final automated verification, rendered-QA
+waiver, and documented remaining limitations, is retained in
+[`inventory-integrity-and-measured-performance-2026-09-16.md`](inventory-integrity-and-measured-performance-2026-09-16.md).
+This historical record does not authorize additional implementation.
+
 The completed branch inventory replenishment-visibility record, including all
 three reviewed implementation commits, final automated verification and the
 September 16, 2026 rendered-QA waiver, is retained in
