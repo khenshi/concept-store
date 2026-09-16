@@ -39,7 +39,7 @@ PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/p
 PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/threshold
 POST  /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/receipts
 POST  /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/adjustments
-GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/movements
+GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/movements?limit=&cursor=
 ```
 
 All routes require authentication and organization membership. Owners read/write
@@ -74,13 +74,16 @@ whitelisting reject malformed IDs and unexpected fields.
 - Search matches product name/SKU case-insensitively and barcode case-sensitively.
   Merchant/product-status/derived-stock-status filters are optional and compose
   without widening the role-aware placement scope. Lists order by product name
-  then inventory ID and are not paginated.
+  then inventory ID and are not paginated. Stock-status filtering is applied in
+  PostgreSQL using the same zero/threshold rules as the displayed status; the
+  unfiltered directory still returns all matching placements.
 - The summary route returns only `inStock`, `lowStock`, and `outOfStock` counts.
   It derives them from the same current quantity/threshold rules and role-aware
   placement scope as directory reads. Owners and assigned managers see the
   authorized branch; linked merchants see own placements only; cashiers are
   denied. Empty authorized scopes return three zeroes and no product or merchant
-  details.
+  details. Three database counts run in one repeatable-read snapshot, without
+  materializing placement rows in the application.
 - Composite foreign keys prevent cross-tenant product/branch placements and
   cross-branch movement references. Database checks protect prices, quantities
   and nonnegative thresholds. The migration backfills existing placements to `5`.
@@ -125,8 +128,13 @@ control is available from a mismatch.
 - Movement actor comes from authenticated context. Replays retain original actor
   attribution. Owner/manager history returns actor IDs, not personal user
   information; merchant history omits actor IDs.
-- History is ordered by timestamp descending then movement ID descending. There
-  is no movement mutation or deletion endpoint.
+- History is ordered by timestamp descending then movement ID descending. The
+  endpoint returns `{ items, nextCursor }`, defaulting to 50 movements with a
+  maximum of 100 per page. A next cursor is the last returned movement ID and
+  must belong to the same tenant, branch, and placement. Invalid/foreign cursors
+  do not disclose movement data. The detail view can load older pages while
+  retaining current stock and prior pages; refreshes clear old pages. There is
+  no movement mutation or deletion endpoint.
 - Command responses are historical movement snapshots; clients must refresh
   current inventory after success rather than treating a replay as current stock.
 - No stock write touches another branch's placement.

@@ -146,6 +146,14 @@ export const movementResponseSchema = movementObjectSchema.refine(
   'Receipt/return delta must be positive; sale delta must be negative.',
 );
 export const movementListSchema = z.array(movementResponseSchema);
+export const movementPageSchema = z.object({
+  items: movementListSchema,
+  nextCursor: z.uuidv4().nullable(),
+});
+export const merchantMovementPageSchema = z.object({
+  items: z.array(merchantMovementSchema),
+  nextCursor: z.uuidv4().nullable(),
+});
 export const inventoryBranchSchema = z.object({
   id: z.uuidv4(),
   organizationId: z.uuidv4().optional(),

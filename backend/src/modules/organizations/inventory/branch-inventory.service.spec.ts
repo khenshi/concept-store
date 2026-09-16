@@ -11,18 +11,24 @@ describe('BranchInventoryService', () => {
     product: { findUnique: jest.fn() },
     merchant: { findUnique: jest.fn() },
     branchInventory: {
+      fields: { lowStockThreshold: 'threshold-field' },
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
-    inventoryMovement: { findMany: jest.fn() },
+    inventoryMovement: { findMany: jest.fn(), findFirst: jest.fn() },
+    $transaction: jest.fn(),
   };
   const service = new BranchInventoryService(
     prisma as unknown as PrismaService,
   );
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$transaction.mockImplementation(
+      (run: (tx: typeof prisma) => unknown) => run(prisma),
+    );
     prisma.branch.findUnique.mockResolvedValue({ id: 'branch' });
     prisma.product.findUnique.mockResolvedValue({
       status: 'ACTIVE',
@@ -43,6 +49,8 @@ describe('BranchInventoryService', () => {
       quantity: 5,
       lowStockThreshold: 5,
     });
+    prisma.inventoryMovement.findMany.mockResolvedValue([]);
+    prisma.inventoryMovement.findFirst.mockResolvedValue({ id: 'cursor' });
   });
 
   it('creates a zero-stock placement with decimal price and no opening movement', async () => {
@@ -188,21 +196,9 @@ describe('BranchInventoryService', () => {
   it('filters using the same derived stock status returned by the API', async () => {
     prisma.branchInventory.findMany.mockResolvedValue([
       {
-        id: 'empty',
-        sellingPrice: new Prisma.Decimal('12.50'),
-        quantity: 0,
-        lowStockThreshold: 5,
-      },
-      {
         id: 'low',
         sellingPrice: new Prisma.Decimal('12.50'),
         quantity: 5,
-        lowStockThreshold: 5,
-      },
-      {
-        id: 'healthy',
-        sellingPrice: new Prisma.Decimal('12.50'),
-        quantity: 6,
         lowStockThreshold: 5,
       },
     ]);
@@ -211,16 +207,23 @@ describe('BranchInventoryService', () => {
     ).resolves.toEqual([
       expect.objectContaining({ id: 'low', stockStatus: 'LOW_STOCK' }),
     ]);
+    expect(prisma.branchInventory.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Jest's nested matcher is intentionally untyped.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: expect.objectContaining({
+          quantity: { gt: 0, lte: 'threshold-field' },
+          lowStockThreshold: { gt: 0 },
+        }),
+      }),
+    );
   });
 
   it('summarizes only role-scoped placements using the shared status rules', async () => {
-    prisma.branchInventory.findMany.mockResolvedValue([
-      { quantity: 0, lowStockThreshold: 0 },
-      { quantity: 1, lowStockThreshold: 5 },
-      { quantity: 5, lowStockThreshold: 5 },
-      { quantity: 6, lowStockThreshold: 5 },
-      { quantity: 1, lowStockThreshold: 0 },
-    ]);
+    prisma.branchInventory.count
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(2);
     const context = {
       organizationId: 'org',
       userId: 'merchant-user',
@@ -233,13 +236,18 @@ describe('BranchInventoryService', () => {
       lowStock: 2,
       outOfStock: 1,
     });
-    expect(prisma.branchInventory.findMany).toHaveBeenCalledWith({
+    expect(prisma.branchInventory.count).toHaveBeenCalledTimes(3);
+    expect(prisma.branchInventory.count).toHaveBeenNthCalledWith(2, {
       where: {
         organizationId: 'org',
         branchId: 'branch',
         AND: [inventoryScope(context)],
+        quantity: { gt: 0, lte: 'threshold-field' },
+        lowStockThreshold: { gt: 0 },
       },
-      select: { quantity: true, lowStockThreshold: true },
+    });
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
     });
   });
 
@@ -253,11 +261,39 @@ describe('BranchInventoryService', () => {
         branchInventoryId: 'inventory',
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 51,
     });
     prisma.branchInventory.findUnique.mockResolvedValue(null);
     prisma.inventoryMovement.findMany.mockClear();
     await expect(
       service.findMovements('org', 'other', 'inventory'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
+  });
+
+  it('bounds history and rejects a foreign movement cursor', async () => {
+    prisma.inventoryMovement.findMany.mockResolvedValue(
+      Array.from({ length: 3 }, (_, index) => ({
+        id: `movement-${index}`,
+        createdById: 'actor',
+      })),
+    );
+    const page = await service.findMovements(
+      'org',
+      'branch',
+      'inventory',
+      undefined,
+      { limit: 2 },
+    );
+    expect(page.items).toHaveLength(2);
+    expect(page.nextCursor).toBe('movement-1');
+    prisma.inventoryMovement.findFirst.mockResolvedValue(null);
+    prisma.inventoryMovement.findMany.mockClear();
+    await expect(
+      service.findMovements('org', 'branch', 'inventory', undefined, {
+        limit: 2,
+        cursor: 'foreign',
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
   });

@@ -13,6 +13,7 @@ import type { CreateBranchInventoryDto } from './dto/create-branch-inventory.dto
 import type { InventoryPriceDto } from './dto/inventory-price.dto';
 import type { InventoryThresholdDto } from './dto/inventory-threshold.dto';
 import type { ListBranchInventoryQueryDto } from './dto/list-branch-inventory-query.dto';
+import type { MovementHistoryQueryDto } from './dto/movement-history-query.dto';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { inventoryScope } from '../authorization/resource-access';
 import {
@@ -23,6 +24,7 @@ import {
   type BranchInventoryRecord,
   type InventoryHealthSummary,
   type InventoryMovementRecord,
+  type InventoryMovementPage,
 } from './inventory.types';
 
 @Injectable()
@@ -84,6 +86,7 @@ export class BranchInventoryService {
         organizationId,
         branchId,
         ...(context ? { AND: [inventoryScope(context)] } : {}),
+        ...(query.stockStatus ? this.stockStatusWhere(query.stockStatus) : {}),
         product: {
           organizationId,
           ...(query.merchantId ? { merchantId: query.merchantId } : {}),
@@ -102,11 +105,7 @@ export class BranchInventoryService {
       include: { product: { select: inventoryProductSelect } },
       orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
     });
-    return inventory
-      .map((item) => this.toRecord(item))
-      .filter(
-        (item) => !query.stockStatus || item.stockStatus === query.stockStatus,
-      );
+    return inventory.map((item) => this.toRecord(item));
   }
 
   async findOne(
@@ -134,24 +133,51 @@ export class BranchInventoryService {
     context?: OrganizationContext,
   ): Promise<InventoryHealthSummary> {
     await this.resolveBranch(organizationId, branchId);
-    const placements = await this.prisma.branchInventory.findMany({
-      where: {
-        organizationId,
-        branchId,
-        ...(context ? { AND: [inventoryScope(context)] } : {}),
+    return this.prisma.$transaction(
+      async (tx) => {
+        const base = {
+          organizationId,
+          branchId,
+          ...(context ? { AND: [inventoryScope(context)] } : {}),
+        };
+        const outOfStock = await tx.branchInventory.count({
+          where: {
+            ...base,
+            ...this.stockStatusWhere(InventoryStockStatus.OUT_OF_STOCK),
+          },
+        });
+        const lowStock = await tx.branchInventory.count({
+          where: {
+            ...base,
+            ...this.stockStatusWhere(InventoryStockStatus.LOW_STOCK),
+          },
+        });
+        const inStock = await tx.branchInventory.count({
+          where: {
+            ...base,
+            ...this.stockStatusWhere(InventoryStockStatus.IN_STOCK),
+          },
+        });
+        return { inStock, lowStock, outOfStock };
       },
-      select: { quantity: true, lowStockThreshold: true },
-    });
-    return placements.reduce<InventoryHealthSummary>(
-      (summary, placement) => {
-        const status = deriveInventoryStockStatus(placement);
-        if (status === InventoryStockStatus.OUT_OF_STOCK) summary.outOfStock++;
-        else if (status === InventoryStockStatus.LOW_STOCK) summary.lowStock++;
-        else summary.inStock++;
-        return summary;
-      },
-      { inStock: 0, lowStock: 0, outOfStock: 0 },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
+  }
+
+  private stockStatusWhere(
+    status: InventoryStockStatus,
+  ): Prisma.BranchInventoryWhereInput {
+    const threshold = this.prisma.branchInventory.fields.lowStockThreshold;
+    if (status === InventoryStockStatus.OUT_OF_STOCK) return { quantity: 0 };
+    if (status === InventoryStockStatus.LOW_STOCK)
+      return {
+        quantity: { gt: 0, lte: threshold },
+        lowStockThreshold: { gt: 0 },
+      };
+    return {
+      quantity: { gt: 0 },
+      OR: [{ lowStockThreshold: 0 }, { quantity: { gt: threshold } }],
+    };
   }
 
   async updatePrice(
@@ -197,20 +223,44 @@ export class BranchInventoryService {
     branchId: string,
     inventoryId: string,
     context?: OrganizationContext,
-  ) {
+    query: MovementHistoryQueryDto = { limit: 50 },
+  ): Promise<
+    InventoryMovementPage<
+      Omit<InventoryMovementRecord, 'createdById'> | InventoryMovementRecord
+    >
+  > {
     await this.findOne(organizationId, branchId, inventoryId, context);
+    if (query.cursor) {
+      const cursor = await this.prisma.inventoryMovement.findFirst({
+        where: {
+          id: query.cursor,
+          organizationId,
+          branchId,
+          branchInventoryId: inventoryId,
+        },
+        select: { id: true },
+      });
+      if (!cursor) throw new NotFoundException('Movement cursor not found');
+    }
     const movements: InventoryMovementRecord[] =
       await this.prisma.inventoryMovement.findMany({
         select: inventoryMovementSelect,
         where: { organizationId, branchId, branchInventoryId: inventoryId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: query.limit + 1,
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       });
-    return context?.role === 'MERCHANT'
-      ? movements.map(({ createdById: _actor, ...movement }) => {
-          void _actor;
-          return movement;
-        })
-      : movements;
+    const page = movements.slice(0, query.limit);
+    return {
+      items:
+        context?.role === 'MERCHANT'
+          ? page.map(({ createdById: _actor, ...movement }) => {
+              void _actor;
+              return movement;
+            })
+          : page,
+      nextCursor: movements.length > query.limit ? page.at(-1)!.id : null,
+    };
   }
 
   private async resolveBranch(

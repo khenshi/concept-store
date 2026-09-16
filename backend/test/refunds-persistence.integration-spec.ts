@@ -594,11 +594,11 @@ describe('PostgreSQL refund persistence', () => {
         current.inventory.id,
         context,
       );
-      expect(history).toHaveLength(1);
-      expect(history[0].type).toBe('RETURN');
-      expect(history[0]).not.toHaveProperty('refundItemId');
-      expect(history[0]).not.toHaveProperty('saleItemId');
-      if (context) expect(history[0]).not.toHaveProperty('createdById');
+      expect(history.items).toHaveLength(1);
+      expect(history.items[0].type).toBe('RETURN');
+      expect(history.items[0]).not.toHaveProperty('refundItemId');
+      expect(history.items[0]).not.toHaveProperty('saleItemId');
+      if (context) expect(history.items[0]).not.toHaveProperty('createdById');
     }
   });
   it('supports maximum original price/quantity and whole-refund decimal capacity exactly', async () => {

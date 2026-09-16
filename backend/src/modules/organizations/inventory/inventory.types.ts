@@ -63,6 +63,11 @@ export type InventoryMovementRecord = Omit<
   'saleItemId' | 'refundItemId'
 >;
 
+export interface InventoryMovementPage<T = InventoryMovementRecord> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 // Internal checkout relationships are not part of the inventory history contract.
 export const inventoryMovementSelect = {
   id: true,

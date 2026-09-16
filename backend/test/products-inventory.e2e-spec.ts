@@ -145,6 +145,10 @@ describe('Products and inventory HTTP boundaries', () => {
   afterAll(async () => app.close());
   beforeEach(() => {
     jest.clearAllMocks();
+    prisma.branch.findFirst.mockReset().mockResolvedValue({ id: branch });
+    prisma.branchInventory.findFirst
+      .mockReset()
+      .mockResolvedValue({ id: item });
     for (const service of [
       products,
       inventory,
@@ -442,6 +446,33 @@ describe('Products and inventory HTTP boundaries', () => {
       branch,
       item,
       expect.objectContaining({ role: 'MERCHANT' }),
+      expect.objectContaining({ limit: 50 }),
+    );
+  });
+  it('bounds movement history queries and forwards a validated cursor', async () => {
+    const path = `${inventoryPath}/${item}/movements`;
+    for (const suffix of [
+      '?limit=0',
+      '?limit=101',
+      '?limit=1.5',
+      '?cursor=bad',
+      '?other=x',
+    ])
+      await http()
+        .get(path + suffix)
+        .auth(token(), { type: 'bearer' })
+        .expect(400);
+    expect(inventory.findMovements).not.toHaveBeenCalled();
+    await http()
+      .get(path + '?limit=2&cursor=' + item)
+      .auth(token(), { type: 'bearer' })
+      .expect(200);
+    expect(inventory.findMovements).toHaveBeenCalledWith(
+      org,
+      branch,
+      item,
+      expect.objectContaining({ role: 'OWNER' }),
+      expect.objectContaining({ limit: 2, cursor: item }),
     );
   });
   it('passes trusted merchant scope to the inventory health summary', async () => {

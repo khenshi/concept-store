@@ -3,9 +3,9 @@ import {
   inventoryBranchSchema,
   inventoryListSchema,
   inventoryResponseSchema,
-  movementListSchema,
   movementResponseSchema,
-  merchantMovementSchema,
+  movementPageSchema,
+  merchantMovementPageSchema,
   inventoryHealthSummarySchema,
   inventoryReconciliationPageSchema,
 } from '../model/inventory.schemas';
@@ -109,11 +109,14 @@ export async function listMovements(
   request: AuthenticatedRequest,
   scope: InventoryDetailScope,
   role?: string,
+  cursor?: string,
 ) {
-  const result = await request<unknown>(`${detail(scope)}/movements`);
+  const query = new URLSearchParams({ limit: '50' });
+  if (cursor) query.set('cursor', cursor);
+  const result = await request<unknown>(`${detail(scope)}/movements?${query}`);
   return role === 'MERCHANT'
-    ? merchantMovementSchema.array().parse(result)
-    : movementListSchema.parse(result);
+    ? merchantMovementPageSchema.parse(result)
+    : movementPageSchema.parse(result);
 }
 export async function receiveStock(
   request: AuthenticatedRequest,

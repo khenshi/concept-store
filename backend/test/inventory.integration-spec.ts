@@ -8,6 +8,7 @@ import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
 import { InventoryReconciliationService } from '../src/modules/organizations/inventory/inventory-reconciliation.service';
+import { InventoryStockStatus } from '../src/modules/organizations/inventory/inventory.types';
 import { ProductsService } from '../src/modules/organizations/products/products.service';
 import { OrganizationMembershipsService } from '../src/modules/organizations/memberships/organization-memberships.service';
 import { OrganizationInvitationsService } from '../src/modules/organizations/invitations/organization-invitations.service';
@@ -387,8 +388,8 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       inventoryId,
       merchant,
     );
-    expect(history).toHaveLength(1);
-    expect(history[0]).not.toHaveProperty('createdById');
+    expect(history.items).toHaveLength(1);
+    expect(history.items[0]).not.toHaveProperty('createdById');
     const otherMerchant = await prisma.merchant.create({
       data: {
         organizationId,
@@ -408,6 +409,30 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     expect(
       await inventory.findAll(organizationId, branchId, {}, merchant),
     ).toHaveLength(1);
+    expect(
+      await inventory.summarize(organizationId, branchId, merchant),
+    ).toEqual({
+      inStock: 0,
+      lowStock: 1,
+      outOfStock: 0,
+    });
+    expect(
+      await inventory.findAll(
+        organizationId,
+        branchId,
+        {
+          stockStatus: InventoryStockStatus.OUT_OF_STOCK,
+        },
+        merchant,
+      ),
+    ).toEqual([]);
+    expect(
+      await inventory.summarize(organizationId, branchId, manager),
+    ).toEqual({
+      inStock: 0,
+      lowStock: 1,
+      outOfStock: 1,
+    });
     await expect(
       inventory.findOne(organizationId, branchId, hidden.id, merchant),
     ).rejects.toThrow();
@@ -572,6 +597,155 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         sellingPrice: '12.50',
       })
     ).id;
+  });
+
+  it('keeps database stock filters and health counts equal at threshold boundaries', async () => {
+    const placements = [
+      { quantity: 0, lowStockThreshold: 0 },
+      { quantity: 5, lowStockThreshold: 5 },
+      { quantity: 6, lowStockThreshold: 5 },
+      { quantity: 1, lowStockThreshold: 0 },
+    ];
+    await prisma.branchInventory.update({
+      where: { id: inventoryId },
+      data: placements[0],
+    });
+    for (const [index, state] of placements.slice(1).entries()) {
+      const product = await products.create(organizationId, {
+        merchantId,
+        name: `Boundary ${index}`,
+        sku: randomUUID(),
+      });
+      const placed = await inventory.create(organizationId, branchId, {
+        productId: product.id,
+        sellingPrice: '1.00',
+      });
+      await prisma.branchInventory.update({
+        where: { id: placed.id },
+        data: state,
+      });
+    }
+    const context = { organizationId, userId, role: 'OWNER' as const };
+    const all = await inventory.findAll(organizationId, branchId, {}, context);
+    const summary = await inventory.summarize(
+      organizationId,
+      branchId,
+      context,
+    );
+    expect(summary).toEqual({ inStock: 2, lowStock: 1, outOfStock: 1 });
+    for (const status of Object.values(InventoryStockStatus)) {
+      const filtered = await inventory.findAll(
+        organizationId,
+        branchId,
+        { stockStatus: status },
+        context,
+      );
+      expect(filtered.map((item) => item.id)).toEqual(
+        all
+          .filter((item) => item.stockStatus === status)
+          .map((item) => item.id),
+      );
+    }
+  });
+
+  it('pages large movement history without exposing a foreign cursor or merchant actors', async () => {
+    const start = Date.now() - 200000;
+    const entries = Array.from({ length: 125 }, (_, index) => ({
+      id: randomUUID(),
+      organizationId,
+      branchId,
+      branchInventoryId: inventoryId,
+      type: 'RECEIPT' as const,
+      quantityChange: 1,
+      quantityAfter: index + 1,
+      reason: 'Test receipt',
+      createdById: userId,
+      requestId: randomUUID(),
+      createdAt: new Date(start + index),
+    }));
+    await prisma.inventoryMovement.createMany({ data: entries });
+    await prisma.branchInventory.update({
+      where: { id: inventoryId },
+      data: { quantity: 125 },
+    });
+    const first = await inventory.findMovements(
+      organizationId,
+      branchId,
+      inventoryId,
+    );
+    expect(first.items).toHaveLength(50);
+    expect(first.nextCursor).toBe(first.items[49].id);
+    const second = await inventory.findMovements(
+      organizationId,
+      branchId,
+      inventoryId,
+      undefined,
+      { limit: 50, cursor: first.nextCursor! },
+    );
+    const third = await inventory.findMovements(
+      organizationId,
+      branchId,
+      inventoryId,
+      undefined,
+      { limit: 50, cursor: second.nextCursor! },
+    );
+    expect(second.items).toHaveLength(50);
+    expect(third.items).toHaveLength(25);
+    expect(third.nextCursor).toBeNull();
+    expect(
+      new Set(
+        [...first.items, ...second.items, ...third.items].map(
+          (item) => item.id,
+        ),
+      ).size,
+    ).toBe(125);
+    expect(first.items.map((item) => item.createdAt.getTime())).toEqual(
+      [...first.items.map((item) => item.createdAt.getTime())].sort(
+        (a, b) => b - a,
+      ),
+    );
+    const other = await inventory.create(organizationId, otherBranchId, {
+      productId,
+      sellingPrice: '1.00',
+    });
+    const foreignCursor = randomUUID();
+    await prisma.inventoryMovement.create({
+      data: {
+        id: foreignCursor,
+        organizationId,
+        branchId: otherBranchId,
+        branchInventoryId: other.id,
+        type: 'RECEIPT',
+        quantityChange: 1,
+        quantityAfter: 1,
+        reason: 'Other branch',
+        createdById: userId,
+        requestId: randomUUID(),
+      },
+    });
+    await expect(
+      inventory.findMovements(
+        organizationId,
+        branchId,
+        inventoryId,
+        undefined,
+        { limit: 50, cursor: foreignCursor },
+      ),
+    ).rejects.toThrow('Movement cursor not found');
+    const merchant = {
+      organizationId,
+      userId,
+      role: 'MERCHANT' as const,
+      merchantId,
+    };
+    const own = await inventory.findMovements(
+      organizationId,
+      branchId,
+      inventoryId,
+      merchant,
+    );
+    expect(own.items).toHaveLength(50);
+    expect(own.items[0]).not.toHaveProperty('createdById');
   });
 
   it('reports only exact stock/ledger mismatches and never changes stock', async () => {
@@ -966,11 +1140,15 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       branchId,
       inventoryId,
     );
-    expect(history).toHaveLength(2);
-    expect(history.every((entry) => entry.createdById === userId)).toBe(true);
-    expect(history.reduce((sum, entry) => sum + entry.quantityChange, 0)).toBe(
-      3,
-    );
+    expect(history.items).toHaveLength(2);
+    expect(
+      history.items.every(
+        (entry) => 'createdById' in entry && entry.createdById === userId,
+      ),
+    ).toBe(true);
+    expect(
+      history.items.reduce((sum, entry) => sum + entry.quantityChange, 0),
+    ).toBe(3);
   });
 
   it('permits identifiers and request IDs in separate organizations without disclosure', async () => {

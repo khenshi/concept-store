@@ -49,6 +49,7 @@ import {
 import { InventoryStockService } from './inventory-stock.service';
 import { InventoryReconciliationService } from './inventory-reconciliation.service';
 import { InventoryReconciliationQueryDto } from './dto/inventory-reconciliation-query.dto';
+import { MovementHistoryQueryDto } from './dto/movement-history-query.dto';
 import type { InventoryReconciliationPage } from './inventory-reconciliation.types';
 import type {
   BranchInventoryRecord,
@@ -254,15 +255,24 @@ export class BranchInventoryController {
   }
 
   @Get(':inventoryId/movements')
-  @ApiOperation({ summary: 'Get immutable stock history newest first' })
+  @ApiOperation({
+    summary: 'Get a bounded page of immutable stock history, newest first',
+  })
   @ApiOkResponse({
     schema: {
-      type: 'array',
-      items: {
-        oneOf: [
-          { $ref: getSchemaPath(InventoryMovementResponseDto) },
-          { $ref: getSchemaPath(MerchantMovementResponseDto) },
-        ],
+      type: 'object',
+      required: ['items', 'nextCursor'],
+      properties: {
+        items: {
+          type: 'array',
+          items: {
+            oneOf: [
+              { $ref: getSchemaPath(InventoryMovementResponseDto) },
+              { $ref: getSchemaPath(MerchantMovementResponseDto) },
+            ],
+          },
+        },
+        nextCursor: { type: 'string', format: 'uuid', nullable: true },
       },
     },
   })
@@ -271,12 +281,14 @@ export class BranchInventoryController {
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Param('inventoryId', new ParseUUIDPipe({ version: '4' }))
     inventoryId: string,
+    @Query() query: MovementHistoryQueryDto,
   ) {
     return this.inventoryService.findMovements(
       organization.organizationId,
       branchId,
       inventoryId,
       organization,
+      query,
     );
   }
 }

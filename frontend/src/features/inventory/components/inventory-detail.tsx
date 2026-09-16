@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BackLink } from '@/shared/components/ui/back-link';
+import { buttonStyles } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   OperationalPage,
@@ -59,6 +60,11 @@ function ScopedInventoryDetail({
   const [inventory, setInventory] = useState<BranchInventory | null>(null);
   const [branch, setBranch] = useState<InventoryBranch | null>(null);
   const [movements, setMovements] = useState<InventoryMovementView[]>([]);
+  const [nextMovementCursor, setNextMovementCursor] = useState<string | null>(
+    null,
+  );
+  const [olderLoading, setOlderLoading] = useState(false);
+  const [olderError, setOlderError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -74,6 +80,9 @@ function ScopedInventoryDetail({
     setInventory(null);
     setBranch(null);
     setMovements([]);
+    setNextMovementCursor(null);
+    setOlderError(null);
+    setOlderLoading(false);
     setLoading(false);
     setError(
       'Access to this placement is unavailable. Ask an owner to review your branch assignments or merchant link.',
@@ -91,6 +100,9 @@ function ScopedInventoryDetail({
       setInventory(null);
       setBranch(null);
       setMovements([]);
+      setNextMovementCursor(null);
+      setOlderError(null);
+      setOlderLoading(false);
       try {
         const scope = { organizationId, branchId, inventoryId };
         const [item, location, history] = await Promise.all([
@@ -101,7 +113,8 @@ function ScopedInventoryDetail({
         if (active && generation === readGeneration.current) {
           setInventory(item);
           setBranch(location);
-          setMovements(history);
+          setMovements(history.items);
+          setNextMovementCursor(history.nextCursor);
         }
       } catch (cause) {
         if (active && generation === readGeneration.current)
@@ -127,6 +140,12 @@ function ScopedInventoryDetail({
     inventoryId,
     revision,
   ]);
+  useEffect(() => {
+    const activeGeneration = readGeneration;
+    return () => {
+      activeGeneration.current++;
+    };
+  }, []);
   if (organizationStatus === 'loading')
     return <ListSkeleton label="Loading inventory" />;
   if (!allowed)
@@ -164,6 +183,8 @@ function ScopedInventoryDetail({
         setInventory(null);
         setBranch(null);
         setMovements([]);
+        setNextMovementCursor(null);
+        setOlderError(null);
         setSuccess(null);
         setLoading(true);
         return true;
@@ -198,6 +219,36 @@ function ScopedInventoryDetail({
     dirty.current = false;
     setSuccess(message);
     setRevision((value) => value + 1);
+  };
+  const loadOlder = async () => {
+    if (!nextMovementCursor || olderLoading) return;
+    const generation = readGeneration.current;
+    setOlderLoading(true);
+    setOlderError(null);
+    try {
+      const history = await listMovements(
+        request,
+        scope,
+        organization?.role,
+        nextMovementCursor,
+      );
+      if (generation !== readGeneration.current) return;
+      setMovements((current) => [...current, ...history.items]);
+      setNextMovementCursor(history.nextCursor);
+    } catch (cause) {
+      if (generation !== readGeneration.current) return;
+      if (cause instanceof ApiError && [401, 403, 404].includes(cause.status)) {
+        accessLost();
+        return;
+      }
+      setOlderError(
+        cause instanceof ApiError
+          ? cause.message
+          : 'Older movements could not be loaded.',
+      );
+    } finally {
+      if (generation === readGeneration.current) setOlderLoading(false);
+    }
   };
   return (
     <OperationalPage>
@@ -369,50 +420,73 @@ function ScopedInventoryDetail({
             opening movement.
           </p>
         ) : (
-          <ol
-            aria-label="Inventory movement history"
-            className="m-0 list-none divide-y divide-hairline p-0"
-          >
-            {movements.map((movement) => (
-              <li
-                key={movement.id}
-                className="grid min-w-0 gap-3 p-6 sm:grid-cols-[minmax(0,1fr)_auto]"
-              >
-                <div className="min-w-0 break-words">
-                  <strong className="text-sm font-semibold">
-                    {movement.type === 'RECEIPT'
-                      ? 'Receipt'
-                      : movement.type === 'SALE'
-                        ? 'Sale'
-                        : movement.type === 'RETURN'
-                          ? 'Return'
-                          : 'Adjustment'}
-                  </strong>
-                  <p className="mt-1 text-sm">{movement.reason}</p>
-                  <p className="mt-2 text-xs text-muted">
-                    <time dateTime={movement.createdAt}>
-                      {new Date(movement.createdAt).toLocaleString()}
-                    </time>
-                    {canWrite && 'createdById' in movement ? (
-                      <>
-                        <br />
-                        Actor ID: {movement.createdById}
-                      </>
-                    ) : null}
-                  </p>
-                </div>
-                <div className="text-sm tabular-nums">
-                  <p className="font-semibold">
-                    {movement.quantityChange > 0 ? '+' : ''}
-                    {movement.quantityChange.toLocaleString()} units
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    Balance after: {movement.quantityAfter.toLocaleString()}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <>
+            <ol
+              aria-label="Inventory movement history"
+              className="m-0 list-none divide-y divide-hairline p-0"
+            >
+              {movements.map((movement) => (
+                <li
+                  key={movement.id}
+                  className="grid min-w-0 gap-3 p-6 sm:grid-cols-[minmax(0,1fr)_auto]"
+                >
+                  <div className="min-w-0 break-words">
+                    <strong className="text-sm font-semibold">
+                      {movement.type === 'RECEIPT'
+                        ? 'Receipt'
+                        : movement.type === 'SALE'
+                          ? 'Sale'
+                          : movement.type === 'RETURN'
+                            ? 'Return'
+                            : 'Adjustment'}
+                    </strong>
+                    <p className="mt-1 text-sm">{movement.reason}</p>
+                    <p className="mt-2 text-xs text-muted">
+                      <time dateTime={movement.createdAt}>
+                        {new Date(movement.createdAt).toLocaleString()}
+                      </time>
+                      {canWrite && 'createdById' in movement ? (
+                        <>
+                          <br />
+                          Actor ID: {movement.createdById}
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="text-sm tabular-nums">
+                    <p className="font-semibold">
+                      {movement.quantityChange > 0 ? '+' : ''}
+                      {movement.quantityChange.toLocaleString()} units
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      Balance after: {movement.quantityAfter.toLocaleString()}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            {olderError ? (
+              <RequestError
+                className="p-6"
+                message={olderError}
+                onRetry={() => void loadOlder()}
+              />
+            ) : null}
+            {nextMovementCursor ? (
+              <div className="border-t border-hairline p-6">
+                <button
+                  type="button"
+                  className={buttonStyles({ variant: 'quiet' })}
+                  disabled={olderLoading}
+                  onClick={() => void loadOlder()}
+                >
+                  {olderLoading
+                    ? 'Loading older movements…'
+                    : 'Load older movements'}
+                </button>
+              </div>
+            ) : null}
+          </>
         )}
       </OperationalPanel>
     </OperationalPage>

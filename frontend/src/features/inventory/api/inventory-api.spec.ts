@@ -27,7 +27,7 @@ describe('Branch inventory API contracts', () => {
       .mockResolvedValueOnce([inventory])
       .mockResolvedValueOnce(inventory)
       .mockResolvedValueOnce(branch)
-      .mockResolvedValueOnce([movement]);
+      .mockResolvedValueOnce({ items: [movement], nextCursor: null });
     await listInventory(request, scope, {
       q: '001Ab',
       status: 'ACTIVE',
@@ -38,9 +38,12 @@ describe('Branch inventory API contracts', () => {
     );
     await expect(getInventory(request, scope)).resolves.toEqual(inventory);
     await expect(getInventoryBranch(request, scope)).resolves.toEqual(branch);
-    await expect(listMovements(request, scope)).resolves.toEqual([movement]);
+    await expect(listMovements(request, scope)).resolves.toEqual({
+      items: [movement],
+      nextCursor: null,
+    });
     expect(request).toHaveBeenLastCalledWith(
-      `${base}/${scope.inventoryId}/movements`,
+      `${base}/${scope.inventoryId}/movements?limit=50`,
     );
   });
   it('reads aggregate stock health without product details', async () => {
@@ -50,6 +53,13 @@ describe('Branch inventory API contracts', () => {
       summary,
     );
     expect(request).toHaveBeenCalledWith(`${base}/summary`);
+  });
+  it('requests bounded older movement pages with a scoped cursor', async () => {
+    request.mockResolvedValue({ items: [], nextCursor: null });
+    await listMovements(request, scope, 'MANAGER', movement.id);
+    expect(request).toHaveBeenCalledWith(
+      `${base}/${scope.inventoryId}/movements?limit=50&cursor=${movement.id}`,
+    );
   });
   it('reads bounded branch reconciliation pages and validates their contract', async () => {
     const mismatch = {
@@ -114,15 +124,23 @@ describe('Branch inventory API contracts', () => {
   });
   it('accepts actor-free merchant history and strips actor fields defensively', async () => {
     const { createdById, ...own } = movement;
-    request.mockResolvedValue([own]);
-    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual([
-      own,
-    ]);
-    request.mockResolvedValue([{ ...own, createdById }]);
-    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual([
-      own,
-    ]);
-    request.mockResolvedValue([{ ...own, quantityChange: 0 }]);
+    request.mockResolvedValue({ items: [own], nextCursor: null });
+    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual({
+      items: [own],
+      nextCursor: null,
+    });
+    request.mockResolvedValue({
+      items: [{ ...own, createdById }],
+      nextCursor: null,
+    });
+    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual({
+      items: [own],
+      nextCursor: null,
+    });
+    request.mockResolvedValue({
+      items: [{ ...own, quantityChange: 0 }],
+      nextCursor: null,
+    });
     await expect(listMovements(request, scope, 'MERCHANT')).rejects.toThrow();
   });
   it('accepts identity-only selling branches for merchants', async () => {
@@ -132,13 +150,20 @@ describe('Branch inventory API contracts', () => {
   });
   it('accepts sale deductions without exposing internal sale-item links', async () => {
     const sale = { ...movement, type: 'SALE', quantityChange: -1 };
-    request.mockResolvedValue([{ ...sale, saleItemId: 'private-link' }]);
-    await expect(listMovements(request, scope)).resolves.toEqual([sale]);
+    request.mockResolvedValue({
+      items: [{ ...sale, saleItemId: 'private-link' }],
+      nextCursor: null,
+    });
+    await expect(listMovements(request, scope)).resolves.toEqual({
+      items: [sale],
+      nextCursor: null,
+    });
     const { createdById, ...own } = sale;
     expect(createdById).toBe(movement.createdById);
-    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual([
-      own,
-    ]);
+    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual({
+      items: [own],
+      nextCursor: null,
+    });
   });
   it('preserves request IDs and integer deltas without submitting actor or tenant fields', async () => {
     request.mockResolvedValue(movement);
@@ -173,14 +198,24 @@ describe('Branch inventory API contracts', () => {
   });
   it('accepts positive returns while stripping private links and merchant actors', async () => {
     const returned = { ...movement, type: 'RETURN', quantityChange: 1 };
-    request.mockResolvedValue([{ ...returned, refundItemId: 'private-link' }]);
-    await expect(listMovements(request, scope)).resolves.toEqual([returned]);
+    request.mockResolvedValue({
+      items: [{ ...returned, refundItemId: 'private-link' }],
+      nextCursor: null,
+    });
+    await expect(listMovements(request, scope)).resolves.toEqual({
+      items: [returned],
+      nextCursor: null,
+    });
     const { createdById, ...own } = returned;
     expect(createdById).toBe(movement.createdById);
-    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual([
-      own,
-    ]);
-    request.mockResolvedValue([{ ...returned, quantityChange: -1 }]);
+    await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual({
+      items: [own],
+      nextCursor: null,
+    });
+    request.mockResolvedValue({
+      items: [{ ...returned, quantityChange: -1 }],
+      nextCursor: null,
+    });
     await expect(listMovements(request, scope)).rejects.toThrow();
   });
   it.each([
@@ -198,7 +233,10 @@ describe('Branch inventory API contracts', () => {
     { type: 'REFUND' },
     { type: 'SALE', quantityChange: 1 },
   ])('rejects invalid movement responses %j', async (extra) => {
-    request.mockResolvedValue([{ ...movement, ...extra }]);
+    request.mockResolvedValue({
+      items: [{ ...movement, ...extra }],
+      nextCursor: null,
+    });
     await expect(listMovements(request, scope)).rejects.toThrow();
   });
 });

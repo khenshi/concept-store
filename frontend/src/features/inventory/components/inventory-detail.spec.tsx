@@ -89,7 +89,10 @@ describe('InventoryDetail workflows', () => {
     } as never);
     vi.mocked(getInventory).mockResolvedValue(inventory);
     vi.mocked(getInventoryBranch).mockResolvedValue(branch);
-    vi.mocked(listMovements).mockResolvedValue([movement]);
+    vi.mocked(listMovements).mockResolvedValue({
+      items: [movement],
+      nextCursor: null,
+    });
   });
   const submitReceipt = () => {
     fireEvent.change(
@@ -111,9 +114,12 @@ describe('InventoryDetail workflows', () => {
     ).not.toBeInTheDocument();
   });
   it('labels positive return movements as returns, not adjustments', async () => {
-    vi.mocked(listMovements).mockResolvedValue([
-      { ...movement, type: 'RETURN', reason: 'Returned goods restocked' },
-    ]);
+    vi.mocked(listMovements).mockResolvedValue({
+      items: [
+        { ...movement, type: 'RETURN', reason: 'Returned goods restocked' },
+      ],
+      nextCursor: null,
+    });
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Returned goods restocked');
     expect(
@@ -127,7 +133,10 @@ describe('InventoryDetail workflows', () => {
     } as never);
     const { createdById: _actor, ...ownMovement } = movement;
     expect(_actor).toBe(movement.createdById);
-    vi.mocked(listMovements).mockResolvedValue([ownMovement]);
+    vi.mocked(listMovements).mockResolvedValue({
+      items: [ownMovement],
+      nextCursor: null,
+    });
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
     expect(screen.queryByText(/Actor ID/)).not.toBeInTheDocument();
@@ -202,6 +211,56 @@ describe('InventoryDetail workflows', () => {
       screen.queryByRole('button', { name: 'Receive stock' }),
     ).not.toBeInTheDocument();
     expect(receiveStock).toHaveBeenCalledOnce();
+  });
+  it('loads older history without losing current stock or previously loaded entries', async () => {
+    const older = {
+      ...movement,
+      id: '11111111-1111-4111-8111-111111111111',
+      reason: 'Earlier delivery',
+    };
+    vi.mocked(listMovements)
+      .mockResolvedValueOnce({ items: [movement], nextCursor: movement.id })
+      .mockResolvedValueOnce({ items: [older], nextCursor: null });
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Load older movements' }),
+    );
+    expect(await screen.findByText('Earlier delivery')).toBeInTheDocument();
+    expect(screen.getByText('Opening delivery')).toBeInTheDocument();
+    expect(screen.getByText('10 units')).toBeInTheDocument();
+    expect(listMovements).toHaveBeenLastCalledWith(
+      request,
+      scope,
+      'MANAGER',
+      movement.id,
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Load older movements' }),
+    ).not.toBeInTheDocument();
+  });
+  it('retries a failed older page without losing current stock or repeating a write', async () => {
+    const older = {
+      ...movement,
+      id: '11111111-1111-4111-8111-111111111111',
+      reason: 'Earlier delivery',
+    };
+    vi.mocked(listMovements)
+      .mockResolvedValueOnce({ items: [movement], nextCursor: movement.id })
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({ items: [older], nextCursor: null });
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Load older movements' }),
+    );
+    await screen.findByText('Older movements could not be loaded.');
+    expect(screen.getByText('10 units')).toBeInTheDocument();
+    expect(screen.getByText('Opening delivery')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Earlier delivery')).toBeInTheDocument();
+    expect(listMovements).toHaveBeenCalledTimes(3);
+    expect(receiveStock).not.toHaveBeenCalled();
   });
   it('disables other write controls while a receipt is pending', async () => {
     vi.mocked(receiveStock).mockReturnValue(new Promise(() => {}));

@@ -1737,10 +1737,12 @@ describe('PostgreSQL sale persistence integrity', () => {
       inventoryId,
       { organizationId, userId, role: 'MERCHANT', merchantId },
     );
-    expect(ownerHistory.some((entry) => entry.type === 'SALE')).toBe(true);
-    for (const entry of ownerHistory)
+    expect(ownerHistory.items.some((entry) => entry.type === 'SALE')).toBe(
+      true,
+    );
+    for (const entry of ownerHistory.items)
       expect(entry).not.toHaveProperty('saleItemId');
-    for (const entry of merchantHistory) {
+    for (const entry of merchantHistory.items) {
       expect(entry).not.toHaveProperty('saleItemId');
       expect(entry).not.toHaveProperty('createdById');
     }
