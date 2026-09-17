@@ -1,5 +1,21 @@
 # Frontend Experience
 
+## Divider-led application redesign (Part 1)
+
+The approved redesign covers all application pages except the public landing
+page. Its first part establishes an opt-in open, hairline-divided operational
+section alongside the existing card variant, a purpose-limited muted-blue
+action accent, and a flatter semantic success/warning notice. The organization
+workspace content plane is Paper; its overview now uses a divided navigation
+list and displays the member's current role without adding dashboard data or
+changing role-specific links. Other directories, detail/workflow screens and
+focused entry/account pages remain for later reviewed parts. The landing page
+code and existing public action styling are unchanged. Rendered review and
+final accessibility/zoom checks remain pending for this new milestone because
+no browser surface is connected. Frontend formatting, lint, typecheck,
+production build and all 785 tests pass; automated tests do not certify the
+visual layout.
+
 ## Staff sales reports
 
 Owners/managers now have Reports in sidebar/mobile navigation, with both Reports

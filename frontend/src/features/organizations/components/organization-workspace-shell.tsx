@@ -136,7 +136,7 @@ export function OrganizationWorkspaceShell({
           </Button>
         </div>
       </aside>
-      <div className="min-w-0">
+      <div className="min-h-[calc(100dvh-4.25rem)] min-w-0 bg-surface">
         <div className="flex items-center gap-3 border-b border-hairline bg-surface px-4 py-3 print:hidden sm:px-6 lg:hidden">
           <div className="min-w-0 flex-1">
             <OrganizationSwitcher

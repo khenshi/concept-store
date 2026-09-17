@@ -14,10 +14,14 @@ colors:
   control-border: "#D8D8D2"
   graphite-action: "#242422"
   graphite-hover: "#3A3A37"
+  operational-accent: "#245878"
+  operational-accent-hover: "#1B455F"
+  operational-accent-soft: "#EAF2F5"
   selected-surface: "#ECECE7"
   selected-border: "#A8A8A0"
   focus-ring: "#575752"
   success: "#168A52"
+  success-ink: "#117447"
   warning: "#8A4B10"
   danger: "#C53B37"
 typography:
@@ -74,6 +78,12 @@ dividers, calm data surfaces, and tonal contrast that clarifies action and state
 Both modes share type, neutral palette, geometry, borders, and voice. They differ
 in density, not identity.
 
+The application-page redesign keeps the public landing page unchanged. Other
+pages use an open, divider-led composition inspired by the supplied reference:
+paper planes, whitespace, aligned headings and divided rows replace most
+repeated rounded cards. Focused login, invitation and account flows keep their
+narrow task layouts rather than inheriting the workspace sidebar.
+
 ## Core principles
 
 ### Warm neutrality
@@ -89,6 +99,16 @@ Graphite Action; hover uses Graphite Hover. Selected items use Selected Surface 
 Selected Border with stronger text and an additional structural cue. This neutral
 foundation lets each concept store's products and photography supply visual color
 without forcing Kapwesto into a fashion, food, beauty, or lifestyle palette.
+
+### Purposeful color
+
+The interface is restrained, not monochrome. Use one muted blue accent for
+important operational actions, active/interactive cues and quiet information;
+reserve green for success/healthy state, amber for caution/low stock, and red
+for errors/destructive/out-of-stock state. Use soft semantic tints sparingly,
+not as a background for every section. Labels, icons and structure must also
+communicate the meaning. The public landing page keeps its existing graphite
+action treatment.
 
 ### Designed density
 
@@ -114,12 +134,16 @@ Static cards do not receive shadows merely because they are important.
   strengthen to Selected Border; keyboard focus remains high-contrast Focus Ring.
 - **Graphite Action** (`#242422`) and **Graphite Hover** (`#3A3A37`): primary
   public and operational actions.
+- **Operational Accent** (`#245878`) and hover (`#1B455F`): one controlled
+  blue for selected application actions and navigation, with a soft tint
+  (`#EAF2F5`) for small supporting cues. White text on the accent meets AA.
 - **Selected Surface** (`#ECECE7`) and **Selected Border** (`#A8A8A0`): active
   navigation, selected rows, filters, and low-emphasis state.
 - **Focus Ring** (`#575752`): keyboard focus paired with a separating Paper or
   Warm Canvas outer ring.
 - **Success** (`#168A52`), **Warning** (`#8A4B10`), and **Danger** (`#C53B37`):
-  named outcomes that also use text, icons, or structure.
+  named outcomes that also use text, icons, or structure. Use the darker
+  **Success Ink** (`#117447`) for normal-size success text on Paper.
 
 Do not use gradients. Translate the references' soft variation into stable solid
 tints rather than glass effects.
@@ -158,6 +182,10 @@ characters per line; operational prose near 65–75.
 - Sidebar is approximately 15–16rem expanded and 4.5rem collapsed.
 - Content may grow to approximately 90rem with 1.25–2.5rem responsive gutters.
 - Headers, toolbars, and panels align to one grid; filters and rows remain compact.
+- Application content rests on an open Paper plane beside the divided sidebar.
+  Ordinary sections use vertical rhythm and hairline rules, not repeated
+  fully outlined rounded containers. Functional cart/table/chart boundaries
+  may retain a contained surface when it improves comprehension.
 
 ### Focused mode
 
@@ -168,8 +196,9 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 
 ## Shape, borders, and elevation
 
-- Compact statuses/icons: `0.5rem`; inputs/buttons: `0.625rem`; operational panels:
-  `0.875rem`; public feature surfaces: up to `1.5rem`.
+- Compact statuses/icons: `0.5rem`; inputs/buttons: `0.625rem`; focused dialogs
+  and functional inset surfaces may use `0.875rem`; public feature surfaces:
+  up to `1.5rem`. Ordinary application sections use square/open edges.
 - Pills are for short statuses, filters, and tags—not every action.
 - Resting surfaces use a one-pixel Hairline border and no shadow.
 - Menus/popovers may use the floating shadow; dialogs may use overlay shadow.
@@ -185,8 +214,9 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 ### Actions
 
 - Public primary: Ink background, Paper text, 2.75rem visual height.
-- Operational primary: Graphite Action, Paper text, 2.625rem visual height with a
-  44-pixel minimum touch target.
+- Operational primary: Graphite Action or the single Operational Accent when
+  action hierarchy benefits from color, Paper text, 2.625rem visual height with
+  a 44-pixel minimum touch target. Do not color every button.
 - Secondary: Paper, Ink, Control Border. Quiet actions use transparent or
   Soft Surface. Destructive actions become solid Danger only in final confirmation.
 - Hover shifts tone modestly. Focus must remain visible on Paper and Warm Canvas.
@@ -202,7 +232,8 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 
 ### Panels and public features
 
-- Operational panels use Paper, Hairline, `0.875rem`, and no resting shadow.
+- Ordinary operational sections use an open Paper plane, top/bottom Hairline
+  dividers and no resting shadow; avoid a separate rounded card per section.
 - Headers use concise titles, quiet descriptions, and one aligned action area.
 - Toolbars use Soft Surface or Paper with a divider, not a card around each filter.
 - Public feature cards may use `1.5rem` and broad whitespace; previews stay quieter
@@ -260,9 +291,9 @@ dashboard jargon, inflated claims, and language implying unavailable features.
 ## Do and do not
 
 **Do:** use warm neutral space and near-black type; let public type breathe while
-keeping tools compact; use graphite and tonal contrast for emphasis; prefer borders
-and alignment to shadow; let store content provide color; preview only implemented
-capabilities.
+keeping tools compact; use one action accent and semantic colors purposefully;
+prefer dividers and alignment to shadow; let store content provide most visual
+color; preview only implemented capabilities.
 
 **Do not:** copy reference brands, assets, metrics, or claims; add gradients, glass,
 glow, or ubiquitous shadows; add decorative brand colors; turn every item into a card

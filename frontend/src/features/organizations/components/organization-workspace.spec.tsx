@@ -41,6 +41,14 @@ describe('OrganizationWorkspace', () => {
     (role) => {
       context(role);
       render(<OrganizationWorkspace organizationId="org" />);
+      expect(
+        screen.getByText(
+          `${role.charAt(0) + role.slice(1).toLowerCase()} access`,
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'Work areas' }),
+      ).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /Merchants/ })).toHaveAttribute(
         'href',
         '/app/organizations/org/merchants',
@@ -72,6 +80,7 @@ describe('OrganizationWorkspace', () => {
     (role) => {
       context(role);
       render(<OrganizationWorkspace organizationId="org" />);
+      expect(screen.getByText('Cashier access')).toBeInTheDocument();
       expect(
         screen.queryByRole('link', { name: /Merchants/ }),
       ).not.toBeInTheDocument();

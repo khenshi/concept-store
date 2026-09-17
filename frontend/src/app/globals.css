@@ -12,10 +12,14 @@
   --color-control-border: #d8d8d2;
   --color-action: #242422;
   --color-action-hover: #3a3a37;
+  --color-accent: #245878;
+  --color-accent-hover: #1b455f;
+  --color-accent-soft: #eaf2f5;
   --color-selected: #ecece7;
   --color-selected-border: #a8a8a0;
   --color-focus: #575752;
   --color-success: #168a52;
+  --color-success-ink: #117447;
   --color-warning: #8a4b10;
   --color-danger: #c53b37;
   --radius-compact: 0.5rem;
@@ -106,6 +110,10 @@
 
   .ui-button-primary {
     @apply border-action bg-action text-surface hover:border-action-hover hover:bg-action-hover;
+  }
+
+  .ui-button-accent {
+    @apply border-accent bg-accent text-surface hover:border-accent-hover hover:bg-accent-hover;
   }
 
   .ui-button-secondary {

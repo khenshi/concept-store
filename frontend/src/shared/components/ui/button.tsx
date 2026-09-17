@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger';
+type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'quiet' | 'danger';
 
 export function buttonStyles({
   variant = 'primary',

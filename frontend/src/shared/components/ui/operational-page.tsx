@@ -14,18 +14,23 @@ export function OperationalPanel({
   action,
   children,
   className = '',
+  variant = 'card',
 }: {
   title: string;
   description?: string;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  variant?: 'card' | 'open';
 }) {
+  const open = variant === 'open';
   return (
     <section
-      className={`mt-6 rounded-panel border border-hairline bg-surface text-ink ${className}`}
+      className={`${open ? 'mt-8 border-y border-hairline bg-surface' : 'mt-6 rounded-panel border border-hairline bg-surface'} text-ink ${className}`}
     >
-      <header className="flex items-start justify-between gap-5 border-b border-hairline px-5 py-5 max-sm:grid sm:px-6">
+      <header
+        className={`flex items-start justify-between gap-5 border-b border-hairline py-5 max-sm:grid ${open ? '' : 'px-5 sm:px-6'}`}
+      >
         <div className="min-w-0 break-words">
           <h2 className="text-base font-semibold text-ink">{title}</h2>
           {description ? (
@@ -83,7 +88,7 @@ export function StatusNotice({
 }) {
   return (
     <p
-      className={`mx-5 mt-5 rounded-compact border bg-surface p-3 text-sm text-ink sm:mx-6 ${tone === 'success' ? 'border-success' : 'border-warning'}`}
+      className={`mt-5 border-l-2 bg-subtle px-4 py-3 text-sm text-ink ${tone === 'success' ? 'border-success-ink' : 'border-warning'}`}
       role={tone === 'success' ? 'status' : 'note'}
     >
       {children}

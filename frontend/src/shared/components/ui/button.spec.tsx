@@ -30,4 +30,11 @@ describe('Button', () => {
     fireEvent.click(button);
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it('provides the restrained operational accent as an opt-in action', () => {
+    render(<Button variant="accent">Continue</Button>);
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass(
+      'ui-button-accent',
+    );
+  });
 });
