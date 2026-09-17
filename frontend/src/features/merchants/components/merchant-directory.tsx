@@ -147,12 +147,13 @@ function ScopedMerchantDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
+        variant="open"
         title="Merchant directory"
         description={`${merchants.length} matching merchant${merchants.length === 1 ? '' : 's'}`}
         action={
           canEdit ? (
             <button
-              className={buttonStyles({ variant: 'primary' })}
+              className={buttonStyles({ variant: 'accent' })}
               onClick={() => {
                 setSuccess(null);
                 setShowCreate(true);
@@ -164,7 +165,10 @@ function ScopedMerchantDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]">
+        <OperationalToolbar
+          variant="open"
+          className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]"
+        >
           <FilterField id="merchant-search" label="Search">
             <input
               className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm placeholder:text-faint"
@@ -228,7 +232,7 @@ function ScopedMerchantDirectory({
             {merchants.map((merchant) => (
               <li key={merchant.id}>
                 <Link
-                  className="flex min-w-0 flex-col gap-3 px-5 py-5 text-ink no-underline hover:bg-subtle sm:flex-row sm:items-center sm:px-6"
+                  className="flex min-w-0 flex-col gap-3 py-5 text-ink no-underline hover:bg-subtle sm:flex-row sm:items-center"
                   href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
                   aria-label={`View ${merchant.name}`}
                 >

@@ -148,7 +148,7 @@ function ScopedBranchDetail({
         </BackLink>
         {error ? (
           <RequestError
-            className="mt-6 rounded-panel border border-hairline bg-surface p-6"
+            className="mt-6 border-y border-hairline bg-surface py-6"
             message={error}
             onRetry={load}
           />
@@ -198,8 +198,8 @@ function ScopedBranchDetail({
           <Notice>{success}</Notice>
         </div>
       ) : null}
-      <OperationalPanel title="Branch information">
-        <dl className="grid gap-6 p-5 sm:grid-cols-2 sm:p-6">
+      <OperationalPanel variant="open" title="Branch information">
+        <dl className="grid gap-6 py-5 sm:grid-cols-2 sm:py-6">
           <div>
             <dt className="text-xs font-medium text-muted">Code</dt>
             <dd className="mt-2 text-sm text-ink">
@@ -227,6 +227,7 @@ function ScopedBranchDetail({
       <div className="grid min-w-0 gap-x-5 xl:grid-cols-3">
         {canManage || organization.role === 'MERCHANT' ? (
           <OperationalPanel
+            variant="open"
             title="Branch inventory"
             description={
               canManage
@@ -234,7 +235,7 @@ function ScopedBranchDetail({
                 : 'Read only your merchant’s placements, prices, quantities, and movement history.'
             }
           >
-            <div className="grid gap-5 p-6">
+            <div className="grid gap-5 py-6">
               {inventoryHealthError ? (
                 <RequestError
                   message="Inventory health could not be loaded."
@@ -287,10 +288,11 @@ function ScopedBranchDetail({
         ) : null}
         {organization.role !== 'MERCHANT' ? (
           <OperationalPanel
+            variant="open"
             title="Point of sale"
             description="Build a branch cart using SKU/barcode input or product search, then record cash or manual GCash/card payment."
           >
-            <div className="p-6">
+            <div className="py-6">
               <Link
                 className={buttonStyles({ variant: 'primary' })}
                 href={`/app/organizations/${organizationId}/branches/${branchId}/pos`}
@@ -301,6 +303,7 @@ function ScopedBranchDetail({
           </OperationalPanel>
         ) : null}
         <OperationalPanel
+          variant="open"
           title={
             organization.role === 'MERCHANT' ? 'Your sales' : 'Sales history'
           }
@@ -312,7 +315,7 @@ function ScopedBranchDetail({
                 : 'Review completed branch sales and internal receipts.'
           }
         >
-          <div className="p-6">
+          <div className="py-6">
             <Link
               className={buttonStyles({ variant: 'secondary' })}
               href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}

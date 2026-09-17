@@ -273,7 +273,7 @@ export function OrganizationMemberManagement({
       />
 
       {!canViewMembers ? (
-        <section className="mt-6 rounded-panel border border-hairline bg-surface p-6">
+        <section className="mt-6 border-y border-hairline bg-surface py-6">
           <h2 className="m-0 text-base font-bold">Member access is limited</h2>
           <p className="mt-3 leading-7 text-muted">
             Only organization owners can view the member list.
@@ -283,7 +283,7 @@ export function OrganizationMemberManagement({
         <>
           {loadError ? (
             <RequestError
-              className="mt-6 rounded-panel border border-hairline bg-surface p-6"
+              className="mt-6 border-y border-hairline bg-surface py-6"
               title="Members unavailable"
               message={loadError}
               onRetry={() => void load()}
@@ -304,12 +304,13 @@ export function OrganizationMemberManagement({
           {!loadError ? (
             <div className="mt-6">
               <OperationalPanel
+                variant="open"
                 title="People with access"
                 description={`${members.length} organization members · Branch assignments restrict access; owners have all-branch access`}
                 action={
                   canManageMembers ? (
                     <button
-                      className={buttonStyles({ variant: 'primary' })}
+                      className={buttonStyles({ variant: 'accent' })}
                       type="button"
                       onClick={() => setIsAddMemberOpen(true)}
                     >
@@ -338,7 +339,7 @@ export function OrganizationMemberManagement({
                   >
                     {members.map((member) => (
                       <li
-                        className="grid min-w-0 gap-4 px-5 py-5 hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-6"
+                        className="grid min-w-0 gap-4 py-5 hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                         key={member.id}
                       >
                         <div className="min-w-0 break-words">
@@ -485,6 +486,7 @@ function InvitationList({
 }) {
   return (
     <OperationalPanel
+      variant="open"
       title="Invitations"
       description="Pending and historical organization invitations"
     >

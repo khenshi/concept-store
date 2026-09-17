@@ -47,13 +47,15 @@ export function OperationalPanel({
 export function OperationalToolbar({
   children,
   className = '',
+  variant = 'card',
 }: {
   children: ReactNode;
   className?: string;
+  variant?: 'card' | 'open';
 }) {
   return (
     <div
-      className={`border-b border-hairline bg-subtle px-5 py-4 sm:px-6 ${className}`}
+      className={`border-b border-hairline py-4 ${variant === 'open' ? 'bg-surface' : 'bg-subtle px-5 sm:px-6'} ${className}`}
     >
       {children}
     </div>

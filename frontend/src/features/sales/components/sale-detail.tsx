@@ -155,6 +155,7 @@ function ScopedSaleDetail({
         />
       ) : null}
       <OperationalPanel
+        variant="open"
         title={role === 'MERCHANT' ? 'Own items' : 'Saved receipt'}
         description="Refreshing retries only the authorized sale read."
         action={

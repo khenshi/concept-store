@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { OperationalPanel } from './operational-page';
+import { OperationalPanel, OperationalToolbar } from './operational-page';
 
 describe('OperationalPanel', () => {
   it('supports an open divided section without changing the legacy card default', () => {
@@ -23,5 +23,17 @@ describe('OperationalPanel', () => {
         .getByRole('heading', { name: 'Existing panel' })
         .closest('section'),
     ).toHaveClass('rounded-panel');
+  });
+});
+
+describe('OperationalToolbar', () => {
+  it('keeps open filters on the paper surface without changing the card default', () => {
+    const { rerender } = render(
+      <OperationalToolbar variant="open">Filters</OperationalToolbar>,
+    );
+    expect(screen.getByText('Filters')).toHaveClass('bg-surface');
+    expect(screen.getByText('Filters')).not.toHaveClass('bg-subtle');
+    rerender(<OperationalToolbar>Filters</OperationalToolbar>);
+    expect(screen.getByText('Filters')).toHaveClass('bg-subtle');
   });
 });

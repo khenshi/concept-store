@@ -1,7 +1,7 @@
 import type { InventoryStockStatus } from '../model/inventory.types';
 
 const styles: Record<InventoryStockStatus, string> = {
-  IN_STOCK: 'border-success/20 bg-success/5 text-success',
+  IN_STOCK: 'border-success/20 bg-success/5 text-success-ink',
   LOW_STOCK: 'border-warning/20 bg-warning/5 text-warning',
   OUT_OF_STOCK: 'border-danger/20 bg-danger/5 text-danger',
 };

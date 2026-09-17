@@ -136,6 +136,7 @@ function ScopedBranchSales({
         </>
       ) : null}
       <OperationalPanel
+        variant="open"
         title={branchName ?? (merchant ? 'Own sales' : 'Sales history')}
         description={`${role === 'CASHIER' ? 'Your completed sales in this assigned branch. ' : ''}Newest completion first. Amounts and names are saved transaction snapshots.`}
         action={
@@ -149,7 +150,7 @@ function ScopedBranchSales({
       >
         <form
           noValidate
-          className="grid min-w-0 gap-4 border-b border-hairline bg-subtle p-5 sm:grid-cols-2 sm:p-6"
+          className="grid min-w-0 gap-4 border-b border-hairline bg-surface py-5 sm:grid-cols-2 sm:py-6"
           onSubmit={(event) => {
             event.preventDefault();
             applyDates();
@@ -212,7 +213,7 @@ function ScopedBranchSales({
             {result.page.items.map((sale) => (
               <li
                 key={sale.id}
-                className="grid min-w-0 gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:p-6"
+                className="grid min-w-0 gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:py-6"
               >
                 <div className="min-w-0 break-words">
                   <h2 className="font-semibold">{sale.receiptCode}</h2>

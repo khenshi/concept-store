@@ -224,8 +224,8 @@ function ScopedProductProfile({
           {error}
         </p>
       ) : null}
-      <OperationalPanel title="Product identity">
-        <dl className="grid gap-5 break-words p-6 sm:grid-cols-2 [&>div]:min-w-0">
+      <OperationalPanel variant="open" title="Product identity">
+        <dl className="grid gap-5 break-words py-6 sm:grid-cols-2 [&>div]:min-w-0">
           {[
             ['Merchant', merchant.name],
             ['Product name', product.name],
@@ -245,6 +245,7 @@ function ScopedProductProfile({
       </OperationalPanel>
       {canEdit ? (
         <OperationalPanel
+          variant="open"
           title="Lifecycle status"
           description="Status changes require confirmation and do not modify inventory."
         >
@@ -277,6 +278,7 @@ function ScopedProductProfile({
         </OperationalPanel>
       ) : null}
       <OperationalPanel
+        variant="open"
         title="Branch placements"
         description="PHP selling price and whole-unit stock for each branch. Placing a product elsewhere does not transfer existing stock."
       >
@@ -292,7 +294,7 @@ function ScopedProductProfile({
             {placements.map((placement) => (
               <li
                 key={placement.id}
-                className="grid min-w-0 gap-3 p-6 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                className="grid min-w-0 gap-3 py-6 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
               >
                 <Link
                   className="min-w-0 break-words"

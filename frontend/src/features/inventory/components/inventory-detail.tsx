@@ -259,8 +259,8 @@ function ScopedInventoryDetail({
         action={branchSelector}
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      <OperationalPanel title="Current placement">
-        <dl className="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-4">
+      <OperationalPanel variant="open" title="Current placement">
+        <dl className="grid gap-5 py-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-xs text-muted">Branch price</dt>
             <dd className="mt-1 font-semibold tabular-nums">
@@ -305,7 +305,7 @@ function ScopedInventoryDetail({
           }}
         >
           <div className="grid min-w-0 gap-x-6 lg:grid-cols-2">
-            <OperationalPanel title="Branch selling price">
+            <OperationalPanel variant="open" title="Branch selling price">
               <fieldset
                 className="min-w-0 border-0 p-0"
                 disabled={
@@ -327,7 +327,7 @@ function ScopedInventoryDetail({
                 />
               </fieldset>
             </OperationalPanel>
-            <OperationalPanel title="Low-stock threshold">
+            <OperationalPanel variant="open" title="Low-stock threshold">
               <fieldset
                 className="min-w-0 border-0 p-0"
                 disabled={
@@ -352,6 +352,7 @@ function ScopedInventoryDetail({
           </div>
           <div className="grid min-w-0 gap-x-6 lg:grid-cols-2">
             <OperationalPanel
+              variant="open"
               title="Receive stock"
               description="Record positive whole units and why they entered this branch."
             >
@@ -378,6 +379,7 @@ function ScopedInventoryDetail({
               </fieldset>
             </OperationalPanel>
             <OperationalPanel
+              variant="open"
               title="Correct stock"
               description="Review a signed correction before applying it. Available for inactive products or merchants."
             >
@@ -407,6 +409,7 @@ function ScopedInventoryDetail({
         </div>
       ) : null}
       <OperationalPanel
+        variant="open"
         title="Movement history"
         description={
           canWrite
@@ -428,7 +431,7 @@ function ScopedInventoryDetail({
               {movements.map((movement) => (
                 <li
                   key={movement.id}
-                  className="grid min-w-0 gap-3 p-6 sm:grid-cols-[minmax(0,1fr)_auto]"
+                  className="grid min-w-0 gap-3 py-6 sm:grid-cols-[minmax(0,1fr)_auto]"
                 >
                   <div className="min-w-0 break-words">
                     <strong className="text-sm font-semibold">

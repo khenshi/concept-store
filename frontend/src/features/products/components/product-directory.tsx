@@ -131,6 +131,7 @@ function ScopedProductDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
+        variant="open"
         title="Product directory"
         description={
           loading ? 'Loading products…' : `${products.length} matching products`
@@ -139,7 +140,7 @@ function ScopedProductDirectory({
           canEdit ? (
             <button
               type="button"
-              className={buttonStyles({ variant: 'primary' })}
+              className={buttonStyles({ variant: 'accent' })}
               disabled={loading || Boolean(error)}
               onClick={() => {
                 setCreating(true);
@@ -151,7 +152,10 @@ function ScopedProductDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]">
+        <OperationalToolbar
+          variant="open"
+          className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]"
+        >
           <FilterField id="product-search" label="Search">
             <input
               id="product-search"
@@ -225,7 +229,7 @@ function ScopedProductDirectory({
                 <Link
                   href={`/app/organizations/${organizationId}/products/${product.id}`}
                   aria-label={`View ${product.name}`}
-                  className="grid min-w-0 gap-3 px-6 py-5 text-ink no-underline hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+                  className="grid min-w-0 gap-3 py-5 text-ink no-underline hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
                 >
                   <div className="min-w-0 break-words">
                     <strong className="block text-sm font-semibold">
@@ -241,7 +245,9 @@ function ScopedProductDirectory({
                       (merchant) => merchant.id === product.merchantId,
                     )?.name ?? 'Merchant unavailable'}
                   </span>
-                  <span className="w-fit rounded-compact border border-hairline bg-subtle px-2 py-1 text-xs">
+                  <span
+                    className={`w-fit rounded-compact border px-2 py-1 text-xs ${product.status === 'ACTIVE' ? 'border-success/20 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
+                  >
                     {product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
                   </span>
                 </Link>

@@ -1,6 +1,6 @@
 # Frontend Experience
 
-## Divider-led application redesign (Part 1)
+## Divider-led application redesign (Parts 1–2)
 
 The approved redesign covers all application pages except the public landing
 page. Its first part establishes an opt-in open, hairline-divided operational
@@ -8,13 +8,17 @@ section alongside the existing card variant, a purpose-limited muted-blue
 action accent, and a flatter semantic success/warning notice. The organization
 workspace content plane is Paper; its overview now uses a divided navigation
 list and displays the member's current role without adding dashboard data or
-changing role-specific links. Other directories, detail/workflow screens and
+changing role-specific links. Part 2 carries the opt-in open sections into
+Branches, Members, Merchants, Products, Inventory, and Sales directories and
+details. Existing divided records stay row-based; directory filters now sit on
+the paper surface, while main directory actions use the muted-blue accent.
+Active merchant, product and in-stock labels use readable green text alongside
+their explicit status wording.
+Dialogs and form controls retain their rounded affordances. POS, Reports and
 focused entry/account pages remain for later reviewed parts. The landing page
 code and existing public action styling are unchanged. Rendered review and
 final accessibility/zoom checks remain pending for this new milestone because
-no browser surface is connected. Frontend formatting, lint, typecheck,
-production build and all 785 tests pass; automated tests do not certify the
-visual layout.
+no browser surface is connected; automated checks cannot certify visual layout.
 
 ## Staff sales reports
 

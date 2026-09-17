@@ -78,7 +78,7 @@ The landing page is intentionally unchanged unless separately requested.
    reflect the implemented presentation. Stop for final review; commit and
    archive only after approval.
 
-### Part 1 status (uncommitted, awaiting review)
+### Part 1 status (approved and committed)
 
 The initial visual foundation adds a restrained, accessible muted-blue
 operational accent without changing landing-page buttons; semantic notices
@@ -88,7 +88,19 @@ Paper content plane and its overview uses a divided list with its existing
 role-scoped links and role label. No backend or workflow behavior changes.
 Frontend formatting, lint, typecheck, production build and all 785 tests pass.
 No browser surface is connected, so rendered desktop/narrow-screen review was
-not performed; the user should review Part 1 before broad adoption in Part 2.
+not performed before Part 1 approval.
+
+Part 1 was approved and committed as `251a259`.
+
+### Part 2 status (uncommitted, awaiting review)
+
+Branches, Members, Merchants, Products, Inventory, and Sales list/detail
+sections now use the shared open, divider-led treatment. Directory toolbars use
+the paper surface rather than inset shaded cards, and primary directory actions
+use the restrained accent. Existing record rows, branch selectors, role-specific
+content, dialogs, forms, status treatments and API behavior are unchanged.
+Rendered review is still pending because no browser is connected. This part
+must be reviewed before it is committed or Part 3 begins.
 
 ### Exclusions
 

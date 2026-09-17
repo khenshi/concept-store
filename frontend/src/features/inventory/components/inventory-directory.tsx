@@ -252,6 +252,7 @@ function ScopedInventoryDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
+        variant="open"
         title="Inventory"
         description={
           loading
@@ -262,7 +263,7 @@ function ScopedInventoryDirectory({
           canWrite ? (
             <button
               type="button"
-              className={buttonStyles({ variant: 'primary' })}
+              className={buttonStyles({ variant: 'accent' })}
               disabled={loading || Boolean(error)}
               onClick={() => {
                 setSuccess(null);
@@ -275,7 +276,10 @@ function ScopedInventoryDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <OperationalToolbar
+          variant="open"
+          className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+        >
           <FilterField id="inventory-search" label="Search">
             <input
               id="inventory-search"
@@ -358,7 +362,7 @@ function ScopedInventoryDirectory({
             {items.map((item) => (
               <li
                 key={item.id}
-                className="grid min-w-0 gap-3 px-6 py-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+                className="grid min-w-0 gap-3 py-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
               >
                 <Link
                   href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}

@@ -110,7 +110,7 @@ function ScopedBranchManagement({
           description="Try again to open this workspace."
         />
         <RequestError
-          className="mt-6 rounded-panel border border-hairline bg-surface p-6"
+          className="mt-6 border-y border-hairline bg-surface py-6"
           message={organizationError ?? 'The organization could not be loaded.'}
           onRetry={() => void refreshOrganization()}
         />
@@ -131,11 +131,13 @@ function ScopedBranchManagement({
       />
       {successMessage ? <StatusNotice>{successMessage}</StatusNotice> : null}
       <OperationalPanel
+        variant="open"
         title="Store locations"
         description={`${visibleBranches.length} matching accessible branches · Open a branch to review its ${identityOnly ? 'identity and own inventory' : 'identity and address'}.`}
         action={
           canManage ? (
             <Button
+              variant="accent"
               className="max-sm:w-full"
               onClick={() => {
                 setSuccessMessage(null);
@@ -170,7 +172,10 @@ function ScopedBranchManagement({
           </div>
         ) : (
           <>
-            <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]">
+            <OperationalToolbar
+              variant="open"
+              className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]"
+            >
               <TextField
                 id="branch-search"
                 label="Search"
@@ -210,7 +215,7 @@ function ScopedBranchManagement({
                 {visibleBranches.map((branch) => (
                   <li key={branch.id}>
                     <Link
-                      className="flex min-h-24 w-full items-start gap-4 px-5 py-5 text-ink no-underline hover:bg-subtle sm:items-center sm:px-6"
+                      className="flex min-h-24 w-full items-start gap-4 py-5 text-ink no-underline hover:bg-subtle sm:items-center"
                       href={`/app/organizations/${organizationId}/branches/${branch.id}`}
                     >
                       <span className="grid size-11 shrink-0 place-items-center rounded-control border border-hairline bg-subtle text-muted">
