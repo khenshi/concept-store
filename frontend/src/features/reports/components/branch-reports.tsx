@@ -179,6 +179,7 @@ function ScopedBranchReports({
       />
       {merchant ? <MerchantReportGuidance /> : null}
       <OperationalPanel
+        variant="open"
         title="Report period"
         description="Philippines calendar dates (Asia/Manila, UTC+08:00). From and Through are inclusive."
       >

@@ -11,14 +11,17 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
       ) : null}
       <dl
         aria-label="Sales summary"
-        className="mt-6 grid min-w-0 divide-y divide-hairline rounded-panel border border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
+        className="mt-6 grid min-w-0 divide-y divide-hairline border-y border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
         {[
           ['Gross recorded sales', `PHP ${report.grossSales}`],
           ['Completed transactions', report.transactionCount],
           ['Units sold', report.unitsSold],
         ].map(([label, value]) => (
-          <div key={label} className="min-w-0 p-5 sm:p-6">
+          <div
+            key={label}
+            className="min-w-0 py-5 sm:px-5 sm:py-6 first:sm:pl-0 last:sm:pr-0"
+          >
             <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-3 break-all text-xl font-semibold tabular-nums">
               {value}
@@ -28,13 +31,16 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
       </dl>
       <dl
         aria-label="Refund and net summary"
-        className="mt-5 grid min-w-0 gap-px rounded-panel border border-hairline bg-hairline sm:grid-cols-3"
+        className="mt-5 grid min-w-0 divide-y divide-hairline border-y border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
         {[
           ['Refunded amount', report.refundedAmount],
           ['Net recorded sales', report.netRecordedSales],
         ].map(([label, value]) => (
-          <div key={label} className="min-w-0 bg-surface p-5 sm:p-6">
+          <div
+            key={label}
+            className="min-w-0 py-5 sm:px-5 sm:py-6 first:sm:pl-0"
+          >
             <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-3 break-all text-xl font-semibold tabular-nums">
               <span>PHP </span>
@@ -42,7 +48,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
             </dd>
           </div>
         ))}
-        <div className="min-w-0 bg-surface p-5 sm:p-6">
+        <div className="min-w-0 py-5 sm:px-5 sm:py-6 sm:pr-0">
           <dt className="text-sm text-muted">
             Completed refunds / returned units
           </dt>
@@ -58,6 +64,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
         remain gross.
       </p>
       <OperationalPanel
+        variant="open"
         title="Gross sale payments"
         description="Recorded sale totals, not cash tender, available cash or provider reconciliation. GCash and card payments are manual and unverified."
       >
@@ -68,7 +75,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
           {report.payments.map((payment) => (
             <li
               key={payment.paymentMethod}
-              className="grid min-w-0 gap-3 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:px-6"
+              className="grid min-w-0 gap-3 py-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
             >
               <strong className="text-sm font-semibold">
                 {payment.paymentMethod === 'CASH'
@@ -88,6 +95,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
         </ul>
       </OperationalPanel>
       <OperationalPanel
+        variant="open"
         title="Actual refund methods"
         description="Separate manual refund amounts, not netted against sale payments. The refund method may differ from the original payment. No provider processing or verification."
       >
@@ -98,7 +106,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
           {report.refundMethods.map((row) => (
             <li
               key={row.paymentMethod}
-              className="grid min-w-0 gap-3 p-5 sm:grid-cols-2 sm:p-6"
+              className="grid min-w-0 gap-3 py-5 sm:grid-cols-2 sm:py-6"
             >
               <strong>
                 {row.paymentMethod === 'CASH'

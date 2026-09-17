@@ -16,14 +16,17 @@ export function MerchantReportSummary({
       ) : null}
       <dl
         aria-label="Own-sales summary"
-        className="mt-6 grid min-w-0 divide-y divide-hairline rounded-panel border border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
+        className="mt-6 grid min-w-0 divide-y divide-hairline border-y border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
         {[
           ['Own gross recorded sales', `PHP ${report.ownGrossSales}`],
           ['Transactions containing own items', report.ownTransactionCount],
           ['Own units sold', report.ownUnitsSold],
         ].map(([label, value]) => (
-          <div key={label} className="min-w-0 p-5 sm:p-6">
+          <div
+            key={label}
+            className="min-w-0 py-5 sm:px-5 sm:py-6 first:sm:pl-0 last:sm:pr-0"
+          >
             <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-3 break-all text-xl font-semibold tabular-nums">
               {value}
@@ -33,13 +36,16 @@ export function MerchantReportSummary({
       </dl>
       <dl
         aria-label="Own refund and net summary"
-        className="mt-5 grid min-w-0 gap-px rounded-panel border border-hairline bg-hairline sm:grid-cols-3"
+        className="mt-5 grid min-w-0 divide-y divide-hairline border-y border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
         {[
           ['Own refunded amount', report.ownRefundedAmount],
           ['Own net recorded sales', report.ownNetRecordedSales],
         ].map(([label, value]) => (
-          <div key={label} className="min-w-0 bg-surface p-5 sm:p-6">
+          <div
+            key={label}
+            className="min-w-0 py-5 sm:px-5 sm:py-6 first:sm:pl-0"
+          >
             <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-3 break-all text-xl font-semibold tabular-nums">
               <span>PHP </span>
@@ -47,7 +53,7 @@ export function MerchantReportSummary({
             </dd>
           </div>
         ))}
-        <div className="min-w-0 bg-surface p-5 sm:p-6">
+        <div className="min-w-0 py-5 sm:px-5 sm:py-6 sm:pr-0">
           <dt className="text-sm text-muted">
             Refunds containing own items / own returned units
           </dt>

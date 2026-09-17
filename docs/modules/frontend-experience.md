@@ -1,6 +1,6 @@
 # Frontend Experience
 
-## Divider-led application redesign (Parts 1–2)
+## Divider-led application redesign (Parts 1–3)
 
 The approved redesign covers all application pages except the public landing
 page. Its first part establishes an opt-in open, hairline-divided operational
@@ -14,11 +14,18 @@ details. Existing divided records stay row-based; directory filters now sit on
 the paper surface, while main directory actions use the muted-blue accent.
 Active merchant, product and in-stock labels use readable green text alongside
 their explicit status wording.
-Dialogs and form controls retain their rounded affordances. POS, Reports and
-focused entry/account pages remain for later reviewed parts. The landing page
+Part 3 gives POS an underlined Cart/Sales History tab bar and open scanning and
+search sections, while its cart keeps a distinct boundary for checkout safety.
+Reports retain exact figures, semantic tables and chart plotting but replace
+metric cards and rounded table frames with divided rows and open sections.
+The gross trend uses the muted-blue accent; refunds and net trends retain
+distinct semantic colors. Dialogs and form controls retain rounded affordances.
+Focused entry/account pages remain for a later reviewed part. The landing page
 code and existing public action styling are unchanged. Rendered review and
 final accessibility/zoom checks remain pending for this new milestone because
 no browser surface is connected; automated checks cannot certify visual layout.
+After Part 3, formatting, lint, typecheck, production build and all 786 frontend
+tests pass.
 
 ## Staff sales reports
 

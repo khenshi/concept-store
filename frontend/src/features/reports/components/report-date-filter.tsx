@@ -55,7 +55,7 @@ export function ReportDateFilter({
       ref={form}
       noValidate
       onSubmit={apply}
-      className="grid min-w-0 items-start gap-5 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+      className="grid min-w-0 items-start gap-5 py-5 sm:grid-cols-2 sm:py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
       onChange={() => {
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(validate, 300);
@@ -91,7 +91,7 @@ export function ReportDateFilter({
       />
       <button
         type="submit"
-        className={buttonStyles({ variant: 'primary', className: 'lg:mt-6' })}
+        className={buttonStyles({ variant: 'accent', className: 'lg:mt-6' })}
       >
         Apply period
       </button>

@@ -687,7 +687,7 @@ function ScopedBranchPos({
       />
       <nav
         aria-label="POS pages"
-        className="mb-6 flex flex-wrap gap-2 border-b border-hairline pb-3"
+        className="mb-6 flex flex-wrap gap-6 border-b border-hairline"
       >
         {[
           { label: 'Cart', href: pathname, active: cartActive },
@@ -702,7 +702,7 @@ function ScopedBranchPos({
             href={tab.href}
             aria-current={tab.active ? 'page' : undefined}
             aria-disabled={!tab.active && recovering ? true : undefined}
-            className="flex min-h-11 items-center rounded-control border border-control-border px-4 py-2 text-sm font-medium text-muted no-underline aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:text-ink"
+            className="flex min-h-11 items-center border-b-2 border-transparent py-2 text-sm font-medium text-muted no-underline hover:text-accent aria-[current=page]:border-accent aria-[current=page]:text-accent"
           >
             {tab.label}
           </Link>
@@ -721,10 +721,11 @@ function ScopedBranchPos({
         {notice ? <StatusNotice>{notice}</StatusNotice> : null}
         {completed && cartActive ? (
           <OperationalPanel
+            variant="open"
             title="Sale completed"
             description="This persisted sale is complete. Printing and catalog retries do not repeat checkout."
           >
-            <div className="p-5 sm:p-6">
+            <div className="py-5 sm:py-6">
               <SaleReceipt sale={completed} />
               <Link
                 className={buttonStyles({
@@ -756,12 +757,13 @@ function ScopedBranchPos({
         >
           <div className="min-w-0">
             <OperationalPanel
+              variant="open"
               title="Add products"
               description="Enter an exact SKU or barcode. Repeating a code increases its cart quantity."
             >
               <form
                 noValidate
-                className="grid gap-4 p-5 sm:p-6"
+                className="grid gap-4 py-5 sm:py-6"
                 onSubmit={(event) => {
                   event.preventDefault();
                   void lookup();
@@ -793,6 +795,7 @@ function ScopedBranchPos({
                 />
                 <Button
                   type="submit"
+                  variant="accent"
                   className="w-fit max-sm:w-full"
                   pending={lookupPending}
                   pendingLabel="Looking up code…"
@@ -803,10 +806,11 @@ function ScopedBranchPos({
               </form>
             </OperationalPanel>
             <OperationalPanel
+              variant="open"
               title="Product search"
               description="Active products placed here only; at most 100 results. Narrow search for larger catalogs."
             >
-              <div className="border-b border-hairline bg-subtle p-5 sm:p-6">
+              <div className="border-b border-hairline bg-surface py-5 sm:py-6">
                 <TextField
                   label="Search products"
                   type="search"
@@ -838,7 +842,7 @@ function ScopedBranchPos({
                   {products.map((product) => (
                     <li
                       key={product.branchInventoryId}
-                      className="grid min-w-0 gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:p-6"
+                      className="grid min-w-0 gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:py-6"
                     >
                       <div className="min-w-0 break-words">
                         <h3 className="text-sm font-semibold">

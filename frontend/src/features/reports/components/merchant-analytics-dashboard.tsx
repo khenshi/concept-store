@@ -26,7 +26,7 @@ export function MerchantAnalyticsDashboard({
       ) : null}
       <dl
         aria-label="Own-sales analytics summary"
-        className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        className="mt-6 grid gap-y-2 border-y border-hairline sm:grid-cols-2 xl:grid-cols-4"
       >
         {[
           [
@@ -52,7 +52,7 @@ export function MerchantAnalyticsDashboard({
         ].map(([label, value, detail]) => (
           <div
             key={label}
-            className="min-w-0 rounded-panel border border-hairline bg-surface p-5"
+            className="min-w-0 py-5 sm:px-5 xl:border-l xl:border-hairline xl:first:border-l-0 xl:first:pl-0 xl:last:pr-0"
           >
             <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-3 break-all text-2xl font-semibold tracking-tight tabular-nums">
@@ -68,8 +68,8 @@ export function MerchantAnalyticsDashboard({
         other merchants’ items.
       </p>
       <AnalyticsTrendCharts rows={trends} own />
-      <details className="mt-4 rounded-panel border border-hairline bg-surface">
-        <summary className="min-h-11 cursor-pointer px-5 py-3 text-sm font-semibold">
+      <details className="mt-4 border-y border-hairline bg-surface">
+        <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">
           View exact own daily data
         </summary>
         <div className="overflow-x-auto border-t border-hairline">
@@ -124,8 +124,8 @@ export function MerchantAnalyticsDashboard({
           </table>
         </div>
       </details>
-      <section className="mt-6 rounded-panel border border-hairline bg-surface">
-        <header className="border-b border-hairline px-5 py-5 sm:px-6">
+      <section className="mt-6 border-y border-hairline bg-surface">
+        <header className="border-b border-hairline py-5">
           <h2 className="font-semibold">Your top products by gross sales</h2>
           <p className="mt-1 text-sm text-muted">
             Top {report.topProducts.length} of {report.totalProducts} own
@@ -204,7 +204,7 @@ export function MerchantAnalyticsDashboard({
             </table>
           </div>
         ) : (
-          <p className="p-5 text-sm text-muted">
+          <p className="py-5 text-sm text-muted">
             No own products contributed sales or refunds in this period. In an
             assigned branch, a missing merchant-profile link can also result in
             zeros.

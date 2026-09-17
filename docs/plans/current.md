@@ -92,15 +92,28 @@ not performed before Part 1 approval.
 
 Part 1 was approved and committed as `251a259`.
 
-### Part 2 status (uncommitted, awaiting review)
+### Part 2 status (approved and committed)
 
 Branches, Members, Merchants, Products, Inventory, and Sales list/detail
 sections now use the shared open, divider-led treatment. Directory toolbars use
 the paper surface rather than inset shaded cards, and primary directory actions
 use the restrained accent. Existing record rows, branch selectors, role-specific
 content, dialogs, forms, status treatments and API behavior are unchanged.
-Rendered review is still pending because no browser is connected. This part
-must be reviewed before it is committed or Part 3 begins.
+Rendered review was not performed because no browser is connected. Part 2 was
+approved and committed as `86325b0`.
+
+### Part 3 status (uncommitted, awaiting review)
+
+POS now uses open code-entry and product-search sections with an underlined
+route-backed Cart/Sales History tab bar. The distinct cart container, payment
+confirmation and receipt boundaries remain. Staff and merchant Reports replace
+rounded metric cards and tables with divided summaries and open sections;
+charts remain separate plots with purposeful series colors. Applied date,
+branch, role, totals, merchant privacy, print and checkout workflows are
+unchanged. Rendered QA remains pending because no browser is connected. Stop
+for review before committing Part 3 or beginning focused pages.
+Frontend formatting, lint, typecheck, production build and all 786 tests pass;
+the suite also includes a corrected branch-row spacing assertion from Part 2.
 
 ### Exclusions
 

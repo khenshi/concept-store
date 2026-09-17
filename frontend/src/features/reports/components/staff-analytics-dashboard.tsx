@@ -59,7 +59,7 @@ function TrendChart({
       rows.findIndex((candidate) => candidate?.date === row.date) === index,
   );
   return (
-    <section className="rounded-panel border border-hairline bg-surface p-5 sm:p-6">
+    <section className="border-y border-hairline bg-surface py-5 sm:py-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">
@@ -107,7 +107,7 @@ function TrendChart({
               <polyline
                 points={points(gross, min, max)}
                 fill="none"
-                stroke="var(--color-ink)"
+                stroke="var(--color-accent)"
                 strokeWidth="3"
                 vectorEffect="non-scaling-stroke"
               />
@@ -124,7 +124,7 @@ function TrendChart({
             <polyline
               points={points(net, min, max)}
               fill="none"
-              stroke="var(--color-success)"
+              stroke="var(--color-success-ink)"
               strokeWidth="3"
               vectorEffect="non-scaling-stroke"
             />
@@ -170,7 +170,7 @@ export function StaffAnalyticsDashboard({
       ) : null}
       <dl
         aria-label="Sales analytics summary"
-        className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        className="mt-6 grid gap-y-2 border-y border-hairline sm:grid-cols-2 xl:grid-cols-4"
       >
         {[
           ['Gross recorded sales', money(report.grossSales), 'Before refunds'],
@@ -192,7 +192,7 @@ export function StaffAnalyticsDashboard({
         ].map(([label, value, detail]) => (
           <div
             key={label}
-            className="min-w-0 rounded-panel border border-hairline bg-surface p-5"
+            className="min-w-0 py-5 sm:px-5 xl:border-l xl:border-hairline xl:first:border-l-0 xl:first:pl-0 xl:last:pr-0"
           >
             <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-3 break-all text-2xl font-semibold tracking-tight tabular-nums">
@@ -207,8 +207,8 @@ export function StaffAnalyticsDashboard({
         available cash. Refunds use their own completion dates.
       </p>
       <AnalyticsTrendCharts rows={report.dailyTrends} />
-      <details className="mt-4 rounded-panel border border-hairline bg-surface">
-        <summary className="min-h-11 cursor-pointer px-5 py-3 text-sm font-semibold">
+      <details className="mt-4 border-y border-hairline bg-surface">
+        <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">
           View exact daily data
         </summary>
         <div className="overflow-x-auto border-t border-hairline">
@@ -263,8 +263,8 @@ export function StaffAnalyticsDashboard({
           </table>
         </div>
       </details>
-      <section className="mt-6 rounded-panel border border-hairline bg-surface">
-        <header className="border-b border-hairline px-5 py-5 sm:px-6">
+      <section className="mt-6 border-y border-hairline bg-surface">
+        <header className="border-b border-hairline py-5">
           <h2 className="font-semibold">Top products by gross sales</h2>
           <p className="mt-1 text-sm text-muted">
             Top {report.topProducts.length} of {report.totalProducts}{' '}
@@ -341,7 +341,7 @@ export function StaffAnalyticsDashboard({
             </table>
           </div>
         ) : (
-          <p className="p-5 text-sm text-muted">
+          <p className="py-5 text-sm text-muted">
             No products contributed sales or refunds in this period.
           </p>
         )}
@@ -381,14 +381,14 @@ function MethodPanel({
   rows: { key: string; amount: string; count: string; countLabel: string }[];
 }) {
   return (
-    <section className="rounded-panel border border-hairline bg-surface">
-      <header className="border-b border-hairline px-5 py-5">
+    <section className="border-y border-hairline bg-surface">
+      <header className="border-b border-hairline py-5">
         <h2 className="font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted">{description}</p>
       </header>
       <dl className="divide-y divide-hairline">
         {rows.map((row) => (
-          <div key={row.key} className="grid grid-cols-2 gap-3 px-5 py-4">
+          <div key={row.key} className="grid grid-cols-2 gap-3 py-4">
             <dt className="font-medium">
               {row.key === 'CASH'
                 ? 'Cash'
