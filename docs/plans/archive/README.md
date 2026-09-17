@@ -1,5 +1,11 @@
 # Archived Implementation Plans
 
+The completed HTTP test reliability and bounded Inventory browsing plan,
+including four reviewed parts, final automated verification and the explicit
+September 17, 2026 rendered-QA waiver, is retained in
+[`http-reliability-and-bounded-inventory-browsing-2026-09-17.md`](http-reliability-and-bounded-inventory-browsing-2026-09-17.md).
+It does not authorize additional implementation.
+
 The completed Inventory integrity and measured Inventory/POS performance plan,
 including its four reviewed parts, final automated verification, rendered-QA
 waiver, and documented remaining limitations, is retained in

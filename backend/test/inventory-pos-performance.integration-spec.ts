@@ -149,9 +149,26 @@ suite('disposable Inventory/POS performance baseline', () => {
     );
     const pos = new PosCatalogService(db as unknown as PrismaService);
     const context = { organizationId, userId, role: 'OWNER' as const };
+    const firstPage = await inventory.findAll(
+      organizationId,
+      branchId,
+      {},
+      context,
+    );
+    if (firstPage.items.length !== 50 || !firstPage.nextCursor)
+      throw new Error('Expected a full bounded first Inventory page');
+    const nextCursor = firstPage.nextCursor;
     const actions = {
-      directory: () => inventory.findAll(organizationId, branchId, {}, context),
-      status: () =>
+      directoryPage: () =>
+        inventory.findAll(organizationId, branchId, {}, context),
+      directoryNextPage: () =>
+        inventory.findAll(
+          organizationId,
+          branchId,
+          { cursor: nextCursor },
+          context,
+        ),
+      statusPage: () =>
         inventory.findAll(
           organizationId,
           branchId,
@@ -188,8 +205,8 @@ suite('disposable Inventory/POS performance baseline', () => {
       );
     }
     const plans = {
-      status: `SELECT bi."id" FROM "BranchInventory" bi JOIN "Product" p ON p."id" = bi."productId" WHERE bi."organizationId" = '${organizationId}' AND bi."branchId" = '${branchId}' ORDER BY p."name", bi."id"`,
-      statusFiltered: `SELECT bi."id" FROM "BranchInventory" bi JOIN "Product" p ON p."id" = bi."productId" WHERE bi."organizationId" = '${organizationId}' AND bi."branchId" = '${branchId}' AND bi."quantity" > 0 AND bi."quantity" <= bi."lowStockThreshold" AND bi."lowStockThreshold" > 0 ORDER BY p."name", bi."id"`,
+      directoryPage: `SELECT bi."id" FROM "BranchInventory" bi JOIN "Product" p ON p."id" = bi."productId" WHERE bi."organizationId" = '${organizationId}' AND bi."branchId" = '${branchId}' ORDER BY p."name", bi."id" LIMIT 51`,
+      statusPage: `SELECT bi."id" FROM "BranchInventory" bi JOIN "Product" p ON p."id" = bi."productId" WHERE bi."organizationId" = '${organizationId}' AND bi."branchId" = '${branchId}' AND bi."quantity" > 0 AND bi."quantity" <= bi."lowStockThreshold" AND bi."lowStockThreshold" > 0 ORDER BY p."name", bi."id" LIMIT 51`,
       summary: `SELECT "quantity", "lowStockThreshold" FROM "BranchInventory" WHERE "organizationId" = '${organizationId}' AND "branchId" = '${branchId}'`,
       summaryCountLow: `SELECT COUNT(*) FROM "BranchInventory" WHERE "organizationId" = '${organizationId}' AND "branchId" = '${branchId}' AND "quantity" > 0 AND "quantity" <= "lowStockThreshold" AND "lowStockThreshold" > 0`,
       movements: `SELECT "id", "createdAt" FROM "InventoryMovement" WHERE "organizationId" = '${organizationId}' AND "branchId" = '${branchId}' AND "branchInventoryId" = '${hotInventoryId}' ORDER BY "createdAt" DESC, "id" DESC`,
@@ -208,5 +225,47 @@ suite('disposable Inventory/POS performance baseline', () => {
         }),
       );
     }
+    const merchant = await db.merchant.findFirstOrThrow({
+      where: { organizationId },
+      select: { id: true },
+    });
+    const eligible = Array.from({ length: 100 }, (_, index) => ({
+      id: randomUUID(),
+      organizationId,
+      merchantId: merchant.id,
+      name: `Unplaced ${String(index).padStart(5, '0')}`,
+    }));
+    await db.product.createMany({ data: eligible });
+    await pg.query('ANALYZE');
+    const picker = () =>
+      inventory.eligibleProducts(organizationId, branchId, {}, context);
+    const pickerFirst = await picker();
+    if (pickerFirst.items.length !== 50 || !pickerFirst.nextCursor)
+      throw new Error('Expected a full bounded first picker page');
+    const pickerSamples: number[] = [];
+    const pickerCount = queryCount;
+    for (let index = 0; index < 5; index++) {
+      const start = performance.now();
+      await picker();
+      pickerSamples.push(performance.now() - start);
+    }
+    pickerSamples.sort((a, b) => a - b);
+    console.log(
+      JSON.stringify({
+        name: 'eligibleProductsPage',
+        medianMs: Number(pickerSamples[2].toFixed(2)),
+        queriesPerCall: (queryCount - pickerCount) / 5,
+        returned: pickerFirst.items.length,
+      }),
+    );
+    const pickerPlan = await pg.query<{ 'QUERY PLAN': string }>(
+      `EXPLAIN (ANALYZE, BUFFERS) SELECT p."id" FROM "Product" p JOIN "Merchant" m ON m."id" = p."merchantId" WHERE p."organizationId" = '${organizationId}' AND p."status" = 'ACTIVE' AND m."status" = 'ACTIVE' AND NOT EXISTS (SELECT 1 FROM "BranchInventory" bi WHERE bi."organizationId" = '${organizationId}' AND bi."branchId" = '${branchId}' AND bi."productId" = p."id") ORDER BY p."name", p."id" LIMIT 51`,
+    );
+    console.log(
+      JSON.stringify({
+        plan: 'eligibleProductsPage',
+        lines: pickerPlan.rows.map((row) => row['QUERY PLAN']),
+      }),
+    );
   }, 120000);
 });

@@ -20,8 +20,12 @@ The current bounded-read work changes the directory response from an array to
 a page and adds the eligible-product read. The frontend now consumes both
 contracts with paged, stale-response-safe loading. Backend PostgreSQL
 integration, unit, HTTP, lint and build checks and the full frontend suite,
-lint, typecheck and production build pass. Rendered QA remains for the final
-verification part.
+lint, typecheck and production build pass. Final verification reran 413 backend
+unit, 214 HTTP, 245 PostgreSQL integration and 783 frontend tests; formatting,
+lint and both builds passed. The user explicitly waived rendered responsive,
+keyboard/focus and 200% zoom QA for this pagination milestone on September 17,
+2026; those checks were not performed. The bounded-read fixture and query-plan
+comparison are recorded in [the September 17 measurement](../development/inventory-browsing-performance-2026-09-17.md).
 
 The later inventory workflow usability refinement passes the complete frontend
 suite (751 tests across 88 files), lint, type checking, formatting and production
