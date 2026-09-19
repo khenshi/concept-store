@@ -131,7 +131,7 @@ function ScopedProductDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
-        variant="open"
+        className="data-surface"
         title="Product directory"
         description={
           loading ? 'Loading products…' : `${products.length} matching products`
@@ -152,10 +152,7 @@ function ScopedProductDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar
-          variant="open"
-          className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]"
-        >
+        <OperationalToolbar className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]">
           <FilterField id="product-search" label="Search">
             <input
               id="product-search"
@@ -220,16 +217,18 @@ function ScopedProductDirectory({
             </p>
           </div>
         ) : (
-          <ul
-            aria-label="Product directory"
-            className="m-0 list-none border-t border-hairline p-0"
-          >
+          <ul aria-label="Product directory" className="m-0 list-none p-0">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(8rem,auto)] gap-4 sm:grid">
+              <span>Product</span>
+              <span>Merchant</span>
+              <span>Status</span>
+            </li>
             {products.map((product) => (
-              <li key={product.id}>
+              <li className="data-row" key={product.id}>
                 <Link
                   href={`/app/organizations/${organizationId}/products/${product.id}`}
                   aria-label={`View ${product.name}`}
-                  className="grid min-w-0 gap-3 py-5 text-ink no-underline hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+                  className="grid min-w-0 gap-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
                 >
                   <div className="min-w-0 break-words">
                     <strong className="block text-sm font-semibold">

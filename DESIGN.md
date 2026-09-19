@@ -262,6 +262,14 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
   instead of a card per record or a rule between every row. Hover and selected
   states can use a quiet tint. Keep row rules only when density or comparison
   makes them useful.
+- Dense directories use one lightly contained data surface with a compact,
+  uppercase-muted column header, aligned record rows and a clear trailing
+  target/action. Use the shared `data-surface`, `data-column-header` and
+  `data-row` styles when the collection is implemented as a responsive list.
+- Keep the surface background and surrounding page canvas in the same warm-stone
+  family. The surface owns its modest rounding; records do not become individual
+  cards. On narrow screens, hide nonessential column labels and let each record
+  stack with readable metadata rather than compressing columns.
 - Strengthen record identity; render metadata smaller in Quiet Ink.
 - Align columns for scanning and use tabular figures for numbers.
 - Status badges include text and, where useful, a small icon.

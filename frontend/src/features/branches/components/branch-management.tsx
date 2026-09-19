@@ -131,7 +131,7 @@ function ScopedBranchManagement({
       />
       {successMessage ? <StatusNotice>{successMessage}</StatusNotice> : null}
       <OperationalPanel
-        variant="open"
+        className="data-surface"
         title="Store locations"
         description={`${visibleBranches.length} matching accessible branches · Open a branch to review its ${identityOnly ? 'identity and own inventory' : 'identity and address'}.`}
         action={
@@ -172,10 +172,7 @@ function ScopedBranchManagement({
           </div>
         ) : (
           <>
-            <OperationalToolbar
-              variant="open"
-              className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]"
-            >
+            <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]">
               <TextField
                 id="branch-search"
                 label="Search"
@@ -208,39 +205,48 @@ function ScopedBranchManagement({
                 No branches match these filters.
               </p>
             ) : (
-              <ul
-                className="m-0 list-none border-t border-hairline p-0"
-                aria-label="Branches"
-              >
+              <ul className="m-0 list-none p-0" aria-label="Branches">
+                <li className="data-column-header hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_1.5rem] gap-4 sm:grid">
+                  <span>Branch</span>
+                  <span>{identityOnly ? 'Access' : 'Location'}</span>
+                  <span className="sr-only">Open</span>
+                </li>
                 {visibleBranches.map((branch) => (
-                  <li key={branch.id}>
+                  <li className="data-row" key={branch.id}>
                     <Link
-                      className="flex min-h-24 w-full items-start gap-4 py-5 text-ink no-underline hover:bg-subtle sm:items-center"
+                      className="grid min-h-20 w-full items-start gap-4 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_1.5rem] sm:items-center"
                       href={`/app/organizations/${organizationId}/branches/${branch.id}`}
                     >
-                      <span className="grid size-11 shrink-0 place-items-center rounded-control border border-hairline bg-subtle text-muted">
-                        <Icon name="building" />
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className="grid size-10 shrink-0 place-items-center rounded-control border border-hairline bg-subtle text-muted">
+                          <Icon name="building" />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <strong className="break-words text-sm font-semibold">
+                              {branch.name}
+                            </strong>
+                            {branch.code ? (
+                              <span className="rounded-compact border border-hairline bg-subtle px-2 py-0.5 text-xs text-muted">
+                                {branch.code}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="mt-1 block break-words text-xs text-muted sm:hidden">
+                            {identityOnly
+                              ? 'Read-only branch identity'
+                              : addressFor(branch)}
+                          </span>
+                        </span>
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <strong className="break-words text-sm font-semibold">
-                            {branch.name}
-                          </strong>
-                          {branch.code ? (
-                            <span className="rounded-compact border border-hairline bg-subtle px-2 py-0.5 text-xs text-muted">
-                              {branch.code}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="mt-2 block break-words text-sm leading-6 text-muted">
-                          {identityOnly
-                            ? 'Read-only branch identity'
-                            : addressFor(branch)}
-                        </span>
+                      <span className="hidden min-w-0 break-words text-sm text-muted sm:block">
+                        {identityOnly
+                          ? 'Read-only branch identity'
+                          : addressFor(branch)}
                       </span>
                       <Icon
                         name="arrow"
-                        className="mt-3 size-4 text-muted sm:mt-0"
+                        className="size-4 self-center text-muted"
                       />
                     </Link>
                   </li>

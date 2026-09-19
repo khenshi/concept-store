@@ -147,7 +147,7 @@ function ScopedMerchantDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
-        variant="open"
+        className="data-surface"
         title="Merchant directory"
         description={`${merchants.length} matching merchant${merchants.length === 1 ? '' : 's'}`}
         action={
@@ -165,10 +165,7 @@ function ScopedMerchantDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar
-          variant="open"
-          className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]"
-        >
+        <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]">
           <FilterField id="merchant-search" label="Search">
             <input
               className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm placeholder:text-faint"
@@ -225,14 +222,16 @@ function ScopedMerchantDirectory({
             </p>
           </div>
         ) : (
-          <ul
-            aria-label="Merchant directory"
-            className="m-0 list-none border-t border-hairline p-0"
-          >
+          <ul aria-label="Merchant directory" className="m-0 list-none p-0">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,auto)] gap-4 sm:grid">
+              <span>Merchant</span>
+              <span>Contact</span>
+              <span>Status</span>
+            </li>
             {merchants.map((merchant) => (
-              <li key={merchant.id}>
+              <li className="data-row" key={merchant.id}>
                 <Link
-                  className="flex min-w-0 flex-col gap-3 py-5 text-ink no-underline hover:bg-subtle sm:flex-row sm:items-center"
+                  className="grid min-w-0 gap-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,auto)] sm:items-center"
                   href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
                   aria-label={`View ${merchant.name}`}
                 >
@@ -252,8 +251,12 @@ function ScopedMerchantDirectory({
                         {merchant.email ?? merchant.phone}
                       </span>
                     </div>
-                  ) : null}
-                  <div className="flex items-center justify-between gap-4 sm:justify-end">
+                  ) : (
+                    <span className="text-xs text-muted">
+                      Contact details restricted
+                    </span>
+                  )}
+                  <div className="flex items-center justify-between gap-4 lg:justify-end">
                     <MerchantStatusBadge status={merchant.status} />
                     <span
                       className="flex items-center gap-2 text-xs font-medium text-muted"

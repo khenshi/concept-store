@@ -173,7 +173,12 @@ describe('BranchManagement', () => {
         'href',
         '/app/organizations/org/branches/branch-id',
       );
-      expect(row).toHaveClass('w-full', 'py-5', 'hover:bg-subtle');
+      expect(row).toHaveClass(
+        'w-full',
+        'px-4',
+        'py-4',
+        'sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_1.5rem]',
+      );
     },
   );
 

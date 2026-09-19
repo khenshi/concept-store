@@ -131,4 +131,16 @@
   .ui-button:disabled {
     @apply cursor-not-allowed opacity-50;
   }
+
+  .data-surface {
+    @apply overflow-hidden rounded-panel border border-hairline bg-surface;
+  }
+
+  .data-column-header {
+    @apply border-y border-hairline bg-subtle px-4 py-2.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-muted;
+  }
+
+  .data-row {
+    @apply border-t border-hairline transition-colors duration-150 hover:bg-subtle;
+  }
 }

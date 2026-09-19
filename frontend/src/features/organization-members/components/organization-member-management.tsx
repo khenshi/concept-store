@@ -304,7 +304,7 @@ export function OrganizationMemberManagement({
           {!loadError ? (
             <div className="mt-6">
               <OperationalPanel
-                variant="open"
+                className="data-surface"
                 title="People with access"
                 description={`${members.length} organization members · Branch assignments restrict access; owners have all-branch access`}
                 action={
@@ -335,11 +335,16 @@ export function OrganizationMemberManagement({
                 ) : (
                   <ul
                     aria-label="Organization members"
-                    className="m-0 list-none border-t border-hairline p-0"
+                    className="m-0 list-none p-0"
                   >
+                    <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_minmax(8rem,auto)_auto] gap-4 sm:grid">
+                      <span>Member</span>
+                      <span>Role</span>
+                      <span className="sr-only">Actions</span>
+                    </li>
                     {members.map((member) => (
                       <li
-                        className="grid min-w-0 gap-4 py-5 hover:bg-subtle sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                        className="data-row grid min-w-0 gap-4 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,auto)_auto] sm:items-center"
                         key={member.id}
                       >
                         <div className="min-w-0 break-words">
@@ -367,8 +372,8 @@ export function OrganizationMemberManagement({
                           )}
                         </div>
                         {canManageMembers ? (
-                          <div className="flex min-w-0 flex-wrap items-center gap-3">
-                            <div className="min-w-0 flex-1 sm:w-40">
+                          <>
+                            <div className="min-w-0 sm:w-40">
                               <label
                                 className="sr-only"
                                 htmlFor={`role-${member.id}`}
@@ -393,25 +398,31 @@ export function OrganizationMemberManagement({
                                 ))}
                               </SelectControl>
                             </div>
-                            <button
-                              className={buttonStyles({ variant: 'secondary' })}
-                              type="button"
-                              disabled={Boolean(pendingMemberId)}
-                              aria-label={`Manage access for ${member.email}`}
-                              onClick={() => setAccessMember({ member })}
-                            >
-                              Manage access
-                            </button>
-                            <button
-                              className={buttonStyles({ variant: 'secondary' })}
-                              type="button"
-                              disabled={Boolean(pendingMemberId)}
-                              aria-label={`Remove ${member.email}`}
-                              onClick={() => void handleRemove(member)}
-                            >
-                              Remove
-                            </button>
-                          </div>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <button
+                                className={buttonStyles({
+                                  variant: 'secondary',
+                                })}
+                                type="button"
+                                disabled={Boolean(pendingMemberId)}
+                                aria-label={`Manage access for ${member.email}`}
+                                onClick={() => setAccessMember({ member })}
+                              >
+                                Manage access
+                              </button>
+                              <button
+                                className={buttonStyles({
+                                  variant: 'secondary',
+                                })}
+                                type="button"
+                                disabled={Boolean(pendingMemberId)}
+                                aria-label={`Remove ${member.email}`}
+                                onClick={() => void handleRemove(member)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </>
                         ) : (
                           <span className="w-fit rounded-full bg-selected px-3 py-1.5 text-xs font-medium text-ink">
                             {roleLabels[member.role]}

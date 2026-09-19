@@ -17,6 +17,18 @@ The operational accent is currently mapped to the neutral graphite scale rather
 than blue. Semantic success, warning and danger feedback retain their meaning-
 bearing colors; ordinary actions, navigation and chooser badges are monochrome.
 
+## Dense directory surfaces (Part 1, uncommitted)
+
+Branches, organization members, merchants and products now use one contained
+data surface with a compact muted column header, aligned responsive record rows,
+quiet metadata, semantic status/role tags and clear trailing targets or actions.
+Rows remain links or controls with their existing labels and authorization; no
+new columns, requests, sorting, bulk actions or data were introduced. The header
+and nonessential columns collapse on narrow screens so the existing directory
+filters, loading/error/empty states and keyboard targets remain readable. The
+organization chooser remains its approved card grid, and POS/dialog-only lists
+are unchanged. This part is intentionally uncommitted for review.
+
 ## Quietly structured application redesign (corrective pass in review)
 
 All application pages except the public landing page use a Paper work surface,
