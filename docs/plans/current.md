@@ -3,7 +3,7 @@
 **Status:** Approved September 17, 2026. Deliver in reviewable, uncommitted
 parts. Commit each part only after approval, then start the next.
 
-## Divider-led application redesign
+## Quietly structured application redesign
 
 ### Intent and interpretation of the reference
 
@@ -44,6 +44,11 @@ The landing page is intentionally unchanged unless separately requested.
 - Retain modest rounding on inputs, buttons, menus and dialogs for affordance.
   Remove or substantially reduce rounded-card framing on ordinary page
   sections; use grouped rows/dividers and spacing to communicate hierarchy.
+- Rounded corners and curves are welcome when they make a control, focused
+  surface, chart area, or selected element feel polished and modern. The goal is
+  not square edges everywhere; avoid using a rounded card around every ordinary
+  section or record. Prefer whitespace, alignment, type hierarchy and a small
+  number of purposeful structural dividers before adding a border or frame.
 - Keep distinct boundaries where function requires them (e.g. a POS cart,
   destructive confirmation, chart plot, or scrollable table); avoid flattening
   everything into one undifferentiated column.
@@ -102,7 +107,7 @@ content, dialogs, forms, status treatments and API behavior are unchanged.
 Rendered review was not performed because no browser is connected. Part 2 was
 approved and committed as `86325b0`.
 
-### Part 3 status (uncommitted, awaiting review)
+### Part 3 status (approved and committed)
 
 POS now uses open code-entry and product-search sections with an underlined
 route-backed Cart/Sales History tab bar. The distinct cart container, payment
@@ -114,6 +119,37 @@ unchanged. Rendered QA remains pending because no browser is connected. Stop
 for review before committing Part 3 or beginning focused pages.
 Frontend formatting, lint, typecheck, production build and all 786 tests pass;
 the suite also includes a corrected branch-row spacing assertion from Part 2.
+Part 3 was approved and committed as `06bc0fb`.
+
+### Part 4 status (uncommitted, revised in corrective pass below)
+
+Organization selection and account settings now use open, divided sections.
+Login, registration, invitation acceptance and session feedback use a flat,
+task-first guest surface instead of a rounded form card. Main focused actions
+use the restrained accent; errors and notices use a semantic rule. Loading
+lists use quiet placeholders instead of rounded blocks.
+Dialogs, form controls, data and authentication behavior remain unchanged, and
+the public landing route is untouched. Browser-rendered review is pending.
+Stop for review before committing Part 4 or beginning final verification.
+Frontend formatting, lint, typecheck, production build and all 787 tests pass.
+
+### Corrective visual pass (approved September 18, uncommitted for review)
+
+The three supplied references clarify that the prior implementation overused
+border rules. Revisit Parts 1–4 together before committing Part 4: keep a few
+major structural lines (shell boundaries, table headers, selected metric
+strips), use whitespace and typography for ordinary section/row separation,
+and use soft tonal or gently rounded contained surfaces where a task benefits
+from one. Rounded corners are not prohibited; repeated card framing and
+line-per-section/line-per-row decoration are the problem. Preserve all approved
+behavior and the landing-page exclusion. Stop uncommitted for visual review
+after this corrective pass; then resume the approval/commit cadence. The
+corrected open section is unboxed, directory records rely on row spacing with
+one results boundary, charts and ordinary sections shed repeated framing, and
+one Reports inset demonstrates purposeful soft rounding. Existing POS cart,
+dialog and semantic feedback boundaries remain. All 787 frontend tests,
+formatting, lint, typecheck and production build pass. Rendered browser review
+has not been performed because no browser surface is connected.
 
 ### Exclusions
 
@@ -132,9 +168,11 @@ the suite also includes a corrected branch-row spacing assertion from Part 2.
 - A user can identify the page title, current organization/branch context
   where relevant, primary action, filters, results and secondary details
   without card clutter.
-- Lists and detail sections have consistent alignment and clear dividers at
-  wide and narrow widths; repeated rounded containers are no longer the
-  primary organizing device.
+- Lists and detail sections have consistent alignment at wide and narrow
+  widths. A small number of dividers clarify major transitions, while ordinary
+  rows and sections rely primarily on spacing and type. Repeated rounded
+  containers are not the primary organizing device, but purposeful curves and
+  contained surfaces remain available.
 - Primary actions and meaningful statuses are visually distinguishable with a
   restrained, consistent accent/semantic palette; pages are not grayscale,
   but color is never the only indication of state or priority.

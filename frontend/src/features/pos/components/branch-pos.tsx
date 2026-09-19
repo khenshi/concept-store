@@ -838,7 +838,7 @@ function ScopedBranchPos({
                     : 'No active products are placed in this branch. Ask an owner to configure products and stock.'}
                 </p>
               ) : (
-                <ul className="divide-y divide-hairline">
+                <ul className="border-t border-hairline">
                   {products.map((product) => (
                     <li
                       key={product.branchInventoryId}

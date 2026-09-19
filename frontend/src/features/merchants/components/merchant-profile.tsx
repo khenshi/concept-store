@@ -208,7 +208,7 @@ function ScopedMerchantProfile({
       ) : null}
 
       {editing && canEdit && 'contactName' in merchant ? (
-        <div className="mt-6 border-y border-hairline bg-surface py-6">
+        <div className="mt-8 bg-surface py-6">
           <h2 className="text-lg font-bold">Edit profile</h2>
           <MerchantForm
             merchant={merchant}
@@ -223,7 +223,7 @@ function ScopedMerchantProfile({
           />
         </div>
       ) : (
-        <section className="mt-6 border-y border-hairline bg-surface py-6">
+        <section className="mt-8 bg-surface py-6">
           <h2 className="font-bold">
             {organization.role === 'MANAGER'
               ? 'Business identity'
@@ -267,7 +267,7 @@ function ScopedMerchantProfile({
       )}
 
       {canEdit ? (
-        <section className="mt-6 border-y border-hairline bg-surface py-6">
+        <section className="mt-8 bg-surface py-6">
           <h2 className="font-bold">Lifecycle status</h2>
           <p className="mt-2 text-sm leading-6 text-muted">
             Status is changed separately from profile details and requires

@@ -62,12 +62,13 @@ export function ChangePasswordForm() {
 
   return (
     <OperationalPanel
+      variant="open"
       title="Password"
       description="Changing your password signs you out on every device."
     >
       <form
         aria-label="Password"
-        className="grid gap-5 p-5 sm:p-6"
+        className="grid gap-5 py-5 sm:py-6"
         onSubmit={submit}
         noValidate
       >

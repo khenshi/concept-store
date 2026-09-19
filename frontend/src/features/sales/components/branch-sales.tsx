@@ -209,7 +209,7 @@ function ScopedBranchSales({
                 : 'No completed sales available to your role in this branch.'}
           </p>
         ) : (
-          <ul className="divide-y divide-hairline">
+          <ul className="border-t border-hairline">
             {result.page.items.map((sale) => (
               <li
                 key={sale.id}

@@ -59,7 +59,7 @@ function TrendChart({
       rows.findIndex((candidate) => candidate?.date === row.date) === index,
   );
   return (
-    <section className="border-y border-hairline bg-surface py-5 sm:py-6">
+    <section className="bg-surface py-5 sm:py-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">
@@ -207,7 +207,7 @@ export function StaffAnalyticsDashboard({
         available cash. Refunds use their own completion dates.
       </p>
       <AnalyticsTrendCharts rows={report.dailyTrends} />
-      <details className="mt-4 border-y border-hairline bg-surface">
+      <details className="mt-4 border-t border-hairline bg-surface">
         <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">
           View exact daily data
         </summary>
@@ -238,7 +238,7 @@ export function StaffAnalyticsDashboard({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-hairline">
+            <tbody>
               {report.dailyTrends.map((row) => (
                 <tr key={row.date}>
                   <th scope="row" className="px-4 py-3 font-medium">
@@ -263,7 +263,7 @@ export function StaffAnalyticsDashboard({
           </table>
         </div>
       </details>
-      <section className="mt-6 border-y border-hairline bg-surface">
+      <section className="mt-8 bg-surface">
         <header className="border-b border-hairline py-5">
           <h2 className="font-semibold">Top products by gross sales</h2>
           <p className="mt-1 text-sm text-muted">
@@ -301,7 +301,7 @@ export function StaffAnalyticsDashboard({
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-hairline">
+              <tbody>
                 {report.topProducts.map((row, index) => (
                   <tr key={row.productId}>
                     <td className="px-4 py-4 tabular-nums">{index + 1}</td>
@@ -381,12 +381,12 @@ function MethodPanel({
   rows: { key: string; amount: string; count: string; countLabel: string }[];
 }) {
   return (
-    <section className="border-y border-hairline bg-surface">
-      <header className="border-b border-hairline py-5">
+    <section className="bg-surface">
+      <header className="py-5">
         <h2 className="font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted">{description}</p>
       </header>
-      <dl className="divide-y divide-hairline">
+      <dl>
         {rows.map((row) => (
           <div key={row.key} className="grid grid-cols-2 gap-3 py-4">
             <dt className="font-medium">

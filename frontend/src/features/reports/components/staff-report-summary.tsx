@@ -31,16 +31,13 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
       </dl>
       <dl
         aria-label="Refund and net summary"
-        className="mt-5 grid min-w-0 divide-y divide-hairline border-y border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
+        className="mt-5 grid min-w-0 rounded-panel bg-subtle sm:grid-cols-3"
       >
         {[
           ['Refunded amount', report.refundedAmount],
           ['Net recorded sales', report.netRecordedSales],
         ].map(([label, value]) => (
-          <div
-            key={label}
-            className="min-w-0 py-5 sm:px-5 sm:py-6 first:sm:pl-0"
-          >
+          <div key={label} className="min-w-0 px-5 py-5 sm:py-6">
             <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-3 break-all text-xl font-semibold tabular-nums">
               <span>PHP </span>
@@ -48,7 +45,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
             </dd>
           </div>
         ))}
-        <div className="min-w-0 py-5 sm:px-5 sm:py-6 sm:pr-0">
+        <div className="min-w-0 px-5 py-5 sm:py-6">
           <dt className="text-sm text-muted">
             Completed refunds / returned units
           </dt>
@@ -68,10 +65,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
         title="Gross sale payments"
         description="Recorded sale totals, not cash tender, available cash or provider reconciliation. GCash and card payments are manual and unverified."
       >
-        <ul
-          aria-label="Payment breakdown"
-          className="m-0 list-none divide-y divide-hairline p-0"
-        >
+        <ul aria-label="Payment breakdown" className="m-0 list-none p-0">
           {report.payments.map((payment) => (
             <li
               key={payment.paymentMethod}
@@ -99,10 +93,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
         title="Actual refund methods"
         description="Separate manual refund amounts, not netted against sale payments. The refund method may differ from the original payment. No provider processing or verification."
       >
-        <ul
-          aria-label="Refund method breakdown"
-          className="divide-y divide-hairline"
-        >
+        <ul aria-label="Refund method breakdown" className="list-none">
           {report.refundMethods.map((row) => (
             <li
               key={row.paymentMethod}

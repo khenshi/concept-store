@@ -68,7 +68,7 @@ export function MerchantAnalyticsDashboard({
         other merchants’ items.
       </p>
       <AnalyticsTrendCharts rows={trends} own />
-      <details className="mt-4 border-y border-hairline bg-surface">
+      <details className="mt-4 border-t border-hairline bg-surface">
         <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">
           View exact own daily data
         </summary>
@@ -99,7 +99,7 @@ export function MerchantAnalyticsDashboard({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-hairline">
+            <tbody>
               {report.dailyTrends.map((row) => (
                 <tr key={row.date}>
                   <th scope="row" className="px-4 py-3 font-medium">
@@ -124,7 +124,7 @@ export function MerchantAnalyticsDashboard({
           </table>
         </div>
       </details>
-      <section className="mt-6 border-y border-hairline bg-surface">
+      <section className="mt-8 bg-surface">
         <header className="border-b border-hairline py-5">
           <h2 className="font-semibold">Your top products by gross sales</h2>
           <p className="mt-1 text-sm text-muted">
@@ -162,7 +162,7 @@ export function MerchantAnalyticsDashboard({
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-hairline">
+              <tbody>
                 {report.topProducts.map((row, index) => (
                   <tr key={row.productId}>
                     <td className="px-4 py-4 tabular-nums">{index + 1}</td>

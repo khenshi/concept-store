@@ -273,7 +273,7 @@ export function OrganizationMemberManagement({
       />
 
       {!canViewMembers ? (
-        <section className="mt-6 border-y border-hairline bg-surface py-6">
+        <section className="mt-8 bg-surface py-6">
           <h2 className="m-0 text-base font-bold">Member access is limited</h2>
           <p className="mt-3 leading-7 text-muted">
             Only organization owners can view the member list.
@@ -283,7 +283,7 @@ export function OrganizationMemberManagement({
         <>
           {loadError ? (
             <RequestError
-              className="mt-6 border-y border-hairline bg-surface py-6"
+              className="mt-8 bg-surface py-6"
               title="Members unavailable"
               message={loadError}
               onRetry={() => void load()}
@@ -335,7 +335,7 @@ export function OrganizationMemberManagement({
                 ) : (
                   <ul
                     aria-label="Organization members"
-                    className="m-0 list-none divide-y divide-hairline p-0"
+                    className="m-0 list-none border-t border-hairline p-0"
                   >
                     {members.map((member) => (
                       <li
@@ -493,7 +493,7 @@ function InvitationList({
       {invitations.length === 0 ? (
         <p className="p-6 text-sm text-muted">No invitations created yet.</p>
       ) : (
-        <ul className="list-none divide-y divide-hairline p-0">
+        <ul className="list-none border-t border-hairline p-0">
           {invitations.map((invitation) => {
             const pending =
               !invitation.acceptedAt &&

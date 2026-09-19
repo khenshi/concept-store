@@ -71,10 +71,11 @@ describe('OrganizationEntry', () => {
     expect(screen.queryByText('North & Pine')).not.toBeInTheDocument();
   });
 
-  it('keeps row padding inside the link so hover fills the panel width', async () => {
+  it('aligns divided rows with the open header while keeping full-width hover', async () => {
     render(<OrganizationEntry />);
     const row = await screen.findByRole('link', { name: /North & Pine/ });
-    expect(row).toHaveClass('w-full', 'px-5', 'sm:px-6', 'hover:bg-subtle');
+    expect(row).toHaveClass('w-full', 'py-5', 'hover:bg-subtle');
+    expect(row).not.toHaveClass('px-5', 'sm:px-6');
     expect(row.closest('ul')).toHaveClass('p-0');
     expect(row.closest('ul')?.parentElement).not.toHaveClass('px-5', 'sm:px-6');
   });

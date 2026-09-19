@@ -75,12 +75,13 @@ export function AccountSettings() {
         description="Keep your personal details current across your organization memberships."
       />
       <OperationalPanel
+        variant="open"
         title="Personal information"
         description="Your email is your sign-in identity and cannot be changed here."
       >
         <form
           aria-label="Personal information"
-          className="grid gap-5 p-5 sm:p-6"
+          className="grid gap-5 py-5 sm:py-6"
           onSubmit={submit}
           noValidate
         >
@@ -126,7 +127,12 @@ export function AccountSettings() {
             />
           </div>
           <div className="flex justify-end border-t border-hairline pt-5">
-            <Button type="submit" pending={isSaving} pendingLabel="Saving…">
+            <Button
+              variant="accent"
+              type="submit"
+              pending={isSaving}
+              pendingLabel="Saving…"
+            >
               Save changes
             </Button>
           </div>

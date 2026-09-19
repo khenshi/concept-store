@@ -192,6 +192,7 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
           error={fieldErrors.password}
         />
         <Button
+          variant="accent"
           type="submit"
           pending={isSubmitting}
           pendingLabel={copy.submitting}

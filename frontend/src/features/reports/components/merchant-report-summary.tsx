@@ -36,16 +36,13 @@ export function MerchantReportSummary({
       </dl>
       <dl
         aria-label="Own refund and net summary"
-        className="mt-5 grid min-w-0 divide-y divide-hairline border-y border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
+        className="mt-5 grid min-w-0 rounded-panel bg-subtle sm:grid-cols-3"
       >
         {[
           ['Own refunded amount', report.ownRefundedAmount],
           ['Own net recorded sales', report.ownNetRecordedSales],
         ].map(([label, value]) => (
-          <div
-            key={label}
-            className="min-w-0 py-5 sm:px-5 sm:py-6 first:sm:pl-0"
-          >
+          <div key={label} className="min-w-0 px-5 py-5 sm:py-6">
             <dt className="text-sm text-muted">{label}</dt>
             <dd className="mt-3 break-all text-xl font-semibold tabular-nums">
               <span>PHP </span>
@@ -53,7 +50,7 @@ export function MerchantReportSummary({
             </dd>
           </div>
         ))}
-        <div className="min-w-0 py-5 sm:px-5 sm:py-6 sm:pr-0">
+        <div className="min-w-0 px-5 py-5 sm:py-6">
           <dt className="text-sm text-muted">
             Refunds containing own items / own returned units
           </dt>

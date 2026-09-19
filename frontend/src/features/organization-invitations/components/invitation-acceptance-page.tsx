@@ -153,7 +153,7 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
 
           {actionError ? (
             <p
-              className="mt-5 rounded-lg border border-danger p-3 text-sm text-danger"
+              className="mt-5 border-l-2 border-danger bg-subtle px-4 py-3 text-sm text-danger"
               role="alert"
             >
               {actionError}
@@ -167,7 +167,7 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
           ) : status !== 'authenticated' || !user ? (
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <Link
-                className={buttonStyles({ variant: 'primary', className: '' })}
+                className={buttonStyles({ variant: 'accent', className: '' })}
                 href={`/register?returnTo=${encodeURIComponent(returnTo)}`}
               >
                 Create account
@@ -183,7 +183,7 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
               </Link>
             </div>
           ) : user.email !== invitation.email ? (
-            <div className="mt-6 rounded-lg border border-warning/20 bg-warning/5 p-4">
+            <div className="mt-6 border-l-2 border-warning bg-warning/5 px-4 py-3">
               <p className="break-words text-sm leading-6 text-warning">
                 You are signed in as {user.email}. Sign in as {invitation.email}{' '}
                 to accept this invitation.
@@ -213,7 +213,7 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
               {actionError ? (
                 <button
                   className={buttonStyles({
-                    variant: 'primary',
+                    variant: 'accent',
                     className: 'mt-3',
                   })}
                   type="button"

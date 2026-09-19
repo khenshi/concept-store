@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { OperationalPanel, OperationalToolbar } from './operational-page';
 
 describe('OperationalPanel', () => {
-  it('supports an open divided section without changing the legacy card default', () => {
+  it('supports an unboxed section without changing the legacy card default', () => {
     const { rerender } = render(
       <OperationalPanel title="Work areas" variant="open">
         <p>Content</p>
@@ -11,7 +11,7 @@ describe('OperationalPanel', () => {
     const open = screen
       .getByRole('heading', { name: 'Work areas' })
       .closest('section');
-    expect(open).toHaveClass('border-y');
+    expect(open).not.toHaveClass('border-y');
     expect(open).not.toHaveClass('rounded-panel');
     rerender(
       <OperationalPanel title="Existing panel">
@@ -33,6 +33,7 @@ describe('OperationalToolbar', () => {
     );
     expect(screen.getByText('Filters')).toHaveClass('bg-surface');
     expect(screen.getByText('Filters')).not.toHaveClass('bg-subtle');
+    expect(screen.getByText('Filters')).not.toHaveClass('border-b');
     rerender(<OperationalToolbar>Filters</OperationalToolbar>);
     expect(screen.getByText('Filters')).toHaveClass('bg-subtle');
   });

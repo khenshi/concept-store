@@ -111,7 +111,7 @@ function ScopedMerchantSalesBranches({
             access.
           </p>
         ) : (
-          <ul className="divide-y divide-hairline">
+          <ul className="border-t border-hairline">
             {branches.map((branch) => (
               <li
                 key={branch.id}

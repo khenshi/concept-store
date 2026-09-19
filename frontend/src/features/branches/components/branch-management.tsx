@@ -110,7 +110,7 @@ function ScopedBranchManagement({
           description="Try again to open this workspace."
         />
         <RequestError
-          className="mt-6 border-y border-hairline bg-surface py-6"
+          className="mt-8 bg-surface py-6"
           message={organizationError ?? 'The organization could not be loaded.'}
           onRetry={() => void refreshOrganization()}
         />
@@ -209,7 +209,7 @@ function ScopedBranchManagement({
               </p>
             ) : (
               <ul
-                className="m-0 list-none divide-y divide-hairline p-0"
+                className="m-0 list-none border-t border-hairline p-0"
                 aria-label="Branches"
               >
                 {visibleBranches.map((branch) => (

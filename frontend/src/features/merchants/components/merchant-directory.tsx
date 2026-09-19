@@ -227,7 +227,7 @@ function ScopedMerchantDirectory({
         ) : (
           <ul
             aria-label="Merchant directory"
-            className="m-0 list-none divide-y divide-hairline p-0"
+            className="m-0 list-none border-t border-hairline p-0"
           >
             {merchants.map((merchant) => (
               <li key={merchant.id}>

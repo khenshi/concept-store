@@ -79,10 +79,11 @@ Both modes share type, neutral palette, geometry, borders, and voice. They diffe
 in density, not identity.
 
 The application-page redesign keeps the public landing page unchanged. Other
-pages use an open, divider-led composition inspired by the supplied reference:
-paper planes, whitespace, aligned headings and divided rows replace most
-repeated rounded cards. Focused login, invitation and account flows keep their
-narrow task layouts rather than inheriting the workspace sidebar.
+pages use open, well-aligned compositions inspired by the supplied references:
+paper planes, whitespace and typographic hierarchy replace most repeated card
+frames. Dividers mark major transitions, not every section and row. Focused
+login, invitation and account flows keep their narrow task layouts rather than
+inheriting the workspace sidebar.
 
 ## Core principles
 
@@ -183,9 +184,11 @@ characters per line; operational prose near 65–75.
 - Content may grow to approximately 90rem with 1.25–2.5rem responsive gutters.
 - Headers, toolbars, and panels align to one grid; filters and rows remain compact.
 - Application content rests on an open Paper plane beside the divided sidebar.
-  Ordinary sections use vertical rhythm and hairline rules, not repeated
-  fully outlined rounded containers. Functional cart/table/chart boundaries
-  may retain a contained surface when it improves comprehension.
+  Ordinary sections use vertical rhythm, alignment and type rather than a
+  repeated frame or top-and-bottom rule. Use a few hairlines for structural
+  transitions, such as shell edges, a table header or a summary strip.
+  Functional cart/table/chart boundaries may retain a contained surface when
+  it improves comprehension.
 
 ### Focused mode
 
@@ -198,7 +201,8 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 
 - Compact statuses/icons: `0.5rem`; inputs/buttons: `0.625rem`; focused dialogs
   and functional inset surfaces may use `0.875rem`; public feature surfaces:
-  up to `1.5rem`. Ordinary application sections use square/open edges.
+  up to `1.5rem`. Rounded corners are welcome on purposeful interactive or
+  contained surfaces; ordinary sections need not be boxed at all.
 - Pills are for short statuses, filters, and tags—not every action.
 - Resting surfaces use a one-pixel Hairline border and no shadow.
 - Menus/popovers may use the floating shadow; dialogs may use overlay shadow.
@@ -232,10 +236,12 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 
 ### Panels and public features
 
-- Ordinary operational sections use an open Paper plane, top/bottom Hairline
-  dividers and no resting shadow; avoid a separate rounded card per section.
+- Ordinary operational sections use open Paper, spacing and type hierarchy with
+  no resting shadow. A top or bottom Hairline is reserved for a real structural
+  change, not applied automatically to every section.
 - Headers use concise titles, quiet descriptions, and one aligned action area.
-- Toolbars use Soft Surface or Paper with a divider, not a card around each filter.
+- Toolbars use Paper or a restrained Soft Surface; let control grouping and
+  placement do most of the work before adding a divider.
 - Public feature cards may use `1.5rem` and broad whitespace; previews stay quieter
   than their headline.
 
@@ -250,7 +256,10 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 
 ### Lists and tables
 
-- Prefer one bordered surface with divided rows instead of a card per record.
+- Prefer a clear list/table header and well-aligned, comfortably spaced rows
+  instead of a card per record or a rule between every row. Hover and selected
+  states can use a quiet tint. Keep row rules only when density or comparison
+  makes them useful.
 - Strengthen record identity; render metadata smaller in Quiet Ink.
 - Align columns for scanning and use tabular figures for numbers.
 - Status badges include text and, where useful, a small icon.

@@ -152,6 +152,7 @@ export function OrganizationEntry() {
         }
         action={
           <Button
+            variant="accent"
             ref={createTriggerRef}
             onClick={openCreateDialog}
             className="max-sm:w-full"
@@ -161,6 +162,7 @@ export function OrganizationEntry() {
         }
       />
       <OperationalPanel
+        variant="open"
         title="Your organizations"
         description="A separate workspace for each business you belong to."
         action={
@@ -174,7 +176,7 @@ export function OrganizationEntry() {
           ) : undefined
         }
       >
-        <OperationalToolbar>
+        <OperationalToolbar variant="open">
           <TextField
             containerClassName="max-w-xl"
             id="organization-search"
@@ -226,14 +228,14 @@ export function OrganizationEntry() {
               </p>
             </div>
           ) : (
-            <ul className="m-0 list-none divide-y divide-hairline p-0">
+            <ul className="m-0 list-none border-t border-hairline p-0">
               {filteredOrganizations.map((organization) => (
                 <li key={organization.id}>
                   <Link
-                    className="group flex min-h-20 w-full items-center gap-4 px-5 py-5 text-ink no-underline hover:bg-subtle sm:px-6"
+                    className="group flex min-h-20 w-full items-center gap-4 py-5 text-ink no-underline hover:bg-subtle"
                     href={`/app/organizations/${organization.id}`}
                   >
-                    <span className="grid size-11 shrink-0 place-items-center rounded-control border border-hairline bg-subtle text-muted">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-compact bg-accent-soft text-accent">
                       <Icon name="building" />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -244,7 +246,7 @@ export function OrganizationEntry() {
                         {roleLabels[organization.role]}
                       </small>
                     </span>
-                    <Icon name="arrow" className="size-4 text-muted" />
+                    <Icon name="arrow" className="size-4 text-accent" />
                   </Link>
                 </li>
               ))}

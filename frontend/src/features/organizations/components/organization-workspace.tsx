@@ -31,7 +31,7 @@ export function OrganizationWorkspace({
           title="We could not open this workspace."
           description="Try again or select another organization you belong to."
         />
-        <div className="mt-8 max-w-2xl border-y border-hairline py-6">
+        <div className="mt-8 max-w-2xl py-6">
           <RequestError
             message={
               organizationError ?? 'The organization could not be loaded.'
@@ -128,7 +128,7 @@ export function OrganizationWorkspace({
         title="Work areas"
         description="Choose where you want to work. The areas shown reflect your organization access."
       >
-        <ul className="m-0 list-none divide-y divide-hairline p-0">
+        <ul className="m-0 list-none p-0">
           {destinations
             .filter((destination) => destination.visible)
             .map((destination) => (
@@ -171,7 +171,7 @@ function OrganizationOverviewSkeleton() {
           <div className="h-3 w-32 rounded bg-selected" />
           <div className="mt-4 h-9 w-72 max-w-full rounded bg-selected" />
           <div className="mt-4 h-5 w-full max-w-xl rounded bg-selected" />
-          <div className="mt-8 border-y border-hairline py-4">
+          <div className="mt-8 py-4">
             <div className="h-5 w-32 rounded bg-selected" />
             <div className="mt-5 h-16 border-t border-hairline bg-subtle" />
             <div className="h-16 border-t border-hairline bg-subtle" />

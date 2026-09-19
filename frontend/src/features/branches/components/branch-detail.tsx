@@ -148,7 +148,7 @@ function ScopedBranchDetail({
         </BackLink>
         {error ? (
           <RequestError
-            className="mt-6 border-y border-hairline bg-surface py-6"
+            className="mt-8 bg-surface py-6"
             message={error}
             onRetry={load}
           />

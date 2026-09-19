@@ -9,6 +9,10 @@ describe('shared request states', () => {
     expect(
       screen.getByRole('status', { name: 'Loading organizations' }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: 'Loading organizations' })
+        .firstElementChild,
+    ).not.toHaveClass('border-b');
   });
 
   it('presents an error and retries on request', () => {
@@ -24,6 +28,7 @@ describe('shared request states', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Organizations unavailable',
     );
+    expect(screen.getByRole('alert')).toHaveClass('border-l-2');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetry).toHaveBeenCalledOnce();
   });

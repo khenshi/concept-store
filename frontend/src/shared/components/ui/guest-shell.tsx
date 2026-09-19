@@ -19,9 +19,9 @@ export function GuestShell({
   contextDescription?: string;
 }) {
   return (
-    <main className="min-h-dvh bg-canvas px-4 py-5 text-ink sm:px-8 sm:py-8">
+    <main className="min-h-dvh bg-surface px-4 py-5 text-ink sm:px-8 sm:py-8">
       <div className="mx-auto flex min-h-[calc(100dvh-2.5rem)] max-w-7xl flex-col sm:min-h-[calc(100dvh-4rem)]">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-5">
           <BrandWordmark />
           <Link
             href="/"
@@ -34,7 +34,7 @@ export function GuestShell({
         <div className="grid flex-1 items-center gap-8 py-8 sm:py-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
           <section
             aria-labelledby="guest-title"
-            className="mx-auto w-full min-w-0 max-w-xl rounded-feature border border-hairline bg-surface p-5 sm:p-8 lg:p-10"
+            className="mx-auto w-full min-w-0 max-w-xl bg-surface py-8"
           >
             <p className="mb-4 text-xs font-medium text-muted">{eyebrow}</p>
             <h1
@@ -49,7 +49,7 @@ export function GuestShell({
             <div className="mt-8 min-w-0">{children}</div>
           </section>
           <aside
-            className="hidden min-w-0 py-12 lg:block"
+            className="hidden min-w-0 border-l border-hairline py-12 pl-16 lg:block"
             aria-label="Workspace context"
           >
             <p className="mb-6 text-xs font-medium text-muted">
@@ -61,13 +61,10 @@ export function GuestShell({
             <p className="mt-6 max-w-md text-base leading-7 text-muted">
               {contextDescription}
             </p>
-            <div className="mt-10 flex flex-wrap gap-2 text-xs text-muted">
+            <div className="mt-10 flex flex-wrap gap-4 border-t border-hairline pt-5 text-xs text-muted">
               {['Organizations', 'Branches', 'Teams', 'Merchants'].map(
                 (label) => (
-                  <span
-                    key={label}
-                    className="rounded-full border border-hairline px-3 py-2"
-                  >
+                  <span key={label} className="font-medium">
                     {label}
                   </span>
                 ),

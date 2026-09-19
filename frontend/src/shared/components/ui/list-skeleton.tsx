@@ -10,13 +10,15 @@ export function ListSkeleton({
   className?: string;
 }) {
   return (
-    <div className={`${className} grid gap-3`} role="status" aria-label={label}>
+    <div className={`${className} grid`} role="status" aria-label={label}>
       {Array.from({ length: rows }, (_, index) => (
         <div
-          className={`${rowClassName} animate-pulse rounded-compact bg-selected`}
+          className={`${rowClassName} flex animate-pulse items-center`}
           key={index}
           aria-hidden="true"
-        />
+        >
+          <span className="h-3 w-3/4 rounded bg-selected" />
+        </div>
       ))}
     </div>
   );

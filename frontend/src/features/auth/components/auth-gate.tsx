@@ -36,10 +36,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   return (
     <main
-      className="grid min-h-dvh place-items-center bg-canvas px-5 py-8 text-muted"
+      className="grid min-h-dvh place-items-center bg-surface px-5 py-8 text-muted"
       aria-busy="true"
     >
-      <p role="status">Checking your session…</p>
+      <p className="w-full max-w-md py-6 text-sm" role="status">
+        Checking your session…
+      </p>
     </main>
   );
 }
@@ -64,10 +66,12 @@ export function GuestGate({ children }: { children: ReactNode }) {
   if (status === 'loading' || status === 'authenticated') {
     return (
       <main
-        className="grid min-h-dvh place-items-center bg-canvas px-5 py-8 text-muted"
+        className="grid min-h-dvh place-items-center bg-surface px-5 py-8 text-muted"
         aria-busy="true"
       >
-        <p role="status">Checking your session…</p>
+        <p className="w-full max-w-md py-6 text-sm" role="status">
+          Checking your session…
+        </p>
       </main>
     );
   }

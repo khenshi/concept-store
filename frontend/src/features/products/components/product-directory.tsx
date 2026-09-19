@@ -222,7 +222,7 @@ function ScopedProductDirectory({
         ) : (
           <ul
             aria-label="Product directory"
-            className="m-0 list-none divide-y divide-hairline p-0"
+            className="m-0 list-none border-t border-hairline p-0"
           >
             {products.map((product) => (
               <li key={product.id}>

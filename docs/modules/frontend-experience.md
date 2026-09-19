@@ -1,31 +1,25 @@
 # Frontend Experience
 
-## Divider-led application redesign (Parts 1–3)
+## Quietly structured application redesign (corrective pass in review)
 
-The approved redesign covers all application pages except the public landing
-page. Its first part establishes an opt-in open, hairline-divided operational
-section alongside the existing card variant, a purpose-limited muted-blue
-action accent, and a flatter semantic success/warning notice. The organization
-workspace content plane is Paper; its overview now uses a divided navigation
-list and displays the member's current role without adding dashboard data or
-changing role-specific links. Part 2 carries the opt-in open sections into
-Branches, Members, Merchants, Products, Inventory, and Sales directories and
-details. Existing divided records stay row-based; directory filters now sit on
-the paper surface, while main directory actions use the muted-blue accent.
-Active merchant, product and in-stock labels use readable green text alongside
-their explicit status wording.
-Part 3 gives POS an underlined Cart/Sales History tab bar and open scanning and
-search sections, while its cart keeps a distinct boundary for checkout safety.
-Reports retain exact figures, semantic tables and chart plotting but replace
-metric cards and rounded table frames with divided rows and open sections.
-The gross trend uses the muted-blue accent; refunds and net trends retain
-distinct semantic colors. Dialogs and form controls retain rounded affordances.
-Focused entry/account pages remain for a later reviewed part. The landing page
-code and existing public action styling are unchanged. Rendered review and
-final accessibility/zoom checks remain pending for this new milestone because
-no browser surface is connected; automated checks cannot certify visual layout.
-After Part 3, formatting, lint, typecheck, production build and all 786 frontend
-tests pass.
+All application pages except the public landing page use a Paper work surface,
+muted-blue operational accent and semantic status colors. Organization, branch,
+member, merchant, product, inventory and sales views use aligned headings,
+filters and records without a card around every section. POS retains a distinct
+cart/checkout boundary; Reports retain exact figures, tables and chart plots.
+Focused login, registration, invitation and account tasks keep narrow layouts.
+
+After review of three visual references, the open section primitive no longer
+draws a rule above and below every instance. Directory lists use a single
+structural transition before results and whitespace between rows; charts and
+ordinary sections rely more on hierarchy than borders. A selected summary
+strip, table header, shell edge, semantic warning or functional container may
+still use a line or softly rounded surface. Rounded controls, dialogs and
+purposeful inset surfaces remain welcome. No business behavior or landing-page
+code changes. Browser-rendered and final accessibility/zoom review remain
+pending because no browser surface is connected; automated checks cannot
+certify visual layout. Formatting, lint, typecheck, production build and all
+787 frontend tests pass for the corrective pass.
 
 ## Staff sales reports
 

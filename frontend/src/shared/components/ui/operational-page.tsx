@@ -26,10 +26,10 @@ export function OperationalPanel({
   const open = variant === 'open';
   return (
     <section
-      className={`${open ? 'mt-8 border-y border-hairline bg-surface' : 'mt-6 rounded-panel border border-hairline bg-surface'} text-ink ${className}`}
+      className={`${open ? 'mt-10 bg-surface' : 'mt-6 rounded-panel border border-hairline bg-surface'} text-ink ${className}`}
     >
       <header
-        className={`flex items-start justify-between gap-5 border-b border-hairline py-5 max-sm:grid ${open ? '' : 'px-5 sm:px-6'}`}
+        className={`flex items-start justify-between gap-5 max-sm:grid ${open ? 'pb-4' : 'border-b border-hairline px-5 py-5 sm:px-6'}`}
       >
         <div className="min-w-0 break-words">
           <h2 className="text-base font-semibold text-ink">{title}</h2>
@@ -55,7 +55,7 @@ export function OperationalToolbar({
 }) {
   return (
     <div
-      className={`border-b border-hairline py-4 ${variant === 'open' ? 'bg-surface' : 'bg-subtle px-5 sm:px-6'} ${className}`}
+      className={`${variant === 'open' ? 'bg-surface py-4' : 'border-b border-hairline bg-subtle px-5 py-4 sm:px-6'} ${className}`}
     >
       {children}
     </div>

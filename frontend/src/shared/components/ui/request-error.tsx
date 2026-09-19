@@ -10,7 +10,7 @@ export function RequestError({
   className?: string;
 }) {
   return (
-    <div className={className} role="alert">
+    <div className={`border-l-2 border-danger pl-4 ${className}`} role="alert">
       {title ? (
         <h3 className="m-0 text-base font-semibold text-ink">{title}</h3>
       ) : null}
