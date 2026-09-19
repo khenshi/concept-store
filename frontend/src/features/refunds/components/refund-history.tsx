@@ -164,6 +164,7 @@ export function RefundHistory({
   return (
     <>
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title={
           role === 'MERCHANT' ? 'Own returned items' : 'Returns and refunds'

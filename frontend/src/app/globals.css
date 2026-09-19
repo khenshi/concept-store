@@ -133,15 +133,39 @@
   }
 
   .data-surface {
-    @apply overflow-hidden rounded-panel border border-hairline bg-surface;
+    @apply overflow-hidden bg-surface;
   }
 
   .data-column-header {
-    @apply border-y border-hairline bg-subtle px-4 py-2.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-muted;
+    @apply border-0 border-b border-hairline bg-transparent px-4 py-3 text-[0.6875rem] font-medium uppercase tracking-[0.06em] text-muted;
   }
 
   .data-row {
     @apply border-t border-hairline transition-colors duration-150 hover:bg-subtle;
+  }
+
+  .filter-field > input {
+    @apply rounded-full px-4;
+  }
+
+  .filter-field > span > button {
+    @apply rounded-full bg-subtle px-4 font-medium;
+  }
+
+  .data-table thead {
+    @apply bg-transparent text-xs uppercase tracking-[0.06em] text-muted;
+  }
+
+  .data-table th {
+    @apply border-b border-hairline px-4 py-3 font-medium;
+  }
+
+  .data-table tbody {
+    @apply divide-y divide-hairline;
+  }
+
+  .data-table tbody tr {
+    @apply transition-colors duration-150 hover:bg-subtle;
   }
 
   .inventory-stock-surface {

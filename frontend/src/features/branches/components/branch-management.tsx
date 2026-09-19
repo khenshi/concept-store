@@ -131,6 +131,7 @@ function ScopedBranchManagement({
       />
       {successMessage ? <StatusNotice>{successMessage}</StatusNotice> : null}
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title="Store locations"
         description={`${visibleBranches.length} matching accessible branches · Open a branch to review its ${identityOnly ? 'identity and own inventory' : 'identity and address'}.`}
@@ -172,7 +173,10 @@ function ScopedBranchManagement({
           </div>
         ) : (
           <>
-            <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]">
+            <OperationalToolbar
+              variant="open"
+              className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]"
+            >
               <TextField
                 id="branch-search"
                 label="Search"
@@ -181,6 +185,7 @@ function ScopedBranchManagement({
                 placeholder={
                   identityOnly ? 'Name or code' : 'Name, code, or address'
                 }
+                className="rounded-full px-4"
                 onChange={(event) => setSearch(event.target.value)}
               />
               {!identityOnly ? (

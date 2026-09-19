@@ -84,6 +84,7 @@ function ScopedMerchantSalesBranches({
         description="Read only sales involving your linked merchant business. Historical selling branches remain available even if products are no longer placed there."
       />
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title="Selling branches"
         description="Only branches with your own historical sale items. No other-merchant sales or branch addresses."

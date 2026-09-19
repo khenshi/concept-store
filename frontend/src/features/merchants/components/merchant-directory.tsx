@@ -147,6 +147,7 @@ function ScopedMerchantDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title="Merchant directory"
         description={`${merchants.length} matching merchant${merchants.length === 1 ? '' : 's'}`}
@@ -165,7 +166,10 @@ function ScopedMerchantDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]">
+        <OperationalToolbar
+          variant="open"
+          className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]"
+        >
           <FilterField id="merchant-search" label="Search">
             <input
               className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm placeholder:text-faint"

@@ -61,6 +61,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
         remain gross.
       </p>
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title="Gross sale payments"
         description="Recorded sale totals, not cash tender, available cash or provider reconciliation. GCash and card payments are manual and unverified."
@@ -96,6 +97,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
         </ul>
       </OperationalPanel>
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title="Actual refund methods"
         description="Separate manual refund amounts, not netted against sale payments. The refund method may differ from the original payment. No provider processing or verification."

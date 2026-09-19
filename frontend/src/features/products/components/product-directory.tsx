@@ -131,6 +131,7 @@ function ScopedProductDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title="Product directory"
         description={
@@ -152,7 +153,10 @@ function ScopedProductDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]">
+        <OperationalToolbar
+          variant="open"
+          className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]"
+        >
           <FilterField id="product-search" label="Search">
             <input
               id="product-search"

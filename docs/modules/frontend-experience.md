@@ -24,6 +24,18 @@ branch selection, pagination, role visibility and all data requests are
 unchanged. This part was reviewed and committed before the remaining table
 surfaces are updated.
 
+## Shared table pattern propagation (Part 2)
+
+The approved Inventory Stock treatment now propagates through the remaining
+comparable collections: Branches, Members, Merchants, Products, Inventory
+movement/detail/reconciliation, Sales, refunds and Reports. Their existing
+headers and responsive grids use quieter open surfaces, restrained hairlines,
+aligned labels and consistent filter dropdown styling; Reports' true tables use
+the same quiet header and row treatment without changing their horizontal
+scrolling. Existing requests, actions, branch/role visibility, merchant privacy,
+forms and business data remain unchanged. This part is now committed; rendered
+browser QA remains unavailable.
+
 ## Organization chooser refinement (uncommitted)
 
 The organization entry page now follows the supplied workspace-picker

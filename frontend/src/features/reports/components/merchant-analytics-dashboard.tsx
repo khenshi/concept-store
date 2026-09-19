@@ -73,7 +73,7 @@ export function MerchantAnalyticsDashboard({
           View exact own daily data
         </summary>
         <div className="overflow-x-auto border-t border-hairline">
-          <table className="w-full min-w-[50rem] border-collapse text-left text-sm">
+          <table className="data-table w-full min-w-[50rem] border-collapse text-left text-sm">
             <caption className="sr-only">
               Exact own daily sales analytics in Asia/Manila
             </caption>
@@ -137,7 +137,7 @@ export function MerchantAnalyticsDashboard({
           <div className="overflow-x-auto">
             <table
               aria-label="Own top products by gross sales"
-              className="w-full min-w-[60rem] border-collapse text-left text-sm"
+              className="data-table w-full min-w-[60rem] border-collapse text-left text-sm"
             >
               <thead className="bg-subtle text-xs uppercase tracking-[0.08em] text-muted">
                 <tr>

@@ -409,6 +409,7 @@ function ScopedInventoryDetail({
         </div>
       ) : null}
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title="Movement history"
         description={

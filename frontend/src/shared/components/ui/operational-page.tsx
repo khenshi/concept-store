@@ -72,7 +72,7 @@ export function FilterField({
   children: ReactNode;
 }) {
   return (
-    <div className="grid min-w-0 gap-2">
+    <div className="filter-field grid min-w-0 gap-2">
       <label className="text-label font-semibold text-ink" htmlFor={id}>
         {label}
       </label>

@@ -304,6 +304,7 @@ export function OrganizationMemberManagement({
           {!loadError ? (
             <div className="mt-6">
               <OperationalPanel
+                variant="open"
                 className="data-surface"
                 title="People with access"
                 description={`${members.length} organization members · Branch assignments restrict access; owners have all-branch access`}

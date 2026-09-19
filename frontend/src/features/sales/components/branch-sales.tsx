@@ -136,6 +136,7 @@ function ScopedBranchSales({
         </>
       ) : null}
       <OperationalPanel
+        variant="open"
         className="data-surface"
         title={branchName ?? (merchant ? 'Own sales' : 'Sales history')}
         description={`${role === 'CASHIER' ? 'Your completed sales in this assigned branch. ' : ''}Newest completion first. Amounts and names are saved transaction snapshots.`}

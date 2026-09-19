@@ -1,5 +1,11 @@
 # Archived Implementation Plans
 
+The completed shared table pattern propagation, following the reviewed
+Inventory first part, is retained in
+[`shared-table-pattern-propagation-2026-09-19.md`](shared-table-pattern-propagation-2026-09-19.md).
+Rendered browser QA was not run because no browser surface was connected; this
+historical record does not authorize additional implementation.
+
 The completed Inventory Stock table refinement, delivered as the first part of
 the shared table redesign, is retained in
 [`inventory-stock-table-refinement-2026-09-19.md`](inventory-stock-table-refinement-2026-09-19.md).
