@@ -25,7 +25,7 @@ colors:
   warning: "#8A4B10"
   danger: "#C53B37"
 typography:
-  family: "Inter, ui-sans-serif, system-ui, sans-serif"
+  family: "Poppins, ui-sans-serif, system-ui, sans-serif"
   display:
     {
       fontSize: "clamp(3rem, 7.5vw, 6.75rem)",
@@ -153,8 +153,10 @@ tints rather than glass effects.
 
 ## Typography
 
-Use Inter everywhere. Editorial character comes from scale, medium weight, tight
-tracking, and measured line length—not another display font.
+Use Poppins everywhere, including the public landing page and authenticated
+application. Editorial character comes from scale, medium weight, tight tracking,
+and measured line length—not a separate display font. Keep the fallback stack for
+environments where the web font cannot load.
 
 - **Display:** 500, `clamp(3rem, 7.5vw, 6.75rem)`, 0.94 line height,
   `-0.065em` tracking; public hero only.

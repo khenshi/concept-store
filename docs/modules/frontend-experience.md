@@ -1,5 +1,15 @@
 # Frontend Experience
 
+## Poppins typography
+
+The application now loads Poppins as its global web font through the root layout,
+covering public, authentication and authenticated workspace routes. Existing type
+sizes, weights, line heights, tracking, color semantics and responsive layouts are
+unchanged; the fallback stack remains available when the web font cannot load.
+
+This is a presentation-only change. No API, database, authorization, tenant,
+branch or business behavior changed.
+
 ## Organization chooser refinement (uncommitted)
 
 The organization entry page now follows the supplied workspace-picker
