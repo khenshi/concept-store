@@ -14,9 +14,9 @@ colors:
   control-border: "#D8D8D2"
   graphite-action: "#242422"
   graphite-hover: "#3A3A37"
-  operational-accent: "#245878"
-  operational-accent-hover: "#1B455F"
-  operational-accent-soft: "#EAF2F5"
+  operational-accent: "#242422"
+  operational-accent-hover: "#3A3A37"
+  operational-accent-soft: "#ECECE7"
   selected-surface: "#ECECE7"
   selected-border: "#A8A8A0"
   focus-ring: "#575752"
@@ -101,13 +101,14 @@ Selected Border with stronger text and an additional structural cue. This neutra
 foundation lets each concept store's products and photography supply visual color
 without forcing Kapwesto into a fashion, food, beauty, or lifestyle palette.
 
-### Purposeful color
+### Monochrome operational foundation
 
-The interface is restrained, not monochrome. Use one muted blue accent for
-important operational actions, active/interactive cues and quiet information;
-reserve green for success/healthy state, amber for caution/low stock, and red
-for errors/destructive/out-of-stock state. Use soft semantic tints sparingly,
-not as a background for every section. Labels, icons and structure must also
+For now, operational actions, active navigation, chooser badges and data
+visualization use the graphite/neutral scale. The accent token is intentionally
+an alias of Graphite Action so shared components stay consistent without
+introducing blue. Reserve green for success/healthy state, amber for caution/low
+stock, and red for errors/destructive/out-of-stock state; these are semantic
+feedback colors, not decorative branding. Labels, icons and structure must also
 communicate the meaning. The public landing page keeps its existing graphite
 action treatment.
 
@@ -135,9 +136,10 @@ Static cards do not receive shadows merely because they are important.
   strengthen to Selected Border; keyboard focus remains high-contrast Focus Ring.
 - **Graphite Action** (`#242422`) and **Graphite Hover** (`#3A3A37`): primary
   public and operational actions.
-- **Operational Accent** (`#245878`) and hover (`#1B455F`): one controlled
-  blue for selected application actions and navigation, with a soft tint
-  (`#EAF2F5`) for small supporting cues. White text on the accent meets AA.
+- **Operational Accent** (`#242422`) and hover (`#3A3A37`): a neutral alias of
+  Graphite Action for selected application actions and navigation, with a soft
+  neutral tint (`#ECECE7`) for small supporting cues. White text on the accent
+  meets AA.
 - **Selected Surface** (`#ECECE7`) and **Selected Border** (`#A8A8A0`): active
   navigation, selected rows, filters, and low-emphasis state.
 - **Focus Ring** (`#575752`): keyboard focus paired with a separating Paper or

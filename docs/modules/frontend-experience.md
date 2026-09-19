@@ -13,10 +13,14 @@ unchanged. This focused change does not alter the public landing page or other
 application routes. Automated checks pass; rendered browser review remains
 pending because no browser surface is connected.
 
+The operational accent is currently mapped to the neutral graphite scale rather
+than blue. Semantic success, warning and danger feedback retain their meaning-
+bearing colors; ordinary actions, navigation and chooser badges are monochrome.
+
 ## Quietly structured application redesign (corrective pass in review)
 
 All application pages except the public landing page use a Paper work surface,
-muted-blue operational accent and semantic status colors. Organization, branch,
+neutral graphite operational actions and semantic status colors. Organization, branch,
 member, merchant, product, inventory and sales views use aligned headings,
 filters and records without a card around every section. POS retains a distinct
 cart/checkout boundary; Reports retain exact figures, tables and chart plots.

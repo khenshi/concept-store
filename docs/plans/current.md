@@ -15,7 +15,9 @@ card stack.
 Preserve the existing organization list request, search filtering, role labels,
 loading/error/empty states, create-organization dialog, keyboard focus behavior,
 authorization and navigation. Do not invent member counts, activity dates,
-sorting behavior, menus, dashboard data or backend changes. The public landing
+sorting behavior, menus, dashboard data or backend changes. The operational
+chooser treatment is monochrome for now; semantic success, warning and danger
+feedback may retain their meaning-bearing colors. The public landing
 page and all other application routes are out of scope for this focused change.
 
 ### Review status
