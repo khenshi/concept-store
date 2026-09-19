@@ -3,9 +3,10 @@
 **Status:** Approved September 19, 2026. Deliver in
 reviewable, uncommitted parts; commit each part only after approval.
 
-**Current part:** Part 2 is implemented and intentionally uncommitted for review.
+**Current part:** Part 3 is implemented and intentionally uncommitted for review.
 
 Part 1 (core directories) was reviewed and committed as `a8dddea`.
+Part 2 (Inventory and Sales) was reviewed and committed as `db1bce9`.
 
 ## Dense record-list and table refinement
 

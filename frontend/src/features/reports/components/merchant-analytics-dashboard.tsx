@@ -68,8 +68,8 @@ export function MerchantAnalyticsDashboard({
         other merchants’ items.
       </p>
       <AnalyticsTrendCharts rows={trends} own />
-      <details className="mt-4 border-t border-hairline bg-surface">
-        <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">
+      <details className="data-surface mt-4">
+        <summary className="min-h-11 cursor-pointer px-5 py-3 text-sm font-semibold sm:px-6">
           View exact own daily data
         </summary>
         <div className="overflow-x-auto border-t border-hairline">
@@ -77,7 +77,7 @@ export function MerchantAnalyticsDashboard({
             <caption className="sr-only">
               Exact own daily sales analytics in Asia/Manila
             </caption>
-            <thead className="bg-subtle text-xs text-muted">
+            <thead className="bg-subtle text-xs uppercase tracking-[0.08em] text-muted">
               <tr>
                 {[
                   'Date',
@@ -92,14 +92,14 @@ export function MerchantAnalyticsDashboard({
                   <th
                     key={value}
                     scope="col"
-                    className="px-4 py-3 font-semibold"
+                    className="border-b border-hairline px-4 py-3 font-semibold"
                   >
                     {value}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-hairline">
               {report.dailyTrends.map((row) => (
                 <tr key={row.date}>
                   <th scope="row" className="px-4 py-3 font-medium">
@@ -124,8 +124,8 @@ export function MerchantAnalyticsDashboard({
           </table>
         </div>
       </details>
-      <section className="mt-8 bg-surface">
-        <header className="border-b border-hairline py-5">
+      <section className="data-surface mt-8">
+        <header className="border-b border-hairline px-5 py-5 sm:px-6">
           <h2 className="font-semibold">Your top products by gross sales</h2>
           <p className="mt-1 text-sm text-muted">
             Top {report.topProducts.length} of {report.totalProducts} own
@@ -139,7 +139,7 @@ export function MerchantAnalyticsDashboard({
               aria-label="Own top products by gross sales"
               className="w-full min-w-[60rem] border-collapse text-left text-sm"
             >
-              <thead className="bg-subtle text-xs text-muted">
+              <thead className="bg-subtle text-xs uppercase tracking-[0.08em] text-muted">
                 <tr>
                   {[
                     'Rank',
@@ -155,14 +155,14 @@ export function MerchantAnalyticsDashboard({
                     <th
                       key={value}
                       scope="col"
-                      className="px-4 py-3 font-semibold"
+                      className="border-b border-hairline px-4 py-3 font-semibold"
                     >
                       {value}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-hairline">
                 {report.topProducts.map((row, index) => (
                   <tr key={row.productId}>
                     <td className="px-4 py-4 tabular-nums">{index + 1}</td>

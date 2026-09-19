@@ -337,14 +337,14 @@ export function OrganizationMemberManagement({
                     aria-label="Organization members"
                     className="m-0 list-none p-0"
                   >
-                    <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_minmax(8rem,auto)_auto] gap-4 sm:grid">
+                    <li className="data-column-header hidden grid-cols-[minmax(0,1.25fr)_minmax(9rem,0.65fr)_minmax(14rem,auto)] gap-x-6 gap-y-3 sm:grid">
                       <span>Member</span>
                       <span>Role</span>
-                      <span className="sr-only">Actions</span>
+                      <span>Actions</span>
                     </li>
                     {members.map((member) => (
                       <li
-                        className="data-row grid min-w-0 gap-4 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,auto)_auto] sm:items-center"
+                        className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.25fr)_minmax(9rem,0.65fr)_minmax(14rem,auto)] sm:items-center"
                         key={member.id}
                       >
                         <div className="min-w-0 break-words">

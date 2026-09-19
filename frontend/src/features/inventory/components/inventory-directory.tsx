@@ -203,6 +203,9 @@ function ScopedInventoryDirectory({
         Your organization role cannot view or manage branch inventory.
       </p>
     );
+  const inventoryGrid = canWrite
+    ? 'sm:grid-cols-[minmax(0,1.45fr)_minmax(7rem,0.7fr)_minmax(10rem,0.9fr)_minmax(12rem,1fr)]'
+    : 'sm:grid-cols-[minmax(0,1.6fr)_minmax(7rem,0.8fr)_minmax(10rem,1fr)]';
   return (
     <OperationalPage>
       <PageHeader
@@ -353,16 +356,18 @@ function ScopedInventoryDirectory({
           </div>
         ) : (
           <ul aria-label="Branch inventory" className="m-0 list-none p-0">
-            <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto_minmax(10rem,auto)_minmax(12rem,auto)] gap-4 sm:grid">
+            <li
+              className={`data-column-header hidden gap-x-6 gap-y-3 sm:grid ${inventoryGrid}`}
+            >
               <span>Product</span>
               <span>Price</span>
               <span>Stock</span>
-              <span className="sr-only">Actions</span>
+              {canWrite ? <span>Actions</span> : null}
             </li>
             {items.map((item) => (
               <li
                 key={item.id}
-                className="data-row grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(10rem,auto)_minmax(12rem,auto)] sm:items-center"
+                className={`data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:items-center ${inventoryGrid}`}
               >
                 <Link
                   href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}

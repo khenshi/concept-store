@@ -53,14 +53,14 @@ function OwnSale({ sale }: { sale: MerchantSale }) {
         {new Date(sale.completedAt).toLocaleString()}
       </time>
       <ul aria-label="Own sale items" className="my-5 list-none p-0">
-        <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-4 sm:grid">
+        <li className="data-column-header hidden grid-cols-[minmax(0,1.4fr)_minmax(10rem,auto)] gap-x-6 gap-y-3 sm:grid">
           <span>Product</span>
           <span>Line total</span>
         </li>
         {sale.items.map((item) => (
           <li
             key={item.id}
-            className="data-row grid min-w-0 gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+            className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(10rem,auto)] sm:items-center"
           >
             <div className="min-w-0 break-words">
               <h3 className="font-semibold">{item.productName}</h3>

@@ -116,14 +116,14 @@ export function InventoryReconciliation({
             aria-label="Stock integrity mismatches"
             className="mt-4 list-none p-0"
           >
-            <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1.4fr)_minmax(13rem,auto)] gap-x-6 gap-y-3 sm:grid">
               <span>Product</span>
               <span>Recorded difference</span>
             </li>
             {page.items.map((item) => (
               <li
                 key={item.inventoryId}
-                className="data-row grid gap-2 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                className="data-row grid gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(13rem,auto)] sm:items-center"
               >
                 <Link
                   className="min-w-0 break-words font-semibold text-ink underline"

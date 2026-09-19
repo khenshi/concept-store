@@ -206,15 +206,15 @@ function ScopedBranchManagement({
               </p>
             ) : (
               <ul className="m-0 list-none p-0" aria-label="Branches">
-                <li className="data-column-header hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_1.5rem] gap-4 sm:grid">
+                <li className="data-column-header hidden grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_2rem] gap-x-6 gap-y-3 sm:grid">
                   <span>Branch</span>
                   <span>{identityOnly ? 'Access' : 'Location'}</span>
-                  <span className="sr-only">Open</span>
+                  <span>Open</span>
                 </li>
                 {visibleBranches.map((branch) => (
                   <li className="data-row" key={branch.id}>
                     <Link
-                      className="grid min-h-20 w-full items-start gap-4 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_1.5rem] sm:items-center"
+                      className="grid min-h-20 w-full items-start gap-x-6 gap-y-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_2rem] sm:items-center"
                       href={`/app/organizations/${organizationId}/branches/${branch.id}`}
                     >
                       <span className="flex min-w-0 items-center gap-3">

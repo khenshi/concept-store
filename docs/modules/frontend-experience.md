@@ -27,7 +27,7 @@ new columns, requests, sorting, bulk actions or data were introduced. The header
 and nonessential columns collapse on narrow screens so the existing directory
 filters, loading/error/empty states and keyboard targets remain readable. The
 organization chooser remains its approved card grid, and POS/dialog-only lists
-are unchanged. This part is intentionally uncommitted for review.
+are unchanged. The implementation was reviewed and committed as `a8dddea`.
 
 ## Dense inventory and sales surfaces (Part 2, uncommitted)
 
@@ -37,8 +37,20 @@ the same contained data-surface language. Existing filters, date validation,
 pagination, load-more controls, stock actions, refund actions, receipt links,
 merchant-only projections and branch/tenant authorization are unchanged. Headers
 and metadata collapse into readable stacks on narrow screens; no API, database,
-query, totals or transaction behavior changed. This part is intentionally
-uncommitted for review.
+query, totals or transaction behavior changed. Part 2 was reviewed and
+committed as `db1bce9`.
+
+## Dense Reports surfaces (Part 3, uncommitted)
+
+Exact daily analytics, top-product tables, payment breakdowns and refund-method
+collections now use the same lightly contained table language. True tables keep
+their horizontal scroller and numeric alignment; headers, consistent 1.5rem
+column spacing, subtle row separators and method labels improve scanning without
+changing charts, totals, date/branch filters, merchant privacy or report
+calculations. The same spacing rhythm is applied to the existing directory,
+Inventory and Sales list rows. Related identity metadata remains grouped in its
+identity column while prices, quantities, statuses and actions use bounded
+comparison columns. This part is intentionally uncommitted for review.
 
 ## Quietly structured application redesign (corrective pass in review)
 

@@ -177,7 +177,7 @@ describe('BranchManagement', () => {
         'w-full',
         'px-4',
         'py-4',
-        'sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_1.5rem]',
+        'sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_2rem]',
       );
     },
   );

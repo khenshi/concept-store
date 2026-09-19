@@ -218,7 +218,7 @@ function ScopedProductDirectory({
           </div>
         ) : (
           <ul aria-label="Product directory" className="m-0 list-none p-0">
-            <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(8rem,auto)] gap-4 sm:grid">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(8rem,0.7fr)] gap-x-6 gap-y-3 sm:grid">
               <span>Product</span>
               <span>Merchant</span>
               <span>Status</span>
@@ -228,7 +228,7 @@ function ScopedProductDirectory({
                 <Link
                   href={`/app/organizations/${organizationId}/products/${product.id}`}
                   aria-label={`View ${product.name}`}
-                  className="grid min-w-0 gap-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+                  className="grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(8rem,0.7fr)] sm:items-center"
                 >
                   <div className="min-w-0 break-words">
                     <strong className="block text-sm font-semibold">

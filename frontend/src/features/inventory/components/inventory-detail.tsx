@@ -428,14 +428,14 @@ function ScopedInventoryDetail({
               aria-label="Inventory movement history"
               className="m-0 list-none p-0"
             >
-              <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-3 sm:grid">
+              <li className="data-column-header hidden grid-cols-[minmax(0,1.5fr)_minmax(12rem,auto)] gap-x-6 gap-y-3 sm:grid">
                 <span>Movement</span>
                 <span>Quantity and balance</span>
               </li>
               {movements.map((movement) => (
                 <li
                   key={movement.id}
-                  className="data-row grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.5fr)_minmax(12rem,auto)] sm:items-center"
                 >
                   <div className="min-w-0 break-words">
                     <strong className="text-sm font-semibold">

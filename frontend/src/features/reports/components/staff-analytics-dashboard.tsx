@@ -207,8 +207,8 @@ export function StaffAnalyticsDashboard({
         available cash. Refunds use their own completion dates.
       </p>
       <AnalyticsTrendCharts rows={report.dailyTrends} />
-      <details className="mt-4 border-t border-hairline bg-surface">
-        <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">
+      <details className="data-surface mt-4">
+        <summary className="min-h-11 cursor-pointer px-5 py-3 text-sm font-semibold sm:px-6">
           View exact daily data
         </summary>
         <div className="overflow-x-auto border-t border-hairline">
@@ -216,7 +216,7 @@ export function StaffAnalyticsDashboard({
             <caption className="sr-only">
               Exact daily sales analytics in Asia/Manila
             </caption>
-            <thead className="bg-subtle text-xs text-muted">
+            <thead className="bg-subtle text-xs uppercase tracking-[0.08em] text-muted">
               <tr>
                 {[
                   'Date',
@@ -231,14 +231,14 @@ export function StaffAnalyticsDashboard({
                   <th
                     key={value}
                     scope="col"
-                    className="px-4 py-3 font-semibold"
+                    className="border-b border-hairline px-4 py-3 font-semibold"
                   >
                     {value}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-hairline">
               {report.dailyTrends.map((row) => (
                 <tr key={row.date}>
                   <th scope="row" className="px-4 py-3 font-medium">
@@ -263,8 +263,8 @@ export function StaffAnalyticsDashboard({
           </table>
         </div>
       </details>
-      <section className="mt-8 bg-surface">
-        <header className="border-b border-hairline py-5">
+      <section className="data-surface mt-8">
+        <header className="border-b border-hairline px-5 py-5 sm:px-6">
           <h2 className="font-semibold">Top products by gross sales</h2>
           <p className="mt-1 text-sm text-muted">
             Top {report.topProducts.length} of {report.totalProducts}{' '}
@@ -278,7 +278,7 @@ export function StaffAnalyticsDashboard({
               aria-label="Top products by gross sales"
               className="w-full min-w-[62rem] border-collapse text-left text-sm"
             >
-              <thead className="bg-subtle text-xs text-muted">
+              <thead className="bg-subtle text-xs uppercase tracking-[0.08em] text-muted">
                 <tr>
                   {[
                     'Rank',
@@ -294,14 +294,14 @@ export function StaffAnalyticsDashboard({
                     <th
                       key={value}
                       scope="col"
-                      className="px-4 py-3 font-semibold"
+                      className="border-b border-hairline px-4 py-3 font-semibold"
                     >
                       {value}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-hairline">
                 {report.topProducts.map((row, index) => (
                   <tr key={row.productId}>
                     <td className="px-4 py-4 tabular-nums">{index + 1}</td>
@@ -381,14 +381,21 @@ function MethodPanel({
   rows: { key: string; amount: string; count: string; countLabel: string }[];
 }) {
   return (
-    <section className="bg-surface">
-      <header className="py-5">
+    <section className="data-surface">
+      <header className="border-b border-hairline px-5 py-5 sm:px-6">
         <h2 className="font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted">{description}</p>
       </header>
+      <div className="data-column-header grid grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)] gap-x-6 gap-y-3">
+        <span>Method</span>
+        <span className="text-right">Recorded amount</span>
+      </div>
       <dl>
         {rows.map((row) => (
-          <div key={row.key} className="grid grid-cols-2 gap-3 py-4">
+          <div
+            key={row.key}
+            className="data-row grid grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)] gap-x-6 gap-y-3 px-4 py-4"
+          >
             <dt className="font-medium">
               {row.key === 'CASH'
                 ? 'Cash'

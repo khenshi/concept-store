@@ -266,6 +266,12 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
   uppercase-muted column header, aligned record rows and a clear trailing
   target/action. Use the shared `data-surface`, `data-column-header` and
   `data-row` styles when the collection is implemented as a responsive list.
+- Keep a consistent 1.5rem column rhythm between labels, values and trailing
+  actions across comparable list/table rows; action groups may use tighter
+  internal spacing only when their controls are visually grouped.
+- Keep related identity metadata—such as name with email, code, SKU or
+  timestamp—in one bounded identity column. Split only values that need their
+  own comparison or action alignment.
 - Keep the surface background and surrounding page canvas in the same warm-stone
   family. The surface owns its modest rounding; records do not become individual
   cards. On narrow screens, hide nonessential column labels and let each record

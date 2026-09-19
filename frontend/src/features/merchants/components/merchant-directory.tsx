@@ -223,7 +223,7 @@ function ScopedMerchantDirectory({
           </div>
         ) : (
           <ul aria-label="Merchant directory" className="m-0 list-none p-0">
-            <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,auto)] gap-4 sm:grid">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)] gap-x-6 gap-y-3 sm:grid">
               <span>Merchant</span>
               <span>Contact</span>
               <span>Status</span>
@@ -231,7 +231,7 @@ function ScopedMerchantDirectory({
             {merchants.map((merchant) => (
               <li className="data-row" key={merchant.id}>
                 <Link
-                  className="grid min-w-0 gap-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,auto)] sm:items-center"
+                  className="grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)] sm:items-center"
                   href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
                   aria-label={`View ${merchant.name}`}
                 >

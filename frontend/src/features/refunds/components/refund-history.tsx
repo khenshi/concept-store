@@ -241,14 +241,14 @@ export function RefundHistory({
               aria-label="Remaining returnable quantities"
               className="mb-5 list-none p-0"
             >
-              <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-4 sm:grid">
+              <li className="data-column-header hidden grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] gap-x-6 gap-y-3 sm:grid">
                 <span>Product</span>
                 <span>Returnable quantity</span>
               </li>
               {result.remainingItems.map((item) => (
                 <li
                   key={item.saleItemId}
-                  className="data-row grid min-w-0 gap-3 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] sm:items-center"
                 >
                   <span className="break-words">
                     {
@@ -285,14 +285,14 @@ export function RefundHistory({
               </p>
             ) : (
               <ul className="mt-4 list-none p-0">
-                <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-4 sm:grid">
+                <li className="data-column-header hidden grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] gap-x-6 gap-y-3 sm:grid">
                   <span>Refund</span>
-                  <span className="sr-only">Action</span>
+                  <span>Action</span>
                 </li>
                 {result.items.map((row) => (
                   <li
                     key={row.id}
-                    className="data-row grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                    className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] sm:items-center"
                   >
                     <div className="min-w-0 break-words">
                       <h3 className="font-semibold">{row.refundCode}</h3>

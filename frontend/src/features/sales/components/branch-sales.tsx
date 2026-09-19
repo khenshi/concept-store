@@ -210,15 +210,15 @@ function ScopedBranchSales({
           </p>
         ) : (
           <ul className="m-0 list-none p-0">
-            <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto_auto] gap-4 sm:grid">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1.4fr)_minmax(12rem,0.8fr)_minmax(10rem,auto)] gap-x-6 gap-y-3 sm:grid">
               <span>Sale</span>
               <span>Amount</span>
-              <span className="sr-only">Action</span>
+              <span>Action</span>
             </li>
             {result.page.items.map((sale) => (
               <li
                 key={sale.id}
-                className="data-row grid min-w-0 gap-4 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
+                className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(12rem,0.8fr)_minmax(10rem,auto)] sm:items-center"
               >
                 <div className="min-w-0 break-words">
                   <h2 className="font-semibold">{sale.receiptCode}</h2>

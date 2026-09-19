@@ -112,14 +112,14 @@ function ScopedMerchantSalesBranches({
           </p>
         ) : (
           <ul className="m-0 list-none p-0">
-            <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-4 sm:grid">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1.4fr)_minmax(10rem,auto)] gap-x-6 gap-y-3 sm:grid">
               <span>Branch</span>
-              <span className="sr-only">Action</span>
+              <span>Action</span>
             </li>
             {branches.map((branch) => (
               <li
                 key={branch.id}
-                className="data-row grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.4fr)_minmax(10rem,auto)] sm:items-center"
               >
                 <div className="min-w-0 break-words">
                   <h2 className="font-semibold">{branch.name}</h2>
