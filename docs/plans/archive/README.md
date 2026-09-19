@@ -1,5 +1,11 @@
 # Archived Implementation Plans
 
+The completed dense record-list and table refinement, including three reviewed
+commits and final automated verification, is retained in
+[`dense-record-list-and-table-refinement-2026-09-19.md`](dense-record-list-and-table-refinement-2026-09-19.md).
+Rendered browser QA was not run because no browser surface was connected; this
+historical record does not authorize additional implementation.
+
 The completed quietly structured application redesign, including four reviewed
 parts, its corrective visual pass, final automated verification and the explicit
 September 19, 2026 rendered-QA waiver, is retained in

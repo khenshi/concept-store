@@ -40,7 +40,7 @@ and metadata collapse into readable stacks on narrow screens; no API, database,
 query, totals or transaction behavior changed. Part 2 was reviewed and
 committed as `db1bce9`.
 
-## Dense Reports surfaces (Part 3, uncommitted)
+## Dense Reports surfaces (Part 3, committed `827a3f6`)
 
 Exact daily analytics, top-product tables, payment breakdowns and refund-method
 collections now use the same lightly contained table language. True tables keep
@@ -50,7 +50,16 @@ changing charts, totals, date/branch filters, merchant privacy or report
 calculations. The same spacing rhythm is applied to the existing directory,
 Inventory and Sales list rows. Related identity metadata remains grouped in its
 identity column while prices, quantities, statuses and actions use bounded
-comparison columns. This part is intentionally uncommitted for review.
+comparison columns.
+
+## Dense record-list/table final verification
+
+Parts 1–3 are committed as `a8dddea`, `db1bce9` and `827a3f6`. The final
+automated verification passes 787 frontend tests, typecheck, ESLint, production
+build and diff validation. The production build reports only the repository’s
+pre-existing multiple-lockfile workspace-root warning. Rendered browser review
+was not run because no browser surface is connected; responsive, keyboard/focus,
+zoom and print behavior are therefore not certified.
 
 ## Quietly structured application redesign (corrective pass in review)
 
