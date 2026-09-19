@@ -14,13 +14,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { Button } from '@/shared/components/ui/button';
 import { Icon } from '@/shared/components/ui/icon';
-import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { Notice } from '@/shared/components/ui/notice';
-import {
-  OperationalPanel,
-  OperationalToolbar,
-} from '@/shared/components/ui/operational-page';
-import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import {
   TextField,
@@ -43,9 +37,40 @@ function errorMessage(cause: unknown): string {
     : 'The request could not be completed. Please try again.';
 }
 
+function organizationInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '?';
+  return words.length === 1
+    ? words[0].slice(0, 1).toUpperCase()
+    : `${words[0][0]}${words.at(-1)?.[0] ?? ''}`.toUpperCase();
+}
+
+function OrganizationGridSkeleton() {
+  return (
+    <div
+      className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      role="status"
+      aria-label="Loading organizations"
+    >
+      {Array.from({ length: 6 }, (_, index) => (
+        <div
+          className="min-h-40 animate-pulse rounded-panel border border-hairline bg-surface p-4"
+          key={index}
+          aria-hidden="true"
+        >
+          <div className="size-8 rounded-control bg-selected" />
+          <div className="mt-6 h-4 w-3/4 rounded bg-selected" />
+          <div className="mt-3 h-3 w-1/2 rounded bg-selected" />
+          <div className="mt-7 h-3 w-2/5 rounded bg-selected" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function OrganizationEntry() {
   const router = useRouter();
-  const { request, user } = useAuth();
+  const { request } = useAuth();
   const [organizations, setOrganizations] = useState<OrganizationAccess[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -136,21 +161,23 @@ export function OrganizationEntry() {
 
   return (
     <section
-      className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:py-10"
+      className="min-h-[calc(100dvh-4.25rem)] bg-surface"
       aria-labelledby="organization-title"
     >
-      <PageHeader
-        id="organization-title"
-        eyebrow="Your workspaces"
-        title="Choose an organization"
-        description={
-          <>
-            Select the concept store you want to manage. Your access is based on
-            the membership assigned to{' '}
-            <span className="break-all">{user?.email}</span>.
-          </>
-        }
-        action={
+      <div className="mx-auto w-full max-w-[68rem] px-5 py-10 sm:px-8 lg:py-14">
+        <header className="flex items-end justify-between gap-8 max-sm:flex-col max-sm:items-start">
+          <div className="min-w-0">
+            <h1
+              id="organization-title"
+              className="text-[clamp(2rem,4vw,3rem)] font-semibold tracking-[-0.045em] text-ink"
+            >
+              Your organizations
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted">
+              Switch between the teams and workspaces you belong to, or create a
+              new place for your next project.
+            </p>
+          </div>
           <Button
             variant="accent"
             ref={createTriggerRef}
@@ -159,26 +186,11 @@ export function OrganizationEntry() {
           >
             Create organization
           </Button>
-        }
-      />
-      <OperationalPanel
-        variant="open"
-        title="Your organizations"
-        description="A separate workspace for each business you belong to."
-        action={
-          !isLoading && !loadError ? (
-            <span
-              className="inline-flex min-w-7 justify-center rounded-full bg-selected px-2 py-1 text-xs font-semibold text-ink"
-              aria-label={`${filteredOrganizations.length} organizations`}
-            >
-              {filteredOrganizations.length}
-            </span>
-          ) : undefined
-        }
-      >
-        <OperationalToolbar variant="open">
+        </header>
+
+        <div className="mt-10 flex items-center justify-between gap-5 max-sm:items-stretch max-sm:flex-col">
           <TextField
-            containerClassName="max-w-xl"
+            containerClassName="w-full max-w-sm"
             id="organization-search"
             label="Search organizations"
             type="search"
@@ -186,21 +198,30 @@ export function OrganizationEntry() {
             placeholder="Find an organization by name"
             onChange={(event) => setSearch(event.target.value)}
           />
-        </OperationalToolbar>
-        <div>
+          {!isLoading && !loadError ? (
+            <span
+              className="shrink-0 text-xs text-muted sm:pb-1"
+              aria-label={`${filteredOrganizations.length} organizations`}
+            >
+              {filteredOrganizations.length}{' '}
+              {filteredOrganizations.length === 1
+                ? 'organization'
+                : 'organizations'}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-7">
           {isLoading ? (
-            <ListSkeleton
-              label="Loading organizations"
-              className="px-5 py-5 sm:px-6"
-            />
+            <OrganizationGridSkeleton />
           ) : loadError ? (
             <RequestError
-              className="px-5 py-6 sm:px-6"
+              className="max-w-xl py-8"
               message={loadError}
               onRetry={() => void loadOrganizations()}
             />
           ) : organizations.length === 0 ? (
-            <div className="px-5 py-12 text-center sm:px-6">
+            <div className="py-16 text-center">
               <Icon
                 name="building"
                 className="mx-auto mb-4 size-6 text-muted"
@@ -221,39 +242,46 @@ export function OrganizationEntry() {
               </Button>
             </div>
           ) : filteredOrganizations.length === 0 ? (
-            <div className="px-5 py-12 text-center sm:px-6">
+            <div className="py-16 text-center">
               <h3 className="font-semibold text-ink">No organizations found</h3>
               <p className="mt-3 text-sm text-muted">
                 Try a different organization name.
               </p>
             </div>
           ) : (
-            <ul className="m-0 list-none border-t border-hairline p-0">
+            <ul className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
               {filteredOrganizations.map((organization) => (
-                <li key={organization.id}>
+                <li key={organization.id} className="min-w-0">
                   <Link
-                    className="group flex min-h-20 w-full items-center gap-4 py-5 text-ink no-underline hover:bg-subtle"
+                    className="group flex min-h-40 w-full flex-col rounded-panel border border-hairline bg-surface p-4 text-ink no-underline transition-[border-color,box-shadow] duration-150 hover:border-selected-border hover:shadow-floating"
                     href={`/app/organizations/${organization.id}`}
                   >
-                    <span className="grid size-11 shrink-0 place-items-center rounded-compact bg-accent-soft text-accent">
-                      <Icon name="building" />
+                    <span className="flex items-start justify-between gap-4">
+                      <span className="grid size-8 place-items-center rounded-control bg-accent-soft text-sm font-semibold text-accent">
+                        {organizationInitials(organization.name)}
+                      </span>
+                      <Icon
+                        name="arrow"
+                        className="mt-1 size-4 text-muted group-hover:text-accent"
+                      />
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <strong className="block break-words text-sm font-semibold">
+                    <span className="mt-6 min-w-0">
+                      <strong className="block break-words text-base font-semibold">
                         {organization.name}
                       </strong>
-                      <small className="mt-1 block text-xs text-muted">
-                        {roleLabels[organization.role]}
-                      </small>
+                      <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className="rounded-full bg-accent-soft px-2 py-1 font-medium text-accent">
+                          {roleLabels[organization.role]}
+                        </span>
+                      </span>
                     </span>
-                    <Icon name="arrow" className="size-4 text-accent" />
                   </Link>
                 </li>
               ))}
             </ul>
           )}
         </div>
-      </OperationalPanel>
+      </div>
       <dialog
         className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-4xl overflow-y-auto rounded-panel border border-hairline bg-surface p-0 text-ink shadow-overlay backdrop:bg-ink/40"
         ref={createDialogRef}

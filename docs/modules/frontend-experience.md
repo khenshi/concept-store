@@ -1,5 +1,18 @@
 # Frontend Experience
 
+## Organization chooser refinement (uncommitted)
+
+The organization entry page now follows the supplied workspace-picker
+composition: one unified Paper background, a spacious title/action header, a
+compact search and result-count row, and a responsive two-to-three-column grid
+of gently rounded organization cards. Cards use verified organization identity,
+role context only; no member counts, activity dates,
+sorting or dashboard metrics were introduced. The existing create dialog,
+filtering, loading/error/empty states, focus restoration and navigation remain
+unchanged. This focused change does not alter the public landing page or other
+application routes. Automated checks pass; rendered browser review remains
+pending because no browser surface is connected.
+
 ## Quietly structured application redesign (corrective pass in review)
 
 All application pages except the public landing page use a Paper work surface,

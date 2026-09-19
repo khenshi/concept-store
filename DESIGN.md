@@ -266,6 +266,16 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 - Convert non-comparative phone rows to labeled stacks; true tables use a contained
   horizontal scroller with headers.
 
+### Collection and chooser pages
+
+- Organization/workspace pickers may use a calm, responsive grid of lightly
+  contained cards when each item is a meaningful destination. Keep the page
+  background and card surfaces unified; use whitespace, a compact search/action
+  row and consistent card geometry for rhythm.
+- A chooser card may be gently rounded and bordered for click affordance. Keep
+  its content limited to verified identity, role/access context and navigation;
+  do not add decorative metrics or fictional activity data.
+
 ### Dialogs, menus, and feedback
 
 - Floating UI is the main place shadows are allowed.

@@ -71,13 +71,20 @@ describe('OrganizationEntry', () => {
     expect(screen.queryByText('North & Pine')).not.toBeInTheDocument();
   });
 
-  it('aligns divided rows with the open header while keeping full-width hover', async () => {
+  it('renders accessible organizations as lightly contained chooser cards', async () => {
     render(<OrganizationEntry />);
     const row = await screen.findByRole('link', { name: /North & Pine/ });
-    expect(row).toHaveClass('w-full', 'py-5', 'hover:bg-subtle');
-    expect(row).not.toHaveClass('px-5', 'sm:px-6');
-    expect(row.closest('ul')).toHaveClass('p-0');
-    expect(row.closest('ul')?.parentElement).not.toHaveClass('px-5', 'sm:px-6');
+    expect(row).toHaveClass(
+      'min-h-40',
+      'rounded-panel',
+      'border-hairline',
+      'bg-surface',
+    );
+    expect(row.closest('ul')).toHaveClass('grid', 'gap-4', 'lg:grid-cols-3');
+    expect(screen.getByText('NP')).toBeInTheDocument();
+    expect(screen.queryByText('Available to you')).not.toBeInTheDocument();
+    expect(screen.queryByText('Workspace access')).not.toBeInTheDocument();
+    expect(row).not.toHaveClass('hover:-translate-y-0.5');
   });
 
   it('creates an organization from the dialog and opens its overview', async () => {
