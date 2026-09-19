@@ -52,17 +52,27 @@ function OwnSale({ sale }: { sale: MerchantSale }) {
       <time className="text-sm text-muted" dateTime={sale.completedAt}>
         {new Date(sale.completedAt).toLocaleString()}
       </time>
-      <ul className="my-5 divide-y divide-hairline">
+      <ul aria-label="Own sale items" className="my-5 list-none p-0">
+        <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-4 sm:grid">
+          <span>Product</span>
+          <span>Line total</span>
+        </li>
         {sale.items.map((item) => (
-          <li key={item.id} className="break-words py-3">
-            <h3 className="font-semibold">{item.productName}</h3>
-            <p className="text-sm text-muted">
-              {item.merchantName} · SKU {item.sku ?? 'not set'} · Barcode{' '}
-              {item.barcode ?? 'not set'}
-            </p>
-            <p className="mt-2 tabular-nums">
-              {item.quantity} × PHP {item.unitPrice} = PHP {item.lineTotal}
-            </p>
+          <li
+            key={item.id}
+            className="data-row grid min-w-0 gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+          >
+            <div className="min-w-0 break-words">
+              <h3 className="font-semibold">{item.productName}</h3>
+              <p className="text-sm text-muted">
+                {item.merchantName} · SKU {item.sku ?? 'not set'} · Barcode{' '}
+                {item.barcode ?? 'not set'}
+              </p>
+              <p className="mt-2 tabular-nums">
+                {item.quantity} × PHP {item.unitPrice}
+              </p>
+            </div>
+            <p className="font-semibold tabular-nums">PHP {item.lineTotal}</p>
           </li>
         ))}
       </ul>
@@ -155,7 +165,7 @@ function ScopedSaleDetail({
         />
       ) : null}
       <OperationalPanel
-        variant="open"
+        className="data-surface"
         title={role === 'MERCHANT' ? 'Own items' : 'Saved receipt'}
         description="Refreshing retries only the authorized sale read."
         action={

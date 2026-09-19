@@ -164,6 +164,7 @@ export function RefundHistory({
   return (
     <>
       <OperationalPanel
+        className="data-surface"
         title={
           role === 'MERCHANT' ? 'Own returned items' : 'Returns and refunds'
         }
@@ -238,16 +239,27 @@ export function RefundHistory({
           <div className="p-5 sm:p-6">
             <ul
               aria-label="Remaining returnable quantities"
-              className="mb-5 divide-y divide-hairline"
+              className="mb-5 list-none p-0"
             >
+              <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-4 sm:grid">
+                <span>Product</span>
+                <span>Returnable quantity</span>
+              </li>
               {result.remainingItems.map((item) => (
-                <li key={item.saleItemId} className="break-words py-2 text-sm">
-                  {
-                    sale.items.find((line) => line.id === item.saleItemId)
-                      ?.productName
-                  }
-                  : {item.remainingQuantity} remaining · {item.returnedQuantity}{' '}
-                  returned · {item.restockedQuantity} restocked
+                <li
+                  key={item.saleItemId}
+                  className="data-row grid min-w-0 gap-3 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                >
+                  <span className="break-words">
+                    {
+                      sale.items.find((line) => line.id === item.saleItemId)
+                        ?.productName
+                    }
+                  </span>
+                  <span className="tabular-nums sm:text-right">
+                    {item.remainingQuantity} remaining · {item.returnedQuantity}{' '}
+                    returned · {item.restockedQuantity} restocked
+                  </span>
                 </li>
               ))}
             </ul>
@@ -272,11 +284,15 @@ export function RefundHistory({
                   : 'No refunds on this page.'}
               </p>
             ) : (
-              <ul className="mt-4 divide-y divide-hairline">
+              <ul className="mt-4 list-none p-0">
+                <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-4 sm:grid">
+                  <span>Refund</span>
+                  <span className="sr-only">Action</span>
+                </li>
                 {result.items.map((row) => (
                   <li
                     key={row.id}
-                    className="flex min-w-0 flex-wrap items-center justify-between gap-3 py-4"
+                    className="data-row grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                   >
                     <div className="min-w-0 break-words">
                       <h3 className="font-semibold">{row.refundCode}</h3>

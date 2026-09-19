@@ -136,7 +136,7 @@ function ScopedBranchSales({
         </>
       ) : null}
       <OperationalPanel
-        variant="open"
+        className="data-surface"
         title={branchName ?? (merchant ? 'Own sales' : 'Sales history')}
         description={`${role === 'CASHIER' ? 'Your completed sales in this assigned branch. ' : ''}Newest completion first. Amounts and names are saved transaction snapshots.`}
         action={
@@ -150,7 +150,7 @@ function ScopedBranchSales({
       >
         <form
           noValidate
-          className="grid min-w-0 gap-4 border-b border-hairline bg-surface py-5 sm:grid-cols-2 sm:py-6"
+          className="grid min-w-0 gap-4 border-b border-hairline bg-subtle px-5 py-5 sm:grid-cols-2 sm:px-6 sm:py-6"
           onSubmit={(event) => {
             event.preventDefault();
             applyDates();
@@ -209,11 +209,16 @@ function ScopedBranchSales({
                 : 'No completed sales available to your role in this branch.'}
           </p>
         ) : (
-          <ul className="border-t border-hairline">
+          <ul className="m-0 list-none p-0">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto_auto] gap-4 sm:grid">
+              <span>Sale</span>
+              <span>Amount</span>
+              <span className="sr-only">Action</span>
+            </li>
             {result.page.items.map((sale) => (
               <li
                 key={sale.id}
-                className="grid min-w-0 gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:py-6"
+                className="data-row grid min-w-0 gap-4 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center"
               >
                 <div className="min-w-0 break-words">
                   <h2 className="font-semibold">{sale.receiptCode}</h2>
@@ -224,11 +229,6 @@ function ScopedBranchSales({
                       {new Date(sale.completedAt).toLocaleString()}
                     </time>
                   </p>
-                  <p className="mt-2 font-semibold tabular-nums">
-                    {'ownItemsSubtotal' in sale
-                      ? `Own items subtotal: PHP ${sale.ownItemsSubtotal}`
-                      : `Total: PHP ${sale.total}`}
-                  </p>
                   {'cashierName' in sale ? (
                     <p className="mt-1 text-sm text-muted">
                       Cashier: {sale.cashierName} ·{' '}
@@ -238,6 +238,11 @@ function ScopedBranchSales({
                     </p>
                   ) : null}
                 </div>
+                <p className="font-semibold tabular-nums">
+                  {'ownItemsSubtotal' in sale
+                    ? `Own items subtotal: PHP ${sale.ownItemsSubtotal}`
+                    : `Total: PHP ${sale.total}`}
+                </p>
                 <Link
                   aria-label={`${merchant ? 'View own items' : 'View receipt'} ${sale.receiptCode}`}
                   className={buttonStyles({ variant: 'secondary' })}

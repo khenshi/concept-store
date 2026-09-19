@@ -84,7 +84,7 @@ function ScopedMerchantSalesBranches({
         description="Read only sales involving your linked merchant business. Historical selling branches remain available even if products are no longer placed there."
       />
       <OperationalPanel
-        variant="open"
+        className="data-surface"
         title="Selling branches"
         description="Only branches with your own historical sale items. No other-merchant sales or branch addresses."
         action={
@@ -111,11 +111,15 @@ function ScopedMerchantSalesBranches({
             access.
           </p>
         ) : (
-          <ul className="border-t border-hairline">
+          <ul className="m-0 list-none p-0">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto] gap-4 sm:grid">
+              <span>Branch</span>
+              <span className="sr-only">Action</span>
+            </li>
             {branches.map((branch) => (
               <li
                 key={branch.id}
-                className="grid min-w-0 gap-3 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:py-6"
+                className="data-row grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
               >
                 <div className="min-w-0 break-words">
                   <h2 className="font-semibold">{branch.name}</h2>

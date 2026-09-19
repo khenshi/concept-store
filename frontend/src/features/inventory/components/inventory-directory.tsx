@@ -252,7 +252,7 @@ function ScopedInventoryDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
-        variant="open"
+        className="data-surface"
         title="Inventory"
         description={
           loading
@@ -276,10 +276,7 @@ function ScopedInventoryDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar
-          variant="open"
-          className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-        >
+        <OperationalToolbar className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <FilterField id="inventory-search" label="Search">
             <input
               id="inventory-search"
@@ -355,14 +352,17 @@ function ScopedInventoryDirectory({
             </p>
           </div>
         ) : (
-          <ul
-            aria-label="Branch inventory"
-            className="m-0 list-none border-t border-hairline p-0"
-          >
+          <ul aria-label="Branch inventory" className="m-0 list-none p-0">
+            <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_auto_minmax(10rem,auto)_minmax(12rem,auto)] gap-4 sm:grid">
+              <span>Product</span>
+              <span>Price</span>
+              <span>Stock</span>
+              <span className="sr-only">Actions</span>
+            </li>
             {items.map((item) => (
               <li
                 key={item.id}
-                className="grid min-w-0 gap-3 py-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+                className="data-row grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(10rem,auto)_minmax(12rem,auto)] sm:items-center"
               >
                 <Link
                   href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
@@ -392,7 +392,7 @@ function ScopedInventoryDirectory({
                 </span>
                 {canWrite ? (
                   <div
-                    className="flex flex-wrap gap-x-3 gap-y-2 sm:col-span-3 lg:col-span-1 lg:justify-end"
+                    className="flex flex-wrap gap-x-3 gap-y-2 sm:justify-end"
                     aria-label={`${item.product.name} stock actions`}
                   >
                     <button
