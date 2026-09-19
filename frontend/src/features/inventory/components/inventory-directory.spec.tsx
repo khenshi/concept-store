@@ -107,7 +107,8 @@ describe('InventoryDirectory workflows', () => {
   it('displays branch price and stock with scoped placement navigation', async () => {
     render(<InventoryDirectory {...scope} />);
     expect(await screen.findByText('PHP 850.00')).toBeInTheDocument();
-    expect(screen.getByText(/10 units · threshold 5/)).toBeInTheDocument();
+    expect(screen.getByText('10 units')).toBeInTheDocument();
+    expect(screen.getByText('Threshold 5')).toBeInTheDocument();
     expect(screen.getByText('In stock')).toBeInTheDocument();
     expect(
       screen.getByRole('link', {

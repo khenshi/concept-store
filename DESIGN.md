@@ -268,6 +268,11 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
   uppercase-muted column header, aligned record rows and a clear trailing
   target/action. Use the shared `data-surface`, `data-column-header` and
   `data-row` styles when the collection is implemented as a responsive list.
+- Inventory-style stock collections may use an open Paper surface with a quiet
+  rounded search/filter row, visible labels for Product, Price, status, quantity
+  and actions, and a small semantic status dot beside its text. Keep the filter
+  controls as accessible dropdowns; the rounded treatment is a visual cue, not a
+  new interaction model.
 - Keep a consistent 1.5rem column rhythm between labels, values and trailing
   actions across comparable list/table rows; action groups may use tighter
   internal spacing only when their controls are visually grouped.

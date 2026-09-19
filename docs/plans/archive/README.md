@@ -1,5 +1,17 @@
 # Archived Implementation Plans
 
+The completed Inventory Stock table refinement, delivered as the first part of
+the shared table redesign, is retained in
+[`inventory-stock-table-refinement-2026-09-19.md`](inventory-stock-table-refinement-2026-09-19.md).
+Rendered browser QA was not run because no browser surface was connected; this
+historical record does not authorize additional implementation.
+
+The completed global Poppins typography change, committed as `239d072`, is
+retained in
+[`global-poppins-typography-2026-09-19.md`](global-poppins-typography-2026-09-19.md).
+Rendered browser QA was not run because no browser surface was connected; this
+historical record does not authorize additional implementation.
+
 The completed dense record-list and table refinement, including three reviewed
 commits and final automated verification, is retained in
 [`dense-record-list-and-table-refinement-2026-09-19.md`](dense-record-list-and-table-refinement-2026-09-19.md).

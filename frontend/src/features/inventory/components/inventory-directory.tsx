@@ -12,7 +12,6 @@ import { buttonStyles } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
-  FilterField,
   OperationalPage,
   OperationalPanel,
   OperationalToolbar,
@@ -204,8 +203,8 @@ function ScopedInventoryDirectory({
       </p>
     );
   const inventoryGrid = canWrite
-    ? 'sm:grid-cols-[minmax(0,1.45fr)_minmax(7rem,0.7fr)_minmax(10rem,0.9fr)_minmax(12rem,1fr)]'
-    : 'sm:grid-cols-[minmax(0,1.6fr)_minmax(7rem,0.8fr)_minmax(10rem,1fr)]';
+    ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(7rem,0.75fr)_minmax(8.75rem,0.85fr)_minmax(7rem,0.6fr)_minmax(12rem,1fr)]'
+    : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(7rem,0.8fr)_minmax(8.75rem,0.9fr)_minmax(7rem,0.7fr)]';
   return (
     <OperationalPage>
       <PageHeader
@@ -255,8 +254,9 @@ function ScopedInventoryDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
-        className="data-surface"
-        title="Inventory"
+        variant="open"
+        className="inventory-stock-surface"
+        title="Inventory stock"
         description={
           loading
             ? 'Loading inventory…'
@@ -279,8 +279,14 @@ function ScopedInventoryDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <FilterField id="inventory-search" label="Search">
+        <OperationalToolbar
+          variant="open"
+          className="inventory-stock-toolbar grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+        >
+          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+            <label className="sr-only" htmlFor="inventory-search">
+              Search
+            </label>
             <input
               id="inventory-search"
               type="search"
@@ -288,12 +294,17 @@ function ScopedInventoryDirectory({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Product, SKU, or barcode"
-              className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm"
+              className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-4 text-sm placeholder:text-muted"
             />
-          </FilterField>
-          <FilterField id="inventory-stock-status" label="Stock status">
+          </div>
+          <div className="min-w-0">
+            <label className="sr-only" htmlFor="inventory-stock-status">
+              Stock status
+            </label>
             <SelectControl
               id="inventory-stock-status"
+              aria-label="Stock status"
+              className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10.5rem]"
               value={stockStatus}
               onValueChange={(value) =>
                 setStockStatus(value as InventoryStockStatus | '')
@@ -304,10 +315,15 @@ function ScopedInventoryDirectory({
               <option value="LOW_STOCK">Low stock</option>
               <option value="OUT_OF_STOCK">Out of stock</option>
             </SelectControl>
-          </FilterField>
-          <FilterField id="inventory-merchant" label="Merchant">
+          </div>
+          <div className="min-w-0">
+            <label className="sr-only" htmlFor="inventory-merchant">
+              Merchant
+            </label>
             <SelectControl
               id="inventory-merchant"
+              aria-label="Merchant"
+              className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
               value={merchantId}
               onValueChange={setMerchantId}
             >
@@ -318,10 +334,15 @@ function ScopedInventoryDirectory({
                 </option>
               ))}
             </SelectControl>
-          </FilterField>
-          <FilterField id="inventory-status" label="Product status">
+          </div>
+          <div className="min-w-0">
+            <label className="sr-only" htmlFor="inventory-status">
+              Product status
+            </label>
             <SelectControl
               id="inventory-status"
+              aria-label="Product status"
+              className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[9.5rem]"
               value={status}
               onValueChange={(value) => setStatus(value as ProductStatus | '')}
             >
@@ -329,7 +350,7 @@ function ScopedInventoryDirectory({
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
             </SelectControl>
-          </FilterField>
+          </div>
         </OperationalToolbar>
         {loading ? (
           <ListSkeleton className="p-6" label="Loading inventory placements" />
@@ -340,7 +361,7 @@ function ScopedInventoryDirectory({
             onRetry={() => setRevision((value) => value + 1)}
           />
         ) : !items.length ? (
-          <div className="p-6 text-center">
+          <div className="py-10 text-center sm:py-12">
             <h3 className="font-semibold">
               {search || merchantId || status || stockStatus
                 ? 'No placements match these filters'
@@ -357,17 +378,18 @@ function ScopedInventoryDirectory({
         ) : (
           <ul aria-label="Branch inventory" className="m-0 list-none p-0">
             <li
-              className={`data-column-header hidden gap-x-6 gap-y-3 sm:grid ${inventoryGrid}`}
+              className={`data-column-header inventory-column-header hidden gap-x-6 gap-y-3 lg:grid ${inventoryGrid}`}
             >
               <span>Product</span>
               <span>Price</span>
-              <span>Stock</span>
+              <span>Stock status</span>
+              <span>Quantity</span>
               {canWrite ? <span>Actions</span> : null}
             </li>
             {items.map((item) => (
               <li
                 key={item.id}
-                className={`data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:items-center ${inventoryGrid}`}
+                className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 lg:items-center ${inventoryGrid}`}
               >
                 <Link
                   href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
@@ -386,13 +408,18 @@ function ScopedInventoryDirectory({
                 <span className="text-sm tabular-nums">
                   PHP {item.sellingPrice}
                 </span>
+                <span className="text-sm">
+                  <InventoryStockStatusBadge
+                    status={item.stockStatus}
+                    minimal
+                  />
+                </span>
                 <span className="text-sm tabular-nums">
                   <strong className="block font-semibold">
-                    <InventoryStockStatusBadge status={item.stockStatus} />
+                    {item.quantity.toLocaleString()} units
                   </strong>
                   <span className="mt-1 block text-xs text-muted">
-                    {item.quantity.toLocaleString()} units · threshold{' '}
-                    {item.lowStockThreshold.toLocaleString()}
+                    Threshold {item.lowStockThreshold.toLocaleString()}
                   </span>
                 </span>
                 {canWrite ? (
@@ -440,7 +467,7 @@ function ScopedInventoryDirectory({
           </ul>
         )}
         {!loading && !error && nextCursor ? (
-          <div className="border-t border-hairline px-6 py-4">
+          <div className="border-t border-hairline px-0 py-5">
             {moreError ? (
               <p role="alert" className="mb-3 text-sm text-danger">
                 {moreError}

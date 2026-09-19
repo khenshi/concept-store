@@ -143,4 +143,32 @@
   .data-row {
     @apply border-t border-hairline transition-colors duration-150 hover:bg-subtle;
   }
+
+  .inventory-stock-surface {
+    @apply mt-10 bg-surface;
+  }
+
+  .inventory-stock-surface > header {
+    @apply items-baseline gap-4 border-b-0 px-0 pb-5;
+  }
+
+  .inventory-stock-surface > header h2 {
+    @apply text-xl tracking-tight;
+  }
+
+  .inventory-stock-surface > header p {
+    @apply mt-0;
+  }
+
+  .inventory-stock-toolbar {
+    @apply px-0 py-4;
+  }
+
+  .inventory-column-header {
+    @apply border-0 border-b border-hairline bg-transparent px-0 py-3 font-medium tracking-[0.06em];
+  }
+
+  .inventory-data-row {
+    @apply px-0 py-5;
+  }
 }

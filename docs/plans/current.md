@@ -1,31 +1,41 @@
 # Current Implementation Plan
 
-**Status:** Approved September 19, 2026. Implement as one reviewable,
+**Status:** Approved September 19, 2026. Inventory Part 1 was reviewed and
+committed. Implement the remaining comparable tables as one reviewable,
 uncommitted presentation part; commit only after user review.
 
-## Global Poppins typography
+## Shared table pattern propagation
 
 ### Intent
 
-Replace the current Inter web font with Poppins across the public landing page,
-authentication flows and authenticated organization workspace while preserving
-the existing Kapwesto visual system.
+Propagate the approved Inventory Stock reference treatment to the remaining
+comparable tables and lists: spacious labeled headers, grouped identity,
+separated comparison values, restrained separators, quiet trailing actions and
+soft rounded filter controls. Keep the existing warm neutral Kapwesto system and
+Poppins typography.
 
 ### Scope
 
-- Replace the `next/font/google` font loaded by the root layout.
-- Update `DESIGN.md` and frontend module documentation to make Poppins the
-  canonical family.
-- Preserve all existing type sizes, weights, line heights, tracking, colors,
-  layout, responsive behavior and fallback font behavior.
+- Apply the approved composition to Branches, Members, Merchants, Products,
+  Inventory detail/movement/reconciliation, Sales and Reports collections.
+- Keep each page's existing search, date, branch and status controls as
+  accessible controls, restyled consistently with Inventory where appropriate.
+- Preserve every existing request, action, role/branch visibility, merchant
+  privacy rule, pagination/load-more behavior and loading/empty/error state.
+- Preserve responsive stacking, keyboard/focus behavior and true-table semantics
+  where they already exist.
 
-Explicitly excluded: component redesign, spacing changes, color changes, route,
-API, database, authorization, tenant/branch behavior and business logic changes.
+Explicitly excluded: API/database/authorization changes, new columns or
+fabricated data, organization chooser card grid, POS cart/checkout surfaces,
+forms, dialogs and public landing-page structure.
 
 ### Acceptance checks
 
-- All application routes inherit Poppins from the root layout.
-- Existing typography tokens and component classes remain unchanged apart from
-  the family declaration.
+- All in-scope tables/lists have visible, aligned labels above their records
+  without a heavy card header or strong divider treatment.
+- Related identity metadata stays grouped while comparable values and actions
+  read as distinct columns on wide screens and readable stacks on narrow screens.
+- Existing filters retain their accessible behavior while matching the soft
+  rounded reference style where they are present.
 - Frontend tests, typecheck, lint, production build and diff checks pass.
 - No unrelated working-tree files are staged or changed.

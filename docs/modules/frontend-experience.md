@@ -10,6 +10,20 @@ unchanged; the fallback stack remains available when the web font cannot load.
 This is a presentation-only change. No API, database, authorization, tenant,
 branch or business behavior changed.
 
+## Inventory stock list refinement (Part 1)
+
+The branch Inventory directory now uses an open Inventory Stock-style surface:
+visible Product, Price, Stock status, Quantity and Actions labels align with
+their records on wide screens, while narrow screens retain the existing stacked
+layout. Product identity stays grouped with merchant/status/SKU metadata; stock
+status uses a restrained semantic dot and text treatment; quantity and threshold
+are separate from status for faster scanning. The search field and existing
+merchant, product-status and stock-status controls remain accessible but use
+quiet rounded reference-style controls. Add placement, receive/correct stock,
+branch selection, pagination, role visibility and all data requests are
+unchanged. This part was reviewed and committed before the remaining table
+surfaces are updated.
+
 ## Organization chooser refinement (uncommitted)
 
 The organization entry page now follows the supplied workspace-picker
