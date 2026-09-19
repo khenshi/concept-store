@@ -19,7 +19,13 @@ purposeful inset surfaces remain welcome. No business behavior or landing-page
 code changes. Browser-rendered and final accessibility/zoom review remain
 pending because no browser surface is connected; automated checks cannot
 certify visual layout. Formatting, lint, typecheck, production build and all
-787 frontend tests pass for the corrective pass.
+787 frontend tests pass for the corrective pass and final automated
+verification. The first final standalone typecheck overlapped the build's
+regeneration of `.next/types`; its clean sequential rerun and the build's own
+TypeScript phase both passed. Rendered desktop/tablet/mobile, keyboard/focus,
+dialog, 200% zoom and print-sensitive verification were explicitly waived by
+the user on September 19, 2026 because no browser surface was connected.
+Automated checks do not certify rendered layout or accessibility.
 
 ## Staff sales reports
 

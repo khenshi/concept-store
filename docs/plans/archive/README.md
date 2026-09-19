@@ -1,5 +1,11 @@
 # Archived Implementation Plans
 
+The completed quietly structured application redesign, including four reviewed
+parts, its corrective visual pass, final automated verification and the explicit
+September 19, 2026 rendered-QA waiver, is retained in
+[`quietly-structured-application-redesign-2026-09-19.md`](quietly-structured-application-redesign-2026-09-19.md).
+It does not authorize additional implementation.
+
 The completed HTTP test reliability and bounded Inventory browsing plan,
 including four reviewed parts, final automated verification and the explicit
 September 17, 2026 rendered-QA waiver, is retained in
