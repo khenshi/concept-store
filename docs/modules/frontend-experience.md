@@ -10,6 +10,21 @@ unchanged; the fallback stack remains available when the web font cannot load.
 This is a presentation-only change. No API, database, authorization, tenant,
 branch or business behavior changed.
 
+## Inventory workflow refinement (Part 1, uncommitted)
+
+The branch Inventory page keeps its existing operational shell while exposing
+Inventory stock and Stock integrity as staff-only tabs. Stock integrity is now
+loaded only when its tab is opened, so the normal stock list does not start a
+diagnostic request on page load. Owner and manager row actions are labeled
+**Stock in** and **Adjust** while continuing to call the existing receipt and
+adjustment workflows; their action buttons remain on one line at tablet widths.
+The inventory search field has a leading search icon, and directory requests use
+five-item cursor pages with the existing Load more behavior. Merchant read-only
+visibility and all branch, role, tenant and stock safeguards are unchanged.
+
+The add-placement modal changes are intentionally deferred to Part 2. Rendered
+browser QA remains unavailable for this focused refinement.
+
 ## Inventory stock list refinement (Part 1)
 
 The branch Inventory directory now uses an open Inventory Stock-style surface:

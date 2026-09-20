@@ -38,7 +38,7 @@ describe('Branch inventory API contracts', () => {
       stockStatus: 'LOW_STOCK',
     });
     expect(request).toHaveBeenLastCalledWith(
-      `${base}?limit=50&q=001Ab&status=ACTIVE&stockStatus=LOW_STOCK`,
+      `${base}?limit=5&q=001Ab&status=ACTIVE&stockStatus=LOW_STOCK`,
     );
     await expect(getInventory(request, scope)).resolves.toEqual(inventory);
     await expect(getInventoryBranch(request, scope)).resolves.toEqual(branch);
@@ -59,7 +59,7 @@ describe('Branch inventory API contracts', () => {
     request.mockResolvedValueOnce({ items: [], nextCursor: null });
     await listInventory(request, scope, { q: 'cup' }, cursor);
     expect(request).toHaveBeenLastCalledWith(
-      `${base}?limit=50&q=cup&cursor=${encodeURIComponent(cursor)}`,
+      `${base}?limit=5&q=cup&cursor=${encodeURIComponent(cursor)}`,
     );
     request.mockResolvedValueOnce({ items: [product], nextCursor: null });
     await expect(listEligibleProducts(request, scope, 'cup')).resolves.toEqual({

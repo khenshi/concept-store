@@ -16,7 +16,8 @@ import type {
 export function InventoryReconciliation({
   organizationId,
   branchId,
-}: InventoryScope) {
+  id,
+}: InventoryScope & { id?: string }) {
   const { request } = useAuth();
   const generation = useRef(0);
   const [started, setStarted] = useState(false);
@@ -69,6 +70,7 @@ export function InventoryReconciliation({
 
   return (
     <OperationalPanel
+      id={id}
       variant="open"
       className="data-surface"
       title="Stock integrity"

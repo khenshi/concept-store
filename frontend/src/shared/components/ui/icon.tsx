@@ -12,6 +12,7 @@ const paths = {
   expand: 'M4 4h16v16H4zM9 4v16m3-12 4 4-4 4',
   arrow: 'M5 12h14m-5-5 5 5-5 5',
   check: 'm5 12 4 4L19 6',
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm6-2 4 4',
 } as const;
 
 export type IconName = keyof typeof paths;

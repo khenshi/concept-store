@@ -20,6 +20,7 @@ import {
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import { Icon } from '@/shared/components/ui/icon';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { getInventoryBranch, listInventory } from '../api/inventory-api';
 import type {
@@ -73,6 +74,7 @@ function ScopedInventoryDirectory({
   const [stockStatus, setStockStatus] = useState<InventoryStockStatus | ''>(
     initialStockStatus ?? '',
   );
+  const [activeTab, setActiveTab] = useState<'stock' | 'integrity'>('stock');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -95,6 +97,7 @@ function ScopedInventoryDirectory({
     setMoreError(null);
     setBranch(null);
     setMerchants([]);
+    setActiveTab('stock');
     setError(
       'Inventory access is unavailable. Ask an owner to check your branch assignment or merchant link.',
     );
@@ -244,6 +247,7 @@ function ScopedInventoryDirectory({
               setMerchantId('');
               setStatus('');
               setStockStatus('');
+              setActiveTab('stock');
               setSuccess(null);
               setLoading(true);
               return true;
@@ -253,245 +257,296 @@ function ScopedInventoryDirectory({
         }
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      <OperationalPanel
-        variant="open"
-        className="inventory-stock-surface"
-        title="Inventory stock"
-        description={
-          loading
-            ? 'Loading inventory…'
-            : `${items.length} ${nextCursor ? 'displayed' : 'matching'} ${canWrite ? '' : 'own '}placements${nextCursor ? ' · more available' : ''}`
-        }
-        action={
-          canWrite ? (
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'accent' })}
-              disabled={loading || Boolean(error)}
-              onClick={() => {
-                setSuccess(null);
-                dirty.current = false;
-                setCreating(true);
-              }}
-            >
-              Add product placement
-            </button>
-          ) : undefined
-        }
-      >
-        <OperationalToolbar
-          variant="open"
-          className="inventory-stock-toolbar grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+      {canWrite ? (
+        <div
+          className="mb-4 flex flex-wrap items-center gap-1 border-b border-hairline"
+          role="tablist"
+          aria-label="Inventory views"
         >
-          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-            <label className="sr-only" htmlFor="inventory-search">
-              Search
-            </label>
-            <input
-              id="inventory-search"
-              type="search"
-              maxLength={254}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Product, SKU, or barcode"
-              className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-4 text-sm placeholder:text-muted"
-            />
-          </div>
-          <div className="min-w-0">
-            <label className="sr-only" htmlFor="inventory-stock-status">
-              Stock status
-            </label>
-            <SelectControl
-              id="inventory-stock-status"
-              aria-label="Stock status"
-              className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10.5rem]"
-              value={stockStatus}
-              onValueChange={(value) =>
-                setStockStatus(value as InventoryStockStatus | '')
-              }
-            >
-              <option value="">All stock statuses</option>
-              <option value="IN_STOCK">In stock</option>
-              <option value="LOW_STOCK">Low stock</option>
-              <option value="OUT_OF_STOCK">Out of stock</option>
-            </SelectControl>
-          </div>
-          <div className="min-w-0">
-            <label className="sr-only" htmlFor="inventory-merchant">
-              Merchant
-            </label>
-            <SelectControl
-              id="inventory-merchant"
-              aria-label="Merchant"
-              className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
-              value={merchantId}
-              onValueChange={setMerchantId}
-            >
-              <option value="">All merchants</option>
-              {merchants.map((merchant) => (
-                <option key={merchant.id} value={merchant.id}>
-                  {merchant.name}
-                </option>
-              ))}
-            </SelectControl>
-          </div>
-          <div className="min-w-0">
-            <label className="sr-only" htmlFor="inventory-status">
-              Product status
-            </label>
-            <SelectControl
-              id="inventory-status"
-              aria-label="Product status"
-              className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[9.5rem]"
-              value={status}
-              onValueChange={(value) => setStatus(value as ProductStatus | '')}
-            >
-              <option value="">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </SelectControl>
-          </div>
-        </OperationalToolbar>
-        {loading ? (
-          <ListSkeleton className="p-6" label="Loading inventory placements" />
-        ) : error ? (
-          <RequestError
-            className="p-6"
-            message={error}
-            onRetry={() => setRevision((value) => value + 1)}
-          />
-        ) : !items.length ? (
-          <div className="py-10 text-center sm:py-12">
-            <h3 className="font-semibold">
-              {search || merchantId || status || stockStatus
-                ? 'No placements match these filters'
-                : 'No product placements yet'}
-            </h3>
-            <p className="mt-2 text-sm text-muted">
-              {search || merchantId || status || stockStatus
-                ? 'Try another search or filter.'
-                : canWrite
-                  ? 'Place an active product here with a branch-specific price, then receive stock separately.'
-                  : 'Your merchant has no placements here. A branch assignment never grants access to another merchant’s stock. Ask an owner if access needs configuring.'}
-            </p>
-          </div>
-        ) : (
-          <ul aria-label="Branch inventory" className="m-0 list-none p-0">
-            <li
-              className={`data-column-header inventory-column-header hidden gap-x-6 gap-y-3 lg:grid ${inventoryGrid}`}
-            >
-              <span>Product</span>
-              <span>Price</span>
-              <span>Stock status</span>
-              <span>Quantity</span>
-              {canWrite ? <span>Actions</span> : null}
-            </li>
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 lg:items-center ${inventoryGrid}`}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'stock'}
+            aria-controls="inventory-stock-panel"
+            className={`min-h-11 border-b-2 px-3 text-sm font-semibold transition-colors ${
+              activeTab === 'stock'
+                ? 'border-ink text-ink'
+                : 'border-transparent text-muted hover:text-ink'
+            }`}
+            onClick={() => setActiveTab('stock')}
+          >
+            Inventory stock
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'integrity'}
+            aria-controls="inventory-integrity-panel"
+            className={`min-h-11 border-b-2 px-3 text-sm font-semibold transition-colors ${
+              activeTab === 'integrity'
+                ? 'border-ink text-ink'
+                : 'border-transparent text-muted hover:text-ink'
+            }`}
+            onClick={() => setActiveTab('integrity')}
+          >
+            Stock integrity
+          </button>
+        </div>
+      ) : null}
+      {activeTab === 'stock' ? (
+        <OperationalPanel
+          id="inventory-stock-panel"
+          variant="open"
+          className="inventory-stock-surface"
+          title="Inventory stock"
+          description={
+            loading
+              ? 'Loading inventory…'
+              : `${items.length} ${nextCursor ? 'displayed' : 'matching'} ${canWrite ? '' : 'own '}placements${nextCursor ? ' · more available' : ''}`
+          }
+          action={
+            canWrite ? (
+              <button
+                type="button"
+                className={buttonStyles({ variant: 'accent' })}
+                disabled={loading || Boolean(error)}
+                onClick={() => {
+                  setSuccess(null);
+                  dirty.current = false;
+                  setCreating(true);
+                }}
               >
-                <Link
-                  href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
-                  aria-label={`View ${item.product.name} inventory`}
-                  className="min-w-0 break-words text-ink no-underline hover:underline"
-                >
-                  <strong className="block text-sm font-semibold">
-                    {item.product.name}
-                  </strong>
-                  <span className="mt-1 block text-xs text-muted">
-                    {item.product.merchant.name} ·{' '}
-                    {item.product.status === 'ACTIVE' ? 'Active' : 'Inactive'} ·
-                    SKU {item.product.sku ?? 'not set'}
-                  </span>
-                </Link>
-                <span className="text-sm tabular-nums">
-                  PHP {item.sellingPrice}
-                </span>
-                <span className="text-sm">
-                  <InventoryStockStatusBadge
-                    status={item.stockStatus}
-                    minimal
-                  />
-                </span>
-                <span className="text-sm tabular-nums">
-                  <strong className="block font-semibold">
-                    {item.quantity.toLocaleString()} units
-                  </strong>
-                  <span className="mt-1 block text-xs text-muted">
-                    Threshold {item.lowStockThreshold.toLocaleString()}
-                  </span>
-                </span>
-                {canWrite ? (
-                  <div
-                    className="flex flex-wrap gap-x-3 gap-y-2 sm:justify-end"
-                    aria-label={`${item.product.name} stock actions`}
-                  >
-                    <button
-                      type="button"
-                      className={buttonStyles({
-                        variant: 'quiet',
-                        className: 'min-h-9 px-2 py-1 text-xs',
-                      })}
-                      disabled={pending}
-                      onClick={() => {
-                        dirty.current = false;
-                        setSuccess(null);
-                        setStockAction({ inventory: item, mode: 'receipt' });
-                      }}
-                    >
-                      Receive stock
-                    </button>
-                    <button
-                      type="button"
-                      className={buttonStyles({
-                        variant: 'quiet',
-                        className: 'min-h-9 px-2 py-1 text-xs',
-                      })}
-                      disabled={pending}
-                      onClick={() => {
-                        dirty.current = false;
-                        setSuccess(null);
-                        setStockAction({
-                          inventory: item,
-                          mode: 'adjustment',
-                        });
-                      }}
-                    >
-                      Correct stock
-                    </button>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-        {!loading && !error && nextCursor ? (
-          <div className="border-t border-hairline px-0 py-5">
-            {moreError ? (
-              <p role="alert" className="mb-3 text-sm text-danger">
-                {moreError}
+                Add product placement
+              </button>
+            ) : undefined
+          }
+        >
+          <OperationalToolbar
+            variant="open"
+            className="inventory-stock-toolbar grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+          >
+            <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+              <label className="sr-only" htmlFor="inventory-search">
+                Search
+              </label>
+              <div className="relative">
+                <Icon
+                  name="search"
+                  className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
+                />
+                <input
+                  id="inventory-search"
+                  type="search"
+                  maxLength={254}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Product, SKU, or barcode"
+                  className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted"
+                />
+              </div>
+            </div>
+            <div className="min-w-0">
+              <label className="sr-only" htmlFor="inventory-stock-status">
+                Stock status
+              </label>
+              <SelectControl
+                id="inventory-stock-status"
+                aria-label="Stock status"
+                className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10.5rem]"
+                value={stockStatus}
+                onValueChange={(value) =>
+                  setStockStatus(value as InventoryStockStatus | '')
+                }
+              >
+                <option value="">All stock statuses</option>
+                <option value="IN_STOCK">In stock</option>
+                <option value="LOW_STOCK">Low stock</option>
+                <option value="OUT_OF_STOCK">Out of stock</option>
+              </SelectControl>
+            </div>
+            <div className="min-w-0">
+              <label className="sr-only" htmlFor="inventory-merchant">
+                Merchant
+              </label>
+              <SelectControl
+                id="inventory-merchant"
+                aria-label="Merchant"
+                className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
+                value={merchantId}
+                onValueChange={setMerchantId}
+              >
+                <option value="">All merchants</option>
+                {merchants.map((merchant) => (
+                  <option key={merchant.id} value={merchant.id}>
+                    {merchant.name}
+                  </option>
+                ))}
+              </SelectControl>
+            </div>
+            <div className="min-w-0">
+              <label className="sr-only" htmlFor="inventory-status">
+                Product status
+              </label>
+              <SelectControl
+                id="inventory-status"
+                aria-label="Product status"
+                className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[9.5rem]"
+                value={status}
+                onValueChange={(value) =>
+                  setStatus(value as ProductStatus | '')
+                }
+              >
+                <option value="">All statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </SelectControl>
+            </div>
+          </OperationalToolbar>
+          {loading ? (
+            <ListSkeleton
+              className="p-6"
+              label="Loading inventory placements"
+            />
+          ) : error ? (
+            <RequestError
+              className="p-6"
+              message={error}
+              onRetry={() => setRevision((value) => value + 1)}
+            />
+          ) : !items.length ? (
+            <div className="py-10 text-center sm:py-12">
+              <h3 className="font-semibold">
+                {search || merchantId || status || stockStatus
+                  ? 'No placements match these filters'
+                  : 'No product placements yet'}
+              </h3>
+              <p className="mt-2 text-sm text-muted">
+                {search || merchantId || status || stockStatus
+                  ? 'Try another search or filter.'
+                  : canWrite
+                    ? 'Place an active product here with a branch-specific price, then receive stock separately.'
+                    : 'Your merchant has no placements here. A branch assignment never grants access to another merchant’s stock. Ask an owner if access needs configuring.'}
               </p>
-            ) : null}
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'secondary' })}
-              disabled={loadingMore}
-              aria-busy={loadingMore}
-              onClick={() => void loadMore()}
-            >
-              {loadingMore
-                ? 'Loading more…'
-                : moreError
-                  ? 'Retry loading more'
-                  : 'Load more placements'}
-            </button>
-          </div>
-        ) : null}
-      </OperationalPanel>
-      {canWrite && branch && !loading && !error ? (
+            </div>
+          ) : (
+            <ul aria-label="Branch inventory" className="m-0 list-none p-0">
+              <li
+                className={`data-column-header inventory-column-header hidden gap-x-6 gap-y-3 lg:grid ${inventoryGrid}`}
+              >
+                <span>Product</span>
+                <span>Price</span>
+                <span>Stock status</span>
+                <span>Quantity</span>
+                {canWrite ? <span>Actions</span> : null}
+              </li>
+              {items.map((item) => (
+                <li
+                  key={item.id}
+                  className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 lg:items-center ${inventoryGrid}`}
+                >
+                  <Link
+                    href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
+                    aria-label={`View ${item.product.name} inventory`}
+                    className="min-w-0 break-words text-ink no-underline hover:underline"
+                  >
+                    <strong className="block text-sm font-semibold">
+                      {item.product.name}
+                    </strong>
+                    <span className="mt-1 block text-xs text-muted">
+                      {item.product.merchant.name} ·{' '}
+                      {item.product.status === 'ACTIVE' ? 'Active' : 'Inactive'}{' '}
+                      · SKU {item.product.sku ?? 'not set'}
+                    </span>
+                  </Link>
+                  <span className="text-sm tabular-nums">
+                    PHP {item.sellingPrice}
+                  </span>
+                  <span className="text-sm">
+                    <InventoryStockStatusBadge
+                      status={item.stockStatus}
+                      minimal
+                    />
+                  </span>
+                  <span className="text-sm tabular-nums">
+                    <strong className="block font-semibold">
+                      {item.quantity.toLocaleString()} units
+                    </strong>
+                    <span className="mt-1 block text-xs text-muted">
+                      Threshold {item.lowStockThreshold.toLocaleString()}
+                    </span>
+                  </span>
+                  {canWrite ? (
+                    <div
+                      className="flex flex-wrap gap-x-3 gap-y-2 md:flex-nowrap md:whitespace-nowrap"
+                      aria-label={`${item.product.name} stock actions`}
+                    >
+                      <button
+                        type="button"
+                        className={buttonStyles({
+                          variant: 'quiet',
+                          className: 'min-h-9 px-2 py-1 text-xs',
+                        })}
+                        disabled={pending}
+                        onClick={() => {
+                          dirty.current = false;
+                          setSuccess(null);
+                          setStockAction({ inventory: item, mode: 'receipt' });
+                        }}
+                      >
+                        Stock in
+                      </button>
+                      <button
+                        type="button"
+                        className={buttonStyles({
+                          variant: 'quiet',
+                          className: 'min-h-9 px-2 py-1 text-xs',
+                        })}
+                        disabled={pending}
+                        onClick={() => {
+                          dirty.current = false;
+                          setSuccess(null);
+                          setStockAction({
+                            inventory: item,
+                            mode: 'adjustment',
+                          });
+                        }}
+                      >
+                        Adjust
+                      </button>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          {!loading && !error && nextCursor ? (
+            <div className="border-t border-hairline px-0 py-5">
+              {moreError ? (
+                <p role="alert" className="mb-3 text-sm text-danger">
+                  {moreError}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                className={buttonStyles({ variant: 'secondary' })}
+                disabled={loadingMore}
+                aria-busy={loadingMore}
+                onClick={() => void loadMore()}
+              >
+                {loadingMore
+                  ? 'Loading more…'
+                  : moreError
+                    ? 'Retry loading more'
+                    : 'Load more placements'}
+              </button>
+            </div>
+          ) : null}
+        </OperationalPanel>
+      ) : null}
+      {canWrite && activeTab === 'integrity' && branch && !loading && !error ? (
         <InventoryReconciliation
           key={`${organizationId}:${branchId}:${revision}`}
+          id="inventory-integrity-panel"
           organizationId={organizationId}
           branchId={branchId}
         />
@@ -551,7 +606,7 @@ function ScopedInventoryDirectory({
           }}
         >
           <FormDialog
-            title={`${stockAction.mode === 'receipt' ? 'Receive' : 'Correct'} ${stockAction.inventory.product.name} stock`}
+            title={`${stockAction.mode === 'receipt' ? 'Stock in' : 'Adjust'} ${stockAction.inventory.product.name} stock`}
             description={`${branch?.name ?? 'This branch'} currently shows ${stockAction.inventory.quantity.toLocaleString()} units. This action affects only this branch placement.`}
             pending={pending}
             onClose={() => {

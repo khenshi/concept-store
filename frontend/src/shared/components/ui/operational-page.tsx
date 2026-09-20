@@ -9,6 +9,7 @@ export function OperationalPage({ children }: { children: ReactNode }) {
 }
 
 export function OperationalPanel({
+  id,
   title,
   description,
   action,
@@ -16,6 +17,7 @@ export function OperationalPanel({
   className = '',
   variant = 'card',
 }: {
+  id?: string;
   title: string;
   description?: string;
   action?: ReactNode;
@@ -26,6 +28,7 @@ export function OperationalPanel({
   const open = variant === 'open';
   return (
     <section
+      id={id}
       className={`${open ? 'mt-10 bg-surface' : 'mt-6 rounded-panel border border-hairline bg-surface'} text-ink ${className}`}
     >
       <header

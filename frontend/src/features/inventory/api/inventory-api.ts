@@ -57,7 +57,7 @@ export async function listInventory(
   filters: InventoryFilters = {},
   cursor?: string,
 ) {
-  const query = new URLSearchParams({ limit: '50' });
+  const query = new URLSearchParams({ limit: '5' });
   for (const [key, value] of Object.entries(filters))
     if (value) query.set(key, value);
   if (cursor) query.set('cursor', cursor);

@@ -218,6 +218,9 @@ describe('InventoryDirectory workflows', () => {
       });
       render(<InventoryDirectory {...scope} />);
       fireEvent.click(
+        await screen.findByRole('tab', { name: 'Stock integrity' }),
+      );
+      fireEvent.click(
         await screen.findByRole('button', { name: 'Check stock integrity' }),
       );
       expect(
@@ -249,6 +252,9 @@ describe('InventoryDirectory workflows', () => {
       nextCursor: null,
     });
     const { rerender } = render(<InventoryDirectory {...scope} />);
+    fireEvent.click(
+      await screen.findByRole('tab', { name: 'Stock integrity' }),
+    );
     fireEvent.click(
       await screen.findByRole('button', { name: 'Check stock integrity' }),
     );
@@ -320,8 +326,8 @@ describe('InventoryDirectory workflows', () => {
     ).toHaveTextContent('Low stock');
   });
   it.each([
-    ['Receive stock', 'receipt'],
-    ['Correct stock', 'correction'],
+    ['Stock in', 'receipt'],
+    ['Adjust', 'correction'],
   ])(
     'opens the row-level %s modal and refreshes after success',
     async (label, action) => {
@@ -331,7 +337,7 @@ describe('InventoryDirectory workflows', () => {
       expect(
         screen.getByRole('dialog', {
           name: new RegExp(
-            `${label === 'Receive stock' ? 'Receive' : 'Correct'} ${inventory.product.name}`,
+            `${label === 'Stock in' ? 'Stock in' : 'Adjust'} ${inventory.product.name}`,
           ),
         }),
       ).toBeVisible();
@@ -348,7 +354,7 @@ describe('InventoryDirectory workflows', () => {
   it('prevents concurrent row actions while a quick stock write is pending', async () => {
     render(<InventoryDirectory {...scope} />);
     await screen.findByText('PHP 850.00');
-    fireEvent.click(screen.getByRole('button', { name: 'Receive stock' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stock in' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start test write' }));
     expect(screen.getByRole('dialog')).toBeVisible();
     expect(
@@ -358,7 +364,7 @@ describe('InventoryDirectory workflows', () => {
   it('clears inventory and quick controls when a row action loses access', async () => {
     render(<InventoryDirectory {...scope} />);
     await screen.findByText('PHP 850.00');
-    fireEvent.click(screen.getByRole('button', { name: 'Correct stock' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Adjust' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lose test access' }));
     expect(screen.queryByText('PHP 850.00')).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -379,10 +385,10 @@ describe('InventoryDirectory workflows', () => {
       screen.queryByRole('button', { name: 'Add product placement' }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Receive stock' }),
+      screen.queryByRole('button', { name: 'Stock in' }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Correct stock' }),
+      screen.queryByRole('button', { name: 'Adjust' }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/matching own placements/)).toBeInTheDocument();
     expect(
