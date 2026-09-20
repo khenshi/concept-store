@@ -34,7 +34,7 @@ describe('InventoryPlacementForm', () => {
         screen.getByRole('combobox', { name: 'Product' }),
       ).not.toBeDisabled(),
     );
-    fireEvent.focus(screen.getByRole('combobox', { name: 'Product' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Product' }));
     fireEvent.click(
       screen.getByRole('option', { name: `${product.name} · ${product.sku}` }),
     );
@@ -102,9 +102,22 @@ describe('InventoryPlacementForm', () => {
       />,
     );
     await select();
+    await waitFor(() =>
+      expect(listEligibleProducts).toHaveBeenLastCalledWith(
+        request,
+        { organizationId: scope.organizationId, branchId: scope.branchId },
+        `${product.name} · ${product.sku}`,
+      ),
+    );
+    const callsBeforeSearch = vi.mocked(listEligibleProducts).mock.calls.length;
+    fireEvent.click(screen.getByRole('combobox', { name: 'Product' }));
     fireEvent.change(screen.getByRole('combobox', { name: 'Product' }), {
       target: { value: '001Ab' },
     });
+    expect(
+      screen.getByRole('option', { name: `${product.name} · ${product.sku}` }),
+    ).toBeInTheDocument();
+    expect(listEligibleProducts).toHaveBeenCalledTimes(callsBeforeSearch);
     await waitFor(() =>
       expect(listEligibleProducts).toHaveBeenLastCalledWith(
         request,
@@ -142,7 +155,7 @@ describe('InventoryPlacementForm', () => {
     );
     const picker = await screen.findByRole('combobox', { name: 'Product' });
     await waitFor(() => expect(picker).toBeEnabled());
-    fireEvent.focus(picker);
+    fireEvent.click(picker);
     fireEvent.click(screen.getByRole('button', { name: 'Load more products' }));
     expect(listEligibleProducts).toHaveBeenLastCalledWith(
       request,
@@ -177,7 +190,7 @@ describe('InventoryPlacementForm', () => {
     );
     const picker = await screen.findByRole('combobox', { name: 'Product' });
     await waitFor(() => expect(picker).toBeEnabled());
-    fireEvent.focus(picker);
+    fireEvent.click(picker);
     fireEvent.click(screen.getByRole('button', { name: 'Load more products' }));
     const option = await screen.findByRole('option', {
       name: `${second.name} · ${second.sku}`,
@@ -206,7 +219,7 @@ describe('InventoryPlacementForm', () => {
     );
     const picker = await screen.findByRole('combobox', { name: 'Product' });
     await waitFor(() => expect(picker).toBeEnabled());
-    fireEvent.focus(picker);
+    fireEvent.click(picker);
     fireEvent.click(screen.getByRole('button', { name: 'Load more products' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'More available products could not be loaded',
@@ -232,8 +245,12 @@ describe('InventoryPlacementForm', () => {
     );
     const picker = await screen.findByRole('combobox', { name: 'Product' });
     await waitFor(() => expect(picker).toBeEnabled());
-    expect(screen.queryByText('Choose a product')).not.toBeInTheDocument();
-    fireEvent.focus(picker);
+    expect(picker).toHaveValue('');
+    expect(picker).toHaveAttribute(
+      'placeholder',
+      'Search by name, SKU, or barcode',
+    );
+    fireEvent.click(picker);
     fireEvent.keyDown(picker, { key: 'Enter' });
     expect(picker).toHaveValue(`${product.name} · ${product.sku}`);
     expect(screen.getByText(/Selected:/)).toHaveTextContent(product.name);

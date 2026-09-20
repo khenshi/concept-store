@@ -67,7 +67,7 @@ describe('Branch inventory API contracts', () => {
       nextCursor: null,
     });
     expect(request).toHaveBeenLastCalledWith(
-      `${base}/eligible-products?limit=50&q=cup`,
+      `${base}/eligible-products?limit=5&q=cup`,
     );
     request.mockResolvedValueOnce({ items: [], nextCursor: 'bad' });
     await expect(listInventory(request, scope)).rejects.toThrow();

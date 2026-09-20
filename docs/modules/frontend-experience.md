@@ -10,7 +10,7 @@ unchanged; the fallback stack remains available when the web font cannot load.
 This is a presentation-only change. No API, database, authorization, tenant,
 branch or business behavior changed.
 
-## Inventory workflow refinement (Part 1, uncommitted)
+## Inventory workflow refinement (Part 1, committed `3e34a8f`)
 
 The branch Inventory page keeps its existing operational shell while exposing
 Inventory stock and Stock integrity as staff-only tabs. Stock integrity is now
@@ -22,8 +22,19 @@ The inventory search field has a leading search icon, and directory requests use
 five-item cursor pages with the existing Load more behavior. Merchant read-only
 visibility and all branch, role, tenant and stock safeguards are unchanged.
 
-The add-placement modal changes are intentionally deferred to Part 2. Rendered
-browser QA remains unavailable for this focused refinement.
+## Inventory placement modal refinement (Part 2, uncommitted)
+
+The add-placement modal now uses a product search bar as its picker. Focusing or
+clicking the field opens the first five eligible products; typing reloads the
+server-filtered results only after the existing debounce interval. Server pages
+remain bounded to five products and retain cursor-based loading for additional
+results. The picker keeps keyboard selection, focus return, loading, empty and
+retry feedback, while the backend remains authoritative for branch eligibility.
+Selling price and low-stock threshold fields share one row from small tablet
+widths upward and continue to use the existing live validation.
+Placement creation, tenant and branch checks, and zero-opening-stock behavior
+are unchanged. Rendered browser QA remains unavailable for this focused
+refinement.
 
 ## Inventory stock list refinement (Part 1)
 

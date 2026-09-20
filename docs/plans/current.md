@@ -15,16 +15,16 @@ changing inventory APIs, authorization, tenant isolation, or stock business rule
 - Request inventory pages with a five-item page size; retain cursor-based load
   more behavior.
 
-This part is being implemented now and remains uncommitted for review.
+This part was reviewed and committed as `3e34a8f`.
 
 ### Part 2 — Add placement modal
 
 - Debounce eligible-product search requests.
-- Replace the separate product search/selection controls with a searchable
-  dropdown-style product picker showing at most five products per page.
+- Use the product search bar as the picker: focus/click opens the first five
+  eligible products, while typing debounces server-filtered results.
 - Keep selling price and low-stock threshold on one row at suitable widths.
 
-Part 2 is explicitly excluded until Part 1 is reviewed and approved.
+Part 2 is being implemented now and remains uncommitted for review.
 
 The completed table redesign parts remain archived in
 [`inventory-stock-table-refinement-2026-09-19.md`](archive/inventory-stock-table-refinement-2026-09-19.md)

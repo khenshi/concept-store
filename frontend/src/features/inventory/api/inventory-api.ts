@@ -71,7 +71,7 @@ export async function listEligibleProducts(
   q?: string,
   cursor?: string,
 ) {
-  const query = new URLSearchParams({ limit: '50' });
+  const query = new URLSearchParams({ limit: '5' });
   if (q) query.set('q', q);
   if (cursor) query.set('cursor', cursor);
   return eligibleProductsPageSchema.parse(

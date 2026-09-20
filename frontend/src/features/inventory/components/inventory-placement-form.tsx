@@ -205,19 +205,15 @@ export function InventoryPlacementForm({
         products={products}
         selectedProduct={selectedProduct}
         search={search}
+        query={q}
         loading={loading}
         nextCursor={nextCursor}
         loadingMore={loadingMore}
         moreError={moreError}
-        disabled={pending || loading || Boolean(loadError)}
+        disabled={pending || Boolean(loadError)}
         error={errors.productId}
         onSearchChange={(value) => {
           readGeneration.current++;
-          setProducts([]);
-          setNextCursor(null);
-          setMoreError(null);
-          setLoadingMore(false);
-          setLoading(true);
           setSearch(value);
           setProductId('');
           setSelectedProduct(null);
@@ -232,40 +228,42 @@ export function InventoryPlacementForm({
         onBlur={() => validate('productId', productId, price, threshold, true)}
         onLoadMore={() => void loadMore()}
       />
-      <TextField
-        label="Selling price (PHP)"
-        name="sellingPrice"
-        inputMode="decimal"
-        value={price}
-        error={errors.sellingPrice}
-        disabled={pending}
-        onChange={(event) => {
-          setPrice(event.target.value);
-          validate('sellingPrice', productId, event.target.value, threshold);
-        }}
-        onBlur={() =>
-          validate('sellingPrice', productId, price, threshold, true)
-        }
-        required
-        hint="Positive price with up to two decimal places. This branch may charge a different price."
-      />
-      <TextField
-        label="Low-stock threshold"
-        name="lowStockThreshold"
-        inputMode="numeric"
-        value={threshold}
-        error={errors.lowStockThreshold}
-        disabled={pending}
-        onChange={(event) => {
-          setThreshold(event.target.value);
-          validate('lowStockThreshold', productId, price, event.target.value);
-        }}
-        onBlur={() =>
-          validate('lowStockThreshold', productId, price, threshold, true)
-        }
-        required
-        hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
-      />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <TextField
+          label="Selling price (PHP)"
+          name="sellingPrice"
+          inputMode="decimal"
+          value={price}
+          error={errors.sellingPrice}
+          disabled={pending}
+          onChange={(event) => {
+            setPrice(event.target.value);
+            validate('sellingPrice', productId, event.target.value, threshold);
+          }}
+          onBlur={() =>
+            validate('sellingPrice', productId, price, threshold, true)
+          }
+          required
+          hint="Positive price with up to two decimal places. This branch may charge a different price."
+        />
+        <TextField
+          label="Low-stock threshold"
+          name="lowStockThreshold"
+          inputMode="numeric"
+          value={threshold}
+          error={errors.lowStockThreshold}
+          disabled={pending}
+          onChange={(event) => {
+            setThreshold(event.target.value);
+            validate('lowStockThreshold', productId, price, event.target.value);
+          }}
+          onBlur={() =>
+            validate('lowStockThreshold', productId, price, threshold, true)
+          }
+          required
+          hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
+        />
+      </div>
       <p className="text-sm text-muted">
         Placement starts with zero stock. Receive opening stock separately. No
         stock is transferred or deducted from another branch.
@@ -300,6 +298,7 @@ function ProductPicker({
   products,
   selectedProduct,
   search,
+  query,
   loading,
   nextCursor,
   loadingMore,
@@ -314,6 +313,7 @@ function ProductPicker({
   products: Product[];
   selectedProduct: Product | null;
   search: string;
+  query: string;
   loading: boolean;
   nextCursor: string | null;
   loadingMore: boolean;
@@ -328,7 +328,15 @@ function ProductPicker({
   const id = useId();
   const listboxId = `${id}-results`;
   const container = useRef<HTMLDivElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
+  const openPicker = () => {
+    if (!disabled) setOpen(true);
+  };
+  const closePicker = () => {
+    setOpen(false);
+    window.requestAnimationFrame(() => searchInput.current?.focus());
+  };
   const focusResult = (index: number) => {
     container.current
       ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
@@ -366,102 +374,123 @@ function ProductPicker({
       <label className="text-label font-semibold text-ink" htmlFor={id}>
         Product
       </label>
-      <input
-        id={id}
-        type="search"
-        role="combobox"
-        aria-autocomplete="list"
-        aria-controls={listboxId}
-        aria-expanded={open}
-        aria-invalid={Boolean(error)}
-        aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`}
-        autoComplete="off"
-        maxLength={254}
-        value={search}
-        disabled={disabled}
-        placeholder={
-          loading
-            ? 'Loading available products…'
-            : 'Search by name, SKU, or barcode'
-        }
-        className="min-h-11 w-full min-w-0 rounded-control border border-control-border bg-surface px-3 py-2.5 text-body text-ink placeholder:text-faint focus-visible:border-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger"
-        onFocus={() => setOpen(true)}
-        onChange={(event) => {
-          onSearchChange(event.target.value);
-          setOpen(true);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'ArrowDown' && products.length) {
-            event.preventDefault();
-            setOpen(true);
-            window.requestAnimationFrame(() => focusResult(0));
-          } else if (event.key === 'Enter' && open && products.length) {
-            event.preventDefault();
-            onSelect(products[0]);
-            setOpen(false);
-          } else if (event.key === 'Escape') {
-            setOpen(false);
+      <div className="relative">
+        <input
+          ref={searchInput}
+          id={id}
+          type="search"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls={listboxId}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-invalid={Boolean(error)}
+          aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`}
+          autoComplete="off"
+          maxLength={254}
+          value={search}
+          placeholder={
+            loading
+              ? 'Loading available products…'
+              : 'Search by name, SKU, or barcode'
           }
-        }}
-      />
+          disabled={disabled}
+          className="min-h-11 w-full min-w-0 rounded-control border border-control-border bg-surface px-3 py-2.5 text-body text-ink placeholder:text-faint focus-visible:border-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger"
+          onFocus={openPicker}
+          onClick={openPicker}
+          onChange={(event) => {
+            onSearchChange(event.target.value);
+            openPicker();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown' && products.length) {
+              event.preventDefault();
+              openPicker();
+              window.requestAnimationFrame(() => focusResult(0));
+            } else if (event.key === 'Enter' && open && products.length) {
+              event.preventDefault();
+              onSelect(products[0]);
+              closePicker();
+            } else if (event.key === 'Escape') {
+              event.preventDefault();
+              setOpen(false);
+            }
+          }}
+        />
+        {open && !disabled ? (
+          <div className="absolute top-full right-0 left-0 z-50 max-h-80 overflow-y-auto rounded-b-control border border-t-0 border-hairline bg-surface p-1.5 shadow-floating">
+            <div id={listboxId} role="listbox" aria-label="Available products">
+              {loading ? (
+                <p className="px-3 py-4 text-sm text-muted" role="status">
+                  Loading available products…
+                </p>
+              ) : products.length ? (
+                products.map((product, index) => (
+                  <button
+                    key={product.id}
+                    type="button"
+                    role="option"
+                    aria-selected={product.id === selectedProduct?.id}
+                    tabIndex={-1}
+                    className={`flex min-h-11 w-full items-center rounded-compact border-0 px-3 py-2.5 text-left text-sm text-ink hover:bg-subtle ${product.id === selectedProduct?.id ? 'bg-selected font-semibold' : 'bg-surface'}`}
+                    onKeyDown={(event) => {
+                      moveResultFocus(event, index);
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onSelect(product);
+                        closePicker();
+                      }
+                    }}
+                    onClick={() => {
+                      onSelect(product);
+                      closePicker();
+                    }}
+                  >
+                    {productLabel(product)}
+                  </button>
+                ))
+              ) : (
+                <p className="px-3 py-4 text-sm text-muted">
+                  No eligible products found.
+                </p>
+              )}
+            </div>
+            {nextCursor && search === query ? (
+              <div className="border-t border-hairline p-2">
+                {moreError ? (
+                  <p role="alert" className="mb-2 text-xs text-danger">
+                    {moreError}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  className={buttonStyles({ variant: 'quiet' })}
+                  disabled={loadingMore}
+                  aria-busy={loadingMore}
+                  onClick={onLoadMore}
+                >
+                  {loadingMore
+                    ? 'Loading more…'
+                    : moreError
+                      ? 'Retry loading more'
+                      : 'Load more products'}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       <p id={`${id}-hint`} className="text-xs leading-5 text-muted">
-        {loading
-          ? 'Loading…'
-          : selectedProduct
-            ? `Selected: ${productLabel(selectedProduct)}`
-            : !products.length
-              ? 'No available products match. Already placed or inactive products are excluded.'
-              : 'Type to filter eligible products, then choose one result.'}
+        {selectedProduct
+          ? `Selected: ${productLabel(selectedProduct)}`
+          : !products.length && !loading
+            ? 'No available products match. Already placed or inactive products are excluded.'
+            : 'Focus or click to browse eligible products; search is debounced while you type.'}
       </p>
       {error ? (
         <p id={`${id}-error`} className="text-sm text-danger">
           {error}
         </p>
-      ) : null}
-      {open && !disabled && (products.length || nextCursor) ? (
-        <div className="absolute top-full right-0 left-0 z-50 mt-2 max-h-64 overflow-y-auto rounded-control border border-hairline bg-surface p-1.5 shadow-floating">
-          <div id={listboxId} role="listbox" aria-label="Available products">
-            {products.map((product, index) => (
-              <button
-                key={product.id}
-                type="button"
-                role="option"
-                aria-selected={product.id === selectedProduct?.id}
-                tabIndex={-1}
-                className={`flex min-h-11 w-full items-center rounded-compact border-0 px-3 py-2.5 text-left text-sm text-ink hover:bg-subtle ${product.id === selectedProduct?.id ? 'bg-selected font-semibold' : 'bg-surface'}`}
-                onKeyDown={(event) => moveResultFocus(event, index)}
-                onClick={() => {
-                  onSelect(product);
-                  setOpen(false);
-                }}
-              >
-                {productLabel(product)}
-              </button>
-            ))}
-          </div>
-          {nextCursor ? (
-            <div className="border-t border-hairline p-2">
-              {moreError ? (
-                <p role="alert" className="mb-2 text-xs text-danger">
-                  {moreError}
-                </p>
-              ) : null}
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'quiet' })}
-                disabled={loadingMore}
-                aria-busy={loadingMore}
-                onClick={onLoadMore}
-              >
-                {loadingMore
-                  ? 'Loading more…'
-                  : moreError
-                    ? 'Retry loading more'
-                    : 'Load more products'}
-              </button>
-            </div>
-          ) : null}
-        </div>
       ) : null}
     </div>
   );
