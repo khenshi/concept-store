@@ -22,7 +22,7 @@ The inventory search field has a leading search icon, and directory requests use
 five-item cursor pages with the existing Load more behavior. Merchant read-only
 visibility and all branch, role, tenant and stock safeguards are unchanged.
 
-## Inventory placement modal refinement (Part 2, uncommitted)
+## Inventory placement modal refinement (Part 2, committed `ac3e67a`)
 
 The add-placement modal now uses a product search bar as its picker. Focusing or
 clicking the field opens the first five eligible products; typing reloads the
@@ -35,6 +35,16 @@ widths upward and continue to use the existing live validation.
 Placement creation, tenant and branch checks, and zero-opening-stock behavior
 are unchanged. Rendered browser QA remains unavailable for this focused
 refinement.
+
+## Compact field validation feedback (Part 3, uncommitted)
+
+Shared text-field and product-picker validation errors now sit beside their
+field labels as compact red feedback rather than adding another block below the
+input. Common long messages use short actionable copy while the original error
+text remains available through the field's accessible description and hover
+title. Existing debounced, blur and submit validation behavior is unchanged.
+This is a presentation refinement only; no validation rules or API behavior
+changed.
 
 ## Inventory stock list refinement (Part 1)
 

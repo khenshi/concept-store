@@ -371,9 +371,20 @@ function ProductPicker({
         onBlur();
       }}
     >
-      <label className="text-label font-semibold text-ink" htmlFor={id}>
-        Product
-      </label>
+      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <label className="text-label font-semibold text-ink" htmlFor={id}>
+          Product
+        </label>
+        {error ? (
+          <span
+            id={`${id}-error`}
+            className="max-w-full text-right text-xs leading-4 font-medium text-danger sm:max-w-[65%]"
+            title={error}
+          >
+            {error}
+          </span>
+        ) : null}
+      </div>
       <div className="relative">
         <input
           ref={searchInput}
@@ -487,11 +498,6 @@ function ProductPicker({
             ? 'No available products match. Already placed or inactive products are excluded.'
             : 'Focus or click to browse eligible products; search is debounced while you type.'}
       </p>
-      {error ? (
-        <p id={`${id}-error`} className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
     </div>
   );
 }

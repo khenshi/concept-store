@@ -38,6 +38,23 @@ describe('shared field and page primitives', () => {
     expect(email).not.toBeDisabled();
   });
 
+  it('keeps visible validation feedback compact while retaining the full message', () => {
+    render(
+      <TextField
+        label="Selling price"
+        error="Enter a positive PHP price with up to two decimal places (maximum 9999999999.99)."
+      />,
+    );
+    expect(
+      screen.getByText('Enter a valid PHP price (up to 2 decimals).'),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        'Enter a positive PHP price with up to two decimal places (maximum 9999999999.99).',
+      ),
+    ).toHaveClass('sr-only');
+  });
+
   it('uses a single page heading and announces feedback semantically', () => {
     render(
       <>

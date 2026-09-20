@@ -24,7 +24,16 @@ This part was reviewed and committed as `3e34a8f`.
   eligible products, while typing debounces server-filtered results.
 - Keep selling price and low-stock threshold on one row at suitable widths.
 
-Part 2 is being implemented now and remains uncommitted for review.
+Part 2 was reviewed and committed as `ac3e67a`.
+
+### Part 3 — Compact validation feedback
+
+- Place shared-field and product-picker validation errors beside their labels as
+  compact red feedback.
+- Preserve the full accessible error description and existing live, blur and
+  submit validation behavior.
+
+Part 3 is being implemented now and remains uncommitted for review.
 
 The completed table redesign parts remain archived in
 [`inventory-stock-table-refinement-2026-09-19.md`](archive/inventory-stock-table-refinement-2026-09-19.md)
