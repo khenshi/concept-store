@@ -10,6 +10,7 @@ describe('FormDialog', () => {
       <FormDialog
         title="Add product"
         description="Record identity"
+        headerAside={<span>Branch: Makati</span>}
         onClose={vi.fn()}
       >
         <button>Cancel</button>
@@ -17,6 +18,7 @@ describe('FormDialog', () => {
     );
     const dialog = screen.getByRole('dialog', { name: 'Add product' });
     expect(dialog).toHaveAccessibleDescription('Record identity');
+    expect(screen.getByText('Branch: Makati')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Add product' })).toHaveFocus();
     expect(document.body.style.overflow).toBe('hidden');
     unmount();

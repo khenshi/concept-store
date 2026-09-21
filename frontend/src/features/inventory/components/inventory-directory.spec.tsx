@@ -341,6 +341,10 @@ describe('InventoryDirectory workflows', () => {
           ),
         }),
       ).toBeVisible();
+      expect(screen.getByText(`Branch: ${branch.name}`)).toBeInTheDocument();
+      expect(
+        screen.getByText(`Current units: ${inventory.quantity}`),
+      ).toBeInTheDocument();
       fireEvent.click(
         screen.getByRole('button', { name: `Complete test ${action}` }),
       );

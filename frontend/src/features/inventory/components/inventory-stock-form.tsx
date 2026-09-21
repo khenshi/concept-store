@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { buttonStyles } from '@/shared/components/ui/button';
@@ -9,6 +9,7 @@ import {
   focusFirstInvalidField,
 } from '@/shared/components/ui/text-field';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
+import { SelectControl } from '@/shared/components/ui/select-control';
 import {
   adjustmentInputSchema,
   receiptInputSchema,
@@ -38,12 +39,16 @@ export function InventoryStockForm({
   const { confirm, confirmationDialog } = useConfirmationDialog();
   const [quantity, setQuantity] = useState('');
   const [newQuantity, setNewQuantity] = useState('');
+  const [adjustmentInputMode, setAdjustmentInputMode] = useState<
+    'delta' | 'target'
+  >('target');
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState<
     Partial<Record<'quantity' | 'newQuantity' | 'reason', string>>
   >({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const adjustmentMethodId = useId();
   const lock = useRef(false);
   const command = useRef<{ fingerprint: string; requestId: string } | null>(
     null,
@@ -61,8 +66,10 @@ export function InventoryStockForm({
     mode === 'receipt'
       ? receiptInputSchema.safeParse({ quantity: amount })
       : adjustmentInputSchema.safeParse({
-          quantityChange: amount || undefined,
-          newQuantity: target || undefined,
+          quantityChange:
+            adjustmentInputMode === 'delta' ? amount || undefined : undefined,
+          newQuantity:
+            adjustmentInputMode === 'target' ? target || undefined : undefined,
           reason: why,
         });
   function validate(
@@ -101,8 +108,10 @@ export function InventoryStockForm({
     Object.values(timers.current).forEach(window.clearTimeout);
     const receipt = receiptInputSchema.safeParse({ quantity });
     const adjustment = adjustmentInputSchema.safeParse({
-      quantityChange: quantity || undefined,
-      newQuantity: newQuantity || undefined,
+      quantityChange:
+        adjustmentInputMode === 'delta' ? quantity || undefined : undefined,
+      newQuantity:
+        adjustmentInputMode === 'target' ? newQuantity || undefined : undefined,
       reason,
     });
     const parsed = mode === 'receipt' ? receipt : adjustment;
@@ -110,7 +119,11 @@ export function InventoryStockForm({
       setErrors(
         Object.fromEntries(
           parsed.error.issues.map((issue) => [
-            issue.path[0] === 'quantityChange' ? 'quantity' : issue.path[0],
+            issue.path[0] === 'quantityChange'
+              ? mode === 'adjustment' && adjustmentInputMode === 'target'
+                ? 'newQuantity'
+                : 'quantity'
+              : issue.path[0],
             issue.message,
           ]),
         ),
@@ -221,6 +234,19 @@ export function InventoryStockForm({
     setReason(value);
     validate('reason', quantity, newQuantity, value);
   };
+  const selectAdjustmentInputMode = (nextMode: 'delta' | 'target') => {
+    if (nextMode === adjustmentInputMode) return;
+    command.current = null;
+    setAdjustmentInputMode(nextMode);
+    setQuantity('');
+    setNewQuantity('');
+    setErrors((current) => ({
+      ...current,
+      quantity: undefined,
+      newQuantity: undefined,
+    }));
+    setError(null);
+  };
   return (
     <>
       <form className="grid gap-4 p-6" noValidate onSubmit={submit}>
@@ -236,73 +262,98 @@ export function InventoryStockForm({
             starts a new command.
           </p>
         ) : null}
-        <div
-          className={
-            mode === 'adjustment'
-              ? 'grid min-w-0 gap-4 sm:grid-cols-2'
-              : undefined
-          }
-        >
+        {mode === 'receipt' ? (
           <TextField
-            label={mode === 'receipt' ? 'Units to receive' : 'Quantity change'}
+            label="Units to receive"
             name="quantity"
-            required={mode === 'receipt'}
-            inputMode={mode === 'receipt' ? 'numeric' : 'text'}
+            required
+            inputMode="numeric"
             value={quantity}
             error={errors.quantity}
             disabled={pending || unavailable}
             onChange={(event) => {
-              const value =
-                mode === 'receipt'
-                  ? sanitizeWholeNumber(event.target.value)
-                  : sanitizeSignedWholeNumber(event.target.value);
+              const value = sanitizeWholeNumber(event.target.value);
               command.current = null;
               setQuantity(value);
-              if (mode === 'adjustment') {
-                setNewQuantity('');
-                setErrors((current) => ({
-                  ...current,
-                  newQuantity: undefined,
-                }));
-              }
               validate('quantity', value, '', reason);
             }}
             onBlur={() =>
               validate('quantity', quantity, newQuantity, reason, true)
             }
-            hint={
-              mode === 'receipt'
-                ? 'Positive whole units. This does not deduct stock from another branch.'
-                : 'Enter a signed whole-unit delta, or use the absolute new stock value beside it.'
-            }
+            hint="Positive whole units. This does not deduct stock from another branch."
           />
-          {mode === 'adjustment' ? (
-            <TextField
-              label="New stock value"
-              name="newQuantity"
-              inputMode="numeric"
-              value={newQuantity}
-              error={errors.newQuantity}
-              disabled={pending || unavailable}
-              onChange={(event) => {
-                const value = sanitizeWholeNumber(event.target.value);
-                command.current = null;
-                setNewQuantity(value);
-                setQuantity('');
-                setErrors((current) => ({ ...current, quantity: undefined }));
-                validate('newQuantity', '', value, reason);
-              }}
-              onBlur={() =>
-                validate('newQuantity', quantity, newQuantity, reason, true)
-              }
-              hint="A nonnegative whole-unit stock total."
-            />
-          ) : null}
-        </div>
+        ) : (
+          <div className="grid min-w-0 items-start gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]">
+            {adjustmentInputMode === 'delta' ? (
+              <TextField
+                label="Quantity change"
+                name="quantity"
+                required
+                inputMode="text"
+                value={quantity}
+                error={errors.quantity}
+                disabled={pending || unavailable}
+                onChange={(event) => {
+                  const value = sanitizeSignedWholeNumber(event.target.value);
+                  command.current = null;
+                  setQuantity(value);
+                  validate('quantity', value, '', reason);
+                }}
+                onBlur={() =>
+                  validate('quantity', quantity, newQuantity, reason, true)
+                }
+                hint="Use  + to add stock and − to remove stock"
+                placeholder="e.g. +100 or −50"
+              />
+            ) : (
+              <TextField
+                label="New stock value"
+                name="newQuantity"
+                required
+                inputMode="numeric"
+                value={newQuantity}
+                error={errors.newQuantity}
+                disabled={pending || unavailable}
+                onChange={(event) => {
+                  const value = sanitizeWholeNumber(event.target.value);
+                  command.current = null;
+                  setNewQuantity(value);
+                  validate('newQuantity', '', value, reason);
+                }}
+                onBlur={() =>
+                  validate('newQuantity', quantity, newQuantity, reason, true)
+                }
+                hint="Current stock quantity"
+                placeholder="e.g. 100"
+              />
+            )}
+            <div className="grid min-w-0 gap-2">
+              <label
+                className="text-label font-semibold text-ink"
+                htmlFor={adjustmentMethodId}
+              >
+                Adjustment method
+              </label>
+              <SelectControl
+                id={adjustmentMethodId}
+                value={adjustmentInputMode}
+                aria-label="Adjustment method"
+                disabled={pending || unavailable}
+                onValueChange={(value) => {
+                  if (value === 'delta' || value === 'target')
+                    selectAdjustmentInputMode(value);
+                }}
+              >
+                <option value="target">New stock value</option>
+                <option value="delta">Quantity change</option>
+              </SelectControl>
+            </div>
+          </div>
+        )}
         {mode === 'adjustment' ? (
           <>
             <fieldset className="grid min-w-0 gap-2 border-0 p-0">
-              <legend className="text-label font-semibold text-ink">
+              <legend className="text-label font-semibold text-ink mb-2">
                 Common reasons
               </legend>
               <div className="flex flex-wrap gap-2">
@@ -323,8 +374,7 @@ export function InventoryStockForm({
                 ))}
               </div>
               <p className="text-xs leading-5 text-muted">
-                Choose a common reason or enter a specific reason below. It is
-                kept in the immutable stock history.
+                Choose a common reason or enter a specific reason below.
               </p>
             </fieldset>
             <TextField

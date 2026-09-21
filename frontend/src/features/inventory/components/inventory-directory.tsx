@@ -605,7 +605,18 @@ function ScopedInventoryDirectory({
         >
           <FormDialog
             title={`${stockAction.mode === 'receipt' ? 'Stock in' : 'Adjust'} ${stockAction.inventory.product.name} stock`}
-            description={`${branch?.name ?? 'This branch'} currently shows ${stockAction.inventory.quantity.toLocaleString()} units. This action affects only this branch placement.`}
+            description="This action affects only this branch placement."
+            headerAside={
+              <>
+                <span className="inline-flex max-w-full items-center rounded-full border border-control-border bg-subtle px-3 py-1.5 text-xs font-medium text-muted">
+                  Branch: {branch?.name ?? 'This branch'}
+                </span>
+                <span className="inline-flex max-w-full items-center rounded-full border border-control-border bg-subtle px-3 py-1.5 text-xs font-medium text-muted">
+                  Current units:{' '}
+                  {stockAction.inventory.quantity.toLocaleString()}
+                </span>
+              </>
+            }
             pending={pending}
             onClose={() => {
               dirty.current = false;

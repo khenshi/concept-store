@@ -5,12 +5,14 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 export function FormDialog({
   title,
   description,
+  headerAside,
   pending = false,
   onClose,
   children,
 }: {
   title: string;
   description: string;
+  headerAside?: ReactNode;
   pending?: boolean;
   onClose(): void;
   children: ReactNode;
@@ -55,14 +57,21 @@ export function FormDialog({
           onClose();
       }}
     >
-      <h2
-        id={`${id}-title`}
-        ref={headingRef}
-        tabIndex={-1}
-        className="text-2xl font-semibold tracking-tight outline-none"
-      >
-        {title}
-      </h2>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <h2
+          id={`${id}-title`}
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-2xl font-semibold tracking-tight outline-none"
+        >
+          {title}
+        </h2>
+        {headerAside ? (
+          <div className="ml-auto flex max-w-full flex-wrap justify-end gap-2">
+            {headerAside}
+          </div>
+        ) : null}
+      </div>
       <p id={`${id}-description`} className="mt-2 text-sm leading-6 text-muted">
         {description}
       </p>

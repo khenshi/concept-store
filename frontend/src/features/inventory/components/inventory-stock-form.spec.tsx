@@ -49,6 +49,12 @@ describe('InventoryStockForm', () => {
   });
   afterEach(() => vi.useRealTimers());
   const fill = (quantity: string, mode = 'receipt') => {
+    if (mode === 'adjustment') {
+      fireEvent.click(
+        screen.getByRole('combobox', { name: 'Adjustment method' }),
+      );
+      fireEvent.click(screen.getByRole('option', { name: 'Quantity change' }));
+    }
     fireEvent.change(
       screen.getByRole('textbox', {
         name: mode === 'receipt' ? 'Units to receive' : 'Quantity change',
@@ -151,13 +157,25 @@ describe('InventoryStockForm', () => {
         onPendingChange={vi.fn()}
       />,
     );
-    const change = screen.getByRole('textbox', { name: 'Quantity change' });
+    const method = screen.getByRole('combobox', {
+      name: 'Adjustment method',
+    });
+    expect(method).toHaveTextContent('New stock value');
     const target = screen.getByRole('textbox', { name: 'New stock value' });
-    fireEvent.change(change, { target: { value: '+2a' } });
-    expect(change).toHaveValue('+2');
     fireEvent.change(target, { target: { value: '-8x' } });
     expect(target).toHaveValue('8');
-    expect(change).toHaveValue('');
+    fireEvent.click(method);
+    fireEvent.click(screen.getByRole('option', { name: 'Quantity change' }));
+    const change = screen.getByRole('textbox', { name: 'Quantity change' });
+    fireEvent.change(change, { target: { value: '+2a' } });
+    expect(change).toHaveValue('+2');
+    expect(
+      screen.queryByRole('textbox', { name: 'Quantity change' }),
+    ).toBeInTheDocument();
+    fireEvent.click(method);
+    fireEvent.click(screen.getByRole('option', { name: 'New stock value' }));
+    const nextTarget = screen.getByRole('textbox', { name: 'New stock value' });
+    fireEvent.change(nextTarget, { target: { value: '8' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Reason' }), {
       target: { value: 'Count correction' },
     });

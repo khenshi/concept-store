@@ -300,14 +300,17 @@ correction panels share a responsive two-column row on suitable viewports and
 stack on smaller screens. Receive stock asks only for quantity and records a
 stable system reason; common reason actions fill the still-editable required
 adjustment reason field so manual corrections remain explainable. Corrections
-offer side-by-side signed quantity-change and absolute new-stock-value inputs,
-with either one accepted at a time. They confirm the resulting delta and
+use a custom accessible dropdown, defaulting to the absolute new-stock-value
+input, beside the selected input; it shows either that field or the signed
+quantity-change field, never both at once. They confirm the resulting delta and
 estimated stock while keeping
 the server authoritative; pending writes disable repeat/concurrent actions. Stock
 retry IDs remain unchanged for unchanged failed commands, and success reloads
 current inventory instead of treating historical movement balances as current.
 Owner/manager inventory rows also provide direct Receive stock and Correct stock
-dialogs using those same safeguards; merchant rows remain read-only. Product
+dialogs using those same safeguards. Their modal headers show branch and current
+unit context as compact upper-right tags instead of body text; merchant rows
+remain read-only. Product
 identity continues to link to the full placement and movement-history screen.
 Expanded API/component workflows pass alongside regressions (236 frontend tests),
 typecheck, lint, formatting, and production build. Test-only native dialog shims

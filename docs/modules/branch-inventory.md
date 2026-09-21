@@ -160,8 +160,11 @@ control is available from a mismatch.
   value is supplied, the server derives the delta from the current scoped
   balance and uses an exact-quantity condition to reject stale overwrites. Both
   forms may correct inactive records.
-- Adjustment numeric inputs reject letters and unsupported characters in the
-  frontend; DTO validation remains authoritative at the API boundary.
+- The adjustment form uses a custom dropdown, defaulting to its absolute-value
+  input, beside the selected field; only the selected signed-delta or
+  absolute-value input is rendered. Numeric inputs reject letters and
+  unsupported characters in the frontend, while DTO validation remains
+  authoritative at the API boundary.
 - Quantities stay within `0..2147483647`. Requests that would underflow/overflow
   return `409`; integer validation rejects invalid command values.
 - A bounded atomic increment and movement insertion share a read-committed
@@ -298,8 +301,9 @@ responses as well as full owner/manager responses.
   late responses cannot restore stale rows. Empty, filtered-empty, loading,
   and retryable first/later-page errors have distinct feedback.
 - Owner/manager rows expose Receive stock and Correct stock quick actions in
-  focused dialogs; the product identity still links to full placement details.
-  These dialogs reuse the stock forms' live validation, receipt idempotency,
+  focused dialogs; their headers show the branch and current-unit context as
+  compact tags, while the product identity still links to full placement
+  details. These dialogs reuse the stock forms' live validation, receipt idempotency,
   correction confirmation, pending-write exclusion and access-loss handling.
   Success closes the dialog and refreshes authoritative branch inventory.
   Merchants remain read-only and receive no row mutation actions.
