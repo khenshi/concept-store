@@ -335,8 +335,10 @@ responses as well as full owner/manager responses.
 - Price remains a decimal string through validation, JSON, and display. Changing
   one branch price never writes a quantity or another branch's placement.
 - Receiving requires active product/merchant state. Corrections remain available
-  for inactive records and confirm a signed delta, reason, and estimated result.
-  Estimates do not authorize or reject commands; the backend checks current stock.
+  for inactive records and show a readable confirmation summary with the product,
+  branch, current stock, selected adjustment method, requested value/change,
+  net stock change, estimated result, and reason before applying. Estimates do
+  not authorize or reject commands; the backend checks current stock.
 - Pending commands disable repeat activation, their inputs, and other placement
   write controls. Adjustments also protect against duplicate confirmation requests.
 - Within a stock form, unchanged retries reuse the UUID from a failed command.

@@ -24,6 +24,7 @@ export function InventoryStockForm({
   scope,
   inventory,
   mode,
+  branchName,
   onSaved,
   onPendingChange,
   onAccessLost,
@@ -32,6 +33,7 @@ export function InventoryStockForm({
   scope: InventoryDetailScope;
   inventory: BranchInventory;
   mode: 'receipt' | 'adjustment';
+  branchName?: string;
   onSaved(): void;
   onPendingChange(pending: boolean): void;
   onAccessLost?(): void;
@@ -163,11 +165,26 @@ export function InventoryStockForm({
     setError(null);
     setErrors({});
     try {
+      const signedDelta = `${delta > 0 ? '+' : ''}${delta.toLocaleString()}`;
       if (
         mode === 'adjustment' &&
         !(await confirm({
-          title: `Adjust stock by ${delta > 0 ? '+' : ''}${delta.toLocaleString()} units?`,
-          description: `Current displayed stock: ${inventory.quantity.toLocaleString()}. Estimated result: ${estimated.toLocaleString()} units. Reason: ${normalizedReason}. The server checks current stock and rejects negative or overflowing balances. This affects only this branch.`,
+          title: 'Review stock adjustment',
+          description: [
+            'Review the complete change before applying it:',
+            '',
+            `Product: ${inventory.product.name}${inventory.product.sku ? ` · SKU ${inventory.product.sku}` : ''}`,
+            `Branch: ${branchName ?? 'Current branch'}`,
+            `Current stock: ${inventory.quantity.toLocaleString()} units`,
+            absoluteTarget !== undefined
+              ? `Adjustment method: New stock value\nNew stock value: ${absoluteTarget.toLocaleString()} units`
+              : `Adjustment method: Quantity change\nQuantity change: ${signedDelta} units`,
+            `Net stock change: ${signedDelta} units`,
+            `Estimated stock after adjustment: ${estimated.toLocaleString()} units`,
+            `Reason: ${normalizedReason}`,
+            '',
+            'Only this branch placement will change. The server verifies current stock before saving.',
+          ].join('\n'),
           confirmLabel: 'Apply adjustment',
           tone: delta < 0 ? 'danger' : 'primary',
         }))

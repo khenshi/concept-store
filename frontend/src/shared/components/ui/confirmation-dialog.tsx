@@ -100,7 +100,10 @@ export function useConfirmationDialog(): {
         >
           {pending.title}
         </h2>
-        <p className="mt-3 leading-7 text-muted" id={`${dialogId}-description`}>
+        <p
+          className="mt-3 whitespace-pre-line leading-7 text-muted"
+          id={`${dialogId}-description`}
+        >
           {pending.description}
         </p>
         <div className="mt-6 flex flex-wrap justify-end gap-3">

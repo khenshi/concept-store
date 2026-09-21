@@ -303,7 +303,9 @@ adjustment reason field so manual corrections remain explainable. Corrections
 use a custom accessible dropdown, defaulting to the absolute new-stock-value
 input, beside the selected input; it shows either that field or the signed
 quantity-change field, never both at once. They confirm the resulting delta and
-estimated stock while keeping
+estimated stock through a readable confirmation summary that includes the
+product, branch, current stock, method, requested value or change, net change,
+and reason while keeping
 the server authoritative; pending writes disable repeat/concurrent actions. Stock
 retry IDs remain unchanged for unchanged failed commands, and success reloads
 current inventory instead of treating historical movement balances as current.

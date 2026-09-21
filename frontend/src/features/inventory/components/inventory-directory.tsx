@@ -572,7 +572,7 @@ function ScopedInventoryDirectory({
               dirty.current = false;
               setCreating(false);
             }}
-             headerAside={
+            headerAside={
               <>
                 <span className="inline-flex max-w-full items-center rounded-full border border-control-border bg-subtle px-3 py-1.5 text-xs font-medium text-muted">
                   Branch: {branch?.name ?? 'This branch'}
@@ -638,6 +638,7 @@ function ScopedInventoryDirectory({
               }}
               inventory={stockAction.inventory}
               mode={stockAction.mode}
+              branchName={branch?.name}
               onPendingChange={setPending}
               onAccessLost={accessLost}
               onCancel={() => {

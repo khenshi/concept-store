@@ -367,6 +367,7 @@ function ScopedInventoryDetail({
                   mode="receipt"
                   scope={scope}
                   inventory={inventory}
+                  branchName={branch.name}
                   onPendingChange={(pending) =>
                     setPendingOperation(pending ? 'receipt' : null)
                   }
@@ -394,6 +395,7 @@ function ScopedInventoryDetail({
                   mode="adjustment"
                   scope={scope}
                   inventory={inventory}
+                  branchName={branch.name}
                   onPendingChange={(pending) =>
                     setPendingOperation(pending ? 'adjustment' : null)
                   }

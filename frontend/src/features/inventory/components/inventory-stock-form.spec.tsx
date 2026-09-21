@@ -112,7 +112,28 @@ describe('InventoryStockForm', () => {
     fill('-7', 'adjustment');
     fireEvent.click(screen.getByRole('button', { name: 'Review adjustment' }));
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Estimated result: -2 units',
+      'Review the complete change before applying it:',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Product: Vase · SKU VA',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Current stock: 5 units',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Adjustment method: Quantity change',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Quantity change: -7 units',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Net stock change: -7 units',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Estimated stock after adjustment: -2 units',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Reason: Delivery',
     );
     expect(adjustStock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Apply adjustment' }));
@@ -181,7 +202,16 @@ describe('InventoryStockForm', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Review adjustment' }));
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Estimated result: 8 units',
+      'Adjustment method: New stock value',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'New stock value: 8 units',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Net stock change: +3 units',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Estimated stock after adjustment: 8 units',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Apply adjustment' }));
     await waitFor(() =>
