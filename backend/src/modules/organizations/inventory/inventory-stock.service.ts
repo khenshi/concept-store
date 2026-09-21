@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -26,6 +27,7 @@ interface StockCommand {
   userId: string;
   type: InventoryMovementType;
   delta: number;
+  targetQuantity?: number;
   reason: string;
   requestId: string;
 }
@@ -60,13 +62,18 @@ export class InventoryStockService {
     userId: string,
     dto: AdjustInventoryDto,
   ): Promise<InventoryMovementRecord> {
+    if ((dto.quantityChange === undefined) === (dto.newQuantity === undefined))
+      throw new BadRequestException(
+        'Provide either quantityChange or newQuantity, but not both',
+      );
     return this.execute({
       organizationId,
       branchId,
       inventoryId,
       userId,
       type: InventoryMovementType.ADJUSTMENT,
-      delta: dto.quantityChange,
+      delta: dto.quantityChange ?? 0,
+      targetQuantity: dto.newQuantity,
       reason: dto.reason,
       requestId: dto.requestId,
     });
@@ -75,7 +82,7 @@ export class InventoryStockService {
   private async execute(
     command: StockCommand,
   ): Promise<InventoryMovementRecord> {
-    const { organizationId, branchId, inventoryId, delta } = command;
+    const { organizationId, branchId, inventoryId } = command;
     try {
       return await this.prisma.$transaction(
         async (tx) => {
@@ -83,6 +90,7 @@ export class InventoryStockService {
             where: { id: inventoryId, organizationId, branchId },
             select: {
               id: true,
+              quantity: true,
               product: {
                 select: {
                   status: true,
@@ -104,6 +112,13 @@ export class InventoryStockService {
             },
           });
           if (original) return this.resolveReplay(original, command);
+
+          const delta =
+            command.targetQuantity === undefined
+              ? command.delta
+              : command.targetQuantity - inventory.quantity;
+          if (delta === 0)
+            throw new ConflictException('Stock is already at that quantity');
 
           if (
             command.type === InventoryMovementType.RECEIPT &&
@@ -128,7 +143,10 @@ export class InventoryStockService {
               id: inventoryId,
               organizationId,
               branchId,
-              quantity: { gte: lower, lte: upper },
+              quantity:
+                command.targetQuantity === undefined
+                  ? { gte: lower, lte: upper }
+                  : inventory.quantity,
             },
             data: { quantity: { increment: delta } },
           });
@@ -188,7 +206,9 @@ export class InventoryStockService {
       original.branchInventoryId !== command.inventoryId ||
       original.branchId !== command.branchId ||
       original.type !== command.type ||
-      original.quantityChange !== command.delta ||
+      (command.targetQuantity !== undefined
+        ? original.quantityAfter !== command.targetQuantity
+        : original.quantityChange !== command.delta) ||
       (command.type !== InventoryMovementType.RECEIPT &&
         original.reason !== command.reason)
     ) {

@@ -222,6 +222,21 @@ describe('Branch inventory API contracts', () => {
         }),
       }),
     );
+    await adjustStock(request, scope, {
+      newQuantity: 8,
+      reason: 'Correction',
+      requestId: movement.requestId,
+    });
+    expect(request).toHaveBeenLastCalledWith(
+      `${base}/${scope.inventoryId}/adjustments`,
+      expect.objectContaining({
+        body: JSON.stringify({
+          newQuantity: 8,
+          reason: 'Correction',
+          requestId: movement.requestId,
+        }),
+      }),
+    );
   });
   it('accepts positive returns while stripping private links and merchant actors', async () => {
     const returned = { ...movement, type: 'RETURN', quantityChange: 1 };

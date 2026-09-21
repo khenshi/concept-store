@@ -155,8 +155,13 @@ control is available from a mismatch.
 - Receipt requires a positive integer quantity and UUID request ID. The server
   records the system reason `Stock received`; users do not need to enter one.
   Product and merchant must be active for a new receipt.
-- Adjustment requires a nonzero signed integer delta, reason, and request ID.
-  It is not an absolute stock replacement and may correct inactive records.
+- Adjustment requires a reason and request ID plus exactly one of a nonzero
+  signed integer delta or a nonnegative absolute stock value. When an absolute
+  value is supplied, the server derives the delta from the current scoped
+  balance and uses an exact-quantity condition to reject stale overwrites. Both
+  forms may correct inactive records.
+- Adjustment numeric inputs reject letters and unsupported characters in the
+  frontend; DTO validation remains authoritative at the API boundary.
 - Quantities stay within `0..2147483647`. Requests that would underflow/overflow
   return `409`; integer validation rejects invalid command values.
 - A bounded atomic increment and movement insertion share a read-committed

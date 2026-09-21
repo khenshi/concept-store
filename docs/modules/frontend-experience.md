@@ -299,8 +299,10 @@ the native dialog instead of separate search and selection inputs. Receipt and
 correction panels share a responsive two-column row on suitable viewports and
 stack on smaller screens. Receive stock asks only for quantity and records a
 stable system reason; common reason actions fill the still-editable required
-adjustment reason field so manual corrections remain explainable. Corrections confirm
-the signed delta and estimated stock while keeping
+adjustment reason field so manual corrections remain explainable. Corrections
+offer side-by-side signed quantity-change and absolute new-stock-value inputs,
+with either one accepted at a time. They confirm the resulting delta and
+estimated stock while keeping
 the server authoritative; pending writes disable repeat/concurrent actions. Stock
 retry IDs remain unchanged for unchanged failed commands, and success reloads
 current inventory instead of treating historical movement balances as current.

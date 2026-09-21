@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { InventoryStockService } from './inventory-stock.service';
@@ -41,6 +45,7 @@ describe('InventoryStockService', () => {
     );
     tx.branchInventory.findUnique.mockResolvedValue({
       id: 'inventory',
+      quantity: 5,
       product: { status: 'ACTIVE', merchant: { status: 'ACTIVE' } },
     });
     tx.inventoryMovement.findUnique.mockResolvedValue(null);
@@ -110,6 +115,7 @@ describe('InventoryStockService', () => {
   it('allows corrective adjustments on inactive products and protects lower bound', async () => {
     tx.branchInventory.findUnique.mockResolvedValue({
       id: 'inventory',
+      quantity: 5,
       product: { status: 'INACTIVE', merchant: { status: 'INACTIVE' } },
     });
     await service.adjust('org', 'branch', 'inventory', 'actor', {
@@ -140,6 +146,48 @@ describe('InventoryStockService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
     expect(tx.branchInventory.updateMany).not.toHaveBeenCalled();
   });
+
+  it('derives an absolute target adjustment from the locked current quantity', async () => {
+    await service.adjust('org', 'branch', 'inventory', 'actor', {
+      newQuantity: 8,
+      reason: 'Correction',
+      requestId: 'target',
+    });
+    expect(tx.branchInventory.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'inventory',
+        organizationId: 'org',
+        branchId: 'branch',
+        quantity: 5,
+      },
+      data: { quantity: { increment: 3 } },
+    });
+    const createMock = tx.inventoryMovement.create as jest.Mock<
+      unknown,
+      [{ data: Record<string, unknown> }]
+    >;
+    const createInput = createMock.mock.calls[0]?.[0];
+    expect(createInput.data).toMatchObject({
+      quantityChange: 3,
+      quantityAfter: 8,
+      reason: 'Correction',
+      requestId: 'target',
+    });
+  });
+
+  it.each([{ quantityChange: 1, newQuantity: 8 }, {}])(
+    'requires exactly one adjustment mode: %j',
+    (input) => {
+      expect(() =>
+        service.adjust('org', 'branch', 'inventory', 'actor', {
+          ...input,
+          reason: 'Correction',
+          requestId: 'ambiguous',
+        }),
+      ).toThrow(BadRequestException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
 
   it('does not insert movement after a range conflict', async () => {
     tx.branchInventory.updateMany.mockResolvedValue({ count: 0 });

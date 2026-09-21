@@ -119,7 +119,7 @@ describe('InventoryStockForm', () => {
     );
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
-  it('validates receipt quantity after 300ms without requesting a reason', async () => {
+  it('filters unsupported receipt characters while validating with debounce', async () => {
     vi.useFakeTimers();
     render(
       <InventoryStockForm
@@ -131,13 +131,51 @@ describe('InventoryStockForm', () => {
       />,
     );
     const quantity = screen.getByRole('textbox', { name: 'Units to receive' });
-    fireEvent.change(quantity, { target: { value: '1.5' } });
+    fireEvent.change(quantity, { target: { value: '1a' } });
+    expect(quantity).toHaveValue('1');
     expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
     await act(() => vi.advanceTimersByTimeAsync(300));
-    expect(quantity).toHaveAttribute('aria-invalid', 'true');
+    expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
     expect(
       screen.queryByRole('textbox', { name: 'Reason' }),
     ).not.toBeInTheDocument();
+  });
+  it('supports an absolute stock target and filters negative or letter input', async () => {
+    vi.mocked(adjustStock).mockResolvedValue({} as never);
+    render(
+      <InventoryStockForm
+        scope={scope}
+        inventory={inventory}
+        mode="adjustment"
+        onSaved={vi.fn()}
+        onPendingChange={vi.fn()}
+      />,
+    );
+    const change = screen.getByRole('textbox', { name: 'Quantity change' });
+    const target = screen.getByRole('textbox', { name: 'New stock value' });
+    fireEvent.change(change, { target: { value: '+2a' } });
+    expect(change).toHaveValue('+2');
+    fireEvent.change(target, { target: { value: '-8x' } });
+    expect(target).toHaveValue('8');
+    expect(change).toHaveValue('');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reason' }), {
+      target: { value: 'Count correction' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Review adjustment' }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Estimated result: 8 units',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Apply adjustment' }));
+    await waitFor(() =>
+      expect(adjustStock).toHaveBeenCalledWith(
+        request,
+        scope,
+        expect.objectContaining({
+          newQuantity: 8,
+          reason: 'Count correction',
+        }),
+      ),
+    );
   });
   it('fills an adjustment reason from a common-reason action and permits custom text', () => {
     render(

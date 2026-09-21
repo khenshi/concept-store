@@ -147,7 +147,12 @@ export async function receiveStock(
 export async function adjustStock(
   request: AuthenticatedRequest,
   scope: InventoryDetailScope,
-  input: { quantityChange: number; reason: string; requestId: string },
+  input: {
+    quantityChange?: number;
+    newQuantity?: number;
+    reason: string;
+    requestId: string;
+  },
 ) {
   return movementResponseSchema.parse(
     await request<unknown>(`${detail(scope)}/adjustments`, json('POST', input)),

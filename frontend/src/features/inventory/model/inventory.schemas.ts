@@ -68,6 +68,22 @@ const integerInput = z
       .min(-2147483648, 'Quantity is outside the allowed range.')
       .max(2147483647, 'Quantity is outside the allowed range.'),
   );
+const nonNegativeIntegerInput = z
+  .union([
+    z.number(),
+    z
+      .string()
+      .trim()
+      .regex(/^\d+$/, 'Enter a whole number from 0 to 2147483647.')
+      .transform(Number),
+  ])
+  .pipe(
+    z
+      .number()
+      .int()
+      .min(0, 'New stock value cannot be negative.')
+      .max(2147483647, 'New stock value cannot exceed 2147483647 units.'),
+  );
 const reasonSchema = z
   .string()
   .trim()
@@ -76,13 +92,26 @@ const reasonSchema = z
 export const receiptInputSchema = z.object({
   quantity: integerInput.pipe(z.number().min(1, 'Receive at least one unit.')),
 });
-export const adjustmentInputSchema = z.object({
-  quantityChange: integerInput.refine(
-    (value) => value !== 0,
-    'Adjustment cannot be zero.',
-  ),
-  reason: reasonSchema,
-});
+export const adjustmentInputSchema = z
+  .object({
+    quantityChange: integerInput
+      .refine((value) => value !== 0, 'Adjustment cannot be zero.')
+      .optional(),
+    newQuantity: nonNegativeIntegerInput.optional(),
+    reason: reasonSchema,
+  })
+  .superRefine((value, context) => {
+    const hasDelta = value.quantityChange !== undefined;
+    const hasTarget = value.newQuantity !== undefined;
+    if (hasDelta === hasTarget)
+      context.addIssue({
+        code: 'custom',
+        path: [hasDelta ? 'newQuantity' : 'quantityChange'],
+        message: hasDelta
+          ? 'Use either quantity change or new stock value.'
+          : 'Enter a quantity change or new stock value.',
+      });
+  });
 export const inventoryResponseSchema = z.object({
   id: z.uuidv4(),
   organizationId: z.uuidv4(),

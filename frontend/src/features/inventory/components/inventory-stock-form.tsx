@@ -37,9 +37,10 @@ export function InventoryStockForm({
   const { request } = useAuth();
   const { confirm, confirmationDialog } = useConfirmationDialog();
   const [quantity, setQuantity] = useState('');
+  const [newQuantity, setNewQuantity] = useState('');
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState<
-    Partial<Record<'quantity' | 'reason', string>>
+    Partial<Record<'quantity' | 'newQuantity' | 'reason', string>>
   >({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -47,38 +48,48 @@ export function InventoryStockForm({
   const command = useRef<{ fingerprint: string; requestId: string } | null>(
     null,
   );
-  const timers = useRef<Partial<Record<'quantity' | 'reason', number>>>({});
+  const timers = useRef<
+    Partial<Record<'quantity' | 'newQuantity' | 'reason', number>>
+  >({});
   useEffect(
     () => () => {
       Object.values(timers.current).forEach(window.clearTimeout);
     },
     [],
   );
-  const parse = (amount: string, why: string) =>
+  const parse = (amount: string, target: string, why: string) =>
     mode === 'receipt'
       ? receiptInputSchema.safeParse({ quantity: amount })
       : adjustmentInputSchema.safeParse({
-          quantityChange: amount,
+          quantityChange: amount || undefined,
+          newQuantity: target || undefined,
           reason: why,
         });
   function validate(
-    field: 'quantity' | 'reason',
+    field: 'quantity' | 'newQuantity' | 'reason',
     amount: string,
+    target: string,
     why: string,
     immediate = false,
   ) {
     window.clearTimeout(timers.current[field]);
     const run = () => {
-      const result = parse(amount, why);
+      const result = parse(amount, target, why);
       const key =
         field === 'quantity' && mode === 'adjustment'
           ? 'quantityChange'
           : field;
+      const issue = result.success
+        ? undefined
+        : (result.error.issues.find((item) => item.path[0] === key) ??
+          (field === 'newQuantity' && !amount && !target
+            ? result.error.issues.find(
+                (item) => item.path[0] === 'quantityChange',
+              )
+            : undefined));
       setErrors((current) => ({
         ...current,
-        [field]: result.success
-          ? undefined
-          : result.error.issues.find((issue) => issue.path[0] === key)?.message,
+        [field]: result.success ? undefined : issue?.message,
       }));
     };
     if (immediate) run();
@@ -90,7 +101,8 @@ export function InventoryStockForm({
     Object.values(timers.current).forEach(window.clearTimeout);
     const receipt = receiptInputSchema.safeParse({ quantity });
     const adjustment = adjustmentInputSchema.safeParse({
-      quantityChange: quantity,
+      quantityChange: quantity || undefined,
+      newQuantity: newQuantity || undefined,
       reason,
     });
     const parsed = mode === 'receipt' ? receipt : adjustment;
@@ -106,19 +118,29 @@ export function InventoryStockForm({
       focusFirstInvalidField(event.currentTarget);
       return;
     }
-    const delta =
-      mode === 'receipt' && receipt.success
-        ? receipt.data.quantity
-        : adjustment.success
-          ? adjustment.data.quantityChange
-          : 0;
-    const normalizedReason =
-      mode === 'receipt'
-        ? 'Stock received'
-        : adjustment.success
-          ? adjustment.data.reason
-          : '';
+    let delta = 0;
+    let normalizedReason = '';
+    let absoluteTarget: number | undefined;
+    if (mode === 'receipt') {
+      if (!receipt.success) return;
+      delta = receipt.data.quantity;
+      normalizedReason = 'Stock received';
+    } else {
+      if (!adjustment.success) return;
+      absoluteTarget = adjustment.data.newQuantity;
+      const quantityChange = adjustment.data.quantityChange;
+      if (absoluteTarget === undefined) {
+        if (quantityChange === undefined) return;
+        delta = quantityChange;
+      } else delta = absoluteTarget - inventory.quantity;
+      normalizedReason = adjustment.data.reason;
+    }
     const estimated = inventory.quantity + delta;
+    if (mode === 'adjustment' && absoluteTarget !== undefined && delta === 0) {
+      setErrors({ newQuantity: 'Stock is already at this value.' });
+      focusFirstInvalidField(event.currentTarget);
+      return;
+    }
     // Do not reject based on a possibly stale estimate. The backend owns balance checks.
     lock.current = true;
     setPending(true);
@@ -136,7 +158,12 @@ export function InventoryStockForm({
         }))
       )
         return;
-      const fingerprint = JSON.stringify([mode, delta, normalizedReason]);
+      const fingerprint = JSON.stringify([
+        mode,
+        absoluteTarget ?? null,
+        delta,
+        normalizedReason,
+      ]);
       if (command.current?.fingerprint !== fingerprint)
         command.current = { fingerprint, requestId: crypto.randomUUID() };
       const requestId = command.current.requestId;
@@ -146,13 +173,24 @@ export function InventoryStockForm({
           requestId,
         });
       else
-        await adjustStock(request, scope, {
-          quantityChange: delta,
-          reason: normalizedReason,
-          requestId,
-        });
+        await adjustStock(
+          request,
+          scope,
+          absoluteTarget !== undefined
+            ? {
+                newQuantity: absoluteTarget,
+                reason: normalizedReason,
+                requestId,
+              }
+            : {
+                quantityChange: delta,
+                reason: normalizedReason,
+                requestId,
+              },
+        );
       command.current = null;
       setQuantity('');
+      setNewQuantity('');
       setReason('');
       onSaved();
     } catch (cause) {
@@ -181,7 +219,7 @@ export function InventoryStockForm({
   const updateReason = (value: string) => {
     command.current = null;
     setReason(value);
-    validate('reason', quantity, value);
+    validate('reason', quantity, newQuantity, value);
   };
   return (
     <>
@@ -198,27 +236,69 @@ export function InventoryStockForm({
             starts a new command.
           </p>
         ) : null}
-        <TextField
-          label={mode === 'receipt' ? 'Units to receive' : 'Quantity change'}
-          name="quantity"
-          required
-          inputMode={mode === 'receipt' ? 'numeric' : 'text'}
-          value={quantity}
-          error={errors.quantity}
-          disabled={pending || unavailable}
-          onChange={(event) => {
-            const value = event.target.value;
-            command.current = null;
-            setQuantity(value);
-            validate('quantity', value, reason);
-          }}
-          onBlur={() => validate('quantity', quantity, reason, true)}
-          hint={
-            mode === 'receipt'
-              ? 'Positive whole units. This does not deduct stock from another branch.'
-              : 'A signed whole-unit delta, for example +5 or -2; never a replacement total.'
+        <div
+          className={
+            mode === 'adjustment'
+              ? 'grid min-w-0 gap-4 sm:grid-cols-2'
+              : undefined
           }
-        />
+        >
+          <TextField
+            label={mode === 'receipt' ? 'Units to receive' : 'Quantity change'}
+            name="quantity"
+            required={mode === 'receipt'}
+            inputMode={mode === 'receipt' ? 'numeric' : 'text'}
+            value={quantity}
+            error={errors.quantity}
+            disabled={pending || unavailable}
+            onChange={(event) => {
+              const value =
+                mode === 'receipt'
+                  ? sanitizeWholeNumber(event.target.value)
+                  : sanitizeSignedWholeNumber(event.target.value);
+              command.current = null;
+              setQuantity(value);
+              if (mode === 'adjustment') {
+                setNewQuantity('');
+                setErrors((current) => ({
+                  ...current,
+                  newQuantity: undefined,
+                }));
+              }
+              validate('quantity', value, '', reason);
+            }}
+            onBlur={() =>
+              validate('quantity', quantity, newQuantity, reason, true)
+            }
+            hint={
+              mode === 'receipt'
+                ? 'Positive whole units. This does not deduct stock from another branch.'
+                : 'Enter a signed whole-unit delta, or use the absolute new stock value beside it.'
+            }
+          />
+          {mode === 'adjustment' ? (
+            <TextField
+              label="New stock value"
+              name="newQuantity"
+              inputMode="numeric"
+              value={newQuantity}
+              error={errors.newQuantity}
+              disabled={pending || unavailable}
+              onChange={(event) => {
+                const value = sanitizeWholeNumber(event.target.value);
+                command.current = null;
+                setNewQuantity(value);
+                setQuantity('');
+                setErrors((current) => ({ ...current, quantity: undefined }));
+                validate('newQuantity', '', value, reason);
+              }}
+              onBlur={() =>
+                validate('newQuantity', quantity, newQuantity, reason, true)
+              }
+              hint="A nonnegative whole-unit stock total."
+            />
+          ) : null}
+        </div>
         {mode === 'adjustment' ? (
           <>
             <fieldset className="grid min-w-0 gap-2 border-0 p-0">
@@ -257,7 +337,9 @@ export function InventoryStockForm({
               onChange={(event) => {
                 updateReason(event.target.value);
               }}
-              onBlur={() => validate('reason', quantity, reason, true)}
+              onBlur={() =>
+                validate('reason', quantity, newQuantity, reason, true)
+              }
               required
             />
           </>
@@ -278,4 +360,14 @@ export function InventoryStockForm({
       {confirmationDialog}
     </>
   );
+}
+
+function sanitizeWholeNumber(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function sanitizeSignedWholeNumber(value: string) {
+  const sanitized = value.replace(/[^\d+-]/g, '');
+  const sign = sanitized[0] === '-' || sanitized[0] === '+' ? sanitized[0] : '';
+  return `${sign}${sanitized.slice(sign ? 1 : 0).replace(/[+-]/g, '')}`;
 }

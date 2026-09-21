@@ -190,6 +190,18 @@ describe('Inventory request validation', () => {
     },
   );
 
+  it.each([0, 1, 2147483647])(
+    'accepts bounded absolute stock value %s',
+    async (newQuantity) => {
+      await expect(
+        pipe.transform(
+          { newQuantity, reason: ' Correction ', requestId },
+          { type: 'body', metatype: AdjustInventoryDto },
+        ),
+      ).resolves.toMatchObject({ newQuantity, reason: 'Correction' });
+    },
+  );
+
   it.each([0, -2147483649, 2147483648, 0.5, '2'])(
     'rejects adjustment %s',
     async (quantityChange) => {
@@ -201,6 +213,27 @@ describe('Inventory request validation', () => {
       ).rejects.toThrow();
     },
   );
+
+  it.each([-1, 2147483648, 0.5, '2'])(
+    'rejects invalid absolute stock value %s',
+    async (newQuantity) => {
+      await expect(
+        pipe.transform(
+          { newQuantity, reason: 'Correction', requestId },
+          { type: 'body', metatype: AdjustInventoryDto },
+        ),
+      ).rejects.toThrow();
+    },
+  );
+
+  it('rejects an adjustment without either a delta or an absolute value', async () => {
+    await expect(
+      pipe.transform(
+        { reason: 'Correction', requestId },
+        { type: 'body', metatype: AdjustInventoryDto },
+      ),
+    ).rejects.toThrow();
+  });
 
   it.each([
     { reason: ' ' },

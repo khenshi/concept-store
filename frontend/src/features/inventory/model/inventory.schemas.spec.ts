@@ -51,13 +51,21 @@ describe('Inventory input schemas', () => {
     expect(
       adjustmentInputSchema.safeParse({ quantityChange: -2 }).success,
     ).toBe(false);
+    expect(
+      adjustmentInputSchema.parse({ newQuantity: '0', reason: 'Correction' }),
+    ).toEqual({ newQuantity: 0, reason: 'Correction' });
+    expect(
+      adjustmentInputSchema.safeParse({
+        quantityChange: 2,
+        newQuantity: 7,
+        reason: 'Correction',
+      }).success,
+    ).toBe(false);
   });
   it.each(['0', '-1', '1.5', '1e2', '2147483648', ''])(
     'rejects invalid receipt units %s',
     (quantity) => {
-      expect(
-        receiptInputSchema.safeParse({ quantity }).success,
-      ).toBe(false);
+      expect(receiptInputSchema.safeParse({ quantity }).success).toBe(false);
     },
   );
   it.each(['0', '-2147483649', '2147483648', '1.5'])(
@@ -66,6 +74,17 @@ describe('Inventory input schemas', () => {
       expect(
         adjustmentInputSchema.safeParse({
           quantityChange,
+          reason: 'Correction',
+        }).success,
+      ).toBe(false);
+    },
+  );
+  it.each(['-1', '1.5', '1e2', '2147483648', ''])(
+    'rejects invalid absolute stock value %s',
+    (newQuantity) => {
+      expect(
+        adjustmentInputSchema.safeParse({
+          newQuantity,
           reason: 'Correction',
         }).success,
       ).toBe(false);
