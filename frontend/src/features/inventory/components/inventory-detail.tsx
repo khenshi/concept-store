@@ -7,7 +7,9 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
+import { FormDialog } from '@/shared/components/ui/form-dialog';
 import {
   OperationalPage,
   OperationalPanel,
@@ -71,6 +73,7 @@ function ScopedInventoryDetail({
   const [pendingOperation, setPendingOperation] = useState<
     'price' | 'threshold' | 'receipt' | 'adjustment' | null
   >(null);
+  const [editingPrice, setEditingPrice] = useState(false);
   const [revision, setRevision] = useState(0);
   const dirty = useRef(false);
   const readGeneration = useRef(0);
@@ -83,6 +86,7 @@ function ScopedInventoryDetail({
     setNextMovementCursor(null);
     setOlderError(null);
     setOlderLoading(false);
+    setEditingPrice(false);
     setLoading(false);
     setError(
       'Access to this placement is unavailable. Ask an owner to review your branch assignments or merchant link.',
@@ -156,6 +160,7 @@ function ScopedInventoryDetail({
     );
   const back = (
     <BackLink
+      className="min-h-9 min-w-0 px-3 py-1 text-xs"
       href={`/app/organizations/${organizationId}/branches/${branchId}/inventory`}
     >
       Back to branch inventory
@@ -166,7 +171,7 @@ function ScopedInventoryDetail({
       organizationId={organizationId}
       branchId={branchId}
       role={organization!.role}
-      disabled={pendingOperation !== null}
+      disabled={pendingOperation !== null || editingPrice}
       onAccessDenied={accessLost}
       rememberBranch={setSelectedBranchId}
       beforeChange={() => {
@@ -186,6 +191,7 @@ function ScopedInventoryDetail({
         setNextMovementCursor(null);
         setOlderError(null);
         setSuccess(null);
+        setEditingPrice(false);
         setLoading(true);
         return true;
       }}
@@ -215,6 +221,9 @@ function ScopedInventoryDetail({
       </OperationalPage>
     );
   const scope = { organizationId, branchId, inventoryId };
+  const movementGrid = canWrite
+    ? 'lg:grid-cols-[minmax(10rem,1.15fr)_minmax(7rem,0.7fr)_minmax(12rem,1.4fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_minmax(12rem,1.25fr)]'
+    : 'lg:grid-cols-[minmax(10rem,1.15fr)_minmax(7rem,0.7fr)_minmax(12rem,1.4fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)]';
   const saved = (message: string) => {
     dirty.current = false;
     setSuccess(message);
@@ -250,165 +259,219 @@ function ScopedInventoryDetail({
       if (generation === readGeneration.current) setOlderLoading(false);
     }
   };
+  const stockActions = canWrite ? (
+    <div
+      className="inventory-detail-actions grid min-w-0 gap-x-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+      onChangeCapture={() => {
+        dirty.current = true;
+      }}
+    >
+      <section className="mt-10 min-w-0 bg-surface text-ink">
+        <div className="grid min-w-0 gap-6 md:grid-cols-2">
+          <section className="min-w-0">
+            <header className="pb-4">
+              <h2 className="text-base font-semibold">Receive stock</h2>
+              <p className="mt-1.5 text-sm leading-6 text-muted">
+                Record positive whole units entering this branch.
+              </p>
+            </header>
+            <fieldset
+              className="min-w-0 border-0 p-0"
+              disabled={
+                pendingOperation !== null && pendingOperation !== 'receipt'
+              }
+            >
+              <InventoryStockForm
+                inlineReceiptAction
+                onAccessLost={accessLost}
+                mode="receipt"
+                scope={scope}
+                inventory={inventory}
+                branchName={branch.name}
+                onPendingChange={(pending) =>
+                  setPendingOperation(pending ? 'receipt' : null)
+                }
+                onSaved={() =>
+                  saved(
+                    'Stock receipt recorded. Refreshing current stock and history.',
+                  )
+                }
+              />
+            </fieldset>
+          </section>
+          <section className="min-w-0 md:border-l md:border-hairline md:pl-6">
+            <header className="pb-4">
+              <h2 className="text-base font-semibold">Low-stock threshold</h2>
+              <p className="mt-1.5 text-sm leading-6 text-muted">
+                Warn at or below this stock level.
+              </p>
+            </header>
+            <fieldset
+              className="min-w-0 border-0 p-0"
+              disabled={
+                pendingOperation !== null && pendingOperation !== 'threshold'
+              }
+            >
+              <InventoryThresholdForm
+                inlineAction
+                onAccessLost={accessLost}
+                scope={scope}
+                inventory={inventory}
+                onPendingChange={(pending) =>
+                  setPendingOperation(pending ? 'threshold' : null)
+                }
+                onSaved={() =>
+                  saved(
+                    'Low-stock threshold saved. Refreshing the current placement.',
+                  )
+                }
+              />
+            </fieldset>
+          </section>
+        </div>
+      </section>
+      <OperationalPanel
+        variant="open"
+        title="Correct stock"
+        description="Review a signed correction before applying it. Available for inactive products or merchants."
+      >
+        <fieldset
+          className="min-w-0 border-0 p-0"
+          disabled={
+            pendingOperation !== null && pendingOperation !== 'adjustment'
+          }
+        >
+          <InventoryStockForm
+            onAccessLost={accessLost}
+            mode="adjustment"
+            scope={scope}
+            inventory={inventory}
+            branchName={branch.name}
+            onPendingChange={(pending) =>
+              setPendingOperation(pending ? 'adjustment' : null)
+            }
+            onSaved={() =>
+              saved(
+                'Stock adjustment recorded. Refreshing current stock and history.',
+              )
+            }
+          />
+        </fieldset>
+      </OperationalPanel>
+    </div>
+  ) : null;
   return (
     <OperationalPage>
-      {back}
+      <div className="mb-4">{back}</div>
       <PageHeader
+        className="border-b-0 pb-0"
         title={inventory.product.name}
         description={`${branch.name} · ${inventory.product.merchant.name} · ${inventory.product.status === 'ACTIVE' ? 'Active' : 'Inactive'} product`}
         action={branchSelector}
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      <OperationalPanel variant="open" title="Current placement">
-        <dl className="grid gap-5 py-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <dt className="text-xs text-muted">Branch price</dt>
-            <dd className="mt-1 font-semibold tabular-nums">
-              PHP {inventory.sellingPrice}
-            </dd>
+      <section className="inventory-placement-panel bg-surface text-ink mt-4 mb-1">
+        <dl className="inventory-placement-summary grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="inventory-placement-stat flex justify-start gap-3 px-4 py-5 lg:py-6">
+            <Icon name="tag" className="mt-1 size-6 text-muted" />
+            <div className="min-w-0">
+              <dt className="text-xs text-muted">Branch price</dt>
+              <dd className="mt-1 font-semibold tabular-nums">
+                PHP {inventory.sellingPrice}
+              </dd>
+              {canWrite ? (
+                <button
+                  type="button"
+                  className={buttonStyles({
+                    variant: 'secondary',
+                    className: 'mt-2 min-h-8 px-3 py-1 text-xs',
+                  })}
+                  disabled={pendingOperation !== null}
+                  onClick={() => setEditingPrice(true)}
+                >
+                  Edit price
+                </button>
+              ) : null}
+            </div>
           </div>
-          <div>
-            <dt className="text-xs text-muted">Current stock</dt>
-            <dd className="mt-1 font-semibold tabular-nums">
-              {inventory.quantity.toLocaleString()} units
-            </dd>
+          <div className="inventory-placement-stat flex justify-start gap-3 px-4 py-5 lg:py-6">
+            <Icon name="box" className="mt-1 size-6 text-muted" />
+            <div className="min-w-0">
+              <dt className="text-xs text-muted">Current stock</dt>
+              <dd className="mt-1 font-semibold tabular-nums">
+                {inventory.quantity.toLocaleString()} units
+              </dd>
+            </div>
           </div>
-          <div>
-            <dt className="text-xs text-muted">Stock status</dt>
-            <dd className="mt-1 font-semibold">
-              <InventoryStockStatusBadge status={inventory.stockStatus} />
-            </dd>
-            <p className="mt-1 text-xs text-muted tabular-nums">
-              Threshold: {inventory.lowStockThreshold.toLocaleString()}
-            </p>
+          <div className="inventory-placement-stat flex justify-start gap-3 px-4 py-5 lg:py-6">
+            <Icon name="layers" className="mt-1 size-6 text-muted" />
+            <div className="min-w-0">
+              <dt className="text-xs text-muted">Stock status</dt>
+              <dd className="mt-1 font-semibold">
+                <InventoryStockStatusBadge status={inventory.stockStatus} />
+              </dd>
+              <p className="mt-1 text-xs text-muted tabular-nums">
+                Threshold: {inventory.lowStockThreshold.toLocaleString()}
+              </p>
+            </div>
           </div>
-          <div>
-            <dt className="text-xs text-muted">Product identity</dt>
-            <dd className="mt-1">
-              <Link
-                href={`/app/organizations/${organizationId}/products/${inventory.productId}`}
-              >
-                View product profile
-              </Link>
-            </dd>
+          <div className="inventory-placement-stat flex justify-start gap-3 px-4 py-5 lg:py-6">
+            <Icon name="file" className="mt-1 size-6 text-muted" />
+            <div className="min-w-0">
+              <dt className="text-xs text-muted">Product identity</dt>
+              <dd className="mt-1">
+                <Link
+                  className="inline-flex items-center gap-2 font-medium"
+                  href={`/app/organizations/${organizationId}/products/${inventory.productId}`}
+                >
+                  View product profile
+                  <Icon name="arrow" className="size-4 -rotate-45" />
+                </Link>
+              </dd>
+            </div>
           </div>
         </dl>
-        <p className="px-6 pb-6 text-sm text-muted">
-          This placement is independent. Commands never transfer stock or change
-          another branch’s price.
+        <p className="flex gap-3 border-b border-hairline px-0 pb-4 mt-1 text-sm text-muted items-center">
+          <Icon name="info" className="mt-0.5 size-5 shrink-0" />
+          <span>
+            Changes made here only affect this branch. Stock and prices at other
+            branches will not be changed.
+          </span>
         </p>
-      </OperationalPanel>
-      {canWrite ? (
-        <div
-          onChangeCapture={() => {
-            dirty.current = true;
+      </section>
+      {canWrite && editingPrice ? (
+        <FormDialog
+          title="Edit branch price"
+          description="Update the selling price for this branch placement only. Stock and other branch prices will not change."
+          pending={pendingOperation === 'price'}
+          onClose={() => {
+            dirty.current = false;
+            setEditingPrice(false);
           }}
         >
-          <div className="grid min-w-0 gap-x-6 lg:grid-cols-2">
-            <OperationalPanel variant="open" title="Branch selling price">
-              <fieldset
-                className="min-w-0 border-0 p-0"
-                disabled={
-                  pendingOperation !== null && pendingOperation !== 'price'
-                }
-              >
-                <InventoryPriceForm
-                  onAccessLost={accessLost}
-                  scope={scope}
-                  inventory={inventory}
-                  onPendingChange={(pending) =>
-                    setPendingOperation(pending ? 'price' : null)
-                  }
-                  onSaved={() =>
-                    saved(
-                      'Branch price saved. Refreshing the current placement.',
-                    )
-                  }
-                />
-              </fieldset>
-            </OperationalPanel>
-            <OperationalPanel variant="open" title="Low-stock threshold">
-              <fieldset
-                className="min-w-0 border-0 p-0"
-                disabled={
-                  pendingOperation !== null && pendingOperation !== 'threshold'
-                }
-              >
-                <InventoryThresholdForm
-                  onAccessLost={accessLost}
-                  scope={scope}
-                  inventory={inventory}
-                  onPendingChange={(pending) =>
-                    setPendingOperation(pending ? 'threshold' : null)
-                  }
-                  onSaved={() =>
-                    saved(
-                      'Low-stock threshold saved. Refreshing the current placement.',
-                    )
-                  }
-                />
-              </fieldset>
-            </OperationalPanel>
+          <div
+            onChangeCapture={() => {
+              dirty.current = true;
+            }}
+          >
+            <InventoryPriceForm
+              onAccessLost={accessLost}
+              scope={scope}
+              inventory={inventory}
+              onPendingChange={(pending) =>
+                setPendingOperation(pending ? 'price' : null)
+              }
+              onCancel={() => {
+                dirty.current = false;
+                setEditingPrice(false);
+              }}
+              onSaved={() => {
+                setEditingPrice(false);
+                saved('Branch price saved. Refreshing the current placement.');
+              }}
+            />
           </div>
-          <div className="grid min-w-0 gap-x-6 lg:grid-cols-2">
-            <OperationalPanel
-              variant="open"
-              title="Receive stock"
-              description="Record positive whole units and why they entered this branch."
-            >
-              <fieldset
-                className="min-w-0 border-0 p-0"
-                disabled={
-                  pendingOperation !== null && pendingOperation !== 'receipt'
-                }
-              >
-                <InventoryStockForm
-                  onAccessLost={accessLost}
-                  mode="receipt"
-                  scope={scope}
-                  inventory={inventory}
-                  branchName={branch.name}
-                  onPendingChange={(pending) =>
-                    setPendingOperation(pending ? 'receipt' : null)
-                  }
-                  onSaved={() =>
-                    saved(
-                      'Stock receipt recorded. Refreshing current stock and history.',
-                    )
-                  }
-                />
-              </fieldset>
-            </OperationalPanel>
-            <OperationalPanel
-              variant="open"
-              title="Correct stock"
-              description="Review a signed correction before applying it. Available for inactive products or merchants."
-            >
-              <fieldset
-                className="min-w-0 border-0 p-0"
-                disabled={
-                  pendingOperation !== null && pendingOperation !== 'adjustment'
-                }
-              >
-                <InventoryStockForm
-                  onAccessLost={accessLost}
-                  mode="adjustment"
-                  scope={scope}
-                  inventory={inventory}
-                  branchName={branch.name}
-                  onPendingChange={(pending) =>
-                    setPendingOperation(pending ? 'adjustment' : null)
-                  }
-                  onSaved={() =>
-                    saved(
-                      'Stock adjustment recorded. Refreshing current stock and history.',
-                    )
-                  }
-                />
-              </fieldset>
-            </OperationalPanel>
-          </div>
-        </div>
+        </FormDialog>
       ) : null}
       <OperationalPanel
         variant="open"
@@ -431,47 +494,61 @@ function ScopedInventoryDetail({
               aria-label="Inventory movement history"
               className="m-0 list-none p-0"
             >
-              <li className="data-column-header hidden grid-cols-[minmax(0,1.5fr)_minmax(12rem,auto)] gap-x-6 gap-y-3 sm:grid">
-                <span>Movement</span>
-                <span>Quantity and balance</span>
+              <li
+                className={`data-column-header inventory-movement-header hidden gap-x-6 gap-y-3 lg:grid ${movementGrid}`}
+              >
+                <span>Date & time</span>
+                <span>Type</span>
+                <span>Description</span>
+                <span>Change</span>
+                <span>Balance after</span>
+                {canWrite ? <span>Actor ID</span> : null}
               </li>
               {movements.map((movement) => (
                 <li
                   key={movement.id}
-                  className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.5fr)_minmax(12rem,auto)] sm:items-center"
+                  className={`data-row inventory-movement-row grid min-w-0 gap-x-6 gap-y-3 px-3 py-4 sm:px-4 lg:items-center ${movementGrid}`}
                 >
-                  <div className="min-w-0 break-words">
-                    <strong className="text-sm font-semibold">
-                      {movement.type === 'RECEIPT'
-                        ? 'Receipt'
-                        : movement.type === 'SALE'
-                          ? 'Sale'
-                          : movement.type === 'RETURN'
-                            ? 'Return'
-                            : 'Adjustment'}
-                    </strong>
-                    <p className="mt-1 text-sm">{movement.reason}</p>
-                    <p className="mt-2 text-xs text-muted">
-                      <time dateTime={movement.createdAt}>
-                        {new Date(movement.createdAt).toLocaleString()}
-                      </time>
-                      {canWrite && 'createdById' in movement ? (
-                        <>
-                          <br />
-                          Actor ID: {movement.createdById}
-                        </>
-                      ) : null}
-                    </p>
-                  </div>
-                  <div className="text-sm tabular-nums">
-                    <p className="font-semibold">
-                      {movement.quantityChange > 0 ? '+' : ''}
-                      {movement.quantityChange.toLocaleString()} units
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      Balance after: {movement.quantityAfter.toLocaleString()}
-                    </p>
-                  </div>
+                  <time
+                    className="text-sm text-muted"
+                    dateTime={movement.createdAt}
+                  >
+                    {new Date(movement.createdAt).toLocaleString()}
+                  </time>
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <Icon
+                      name={
+                        movement.type === 'ADJUSTMENT'
+                          ? 'pencil'
+                          : movement.type === 'SALE'
+                            ? 'minus'
+                            : 'plus'
+                      }
+                      className="size-4 text-muted"
+                    />
+                    {movement.type === 'RECEIPT'
+                      ? 'Receipt'
+                      : movement.type === 'SALE'
+                        ? 'Sale'
+                        : movement.type === 'RETURN'
+                          ? 'Return'
+                          : 'Adjustment'}
+                  </span>
+                  <span className="min-w-0 break-words text-sm">
+                    {movement.reason}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums">
+                    {movement.quantityChange > 0 ? '+' : ''}
+                    {movement.quantityChange.toLocaleString()} units
+                  </span>
+                  <span className="text-sm tabular-nums">
+                    {movement.quantityAfter.toLocaleString()}
+                  </span>
+                  {canWrite && 'createdById' in movement ? (
+                    <span className="min-w-0 break-all text-xs text-muted">
+                      Actor ID: {movement.createdById}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ol>
@@ -499,6 +576,7 @@ function ScopedInventoryDetail({
           </>
         )}
       </OperationalPanel>
+      {stockActions}
     </OperationalPage>
   );
 }

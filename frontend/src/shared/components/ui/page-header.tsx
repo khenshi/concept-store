@@ -6,15 +6,19 @@ export function PageHeader({
   eyebrow,
   action,
   id,
+  className = '',
 }: {
   title: string;
   description: ReactNode;
   eyebrow?: string;
   action?: ReactNode;
   id?: string;
+  className?: string;
 }) {
   return (
-    <header className="flex items-start justify-between gap-6 border-b border-hairline pb-6 max-sm:flex-col">
+    <header
+      className={`flex items-start justify-between gap-6 border-b border-hairline pb-6 max-sm:flex-col ${className}`}
+    >
       <div className="min-w-0">
         {eyebrow ? (
           <p className="mb-3 break-words text-xs font-medium text-muted">

@@ -113,6 +113,19 @@ describe('InventoryDetail workflows', () => {
       screen.queryByRole('button', { name: /delete movement|edit movement/i }),
     ).not.toBeInTheDocument();
   });
+  it('opens branch price editing in a modal and supports cancellation', async () => {
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit price' }));
+    expect(
+      screen.getByRole('dialog', { name: 'Edit branch price' }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('textbox', { name: 'Selling price (PHP)' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
   it('labels positive return movements as returns, not adjustments', async () => {
     vi.mocked(listMovements).mockResolvedValue({
       items: [
@@ -267,9 +280,7 @@ describe('InventoryDetail workflows', () => {
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
     submitReceipt();
-    expect(
-      screen.getByRole('button', { name: 'Save branch price' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Edit price' })).toBeDisabled();
     expect(
       screen.getByRole('button', { name: 'Review adjustment' }),
     ).toBeDisabled();

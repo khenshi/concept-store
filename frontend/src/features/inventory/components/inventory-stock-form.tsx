@@ -29,6 +29,7 @@ export function InventoryStockForm({
   onPendingChange,
   onAccessLost,
   onCancel,
+  inlineReceiptAction = false,
 }: {
   scope: InventoryDetailScope;
   inventory: BranchInventory;
@@ -38,6 +39,7 @@ export function InventoryStockForm({
   onPendingChange(pending: boolean): void;
   onAccessLost?(): void;
   onCancel?(): void;
+  inlineReceiptAction?: boolean;
 }) {
   const { request } = useAuth();
   const { confirm, confirmationDialog } = useConfirmationDialog();
@@ -266,9 +268,47 @@ export function InventoryStockForm({
     }));
     setError(null);
   };
+  const receiptField = (
+    <TextField
+      label="Units to receive"
+      name="quantity"
+      required
+      inputMode="numeric"
+      value={quantity}
+      error={errors.quantity}
+      disabled={pending || unavailable}
+      onChange={(event) => {
+        const value = sanitizeWholeNumber(event.target.value);
+        command.current = null;
+        setQuantity(value);
+        validate('quantity', value, '', reason);
+      }}
+      onBlur={() => validate('quantity', quantity, newQuantity, reason, true)}
+      hint="Enter the quantity to add"
+      placeholder="e.g. 100"
+    />
+  );
+  const submitButton = (
+    <button
+      type="submit"
+      className={buttonStyles({ variant: 'primary' })}
+      disabled={pending || unavailable}
+      aria-busy={pending}
+    >
+      {pending
+        ? 'Processing…'
+        : mode === 'receipt'
+          ? 'Receive stock'
+          : 'Review adjustment'}
+    </button>
+  );
   return (
     <>
-      <form className="grid gap-4 p-6" noValidate onSubmit={submit}>
+      <form
+        className={`grid gap-4 ${inlineReceiptAction ? 'p-0' : 'p-6'}`}
+        noValidate
+        onSubmit={submit}
+      >
         {unavailable ? (
           <p className="text-sm text-muted">
             Receiving requires an active product and merchant. Corrective
@@ -282,26 +322,14 @@ export function InventoryStockForm({
           </p>
         ) : null}
         {mode === 'receipt' ? (
-          <TextField
-            label="Units to receive"
-            name="quantity"
-            required
-            inputMode="numeric"
-            value={quantity}
-            error={errors.quantity}
-            disabled={pending || unavailable}
-            onChange={(event) => {
-              const value = sanitizeWholeNumber(event.target.value);
-              command.current = null;
-              setQuantity(value);
-              validate('quantity', value, '', reason);
-            }}
-            onBlur={() =>
-              validate('quantity', quantity, newQuantity, reason, true)
-            }
-            hint="Enter the quantity to add"
-            placeholder="e.g. 100"
-          />
+          inlineReceiptAction ? (
+            <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+              {receiptField}
+              {submitButton}
+            </div>
+          ) : (
+            receiptField
+          )
         ) : (
           <div className="grid min-w-0 items-start gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]">
             {adjustmentInputMode === 'delta' ? (
@@ -415,30 +443,21 @@ export function InventoryStockForm({
             />
           </>
         ) : null}
-        <div className="flex flex-wrap justify-end gap-3">
-          {onCancel ? (
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'secondary' })}
-              disabled={pending}
-              onClick={onCancel}
-            >
-              Cancel
-            </button>
-          ) : null}
-          <button
-            type="submit"
-            className={buttonStyles({ variant: 'primary' })}
-            disabled={pending || unavailable}
-            aria-busy={pending}
-          >
-            {pending
-              ? 'Processing…'
-              : mode === 'receipt'
-                ? 'Receive stock'
-                : 'Review adjustment'}
-          </button>
-        </div>
+        {mode !== 'receipt' || !inlineReceiptAction ? (
+          <div className="flex flex-wrap justify-end gap-3">
+            {onCancel ? (
+              <button
+                type="button"
+                className={buttonStyles({ variant: 'secondary' })}
+                disabled={pending}
+                onClick={onCancel}
+              >
+                Cancel
+              </button>
+            ) : null}
+            {submitButton}
+          </div>
+        ) : null}
       </form>
       {confirmationDialog}
     </>

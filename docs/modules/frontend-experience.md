@@ -294,25 +294,33 @@ this is a separate waiver from the historical refactor waiver below.
 Branch inventory now uses the same operational system for scoped directories,
 placement creation, independently priced stock, price/stock controls, and
 immutable history. Branch and product details provide owner/manager inventory
-links. Placement selection uses one searchable product combobox bounded within
-the native dialog instead of separate search and selection inputs. Receipt and
-correction panels share a responsive two-column row on suitable viewports and
-stack on smaller screens. Receive stock asks only for quantity and records a
-stable system reason; common reason actions fill the still-editable required
-adjustment reason field so manual corrections remain explainable. Corrections
-use a custom accessible dropdown, defaulting to the absolute new-stock-value
-input, beside the selected input; it shows either that field or the signed
-quantity-change field, never both at once. They confirm the resulting delta and
-estimated stock through a readable confirmation summary that includes the
-product, branch, current stock, method, requested value or change, net change,
-and reason while keeping
-the server authoritative; pending writes disable repeat/concurrent actions. Stock
-retry IDs remain unchanged for unchanged failed commands, and success reloads
-current inventory instead of treating historical movement balances as current.
+links. Placement details follow the reference hierarchy with a context header,
+an unlabeled placement summary introduced by one horizontal divider, a structured
+movement-history list before the stock workflows, and product-profile navigation
+lives in Product identity;
+price editing opens in a focused modal, while receive stock and low-stock
+threshold use aligned headings and input/action rows. The detail view uses a compact
+back control, tighter header and note spacing, start-aligned summary cells, and a
+divider between placement context and stock actions. Placement selection uses one searchable
+product combobox bounded within the native dialog instead of separate search and
+selection inputs. Receipt and correction panels share a responsive two-column row
+on suitable viewports and stack on smaller screens. Receive stock asks only for
+quantity and records a stable system reason; common reason actions fill the
+still-editable required adjustment reason field so manual corrections remain
+explainable. Corrections use a custom accessible dropdown, defaulting to the
+absolute new-stock-value input, beside the selected input; it shows either that
+field or the signed quantity-change field, never both at once. They confirm the
+resulting delta and estimated stock through a readable confirmation summary that
+includes the product, branch, current stock, method, requested value or change,
+net change, and reason while keeping the server authoritative; pending writes
+disable repeat/concurrent actions. Stock retry IDs remain unchanged for unchanged
+failed commands, and success reloads current inventory instead of treating
+historical movement balances as current.
 Owner/manager inventory rows also provide direct Receive stock and Correct stock
 dialogs using those same safeguards. Their modal headers show branch and current
 unit context as compact upper-right tags instead of body text; merchant rows
-remain read-only. Product
+remain read-only. Inventory list labels and row content now use a small
+horizontal inset while each divider remains full-width. Product
 identity continues to link to the full placement and movement-history screen.
 Expanded API/component workflows pass alongside regressions (236 frontend tests),
 typecheck, lint, formatting, and production build. Test-only native dialog shims

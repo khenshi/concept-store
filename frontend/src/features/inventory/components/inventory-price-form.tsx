@@ -21,12 +21,14 @@ export function InventoryPriceForm({
   onSaved,
   onPendingChange,
   onAccessLost,
+  onCancel,
 }: {
   scope: InventoryDetailScope;
   inventory: BranchInventory;
   onSaved(): void;
   onPendingChange(pending: boolean): void;
   onAccessLost?(): void;
+  onCancel?(): void;
 }) {
   const { request } = useAuth();
   const [price, setPrice] = useState(inventory.sellingPrice);
@@ -98,14 +100,26 @@ export function InventoryPriceForm({
         onBlur={() => validate(price, true)}
         hint="This changes only this branch’s price, not stock or other branches."
       />
-      <button
-        className={buttonStyles({ variant: 'primary', className: 'w-fit' })}
-        type="submit"
-        disabled={pending}
-        aria-busy={pending}
-      >
-        {pending ? 'Saving…' : 'Save branch price'}
-      </button>
+      <div className="flex flex-wrap justify-end gap-3">
+        {onCancel ? (
+          <button
+            className={buttonStyles({ variant: 'secondary' })}
+            type="button"
+            disabled={pending}
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+        ) : null}
+        <button
+          className={buttonStyles({ variant: 'primary' })}
+          type="submit"
+          disabled={pending}
+          aria-busy={pending}
+        >
+          {pending ? 'Saving…' : 'Save branch price'}
+        </button>
+      </div>
     </form>
   );
 }

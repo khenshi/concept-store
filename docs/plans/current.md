@@ -30,5 +30,28 @@ This focused modal-layout refinement was implemented and committed as
 - Preserve server-authoritative validation, confirmation/cancellation behavior,
   idempotency, and branch-scoped stock safeguards.
 
-This focused confirmation-dialog refinement is being implemented now and
-remains uncommitted for review.
+This focused confirmation-dialog refinement was implemented and committed as
+`74dd522`.
+
+## Inventory placement detail redesign (approved September 21, 2026)
+
+- Rework the placement detail screen to follow the approved reference hierarchy:
+  back/context header, branch and product actions, an unlabeled placement summary
+  introduced by one horizontal divider, side-by-side stock workflows, and a
+  structured movement-history list.
+- Keep branch/tenant authorization, live validation, server-authoritative stock
+  commands, price and threshold editing, history pagination, and responsive
+  behavior intact. Preserve full-width dividers while adding small horizontal
+  insets to list content.
+- Keep branch-price editing in a focused modal, expose product-profile navigation
+  from Product identity only, give the receive/threshold column less width than
+  correction, align Receive stock and Low-stock threshold as parallel controls
+  with each action beside its input, and shorten summary separators so they have
+  vertical breathing room.
+- Keep the detail back control compact, tighten the header-to-summary and
+  summary-to-note spacing, start-align each summary item within equal grid cells, and
+  divide the placement note from the stock actions below. Render movement history
+  before the receive, threshold, and correction controls.
+
+This focused frontend redesign is being implemented now and remains uncommitted
+for review.

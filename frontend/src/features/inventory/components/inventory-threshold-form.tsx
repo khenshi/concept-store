@@ -21,12 +21,14 @@ export function InventoryThresholdForm({
   onSaved,
   onPendingChange,
   onAccessLost,
+  inlineAction = false,
 }: {
   scope: InventoryDetailScope;
   inventory: BranchInventory;
   onSaved(): void;
   onPendingChange(pending: boolean): void;
   onAccessLost?(): void;
+  inlineAction?: boolean;
 }) {
   const { request } = useAuth();
   const [threshold, setThreshold] = useState(
@@ -86,36 +88,54 @@ export function InventoryThresholdForm({
       onPendingChange(false);
     }
   }
+  const submitButton = (
+    <button
+      className={buttonStyles({ variant: 'primary' })}
+      type="submit"
+      disabled={pending}
+      aria-busy={pending}
+    >
+      {pending ? 'Saving…' : 'Save threshold'}
+    </button>
+  );
   return (
-    <form className="grid gap-4 p-6" noValidate onSubmit={submit}>
+    <form
+      className={`grid gap-4 ${inlineAction ? 'p-0' : 'p-6'}`}
+      noValidate
+      onSubmit={submit}
+    >
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}
-      <TextField
-        label="Low-stock threshold"
-        name="lowStockThreshold"
-        required
-        inputMode="numeric"
-        value={threshold}
-        disabled={pending}
-        error={fieldError}
-        onChange={(event) => {
-          setThreshold(event.target.value);
-          validate(event.target.value);
-        }}
-        onBlur={() => validate(threshold, true)}
-        hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
-      />
-      <button
-        className={buttonStyles({ variant: 'primary', className: 'w-fit' })}
-        type="submit"
-        disabled={pending}
-        aria-busy={pending}
+      <div
+        className={
+          inlineAction
+            ? 'grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center'
+            : undefined
+        }
       >
-        {pending ? 'Saving…' : 'Save threshold'}
-      </button>
+        <TextField
+          label="Low-stock threshold"
+          name="lowStockThreshold"
+          required
+          inputMode="numeric"
+          value={threshold}
+          disabled={pending}
+          error={fieldError}
+          onChange={(event) => {
+            setThreshold(event.target.value);
+            validate(event.target.value);
+          }}
+          onBlur={() => validate(threshold, true)}
+          hint="Set the low-stock warning level. Enter 0 to disable warnings."
+        />
+        {inlineAction ? submitButton : null}
+      </div>
+      {!inlineAction ? (
+        <div className="flex justify-end">{submitButton}</div>
+      ) : null}
     </form>
   );
 }
