@@ -131,6 +131,13 @@ whitelisting reject malformed IDs and unexpected fields.
 
 ## Stock commands and history
 
+Inventory placement, stock-in, and adjustment dialogs keep their submit and
+secondary actions aligned to the lower right of the modal. Stock-in and
+adjustment forms provide an explicit Cancel action that closes the modal without
+submitting. The adjustment dialog continues to show branch and current-unit
+context in the upper-right header tags; this is a layout-only refinement and
+does not change stock rules.
+
 The read-only reconciliation route is limited to owners and managers (only
 assigned branches for managers). It returns only mismatched placements, ordered
 by placement ID with a default page size of 25 and maximum of 100. The optional

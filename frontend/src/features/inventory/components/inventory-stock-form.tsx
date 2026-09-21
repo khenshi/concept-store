@@ -27,6 +27,7 @@ export function InventoryStockForm({
   onSaved,
   onPendingChange,
   onAccessLost,
+  onCancel,
 }: {
   scope: InventoryDetailScope;
   inventory: BranchInventory;
@@ -34,6 +35,7 @@ export function InventoryStockForm({
   onSaved(): void;
   onPendingChange(pending: boolean): void;
   onAccessLost?(): void;
+  onCancel?(): void;
 }) {
   const { request } = useAuth();
   const { confirm, confirmationDialog } = useConfirmationDialog();
@@ -280,7 +282,8 @@ export function InventoryStockForm({
             onBlur={() =>
               validate('quantity', quantity, newQuantity, reason, true)
             }
-            hint="Positive whole units. This does not deduct stock from another branch."
+            hint="Enter the quantity to add"
+            placeholder="e.g. 100"
           />
         ) : (
           <div className="grid min-w-0 items-start gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.4fr)]">
@@ -391,21 +394,34 @@ export function InventoryStockForm({
                 validate('reason', quantity, newQuantity, reason, true)
               }
               required
+              placeholder="e.g. Stock count correction"
             />
           </>
         ) : null}
-        <button
-          type="submit"
-          className={buttonStyles({ variant: 'primary', className: 'w-fit' })}
-          disabled={pending || unavailable}
-          aria-busy={pending}
-        >
-          {pending
-            ? 'Processing…'
-            : mode === 'receipt'
-              ? 'Receive stock'
-              : 'Review adjustment'}
-        </button>
+        <div className="flex flex-wrap justify-end gap-3">
+          {onCancel ? (
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'secondary' })}
+              disabled={pending}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          ) : null}
+          <button
+            type="submit"
+            className={buttonStyles({ variant: 'primary' })}
+            disabled={pending || unavailable}
+            aria-busy={pending}
+          >
+            {pending
+              ? 'Processing…'
+              : mode === 'receipt'
+                ? 'Receive stock'
+                : 'Review adjustment'}
+          </button>
+        </div>
       </form>
       {confirmationDialog}
     </>

@@ -46,14 +46,17 @@ vi.mock('./inventory-stock-form', () => ({
     onSaved,
     onPendingChange,
     onAccessLost,
+    onCancel,
   }: {
     mode: 'receipt' | 'adjustment';
     onSaved(): void;
     onPendingChange(pending: boolean): void;
     onAccessLost(): void;
+    onCancel(): void;
   }) => (
     <div>
       <input aria-label="Test stock reason" />
+      <button onClick={onCancel}>Cancel</button>
       <button onClick={onSaved}>
         Complete test {mode === 'receipt' ? 'receipt' : 'correction'}
       </button>
@@ -344,6 +347,9 @@ describe('InventoryDirectory workflows', () => {
       expect(screen.getByText(`Branch: ${branch.name}`)).toBeInTheDocument();
       expect(
         screen.getByText(`Current units: ${inventory.quantity}`),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Cancel' }),
       ).toBeInTheDocument();
       fireEvent.click(
         screen.getByRole('button', { name: `Complete test ${action}` }),

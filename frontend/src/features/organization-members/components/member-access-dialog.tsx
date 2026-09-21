@@ -158,7 +158,7 @@ export function MemberAccessDialog({
               ? ' Existing branch assignments will be cleared.'
               : ''}
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
             <button
               ref={safeFocus}
               type="button"
@@ -267,27 +267,29 @@ export function MemberAccessDialog({
                   </option>
                 ))}
               </SelectControl>
-              <button
-                type="button"
-                disabled={
-                  pending ||
-                  !merchantId ||
-                  (!changeToMerchant && merchantId === member.merchantId)
-                }
-                className={buttonStyles({ variant: 'primary' })}
-                onClick={() =>
-                  setConfirmation({
-                    label: changeToMerchant
-                      ? 'Change role and clear branch assignments?'
-                      : 'Change the represented merchant?',
-                    action: updateMerchant,
-                  })
-                }
-              >
-                {changeToMerchant
-                  ? 'Review role change'
-                  : 'Review merchant link'}
-              </button>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  disabled={
+                    pending ||
+                    !merchantId ||
+                    (!changeToMerchant && merchantId === member.merchantId)
+                  }
+                  className={buttonStyles({ variant: 'primary' })}
+                  onClick={() =>
+                    setConfirmation({
+                      label: changeToMerchant
+                        ? 'Change role and clear branch assignments?'
+                        : 'Change the represented merchant?',
+                      action: updateMerchant,
+                    })
+                  }
+                >
+                  {changeToMerchant
+                    ? 'Review role change'
+                    : 'Review merchant link'}
+                </button>
+              </div>
             </section>
           )}
         </div>

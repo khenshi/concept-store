@@ -333,6 +333,9 @@ nonowners. These access-control screens have not had rendered browser QA;
 the historical visual waivers below do not cover this milestone.
 Form dialogs use generous viewport-aware widths. Dialog headings retain initial
 focus for context without a visible outline; control focus rings are unchanged.
+Submit and action groups in every modal align to the lower right, including
+single primary actions and multi-action cancel/submit groups. Existing labels,
+pending states, focus behavior, and dismissal safeguards are unchanged.
 Merchant workflows now use full-width responsive linked directory rows, neutral
 profile panels and shared form controls. Creation uses a wide native dialog with
 focus restoration, scroll containment, and pending dismissal protection. Existing

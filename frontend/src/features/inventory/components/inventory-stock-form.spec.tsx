@@ -246,4 +246,24 @@ describe('InventoryStockForm', () => {
       screen.getByRole('button', { name: 'Review adjustment' }),
     ).not.toBeDisabled();
   });
+  it.each(['receipt', 'adjustment'] as const)(
+    'allows cancelling the %s form without submitting',
+    (mode) => {
+      const onCancel = vi.fn();
+      render(
+        <InventoryStockForm
+          scope={scope}
+          inventory={inventory}
+          mode={mode}
+          onSaved={vi.fn()}
+          onPendingChange={vi.fn()}
+          onCancel={onCancel}
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      expect(receiveStock).not.toHaveBeenCalled();
+      expect(adjustStock).not.toHaveBeenCalled();
+    },
+  );
 });

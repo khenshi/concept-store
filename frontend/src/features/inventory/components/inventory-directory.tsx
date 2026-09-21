@@ -566,12 +566,19 @@ function ScopedInventoryDirectory({
         >
           <FormDialog
             title="Add product placement"
-            description={`Place an existing product in ${branch?.name ?? 'this branch'} with its own selling price and stock tracking.`}
+            description={`Place an existing product with its own selling price and stock tracking.`}
             pending={pending}
             onClose={() => {
               dirty.current = false;
               setCreating(false);
             }}
+             headerAside={
+              <>
+                <span className="inline-flex max-w-full items-center rounded-full border border-control-border bg-subtle px-3 py-1.5 text-xs font-medium text-muted">
+                  Branch: {branch?.name ?? 'This branch'}
+                </span>
+              </>
+            }
           >
             <InventoryPlacementForm
               scope={{ organizationId, branchId }}
@@ -633,6 +640,10 @@ function ScopedInventoryDirectory({
               mode={stockAction.mode}
               onPendingChange={setPending}
               onAccessLost={accessLost}
+              onCancel={() => {
+                dirty.current = false;
+                setStockAction(null);
+              }}
               onSaved={() => {
                 const action =
                   stockAction.mode === 'receipt' ? 'receipt' : 'correction';

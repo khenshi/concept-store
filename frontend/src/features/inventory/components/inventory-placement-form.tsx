@@ -275,7 +275,7 @@ export function InventoryPlacementForm({
           )
         }
         required
-        hint="Opening units recorded in this branch."
+        hint="Enter the starting stock quantity for this branch"
       />
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField
@@ -307,7 +307,7 @@ export function InventoryPlacementForm({
             )
           }
           required
-          hint="This branch may charge a different price."
+          hint="Set a different price for this branch"
         />
         <TextField
           label="Low-stock threshold"
@@ -338,14 +338,10 @@ export function InventoryPlacementForm({
             )
           }
           required
-          hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
+          hint="Set the low-stock warning level. Enter 0 to disable warnings."
         />
       </div>
-      <p className="text-sm text-muted">
-        Opening stock is recorded as a receipt in this branch. No stock is
-        transferred or deducted from another branch.
-      </p>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap justify-end gap-3">
         <button
           className={buttonStyles({ variant: 'primary' })}
           type="submit"

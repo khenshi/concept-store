@@ -1083,17 +1083,18 @@ function ScopedBranchPos({
                 </li>
               ))}
             </ul>
-            <Button
-              variant="secondary"
-              className="mt-6"
-              onClick={() => {
-                lookupBusy.current = false;
-                setMatches(null);
-                focusCode();
-              }}
-            >
-              Cancel
-            </Button>
+            <div className="mt-6 flex justify-end">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  lookupBusy.current = false;
+                  setMatches(null);
+                  focusCode();
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
           </FormDialog>
         ) : null}
         {clearing && cartActive ? (
