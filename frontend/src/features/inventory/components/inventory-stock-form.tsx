@@ -56,7 +56,7 @@ export function InventoryStockForm({
   );
   const parse = (amount: string, why: string) =>
     mode === 'receipt'
-      ? receiptInputSchema.safeParse({ quantity: amount, reason: why })
+      ? receiptInputSchema.safeParse({ quantity: amount })
       : adjustmentInputSchema.safeParse({
           quantityChange: amount,
           reason: why,
@@ -88,7 +88,7 @@ export function InventoryStockForm({
     event.preventDefault();
     if (lock.current) return;
     Object.values(timers.current).forEach(window.clearTimeout);
-    const receipt = receiptInputSchema.safeParse({ quantity, reason });
+    const receipt = receiptInputSchema.safeParse({ quantity });
     const adjustment = adjustmentInputSchema.safeParse({
       quantityChange: quantity,
       reason,
@@ -112,7 +112,12 @@ export function InventoryStockForm({
         : adjustment.success
           ? adjustment.data.quantityChange
           : 0;
-    const normalizedReason = parsed.data.reason;
+    const normalizedReason =
+      mode === 'receipt'
+        ? 'Stock received'
+        : adjustment.success
+          ? adjustment.data.reason
+          : '';
     const estimated = inventory.quantity + delta;
     // Do not reject based on a possibly stale estimate. The backend owns balance checks.
     lock.current = true;
@@ -138,7 +143,6 @@ export function InventoryStockForm({
       if (mode === 'receipt')
         await receiveStock(request, scope, {
           quantity: delta,
-          reason: normalizedReason,
           requestId,
         });
       else
@@ -169,10 +173,11 @@ export function InventoryStockForm({
     inventory.product.status === 'ACTIVE' &&
     inventory.product.merchant.status === 'ACTIVE';
   const unavailable = mode === 'receipt' && !active;
-  const reasonSuggestions =
-    mode === 'receipt'
-      ? ['Supplier delivery', 'Opening stock', 'Counted stock received']
-      : ['Stock count correction', 'Damaged stock', 'Data entry correction'];
+  const reasonSuggestions = [
+    'Stock count correction',
+    'Damaged stock',
+    'Data entry correction',
+  ];
   const updateReason = (value: string) => {
     command.current = null;
     setReason(value);
@@ -214,45 +219,49 @@ export function InventoryStockForm({
               : 'A signed whole-unit delta, for example +5 or -2; never a replacement total.'
           }
         />
-        <fieldset className="grid min-w-0 gap-2 border-0 p-0">
-          <legend className="text-label font-semibold text-ink">
-            Common reasons
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {reasonSuggestions.map((suggestion) => (
-              <button
-                key={suggestion}
-                type="button"
-                className={buttonStyles({
-                  variant: reason === suggestion ? 'primary' : 'secondary',
-                  className: 'min-h-9 px-3 py-1.5 text-xs',
-                })}
-                disabled={pending || unavailable}
-                aria-pressed={reason === suggestion}
-                onClick={() => updateReason(suggestion)}
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs leading-5 text-muted">
-            Choose a common reason or enter a specific reason below. It is kept
-            in the immutable stock history.
-          </p>
-        </fieldset>
-        <TextField
-          label="Reason"
-          name="reason"
-          value={reason}
-          maxLength={500}
-          error={errors.reason}
-          disabled={pending || unavailable}
-          onChange={(event) => {
-            updateReason(event.target.value);
-          }}
-          onBlur={() => validate('reason', quantity, reason, true)}
-          required
-        />
+        {mode === 'adjustment' ? (
+          <>
+            <fieldset className="grid min-w-0 gap-2 border-0 p-0">
+              <legend className="text-label font-semibold text-ink">
+                Common reasons
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {reasonSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    className={buttonStyles({
+                      variant: reason === suggestion ? 'primary' : 'secondary',
+                      className: 'min-h-9 px-3 py-1.5 text-xs',
+                    })}
+                    disabled={pending || unavailable}
+                    aria-pressed={reason === suggestion}
+                    onClick={() => updateReason(suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs leading-5 text-muted">
+                Choose a common reason or enter a specific reason below. It is
+                kept in the immutable stock history.
+              </p>
+            </fieldset>
+            <TextField
+              label="Reason"
+              name="reason"
+              value={reason}
+              maxLength={500}
+              error={errors.reason}
+              disabled={pending || unavailable}
+              onChange={(event) => {
+                updateReason(event.target.value);
+              }}
+              onBlur={() => validate('reason', quantity, reason, true)}
+              required
+            />
+          </>
+        ) : null}
         <button
           type="submit"
           className={buttonStyles({ variant: 'primary', className: 'w-fit' })}

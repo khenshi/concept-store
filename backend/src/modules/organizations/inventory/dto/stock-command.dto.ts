@@ -11,14 +11,6 @@ import {
 } from 'class-validator';
 
 class StockCommandDto {
-  @ApiProperty({ minLength: 2, maxLength: 500 })
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
-  @IsString()
-  @Length(2, 500)
-  reason!: string;
-
   @ApiProperty({
     format: 'uuid',
     description: 'Reuse for retries of the same stock command',
@@ -36,6 +28,14 @@ export class ReceiveInventoryDto extends StockCommandDto {
 }
 
 export class AdjustInventoryDto extends StockCommandDto {
+  @ApiProperty({ minLength: 2, maxLength: 500 })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @Length(2, 500)
+  reason!: string;
+
   @ApiProperty({
     type: 'integer',
     minimum: -2147483648,

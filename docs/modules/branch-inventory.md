@@ -79,10 +79,12 @@ whitelisting reject malformed IDs and unexpected fields.
 
 ## Placements and prices
 
-- Placement creation accepts product ID, price and an optional nonnegative whole-
-  unit `lowStockThreshold`. It defaults to `5`, starts at zero stock, and creates
-  no opening movement. Setting the threshold to `0` is retained for the later
-  low-warning opt-out behavior. Duplicate product/branch placement returns `409`.
+- Placement creation accepts product ID, price, a required nonnegative whole-unit
+  `initialQuantity`, and an optional nonnegative whole-unit `lowStockThreshold`.
+  The threshold defaults to `5`; positive opening stock creates an attributed
+  RECEIPT in the placement transaction, while explicit zero creates no movement.
+  Setting the threshold to `0` is retained for the low-warning opt-out behavior.
+  Duplicate product/branch placement returns `409`.
 - New placements require an active product and active merchant.
 - Price requests use positive decimal strings with at most 10 integer and two
   fractional digits. Numeric JSON values, scientific notation, and zero are
@@ -150,8 +152,9 @@ access, and successful stock-write changes clear them as well. Merchant and
 cashier views neither show this panel nor request its data. No correction
 control is available from a mismatch.
 
-- Receipt requires a positive integer quantity, trimmed 2–500 character reason,
-  and UUID request ID. Product and merchant must be active for a new receipt.
+- Receipt requires a positive integer quantity and UUID request ID. The server
+  records the system reason `Stock received`; users do not need to enter one.
+  Product and merchant must be active for a new receipt.
 - Adjustment requires a nonzero signed integer delta, reason, and request ID.
   It is not an absolute stock replacement and may correct inactive records.
 - Quantities stay within `0..2147483647`. Requests that would underflow/overflow
@@ -160,8 +163,9 @@ control is available from a mismatch.
   PostgreSQL transaction. The updated row remains locked until commit, preserving
   the movement's resulting balance. A failed movement write rolls back stock.
 - Request IDs are unique per organization. Replaying the same inventory, branch,
-  operation, delta, and reason returns the original movement without another
-  stock change, even if lifecycle state has subsequently changed.
+  operation and delta returns the original receipt without another stock change;
+  adjustment retries also require the same reason. Replays work even if lifecycle
+  state has subsequently changed.
 - A request ID reused for different content returns `409`. Concurrent duplicate
   uniqueness/range failures resolve the committed original after rollback.
 - Movement actor comes from authenticated context. Replays retain original actor
@@ -249,12 +253,11 @@ parts were reviewed and approved; the
 [completed shared branch-selection plan](../plans/archive/shared-branch-selection-2026-09-14.md)
 is archived.
 
-The navigation part does not change inventory APIs or stock rules. The Products
-create API now optionally creates one branch placement and balanced opening RECEIPT
-atomically with a new product; see [Products](products.md). The frontend new-product
-form now offers this owner-only optional section with explicit branch selection.
-Existing Add product placement remains a
-zero-stock workflow, with no opening-stock fields.
+The Products create API optionally creates one branch placement and balanced opening
+RECEIPT atomically with a new product; see [Products](products.md). The frontend
+new-product form offers this owner-only optional section with explicit branch
+selection. Add product placement separately requires an explicit whole-unit
+opening quantity and records positive stock as a placement receipt.
 Frontend lint, type checking, production build, changed-file formatting and all
 443 tests across 69 files pass. Unrelated existing inventory-api.ts formatting is
 preserved. Rendered navigation/dropdown/keyboard/zoom QA was pending at Part 1
@@ -302,12 +305,16 @@ responses as well as full owner/manager responses.
   placements. Search remains debounced; Load more exposes later candidates and
   stale responses are ignored. The backend offers active products of active
   merchants, excludes existing placements and preserves manager visibility.
-  Creation accepts price/product only and starts at zero stock. A concurrent
-  duplicate still returns the backend conflict without losing the draft.
+  Creation requires product, price, threshold and whole-unit opening stock. A
+  positive opening quantity is written as an attributed RECEIPT in the same
+  transaction as the placement; an explicit zero creates the empty balance
+  without a movement. A concurrent duplicate still returns the backend conflict
+  without losing the draft.
 - Price remains separate; receiving and correction panels appear side by side at
-  suitable widths and stack on smaller screens. Stock forms offer common reason
-  actions plus an editable custom reason field. Reasons remain required ledger
-  data. Input validation runs after 300 ms, immediately on blur, and on submit.
+  suitable widths and stack on smaller screens. Adjustment forms offer common
+  reason actions plus an editable custom reason field; receipt forms only ask for
+  quantity and use the system reason `Stock received`. Input validation runs
+  after 300 ms, immediately on blur, and on submit.
   Invalid submissions focus the first invalid field; errors preserve input.
 - Price remains a decimal string through validation, JSON, and display. Changing
   one branch price never writes a quantity or another branch's placement.

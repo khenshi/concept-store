@@ -6,13 +6,16 @@ two branches, OWNER/MANAGER/CASHIER/MERCHANT members, and one pending invitation
 It also creates five merchants (including lifecycle examples and Luntian Studio),
 four products including an inactive product, and five branch placements. The vase
 has independent Makati/BGC PHP prices (`850.00`/`925.50`) and final balances (`9`/`7`).
-Makati tray stock is `4` at `450.00`; Luntian pouch stock is `4` at `250.00`.
+Makati tray stock is `5` at `450.00` after one returned unit is restocked;
+Luntian pouch stock is `4` at `250.00`.
 The inactive placement remains at zero. Receipts, a correction, and sale deductions
 insert attributed movement history atomically with balance changes; no transfers occur.
 
 Three completed persistence examples include a Makati cash sale (`850.00`, tender
 `1000.00`, change `150.00`), a mixed Amihan/Luntian Makati GCash sale (`950.00`),
-and a BGC card sale (`925.50`). Manual references are demo-only and unverified.
+and a BGC card sale (`925.50`). A partial cash refund (`450.00`) for the Makati
+GCash sale restocks one tray unit and creates a RETURN movement. Manual references
+are demo-only and unverified.
 The cashier creates Makati examples; the owner creates BGC's example without
 granting the cashier BGC access. Snapshots and canonical commands are included.
 These examples do not call the application checkout API. Scoped sales-read APIs

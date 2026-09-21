@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "dev": "code --reuse-window --command 'workbench.action.tasks.runTask' 'Dev'"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

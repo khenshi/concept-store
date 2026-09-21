@@ -113,11 +113,12 @@ describe('Branch inventory API contracts', () => {
     });
     await expect(getInventoryReconciliation(request, scope)).rejects.toThrow();
   });
-  it('placement and price commands never submit stock quantities', async () => {
+  it('placement submits opening stock while price updates remain quantity-free', async () => {
     request.mockResolvedValue(inventory);
     await createPlacement(request, scope, {
       productId: inventory.productId,
       sellingPrice: '925.50',
+      initialQuantity: 10,
       lowStockThreshold: 5,
     });
     expect(request).toHaveBeenLastCalledWith(
@@ -127,6 +128,7 @@ describe('Branch inventory API contracts', () => {
         body: JSON.stringify({
           productId: inventory.productId,
           sellingPrice: '925.50',
+          initialQuantity: 10,
           lowStockThreshold: 5,
         }),
       }),
@@ -195,7 +197,6 @@ describe('Branch inventory API contracts', () => {
     request.mockResolvedValue(movement);
     const receipt = {
       quantity: 3,
-      reason: 'Delivery',
       requestId: movement.requestId,
     };
     await receiveStock(request, scope, receipt);

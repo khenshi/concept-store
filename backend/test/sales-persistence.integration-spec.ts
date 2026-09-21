@@ -955,7 +955,6 @@ describe('PostgreSQL sale persistence integrity', () => {
       checkout.complete(context, branchId, command),
       stock.receive(organizationId, branchId, inventoryId, userId, {
         quantity: 3,
-        reason: 'Concurrent delivery',
         requestId: randomUUID(),
       }),
     ]);

@@ -271,7 +271,6 @@ describe('PostgreSQL atomic product opening stock', () => {
     });
     await stock.receive(organizationId, branchId, placement.id, actorId, {
       quantity: 2,
-      reason: 'Later delivery',
       requestId: randomUUID(),
     });
     await prisma.merchant.update({

@@ -39,8 +39,11 @@ describe('InventoryPlacementForm', () => {
       screen.getByRole('option', { name: `${product.name} · ${product.sku}` }),
     );
   };
-  it('creates a placement with a decimal-string price and no opening stock', async () => {
-    vi.mocked(createPlacement).mockResolvedValue({ ...inventory, quantity: 0 });
+  it('creates a placement with required opening stock and a decimal-string price', async () => {
+    vi.mocked(createPlacement).mockResolvedValue({
+      ...inventory,
+      quantity: 10,
+    });
     const onSaved = vi.fn();
     render(
       <InventoryPlacementForm
@@ -55,15 +58,63 @@ describe('InventoryPlacementForm', () => {
       screen.getByRole('textbox', { name: 'Selling price (PHP)' }),
       { target: { value: ' 925.50 ' } },
     );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Initial stock' }), {
+      target: { value: '10' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Create placement' }));
     await waitFor(() =>
       expect(createPlacement).toHaveBeenCalledWith(request, scope, {
         productId: product.id,
         sellingPrice: '925.50',
+        initialQuantity: 10,
         lowStockThreshold: 5,
       }),
     );
     expect(onSaved).toHaveBeenCalledOnce();
+  });
+  it('rejects letters from price, threshold and opening-stock inputs', async () => {
+    render(
+      <InventoryPlacementForm
+        scope={scope}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onPendingChange={vi.fn()}
+      />,
+    );
+    await select();
+    const price = screen.getByRole('textbox', { name: 'Selling price (PHP)' });
+    const threshold = screen.getByRole('textbox', {
+      name: 'Low-stock threshold',
+    });
+    const initial = screen.getByRole('textbox', { name: 'Initial stock' });
+    fireEvent.change(price, { target: { value: '925a.5x' } });
+    fireEvent.change(threshold, { target: { value: '5x' } });
+    fireEvent.change(initial, { target: { value: '10units' } });
+    expect(price).toHaveValue('925.5');
+    expect(threshold).toHaveValue('5');
+    expect(initial).toHaveValue('10');
+  });
+  it('requires an explicit opening-stock value before creating a placement', async () => {
+    render(
+      <InventoryPlacementForm
+        scope={scope}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+        onPendingChange={vi.fn()}
+      />,
+    );
+    await select();
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Selling price (PHP)' }),
+      { target: { value: '12.50' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Create placement' }));
+    const initial = screen.getByRole('textbox', { name: 'Initial stock' });
+    expect(initial).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.getByText('Enter a whole number from 0 to 2147483647.'),
+    ).toBeInTheDocument();
+    expect(createPlacement).not.toHaveBeenCalled();
   });
   it('uses only branch-scoped eligible products returned by the server', async () => {
     vi.mocked(listEligibleProducts).mockResolvedValue({
@@ -270,6 +321,9 @@ describe('InventoryPlacementForm', () => {
     await select();
     const price = screen.getByRole('textbox', { name: 'Selling price (PHP)' });
     fireEvent.change(price, { target: { value: '12.50' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Initial stock' }), {
+      target: { value: '2' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Create placement' }));
     await screen.findByRole('alert');
     expect(price).toHaveValue('12.50');

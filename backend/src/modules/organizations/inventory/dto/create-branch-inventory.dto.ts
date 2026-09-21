@@ -7,6 +7,17 @@ export class CreateBranchInventoryDto extends InventoryPriceDto {
   @IsUUID('4')
   productId!: string;
 
+  @ApiProperty({
+    type: 'integer',
+    minimum: 0,
+    maximum: 2147483647,
+    description: 'Opening stock recorded for this branch placement',
+  })
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  initialQuantity!: number;
+
   @ApiPropertyOptional({
     type: 'integer',
     minimum: 0,

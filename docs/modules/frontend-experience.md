@@ -32,11 +32,10 @@ results. The picker keeps keyboard selection, focus return, loading, empty and
 retry feedback, while the backend remains authoritative for branch eligibility.
 Selling price and low-stock threshold fields share one row from small tablet
 widths upward and continue to use the existing live validation.
-Placement creation, tenant and branch checks, and zero-opening-stock behavior
-are unchanged. Rendered browser QA remains unavailable for this focused
-refinement.
+Placement creation, tenant and branch checks remain unchanged. Rendered browser
+QA remains unavailable for this focused refinement.
 
-## Compact field validation feedback (Part 3, uncommitted)
+## Compact field validation feedback (Part 3, committed `8f53e73`)
 
 Shared text-field and product-picker validation errors now sit beside their
 field labels as compact red feedback rather than adding another block below the
@@ -45,6 +44,24 @@ text remains available through the field's accessible description and hover
 title. Existing debounced, blur and submit validation behavior is unchanged.
 This is a presentation refinement only; no validation rules or API behavior
 changed.
+
+## Placement opening stock and numeric fields (Part 4, uncommitted)
+
+The add-placement modal now requires a nonnegative whole-number Initial stock value.
+Selling price accepts numeric digits and a decimal point, while threshold and
+opening stock accept whole-number digits; unsupported letters and characters are
+removed as the user types. The fields continue to use the existing debounced
+live validation and authoritative backend validation. A valid placement creates
+the branch balance and an attributed opening RECEIPT together, so the saved
+quantity and movement history cannot diverge when opening stock is positive;
+an explicit zero records no movement. Branch, organization, role,
+duplicate-placement and tenant safeguards remain unchanged. Rendered browser QA
+remains unavailable for this focused refinement.
+
+Regular Receive stock actions no longer ask for a user-entered reason. The form
+submits only the positive quantity and retry request ID; the backend records the
+receipt with the system reason `Stock received`. Adjustment actions continue to
+require a reason and retain their common-reason shortcuts.
 
 ## Inventory stock list refinement (Part 1)
 
@@ -280,8 +297,9 @@ immutable history. Branch and product details provide owner/manager inventory
 links. Placement selection uses one searchable product combobox bounded within
 the native dialog instead of separate search and selection inputs. Receipt and
 correction panels share a responsive two-column row on suitable viewports and
-stack on smaller screens. Common reason actions fill the still-editable required
-reason field so every manual movement remains explainable. Corrections confirm
+stack on smaller screens. Receive stock asks only for quantity and records a
+stable system reason; common reason actions fill the still-editable required
+adjustment reason field so manual corrections remain explainable. Corrections confirm
 the signed delta and estimated stock while keeping
 the server authoritative; pending writes disable repeat/concurrent actions. Stock
 retry IDs remain unchanged for unchanged failed commands, and success reloads

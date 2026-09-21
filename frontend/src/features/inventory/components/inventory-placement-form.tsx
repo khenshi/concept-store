@@ -41,9 +41,15 @@ export function InventoryPlacementForm({
   const [search, setSearch] = useState('');
   const [productId, setProductId] = useState('');
   const [price, setPrice] = useState('');
+  const [initialQuantity, setInitialQuantity] = useState('');
   const [threshold, setThreshold] = useState('5');
   const [errors, setErrors] = useState<
-    Partial<Record<'productId' | 'sellingPrice' | 'lowStockThreshold', string>>
+    Partial<
+      Record<
+        'productId' | 'sellingPrice' | 'initialQuantity' | 'lowStockThreshold',
+        string
+      >
+    >
   >({});
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -52,7 +58,12 @@ export function InventoryPlacementForm({
   const [revision, setRevision] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const timers = useRef<
-    Partial<Record<'productId' | 'sellingPrice' | 'lowStockThreshold', number>>
+    Partial<
+      Record<
+        'productId' | 'sellingPrice' | 'initialQuantity' | 'lowStockThreshold',
+        number
+      >
+    >
   >({});
   const readGeneration = useRef(0);
   const q = useDebouncedValue(search);
@@ -128,10 +139,12 @@ export function InventoryPlacementForm({
     }
   }
   function validate(
-    field: 'productId' | 'sellingPrice' | 'lowStockThreshold',
+    field:
+      'productId' | 'sellingPrice' | 'initialQuantity' | 'lowStockThreshold',
     id: string,
     sellingPrice: string,
     lowStockThreshold: string,
+    initialQuantity: string,
     immediate = false,
   ) {
     window.clearTimeout(timers.current[field]);
@@ -139,6 +152,7 @@ export function InventoryPlacementForm({
       const parsed = placementInputSchema.safeParse({
         productId: id,
         sellingPrice,
+        initialQuantity,
         lowStockThreshold,
       });
       setErrors((current) => ({
@@ -159,6 +173,7 @@ export function InventoryPlacementForm({
     const parsed = placementInputSchema.safeParse({
       productId,
       sellingPrice: price,
+      initialQuantity,
       lowStockThreshold: threshold,
     });
     if (!parsed.success) {
@@ -217,16 +232,50 @@ export function InventoryPlacementForm({
           setSearch(value);
           setProductId('');
           setSelectedProduct(null);
-          validate('productId', '', price, threshold);
+          validate('productId', '', price, threshold, initialQuantity);
         }}
         onSelect={(product) => {
           setProductId(product.id);
           setSelectedProduct(product);
           setSearch(productLabel(product));
-          validate('productId', product.id, price, threshold);
+          validate('productId', product.id, price, threshold, initialQuantity);
         }}
-        onBlur={() => validate('productId', productId, price, threshold, true)}
+        onBlur={() =>
+          validate(
+            'productId',
+            productId,
+            price,
+            threshold,
+            initialQuantity,
+            true,
+          )
+        }
         onLoadMore={() => void loadMore()}
+      />
+      <TextField
+        label="Initial stock"
+        name="initialQuantity"
+        inputMode="numeric"
+        value={initialQuantity}
+        error={errors.initialQuantity}
+        disabled={pending}
+        onChange={(event) => {
+          const next = sanitizeWholeNumber(event.target.value);
+          setInitialQuantity(next);
+          validate('initialQuantity', productId, price, threshold, next);
+        }}
+        onBlur={() =>
+          validate(
+            'initialQuantity',
+            productId,
+            price,
+            threshold,
+            initialQuantity,
+            true,
+          )
+        }
+        required
+        hint="Opening units recorded in this branch."
       />
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField
@@ -237,14 +286,28 @@ export function InventoryPlacementForm({
           error={errors.sellingPrice}
           disabled={pending}
           onChange={(event) => {
-            setPrice(event.target.value);
-            validate('sellingPrice', productId, event.target.value, threshold);
+            const next = sanitizePrice(event.target.value);
+            setPrice(next);
+            validate(
+              'sellingPrice',
+              productId,
+              next,
+              threshold,
+              initialQuantity,
+            );
           }}
           onBlur={() =>
-            validate('sellingPrice', productId, price, threshold, true)
+            validate(
+              'sellingPrice',
+              productId,
+              price,
+              threshold,
+              initialQuantity,
+              true,
+            )
           }
           required
-          hint="Positive price with up to two decimal places. This branch may charge a different price."
+          hint="This branch may charge a different price."
         />
         <TextField
           label="Low-stock threshold"
@@ -254,19 +317,33 @@ export function InventoryPlacementForm({
           error={errors.lowStockThreshold}
           disabled={pending}
           onChange={(event) => {
-            setThreshold(event.target.value);
-            validate('lowStockThreshold', productId, price, event.target.value);
+            const next = sanitizeWholeNumber(event.target.value);
+            setThreshold(next);
+            validate(
+              'lowStockThreshold',
+              productId,
+              price,
+              next,
+              initialQuantity,
+            );
           }}
           onBlur={() =>
-            validate('lowStockThreshold', productId, price, threshold, true)
+            validate(
+              'lowStockThreshold',
+              productId,
+              price,
+              threshold,
+              initialQuantity,
+              true,
+            )
           }
           required
           hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
         />
       </div>
       <p className="text-sm text-muted">
-        Placement starts with zero stock. Receive opening stock separately. No
-        stock is transferred or deducted from another branch.
+        Opening stock is recorded as a receipt in this branch. No stock is
+        transferred or deducted from another branch.
       </p>
       <div className="flex flex-wrap gap-3">
         <button
@@ -288,6 +365,15 @@ export function InventoryPlacementForm({
       </div>
     </form>
   );
+}
+
+function sanitizeWholeNumber(value: string) {
+  return value.replace(/\D/g, '');
+}
+
+function sanitizePrice(value: string) {
+  const [whole, ...fraction] = value.replace(/[^\d.]/g, '').split('.');
+  return fraction.length ? `${whole}.${fraction.join('')}` : whole;
 }
 
 function productLabel(product: Product) {
@@ -496,7 +582,7 @@ function ProductPicker({
           ? `Selected: ${productLabel(selectedProduct)}`
           : !products.length && !loading
             ? 'No available products match. Already placed or inactive products are excluded.'
-            : 'Focus or click to browse eligible products; search is debounced while you type.'}
+            : 'Focus or click to browse eligible products'}
       </p>
     </div>
   );

@@ -51,7 +51,6 @@ let userId: string;
 const receive = (quantity: number, requestId = randomUUID(), actor = userId) =>
   stock.receive(organizationId, branchId, inventoryId, actor, {
     quantity,
-    reason: 'Delivery',
     requestId,
   });
 const adjust = (quantityChange: number, requestId = randomUUID()) =>
@@ -362,10 +361,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     await expect(
       products.findOne(organizationId, unplaced.id, manager),
     ).rejects.toThrow();
-    await inventory.create(organizationId, otherBranchId, {
-      productId,
-      sellingPrice: '14.00',
-    });
+    await inventory.create(
+      organizationId,
+      otherBranchId,
+      {
+        productId,
+        sellingPrice: '14.00',
+        initialQuantity: 0,
+      },
+      userId,
+    );
     expect(
       await products.findInventory(organizationId, productId, manager),
     ).toHaveLength(1);
@@ -402,10 +407,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       merchantId: otherMerchant.id,
       name: 'Other product',
     });
-    const hidden = await inventory.create(organizationId, branchId, {
-      productId: otherProduct.id,
-      sellingPrice: '15.00',
-    });
+    const hidden = await inventory.create(
+      organizationId,
+      branchId,
+      {
+        productId: otherProduct.id,
+        sellingPrice: '15.00',
+        initialQuantity: 0,
+      },
+      userId,
+    );
     expect(
       (await inventory.findAll(organizationId, branchId, {}, merchant)).items,
     ).toHaveLength(1);
@@ -594,10 +605,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       })
     ).id;
     inventoryId = (
-      await inventory.create(organizationId, branchId, {
-        productId,
-        sellingPrice: '12.50',
-      })
+      await inventory.create(
+        organizationId,
+        branchId,
+        {
+          productId,
+          sellingPrice: '12.50',
+          initialQuantity: 0,
+        },
+        userId,
+      )
     ).id;
   });
 
@@ -618,10 +635,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         name: `Boundary ${index}`,
         sku: randomUUID(),
       });
-      const placed = await inventory.create(organizationId, branchId, {
-        productId: product.id,
-        sellingPrice: '1.00',
-      });
+      const placed = await inventory.create(
+        organizationId,
+        branchId,
+        {
+          productId: product.id,
+          sellingPrice: '1.00',
+          initialQuantity: 0,
+        },
+        userId,
+      );
       await prisma.branchInventory.update({
         where: { id: placed.id },
         data: state,
@@ -659,10 +682,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         name,
         sku: randomUUID(),
       });
-      await inventory.create(organizationId, branchId, {
-        productId: product.id,
-        sellingPrice: '2.00',
-      });
+      await inventory.create(
+        organizationId,
+        branchId,
+        {
+          productId: product.id,
+          sellingPrice: '2.00',
+          initialQuantity: 0,
+        },
+        userId,
+      );
     }
     const bulkProducts = Array.from({ length: 125 }, (_, index) => ({
       id: randomUUID(),
@@ -724,10 +753,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       name: 'Eligible elsewhere',
       sku: randomUUID(),
     });
-    await inventory.create(organizationId, otherBranchId, {
-      productId: otherProduct.id,
-      sellingPrice: '3.00',
-    });
+    await inventory.create(
+      organizationId,
+      otherBranchId,
+      {
+        productId: otherProduct.id,
+        sellingPrice: '3.00',
+        initialQuantity: 0,
+      },
+      userId,
+    );
     const unplaced = await products.create(organizationId, {
       merchantId,
       name: 'Unplaced',
@@ -825,10 +860,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         (a, b) => b - a,
       ),
     );
-    const other = await inventory.create(organizationId, otherBranchId, {
-      productId,
-      sellingPrice: '1.00',
-    });
+    const other = await inventory.create(
+      organizationId,
+      otherBranchId,
+      {
+        productId,
+        sellingPrice: '1.00',
+        initialQuantity: 0,
+      },
+      userId,
+    );
     const foreignCursor = randomUUID();
     await prisma.inventoryMovement.create({
       data: {
@@ -918,17 +959,25 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       name: 'Second product',
       sku: randomUUID(),
     });
-    const another = await inventory.create(organizationId, branchId, {
-      productId: anotherProduct.id,
-      sellingPrice: '1.00',
-    });
+    const another = await inventory.create(
+      organizationId,
+      branchId,
+      {
+        productId: anotherProduct.id,
+        sellingPrice: '1.00',
+        initialQuantity: 0,
+      },
+      userId,
+    );
     const otherPlacement = await inventory.create(
       organizationId,
       otherBranchId,
       {
         productId,
         sellingPrice: '1.00',
+        initialQuantity: 0,
       },
+      userId,
     );
     await prisma.branchInventory.updateMany({
       where: { id: { in: [inventoryId, another.id, otherPlacement.id] } },
@@ -974,10 +1023,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
   });
 
   it('keeps branch prices and quantities independent', async () => {
-    const second = await inventory.create(organizationId, otherBranchId, {
-      productId,
-      sellingPrice: '9999999999.99',
-    });
+    const second = await inventory.create(
+      organizationId,
+      otherBranchId,
+      {
+        productId,
+        sellingPrice: '9999999999.99',
+        initialQuantity: 0,
+      },
+      userId,
+    );
     await receive(5);
     await inventory.updatePrice(organizationId, branchId, inventoryId, {
       sellingPrice: '0.01',
@@ -1229,7 +1284,6 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     await expect(
       stock.receive(organizationId, otherBranchId, inventoryId, userId, {
         quantity: 1,
-        reason: 'Delivery',
         requestId: randomUUID(),
       }),
     ).rejects.toThrow('not found');
@@ -1298,7 +1352,6 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     await expect(
       stock.receive(foreign.id, branchId, inventoryId, userId, {
         quantity: 1,
-        reason: 'Delivery',
         requestId,
       }),
     ).rejects.toThrow('not found');
@@ -1332,10 +1385,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       }),
     ).rejects.toThrow('already exists');
     await expect(
-      inventory.create(organizationId, branchId, {
-        productId,
-        sellingPrice: '1',
-      }),
+      inventory.create(
+        organizationId,
+        branchId,
+        {
+          productId,
+          sellingPrice: '1',
+          initialQuantity: 0,
+        },
+        userId,
+      ),
     ).rejects.toThrow('already placed');
     await expect(products.findOne(foreign.id, productId)).rejects.toThrow(
       'not found',

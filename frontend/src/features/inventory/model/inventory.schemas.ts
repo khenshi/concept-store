@@ -39,8 +39,21 @@ export const lowStockThresholdInputSchema = z
 export const thresholdInputSchema = z.object({
   lowStockThreshold: lowStockThresholdInputSchema,
 });
+export const initialQuantityInputSchema = z
+  .string()
+  .trim()
+  .regex(/^\d+$/, 'Enter a whole number from 0 to 2147483647.')
+  .transform(Number)
+  .pipe(
+    z
+      .number()
+      .int()
+      .min(0, 'Initial stock cannot be negative.')
+      .max(2147483647, 'Initial stock cannot exceed 2147483647 units.'),
+  );
 export const placementInputSchema = priceInputSchema.extend({
   productId: z.uuidv4('Choose an active product.'),
+  initialQuantity: initialQuantityInputSchema,
   lowStockThreshold: lowStockThresholdInputSchema,
 });
 const integerInput = z
@@ -62,7 +75,6 @@ const reasonSchema = z
   .max(500, 'Reason must contain 500 characters or fewer.');
 export const receiptInputSchema = z.object({
   quantity: integerInput.pipe(z.number().min(1, 'Receive at least one unit.')),
-  reason: reasonSchema,
 });
 export const adjustmentInputSchema = z.object({
   quantityChange: integerInput.refine(

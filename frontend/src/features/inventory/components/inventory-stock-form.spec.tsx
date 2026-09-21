@@ -55,9 +55,10 @@ describe('InventoryStockForm', () => {
       }),
       { target: { value: quantity } },
     );
-    fireEvent.change(screen.getByRole('textbox', { name: 'Reason' }), {
-      target: { value: ' Delivery ' },
-    });
+    if (mode === 'adjustment')
+      fireEvent.change(screen.getByRole('textbox', { name: 'Reason' }), {
+        target: { value: ' Delivery ' },
+      });
   };
   it('reuses request ID after an uncertain failure and changes it when edited', async () => {
     vi.mocked(receiveStock).mockRejectedValue(new Error('Connection lost'));
@@ -87,7 +88,8 @@ describe('InventoryStockForm', () => {
     expect(vi.mocked(receiveStock).mock.calls[2][2].requestId).not.toBe(
       first.requestId,
     );
-    expect(first).toMatchObject({ quantity: 3, reason: 'Delivery' });
+    expect(first).toMatchObject({ quantity: 3, requestId: expect.any(String) });
+    expect(first).not.toHaveProperty('reason');
   });
   it('confirms signed adjustment and estimate without trusting stale balance', async () => {
     vi.mocked(adjustStock).mockResolvedValue({} as never);
@@ -117,7 +119,7 @@ describe('InventoryStockForm', () => {
     );
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
-  it('validates quantity after 300ms and reason immediately on blur', async () => {
+  it('validates receipt quantity after 300ms without requesting a reason', async () => {
     vi.useFakeTimers();
     render(
       <InventoryStockForm
@@ -133,26 +135,27 @@ describe('InventoryStockForm', () => {
     expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
     await act(() => vi.advanceTimersByTimeAsync(300));
     expect(quantity).toHaveAttribute('aria-invalid', 'true');
-    const reason = screen.getByRole('textbox', { name: 'Reason' });
-    fireEvent.change(reason, { target: { value: 'x' } });
-    fireEvent.blur(reason);
-    expect(reason).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.queryByRole('textbox', { name: 'Reason' }),
+    ).not.toBeInTheDocument();
   });
-  it('fills an auditable reason from a common-reason action and permits custom text', () => {
+  it('fills an adjustment reason from a common-reason action and permits custom text', () => {
     render(
       <InventoryStockForm
         scope={scope}
         inventory={inventory}
-        mode="receipt"
+        mode="adjustment"
         onSaved={vi.fn()}
         onPendingChange={vi.fn()}
       />,
     );
     const reason = screen.getByRole('textbox', { name: 'Reason' });
-    fireEvent.click(screen.getByRole('button', { name: 'Supplier delivery' }));
-    expect(reason).toHaveValue('Supplier delivery');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Stock count correction' }),
+    );
+    expect(reason).toHaveValue('Stock count correction');
     expect(
-      screen.getByRole('button', { name: 'Supplier delivery' }),
+      screen.getByRole('button', { name: 'Stock count correction' }),
     ).toHaveAttribute('aria-pressed', 'true');
     fireEvent.change(reason, { target: { value: 'Shipment PO-1042' } });
     expect(reason).toHaveValue('Shipment PO-1042');

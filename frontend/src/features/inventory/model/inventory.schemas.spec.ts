@@ -32,10 +32,10 @@ describe('Inventory input schemas', () => {
       expect(inventoryPriceSchema.safeParse(value).success).toBe(false);
     },
   );
-  it('normalizes whole-unit inputs and required reasons', () => {
-    expect(
-      receiptInputSchema.parse({ quantity: ' 5 ', reason: ' Delivery ' }),
-    ).toEqual({ quantity: 5, reason: 'Delivery' });
+  it('normalizes receipt units without a user reason and requires adjustment reasons', () => {
+    expect(receiptInputSchema.parse({ quantity: ' 5 ' })).toEqual({
+      quantity: 5,
+    });
     expect(
       adjustmentInputSchema.parse({
         quantityChange: '-2',
@@ -48,12 +48,15 @@ describe('Inventory input schemas', () => {
         reason: 'Correction',
       }).quantityChange,
     ).toBe(5);
+    expect(
+      adjustmentInputSchema.safeParse({ quantityChange: -2 }).success,
+    ).toBe(false);
   });
   it.each(['0', '-1', '1.5', '1e2', '2147483648', ''])(
     'rejects invalid receipt units %s',
     (quantity) => {
       expect(
-        receiptInputSchema.safeParse({ quantity, reason: 'Delivery' }).success,
+        receiptInputSchema.safeParse({ quantity }).success,
       ).toBe(false);
     },
   );

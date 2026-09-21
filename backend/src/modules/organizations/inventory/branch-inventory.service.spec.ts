@@ -23,7 +23,11 @@ describe('BranchInventoryService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
-    inventoryMovement: { findMany: jest.fn(), findFirst: jest.fn() },
+    inventoryMovement: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const service = new BranchInventoryService(
@@ -40,8 +44,9 @@ describe('BranchInventoryService', () => {
       merchant: { status: 'ACTIVE' },
     });
     prisma.branchInventory.create.mockResolvedValue({
+      id: 'placement',
       sellingPrice: new Prisma.Decimal('12.50'),
-      quantity: 0,
+      quantity: 10,
       lowStockThreshold: 5,
     });
     prisma.branchInventory.findUnique.mockResolvedValue({
@@ -60,13 +65,19 @@ describe('BranchInventoryService', () => {
     prisma.product.findFirst.mockResolvedValue({ id: 'cursor' });
   });
 
-  it('creates a zero-stock placement with decimal price and no opening movement', async () => {
+  it('creates a placement and opening receipt atomically', async () => {
     await expect(
-      service.create('org', 'branch', {
-        productId: 'product',
-        sellingPrice: '12.50',
-      }),
-    ).resolves.toMatchObject({ sellingPrice: '12.50', quantity: 0 });
+      service.create(
+        'org',
+        'branch',
+        {
+          productId: 'product',
+          sellingPrice: '12.50',
+          initialQuantity: 10,
+        },
+        'actor',
+      ),
+    ).resolves.toMatchObject({ sellingPrice: '12.50', quantity: 10 });
     expect(prisma.branchInventory.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
@@ -74,18 +85,60 @@ describe('BranchInventoryService', () => {
           branchId: 'branch',
           productId: 'product',
           sellingPrice: new Prisma.Decimal('12.50'),
+          quantity: 10,
           lowStockThreshold: 5,
         },
       }),
     );
+    expect(prisma.inventoryMovement.create).toHaveBeenCalledWith({
+      data: {
+        organizationId: 'org',
+        branchId: 'branch',
+        branchInventoryId: expect.any(String) as unknown,
+        type: 'RECEIPT',
+        quantityChange: 10,
+        quantityAfter: 10,
+        reason: 'Initial stock on branch placement',
+        createdById: 'actor',
+        requestId: expect.any(String) as unknown,
+      },
+    });
+  });
+
+  it('keeps an explicit zero opening balance without a zero-delta movement', async () => {
+    prisma.branchInventory.create.mockResolvedValueOnce({
+      id: 'placement',
+      sellingPrice: new Prisma.Decimal('12.50'),
+      quantity: 0,
+      lowStockThreshold: 5,
+    });
+    await expect(
+      service.create(
+        'org',
+        'branch',
+        {
+          productId: 'product',
+          sellingPrice: '12.50',
+          initialQuantity: 0,
+        },
+        'actor',
+      ),
+    ).resolves.toMatchObject({ sellingPrice: '12.50', quantity: 0 });
+    expect(prisma.inventoryMovement.create).not.toHaveBeenCalled();
   });
 
   it('stores an explicit per-branch threshold including zero', async () => {
-    await service.create('org', 'branch', {
-      productId: 'product',
-      sellingPrice: '12.50',
-      lowStockThreshold: 0,
-    });
+    await service.create(
+      'org',
+      'branch',
+      {
+        productId: 'product',
+        sellingPrice: '12.50',
+        initialQuantity: 10,
+        lowStockThreshold: 0,
+      },
+      'actor',
+    );
     expect(prisma.branchInventory.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {
@@ -93,6 +146,7 @@ describe('BranchInventoryService', () => {
           branchId: 'branch',
           productId: 'product',
           sellingPrice: new Prisma.Decimal('12.50'),
+          quantity: 10,
           lowStockThreshold: 0,
         },
       }),
@@ -102,10 +156,16 @@ describe('BranchInventoryService', () => {
   it('rejects foreign branches before resolving products', async () => {
     prisma.branch.findUnique.mockResolvedValue(null);
     await expect(
-      service.create('org', 'foreign', {
-        productId: 'product',
-        sellingPrice: '1',
-      }),
+      service.create(
+        'org',
+        'foreign',
+        {
+          productId: 'product',
+          sellingPrice: '1',
+          initialQuantity: 1,
+        },
+        'actor',
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.branch.findUnique).toHaveBeenCalledWith({
       where: { id: 'foreign', organizationId: 'org' },
@@ -117,10 +177,16 @@ describe('BranchInventoryService', () => {
   it('rejects absent/foreign products without writing inventory', async () => {
     prisma.product.findUnique.mockResolvedValue(null);
     await expect(
-      service.create('org', 'branch', {
-        productId: 'foreign',
-        sellingPrice: '1',
-      }),
+      service.create(
+        'org',
+        'branch',
+        {
+          productId: 'foreign',
+          sellingPrice: '1',
+          initialQuantity: 1,
+        },
+        'actor',
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.branchInventory.create).not.toHaveBeenCalled();
   });
@@ -133,10 +199,16 @@ describe('BranchInventoryService', () => {
         merchant: { status: target === 'merchant' ? 'SUSPENDED' : 'ACTIVE' },
       });
       await expect(
-        service.create('org', 'branch', {
-          productId: 'product',
-          sellingPrice: '1',
-        }),
+        service.create(
+          'org',
+          'branch',
+          {
+            productId: 'product',
+            sellingPrice: '1',
+            initialQuantity: 1,
+          },
+          'actor',
+        ),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(prisma.branchInventory.create).not.toHaveBeenCalled();
     },

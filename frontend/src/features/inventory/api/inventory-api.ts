@@ -84,6 +84,7 @@ export async function createPlacement(
   input: {
     productId: string;
     sellingPrice: string;
+    initialQuantity: number;
     lowStockThreshold: number;
   },
 ) {
@@ -137,7 +138,7 @@ export async function listMovements(
 export async function receiveStock(
   request: AuthenticatedRequest,
   scope: InventoryDetailScope,
-  input: { quantity: number; reason: string; requestId: string },
+  input: { quantity: number; requestId: string },
 ) {
   return movementResponseSchema.parse(
     await request<unknown>(`${detail(scope)}/receipts`, json('POST', input)),

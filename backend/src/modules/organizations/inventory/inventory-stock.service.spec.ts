@@ -5,7 +5,7 @@ import { InventoryStockService } from './inventory-stock.service';
 import { inventoryMovementSelect } from './inventory.types';
 
 describe('InventoryStockService', () => {
-  const dto = { quantity: 3, reason: 'Delivery', requestId: 'request' };
+  const dto = { quantity: 3, requestId: 'request' };
   const movement = {
     id: 'movement',
     organizationId: 'org',
@@ -14,7 +14,7 @@ describe('InventoryStockService', () => {
     type: 'RECEIPT',
     quantityChange: 3,
     quantityAfter: 8,
-    reason: 'Delivery',
+    reason: 'Stock received',
     createdById: 'actor',
     requestId: 'request',
   };
@@ -73,7 +73,7 @@ describe('InventoryStockService', () => {
         type: 'RECEIPT',
         quantityChange: 3,
         quantityAfter: 8,
-        reason: 'Delivery',
+        reason: 'Stock received',
         createdById: 'actor',
         requestId: 'request',
       },
@@ -158,7 +158,6 @@ describe('InventoryStockService', () => {
   });
 
   it.each([
-    { reason: 'Other' },
     { quantityChange: 4 },
     { branchId: 'other' },
     { branchInventoryId: 'other' },

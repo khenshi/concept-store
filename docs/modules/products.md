@@ -69,11 +69,13 @@ tenant branch and active tenant merchant are checked inside a serializable
 PostgreSQL transaction. Product creation, one branch placement with the opening
 balance and one RECEIPT movement commit together or roll back together. The server
 sets the reason to `Initial stock on product creation` and attributes the receipt
-to the authenticated owner. Other branches are untouched. The existing placement
-endpoint still creates zero-stock placements and does not accept opening stock.
-That endpoint now accepts the same optional threshold independently of opening
-stock. Omitting or explicitly supplying `5` produces the same canonical opening-
-stock retry command; an explicit `0` is preserved.
+to the authenticated owner. Other branches are untouched. The Inventory placement
+endpoint separately requires an explicit nonnegative opening quantity and records
+an attributed RECEIPT for positive stock in that branch; product creation's
+opening-stock workflow remains separate.
+The Inventory placement endpoint accepts the same optional threshold independently
+of opening stock. Omitting or explicitly supplying `5` uses the default threshold;
+an explicit `0` is preserved.
 
 Product placement reads expose both the saved branch threshold and the stock
 status derived by the inventory module. The product profile displays this branch-

@@ -467,7 +467,7 @@ describe('Products and inventory HTTP boundaries', () => {
     await http()
       .post(`${inventoryPath}/${item}/receipts`)
       .auth(token(manager), { type: 'bearer' })
-      .send({ quantity: 1, reason: 'Delivery', requestId: item })
+      .send({ quantity: 1, requestId: item })
       .expect(404);
     expect(stock.receive).not.toHaveBeenCalled();
   });
@@ -572,7 +572,7 @@ describe('Products and inventory HTTP boundaries', () => {
     {
       method: 'post',
       path: inventoryPath,
-      body: { productId: item, sellingPrice: '12.50' },
+      body: { productId: item, sellingPrice: '12.50', initialQuantity: 1 },
       status: 201,
     },
     {
@@ -590,7 +590,7 @@ describe('Products and inventory HTTP boundaries', () => {
     {
       method: 'post',
       path: `${inventoryPath}/${item}/receipts`,
-      body: { quantity: 1, reason: 'Delivery', requestId: item },
+      body: { quantity: 1, requestId: item },
       status: 201,
     },
     {
@@ -683,14 +683,21 @@ describe('Products and inventory HTTP boundaries', () => {
       .send({
         productId: item,
         sellingPrice: '12.50',
+        initialQuantity: 1,
         lowStockThreshold: 0,
       })
       .expect(201);
-    expect(inventory.create).toHaveBeenCalledWith(org, branch, {
-      productId: item,
-      sellingPrice: '12.50',
-      lowStockThreshold: 0,
-    });
+    expect(inventory.create).toHaveBeenCalledWith(
+      org,
+      branch,
+      {
+        productId: item,
+        sellingPrice: '12.50',
+        initialQuantity: 1,
+        lowStockThreshold: 0,
+      },
+      actor,
+    );
   });
 
   it('passes validated opening stock and the authenticated owner to product creation', async () => {
@@ -784,7 +791,7 @@ describe('Products and inventory HTTP boundaries', () => {
     await http()
       .post(`${inventoryPath}/${item}/receipts`)
       .auth(token(manager), { type: 'bearer' })
-      .send({ quantity: 2, reason: ' Delivery ', requestId: item })
+      .send({ quantity: 2, requestId: item })
       .expect(201);
     expect(stock.receive).toHaveBeenCalledWith(
       org,
@@ -793,7 +800,6 @@ describe('Products and inventory HTTP boundaries', () => {
       manager,
       expect.objectContaining({
         quantity: 2,
-        reason: 'Delivery',
         requestId: item,
       }),
     );
@@ -802,7 +808,6 @@ describe('Products and inventory HTTP boundaries', () => {
       .auth(token(), { type: 'bearer' })
       .send({
         quantity: 2,
-        reason: 'Delivery',
         requestId: item,
         createdById: manager,
       })

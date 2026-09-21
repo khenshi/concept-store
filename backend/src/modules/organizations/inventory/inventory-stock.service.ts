@@ -48,7 +48,7 @@ export class InventoryStockService {
       userId,
       type: InventoryMovementType.RECEIPT,
       delta: dto.quantity,
-      reason: dto.reason,
+      reason: 'Stock received',
       requestId: dto.requestId,
     });
   }
@@ -189,7 +189,8 @@ export class InventoryStockService {
       original.branchId !== command.branchId ||
       original.type !== command.type ||
       original.quantityChange !== command.delta ||
-      original.reason !== command.reason
+      (command.type !== InventoryMovementType.RECEIPT &&
+        original.reason !== command.reason)
     ) {
       throw new ConflictException(
         'Request ID was already used for a different stock command',

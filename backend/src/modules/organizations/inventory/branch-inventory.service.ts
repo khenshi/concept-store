@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import {
   MerchantStatus,
   Prisma,
@@ -42,6 +43,7 @@ export class BranchInventoryService {
     organizationId: string,
     branchId: string,
     dto: CreateBranchInventoryDto,
+    actorId: string,
   ): Promise<BranchInventoryRecord> {
     await this.resolveBranch(organizationId, branchId);
     const product = await this.prisma.product.findUnique({
@@ -58,16 +60,37 @@ export class BranchInventoryService {
       );
     }
     try {
-      const inventory = await this.prisma.branchInventory.create({
-        data: {
-          organizationId,
-          branchId,
-          productId: dto.productId,
-          sellingPrice: new Prisma.Decimal(dto.sellingPrice),
-          lowStockThreshold: dto.lowStockThreshold ?? 5,
+      const inventory = await this.prisma.$transaction(
+        async (tx) => {
+          const created = await tx.branchInventory.create({
+            data: {
+              organizationId,
+              branchId,
+              productId: dto.productId,
+              sellingPrice: new Prisma.Decimal(dto.sellingPrice),
+              quantity: dto.initialQuantity,
+              lowStockThreshold: dto.lowStockThreshold ?? 5,
+            },
+            include: { product: { select: inventoryProductSelect } },
+          });
+          if (dto.initialQuantity > 0)
+            await tx.inventoryMovement.create({
+              data: {
+                organizationId,
+                branchId,
+                branchInventoryId: created.id,
+                type: 'RECEIPT',
+                quantityChange: dto.initialQuantity,
+                quantityAfter: dto.initialQuantity,
+                reason: 'Initial stock on branch placement',
+                createdById: actorId,
+                requestId: randomUUID(),
+              },
+            });
+          return created;
         },
-        include: { product: { select: inventoryProductSelect } },
-      });
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
       return this.toRecord(inventory);
     } catch (error: unknown) {
       this.rethrowKnownError(error);

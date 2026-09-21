@@ -66,12 +66,14 @@ describe('Inventory request validation', () => {
           {
             productId: requestId,
             sellingPrice: '12.50',
+            initialQuantity: 10,
             ...(lowStockThreshold === undefined ? {} : { lowStockThreshold }),
           },
           { type: 'body', metatype: CreateBranchInventoryDto },
         ),
       ).resolves.toMatchObject({
         productId: requestId,
+        initialQuantity: 10,
         ...(lowStockThreshold === undefined ? {} : { lowStockThreshold }),
       });
     },
@@ -82,7 +84,42 @@ describe('Inventory request validation', () => {
     async (lowStockThreshold) => {
       await expect(
         pipe.transform(
-          { productId: requestId, sellingPrice: '12.50', lowStockThreshold },
+          {
+            productId: requestId,
+            sellingPrice: '12.50',
+            initialQuantity: 10,
+            lowStockThreshold,
+          },
+          { type: 'body', metatype: CreateBranchInventoryDto },
+        ),
+      ).rejects.toThrow();
+    },
+  );
+  it.each([0, 1, 2147483647])(
+    'accepts whole-unit opening stock %s',
+    async (initialQuantity) => {
+      await expect(
+        pipe.transform(
+          {
+            productId: requestId,
+            sellingPrice: '12.50',
+            initialQuantity,
+          },
+          { type: 'body', metatype: CreateBranchInventoryDto },
+        ),
+      ).resolves.toMatchObject({ initialQuantity });
+    },
+  );
+  it.each([-1, 1.5, '1', 2147483648, null, undefined])(
+    'rejects invalid opening stock %s',
+    async (initialQuantity) => {
+      await expect(
+        pipe.transform(
+          {
+            productId: requestId,
+            sellingPrice: '12.50',
+            initialQuantity,
+          },
           { type: 'body', metatype: CreateBranchInventoryDto },
         ),
       ).rejects.toThrow();
@@ -125,12 +162,21 @@ describe('Inventory request validation', () => {
     async (quantity) => {
       await expect(
         pipe.transform(
-          { quantity, reason: 'Delivery', requestId },
+          { quantity, requestId },
           { type: 'body', metatype: ReceiveInventoryDto },
         ),
       ).rejects.toThrow();
     },
   );
+
+  it('accepts a receipt without a user reason', async () => {
+    await expect(
+      pipe.transform(
+        { quantity: 1, requestId },
+        { type: 'body', metatype: ReceiveInventoryDto },
+      ),
+    ).resolves.toMatchObject({ quantity: 1, requestId });
+  });
 
   it.each([-2147483648, -1, 1, 2147483647])(
     'accepts bounded signed adjustment %s',
@@ -166,7 +212,7 @@ describe('Inventory request validation', () => {
   ])('rejects invalid or untrusted receipt fields %j', async (extra) => {
     await expect(
       pipe.transform(
-        { quantity: 1, reason: 'Delivery', requestId, ...extra },
+        { quantity: 1, requestId, ...extra },
         { type: 'body', metatype: ReceiveInventoryDto },
       ),
     ).rejects.toThrow();

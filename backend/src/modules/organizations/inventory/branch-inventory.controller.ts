@@ -95,7 +95,7 @@ export class BranchInventoryController {
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
   @Post()
   @ApiOperation({
-    summary: 'Place an active product in this branch with zero stock',
+    summary: 'Place an active product in this branch with opening stock',
   })
   @ApiCreatedResponse({ type: BranchInventoryResponseDto })
   create(
@@ -107,6 +107,7 @@ export class BranchInventoryController {
       organization.organizationId,
       branchId,
       dto,
+      organization.userId,
     );
   }
 

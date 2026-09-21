@@ -547,6 +547,87 @@ async function seedSales(prisma: PrismaClient): Promise<void> {
         });
       }
     }
+
+    const refundSaleId = '00000000-0000-4000-8000-000000000092';
+    const refundRequestId = '00000000-0000-4000-8000-0000000000a1';
+    const saleItem = await tx.saleItem.findUniqueOrThrow({
+      where: {
+        saleId_branchInventoryId: {
+          saleId: refundSaleId,
+          branchInventoryId: ids.inventory.makatiTray,
+        },
+      },
+      select: {
+        id: true,
+        branchInventoryId: true,
+        merchantId: true,
+        unitPrice: true,
+      },
+    });
+    const refund = await tx.refund.create({
+      data: {
+        id: '00000000-0000-4000-8000-0000000000a2',
+        organizationId: ids.organization,
+        branchId: ids.branches.makati,
+        saleId: refundSaleId,
+        refundCode: 'DEMO-REFUND-1',
+        requestId: refundRequestId,
+        createdById: ids.users.owner,
+        completedAt: new Date('2026-09-13T00:10:00.000Z'),
+        reason: 'Demo customer return',
+        paymentMethod: SalePaymentMethod.CASH,
+        paymentReference: null,
+        total: saleItem.unitPrice,
+        refundCommand: {
+          items: [
+            { saleItemId: saleItem.id, quantity: 1, restockQuantity: 1 },
+          ],
+          reason: 'Demo customer return',
+          paymentMethod: SalePaymentMethod.CASH,
+          refundConfirmed: true,
+        },
+      },
+    });
+    const refundItem = await tx.refundItem.create({
+      data: {
+        id: '00000000-0000-4000-8000-0000000000a3',
+        organizationId: ids.organization,
+        branchId: ids.branches.makati,
+        saleId: refundSaleId,
+        refundId: refund.id,
+        saleItemId: saleItem.id,
+        branchInventoryId: saleItem.branchInventoryId,
+        merchantId: saleItem.merchantId,
+        quantity: 1,
+        restockQuantity: 1,
+        unitPrice: saleItem.unitPrice,
+        lineTotal: saleItem.unitPrice,
+      },
+    });
+    const restored = await tx.branchInventory.update({
+      where: {
+        id: saleItem.branchInventoryId,
+        organizationId: ids.organization,
+        branchId: ids.branches.makati,
+      },
+      data: { quantity: { increment: refundItem.restockQuantity } },
+    });
+    await tx.inventoryMovement.create({
+      data: {
+        id: '00000000-0000-4000-8000-0000000000a4',
+        organizationId: ids.organization,
+        branchId: ids.branches.makati,
+        branchInventoryId: saleItem.branchInventoryId,
+        refundItemId: refundItem.id,
+        type: InventoryMovementType.RETURN,
+        quantityChange: refundItem.restockQuantity,
+        quantityAfter: restored.quantity,
+        reason: 'Returned goods restocked',
+        createdById: ids.users.owner,
+        requestId: '00000000-0000-4000-8000-0000000000a5',
+        createdAt: refund.completedAt,
+      },
+    });
   });
 }
 

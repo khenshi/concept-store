@@ -2,8 +2,8 @@
 
 ## Inventory workflow refinement (approved September 20, 2026)
 
-Improve the existing branch Inventory experience in two reviewable parts without
-changing inventory APIs, authorization, tenant isolation, or stock business rules.
+Improve the existing branch Inventory experience in reviewable parts while
+preserving authorization, tenant isolation, and the existing stock ledger rules.
 
 ### Part 1 — Inventory shell and stock list
 
@@ -33,7 +33,33 @@ Part 2 was reviewed and committed as `ac3e67a`.
 - Preserve the full accessible error description and existing live, blur and
   submit validation behavior.
 
-Part 3 is being implemented now and remains uncommitted for review.
+Part 3 was reviewed and committed as `8f53e73`.
+
+### Part 4 — Required opening stock and numeric placement fields
+
+- Require an opening-stock quantity when adding a product placement, validate it
+  as a nonnegative whole number, and record positive opening stock as an
+  attributed receipt in the same transaction as the branch placement.
+- Sanitize the placement selling-price, low-stock-threshold, and opening-stock
+  inputs at the frontend boundary so letters and other unsupported characters
+  cannot be entered; retain debounced live validation and authoritative backend
+  validation.
+- Keep existing branch, organization, role, duplicate-placement and movement
+  safeguards. This part does not change product creation's separate opening-stock
+  workflow or add a new stock command.
+
+Part 4 is being implemented now and remains uncommitted for review.
+
+### Part 5 — Reason-free stock receipts
+
+- Remove the user-entered reason from regular **Stock in / Receive stock** forms
+  and requests.
+- Keep adjustment reasons required, and assign the stable system reason
+  `Stock received` to receipt movements for immutable history and replay safety.
+- Preserve quantity validation, request-ID idempotency, active product checks,
+  branch authorization, and tenant isolation.
+
+Part 5 is being implemented now and remains uncommitted for review.
 
 The completed table redesign parts remain archived in
 [`inventory-stock-table-refinement-2026-09-19.md`](archive/inventory-stock-table-refinement-2026-09-19.md)

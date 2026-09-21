@@ -583,9 +583,7 @@ function ScopedInventoryDirectory({
               onSaved={() => {
                 dirty.current = false;
                 setCreating(false);
-                setSuccess(
-                  'Product placement created with zero stock. Receive opening stock separately.',
-                );
+                setSuccess('Product placement created with opening stock.');
                 setRevision((value) => value + 1);
               }}
             />
