@@ -55,3 +55,13 @@ This focused confirmation-dialog refinement was implemented and committed as
 
 This focused frontend redesign is being implemented now and remains uncommitted
 for review.
+
+## Inventory history actor names (approved September 22, 2026)
+
+- Return the authenticated movement actor's display name in owner/manager
+  inventory history and omit actor information from merchant history.
+- Keep tenant and branch scoping, authenticated actor attribution, mutation
+  response contracts, and merchant privacy safeguards unchanged.
+
+This focused history contract change is being implemented now and remains
+uncommitted for review.

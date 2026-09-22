@@ -6,6 +6,7 @@ import {
 import type {
   BranchInventory,
   InventoryBranch,
+  InventoryMovementHistory,
   InventoryMovement,
 } from './inventory.types';
 
@@ -51,4 +52,10 @@ export const movement: InventoryMovement = {
   createdById: '11111111-1111-4111-8111-111111111111',
   requestId: '22222222-2222-4222-8222-222222222222',
   createdAt: merchant.createdAt,
+};
+const { createdById: _createdById, ...movementWithoutActorId } = movement;
+void _createdById;
+export const movementHistory: InventoryMovementHistory = {
+  ...movementWithoutActorId,
+  actorName: 'Maria Santos',
 };

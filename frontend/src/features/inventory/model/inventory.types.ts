@@ -3,15 +3,22 @@ import type {
   inventoryResponseSchema,
   movementResponseSchema,
   inventoryBranchSchema,
-  merchantMovementSchema,
+  movementHistoryResponseSchema,
+  merchantMovementHistorySchema,
   inventoryHealthSummarySchema,
   inventoryReconciliationPageSchema,
 } from './inventory.schemas';
 
 export type BranchInventory = z.infer<typeof inventoryResponseSchema>;
 export type InventoryMovement = z.infer<typeof movementResponseSchema>;
+export type InventoryMovementHistory = z.infer<
+  typeof movementHistoryResponseSchema
+>;
+export type MerchantInventoryMovementHistory = z.infer<
+  typeof merchantMovementHistorySchema
+>;
 export type InventoryMovementView =
-  InventoryMovement | z.infer<typeof merchantMovementSchema>;
+  InventoryMovementHistory | MerchantInventoryMovementHistory;
 export type InventoryBranch = z.infer<typeof inventoryBranchSchema>;
 export type InventoryHealthSummary = z.infer<
   typeof inventoryHealthSummarySchema

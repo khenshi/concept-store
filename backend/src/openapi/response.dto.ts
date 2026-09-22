@@ -420,7 +420,8 @@ export class InventoryMovementResponseDto {
   @ApiProperty() reason!: string;
   @ApiProperty({
     format: 'uuid',
-    description: 'Actor ID; no personal data is returned',
+    description:
+      'Authenticated actor ID for stock-command responses; history responses expose the display name instead',
   })
   createdById!: string;
   @ApiProperty({ format: 'uuid' }) requestId!: string;
@@ -441,4 +442,21 @@ export class MerchantIdentityResponseDto extends PickType(MerchantResponseDto, [
 export class MerchantMovementResponseDto extends OmitType(
   InventoryMovementResponseDto,
   ['createdById'] as const,
+) {}
+
+export class InventoryMovementHistoryResponseDto extends OmitType(
+  InventoryMovementResponseDto,
+  ['createdById'] as const,
+) {
+  @ApiProperty({
+    description:
+      'Display name of the authenticated organization member who performed the movement',
+    example: 'Maria Santos',
+  })
+  actorName!: string;
+}
+
+export class MerchantMovementHistoryResponseDto extends OmitType(
+  InventoryMovementHistoryResponseDto,
+  ['actorName'] as const,
 ) {}

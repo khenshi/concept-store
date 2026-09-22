@@ -16,6 +16,7 @@ import {
   branch,
   inventory,
   movement,
+  movementHistory,
   scope,
 } from '../model/inventory.test-fixtures';
 import { product } from '@/features/products/model/product.test-fixtures';
@@ -31,7 +32,7 @@ describe('Branch inventory API contracts', () => {
       .mockResolvedValueOnce({ items: [inventory], nextCursor: null })
       .mockResolvedValueOnce(inventory)
       .mockResolvedValueOnce(branch)
-      .mockResolvedValueOnce({ items: [movement], nextCursor: null });
+      .mockResolvedValueOnce({ items: [movementHistory], nextCursor: null });
     await listInventory(request, scope, {
       q: '001Ab',
       status: 'ACTIVE',
@@ -43,7 +44,7 @@ describe('Branch inventory API contracts', () => {
     await expect(getInventory(request, scope)).resolves.toEqual(inventory);
     await expect(getInventoryBranch(request, scope)).resolves.toEqual(branch);
     await expect(listMovements(request, scope)).resolves.toEqual({
-      items: [movement],
+      items: [movementHistory],
       nextCursor: null,
     });
     expect(request).toHaveBeenLastCalledWith(
@@ -151,14 +152,15 @@ describe('Branch inventory API contracts', () => {
     );
   });
   it('accepts actor-free merchant history and strips actor fields defensively', async () => {
-    const { createdById, ...own } = movement;
+    const { actorName, ...own } = movementHistory;
+    expect(actorName).toBe('Maria Santos');
     request.mockResolvedValue({ items: [own], nextCursor: null });
     await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual({
       items: [own],
       nextCursor: null,
     });
     request.mockResolvedValue({
-      items: [{ ...own, createdById }],
+      items: [{ ...own, actorName }],
       nextCursor: null,
     });
     await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual({
@@ -177,7 +179,7 @@ describe('Branch inventory API contracts', () => {
     await expect(getInventoryBranch(request, scope)).resolves.toEqual(identity);
   });
   it('accepts sale deductions without exposing internal sale-item links', async () => {
-    const sale = { ...movement, type: 'SALE', quantityChange: -1 };
+    const sale = { ...movementHistory, type: 'SALE', quantityChange: -1 };
     request.mockResolvedValue({
       items: [{ ...sale, saleItemId: 'private-link' }],
       nextCursor: null,
@@ -186,8 +188,8 @@ describe('Branch inventory API contracts', () => {
       items: [sale],
       nextCursor: null,
     });
-    const { createdById, ...own } = sale;
-    expect(createdById).toBe(movement.createdById);
+    const { actorName, ...own } = sale;
+    expect(actorName).toBe('Maria Santos');
     await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual({
       items: [own],
       nextCursor: null,
@@ -239,7 +241,7 @@ describe('Branch inventory API contracts', () => {
     );
   });
   it('accepts positive returns while stripping private links and merchant actors', async () => {
-    const returned = { ...movement, type: 'RETURN', quantityChange: 1 };
+    const returned = { ...movementHistory, type: 'RETURN', quantityChange: 1 };
     request.mockResolvedValue({
       items: [{ ...returned, refundItemId: 'private-link' }],
       nextCursor: null,
@@ -248,8 +250,8 @@ describe('Branch inventory API contracts', () => {
       items: [returned],
       nextCursor: null,
     });
-    const { createdById, ...own } = returned;
-    expect(createdById).toBe(movement.createdById);
+    const { actorName, ...own } = returned;
+    expect(actorName).toBe('Maria Santos');
     await expect(listMovements(request, scope, 'MERCHANT')).resolves.toEqual({
       items: [own],
       nextCursor: null,

@@ -26,12 +26,13 @@ import {
 } from './inventory-page-cursor';
 import {
   inventoryProductSelect,
-  inventoryMovementSelect,
+  inventoryMovementHistorySelect,
   deriveInventoryStockStatus,
   InventoryStockStatus,
   type BranchInventoryRecord,
   type InventoryHealthSummary,
-  type InventoryMovementRecord,
+  type InventoryMovementHistoryRecord,
+  type MerchantMovementHistoryRecord,
   type InventoryMovementPage,
 } from './inventory.types';
 
@@ -349,7 +350,7 @@ export class BranchInventoryService {
     query: MovementHistoryQueryDto = { limit: 50 },
   ): Promise<
     InventoryMovementPage<
-      Omit<InventoryMovementRecord, 'createdById'> | InventoryMovementRecord
+      InventoryMovementHistoryRecord | MerchantMovementHistoryRecord
     >
   > {
     await this.findOne(organizationId, branchId, inventoryId, context);
@@ -365,23 +366,34 @@ export class BranchInventoryService {
       });
       if (!cursor) throw new NotFoundException('Movement cursor not found');
     }
-    const movements: InventoryMovementRecord[] =
+    type HistoryRow = Prisma.InventoryMovementGetPayload<{
+      select: typeof inventoryMovementHistorySelect;
+    }>;
+    const movements: HistoryRow[] =
       await this.prisma.inventoryMovement.findMany({
-        select: inventoryMovementSelect,
+        select: inventoryMovementHistorySelect,
         where: { organizationId, branchId, branchInventoryId: inventoryId },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: query.limit + 1,
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
       });
     const page = movements.slice(0, query.limit);
+    const historyPage: InventoryMovementHistoryRecord[] = page.map(
+      ({ createdBy, ...movement }) => ({
+        ...movement,
+        actorName:
+          `${createdBy.firstName} ${createdBy.lastName}`.trim() ||
+          'Deleted user',
+      }),
+    );
     return {
       items:
         context?.role === 'MERCHANT'
-          ? page.map(({ createdById: _actor, ...movement }) => {
-              void _actor;
+          ? historyPage.map(({ actorName: _actorName, ...movement }) => {
+              void _actorName;
               return movement;
             })
-          : page,
+          : historyPage,
       nextCursor: movements.length > query.limit ? page.at(-1)!.id : null,
     };
   }

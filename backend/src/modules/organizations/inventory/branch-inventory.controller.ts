@@ -1,4 +1,8 @@
-import { MerchantMovementResponseDto } from '../../../openapi/response.dto';
+import {
+  InventoryMovementHistoryResponseDto,
+  MerchantMovementHistoryResponseDto,
+  MerchantMovementResponseDto,
+} from '../../../openapi/response.dto';
 import {
   Body,
   Controller,
@@ -66,7 +70,12 @@ import type {
   OrganizationRole.MANAGER,
   OrganizationRole.MERCHANT,
 )
-@ApiExtraModels(InventoryMovementResponseDto, MerchantMovementResponseDto)
+@ApiExtraModels(
+  InventoryMovementResponseDto,
+  MerchantMovementResponseDto,
+  InventoryMovementHistoryResponseDto,
+  MerchantMovementHistoryResponseDto,
+)
 @ApiTags('branch-inventory')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
@@ -290,8 +299,8 @@ export class BranchInventoryController {
           type: 'array',
           items: {
             oneOf: [
-              { $ref: getSchemaPath(InventoryMovementResponseDto) },
-              { $ref: getSchemaPath(MerchantMovementResponseDto) },
+              { $ref: getSchemaPath(InventoryMovementHistoryResponseDto) },
+              { $ref: getSchemaPath(MerchantMovementHistoryResponseDto) },
             ],
           },
         },

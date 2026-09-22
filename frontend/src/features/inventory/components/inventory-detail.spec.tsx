@@ -12,6 +12,7 @@ import {
   branch,
   inventory,
   movement,
+  movementHistory,
   scope,
 } from '../model/inventory.test-fixtures';
 import { InventoryDetail } from './inventory-detail';
@@ -90,7 +91,7 @@ describe('InventoryDetail workflows', () => {
     vi.mocked(getInventory).mockResolvedValue(inventory);
     vi.mocked(getInventoryBranch).mockResolvedValue(branch);
     vi.mocked(listMovements).mockResolvedValue({
-      items: [movement],
+      items: [movementHistory],
       nextCursor: null,
     });
   });
@@ -108,10 +109,29 @@ describe('InventoryDetail workflows', () => {
     await screen.findByText('Opening delivery');
     expect(
       screen.getByLabelText('Inventory movement history'),
-    ).toHaveTextContent(`Actor ID: ${movement.createdById}`);
+    ).toHaveTextContent('Maria Santos');
     expect(
       screen.queryByRole('button', { name: /delete movement|edit movement/i }),
     ).not.toBeInTheDocument();
+  });
+  it('colors movement changes by their sign', async () => {
+    vi.mocked(listMovements).mockResolvedValue({
+      items: [
+        movementHistory,
+        {
+          ...movementHistory,
+          id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          quantityChange: -3,
+          quantityAfter: 7,
+          reason: 'Damaged stock removed',
+        },
+      ],
+      nextCursor: null,
+    });
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Damaged stock removed');
+    expect(screen.getByText('+10 units')).toHaveClass('text-success-ink');
+    expect(screen.getByText('-3 units')).toHaveClass('text-danger');
   });
   it('shows read-only price, colored stock quantity, threshold, and profile metrics', async () => {
     render(<InventoryDetail {...scope} />);
@@ -132,7 +152,11 @@ describe('InventoryDetail workflows', () => {
   it('labels positive return movements as returns, not adjustments', async () => {
     vi.mocked(listMovements).mockResolvedValue({
       items: [
-        { ...movement, type: 'RETURN', reason: 'Returned goods restocked' },
+        {
+          ...movementHistory,
+          type: 'RETURN',
+          reason: 'Returned goods restocked',
+        },
       ],
       nextCursor: null,
     });
@@ -147,15 +171,15 @@ describe('InventoryDetail workflows', () => {
       organization: { role: 'MERCHANT' },
       organizationStatus: 'ready',
     } as never);
-    const { createdById: _actor, ...ownMovement } = movement;
-    expect(_actor).toBe(movement.createdById);
+    const { actorName: _actorName, ...ownMovement } = movementHistory;
+    expect(_actorName).toBe('Maria Santos');
     vi.mocked(listMovements).mockResolvedValue({
       items: [ownMovement],
       nextCursor: null,
     });
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
-    expect(screen.queryByText(/Actor ID/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Maria Santos')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Save branch price' }),
     ).not.toBeInTheDocument();
@@ -179,7 +203,7 @@ describe('InventoryDetail workflows', () => {
       screen.queryByRole('button', { name: 'Receive stock' }),
     ).not.toBeInTheDocument();
     await screen.findByText('Opening delivery');
-    expect(screen.queryByText(/Actor ID/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Maria Santos')).not.toBeInTheDocument();
   });
   it('reloads actual stock rather than using a replayed historical balance', async () => {
     vi.mocked(receiveStock).mockResolvedValue({
@@ -230,12 +254,15 @@ describe('InventoryDetail workflows', () => {
   });
   it('loads older history without losing current stock or previously loaded entries', async () => {
     const older = {
-      ...movement,
+      ...movementHistory,
       id: '11111111-1111-4111-8111-111111111111',
       reason: 'Earlier delivery',
     };
     vi.mocked(listMovements)
-      .mockResolvedValueOnce({ items: [movement], nextCursor: movement.id })
+      .mockResolvedValueOnce({
+        items: [movementHistory],
+        nextCursor: movementHistory.id,
+      })
       .mockResolvedValueOnce({ items: [older], nextCursor: null });
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
@@ -249,7 +276,7 @@ describe('InventoryDetail workflows', () => {
       request,
       scope,
       'MANAGER',
-      movement.id,
+      movementHistory.id,
     );
     expect(
       screen.queryByRole('button', { name: 'Load older movements' }),
@@ -257,12 +284,15 @@ describe('InventoryDetail workflows', () => {
   });
   it('retries a failed older page without losing current stock or repeating a write', async () => {
     const older = {
-      ...movement,
+      ...movementHistory,
       id: '11111111-1111-4111-8111-111111111111',
       reason: 'Earlier delivery',
     };
     vi.mocked(listMovements)
-      .mockResolvedValueOnce({ items: [movement], nextCursor: movement.id })
+      .mockResolvedValueOnce({
+        items: [movementHistory],
+        nextCursor: movementHistory.id,
+      })
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({ items: [older], nextCursor: null });
     render(<InventoryDetail {...scope} />);

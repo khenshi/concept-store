@@ -70,7 +70,7 @@ GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/m
 
 All routes require authentication and organization membership. Owners read/write
 all tenant inventory; managers read/write only assigned branches. Linked merchants
-read only own merchant placements/history, with actor IDs omitted. Merchant writes
+read only own merchant placements/history, with actor names omitted. Merchant writes
 and all cashier inventory access are denied. Every inventory/movement query includes
 organization and branch scope; filtered reads also enforce product ownership/access.
 Related branches, products, and merchant filters are resolved inside the active
@@ -184,8 +184,8 @@ control is available from a mismatch.
 - A request ID reused for different content returns `409`. Concurrent duplicate
   uniqueness/range failures resolve the committed original after rollback.
 - Movement actor comes from authenticated context. Replays retain original actor
-  attribution. Owner/manager history returns actor IDs, not personal user
-  information; merchant history omits actor IDs.
+  attribution. Owner/manager history returns the actor's display name; merchant
+  history omits actor information.
 - History is ordered by timestamp descending then movement ID descending. The
   endpoint returns `{ items, nextCursor }`, defaulting to 50 movements with a
   maximum of 100 per page. A next cursor is the last returned movement ID and
@@ -198,7 +198,7 @@ control is available from a mismatch.
 - No stock write touches another branch's placement.
 - Persisted SALE movements display as sales and require negative deltas. Their
   private sale-item link is excluded from all existing movement responses; merchant
-  history still omits actor IDs. Public receiving/correction contracts are unchanged.
+  history still omits actor information. Public receiving/correction contracts are unchanged.
 
 ## Delivery state
 
@@ -318,7 +318,7 @@ responses as well as full owner/manager responses.
   branch switching, a four-column placement summary introduced by one horizontal
   divider (without a separate "Current placement" heading), a structured movement
   history with date/time, followed by side-by-side receive/correct workflows,
-  type, description, signed change, balance, and actor columns. Product-profile
+  type, description, signed change, balance, and actor-name columns. Product-profile
   navigation is the fourth summary metric; the summary has two-row metrics with
   circular icon backgrounds and color-coded current-stock text. Price editing is
   not exposed in this detail summary; receive stock and low-stock threshold are parallel controls with aligned
@@ -361,8 +361,8 @@ responses as well as full owner/manager responses.
   A replayed historical balance is not treated as current stock. Failed refreshes
   hide stale write controls and offer a read-only retry, without replaying success.
 - History displays immutable date/time, operation type, description/reason, signed
-  delta, resulting balance, and (for owners/managers) actor ID in a structured
-  divided list. Merchant runtime schemas accept actor-free responses and strip
-  actor fields defensively.
+  delta, resulting balance, and (for owners/managers) the authenticated actor's
+  display name in a structured divided list. Merchant runtime schemas accept
+  actor-free responses and strip actor fields defensively.
 - Runtime schemas validate branch identity, inventory/product/merchant summaries,
   exact price strings, integer bounds, and movement type/delta before rendering.

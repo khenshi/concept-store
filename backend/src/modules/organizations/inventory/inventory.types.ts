@@ -63,6 +63,18 @@ export type InventoryMovementRecord = Omit<
   'saleItemId' | 'refundItemId'
 >;
 
+export type InventoryMovementHistoryRecord = Omit<
+  InventoryMovementRecord,
+  'createdById'
+> & {
+  actorName: string;
+};
+
+export type MerchantMovementHistoryRecord = Omit<
+  InventoryMovementHistoryRecord,
+  'actorName'
+>;
+
 export interface InventoryMovementPage<T = InventoryMovementRecord> {
   items: T[];
   nextCursor: string | null;
@@ -81,4 +93,18 @@ export const inventoryMovementSelect = {
   createdById: true,
   requestId: true,
   createdAt: true,
+} as const;
+
+export const inventoryMovementHistorySelect = {
+  id: true,
+  organizationId: true,
+  branchId: true,
+  branchInventoryId: true,
+  type: true,
+  quantityChange: true,
+  quantityAfter: true,
+  reason: true,
+  requestId: true,
+  createdAt: true,
+  createdBy: { select: { firstName: true, lastName: true } },
 } as const;

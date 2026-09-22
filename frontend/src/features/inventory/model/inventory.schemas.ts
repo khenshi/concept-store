@@ -201,6 +201,19 @@ export const movementResponseSchema = movementObjectSchema.refine(
   validReceipt,
   'Receipt/return delta must be positive; sale delta must be negative.',
 );
+const movementHistoryObjectSchema = movementObjectSchema
+  .omit({ createdById: true })
+  .extend({ actorName: z.string().min(1) });
+export const merchantMovementHistorySchema = movementHistoryObjectSchema
+  .omit({ actorName: true })
+  .refine(
+    validReceipt,
+    'Receipt/return delta must be positive; sale delta must be negative.',
+  );
+export const movementHistoryResponseSchema = movementHistoryObjectSchema.refine(
+  validReceipt,
+  'Receipt/return delta must be positive; sale delta must be negative.',
+);
 export const movementListSchema = z.array(movementResponseSchema);
 export const movementPageSchema = z.object({
   items: movementListSchema,
@@ -208,6 +221,14 @@ export const movementPageSchema = z.object({
 });
 export const merchantMovementPageSchema = z.object({
   items: z.array(merchantMovementSchema),
+  nextCursor: z.uuidv4().nullable(),
+});
+export const movementHistoryPageSchema = z.object({
+  items: z.array(movementHistoryResponseSchema),
+  nextCursor: z.uuidv4().nullable(),
+});
+export const merchantMovementHistoryPageSchema = z.object({
+  items: z.array(merchantMovementHistorySchema),
   nextCursor: z.uuidv4().nullable(),
 });
 export const inventoryBranchSchema = z.object({

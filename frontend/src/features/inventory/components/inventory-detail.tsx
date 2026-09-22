@@ -431,8 +431,8 @@ function ScopedInventoryDetail({
         title="Movement history"
         description={
           canWrite
-            ? 'Immutable receipts and adjustments, newest first. Actor identifiers are retained without exposing personal details.'
-            : 'Your immutable receipts and adjustments, newest first. Member identities are not exposed.'
+            ? 'A permanent record of stock received and adjustments, with the latest activity shown first.'
+            : 'Your permanent record of stock receipts and adjustments, with the latest activity shown first. Member details remain private.'
         }
       >
         {!movements.length ? (
@@ -454,7 +454,7 @@ function ScopedInventoryDetail({
                 <span>Description</span>
                 <span>Change</span>
                 <span>Balance after</span>
-                {canWrite ? <span>Actor ID</span> : null}
+                {canWrite ? <span>Actor</span> : null}
               </li>
               {movements.map((movement) => (
                 <li
@@ -468,16 +468,6 @@ function ScopedInventoryDetail({
                     {new Date(movement.createdAt).toLocaleString()}
                   </time>
                   <span className="flex items-center gap-2 text-sm font-medium">
-                    <Icon
-                      name={
-                        movement.type === 'ADJUSTMENT'
-                          ? 'pencil'
-                          : movement.type === 'SALE'
-                            ? 'minus'
-                            : 'plus'
-                      }
-                      className="size-4 text-muted"
-                    />
                     {movement.type === 'RECEIPT'
                       ? 'Receipt'
                       : movement.type === 'SALE'
@@ -489,16 +479,24 @@ function ScopedInventoryDetail({
                   <span className="min-w-0 break-words text-sm">
                     {movement.reason}
                   </span>
-                  <span className="text-sm font-semibold tabular-nums">
+                  <span
+                    className={`text-sm font-semibold tabular-nums ${
+                      movement.quantityChange > 0
+                        ? 'text-success-ink'
+                        : movement.quantityChange < 0
+                          ? 'text-danger'
+                          : 'text-muted'
+                    }`}
+                  >
                     {movement.quantityChange > 0 ? '+' : ''}
                     {movement.quantityChange.toLocaleString()} units
                   </span>
                   <span className="text-sm tabular-nums">
                     {movement.quantityAfter.toLocaleString()}
                   </span>
-                  {canWrite && 'createdById' in movement ? (
-                    <span className="min-w-0 break-all text-xs text-muted">
-                      Actor ID: {movement.createdById}
+                  {canWrite && 'actorName' in movement ? (
+                    <span className="min-w-0 break-words text-sm text-muted">
+                      {movement.actorName}
                     </span>
                   ) : null}
                 </li>

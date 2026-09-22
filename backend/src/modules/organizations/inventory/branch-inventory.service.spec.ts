@@ -2,7 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BranchInventoryService } from './branch-inventory.service';
-import { inventoryMovementSelect } from './inventory.types';
+import { inventoryMovementHistorySelect } from './inventory.types';
 import { inventoryScope } from '../authorization/resource-access';
 
 describe('BranchInventoryService', () => {
@@ -497,7 +497,7 @@ describe('BranchInventoryService', () => {
   it('history queries enforce placement access and stable scoped ordering', async () => {
     await service.findMovements('org', 'branch', 'inventory');
     expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith({
-      select: inventoryMovementSelect,
+      select: inventoryMovementHistorySelect,
       where: {
         organizationId: 'org',
         branchId: 'branch',
@@ -518,7 +518,7 @@ describe('BranchInventoryService', () => {
     prisma.inventoryMovement.findMany.mockResolvedValue(
       Array.from({ length: 3 }, (_, index) => ({
         id: `movement-${index}`,
-        createdById: 'actor',
+        createdBy: { firstName: 'Maria', lastName: 'Santos' },
       })),
     );
     const page = await service.findMovements(
@@ -539,6 +539,44 @@ describe('BranchInventoryService', () => {
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
+  });
+
+  it('returns actor names to managers and omits them for merchants', async () => {
+    prisma.inventoryMovement.findMany.mockResolvedValue([
+      {
+        id: 'movement',
+        createdBy: { firstName: 'Maria', lastName: 'Santos' },
+      },
+    ]);
+    await expect(
+      service.findMovements('org', 'branch', 'inventory', {
+        organizationId: 'org',
+        userId: 'manager',
+        role: OrganizationRole.MANAGER,
+      }),
+    ).resolves.toMatchObject({
+      items: [{ id: 'movement', actorName: 'Maria Santos' }],
+    });
+    await expect(
+      service.findMovements('org', 'branch', 'inventory', {
+        organizationId: 'org',
+        userId: 'merchant',
+        role: OrganizationRole.MERCHANT,
+        merchantId: 'merchant-profile',
+      }),
+    ).resolves.toMatchObject({ items: [{ id: 'movement' }] });
+    const merchantPage = await service.findMovements(
+      'org',
+      'branch',
+      'inventory',
+      {
+        organizationId: 'org',
+        userId: 'merchant',
+        role: OrganizationRole.MERCHANT,
+        merchantId: 'merchant-profile',
+      },
+    );
+    expect(merchantPage.items[0]).not.toHaveProperty('actorName');
   });
 
   it('rejects foreign merchant filters before running inventory directory queries', async () => {

@@ -303,7 +303,9 @@ low-stock threshold use aligned headings and input/action rows. The detail view 
 back control, tighter header spacing, start-aligned summary cells, and a full-width
 divider before movement history. Placement selection uses one searchable
 product combobox bounded within the native dialog instead of separate search and
-selection inputs. Receipt and correction panels share a responsive two-column row
+selection inputs. Movement history renders the authenticated actor's display name
+for owners and managers; merchant history remains actor-free. Receipt and
+correction panels share a responsive two-column row
 on suitable viewports and stack on smaller screens. Receive stock asks only for
 quantity and records a stable system reason; common reason actions fill the
 still-editable required adjustment reason field so manual corrections remain
