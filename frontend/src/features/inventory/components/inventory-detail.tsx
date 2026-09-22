@@ -9,7 +9,6 @@ import { BackLink } from '@/shared/components/ui/back-link';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import { FormDialog } from '@/shared/components/ui/form-dialog';
 import {
   OperationalPage,
   OperationalPanel,
@@ -28,11 +27,9 @@ import type {
   InventoryDetailScope,
   InventoryMovementView,
 } from '../model/inventory.types';
-import { InventoryPriceForm } from './inventory-price-form';
 import { InventoryThresholdForm } from './inventory-threshold-form';
 import { InventoryStockForm } from './inventory-stock-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
-import { InventoryStockStatusBadge } from './inventory-stock-status';
 
 export function InventoryDetail(props: InventoryDetailScope) {
   const { user } = useAuth();
@@ -71,9 +68,8 @@ function ScopedInventoryDetail({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pendingOperation, setPendingOperation] = useState<
-    'price' | 'threshold' | 'receipt' | 'adjustment' | null
+    'threshold' | 'receipt' | 'adjustment' | null
   >(null);
-  const [editingPrice, setEditingPrice] = useState(false);
   const [revision, setRevision] = useState(0);
   const dirty = useRef(false);
   const readGeneration = useRef(0);
@@ -86,7 +82,6 @@ function ScopedInventoryDetail({
     setNextMovementCursor(null);
     setOlderError(null);
     setOlderLoading(false);
-    setEditingPrice(false);
     setLoading(false);
     setError(
       'Access to this placement is unavailable. Ask an owner to review your branch assignments or merchant link.',
@@ -171,7 +166,7 @@ function ScopedInventoryDetail({
       organizationId={organizationId}
       branchId={branchId}
       role={organization!.role}
-      disabled={pendingOperation !== null || editingPrice}
+      disabled={pendingOperation !== null}
       onAccessDenied={accessLost}
       rememberBranch={setSelectedBranchId}
       beforeChange={() => {
@@ -191,7 +186,6 @@ function ScopedInventoryDetail({
         setNextMovementCursor(null);
         setOlderError(null);
         setSuccess(null);
-        setEditingPrice(false);
         setLoading(true);
         return true;
       }}
@@ -364,115 +358,73 @@ function ScopedInventoryDetail({
     <OperationalPage>
       <div className="mb-4">{back}</div>
       <PageHeader
-        className="border-b-0 pb-0"
         title={inventory.product.name}
         description={`${branch.name} · ${inventory.product.merchant.name} · ${inventory.product.status === 'ACTIVE' ? 'Active' : 'Inactive'} product`}
         action={branchSelector}
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      <section className="inventory-placement-panel bg-surface text-ink mt-4 mb-1">
+      <section className="inventory-placement-panel mt-3 mb-1 pb-3 border-b border-hairline bg-surface text-ink">
         <dl className="inventory-placement-summary grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="inventory-placement-stat flex justify-start gap-3 px-4 py-5 lg:py-6">
-            <Icon name="tag" className="mt-1 size-6 text-muted" />
+          <div className="inventory-placement-stat flex items-center justify-start gap-3 px-4 py-5 lg:py-6">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-subtle">
+              <Icon name="tag" className="size-5 text-muted" />
+            </span>
             <div className="min-w-0">
               <dt className="text-xs text-muted">Branch price</dt>
               <dd className="mt-1 font-semibold tabular-nums">
                 PHP {inventory.sellingPrice}
               </dd>
-              {canWrite ? (
-                <button
-                  type="button"
-                  className={buttonStyles({
-                    variant: 'secondary',
-                    className: 'mt-2 min-h-8 px-3 py-1 text-xs',
-                  })}
-                  disabled={pendingOperation !== null}
-                  onClick={() => setEditingPrice(true)}
-                >
-                  Edit price
-                </button>
-              ) : null}
             </div>
           </div>
-          <div className="inventory-placement-stat flex justify-start gap-3 px-4 py-5 lg:py-6">
-            <Icon name="box" className="mt-1 size-6 text-muted" />
+          <div className="inventory-placement-stat flex items-center justify-start gap-3 px-4 py-5 lg:py-6">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-subtle">
+              <Icon name="box" className="size-5 text-muted" />
+            </span>
             <div className="min-w-0">
               <dt className="text-xs text-muted">Current stock</dt>
-              <dd className="mt-1 font-semibold tabular-nums">
+              <dd
+                className={`mt-1 font-semibold tabular-nums ${
+                  inventory.stockStatus === 'IN_STOCK'
+                    ? 'text-success-ink'
+                    : inventory.stockStatus === 'LOW_STOCK'
+                      ? 'text-warning'
+                      : 'text-danger'
+                }`}
+              >
                 {inventory.quantity.toLocaleString()} units
               </dd>
             </div>
           </div>
-          <div className="inventory-placement-stat flex justify-start gap-3 px-4 py-5 lg:py-6">
-            <Icon name="layers" className="mt-1 size-6 text-muted" />
+          <div className="inventory-placement-stat flex items-center justify-start gap-3 px-4 py-5 lg:py-6">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-subtle">
+              <Icon name="bell" className="size-5 text-muted" />
+            </span>
             <div className="min-w-0">
-              <dt className="text-xs text-muted">Stock status</dt>
-              <dd className="mt-1 font-semibold">
-                <InventoryStockStatusBadge status={inventory.stockStatus} />
+              <dt className="text-xs text-muted">Product threshold</dt>
+              <dd className="mt-1 font-semibold tabular-nums">
+                {inventory.lowStockThreshold.toLocaleString()} units
               </dd>
-              <p className="mt-1 text-xs text-muted tabular-nums">
-                Threshold: {inventory.lowStockThreshold.toLocaleString()}
-              </p>
             </div>
           </div>
-          <div className="inventory-placement-stat flex justify-start gap-3 px-4 py-5 lg:py-6">
-            <Icon name="file" className="mt-1 size-6 text-muted" />
+          <div className="inventory-placement-stat flex items-center justify-start gap-3 px-4 py-5 lg:py-6">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-subtle">
+              <Icon name="file" className="size-5 text-muted" />
+            </span>
             <div className="min-w-0">
-              <dt className="text-xs text-muted">Product identity</dt>
+              <dt className="text-xs text-muted">Product profile</dt>
               <dd className="mt-1">
                 <Link
-                  className="inline-flex items-center gap-2 font-medium"
+                  className="inline-flex items-center gap-2 font-medium text-ink"
                   href={`/app/organizations/${organizationId}/products/${inventory.productId}`}
                 >
-                  View product profile
+                  View profile
                   <Icon name="arrow" className="size-4 -rotate-45" />
                 </Link>
               </dd>
             </div>
           </div>
         </dl>
-        <p className="flex gap-3 border-b border-hairline px-0 pb-4 mt-1 text-sm text-muted items-center">
-          <Icon name="info" className="mt-0.5 size-5 shrink-0" />
-          <span>
-            Changes made here only affect this branch. Stock and prices at other
-            branches will not be changed.
-          </span>
-        </p>
       </section>
-      {canWrite && editingPrice ? (
-        <FormDialog
-          title="Edit branch price"
-          description="Update the selling price for this branch placement only. Stock and other branch prices will not change."
-          pending={pendingOperation === 'price'}
-          onClose={() => {
-            dirty.current = false;
-            setEditingPrice(false);
-          }}
-        >
-          <div
-            onChangeCapture={() => {
-              dirty.current = true;
-            }}
-          >
-            <InventoryPriceForm
-              onAccessLost={accessLost}
-              scope={scope}
-              inventory={inventory}
-              onPendingChange={(pending) =>
-                setPendingOperation(pending ? 'price' : null)
-              }
-              onCancel={() => {
-                dirty.current = false;
-                setEditingPrice(false);
-              }}
-              onSaved={() => {
-                setEditingPrice(false);
-                saved('Branch price saved. Refreshing the current placement.');
-              }}
-            />
-          </div>
-        </FormDialog>
-      ) : null}
       <OperationalPanel
         variant="open"
         className="data-surface"

@@ -319,11 +319,13 @@ responses as well as full owner/manager responses.
   divider (without a separate "Current placement" heading), a structured movement
   history with date/time, followed by side-by-side receive/correct workflows,
   type, description, signed change, balance, and actor columns. Product-profile
-  navigation lives in Product identity. Price editing opens in a focused modal;
-  receive stock and low-stock threshold are parallel controls with aligned
-  headings and each action beside its input. The compact back control, tightened summary
-  spacing, start-aligned metric cells, and divider below the placement note keep this
-  hierarchy dense and consistent. These are presentation changes only.
+  navigation is the fourth summary metric; the summary has two-row metrics with
+  circular icon backgrounds and color-coded current-stock text. Price editing is
+  not exposed in this detail summary; receive stock and low-stock threshold are parallel controls with aligned
+  headings and each action beside its input. The compact back control, tightened
+  summary spacing, start-aligned metric cells, and a full-width divider before
+  movement history keep this hierarchy dense and consistent. These are
+  presentation changes only.
 - Placement creation uses the shared scroll-contained native dialog, with focus
   restoration and pending dismissal protection. One searchable product combobox
   performs both filtering and selection. It now reads bounded branch-scoped
@@ -339,8 +341,7 @@ responses as well as full owner/manager responses.
 - Movement history appears before the stock controls so recent activity is
   visible before mutation forms. Receiving and correction panels appear side by
   side at wide desktop widths and stack below the parallel receive/threshold
-  controls at smaller screens. Price editing opens from the placement summary.
-  Adjustment
+  controls at smaller screens. Adjustment
   forms offer common reason actions plus an editable custom reason field; receipt
   forms only ask for quantity and use the system reason `Stock received`. Input
   validation runs after 300 ms, immediately on blur, and on submit.

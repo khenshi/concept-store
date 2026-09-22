@@ -43,15 +43,15 @@ This focused confirmation-dialog refinement was implemented and committed as
   commands, price and threshold editing, history pagination, and responsive
   behavior intact. Preserve full-width dividers while adding small horizontal
   insets to list content.
-- Keep branch-price editing in a focused modal, expose product-profile navigation
-  from Product identity only, give the receive/threshold column less width than
+- Keep branch-price editing out of the placement summary, expose product-profile
+  navigation as the fourth summary metric, give the receive/threshold column less width than
   correction, align Receive stock and Low-stock threshold as parallel controls
   with each action beside its input, and shorten summary separators so they have
   vertical breathing room.
 - Keep the detail back control compact, tighten the header-to-summary and
-  summary-to-note spacing, start-align each summary item within equal grid cells, and
-  divide the placement note from the stock actions below. Render movement history
-  before the receive, threshold, and correction controls.
+  summary spacing, start-align each summary item within equal grid cells, add a
+  divider before movement history, and render movement history before the
+  receive, threshold, and correction controls.
 
 This focused frontend redesign is being implemented now and remains uncommitted
 for review.

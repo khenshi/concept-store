@@ -21,6 +21,7 @@ const paths = {
   minus: 'M5 12h14',
   pencil: 'm4 16 0-4L15 1l4 4L8 16H4Zm11-15 4 4',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3 2',
+  bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 10h18c0-3-3-3-3-10ZM10 21h4',
   info: 'M12 11v6m0-10h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
   download: 'M12 3v12m0 0 4-4m-4 4-4-4M4 19v2h16v-2',
 } as const;

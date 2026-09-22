@@ -17,7 +17,7 @@ export function PageHeader({
 }) {
   return (
     <header
-      className={`flex items-start justify-between gap-6 border-b border-hairline pb-6 max-sm:flex-col ${className}`}
+      className={`flex items-start justify-between gap-6 border-b border-hairline pb-10 max-sm:flex-col ${className}`}
     >
       <div className="min-w-0">
         {eyebrow ? (

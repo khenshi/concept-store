@@ -196,10 +196,6 @@
     @apply px-3 py-5 sm:px-4;
   }
 
-  .inventory-placement-summary {
-    @apply border-t border-hairline;
-  }
-
   .inventory-placement-stat {
     @apply relative;
   }

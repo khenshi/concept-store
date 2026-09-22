@@ -297,11 +297,11 @@ immutable history. Branch and product details provide owner/manager inventory
 links. Placement details follow the reference hierarchy with a context header,
 an unlabeled placement summary introduced by one horizontal divider, a structured
 movement-history list before the stock workflows, and product-profile navigation
-lives in Product identity;
-price editing opens in a focused modal, while receive stock and low-stock
-threshold use aligned headings and input/action rows. The detail view uses a compact
-back control, tighter header and note spacing, start-aligned summary cells, and a
-divider between placement context and stock actions. Placement selection uses one searchable
+is the fourth placement metric. The summary uses two-row metrics, circular icon
+backgrounds, and color-coded current-stock text; receive stock and
+low-stock threshold use aligned headings and input/action rows. The detail view uses a compact
+back control, tighter header spacing, start-aligned summary cells, and a full-width
+divider before movement history. Placement selection uses one searchable
 product combobox bounded within the native dialog instead of separate search and
 selection inputs. Receipt and correction panels share a responsive two-column row
 on suitable viewports and stack on smaller screens. Receive stock asks only for

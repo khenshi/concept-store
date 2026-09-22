@@ -113,18 +113,21 @@ describe('InventoryDetail workflows', () => {
       screen.queryByRole('button', { name: /delete movement|edit movement/i }),
     ).not.toBeInTheDocument();
   });
-  it('opens branch price editing in a modal and supports cancellation', async () => {
+  it('shows read-only price, colored stock quantity, threshold, and profile metrics', async () => {
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
-    fireEvent.click(screen.getByRole('button', { name: 'Edit price' }));
+    expect(screen.getByText('PHP 850.00')).toBeInTheDocument();
     expect(
-      screen.getByRole('dialog', { name: 'Edit branch price' }),
-    ).toBeVisible();
+      screen.queryByRole('button', { name: 'Edit price' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Product threshold')).toBeInTheDocument();
+    expect(screen.getByText('Product profile')).toBeInTheDocument();
     expect(
-      screen.getByRole('textbox', { name: 'Selling price (PHP)' }),
+      screen.getByRole('link', { name: /View profile/ }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Changes made here only affect this branch/),
+    ).not.toBeInTheDocument();
   });
   it('labels positive return movements as returns, not adjustments', async () => {
     vi.mocked(listMovements).mockResolvedValue({
@@ -280,7 +283,9 @@ describe('InventoryDetail workflows', () => {
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
     submitReceipt();
-    expect(screen.getByRole('button', { name: 'Edit price' })).toBeDisabled();
+    expect(
+      screen.getByRole('combobox', { name: 'Inventory branch' }),
+    ).toBeDisabled();
     expect(
       screen.getByRole('button', { name: 'Review adjustment' }),
     ).toBeDisabled();
