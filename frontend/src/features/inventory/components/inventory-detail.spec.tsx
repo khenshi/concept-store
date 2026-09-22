@@ -49,6 +49,7 @@ describe('InventoryDetail workflows', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
+    openAction('Receive');
     const quantity = screen.getByRole('textbox', { name: 'Units to receive' });
     fireEvent.change(quantity, { target: { value: '3' } });
     fireEvent.click(screen.getByRole('combobox', { name: 'Inventory branch' }));
@@ -95,13 +96,15 @@ describe('InventoryDetail workflows', () => {
       nextCursor: null,
     });
   });
+  const openAction = (name: string) => {
+    fireEvent.click(screen.getByRole('tab', { name: new RegExp(`^${name}$`) }));
+  };
   const submitReceipt = () => {
+    openAction('Receive');
     fireEvent.change(
       screen.getByRole('textbox', { name: 'Units to receive' }),
       { target: { value: '3' } },
     );
-    const reasons = screen.getAllByRole('textbox', { name: 'Reason' });
-    fireEvent.change(reasons[0], { target: { value: 'Delivery' } });
     fireEvent.click(screen.getByRole('button', { name: 'Receive stock' }));
   };
   it('shows immutable ledger fields without actor personal data or mutation actions', async () => {
@@ -112,6 +115,34 @@ describe('InventoryDetail workflows', () => {
     ).toHaveTextContent('Maria Santos');
     expect(
       screen.queryByRole('button', { name: /delete movement|edit movement/i }),
+    ).not.toBeInTheDocument();
+  });
+  it('reveals one selected inventory action form at a time', async () => {
+    render(<InventoryDetail {...scope} />);
+    await screen.findByText('Opening delivery');
+    expect(screen.getByRole('tab', { name: 'Receive' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Adjust' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Threshold' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Edit price' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('textbox', { name: 'Units to receive' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Cancel' }),
+    ).not.toBeInTheDocument();
+    openAction('Adjust');
+    expect(
+      screen.getByRole('combobox', { name: 'Adjustment method' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: 'Units to receive' }),
+    ).not.toBeInTheDocument();
+    openAction('Edit price');
+    expect(
+      screen.getByRole('textbox', { name: 'Selling price (PHP)' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: 'Adjustment method' }),
     ).not.toBeInTheDocument();
   });
   it('colors movement changes by their sign', async () => {
@@ -137,9 +168,7 @@ describe('InventoryDetail workflows', () => {
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
     expect(screen.getByText('PHP 850.00')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Edit price' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Edit price' })).toBeInTheDocument();
     expect(screen.getByText('Product threshold')).toBeInTheDocument();
     expect(screen.getByText('Product profile')).toBeInTheDocument();
     expect(
@@ -316,9 +345,7 @@ describe('InventoryDetail workflows', () => {
     expect(
       screen.getByRole('combobox', { name: 'Inventory branch' }),
     ).toBeDisabled();
-    expect(
-      screen.getByRole('button', { name: 'Review adjustment' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'Adjust' })).toBeDisabled();
   });
   it.each(['CASHIER'])('does not request inventory for %s', (role) => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({

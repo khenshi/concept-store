@@ -318,6 +318,11 @@ net change, and reason while keeping the server authoritative; pending writes
 disable repeat/concurrent actions. Stock retry IDs remain unchanged for unchanged
 failed commands, and success reloads current inventory instead of treating
 historical movement balances as current.
+Inventory detail actions now sit beneath movement history as an underlined
+Receive, Adjust, Threshold, and Edit price tab strip; Receive is shown by
+default, only the selected form is shown at a time, and extra horizontal insets
+keep it visually attached to the action row. There is no separate close control;
+switching still protects unsaved input.
 Owner/manager inventory rows also provide direct Receive stock and Correct stock
 dialogs using those same safeguards. Their modal headers show branch and current
 unit context as compact upper-right tags instead of body text; merchant rows

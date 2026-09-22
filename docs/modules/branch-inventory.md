@@ -360,6 +360,12 @@ responses as well as full owner/manager responses.
 - Every successful stock command reloads actual inventory and movement history.
   A replayed historical balance is not treated as current stock. Failed refreshes
   hide stale write controls and offer a read-only retry, without replaying success.
+- Inventory detail actions are presented beneath movement history as an
+  underlined Receive, Adjust, Threshold, and Edit price tab strip. Only the
+  selected action's existing validated form is rendered, with Receive open by
+  default and extra horizontal insets tying the form to the action row. There is
+  no separate close control; switching a dirty form requires confirmation, and
+  successful writes return to the default Receive form before refreshing data.
 - History displays immutable date/time, operation type, description/reason, signed
   delta, resulting balance, and (for owners/managers) the authenticated actor's
   display name in a structured divided list. Merchant runtime schemas accept

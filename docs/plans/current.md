@@ -65,3 +65,15 @@ for review.
 
 This focused history contract change is being implemented now and remains
 uncommitted for review.
+
+## Inventory detail action switcher (approved September 22, 2026)
+
+- Place Receive, Adjust, Threshold, and Edit price actions beneath movement
+  history on the inventory detail screen as an underlined tab strip.
+- Keep Receive stock open by default and show only the selected action's
+  existing validated form at a time. Do not add a separate close control;
+  switching actions still protects unsaved input with confirmation. Preserve
+  role checks, branch scoping, pending states, and server-authoritative writes.
+
+This focused inventory-detail interaction change is being implemented now and
+remains uncommitted for review.

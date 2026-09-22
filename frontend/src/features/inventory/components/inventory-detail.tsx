@@ -29,7 +29,10 @@ import type {
 } from '../model/inventory.types';
 import { InventoryThresholdForm } from './inventory-threshold-form';
 import { InventoryStockForm } from './inventory-stock-form';
+import { InventoryPriceForm } from './inventory-price-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
+
+type InventoryAction = 'receipt' | 'adjustment' | 'threshold' | 'price';
 
 export function InventoryDetail(props: InventoryDetailScope) {
   const { user } = useAuth();
@@ -68,8 +71,9 @@ function ScopedInventoryDetail({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pendingOperation, setPendingOperation] = useState<
-    'threshold' | 'receipt' | 'adjustment' | null
+    'threshold' | 'receipt' | 'adjustment' | 'price' | null
   >(null);
+  const [activeAction, setActiveAction] = useState<InventoryAction>('receipt');
   const [revision, setRevision] = useState(0);
   const dirty = useRef(false);
   const readGeneration = useRef(0);
@@ -82,6 +86,7 @@ function ScopedInventoryDetail({
     setNextMovementCursor(null);
     setOlderError(null);
     setOlderLoading(false);
+    setActiveAction('receipt');
     setLoading(false);
     setError(
       'Access to this placement is unavailable. Ask an owner to review your branch assignments or merchant link.',
@@ -220,8 +225,20 @@ function ScopedInventoryDetail({
     : 'lg:grid-cols-[minmax(10rem,1.15fr)_minmax(7rem,0.7fr)_minmax(12rem,1.4fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)]';
   const saved = (message: string) => {
     dirty.current = false;
+    setActiveAction('receipt');
     setSuccess(message);
     setRevision((value) => value + 1);
+  };
+  const selectAction = (action: InventoryAction) => {
+    if (pendingOperation !== null) return;
+    if (activeAction === action) return;
+    if (
+      dirty.current &&
+      !window.confirm('Discard this unsaved inventory form and open another?')
+    )
+      return;
+    dirty.current = false;
+    setActiveAction(action);
   };
   const loadOlder = async () => {
     if (!nextMovementCursor || olderLoading) return;
@@ -255,20 +272,62 @@ function ScopedInventoryDetail({
   };
   const stockActions = canWrite ? (
     <div
-      className="inventory-detail-actions grid min-w-0 gap-x-8 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+      className="inventory-detail-actions mt-10 min-w-0 border-t border-hairline pt-6"
       onChangeCapture={() => {
         dirty.current = true;
       }}
     >
-      <section className="mt-10 min-w-0 bg-surface text-ink">
-        <div className="grid min-w-0 gap-6 md:grid-cols-2">
-          <section className="min-w-0">
-            <header className="pb-4">
-              <h2 className="text-base font-semibold">Receive stock</h2>
-              <p className="mt-1.5 text-sm leading-6 text-muted">
-                Record positive whole units entering this branch.
-              </p>
-            </header>
+      <div>
+        <h2 className="text-base font-semibold">Inventory actions</h2>
+        <p className="mt-1 text-sm text-muted">
+          Choose an action to update this branch placement.
+        </p>
+      </div>
+      <div
+        className="mt-2 flex min-w-0 overflow-x-auto overflow-y-clip border-b border-hairline"
+        role="tablist"
+        aria-label="Inventory actions"
+      >
+        {(
+          [
+            ['receipt', 'Receive'],
+            ['adjustment', 'Adjust'],
+            ['threshold', 'Threshold'],
+            ['price', 'Edit price'],
+          ] as const
+        ).map(([action, label]) => (
+          <button
+            key={action}
+            type="button"
+            id={`inventory-action-tab-${action}`}
+            role="tab"
+            aria-selected={activeAction === action}
+            aria-controls="inventory-action-panel"
+            className={`relative min-h-12 shrink-0 px-4 py-3 text-sm font-semibold transition-colors focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus sm:px-6 ${
+              activeAction === action
+                ? 'text-ink after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-ink'
+                : 'text-muted hover:text-ink'
+            }`}
+            disabled={pendingOperation !== null}
+            onClick={() => selectAction(action)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div
+        id="inventory-action-panel"
+        role="tabpanel"
+        tabIndex={0}
+        aria-labelledby={`inventory-action-tab-${activeAction}`}
+        className="min-w-0 outline-none"
+      >
+        {activeAction === 'receipt' ? (
+          <OperationalPanel
+            variant="open"
+            title="Receive stock"
+            description="Record positive whole units entering this branch."
+          >
             <fieldset
               className="min-w-0 border-0 p-0"
               disabled={
@@ -276,7 +335,6 @@ function ScopedInventoryDetail({
               }
             >
               <InventoryStockForm
-                inlineReceiptAction
                 onAccessLost={accessLost}
                 mode="receipt"
                 scope={scope}
@@ -292,14 +350,44 @@ function ScopedInventoryDetail({
                 }
               />
             </fieldset>
-          </section>
-          <section className="min-w-0 md:border-l md:border-hairline md:pl-6">
-            <header className="pb-4">
-              <h2 className="text-base font-semibold">Low-stock threshold</h2>
-              <p className="mt-1.5 text-sm leading-6 text-muted">
-                Warn at or below this stock level.
-              </p>
-            </header>
+          </OperationalPanel>
+        ) : null}
+        {activeAction === 'adjustment' ? (
+          <OperationalPanel
+            variant="open"
+            title="Adjust stock"
+            description="Review a signed correction before applying it."
+          >
+            <fieldset
+              className="min-w-0 border-0 p-0"
+              disabled={
+                pendingOperation !== null && pendingOperation !== 'adjustment'
+              }
+            >
+              <InventoryStockForm
+                onAccessLost={accessLost}
+                mode="adjustment"
+                scope={scope}
+                inventory={inventory}
+                branchName={branch.name}
+                onPendingChange={(pending) =>
+                  setPendingOperation(pending ? 'adjustment' : null)
+                }
+                onSaved={() =>
+                  saved(
+                    'Stock adjustment recorded. Refreshing current stock and history.',
+                  )
+                }
+              />
+            </fieldset>
+          </OperationalPanel>
+        ) : null}
+        {activeAction === 'threshold' ? (
+          <OperationalPanel
+            variant="open"
+            title="Set low-stock threshold"
+            description="Warn at or below this stock level."
+          >
             <fieldset
               className="min-w-0 border-0 p-0"
               disabled={
@@ -307,7 +395,6 @@ function ScopedInventoryDetail({
               }
             >
               <InventoryThresholdForm
-                inlineAction
                 onAccessLost={accessLost}
                 scope={scope}
                 inventory={inventory}
@@ -321,37 +408,33 @@ function ScopedInventoryDetail({
                 }
               />
             </fieldset>
-          </section>
-        </div>
-      </section>
-      <OperationalPanel
-        variant="open"
-        title="Correct stock"
-        description="Review a signed correction before applying it. Available for inactive products or merchants."
-      >
-        <fieldset
-          className="min-w-0 border-0 p-0"
-          disabled={
-            pendingOperation !== null && pendingOperation !== 'adjustment'
-          }
-        >
-          <InventoryStockForm
-            onAccessLost={accessLost}
-            mode="adjustment"
-            scope={scope}
-            inventory={inventory}
-            branchName={branch.name}
-            onPendingChange={(pending) =>
-              setPendingOperation(pending ? 'adjustment' : null)
-            }
-            onSaved={() =>
-              saved(
-                'Stock adjustment recorded. Refreshing current stock and history.',
-              )
-            }
-          />
-        </fieldset>
-      </OperationalPanel>
+          </OperationalPanel>
+        ) : null}
+        {activeAction === 'price' ? (
+          <OperationalPanel
+            variant="open"
+            title="Edit branch price"
+            description="Change this branch’s selling price without changing stock or other branches."
+          >
+            <fieldset
+              className="min-w-0 border-0 p-0"
+              disabled={pendingOperation !== null}
+            >
+              <InventoryPriceForm
+                onAccessLost={accessLost}
+                scope={scope}
+                inventory={inventory}
+                onPendingChange={(pending) =>
+                  setPendingOperation(pending ? 'price' : null)
+                }
+                onSaved={() =>
+                  saved('Branch price saved. Refreshing the current placement.')
+                }
+              />
+            </fieldset>
+          </OperationalPanel>
+        ) : null}
+      </div>
     </div>
   ) : null;
   return (
