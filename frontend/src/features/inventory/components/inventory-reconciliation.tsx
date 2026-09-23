@@ -12,6 +12,7 @@ import type {
   InventoryReconciliationPage,
   InventoryScope,
 } from '../model/inventory.types';
+import { InventoryTableSkeleton } from './inventory-table-skeleton';
 
 export function InventoryReconciliation({
   organizationId,
@@ -91,9 +92,10 @@ export function InventoryReconciliation({
           Run a check when you need to investigate a stock discrepancy.
         </p>
       ) : loading && !page.items.length ? (
-        <p className="p-6 text-sm text-muted" role="status">
-          Checking stock movements…
-        </p>
+        <InventoryTableSkeleton
+          variant="integrity"
+          label="Checking stock movements"
+        />
       ) : error ? (
         <RequestError
           className="p-6"

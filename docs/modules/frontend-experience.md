@@ -66,16 +66,21 @@ require a reason and retain their common-reason shortcuts.
 ## Inventory stock list refinement (Part 1)
 
 The branch Inventory directory now uses an open Inventory Stock-style surface:
-visible Product, Price, Stock status, Quantity and Actions labels align with
-their records on wide screens, while narrow screens retain the existing stacked
-layout. Product identity stays grouped with merchant/status/SKU metadata; stock
-status uses a restrained semantic dot and text treatment; quantity and threshold
-are separate from status for faster scanning. The search field and existing
-merchant, product-status and stock-status controls remain accessible but use
-quiet rounded reference-style controls. Add placement, receive/correct stock,
-branch selection, pagination, role visibility and all data requests are
-unchanged. This part was reviewed and committed before the remaining table
-surfaces are updated.
+visible Product, SKU, Price, Quantity and Actions labels align with their records
+on wide screens, while narrow screens retain the existing stacked layout. Product
+identity stays grouped with merchant/status metadata without an underline hover
+treatment; SKU is shown in its own column. The separate stock-status column is
+removed; quantity text uses green, yellow, or red semantic color for the current
+stock state and retains its threshold detail. Every row exposes a View action to
+the placement detail, while
+owners and managers also retain Stock in and Adjust actions. The search field
+and existing merchant, product-status and stock-status controls remain
+accessible but use quiet rounded reference-style controls. Add placement, branch
+selection, pagination, role visibility and all data requests are unchanged. This
+part was reviewed and committed before the remaining table surfaces are updated.
+While the branch list or Stock integrity check is loading, the page now uses a
+five-row, column-aligned skeleton that preserves the table's responsive structure
+instead of a generic list placeholder.
 
 ## Shared table pattern propagation (Part 2)
 
@@ -291,6 +296,18 @@ and Apply controls stay together on the second row. Larger desktop widths retain
 the single-row arrangement. The date row also provides a Clear dates action, and
 movement timestamps are displayed as Philippine-local numeric date/time values
 with seconds.
+
+Movement records and placement movement history keep the Reason column last. Each
+row uses a compact text-only black View action with a gray pill hover state;
+selecting it opens an accessible read-only dialog containing the recorded reason
+and an explicit Close action. Visible actor names also use the primary ink text
+color. Both movement-history views render the date above the Philippine-local
+time and share matching header/row spacing. Tablet layouts use compact columns
+with a horizontal-scroll fallback so the final Reason/View cell remains
+available. Movement data and role-based visibility remain unchanged.
+While either table is loading, its skeleton preserves the same responsive column
+structure, row rhythm, and two-line product/date details before real records
+arrive.
 
 ## POS navigation refinement
 

@@ -10,7 +10,6 @@ import type { ProductStatus } from '@/features/products/model/product.types';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
-import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   OperationalPage,
   OperationalPanel,
@@ -32,9 +31,10 @@ import type {
 import { InventoryPlacementForm } from './inventory-placement-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
 import { InventoryStockForm } from './inventory-stock-form';
-import { InventoryStockStatusBadge } from './inventory-stock-status';
+import { inventoryStockQuantityClass } from './inventory-stock-status';
 import { InventoryReconciliation } from './inventory-reconciliation';
 import { InventoryMovementRecords } from './inventory-movement-records';
+import { InventoryTableSkeleton } from './inventory-table-skeleton';
 
 export function InventoryDirectory(
   props: InventoryScope & { initialStockStatus?: InventoryStockStatus },
@@ -201,7 +201,12 @@ function ScopedInventoryDirectory({
     }
   }
   if (organizationStatus === 'loading')
-    return <ListSkeleton label="Loading branch inventory" />;
+    return (
+      <InventoryTableSkeleton
+        variant="stock"
+        label="Loading branch inventory"
+      />
+    );
   if (!allowed)
     return (
       <p role="alert" className="mt-8">
@@ -209,8 +214,8 @@ function ScopedInventoryDirectory({
       </p>
     );
   const inventoryGrid = canWrite
-    ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(7rem,0.75fr)_minmax(8.75rem,0.85fr)_minmax(7rem,0.6fr)_minmax(12rem,1fr)]'
-    : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(7rem,0.8fr)_minmax(8.75rem,0.9fr)_minmax(7rem,0.7fr)]';
+    ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(6.5rem,0.75fr)_minmax(7rem,0.75fr)_minmax(7rem,0.6fr)_minmax(12rem,1fr)]'
+    : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(6.5rem,0.8fr)_minmax(7rem,0.8fr)_minmax(7rem,0.7fr)_minmax(7rem,0.7fr)]';
   return (
     <OperationalPage>
       <PageHeader
@@ -422,8 +427,9 @@ function ScopedInventoryDirectory({
             </div>
           </OperationalToolbar>
           {loading ? (
-            <ListSkeleton
-              className="p-6"
+            <InventoryTableSkeleton
+              variant="stock"
+              canWrite={canWrite}
               label="Loading inventory placements"
             />
           ) : error ? (
@@ -453,52 +459,46 @@ function ScopedInventoryDirectory({
                 className={`data-column-header inventory-column-header hidden gap-x-6 gap-y-3 lg:grid ${inventoryGrid}`}
               >
                 <span>Product</span>
+                <span>SKU</span>
                 <span>Price</span>
-                <span>Stock status</span>
                 <span>Quantity</span>
-                {canWrite ? <span>Actions</span> : null}
+                <span>Actions</span>
               </li>
               {items.map((item) => (
                 <li
                   key={item.id}
                   className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 lg:items-center ${inventoryGrid}`}
                 >
-                  <Link
-                    href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
-                    aria-label={`View ${item.product.name} inventory`}
-                    className="min-w-0 break-words text-ink no-underline hover:underline"
-                  >
+                  <div className="min-w-0 break-words">
                     <strong className="block text-sm font-semibold">
                       {item.product.name}
                     </strong>
                     <span className="mt-1 block text-xs text-muted">
                       {item.product.merchant.name} ·{' '}
-                      {item.product.status === 'ACTIVE' ? 'Active' : 'Inactive'}{' '}
-                      · SKU {item.product.sku ?? 'not set'}
+                      {item.product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
                     </span>
-                  </Link>
+                  </div>
+                  <span className="min-w-0 break-words text-sm text-muted">
+                    {item.product.sku ?? 'Not set'}
+                  </span>
                   <span className="text-sm tabular-nums">
                     PHP {item.sellingPrice}
                   </span>
-                  <span className="text-sm">
-                    <InventoryStockStatusBadge
-                      status={item.stockStatus}
-                      minimal
-                    />
-                  </span>
                   <span className="text-sm tabular-nums">
-                    <strong className="block font-semibold">
+                    <strong
+                      className={`block font-semibold ${inventoryStockQuantityClass(item.stockStatus)}`}
+                    >
                       {item.quantity.toLocaleString()} units
                     </strong>
                     <span className="mt-1 block text-xs text-muted">
                       Threshold {item.lowStockThreshold.toLocaleString()}
                     </span>
                   </span>
-                  {canWrite ? (
-                    <div
-                      className="flex flex-wrap gap-x-3 gap-y-2 md:flex-nowrap md:whitespace-nowrap"
-                      aria-label={`${item.product.name} stock actions`}
-                    >
+                  <div
+                    className="flex flex-wrap gap-x-3 gap-y-2 md:flex-nowrap md:whitespace-nowrap"
+                    aria-label={`${item.product.name} stock actions`}
+                  >
+                    {canWrite ? (
                       <button
                         type="button"
                         className={buttonStyles({
@@ -514,6 +514,8 @@ function ScopedInventoryDirectory({
                       >
                         Stock in
                       </button>
+                    ) : null}
+                    {canWrite ? (
                       <button
                         type="button"
                         className={buttonStyles({
@@ -532,8 +534,18 @@ function ScopedInventoryDirectory({
                       >
                         Adjust
                       </button>
-                    </div>
-                  ) : null}
+                    ) : null}
+                    <Link
+                      href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
+                      aria-label={`View ${item.product.name} inventory`}
+                      className={buttonStyles({
+                        variant: 'quiet',
+                        className: 'min-h-9 px-2 py-1 text-xs no-underline',
+                      })}
+                    >
+                      View
+                    </Link>
+                  </div>
                 </li>
               ))}
             </ul>

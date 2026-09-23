@@ -37,6 +37,9 @@ import { InventoryThresholdForm } from './inventory-threshold-form';
 import { InventoryStockForm } from './inventory-stock-form';
 import { InventoryPriceForm } from './inventory-price-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
+import { InventoryMovementDateTime } from './inventory-movement-date-time';
+import { InventoryMovementReasonDialog } from './inventory-movement-reason-dialog';
+import { InventoryMovementTableSkeleton } from './inventory-movement-table-skeleton';
 
 type InventoryAction = 'receipt' | 'adjustment' | 'threshold' | 'price';
 type MovementPageTarget = { index: number; cursor?: string };
@@ -44,9 +47,11 @@ type MovementPageTarget = { index: number; cursor?: string };
 function InventoryDetailLoadingSkeleton({
   back,
   branchSelector,
+  canWrite,
 }: {
   back: ReactNode;
   branchSelector: ReactNode;
+  canWrite: boolean;
 }) {
   return (
     <OperationalPage>
@@ -95,7 +100,18 @@ function InventoryDetailLoadingSkeleton({
           </dl>
         </section>
       </div>
-      <ListSkeleton label="Refreshing current stock and movement history" />
+      <OperationalPanel
+        variant="open"
+        className="data-surface"
+        title="Movement history"
+        description="Loading recent stock activity."
+      >
+        <InventoryMovementTableSkeleton
+          variant="history"
+          canWrite={canWrite}
+          label="Loading movement history"
+        />
+      </OperationalPanel>
     </OperationalPage>
   );
 }
@@ -141,6 +157,9 @@ function ScopedInventoryDetail({
   );
   const [movementPageRetry, setMovementPageRetry] =
     useState<MovementPageTarget | null>(null);
+  const [selectedMovementReason, setSelectedMovementReason] = useState<
+    string | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -163,6 +182,7 @@ function ScopedInventoryDetail({
     setMovementPageError(null);
     setMovementPageRetry(null);
     setMovementPageLoading(false);
+    setSelectedMovementReason(null);
     setActiveAction('receipt');
     setLoading(false);
     setError(
@@ -286,6 +306,7 @@ function ScopedInventoryDetail({
       <InventoryDetailLoadingSkeleton
         back={back}
         branchSelector={branchSelector}
+        canWrite={canWrite}
       />
     );
   // A successful command followed by a failed refresh must not leave stale stock actionable.
@@ -303,8 +324,9 @@ function ScopedInventoryDetail({
     );
   const scope = { organizationId, branchId, inventoryId };
   const movementGrid = canWrite
-    ? 'lg:grid-cols-[minmax(10rem,1.15fr)_minmax(7rem,0.7fr)_minmax(12rem,1.4fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_minmax(12rem,1.25fr)]'
-    : 'lg:grid-cols-[minmax(10rem,1.15fr)_minmax(7rem,0.7fr)_minmax(12rem,1.4fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)]';
+    ? 'lg:grid-cols-[minmax(8rem,1.1fr)_minmax(5rem,0.65fr)_minmax(5rem,0.7fr)_minmax(5rem,0.7fr)_minmax(7rem,1fr)_minmax(4.5rem,0.5fr)] xl:grid-cols-[minmax(10rem,1.15fr)_minmax(7rem,0.7fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_minmax(12rem,1.25fr)_minmax(5rem,0.55fr)]'
+    : 'lg:grid-cols-[minmax(8rem,1.1fr)_minmax(5rem,0.65fr)_minmax(5rem,0.7fr)_minmax(5rem,0.7fr)_minmax(4.5rem,0.5fr)] xl:grid-cols-[minmax(10rem,1.15fr)_minmax(7rem,0.7fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_minmax(5rem,0.55fr)]';
+  const movementMinWidth = canWrite ? 'lg:min-w-[40rem]' : 'lg:min-w-[32rem]';
   const saved = (message: string) => {
     dirty.current = false;
     setActiveAction('receipt');
@@ -618,29 +640,24 @@ function ScopedInventoryDetail({
           <>
             <ol
               aria-label="Inventory movement history"
-              className="inventory-movement-list m-0 list-none p-0"
+              className="inventory-movement-list m-0 list-none overflow-x-auto p-0"
             >
               <li
-                className={`data-column-header inventory-movement-header hidden gap-x-6 gap-y-3 lg:grid ${movementGrid}`}
+                className={`data-column-header inventory-movement-header hidden gap-x-3 gap-y-3 lg:grid lg:items-center xl:min-w-0 xl:gap-x-6 ${movementMinWidth} ${movementGrid}`}
               >
                 <span>Date & time</span>
                 <span>Type</span>
-                <span>Description</span>
                 <span>Change</span>
                 <span>Balance after</span>
                 {canWrite ? <span>Actor</span> : null}
+                <span>Reason</span>
               </li>
               {movements.map((movement) => (
                 <li
                   key={movement.id}
-                  className={`data-row inventory-movement-row grid min-w-0 gap-x-6 gap-y-3 px-3 py-4 sm:px-4 lg:items-center ${movementGrid}`}
+                  className={`data-row inventory-movement-row grid min-w-0 gap-x-3 gap-y-3 px-3 py-4 sm:px-4 lg:items-center xl:min-w-0 xl:gap-x-6 ${movementMinWidth} ${movementGrid}`}
                 >
-                  <time
-                    className="text-sm text-muted"
-                    dateTime={movement.createdAt}
-                  >
-                    {new Date(movement.createdAt).toLocaleString()}
-                  </time>
+                  <InventoryMovementDateTime value={movement.createdAt} />
                   <span className="flex items-center gap-2 text-sm font-medium">
                     {movement.type === 'RECEIPT'
                       ? 'Receipt'
@@ -649,9 +666,6 @@ function ScopedInventoryDetail({
                         : movement.type === 'RETURN'
                           ? 'Return'
                           : 'Adjustment'}
-                  </span>
-                  <span className="min-w-0 break-words text-sm">
-                    {movement.reason}
                   </span>
                   <span
                     className={`text-sm font-semibold tabular-nums ${
@@ -669,10 +683,18 @@ function ScopedInventoryDetail({
                     {movement.quantityAfter.toLocaleString()}
                   </span>
                   {canWrite && 'actorName' in movement ? (
-                    <span className="min-w-0 break-words text-sm text-muted">
+                    <span className="min-w-0 break-words text-sm text-ink">
                       {movement.actorName}
                     </span>
                   ) : null}
+                  <button
+                    type="button"
+                    className="w-fit rounded-full px-3 py-1.5 text-sm text-ink transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    aria-haspopup="dialog"
+                    onClick={() => setSelectedMovementReason(movement.reason)}
+                  >
+                    View
+                  </button>
                 </li>
               ))}
             </ol>
@@ -718,6 +740,12 @@ function ScopedInventoryDetail({
         )}
       </OperationalPanel>
       {stockActions}
+      {selectedMovementReason !== null ? (
+        <InventoryMovementReasonDialog
+          reason={selectedMovementReason}
+          onClose={() => setSelectedMovementReason(null)}
+        />
+      ) : null}
     </OperationalPage>
   );
 }

@@ -12,10 +12,20 @@ const dotStyles: Record<InventoryStockStatus, string> = {
   OUT_OF_STOCK: 'bg-danger',
 };
 
+const quantityStyles: Record<InventoryStockStatus, string> = {
+  IN_STOCK: 'text-success-ink',
+  LOW_STOCK: 'text-warning',
+  OUT_OF_STOCK: 'text-danger',
+};
+
 export function inventoryStockStatusLabel(status: InventoryStockStatus) {
   if (status === 'OUT_OF_STOCK') return 'Out of stock';
   if (status === 'LOW_STOCK') return 'Low stock';
   return 'In stock';
+}
+
+export function inventoryStockQuantityClass(status: InventoryStockStatus) {
+  return quantityStyles[status];
 }
 
 export function InventoryStockStatusBadge({

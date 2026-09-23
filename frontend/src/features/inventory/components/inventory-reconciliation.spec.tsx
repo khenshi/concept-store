@@ -27,6 +27,21 @@ describe('InventoryReconciliation', () => {
     vi.mocked(useAuth).mockReturnValue({ request } as never);
   });
 
+  it('uses a table-shaped skeleton while an integrity check is loading', () => {
+    vi.mocked(getInventoryReconciliation).mockReturnValue(
+      new Promise<never>(() => {}),
+    );
+    render(<InventoryReconciliation {...scope} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check stock integrity' }),
+    );
+    const skeleton = screen.getByRole('status', {
+      name: 'Checking stock movements',
+    });
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+    expect(skeleton.querySelectorAll('.data-row')).toHaveLength(5);
+  });
+
   it('waits for an explicit check and explains an empty result', async () => {
     vi.mocked(getInventoryReconciliation).mockResolvedValue({
       items: [],

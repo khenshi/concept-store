@@ -48,6 +48,25 @@ describe('InventoryMovementRecords', () => {
     });
   });
 
+  it('renders a table-shaped skeleton while records are loading', () => {
+    vi.mocked(listMovementRecords).mockReturnValue(
+      new Promise<never>(() => {}),
+    );
+    render(
+      <InventoryMovementRecords
+        {...scope}
+        role="MANAGER"
+        merchants={[]}
+        onAccessLost={onAccessLost}
+      />,
+    );
+    const skeleton = screen.getByRole('status', {
+      name: 'Loading movement records',
+    });
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+    expect(skeleton.querySelectorAll('.data-row')).toHaveLength(5);
+  });
+
   it('loads branch records, renders actor and placement links, and debounces search', async () => {
     render(
       <InventoryMovementRecords
@@ -57,9 +76,18 @@ describe('InventoryMovementRecords', () => {
         onAccessLost={onAccessLost}
       />,
     );
-    expect(await screen.findByText('Opening stock')).toBeInTheDocument();
-    expect(screen.getByText('9/20/2026, 8:00:00 AM')).toBeInTheDocument();
+    const viewReason = await screen.findByRole('button', { name: 'View' });
+    expect(screen.getByText('9/20/2026')).toBeInTheDocument();
+    expect(screen.getByText('8:00:00 AM (PH)')).toBeInTheDocument();
+    expect(
+      screen.getByRole('list', { name: 'Branch movement records' }),
+    ).toHaveClass('overflow-x-auto');
     expect(screen.getByText('Maria Santos')).toBeInTheDocument();
+    fireEvent.click(viewReason);
+    expect(
+      await screen.findByRole('dialog', { name: 'Movement reason' }),
+    ).toHaveTextContent('Opening stock');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(
       screen.getByRole('link', { name: new RegExp(inventory.product.name) }),
     ).toHaveAttribute(
@@ -98,7 +126,7 @@ describe('InventoryMovementRecords', () => {
         onAccessLost={onAccessLost}
       />,
     );
-    await screen.findByText('Opening stock');
+    await screen.findByRole('button', { name: 'View' });
     fireEvent.change(screen.getByLabelText('From (PH)'), {
       target: { value: '2026-09-01' },
     });
@@ -117,7 +145,12 @@ describe('InventoryMovementRecords', () => {
       }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText('Sale')).toBeInTheDocument();
+    expect(await screen.findByText('Page 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Movement reason' }),
+    ).toHaveTextContent('Sale');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(listMovementRecords).toHaveBeenLastCalledWith(
       request,
       branchScope,
@@ -145,7 +178,7 @@ describe('InventoryMovementRecords', () => {
         onAccessLost={onAccessLost}
       />,
     );
-    await screen.findByText('Opening stock');
+    await screen.findByRole('button', { name: 'View' });
     expect(screen.queryByText('Maria Santos')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('combobox', { name: 'Merchant' }),

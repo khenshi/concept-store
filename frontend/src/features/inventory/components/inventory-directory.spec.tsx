@@ -69,6 +69,29 @@ vi.mock('./inventory-stock-form', () => ({
 }));
 
 describe('InventoryDirectory workflows', () => {
+  it('uses a table-shaped skeleton while branch inventory is loading', () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: null,
+      organizationStatus: 'loading',
+    } as never);
+    render(<InventoryDirectory {...scope} />);
+    const skeleton = screen.getByRole('status', {
+      name: 'Loading branch inventory',
+    });
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+    expect(skeleton.querySelectorAll('.data-row')).toHaveLength(5);
+  });
+
+  it('uses the inventory table skeleton while placements are loading', () => {
+    vi.mocked(listInventory).mockReturnValue(new Promise<never>(() => {}));
+    render(<InventoryDirectory {...scope} />);
+    const skeleton = screen.getByRole('status', {
+      name: 'Loading inventory placements',
+    });
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+    expect(skeleton.querySelectorAll('.data-row')).toHaveLength(5);
+  });
+
   it('does not let an obsolete inventory read restore data after branch-list revocation', async () => {
     let finish!: (page: {
       items: (typeof inventory)[];
@@ -116,9 +139,13 @@ describe('InventoryDirectory workflows', () => {
   it('displays branch price and stock with scoped placement navigation', async () => {
     render(<InventoryDirectory {...scope} />);
     expect(await screen.findByText('PHP 850.00')).toBeInTheDocument();
+    expect(screen.getByText(inventory.product.sku!)).toBeInTheDocument();
     expect(screen.getByText('10 units')).toBeInTheDocument();
+    expect(screen.getByText('10 units')).toHaveClass('text-success-ink');
     expect(screen.getByText('Threshold 5')).toBeInTheDocument();
-    expect(screen.getByText('In stock')).toBeInTheDocument();
+    expect(
+      screen.getByRole('list', { name: 'Branch inventory' }),
+    ).not.toHaveTextContent('Stock status');
     expect(
       screen.getByRole('link', {
         name: `View ${inventory.product.name} inventory`,
@@ -127,6 +154,11 @@ describe('InventoryDirectory workflows', () => {
       'href',
       `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/inventory/${scope.inventoryId}`,
     );
+    expect(
+      screen.getByRole('link', {
+        name: `View ${inventory.product.name} inventory`,
+      }),
+    ).toHaveTextContent('View');
   });
   it('loads another bounded page and labels the count as displayed rows', async () => {
     const cursor = `${inventory.id}.${'a'.repeat(64)}`;

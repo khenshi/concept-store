@@ -8,7 +8,6 @@ import type { OrganizationRole } from '@/features/organizations/model/organizati
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { Icon } from '@/shared/components/ui/icon';
-import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   OperationalPanel,
   OperationalToolbar,
@@ -22,6 +21,9 @@ import type {
   InventoryMovementRecordView,
   InventoryScope,
 } from '../model/inventory.types';
+import { InventoryMovementDateTime } from './inventory-movement-date-time';
+import { InventoryMovementReasonDialog } from './inventory-movement-reason-dialog';
+import { InventoryMovementTableSkeleton } from './inventory-movement-table-skeleton';
 
 type PageTarget = { index: number; cursor?: string };
 type MovementType = NonNullable<InventoryMovementRecordFilters['type']>;
@@ -36,17 +38,6 @@ const movementTypeLabels: Record<MovementType, string> = {
 function movementTypeLabel(type: MovementType) {
   return movementTypeLabels[type];
 }
-
-const philippineDateTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'numeric',
-  day: 'numeric',
-  year: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: true,
-  timeZone: 'Asia/Manila',
-});
 
 function dateRange(from: string, through: string) {
   if (!from && !through) return {};
@@ -96,6 +87,7 @@ export function InventoryMovementRecords({
     until?: string;
   }>({});
   const [dateError, setDateError] = useState<string | null>(null);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [retryRevision, setRetryRevision] = useState(0);
   const generation = useRef(0);
   const scope = { organizationId, branchId };
@@ -228,265 +220,269 @@ export function InventoryMovementRecords({
   }
 
   const grid = canWrite
-    ? 'lg:grid-cols-[minmax(15rem,1.4fr)_minmax(10rem,0.85fr)_minmax(8rem,0.7fr)_minmax(12rem,1.1fr)_minmax(7rem,0.65fr)_minmax(8rem,0.7fr)_minmax(11rem,1fr)]'
-    : 'lg:grid-cols-[minmax(15rem,1.45fr)_minmax(10rem,0.9fr)_minmax(8rem,0.75fr)_minmax(12rem,1.15fr)_minmax(7rem,0.7fr)_minmax(8rem,0.75fr)]';
+    ? 'lg:grid-cols-[minmax(9rem,1.35fr)_minmax(7rem,0.8fr)_minmax(5rem,0.65fr)_minmax(5rem,0.65fr)_minmax(5rem,0.65fr)_minmax(7rem,0.9fr)_minmax(4.5rem,0.5fr)] xl:grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.85fr)_minmax(7rem,0.7fr)_minmax(6rem,0.65fr)_minmax(7rem,0.7fr)_minmax(10rem,1fr)_minmax(5rem,0.55fr)]'
+    : 'lg:grid-cols-[minmax(9rem,1.4fr)_minmax(7rem,0.85fr)_minmax(5rem,0.7fr)_minmax(5rem,0.65fr)_minmax(5rem,0.7fr)_minmax(4.5rem,0.5fr)] xl:grid-cols-[minmax(15rem,1.45fr)_minmax(8rem,0.9fr)_minmax(7rem,0.75fr)_minmax(6rem,0.7fr)_minmax(7rem,0.75fr)_minmax(5rem,0.55fr)]';
 
   return (
-    <OperationalPanel
-      id="inventory-movement-records-panel"
-      variant="open"
-      className="data-surface"
-      title="Movement records"
-      description="Search and review stock activity recorded in this branch."
-    >
-      <OperationalToolbar
+    <>
+      <OperationalPanel
+        id="inventory-movement-records-panel"
         variant="open"
-        className="grid gap-3 px-0 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(14rem,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(19rem,1.2fr)_auto]"
+        className="data-surface"
+        title="Movement records"
+        description="Search and review stock activity recorded in this branch."
       >
-        <div className="min-w-0">
-          <label className="sr-only" htmlFor="movement-record-search">
-            Search movement records
-          </label>
-          <div className="relative">
-            <Icon
-              name="search"
-              className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
-            />
-            <input
-              id="movement-record-search"
-              type="search"
-              value={search}
-              maxLength={254}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Product, SKU, barcode, or reason"
-              className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:outline-offset-[-2px]"
-            />
-          </div>
-        </div>
-        <div className="min-w-0">
-          <label className="sr-only" htmlFor="movement-record-type">
-            Movement type
-          </label>
-          <SelectControl
-            id="movement-record-type"
-            aria-label="Movement type"
-            value={type}
-            className="bg-subtle px-4 text-sm font-medium"
-            onValueChange={(value) => setType(value as MovementType | '')}
-          >
-            <option value="">All movement types</option>
-            <option value="RECEIPT">Receipts</option>
-            <option value="ADJUSTMENT">Adjustments</option>
-            <option value="SALE">Sales</option>
-            <option value="RETURN">Returns</option>
-          </SelectControl>
-        </div>
-        {canWrite ? (
-          <div className="min-w-0">
-            <label className="sr-only" htmlFor="movement-record-merchant">
-              Merchant
-            </label>
-            <SelectControl
-              id="movement-record-merchant"
-              aria-label="Merchant"
-              value={merchantId}
-              className="bg-subtle px-4 text-sm font-medium"
-              onValueChange={setMerchantId}
-            >
-              <option value="">All merchants</option>
-              {merchants.map((merchant) => (
-                <option key={merchant.id} value={merchant.id}>
-                  {merchant.name}
-                </option>
-              ))}
-            </SelectControl>
-          </div>
-        ) : null}
-        <form
-          className="grid min-w-0 grid-cols-2 gap-2 md:col-span-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end md:gap-3 xl:col-span-1"
-          onSubmit={applyDateFilter}
+        <OperationalToolbar
+          variant="open"
+          className="grid gap-3 px-0 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(14rem,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(19rem,1.2fr)_auto]"
         >
-          <label className="min-w-0 text-xs font-medium text-muted">
-            From (PH)
-            <input
-              type="date"
-              value={fromDay}
-              onChange={(event) => setFromDay(event.target.value)}
-              aria-invalid={Boolean(dateError)}
-              className="mt-1 min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 text-sm text-ink"
-            />
-          </label>
-          <label className="min-w-0 text-xs font-medium text-muted">
-            Through (PH)
-            <input
-              type="date"
-              value={throughDay}
-              onChange={(event) => setThroughDay(event.target.value)}
-              aria-invalid={Boolean(dateError)}
-              className="mt-1 min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 text-sm text-ink"
-            />
-          </label>
-          {dateError ? (
-            <p
-              className="col-span-2 text-xs text-danger md:col-span-3"
-              role="alert"
-            >
-              {dateError}
-            </p>
-          ) : null}
-          <div className="col-span-2 flex items-center gap-2 md:col-span-1">
-            <button
-              type="submit"
-              className={buttonStyles({
-                variant: 'secondary',
-                className: 'shrink-0',
-              })}
-            >
-              Apply dates
-            </button>
-            <button
-              type="button"
-              className={buttonStyles({
-                variant: 'quiet',
-                className: 'shrink-0',
-              })}
-              onClick={clearDateFilter}
-            >
-              Clear dates
-            </button>
-          </div>
-        </form>
-      </OperationalToolbar>
-      {loading ? (
-        <ListSkeleton
-          rows={5}
-          rowClassName="h-16"
-          className="mt-0 px-4"
-          label="Loading movement records"
-        />
-      ) : error ? (
-        <RequestError
-          message={error}
-          onRetry={() => setRetryRevision((value) => value + 1)}
-        />
-      ) : !items.length ? (
-        <p className="px-4 py-10 text-sm text-muted sm:px-6">
-          {hasFilters(filters)
-            ? 'No movement records match these filters.'
-            : 'No movement records have been recorded for this branch yet.'}
-        </p>
-      ) : (
-        <>
-          <ol
-            aria-label="Branch movement records"
-            className="m-0 list-none p-0"
-          >
-            <li
-              className={`data-column-header hidden gap-x-6 gap-y-3 lg:grid ${grid}`}
-            >
-              <span>Product</span>
-              <span>Date & time</span>
-              <span>Type</span>
-              <span>Reason</span>
-              <span>Change</span>
-              <span>Balance</span>
-              {canWrite ? <span>Actor</span> : null}
-            </li>
-            {items.map((movement) => (
-              <li
-                key={movement.id}
-                className={`data-row grid min-w-0 gap-x-6 gap-y-3 px-3 py-4 sm:px-4 lg:items-center ${grid}`}
-              >
-                <Link
-                  className="min-w-0 text-sm font-semibold text-ink underline-offset-3 hover:underline"
-                  href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${movement.branchInventoryId}`}
-                >
-                  <span className="block truncate">
-                    {movement.product.name}
-                  </span>
-                  <span className="mt-1 block truncate text-xs font-normal text-muted">
-                    {movement.product.sku ?? 'SKU not set'} ·{' '}
-                    {movement.product.merchant.name}
-                  </span>
-                </Link>
-                <time
-                  className="text-sm text-muted"
-                  dateTime={movement.createdAt}
-                >
-                  {philippineDateTimeFormatter.format(
-                    new Date(movement.createdAt),
-                  )}{' '}
-                  <span className="text-xs">(PH)</span>
-                </time>
-                <span className="text-sm font-medium">
-                  {movementTypeLabel(movement.type)}
-                </span>
-                <span className="min-w-0 break-words text-sm">
-                  {movement.reason}
-                </span>
-                <span
-                  className={`text-sm font-semibold tabular-nums ${
-                    movement.quantityChange > 0
-                      ? 'text-success-ink'
-                      : movement.quantityChange < 0
-                        ? 'text-danger'
-                        : 'text-muted'
-                  }`}
-                >
-                  {movement.quantityChange > 0 ? '+' : ''}
-                  {movement.quantityChange.toLocaleString()} units
-                </span>
-                <span className="text-sm tabular-nums">
-                  {movement.quantityAfter.toLocaleString()} units
-                </span>
-                {canWrite && 'actorName' in movement ? (
-                  <span className="min-w-0 break-words text-sm text-muted">
-                    {movement.actorName}
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-          {pageError && pageRetry ? (
-            <RequestError
-              className="p-6"
-              message={pageError}
-              onRetry={() => void loadPage(pageRetry)}
-            />
-          ) : null}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
-            <p className="text-sm text-muted">Page {pageIndex + 1}</p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'quiet' })}
-                disabled={pageLoading || pageIndex === 0}
-                onClick={() =>
-                  void loadPage({
-                    index: pageIndex - 1,
-                    cursor: pageCursors[pageIndex - 1],
-                  })
-                }
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'secondary' })}
-                disabled={pageLoading || !nextCursor}
-                onClick={() =>
-                  void loadPage({
-                    index: pageIndex + 1,
-                    cursor: nextCursor ?? undefined,
-                  })
-                }
-              >
-                {pageLoading ? 'Loading…' : 'Next'}
-              </button>
+          <div className="min-w-0">
+            <label className="sr-only" htmlFor="movement-record-search">
+              Search movement records
+            </label>
+            <div className="relative">
+              <Icon
+                name="search"
+                className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
+              />
+              <input
+                id="movement-record-search"
+                type="search"
+                value={search}
+                maxLength={254}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Product, SKU, barcode, or reason"
+                className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:outline-offset-[-2px]"
+              />
             </div>
           </div>
-        </>
-      )}
-    </OperationalPanel>
+          <div className="min-w-0">
+            <label className="sr-only" htmlFor="movement-record-type">
+              Movement type
+            </label>
+            <SelectControl
+              id="movement-record-type"
+              aria-label="Movement type"
+              value={type}
+              className="bg-subtle px-4 text-sm font-medium"
+              onValueChange={(value) => setType(value as MovementType | '')}
+            >
+              <option value="">All movement types</option>
+              <option value="RECEIPT">Receipts</option>
+              <option value="ADJUSTMENT">Adjustments</option>
+              <option value="SALE">Sales</option>
+              <option value="RETURN">Returns</option>
+            </SelectControl>
+          </div>
+          {canWrite ? (
+            <div className="min-w-0">
+              <label className="sr-only" htmlFor="movement-record-merchant">
+                Merchant
+              </label>
+              <SelectControl
+                id="movement-record-merchant"
+                aria-label="Merchant"
+                value={merchantId}
+                className="bg-subtle px-4 text-sm font-medium"
+                onValueChange={setMerchantId}
+              >
+                <option value="">All merchants</option>
+                {merchants.map((merchant) => (
+                  <option key={merchant.id} value={merchant.id}>
+                    {merchant.name}
+                  </option>
+                ))}
+              </SelectControl>
+            </div>
+          ) : null}
+          <form
+            className="grid min-w-0 grid-cols-2 gap-2 md:col-span-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end md:gap-3 xl:col-span-1"
+            onSubmit={applyDateFilter}
+          >
+            <label className="min-w-0 text-xs font-medium text-muted">
+              From (PH)
+              <input
+                type="date"
+                value={fromDay}
+                onChange={(event) => setFromDay(event.target.value)}
+                aria-invalid={Boolean(dateError)}
+                className="mt-1 min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 text-sm text-ink"
+              />
+            </label>
+            <label className="min-w-0 text-xs font-medium text-muted">
+              Through (PH)
+              <input
+                type="date"
+                value={throughDay}
+                onChange={(event) => setThroughDay(event.target.value)}
+                aria-invalid={Boolean(dateError)}
+                className="mt-1 min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 text-sm text-ink"
+              />
+            </label>
+            {dateError ? (
+              <p
+                className="col-span-2 text-xs text-danger md:col-span-3"
+                role="alert"
+              >
+                {dateError}
+              </p>
+            ) : null}
+            <div className="col-span-2 flex items-center gap-2 md:col-span-1">
+              <button
+                type="submit"
+                className={buttonStyles({
+                  variant: 'secondary',
+                  className: 'shrink-0',
+                })}
+              >
+                Apply dates
+              </button>
+              <button
+                type="button"
+                className={buttonStyles({
+                  variant: 'quiet',
+                  className: 'shrink-0',
+                })}
+                onClick={clearDateFilter}
+              >
+                Clear dates
+              </button>
+            </div>
+          </form>
+        </OperationalToolbar>
+        {loading ? (
+          <InventoryMovementTableSkeleton
+            variant="records"
+            canWrite={canWrite}
+            label="Loading movement records"
+          />
+        ) : error ? (
+          <RequestError
+            message={error}
+            onRetry={() => setRetryRevision((value) => value + 1)}
+          />
+        ) : !items.length ? (
+          <p className="px-4 py-10 text-sm text-muted sm:px-6">
+            {hasFilters(filters)
+              ? 'No movement records match these filters.'
+              : 'No movement records have been recorded for this branch yet.'}
+          </p>
+        ) : (
+          <>
+            <ol
+              aria-label="Branch movement records"
+              className="m-0 list-none overflow-x-auto p-0"
+            >
+              <li
+                className={`data-column-header hidden gap-x-3 gap-y-3 lg:grid lg:min-w-[47rem] lg:items-center xl:min-w-0 xl:gap-x-6 ${grid}`}
+              >
+                <span>Product</span>
+                <span>Date & time</span>
+                <span>Type</span>
+                <span>Change</span>
+                <span>Balance</span>
+                {canWrite ? <span>Actor</span> : null}
+                <span>Reason</span>
+              </li>
+              {items.map((movement) => (
+                <li
+                  key={movement.id}
+                  className={`data-row grid min-w-0 gap-x-3 gap-y-3 px-3 py-4 sm:px-4 lg:min-w-[47rem] lg:items-center xl:min-w-0 xl:gap-x-6 ${grid}`}
+                >
+                  <Link
+                    className="min-w-0 text-sm font-semibold text-ink underline-offset-3 hover:underline"
+                    href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${movement.branchInventoryId}`}
+                  >
+                    <span className="block truncate">
+                      {movement.product.name}
+                    </span>
+                    <span className="mt-1 block truncate text-xs font-normal text-muted">
+                      {movement.product.sku ?? 'SKU not set'} ·{' '}
+                      {movement.product.merchant.name}
+                    </span>
+                  </Link>
+                  <InventoryMovementDateTime value={movement.createdAt} />
+                  <span className="text-sm font-medium">
+                    {movementTypeLabel(movement.type)}
+                  </span>
+                  <span
+                    className={`text-sm font-semibold tabular-nums ${
+                      movement.quantityChange > 0
+                        ? 'text-success-ink'
+                        : movement.quantityChange < 0
+                          ? 'text-danger'
+                          : 'text-muted'
+                    }`}
+                  >
+                    {movement.quantityChange > 0 ? '+' : ''}
+                    {movement.quantityChange.toLocaleString()} units
+                  </span>
+                  <span className="text-sm tabular-nums">
+                    {movement.quantityAfter.toLocaleString()} units
+                  </span>
+                  {canWrite && 'actorName' in movement ? (
+                    <span className="min-w-0 break-words text-sm text-ink">
+                      {movement.actorName}
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="w-fit rounded-full px-3 py-1.5 text-sm text-ink transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    aria-haspopup="dialog"
+                    onClick={() => setSelectedReason(movement.reason)}
+                  >
+                    View
+                  </button>
+                </li>
+              ))}
+            </ol>
+            {pageError && pageRetry ? (
+              <RequestError
+                className="p-6"
+                message={pageError}
+                onRetry={() => void loadPage(pageRetry)}
+              />
+            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
+              <p className="text-sm text-muted">Page {pageIndex + 1}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className={buttonStyles({ variant: 'quiet' })}
+                  disabled={pageLoading || pageIndex === 0}
+                  onClick={() =>
+                    void loadPage({
+                      index: pageIndex - 1,
+                      cursor: pageCursors[pageIndex - 1],
+                    })
+                  }
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className={buttonStyles({ variant: 'secondary' })}
+                  disabled={pageLoading || !nextCursor}
+                  onClick={() =>
+                    void loadPage({
+                      index: pageIndex + 1,
+                      cursor: nextCursor ?? undefined,
+                    })
+                  }
+                >
+                  {pageLoading ? 'Loading…' : 'Next'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </OperationalPanel>
+      {selectedReason !== null ? (
+        <InventoryMovementReasonDialog
+          reason={selectedReason}
+          onClose={() => setSelectedReason(null)}
+        />
+      ) : null}
+    </>
   );
 }

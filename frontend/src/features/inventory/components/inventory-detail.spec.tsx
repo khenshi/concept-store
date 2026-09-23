@@ -48,7 +48,7 @@ describe('InventoryDetail workflows', () => {
     ] as never);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     openAction('Receive');
     const quantity = screen.getByRole('textbox', { name: 'Units to receive' });
     fireEvent.change(quantity, { target: { value: '3' } });
@@ -69,7 +69,7 @@ describe('InventoryDetail workflows', () => {
   it('disables branch switching while a stock write is pending', async () => {
     vi.mocked(receiveStock).mockReturnValue(new Promise(() => {}));
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     submitReceipt();
     await waitFor(() =>
       expect(
@@ -113,24 +113,50 @@ describe('InventoryDetail workflows', () => {
       screen.getByRole('status', { name: 'Loading inventory detail' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Inventory branch')).toBeInTheDocument();
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     expect(
       screen.queryByRole('status', { name: 'Loading inventory detail' }),
     ).not.toBeInTheDocument();
   });
+  it('keeps movement history table structure in its loading skeleton', () => {
+    vi.mocked(getInventory).mockReturnValue(new Promise<never>(() => {}));
+    vi.mocked(getInventoryBranch).mockReturnValue(new Promise<never>(() => {}));
+    vi.mocked(listMovements).mockReturnValue(new Promise<never>(() => {}));
+    render(<InventoryDetail {...scope} />);
+    const skeleton = screen.getByRole('status', {
+      name: 'Loading movement history',
+    });
+    expect(skeleton).toHaveAttribute('aria-busy', 'true');
+    expect(skeleton.querySelectorAll('.data-row')).toHaveLength(5);
+  });
   it('shows immutable ledger fields without actor personal data or mutation actions', async () => {
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    const viewReason = await screen.findByRole('button', { name: 'View' });
     expect(
       screen.getByLabelText('Inventory movement history'),
     ).toHaveTextContent('Maria Santos');
+    expect(screen.getByText('9/12/2026')).toBeInTheDocument();
+    expect(screen.getByText('8:00:00 AM (PH)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Inventory movement history')).toHaveClass(
+      'overflow-x-auto',
+    );
+    fireEvent.click(viewReason);
+    expect(
+      await screen.findByRole('dialog', { name: 'Movement reason' }),
+    ).toHaveTextContent('Opening delivery');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Movement reason' }),
+      ).not.toBeInTheDocument(),
+    );
     expect(
       screen.queryByRole('button', { name: /delete movement|edit movement/i }),
     ).not.toBeInTheDocument();
   });
   it('reveals one selected inventory action form at a time', async () => {
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     expect(screen.getByRole('tab', { name: 'Receive' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Adjust' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Threshold' })).toBeInTheDocument();
@@ -171,13 +197,13 @@ describe('InventoryDetail workflows', () => {
       nextCursor: null,
     });
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Damaged stock removed');
+    await screen.findAllByRole('button', { name: 'View' });
     expect(screen.getByText('+10 units')).toHaveClass('text-success-ink');
     expect(screen.getByText('-3 units')).toHaveClass('text-danger');
   });
   it('shows read-only price, colored stock quantity, threshold, and profile metrics', async () => {
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     expect(screen.getByText('PHP 850.00')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Edit price' })).toBeInTheDocument();
     expect(screen.getByText('Product threshold')).toBeInTheDocument();
@@ -201,10 +227,14 @@ describe('InventoryDetail workflows', () => {
       nextCursor: null,
     });
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Returned goods restocked');
+    const viewReason = await screen.findByRole('button', { name: 'View' });
+    fireEvent.click(viewReason);
     expect(
       screen.getByLabelText('Inventory movement history'),
     ).toHaveTextContent('Return');
+    expect(
+      await screen.findByRole('dialog', { name: 'Movement reason' }),
+    ).toHaveTextContent('Returned goods restocked');
   });
   it('shows own merchant history without actors or any stock writes', async () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
@@ -218,7 +248,7 @@ describe('InventoryDetail workflows', () => {
       nextCursor: null,
     });
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     expect(screen.queryByText('Maria Santos')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Save branch price' }),
@@ -233,7 +263,7 @@ describe('InventoryDetail workflows', () => {
   });
   it('clears actionable owner data immediately on a role change', async () => {
     const { rerender } = render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { role: 'MERCHANT' },
       organizationStatus: 'ready',
@@ -242,7 +272,7 @@ describe('InventoryDetail workflows', () => {
     expect(
       screen.queryByRole('button', { name: 'Receive stock' }),
     ).not.toBeInTheDocument();
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     expect(screen.queryByText('Maria Santos')).not.toBeInTheDocument();
   });
   it('reloads actual stock rather than using a replayed historical balance', async () => {
@@ -254,7 +284,7 @@ describe('InventoryDetail workflows', () => {
       .mockResolvedValueOnce(inventory)
       .mockResolvedValue({ ...inventory, quantity: 17 });
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     submitReceipt();
     expect(await screen.findByText('17 units')).toBeInTheDocument();
     expect(getInventory).toHaveBeenCalledTimes(2);
@@ -268,7 +298,7 @@ describe('InventoryDetail workflows', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValue({ ...inventory, quantity: 13 });
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     submitReceipt();
     await screen.findByText(
       'Inventory and movement history could not be refreshed.',
@@ -283,7 +313,7 @@ describe('InventoryDetail workflows', () => {
   it('hides placement data and write controls when a stock request loses access', async () => {
     vi.mocked(receiveStock).mockRejectedValue(new ApiError(404, 'Not found'));
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     submitReceipt();
     await screen.findByText(/Access to this placement is unavailable/);
     expect(screen.queryByText('Opening delivery')).not.toBeInTheDocument();
@@ -305,12 +335,15 @@ describe('InventoryDetail workflows', () => {
       })
       .mockResolvedValueOnce({ items: [older], nextCursor: null });
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     expect(screen.getByText('Page 1')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText('Earlier delivery')).toBeInTheDocument();
-    expect(screen.queryByText('Opening delivery')).not.toBeInTheDocument();
-    expect(screen.getByText('Page 2')).toBeInTheDocument();
+    expect(await screen.findByText('Page 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Movement reason' }),
+    ).toHaveTextContent('Earlier delivery');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.getAllByText('10 units').length).toBeGreaterThan(0);
     expect(listMovements).toHaveBeenLastCalledWith(
       request,
@@ -319,9 +352,8 @@ describe('InventoryDetail workflows', () => {
       movementHistory.id,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    expect(await screen.findByText('Opening delivery')).toBeInTheDocument();
-    expect(screen.queryByText('Earlier delivery')).not.toBeInTheDocument();
-    expect(screen.getByText('Page 1')).toBeInTheDocument();
+    expect(await screen.findByText('Page 1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument();
     expect(listMovements).toHaveBeenLastCalledWith(
       request,
       scope,
@@ -343,20 +375,21 @@ describe('InventoryDetail workflows', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({ items: [older], nextCursor: null });
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await screen.findByText('This movement-history page could not be loaded.');
     expect(screen.getAllByText('10 units').length).toBeGreaterThan(0);
-    expect(screen.getByText('Opening delivery')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByText('Earlier delivery')).toBeInTheDocument();
+    expect(await screen.findByText('Page 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument();
     expect(listMovements).toHaveBeenCalledTimes(3);
     expect(receiveStock).not.toHaveBeenCalled();
   });
   it('disables other write controls while a receipt is pending', async () => {
     vi.mocked(receiveStock).mockReturnValue(new Promise(() => {}));
     render(<InventoryDetail {...scope} />);
-    await screen.findByText('Opening delivery');
+    await screen.findByRole('button', { name: 'View' });
     submitReceipt();
     expect(
       screen.getByRole('combobox', { name: 'Inventory branch' }),

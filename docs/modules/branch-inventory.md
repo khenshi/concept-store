@@ -158,7 +158,8 @@ retryable error states. Results link to existing placement details and can be
 loaded in bounded pages. A rerun clears previous results; branch, user, role,
 access, and successful stock-write changes clear them as well. Merchant and
 cashier views neither show this panel nor request its data. No correction
-control is available from a mismatch.
+control is available from a mismatch. While the check is loading, the mismatch
+list uses a five-row skeleton that preserves its responsive two-column structure.
 
 - Receipt requires a positive integer quantity and UUID request ID. The server
   records the system reason `Stock received`; users do not need to enter one.
@@ -227,7 +228,13 @@ Each item contains movement and placement IDs, product name/SKU/barcode,
 merchant identity, movement type/reason, signed quantity change, resulting
 balance and creation timestamp. The response deliberately excludes request IDs,
 sale/refund links and mutation operations. A branch/creation-time/movement-ID
-index supports the stable history ordering.
+index supports the stable history ordering. In both the branch Movement records
+list and placement detail history, the reason is the final column and is opened
+through a read-only View dialog rather than rendered inline. The dialog preserves
+the recorded reason without adding edit or delete controls. Both history views
+show the Philippine-local numeric date above the time with seconds. Header and
+row grids use matching gaps and alignment; tablet grids use compact columns with
+horizontal scrolling as a fallback so the final Reason/View cell is not clipped.
 
 ## Delivery state
 
