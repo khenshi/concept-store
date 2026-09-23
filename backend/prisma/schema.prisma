@@ -8,15 +8,37 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ColorTheme {
+  GRAPHITE
+  OCEAN
+  FOREST
+  PLUM
+  POLLUX_LIGHT
+  SKYDASH_LIGHT
+  STAR_ADMIN_LIGHT
+  AZIA_LIGHT
+  PURPLE_LIGHT
+  PLUS_ADMIN_LIGHT
+  BREEZE_LIGHT
+  STELLAR_DARK
+  CORONA_DARK
+  JUSTDO_DARK
+  SYPHER_LIGHT
+  CREXTIO_WARM
+  SBB_INDUSTRIAL
+  WELLNESS_TEAL
+}
+
 model User {
-  id           String    @id @default(uuid())
+  id           String     @id @default(uuid())
   firstName    String
   lastName     String
   phone        String?
-  email        String    @unique
+  email        String     @unique
   passwordHash String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  colorTheme   ColorTheme @default(GRAPHITE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   deletedAt    DateTime?
 
   organizationMemberships         OrganizationMembership[]
