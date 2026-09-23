@@ -281,7 +281,7 @@ describe('InventoryDetail workflows', () => {
     ).not.toBeInTheDocument();
     expect(receiveStock).toHaveBeenCalledOnce();
   });
-  it('loads older history without losing current stock or previously loaded entries', async () => {
+  it('pages through movement history without changing the current stock summary', async () => {
     const older = {
       ...movementHistory,
       id: '11111111-1111-4111-8111-111111111111',
@@ -295,23 +295,30 @@ describe('InventoryDetail workflows', () => {
       .mockResolvedValueOnce({ items: [older], nextCursor: null });
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Load older movements' }),
-    );
+    expect(screen.getByText('Page 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText('Earlier delivery')).toBeInTheDocument();
-    expect(screen.getByText('Opening delivery')).toBeInTheDocument();
-    expect(screen.getByText('10 units')).toBeInTheDocument();
+    expect(screen.queryByText('Opening delivery')).not.toBeInTheDocument();
+    expect(screen.getByText('Page 2')).toBeInTheDocument();
+    expect(screen.getAllByText('10 units').length).toBeGreaterThan(0);
     expect(listMovements).toHaveBeenLastCalledWith(
       request,
       scope,
       'MANAGER',
       movementHistory.id,
     );
-    expect(
-      screen.queryByRole('button', { name: 'Load older movements' }),
-    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(await screen.findByText('Opening delivery')).toBeInTheDocument();
+    expect(screen.queryByText('Earlier delivery')).not.toBeInTheDocument();
+    expect(screen.getByText('Page 1')).toBeInTheDocument();
+    expect(listMovements).toHaveBeenLastCalledWith(
+      request,
+      scope,
+      'MANAGER',
+      undefined,
+    );
   });
-  it('retries a failed older page without losing current stock or repeating a write', async () => {
+  it('retries a failed movement page without losing current stock or repeating a write', async () => {
     const older = {
       ...movementHistory,
       id: '11111111-1111-4111-8111-111111111111',
@@ -326,11 +333,9 @@ describe('InventoryDetail workflows', () => {
       .mockResolvedValueOnce({ items: [older], nextCursor: null });
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Load older movements' }),
-    );
-    await screen.findByText('Older movements could not be loaded.');
-    expect(screen.getByText('10 units')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByText('This movement-history page could not be loaded.');
+    expect(screen.getAllByText('10 units').length).toBeGreaterThan(0);
     expect(screen.getByText('Opening delivery')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText('Earlier delivery')).toBeInTheDocument();

@@ -128,7 +128,7 @@ export async function listMovements(
   role?: string,
   cursor?: string,
 ) {
-  const query = new URLSearchParams({ limit: '50' });
+  const query = new URLSearchParams({ limit: '5' });
   if (cursor) query.set('cursor', cursor);
   const result = await request<unknown>(`${detail(scope)}/movements?${query}`);
   return role === 'MERCHANT'

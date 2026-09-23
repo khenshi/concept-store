@@ -33,6 +33,7 @@ import { InventoryPriceForm } from './inventory-price-form';
 import { InventoryBranchSelector } from './inventory-branch-selector';
 
 type InventoryAction = 'receipt' | 'adjustment' | 'threshold' | 'price';
+type MovementPageTarget = { index: number; cursor?: string };
 
 export function InventoryDetail(props: InventoryDetailScope) {
   const { user } = useAuth();
@@ -65,8 +66,16 @@ function ScopedInventoryDetail({
   const [nextMovementCursor, setNextMovementCursor] = useState<string | null>(
     null,
   );
-  const [olderLoading, setOlderLoading] = useState(false);
-  const [olderError, setOlderError] = useState<string | null>(null);
+  const [movementPageIndex, setMovementPageIndex] = useState(0);
+  const [movementPageCursors, setMovementPageCursors] = useState<
+    Array<string | undefined>
+  >([undefined]);
+  const [movementPageLoading, setMovementPageLoading] = useState(false);
+  const [movementPageError, setMovementPageError] = useState<string | null>(
+    null,
+  );
+  const [movementPageRetry, setMovementPageRetry] =
+    useState<MovementPageTarget | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -84,8 +93,11 @@ function ScopedInventoryDetail({
     setBranch(null);
     setMovements([]);
     setNextMovementCursor(null);
-    setOlderError(null);
-    setOlderLoading(false);
+    setMovementPageIndex(0);
+    setMovementPageCursors([undefined]);
+    setMovementPageError(null);
+    setMovementPageRetry(null);
+    setMovementPageLoading(false);
     setActiveAction('receipt');
     setLoading(false);
     setError(
@@ -105,8 +117,11 @@ function ScopedInventoryDetail({
       setBranch(null);
       setMovements([]);
       setNextMovementCursor(null);
-      setOlderError(null);
-      setOlderLoading(false);
+      setMovementPageIndex(0);
+      setMovementPageCursors([undefined]);
+      setMovementPageError(null);
+      setMovementPageRetry(null);
+      setMovementPageLoading(false);
       try {
         const scope = { organizationId, branchId, inventoryId };
         const [item, location, history] = await Promise.all([
@@ -189,7 +204,11 @@ function ScopedInventoryDetail({
         setBranch(null);
         setMovements([]);
         setNextMovementCursor(null);
-        setOlderError(null);
+        setMovementPageIndex(0);
+        setMovementPageCursors([undefined]);
+        setMovementPageError(null);
+        setMovementPageRetry(null);
+        setMovementPageLoading(false);
         setSuccess(null);
         setLoading(true);
         return true;
@@ -240,34 +259,43 @@ function ScopedInventoryDetail({
     dirty.current = false;
     setActiveAction(action);
   };
-  const loadOlder = async () => {
-    if (!nextMovementCursor || olderLoading) return;
+  const loadMovementPage = async ({ index, cursor }: MovementPageTarget) => {
+    if (movementPageLoading || index < 0) return;
     const generation = readGeneration.current;
-    setOlderLoading(true);
-    setOlderError(null);
+    const target = { index, cursor };
+    setMovementPageLoading(true);
+    setMovementPageError(null);
+    setMovementPageRetry(target);
     try {
       const history = await listMovements(
         request,
         scope,
         organization?.role,
-        nextMovementCursor,
+        cursor,
       );
       if (generation !== readGeneration.current) return;
-      setMovements((current) => [...current, ...history.items]);
+      setMovements(history.items);
       setNextMovementCursor(history.nextCursor);
+      setMovementPageIndex(index);
+      setMovementPageCursors((current) => {
+        const pages = [...current];
+        pages[index] = cursor;
+        return pages;
+      });
+      setMovementPageRetry(null);
     } catch (cause) {
       if (generation !== readGeneration.current) return;
       if (cause instanceof ApiError && [401, 403, 404].includes(cause.status)) {
         accessLost();
         return;
       }
-      setOlderError(
+      setMovementPageError(
         cause instanceof ApiError
           ? cause.message
-          : 'Older movements could not be loaded.',
+          : 'This movement-history page could not be loaded.',
       );
     } finally {
-      if (generation === readGeneration.current) setOlderLoading(false);
+      if (generation === readGeneration.current) setMovementPageLoading(false);
     }
   };
   const stockActions = canWrite ? (
@@ -527,7 +555,7 @@ function ScopedInventoryDetail({
           <>
             <ol
               aria-label="Inventory movement history"
-              className="m-0 list-none p-0"
+              className="inventory-movement-list m-0 list-none p-0"
             >
               <li
                 className={`data-column-header inventory-movement-header hidden gap-x-6 gap-y-3 lg:grid ${movementGrid}`}
@@ -585,27 +613,44 @@ function ScopedInventoryDetail({
                 </li>
               ))}
             </ol>
-            {olderError ? (
+            {movementPageError && movementPageRetry ? (
               <RequestError
                 className="p-6"
-                message={olderError}
-                onRetry={() => void loadOlder()}
+                message={movementPageError}
+                onRetry={() => void loadMovementPage(movementPageRetry)}
               />
             ) : null}
-            {nextMovementCursor ? (
-              <div className="border-t border-hairline p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
+              <p className="text-sm text-muted">Page {movementPageIndex + 1}</p>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   className={buttonStyles({ variant: 'quiet' })}
-                  disabled={olderLoading}
-                  onClick={() => void loadOlder()}
+                  disabled={movementPageLoading || movementPageIndex === 0}
+                  onClick={() =>
+                    void loadMovementPage({
+                      index: movementPageIndex - 1,
+                      cursor: movementPageCursors[movementPageIndex - 1],
+                    })
+                  }
                 >
-                  {olderLoading
-                    ? 'Loading older movements…'
-                    : 'Load older movements'}
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className={buttonStyles({ variant: 'secondary' })}
+                  disabled={movementPageLoading || !nextMovementCursor}
+                  onClick={() =>
+                    void loadMovementPage({
+                      index: movementPageIndex + 1,
+                      cursor: nextMovementCursor ?? undefined,
+                    })
+                  }
+                >
+                  {movementPageLoading ? 'Loading…' : 'Next'}
                 </button>
               </div>
-            ) : null}
+            </div>
           </>
         )}
       </OperationalPanel>

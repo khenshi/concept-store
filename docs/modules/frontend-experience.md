@@ -323,6 +323,12 @@ Receive, Adjust, Threshold, and Edit price tab strip; Receive is shown by
 default, only the selected form is shown at a time, and extra horizontal insets
 keep it visually attached to the action row. There is no separate close control;
 switching still protects unsaved input.
+Movement history requests five records at a time and presents Previous and Next
+page controls. Changing pages replaces only the movement rows, preserves the
+current placement summary, and keeps the current page available when a request
+fails so the navigation request can be retried safely. The history list reserves
+the space of five desktop rows so a short final page does not cause the panel to
+collapse, while wrapped mobile rows can grow naturally.
 Owner/manager inventory rows also provide direct Receive stock and Correct stock
 dialogs using those same safeguards. Their modal headers show branch and current
 unit context as compact upper-right tags instead of body text; merchant rows

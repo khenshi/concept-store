@@ -77,3 +77,18 @@ uncommitted for review.
 
 This focused inventory-detail interaction change is being implemented now and
 remains uncommitted for review.
+
+## Movement history pagination (approved September 22, 2026)
+
+- Show five movement-history items per page on the inventory detail screen.
+- Reserve the visual height of five desktop movement rows so shorter final pages
+  do not collapse the history panel; allow taller wrapped rows on smaller screens.
+- Replace the append-only older-history control with Previous and Next page
+  navigation backed by the existing scoped cursor contract.
+- Preserve current-stock state, retry behavior, access-loss handling, actor
+  privacy, and reset pagination after a placement refresh.
+- Do not change the backend or database: the existing movement endpoint already
+  accepts a bounded `limit` and cursor.
+
+This focused frontend pagination change is being implemented now and remains
+uncommitted for review.

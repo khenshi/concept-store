@@ -228,6 +228,10 @@
     @apply px-3 sm:px-4;
   }
 
+  .inventory-movement-list {
+    min-height: 19rem;
+  }
+
   .inventory-movement-row {
     @apply transition-colors duration-150 hover:bg-subtle;
   }

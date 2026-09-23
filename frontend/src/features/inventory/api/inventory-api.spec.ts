@@ -48,7 +48,7 @@ describe('Branch inventory API contracts', () => {
       nextCursor: null,
     });
     expect(request).toHaveBeenLastCalledWith(
-      `${base}/${scope.inventoryId}/movements?limit=50`,
+      `${base}/${scope.inventoryId}/movements?limit=5`,
     );
   });
   it('parses bounded inventory and eligible-product pages with cursors', async () => {
@@ -85,7 +85,7 @@ describe('Branch inventory API contracts', () => {
     request.mockResolvedValue({ items: [], nextCursor: null });
     await listMovements(request, scope, 'MANAGER', movement.id);
     expect(request).toHaveBeenCalledWith(
-      `${base}/${scope.inventoryId}/movements?limit=50&cursor=${movement.id}`,
+      `${base}/${scope.inventoryId}/movements?limit=5&cursor=${movement.id}`,
     );
   });
   it('reads bounded branch reconciliation pages and validates their contract', async () => {

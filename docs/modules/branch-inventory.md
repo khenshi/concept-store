@@ -190,9 +190,10 @@ control is available from a mismatch.
   endpoint returns `{ items, nextCursor }`, defaulting to 50 movements with a
   maximum of 100 per page. A next cursor is the last returned movement ID and
   must belong to the same tenant, branch, and placement. Invalid/foreign cursors
-  do not disclose movement data. The detail view can load older pages while
-  retaining current stock and prior pages; refreshes clear old pages. There is
-  no movement mutation or deletion endpoint.
+  do not disclose movement data. The detail view requests five movements and
+  exposes Previous and Next navigation, replacing the visible page while
+  retaining the current-stock summary; refreshes return to page one. There is no
+  movement mutation or deletion endpoint.
 - Command responses are historical movement snapshots; clients must refresh
   current inventory after success rather than treating a replay as current stock.
 - No stock write touches another branch's placement.
@@ -370,5 +371,8 @@ responses as well as full owner/manager responses.
   delta, resulting balance, and (for owners/managers) the authenticated actor's
   display name in a structured divided list. Merchant runtime schemas accept
   actor-free responses and strip actor fields defensively.
+- History requests five records per page and uses the existing scoped cursor
+  contract for Previous and Next navigation. A page-load error leaves the current
+  page visible and can be retried without repeating an inventory write.
 - Runtime schemas validate branch identity, inventory/product/merchant summaries,
   exact price strings, integer bounds, and movement type/delta before rendering.
