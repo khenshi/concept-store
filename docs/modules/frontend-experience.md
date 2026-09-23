@@ -329,6 +329,10 @@ current placement summary, and keeps the current page available when a request
 fails so the navigation request can be retried safely. The history list reserves
 the space of five desktop rows so a short final page does not cause the panel to
 collapse, while wrapped mobile rows can grow naturally.
+While an inventory placement is loading, its detail title, description, branch
+context, and four summary metrics use an accessible layout-preserving skeleton;
+the existing movement-history loading state remains below it and branch
+switching stays available.
 Owner/manager inventory rows also provide direct Receive stock and Correct stock
 dialogs using those same safeguards. Their modal headers show branch and current
 unit context as compact upper-right tags instead of body text; merchant rows
@@ -409,6 +413,11 @@ Pending buttons announce busy state and disable repeat activation. Back links
 remain real navigation links. Panels, toolbars, request errors, skeletons, and
 status notices use semantic tokens while retaining their existing content and
 announcement behavior.
+
+Action buttons and shared dropdown triggers use the same pill-shaped radius as
+the inventory filters across authenticated and public pages. Structural tabs,
+status tags, and dropdown menu options retain geometry appropriate to their
+role.
 
 Shared selects retain controlled/uncontrolled values and form submission/reset
 behavior. Keyboard users can navigate enabled options with arrows or Home/End,

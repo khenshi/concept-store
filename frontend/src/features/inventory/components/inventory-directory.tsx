@@ -268,7 +268,7 @@ function ScopedInventoryDirectory({
             role="tab"
             aria-selected={activeTab === 'stock'}
             aria-controls="inventory-stock-panel"
-            className={`min-h-11 border-b-2 px-3 text-sm font-semibold transition-colors ${
+            className={`min-h-11 rounded-none border-b-2 px-3 text-sm font-semibold transition-colors ${
               activeTab === 'stock'
                 ? 'border-ink text-ink'
                 : 'border-transparent text-muted hover:text-ink'
@@ -282,7 +282,7 @@ function ScopedInventoryDirectory({
             role="tab"
             aria-selected={activeTab === 'integrity'}
             aria-controls="inventory-integrity-panel"
-            className={`min-h-11 border-b-2 px-3 text-sm font-semibold transition-colors ${
+            className={`min-h-11 rounded-none border-b-2 px-3 text-sm font-semibold transition-colors ${
               activeTab === 'integrity'
                 ? 'border-ink text-ink'
                 : 'border-transparent text-muted hover:text-ink'

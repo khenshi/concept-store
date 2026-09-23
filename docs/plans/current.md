@@ -92,3 +92,27 @@ remains uncommitted for review.
 
 This focused frontend pagination change is being implemented now and remains
 uncommitted for review.
+
+## Unified action and dropdown rounding (approved September 23, 2026)
+
+- Use the inventory list's pill-shaped radius for shared action buttons and
+  dropdown triggers across public and authenticated pages.
+- Include raw application buttons and shell selectors in the same visual system
+  without changing button variants, focus behavior, menu behavior, or semantics.
+- Keep structural tabs, status tags, and dropdown menu options compact or
+  role-specific where their geometry communicates state or navigation.
+
+This focused frontend visual refinement is being implemented now and remains
+uncommitted for review.
+
+## Inventory detail loading skeleton (approved September 23, 2026)
+
+- Show a layout-preserving skeleton for the inventory detail title,
+  description, branch context, and four placement-summary metrics while the
+  detail reads are pending.
+- Keep branch switching available, preserve the existing movement-history
+  loading state, and remove the skeleton without changing loaded content or
+  authorization behavior.
+
+This focused frontend loading-state refinement is being implemented now and
+remains uncommitted for review.

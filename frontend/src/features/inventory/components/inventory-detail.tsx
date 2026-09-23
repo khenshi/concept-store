@@ -1,7 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -34,6 +40,65 @@ import { InventoryBranchSelector } from './inventory-branch-selector';
 
 type InventoryAction = 'receipt' | 'adjustment' | 'threshold' | 'price';
 type MovementPageTarget = { index: number; cursor?: string };
+
+function InventoryDetailLoadingSkeleton({
+  back,
+  branchSelector,
+}: {
+  back: ReactNode;
+  branchSelector: ReactNode;
+}) {
+  return (
+    <OperationalPage>
+      <div className="mb-4">{back}</div>
+      <div
+        role="status"
+        aria-label="Loading inventory detail"
+        className="min-w-0"
+      >
+        <header className="flex items-start justify-between gap-6 border-b border-hairline pb-10 max-sm:flex-col">
+          <div className="min-w-0 w-full">
+            <div
+              className="h-12 w-3/4 max-w-2xl animate-pulse rounded-control bg-selected"
+              aria-hidden="true"
+            />
+            <div
+              className="mt-4 h-4 w-full max-w-2xl animate-pulse rounded-control bg-selected"
+              aria-hidden="true"
+            />
+          </div>
+          <div className="shrink-0 max-sm:w-full">{branchSelector}</div>
+        </header>
+        <section className="inventory-placement-panel mt-3 mb-1 border-b border-hairline bg-surface text-ink">
+          <dl className="inventory-placement-summary grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }, (_, index) => (
+              <div
+                className="inventory-placement-stat flex items-center justify-start gap-3 px-4 py-5 lg:py-6"
+                key={index}
+              >
+                <span
+                  className="size-12 shrink-0 animate-pulse rounded-full bg-selected"
+                  aria-hidden="true"
+                />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <span
+                    className="block h-3 w-2/3 animate-pulse rounded-control bg-selected"
+                    aria-hidden="true"
+                  />
+                  <span
+                    className="block h-4 w-4/5 animate-pulse rounded-control bg-selected"
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </div>
+      <ListSkeleton label="Refreshing current stock and movement history" />
+    </OperationalPage>
+  );
+}
 
 export function InventoryDetail(props: InventoryDetailScope) {
   const { user } = useAuth();
@@ -218,12 +283,10 @@ function ScopedInventoryDetail({
   );
   if (loading)
     return (
-      <OperationalPage>
-        {back}
-        {branchSelector}
-        {success ? <StatusNotice>{success}</StatusNotice> : null}
-        <ListSkeleton label="Refreshing current stock and movement history" />
-      </OperationalPage>
+      <InventoryDetailLoadingSkeleton
+        back={back}
+        branchSelector={branchSelector}
+      />
     );
   // A successful command followed by a failed refresh must not leave stale stock actionable.
   if (error || !inventory || !branch)

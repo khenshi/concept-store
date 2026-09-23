@@ -187,7 +187,7 @@ export function SelectControl({
       ) : null}
       <button
         ref={triggerRef}
-        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-control border border-control-border bg-surface px-3 py-2.5 text-left text-ink transition-colors hover:border-selected-border focus-visible:border-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted disabled:opacity-70 aria-invalid:border-danger ${className}`}
+        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-full border border-control-border bg-surface px-3 py-2.5 text-left text-ink transition-colors hover:border-selected-border focus-visible:border-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted disabled:opacity-70 aria-invalid:border-danger ${className}`}
         id={id}
         type="button"
         role="combobox"

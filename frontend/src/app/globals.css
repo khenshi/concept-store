@@ -66,6 +66,10 @@
     font: inherit;
   }
 
+  button {
+    @apply rounded-full;
+  }
+
   button:not(:disabled) {
     cursor: pointer;
     transition-property: background-color, border-color, color, filter;
@@ -101,7 +105,7 @@
 
 @layer components {
   .ui-button {
-    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-control border px-4 py-2 text-sm font-semibold no-underline;
+    @apply inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold no-underline;
     transition:
       background-color var(--motion-duration) var(--motion-easing),
       border-color var(--motion-duration) var(--motion-easing),

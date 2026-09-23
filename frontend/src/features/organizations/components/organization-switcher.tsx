@@ -115,7 +115,7 @@ export function OrganizationSwitcher({
       ) : null}
       <button
         ref={triggerRef}
-        className={`flex min-h-11 w-full min-w-0 items-center gap-3 rounded-control border border-control-border bg-surface py-2 text-left text-sm font-semibold text-ink hover:border-selected-border hover:bg-subtle ${collapsed ? 'justify-center px-2' : 'justify-between px-3'}`}
+        className={`flex min-h-11 w-full min-w-0 items-center gap-3 rounded-full border border-control-border bg-surface py-2 text-left text-sm font-semibold text-ink hover:border-selected-border hover:bg-subtle ${collapsed ? 'justify-center px-2' : 'justify-between px-3'}`}
         type="button"
         aria-expanded={isOpen}
         aria-haspopup="menu"

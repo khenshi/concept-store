@@ -47,7 +47,7 @@ export function AuthenticatedHeader() {
           </time>
           {user ? (
             <Link
-              className="flex min-h-11 min-w-11 max-w-64 items-center justify-center gap-3 rounded-control px-2 text-ink no-underline hover:bg-subtle"
+              className="flex min-h-11 min-w-11 max-w-64 items-center justify-center gap-3 rounded-full px-2 text-ink no-underline hover:bg-subtle"
               href="/app/account"
               aria-label="Open account settings"
             >

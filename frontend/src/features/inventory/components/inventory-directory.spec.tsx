@@ -220,9 +220,11 @@ describe('InventoryDirectory workflows', () => {
         nextCursor: null,
       });
       render(<InventoryDirectory {...scope} />);
-      fireEvent.click(
-        await screen.findByRole('tab', { name: 'Stock integrity' }),
-      );
+      const integrityTab = await screen.findByRole('tab', {
+        name: 'Stock integrity',
+      });
+      expect(integrityTab).toHaveClass('rounded-none');
+      fireEvent.click(integrityTab);
       fireEvent.click(
         await screen.findByRole('button', { name: 'Check stock integrity' }),
       );

@@ -91,6 +91,7 @@ describe('SelectControl', () => {
       </SelectControl>,
     );
     const trigger = screen.getByRole('combobox', { name: 'Status' });
+    expect(trigger).toHaveClass('rounded-full');
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
     expect(screen.getByRole('option', { name: 'Active' })).toHaveFocus();
     fireEvent.keyDown(screen.getByRole('option', { name: 'Active' }), {

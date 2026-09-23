@@ -145,7 +145,7 @@ export default function Home() {
             </h2>
           </div>
           <Link
-            className="inline-flex min-h-11 w-fit items-center justify-center rounded-control bg-surface px-5 text-sm font-semibold text-action no-underline transition-colors hover:bg-selected focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-surface"
+            className="inline-flex min-h-11 w-fit items-center justify-center rounded-full bg-surface px-5 text-sm font-semibold text-action no-underline transition-colors hover:bg-selected focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-surface"
             href="/register"
           >
             Create your workspace

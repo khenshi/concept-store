@@ -107,6 +107,17 @@ describe('InventoryDetail workflows', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Receive stock' }));
   };
+  it('shows a header and placement-summary skeleton while loading', async () => {
+    render(<InventoryDetail {...scope} />);
+    expect(
+      screen.getByRole('status', { name: 'Loading inventory detail' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Inventory branch')).toBeInTheDocument();
+    await screen.findByText('Opening delivery');
+    expect(
+      screen.queryByRole('status', { name: 'Loading inventory detail' }),
+    ).not.toBeInTheDocument();
+  });
   it('shows immutable ledger fields without actor personal data or mutation actions', async () => {
     render(<InventoryDetail {...scope} />);
     await screen.findByText('Opening delivery');

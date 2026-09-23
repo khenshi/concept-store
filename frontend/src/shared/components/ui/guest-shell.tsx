@@ -25,7 +25,7 @@ export function GuestShell({
           <BrandWordmark />
           <Link
             href="/"
-            className="inline-flex min-h-11 items-center gap-2 rounded-control px-2 text-sm text-muted no-underline hover:text-ink"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full px-2 text-sm text-muted no-underline hover:text-ink"
           >
             <Icon name="arrow" className="size-4 rotate-180" />
             Back to home

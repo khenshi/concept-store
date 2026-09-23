@@ -207,7 +207,9 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
   and functional inset surfaces may use `0.875rem`; public feature surfaces:
   up to `1.5rem`. Rounded corners are welcome on purposeful interactive or
   contained surfaces; ordinary sections need not be boxed at all.
-- Pills are for short statuses, filters, and tags—not every action.
+- Application action buttons and dropdown triggers use the pill radius shared by
+  the inventory filters. Statuses, tags, menu options, and structural tabs may
+  retain their compact or role-specific geometry.
 - Resting surfaces use a one-pixel Hairline border and no shadow.
 - Menus/popovers may use the floating shadow; dialogs may use overlay shadow.
 - Form dialogs use nearly the full viewport width on phones and a generous
