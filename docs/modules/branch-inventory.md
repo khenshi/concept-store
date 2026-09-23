@@ -60,6 +60,7 @@ GET   /organizations/:organizationId/branches/:branchId/inventory?q=&merchantId=
 GET   /organizations/:organizationId/branches/:branchId/inventory/eligible-products?q=&limit=&cursor=
 GET   /organizations/:organizationId/branches/:branchId/inventory/summary
 GET   /organizations/:organizationId/branches/:branchId/inventory/reconciliation?limit=&cursor=
+GET   /organizations/:organizationId/branches/:branchId/inventory/movements?q=&type=&merchantId=&from=&until=&limit=&cursor=
 GET   /organizations/:organizationId/branches/:branchId/inventory/:inventoryId
 PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/price
 PATCH /organizations/:organizationId/branches/:branchId/inventory/:inventoryId/threshold
@@ -200,6 +201,33 @@ control is available from a mismatch.
 - Persisted SALE movements display as sales and require negative deltas. Their
   private sale-item link is excluded from all existing movement responses; merchant
   history still omits actor information. Public receiving/correction contracts are unchanged.
+
+## Branch movement records
+
+The Inventory directory has an on-demand **Movement records** tab between
+Inventory stock and the staff-only Stock integrity tab. It reads only the
+selected branch and does not replace the placement-specific history on an
+inventory detail screen. Owners and assigned managers can search all movements
+visible in that branch and receive the authenticated actor's display name.
+Merchants see only movements for their own merchant products and never receive
+actor fields. Cashiers cannot call the route or see the tab.
+
+`GET /organizations/:organizationId/branches/:branchId/inventory/movements`
+returns `{ items, nextCursor }`, ordered newest first by `createdAt` and movement
+ID. The default and frontend page size is 10 (the API accepts `1..100`). `q`
+matches product name, SKU, barcode, or reason; `type` accepts `RECEIPT`,
+`ADJUSTMENT`, `SALE`, or `RETURN`; and staff may additionally filter by
+merchant. `from` and `until` are optional UTC timestamps representing the
+inclusive Philippine date range's start and exclusive next-day boundary. They
+must be supplied together and in chronological order. Cursors are opaque and
+bound to the organization, branch, role/member visibility, and every active
+filter; malformed, foreign, or stale cursors return not-found behavior.
+
+Each item contains movement and placement IDs, product name/SKU/barcode,
+merchant identity, movement type/reason, signed quantity change, resulting
+balance and creation timestamp. The response deliberately excludes request IDs,
+sale/refund links and mutation operations. A branch/creation-time/movement-ID
+index supports the stable history ordering.
 
 ## Delivery state
 

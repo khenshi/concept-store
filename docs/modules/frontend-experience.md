@@ -259,6 +259,39 @@ frontend tests across 70 files, lint/typecheck/build and changed-file formatting
 pass. The user waived rendered responsive, keyboard/dialog and zoom QA for both
 Inventory navigation and this form on September 14, 2026. See [Products](products.md).
 
+## Branch inventory movement records
+
+The Inventory directory now includes a lazy **Movement records** tab inside the
+existing branch shell. Staff see it in the order Inventory stock → Movement
+records → Stock integrity; merchants see Inventory stock → Movement records.
+Opening the tab requests only the selected branch's records. Changing branch,
+organization, role or access resets the tab data and ignores obsolete responses.
+
+The panel uses the shared open data-list layout with a leading-icon search field,
+a 300 ms debounced query over product name, SKU, barcode and reason, a movement
+type dropdown, and a staff-only merchant dropdown. Optional From and Through
+inputs are labeled in Philippine time; Apply requires both dates, validates
+`From ≤ Through`, and converts the inclusive local range to a UTC start and
+exclusive next-day boundary. Blank dates mean all history. Search and filter
+changes reset the cursor to page one.
+
+Rows link the product identity to the selected branch placement detail and show
+date/time, type, reason, signed change, balance after and merchant identity.
+Owner/manager rows also show the actor name; merchant rows do not render or
+accept actor data. Previous/Next controls use opaque filter-bound cursors with
+10 records per page. Loading skeletons, unfiltered and filtered empty states,
+retryable errors, page-preserving failures, stale-response protection and
+responsive/keyboard-accessible controls are included. The existing detail-page
+five-row movement history remains unchanged.
+
+The movement filter toolbar uses the surrounding surface rather than a gray
+inset. It has no horizontal side padding; at tablet widths the search, movement
+type and staff merchant controls share the first row, while the From, Through
+and Apply controls stay together on the second row. Larger desktop widths retain
+the single-row arrangement. The date row also provides a Clear dates action, and
+movement timestamps are displayed as Philippine-local numeric date/time values
+with seconds.
+
 ## POS navigation refinement
 
 Staff sidebar/mobile navigation now includes POS, with branch checkout routes

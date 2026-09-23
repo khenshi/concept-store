@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -15,9 +16,14 @@ import type { InventoryPriceDto } from './dto/inventory-price.dto';
 import type { InventoryThresholdDto } from './dto/inventory-threshold.dto';
 import type { ListBranchInventoryQueryDto } from './dto/list-branch-inventory-query.dto';
 import type { MovementHistoryQueryDto } from './dto/movement-history-query.dto';
+import type { ListMovementRecordsQueryDto } from './dto/list-movement-records-query.dto';
 import type { EligibleProductsQueryDto } from './dto/eligible-products-query.dto';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
-import { inventoryScope, productScope } from '../authorization/resource-access';
+import {
+  branchScope,
+  inventoryScope,
+  productScope,
+} from '../authorization/resource-access';
 import { productSelect, type ProductRecord } from '../products/products.types';
 import {
   decodeInventoryCursor,
@@ -34,6 +40,8 @@ import {
   type InventoryMovementHistoryRecord,
   type MerchantMovementHistoryRecord,
   type InventoryMovementPage,
+  type InventoryMovementRecordView,
+  inventoryMovementRecordsSelect,
 } from './inventory.types';
 
 @Injectable()
@@ -228,6 +236,130 @@ export class BranchInventoryService {
       nextCursor:
         products.length > limit
           ? encodeInventoryCursor(page[page.length - 1].id, scope)
+          : null,
+    };
+  }
+
+  async findMovementRecords(
+    organizationId: string,
+    branchId: string,
+    context: OrganizationContext,
+    query: ListMovementRecordsQueryDto,
+  ): Promise<{
+    items: InventoryMovementRecordView[];
+    nextCursor: string | null;
+  }> {
+    await this.resolveBranch(organizationId, branchId);
+    if (context.role === 'MERCHANT' && query.merchantId)
+      throw new BadRequestException(
+        'merchantId filter is only available to owners and managers',
+      );
+    if (Boolean(query.from) !== Boolean(query.until))
+      throw new BadRequestException(
+        'from and until must be provided together for a date range',
+      );
+    if (query.from && query.until && query.from >= query.until)
+      throw new BadRequestException(
+        'from must be earlier than until for a date range',
+      );
+
+    const scopedInventory = inventoryScope(context);
+    const scopedProduct: Prisma.ProductWhereInput = {
+      AND: [
+        scopedInventory.product ?? {},
+        ...(query.merchantId
+          ? [{ organizationId, merchantId: query.merchantId }]
+          : []),
+      ],
+    };
+    const inventoryWhere: Prisma.BranchInventoryWhereInput = {
+      organizationId,
+      branchId,
+      branch: branchScope(context),
+      product: scopedProduct,
+    };
+    const scope: InventoryCursorScope = {
+      kind: 'movement-records',
+      organizationId,
+      branchId,
+      context,
+      filters: {
+        q: query.q,
+        type: query.type,
+        merchantId: query.merchantId,
+        from: query.from,
+        until: query.until,
+      },
+    };
+    const cursorId = query.cursor
+      ? decodeInventoryCursor(query.cursor, scope)
+      : undefined;
+    const where: Prisma.InventoryMovementWhereInput = {
+      organizationId,
+      branchId,
+      inventory: inventoryWhere,
+      ...(query.type ? { type: query.type } : {}),
+      ...(query.from || query.until
+        ? {
+            createdAt: {
+              ...(query.from ? { gte: new Date(query.from) } : {}),
+              ...(query.until ? { lt: new Date(query.until) } : {}),
+            },
+          }
+        : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { reason: { contains: query.q, mode: 'insensitive' } },
+              {
+                inventory: {
+                  product: {
+                    OR: [
+                      { name: { contains: query.q, mode: 'insensitive' } },
+                      { sku: { contains: query.q, mode: 'insensitive' } },
+                      { barcode: { contains: query.q } },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+    if (cursorId) {
+      const cursor = await this.prisma.inventoryMovement.findFirst({
+        where: { ...where, id: cursorId },
+        select: { id: true },
+      });
+      if (!cursor) throw new NotFoundException('Movement cursor not found');
+    }
+    type MovementRow = Prisma.InventoryMovementGetPayload<{
+      select: typeof inventoryMovementRecordsSelect;
+    }>;
+    const movements: MovementRow[] =
+      await this.prisma.inventoryMovement.findMany({
+        select: inventoryMovementRecordsSelect,
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: query.limit + 1,
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      });
+    const page = movements.slice(0, query.limit);
+    return {
+      items: page.map(({ inventory, createdBy, ...movement }) => ({
+        ...movement,
+        product: inventory.product,
+        ...(context.role === 'MERCHANT'
+          ? {}
+          : {
+              actorName:
+                `${createdBy.firstName} ${createdBy.lastName}`.trim() ||
+                'Deleted user',
+            }),
+      })),
+      nextCursor:
+        movements.length > query.limit
+          ? encodeInventoryCursor(page.at(-1)!.id, scope)
           : null,
     };
   }

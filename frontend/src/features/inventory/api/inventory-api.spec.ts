@@ -8,6 +8,7 @@ import {
   listInventory,
   listEligibleProducts,
   listMovements,
+  listMovementRecords,
   receiveStock,
   updateInventoryPrice,
   updateInventoryThreshold,
@@ -87,6 +88,58 @@ describe('Branch inventory API contracts', () => {
     expect(request).toHaveBeenCalledWith(
       `${base}/${scope.inventoryId}/movements?limit=5&cursor=${movement.id}`,
     );
+  });
+  it('serializes branch movement-record filters and validates the page contract', async () => {
+    const record = {
+      id: movement.id,
+      branchId: scope.branchId,
+      branchInventoryId: scope.inventoryId,
+      type: 'RECEIPT' as const,
+      quantityChange: 10,
+      quantityAfter: 10,
+      reason: 'Initial stock',
+      createdAt: movement.createdAt,
+      product: {
+        id: inventory.product.id,
+        name: inventory.product.name,
+        sku: inventory.product.sku,
+        barcode: inventory.product.barcode,
+        merchant: {
+          id: inventory.product.merchant.id,
+          name: inventory.product.merchant.name,
+          code: 'MERCHANT',
+        },
+      },
+      actorName: 'Maria Santos',
+    };
+    request.mockResolvedValue({ items: [record], nextCursor: 'opaque.cursor' });
+    await expect(
+      listMovementRecords(
+        request,
+        scope,
+        'MANAGER',
+        {
+          q: 'cup',
+          type: 'RECEIPT',
+          merchantId: inventory.product.merchant.id,
+          from: '2026-09-01T00:00:00.000Z',
+          until: '2026-10-01T00:00:00.000Z',
+        },
+        'previous.cursor',
+      ),
+    ).resolves.toEqual({ items: [record], nextCursor: 'opaque.cursor' });
+    expect(request).toHaveBeenCalledWith(
+      `${base}/movements?limit=10&q=cup&type=RECEIPT&merchantId=${inventory.product.merchant.id}&from=2026-09-01T00%3A00%3A00.000Z&until=2026-10-01T00%3A00%3A00.000Z&cursor=previous.cursor`,
+    );
+    const { actorName, ...merchantRecord } = record;
+    request.mockResolvedValue({
+      items: [merchantRecord],
+      nextCursor: null,
+    });
+    await expect(
+      listMovementRecords(request, scope, 'MERCHANT'),
+    ).resolves.toEqual({ items: [merchantRecord], nextCursor: null });
+    expect(actorName).toBe('Maria Santos');
   });
   it('reads bounded branch reconciliation pages and validates their contract', async () => {
     const mismatch = {

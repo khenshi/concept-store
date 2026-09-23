@@ -3,7 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 
 export type InventoryCursorScope = {
-  kind: 'inventory' | 'eligible-products';
+  kind: 'inventory' | 'eligible-products' | 'movement-records';
   organizationId: string;
   branchId: string;
   context?: OrganizationContext;

@@ -59,6 +59,7 @@ describe('Products and inventory HTTP boundaries', () => {
     updateThreshold: jest.fn(),
     summarize: jest.fn(),
     findMovements: jest.fn(),
+    findMovementRecords: jest.fn(),
   };
   const stock = { receive: jest.fn(), adjust: jest.fn() };
   const reconciliation = { reconcile: jest.fn() };
@@ -170,6 +171,7 @@ describe('Products and inventory HTTP boundaries', () => {
     `${productsPath}/${item}/inventory`,
     inventoryPath,
     `${inventoryPath}/summary`,
+    `${inventoryPath}/movements`,
     `${inventoryPath}/${item}`,
     `${inventoryPath}/${item}/movements`,
   ];
@@ -260,6 +262,56 @@ describe('Products and inventory HTTP boundaries', () => {
       branch,
       expect.objectContaining({ limit: 2, q: 'cup' }),
       expect.objectContaining({ role: 'MANAGER', userId: manager }),
+    );
+  });
+  it('validates branch movement-record filters and forwards trusted role scope', async () => {
+    const path = `${inventoryPath}/movements`;
+    await http().get(path).expect(401);
+    for (const suffix of [
+      '?limit=0',
+      '?limit=101',
+      '?type=UNKNOWN',
+      '?from=not-a-date',
+      '?other=x',
+    ])
+      await http()
+        .get(path + suffix)
+        .auth(token(actor), { type: 'bearer' })
+        .expect(400);
+    for (const userId of [cashier])
+      await http()
+        .get(path)
+        .auth(token(userId), { type: 'bearer' })
+        .expect(403);
+    await http()
+      .get(
+        `${path}?q=cup&type=SALE&merchantId=${item}&from=2026-09-01T00:00:00.000Z&until=2026-09-02T00:00:00.000Z&limit=10&cursor=${item}`,
+      )
+      .auth(token(actor), { type: 'bearer' })
+      .expect(200);
+    expect(inventory.findMovementRecords).toHaveBeenCalledWith(
+      org,
+      branch,
+      expect.objectContaining({ role: 'OWNER', userId: actor }),
+      expect.objectContaining({
+        q: 'cup',
+        type: 'SALE',
+        merchantId: item,
+        from: '2026-09-01T00:00:00.000Z',
+        until: '2026-09-02T00:00:00.000Z',
+        limit: 10,
+        cursor: item,
+      }),
+    );
+    await http()
+      .get(path)
+      .auth(token(merchant), { type: 'bearer' })
+      .expect(200);
+    expect(inventory.findMovementRecords).toHaveBeenLastCalledWith(
+      org,
+      branch,
+      expect.objectContaining({ role: 'MERCHANT', userId: merchant }),
+      expect.objectContaining({ limit: 10 }),
     );
   });
   const posPath = `/organizations/${org}/branches/${branch}/pos/products`;

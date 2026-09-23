@@ -34,6 +34,7 @@ import { InventoryBranchSelector } from './inventory-branch-selector';
 import { InventoryStockForm } from './inventory-stock-form';
 import { InventoryStockStatusBadge } from './inventory-stock-status';
 import { InventoryReconciliation } from './inventory-reconciliation';
+import { InventoryMovementRecords } from './inventory-movement-records';
 
 export function InventoryDirectory(
   props: InventoryScope & { initialStockStatus?: InventoryStockStatus },
@@ -74,7 +75,9 @@ function ScopedInventoryDirectory({
   const [stockStatus, setStockStatus] = useState<InventoryStockStatus | ''>(
     initialStockStatus ?? '',
   );
-  const [activeTab, setActiveTab] = useState<'stock' | 'integrity'>('stock');
+  const [activeTab, setActiveTab] = useState<
+    'stock' | 'movements' | 'integrity'
+  >('stock');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -257,7 +260,7 @@ function ScopedInventoryDirectory({
         }
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      {canWrite ? (
+      {allowed ? (
         <div
           className="mb-4 flex flex-wrap items-center gap-1 border-b border-hairline"
           role="tablist"
@@ -280,17 +283,33 @@ function ScopedInventoryDirectory({
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === 'integrity'}
-            aria-controls="inventory-integrity-panel"
+            aria-selected={activeTab === 'movements'}
+            aria-controls="inventory-movement-records-panel"
             className={`min-h-11 rounded-none border-b-2 px-3 text-sm font-semibold transition-colors ${
-              activeTab === 'integrity'
+              activeTab === 'movements'
                 ? 'border-ink text-ink'
                 : 'border-transparent text-muted hover:text-ink'
             }`}
-            onClick={() => setActiveTab('integrity')}
+            onClick={() => setActiveTab('movements')}
           >
-            Stock integrity
+            Movement records
           </button>
+          {canWrite ? (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'integrity'}
+              aria-controls="inventory-integrity-panel"
+              className={`min-h-11 rounded-none border-b-2 px-3 text-sm font-semibold transition-colors ${
+                activeTab === 'integrity'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-muted hover:text-ink'
+              }`}
+              onClick={() => setActiveTab('integrity')}
+            >
+              Stock integrity
+            </button>
+          ) : null}
         </div>
       ) : null}
       {activeTab === 'stock' ? (
@@ -542,6 +561,16 @@ function ScopedInventoryDirectory({
             </div>
           ) : null}
         </OperationalPanel>
+      ) : null}
+      {activeTab === 'movements' && branch && !loading && !error ? (
+        <InventoryMovementRecords
+          key={`${organizationId}:${branchId}:${organization?.role}:${revision}`}
+          organizationId={organizationId}
+          branchId={branchId}
+          role={organization!.role}
+          merchants={merchants}
+          onAccessLost={accessLost}
+        />
       ) : null}
       {canWrite && activeTab === 'integrity' && branch && !loading && !error ? (
         <InventoryReconciliation

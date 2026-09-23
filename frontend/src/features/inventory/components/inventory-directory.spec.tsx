@@ -13,6 +13,7 @@ import {
   getInventoryBranch,
   getInventoryReconciliation,
   listInventory,
+  listMovementRecords,
 } from '../api/inventory-api';
 import { branch, inventory, scope } from '../model/inventory.test-fixtures';
 import { InventoryDirectory } from './inventory-directory';
@@ -34,6 +35,7 @@ vi.mock('../api/inventory-api', () => ({
   getInventoryBranch: vi.fn(),
   listInventory: vi.fn(),
   getInventoryReconciliation: vi.fn(),
+  listMovementRecords: vi.fn(),
 }));
 vi.mock('./inventory-placement-form', () => ({
   InventoryPlacementForm: ({ onSaved }: { onSaved(): void }) => (
@@ -106,6 +108,10 @@ describe('InventoryDirectory workflows', () => {
       nextCursor: null,
     });
     vi.mocked(listMerchants).mockResolvedValue([merchant]);
+    vi.mocked(listMovementRecords).mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
   });
   it('displays branch price and stock with scoped placement navigation', async () => {
     render(<InventoryDirectory {...scope} />);
@@ -223,6 +229,11 @@ describe('InventoryDirectory workflows', () => {
       const integrityTab = await screen.findByRole('tab', {
         name: 'Stock integrity',
       });
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+        'Inventory stock',
+        'Movement records',
+        'Stock integrity',
+      ]);
       expect(integrityTab).toHaveClass('rounded-none');
       fireEvent.click(integrityTab);
       fireEvent.click(
@@ -300,6 +311,34 @@ describe('InventoryDirectory workflows', () => {
         { organizationId: scope.organizationId, branchId: scope.branchId },
         { q: '001Ab', merchantId: merchant.id, status: 'INACTIVE' },
       ),
+    );
+  });
+  it('lazy-loads branch movement records and hides integrity for merchants', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    render(<InventoryDirectory {...scope} />);
+    const movementTab = await screen.findByRole('tab', {
+      name: 'Movement records',
+    });
+    expect(
+      screen.queryByRole('tab', { name: 'Stock integrity' }),
+    ).not.toBeInTheDocument();
+    expect(listMovementRecords).not.toHaveBeenCalled();
+    fireEvent.click(movementTab);
+    expect(
+      await screen.findByRole('heading', { name: 'Movement records' }),
+    ).toBeInTheDocument();
+    expect(listMovementRecords).toHaveBeenCalledWith(
+      request,
+      { organizationId: scope.organizationId, branchId: scope.branchId },
+      'MERCHANT',
+      expect.objectContaining({
+        q: undefined,
+        type: undefined,
+        merchantId: undefined,
+      }),
     );
   });
   it('reloads inventory after the creation dialog completes', async () => {

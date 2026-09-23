@@ -7,6 +7,8 @@ import {
   movementResponseSchema,
   movementHistoryPageSchema,
   merchantMovementHistoryPageSchema,
+  movementRecordsPageSchema,
+  merchantMovementRecordsPageSchema,
   inventoryHealthSummarySchema,
   inventoryReconciliationPageSchema,
 } from '../model/inventory.schemas';
@@ -14,6 +16,7 @@ import type {
   InventoryScope,
   InventoryDetailScope,
   InventoryFilters,
+  InventoryMovementRecordFilters,
 } from '../model/inventory.types';
 
 const branchPath = (scope: InventoryScope) =>
@@ -134,6 +137,22 @@ export async function listMovements(
   return role === 'MERCHANT'
     ? merchantMovementHistoryPageSchema.parse(result)
     : movementHistoryPageSchema.parse(result);
+}
+export async function listMovementRecords(
+  request: AuthenticatedRequest,
+  scope: InventoryScope,
+  role?: string,
+  filters: InventoryMovementRecordFilters = {},
+  cursor?: string,
+) {
+  const query = new URLSearchParams({ limit: '10' });
+  for (const [key, value] of Object.entries(filters))
+    if (value) query.set(key, value);
+  if (cursor) query.set('cursor', cursor);
+  const result = await request<unknown>(`${path(scope)}/movements?${query}`);
+  return role === 'MERCHANT'
+    ? merchantMovementRecordsPageSchema.parse(result)
+    : movementRecordsPageSchema.parse(result);
 }
 export async function receiveStock(
   request: AuthenticatedRequest,

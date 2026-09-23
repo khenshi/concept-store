@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BranchInventoryService } from './branch-inventory.service';
@@ -577,6 +581,124 @@ describe('BranchInventoryService', () => {
       },
     );
     expect(merchantPage.items[0]).not.toHaveProperty('actorName');
+  });
+
+  it('searches branch movements with filters, stable ordering, and role-safe product data', async () => {
+    prisma.inventoryMovement.findMany.mockResolvedValue([
+      {
+        id: 'movement',
+        branchId: 'branch',
+        branchInventoryId: 'inventory',
+        type: 'RECEIPT',
+        quantityChange: 10,
+        quantityAfter: 10,
+        reason: 'Opening stock',
+        createdAt: new Date('2026-09-20T00:00:00.000Z'),
+        inventory: {
+          product: {
+            id: 'product',
+            name: 'Demo product',
+            sku: 'SKU-1',
+            barcode: '123',
+            merchant: { id: 'merchant', name: 'Demo merchant', code: 'DEMO' },
+          },
+        },
+        createdBy: { firstName: 'Maria', lastName: 'Santos' },
+      },
+      {
+        id: 'next',
+        branchId: 'branch',
+        branchInventoryId: 'inventory-2',
+        type: 'SALE',
+        quantityChange: -1,
+        quantityAfter: 9,
+        reason: 'Point-of-sale checkout',
+        createdAt: new Date('2026-09-19T00:00:00.000Z'),
+        inventory: {
+          product: {
+            id: 'product-2',
+            name: 'Another product',
+            sku: null,
+            barcode: null,
+            merchant: { id: 'merchant', name: 'Demo merchant', code: 'DEMO' },
+          },
+        },
+        createdBy: { firstName: 'Maria', lastName: 'Santos' },
+      },
+    ]);
+    const manager = {
+      organizationId: 'org',
+      userId: 'manager',
+      role: OrganizationRole.MANAGER,
+    } as const;
+    const page = await service.findMovementRecords('org', 'branch', manager, {
+      limit: 1,
+      q: 'stock',
+      type: 'RECEIPT',
+      merchantId: 'merchant',
+      from: '2026-09-01T00:00:00.000Z',
+      until: '2026-10-01T00:00:00.000Z',
+    });
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        id: 'movement',
+        actorName: 'Maria Santos',
+        // Jest's nested matcher is intentionally untyped.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        product: expect.objectContaining({ name: 'Demo product' }),
+      }),
+    ]);
+    expect(page.nextCursor).toEqual(expect.stringContaining('movement'));
+    expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: 2,
+        // Jest's nested matcher is intentionally untyped.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: expect.objectContaining({
+          organizationId: 'org',
+          branchId: 'branch',
+          type: 'RECEIPT',
+          createdAt: {
+            gte: new Date('2026-09-01T00:00:00.000Z'),
+            lt: new Date('2026-10-01T00:00:00.000Z'),
+          },
+        }),
+      }),
+    );
+  });
+
+  it('rejects incomplete movement date ranges before querying', async () => {
+    await expect(
+      service.findMovementRecords(
+        'org',
+        'branch',
+        {
+          organizationId: 'org',
+          userId: 'manager',
+          role: OrganizationRole.MANAGER,
+        },
+        { from: '2026-09-01T00:00:00.000Z' },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects staff-only merchant filters for merchant movement reads', async () => {
+    await expect(
+      service.findMovementRecords(
+        'org',
+        'branch',
+        {
+          organizationId: 'org',
+          userId: 'merchant-user',
+          role: OrganizationRole.MERCHANT,
+          merchantId: 'merchant',
+        },
+        { merchantId: 'other-merchant' },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
   });
 
   it('rejects foreign merchant filters before running inventory directory queries', async () => {

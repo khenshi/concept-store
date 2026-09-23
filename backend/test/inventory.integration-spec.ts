@@ -910,6 +910,136 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     expect(own.items[0]).not.toHaveProperty('createdById');
   });
 
+  it('lists branch movement records with filters, cursor scope and merchant privacy', async () => {
+    const otherMerchant = await prisma.merchant.create({
+      data: {
+        organizationId,
+        name: 'Other merchant',
+        contactName: 'Other Contact',
+        code: 'OTHER',
+        phone: '09171234567',
+      },
+    });
+    const otherProduct = await products.create(organizationId, {
+      merchantId: otherMerchant.id,
+      name: 'Other product',
+      sku: 'OTHER-SKU',
+      barcode: 'OTHER-BARCODE',
+    });
+    const otherInventory = await inventory.create(
+      organizationId,
+      branchId,
+      {
+        productId: otherProduct.id,
+        sellingPrice: '18.00',
+        initialQuantity: 0,
+      },
+      userId,
+    );
+    const createdAt = new Date('2026-09-20T00:00:00.000Z');
+    await prisma.inventoryMovement.createMany({
+      data: Array.from({ length: 11 }, (_, index) => ({
+        id: randomUUID(),
+        organizationId,
+        branchId,
+        branchInventoryId: inventoryId,
+        type: 'RECEIPT' as const,
+        quantityChange: 1,
+        quantityAfter: index + 1,
+        reason: 'Branch record',
+        createdById: userId,
+        requestId: randomUUID(),
+        createdAt: new Date(createdAt.getTime() + index * 1000),
+      })),
+    });
+    await prisma.inventoryMovement.create({
+      data: {
+        organizationId,
+        branchId,
+        branchInventoryId: otherInventory.id,
+        type: 'RECEIPT',
+        quantityChange: 1,
+        quantityAfter: 1,
+        reason: 'Other merchant record',
+        createdById: userId,
+        requestId: randomUUID(),
+        createdAt,
+      },
+    });
+    const owner = { organizationId, userId, role: 'OWNER' as const };
+    const first = await inventory.findMovementRecords(
+      organizationId,
+      branchId,
+      owner,
+      {
+        q: 'Branch record',
+        type: 'RECEIPT',
+        merchantId,
+        from: '2026-09-19T16:00:00.000Z',
+        until: '2026-09-20T16:00:00.000Z',
+        limit: 10,
+      },
+    );
+    expect(first.items).toHaveLength(10);
+    expect(first.items[0]).toMatchObject({
+      product: { id: productId, merchant: { id: merchantId } },
+      actorName: 'Test Actor',
+    });
+    expect(first.nextCursor).toBeTruthy();
+    const second = await inventory.findMovementRecords(
+      organizationId,
+      branchId,
+      owner,
+      {
+        q: 'Branch record',
+        type: 'RECEIPT',
+        merchantId,
+        from: '2026-09-19T16:00:00.000Z',
+        until: '2026-09-20T16:00:00.000Z',
+        limit: 10,
+        cursor: first.nextCursor!,
+      },
+    );
+    expect(second.items).toHaveLength(1);
+    await expect(
+      inventory.findMovementRecords(organizationId, branchId, owner, {
+        limit: 10,
+        cursor: randomUUID(),
+      }),
+    ).rejects.toThrow(/cursor not found/);
+
+    await prisma.organizationMembership.create({
+      data: { organizationId, userId, role: 'MANAGER' },
+    });
+    await memberships.setBranch(organizationId, userId, branchId, true);
+    const manager = { organizationId, userId, role: 'MANAGER' as const };
+    expect(
+      (
+        await inventory.findMovementRecords(organizationId, branchId, manager, {
+          limit: 10,
+        })
+      ).items,
+    ).toHaveLength(10);
+
+    const merchant = {
+      organizationId,
+      userId,
+      role: 'MERCHANT' as const,
+      merchantId,
+    };
+    const own = await inventory.findMovementRecords(
+      organizationId,
+      branchId,
+      merchant,
+      { limit: 20 },
+    );
+    expect(own.items).toHaveLength(11);
+    expect(
+      own.items.every((item) => item.product.merchant.id === merchantId),
+    ).toBe(true);
+    expect(own.items[0]).not.toHaveProperty('actorName');
+  });
+
   it('reports only exact stock/ledger mismatches and never changes stock', async () => {
     await prisma.organizationMembership.create({
       data: { organizationId, userId, role: 'OWNER' },
@@ -1318,7 +1448,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     expect(history.items).toHaveLength(2);
     expect(
       history.items.every(
-        (entry) => 'createdById' in entry && entry.createdById === userId,
+        (entry) => 'actorName' in entry && entry.actorName === 'Test Actor',
       ),
     ).toBe(true);
     expect(

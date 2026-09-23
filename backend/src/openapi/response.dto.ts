@@ -460,3 +460,51 @@ export class MerchantMovementHistoryResponseDto extends OmitType(
   InventoryMovementHistoryResponseDto,
   ['actorName'] as const,
 ) {}
+
+export class InventoryMovementRecordMerchantResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ nullable: true }) code!: string | null;
+}
+
+export class InventoryMovementRecordProductResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ nullable: true }) sku!: string | null;
+  @ApiProperty({ nullable: true }) barcode!: string | null;
+  @ApiProperty({ type: InventoryMovementRecordMerchantResponseDto })
+  merchant!: InventoryMovementRecordMerchantResponseDto;
+}
+
+export class InventoryMovementRecordResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty({ format: 'uuid' }) branchInventoryId!: string;
+  @ApiProperty({ enum: InventoryMovementType }) type!: InventoryMovementType;
+  @ApiProperty({ type: 'integer' }) quantityChange!: number;
+  @ApiProperty({ type: 'integer', minimum: 0 }) quantityAfter!: number;
+  @ApiProperty() reason!: string;
+  @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ type: InventoryMovementRecordProductResponseDto })
+  product!: InventoryMovementRecordProductResponseDto;
+  @ApiProperty({ required: false }) actorName?: string;
+}
+
+export class MerchantMovementRecordResponseDto extends OmitType(
+  InventoryMovementRecordResponseDto,
+  ['actorName'] as const,
+) {}
+
+export class InventoryMovementRecordsPageResponseDto {
+  @ApiProperty({ type: InventoryMovementRecordResponseDto, isArray: true })
+  items!: InventoryMovementRecordResponseDto[];
+  @ApiProperty({ type: String, nullable: true })
+  nextCursor!: string | null;
+}
+
+export class MerchantMovementRecordsPageResponseDto {
+  @ApiProperty({ type: MerchantMovementRecordResponseDto, isArray: true })
+  items!: MerchantMovementRecordResponseDto[];
+  @ApiProperty({ type: String, nullable: true })
+  nextCursor!: string | null;
+}

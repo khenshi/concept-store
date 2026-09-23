@@ -2,6 +2,12 @@ import {
   InventoryMovementHistoryResponseDto,
   MerchantMovementHistoryResponseDto,
   MerchantMovementResponseDto,
+  InventoryMovementRecordResponseDto,
+  MerchantMovementRecordResponseDto,
+  InventoryMovementRecordProductResponseDto,
+  InventoryMovementRecordMerchantResponseDto,
+  InventoryMovementRecordsPageResponseDto,
+  MerchantMovementRecordsPageResponseDto,
 } from '../../../openapi/response.dto';
 import {
   Body,
@@ -57,6 +63,7 @@ import { InventoryStockService } from './inventory-stock.service';
 import { InventoryReconciliationService } from './inventory-reconciliation.service';
 import { InventoryReconciliationQueryDto } from './dto/inventory-reconciliation-query.dto';
 import { MovementHistoryQueryDto } from './dto/movement-history-query.dto';
+import { ListMovementRecordsQueryDto } from './dto/list-movement-records-query.dto';
 import type { InventoryReconciliationPage } from './inventory-reconciliation.types';
 import type {
   BranchInventoryRecord,
@@ -75,6 +82,12 @@ import type {
   MerchantMovementResponseDto,
   InventoryMovementHistoryResponseDto,
   MerchantMovementHistoryResponseDto,
+  InventoryMovementRecordResponseDto,
+  MerchantMovementRecordResponseDto,
+  InventoryMovementRecordProductResponseDto,
+  InventoryMovementRecordMerchantResponseDto,
+  InventoryMovementRecordsPageResponseDto,
+  MerchantMovementRecordsPageResponseDto,
 )
 @ApiTags('branch-inventory')
 @ApiBearerAuth('access-token')
@@ -181,6 +194,31 @@ export class BranchInventoryController {
     @Query() query: InventoryReconciliationQueryDto,
   ): Promise<InventoryReconciliationPage> {
     return this.reconciliationService.reconcile(organization, branchId, query);
+  }
+
+  @Get('movements')
+  @ApiOperation({
+    summary: 'Search bounded immutable stock movements in this branch',
+  })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(InventoryMovementRecordsPageResponseDto) },
+        { $ref: getSchemaPath(MerchantMovementRecordsPageResponseDto) },
+      ],
+    },
+  })
+  findMovementRecords(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: ListMovementRecordsQueryDto,
+  ) {
+    return this.inventoryService.findMovementRecords(
+      organization.organizationId,
+      branchId,
+      organization,
+      query,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)

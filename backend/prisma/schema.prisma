@@ -191,6 +191,7 @@ model InventoryMovement {
   @@unique([saleItemId, organizationId, branchId, branchInventoryId], map: "InventoryMovement_saleItem_scope_key")
   @@unique([refundItemId, organizationId, branchId, branchInventoryId, quantityChange], map: "InventoryMovement_refundItem_scope_key")
   @@index([organizationId, branchId, branchInventoryId, createdAt, id], map: "InventoryMovement_history_idx")
+  @@index([organizationId, branchId, createdAt, id], map: "InventoryMovement_branch_history_idx")
 }
 
 /// Completed-only records. Payment/amount constraints are defined in SQL.

@@ -1,6 +1,7 @@
 import type {
   InventoryMovement,
   MerchantStatus,
+  Prisma,
   ProductStatus,
 } from '../../../generated/prisma/client';
 
@@ -108,3 +109,49 @@ export const inventoryMovementHistorySelect = {
   createdAt: true,
   createdBy: { select: { firstName: true, lastName: true } },
 } as const;
+
+export const inventoryMovementRecordsSelect = {
+  id: true,
+  branchId: true,
+  branchInventoryId: true,
+  type: true,
+  quantityChange: true,
+  quantityAfter: true,
+  reason: true,
+  createdAt: true,
+  inventory: {
+    select: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          barcode: true,
+          merchant: { select: { id: true, name: true, code: true } },
+        },
+      },
+    },
+  },
+  createdBy: { select: { firstName: true, lastName: true } },
+} satisfies Prisma.InventoryMovementSelect;
+
+export interface InventoryMovementRecordProduct {
+  id: string;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  merchant: { id: string; name: string; code: string | null };
+}
+
+export interface InventoryMovementRecordView {
+  id: string;
+  branchId: string;
+  branchInventoryId: string;
+  type: InventoryMovement['type'];
+  quantityChange: number;
+  quantityAfter: number;
+  reason: string;
+  createdAt: Date;
+  product: InventoryMovementRecordProduct;
+  actorName?: string;
+}

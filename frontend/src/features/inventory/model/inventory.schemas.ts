@@ -231,6 +231,40 @@ export const merchantMovementHistoryPageSchema = z.object({
   items: z.array(merchantMovementHistorySchema),
   nextCursor: z.uuidv4().nullable(),
 });
+const movementRecordProductSchema = z.object({
+  id: z.uuidv4(),
+  name: z.string(),
+  sku: z.string().nullable(),
+  barcode: z.string().nullable(),
+  merchant: z.object({
+    id: z.uuidv4(),
+    name: z.string(),
+    code: z.string().nullable(),
+  }),
+});
+const movementRecordBaseSchema = z.object({
+  id: z.uuidv4(),
+  branchId: z.uuidv4(),
+  branchInventoryId: z.uuidv4(),
+  type: z.enum(['RECEIPT', 'ADJUSTMENT', 'SALE', 'RETURN']),
+  quantityChange: z.number().int(),
+  quantityAfter: z.number().int().min(0),
+  reason: z.string(),
+  createdAt: z.iso.datetime(),
+  product: movementRecordProductSchema,
+});
+export const movementRecordHistorySchema = movementRecordBaseSchema.extend({
+  actorName: z.string().min(1),
+});
+export const merchantMovementRecordSchema = movementRecordBaseSchema;
+export const movementRecordsPageSchema = z.object({
+  items: z.array(movementRecordHistorySchema),
+  nextCursor: z.string().nullable(),
+});
+export const merchantMovementRecordsPageSchema = z.object({
+  items: z.array(merchantMovementRecordSchema),
+  nextCursor: z.string().nullable(),
+});
 export const inventoryBranchSchema = z.object({
   id: z.uuidv4(),
   organizationId: z.uuidv4().optional(),

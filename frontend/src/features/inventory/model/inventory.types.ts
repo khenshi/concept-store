@@ -5,6 +5,8 @@ import type {
   inventoryBranchSchema,
   movementHistoryResponseSchema,
   merchantMovementHistorySchema,
+  movementRecordHistorySchema,
+  merchantMovementRecordSchema,
   inventoryHealthSummarySchema,
   inventoryReconciliationPageSchema,
 } from './inventory.schemas';
@@ -19,6 +21,14 @@ export type MerchantInventoryMovementHistory = z.infer<
 >;
 export type InventoryMovementView =
   InventoryMovementHistory | MerchantInventoryMovementHistory;
+export type InventoryMovementRecord = z.infer<
+  typeof movementRecordHistorySchema
+>;
+export type MerchantInventoryMovementRecord = z.infer<
+  typeof merchantMovementRecordSchema
+>;
+export type InventoryMovementRecordView =
+  InventoryMovementRecord | MerchantInventoryMovementRecord;
 export type InventoryBranch = z.infer<typeof inventoryBranchSchema>;
 export type InventoryHealthSummary = z.infer<
   typeof inventoryHealthSummarySchema
@@ -32,6 +42,13 @@ export interface InventoryFilters {
   merchantId?: string;
   status?: 'ACTIVE' | 'INACTIVE';
   stockStatus?: InventoryStockStatus;
+}
+export interface InventoryMovementRecordFilters {
+  q?: string;
+  type?: 'RECEIPT' | 'ADJUSTMENT' | 'SALE' | 'RETURN';
+  merchantId?: string;
+  from?: string;
+  until?: string;
 }
 export interface InventoryScope {
   organizationId: string;
