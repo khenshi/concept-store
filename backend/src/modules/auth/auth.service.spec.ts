@@ -17,6 +17,7 @@ describe('AuthService', () => {
     firstName: 'Maria',
     lastName: 'Santos',
     phone: null,
+    colorTheme: 'GRAPHITE',
   };
   const refreshSession = {
     token: 'session-id.refresh-secret',
@@ -178,6 +179,7 @@ describe('AuthService', () => {
         firstName: true,
         lastName: true,
         phone: true,
+        colorTheme: true,
       },
     });
   });
@@ -206,6 +208,28 @@ describe('AuthService', () => {
         firstName: true,
         lastName: true,
         phone: true,
+        colorTheme: true,
+      },
+    });
+  });
+
+  it('updates only the authenticated user color theme', async () => {
+    const updated = { ...user, colorTheme: 'OCEAN' };
+    prisma.user.update.mockResolvedValue(updated);
+
+    await expect(service.updateColorTheme(user.id, 'OCEAN')).resolves.toEqual(
+      updated,
+    );
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: { colorTheme: 'OCEAN' },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        colorTheme: true,
       },
     });
   });

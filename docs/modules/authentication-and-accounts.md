@@ -9,6 +9,7 @@
 - Profile editing.
 - Password changes.
 - Account deletion.
+- Personal signed-in color theme selection.
 - Access-token issuance and refresh-session rotation.
 
 ## API
@@ -20,6 +21,7 @@ POST   /auth/refresh
 POST   /auth/logout
 GET    /auth/me
 PATCH  /auth/me
+PATCH  /auth/me/theme
 POST   /auth/change-password
 DELETE /auth/me
 ```
@@ -36,11 +38,20 @@ DELETE /auth/me
   memberships, and anonymizes credentials.
 - A sole organization owner cannot delete their account.
 - Authentication-sensitive routes use dedicated rate limits.
+- Authenticated users can select Graphite, Ocean, Forest, Plum, Star Admin,
+  Sypher, Crextio, SBB, Wellness Teal, Stellar Dark, Corona Dark, or JustDo
+  Dark. Older Pollux, Skydash, Azia, Purple, Plus Admin, and Breeze preferences
+  continue to work and resolve to the nearest retained palette. The theme is
+  personal to the account and is returned by registration, login, refresh,
+  `GET /auth/me`, and profile/theme updates. Unknown theme values are rejected.
 
 ## Data
 
 `User` stores account identity and credentials. `UserSession` stores hashed,
 expiring, revocable refresh sessions and is deleted with its user.
+`User.colorTheme` stores the selected palette, defaulting to `GRAPHITE` for
+existing and new accounts. The theme endpoint updates only the authenticated
+user's record.
 
 ## Frontend
 
@@ -64,6 +75,12 @@ Account settings use shared neutral panels, explicit labeled fields, and consist
 error/success notices. Invalid submissions focus the first invalid field and never
 reach the API. Pending actions prevent repeated submission. Email stays read-only;
 profile normalization, password validation, and session invalidation are unchanged.
+
+Account settings also offers an accessible radio group for complete light color
+themes. Selecting a palette previews it immediately on signed-in pages, saves it
+to the account, and restores the saved choice if the request fails. The
+selection applies across devices and organization memberships. Public and
+sign-in pages retain the Graphite brand palette.
 
 Account deletion requires the current password and a separate destructive
 confirmation. The form's initial action is outlined rather than solid red. Cancel

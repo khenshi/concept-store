@@ -65,6 +65,7 @@ export class SessionService {
             firstName: true,
             lastName: true,
             phone: true,
+            colorTheme: true,
             deletedAt: true,
           },
         },
@@ -115,6 +116,7 @@ export class SessionService {
         firstName: session.user.firstName,
         lastName: session.user.lastName,
         phone: session.user.phone,
+        colorTheme: session.user.colorTheme,
       },
       refreshSession: {
         token: `${parsed.id}.${nextSecret}`,

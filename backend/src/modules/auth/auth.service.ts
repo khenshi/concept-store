@@ -7,7 +7,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, type ColorTheme } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import type {
   AuthResponse,
@@ -50,6 +50,7 @@ export class AuthService {
               firstName: true,
               lastName: true,
               phone: true,
+              colorTheme: true,
             },
           });
           const refreshSession = await this.sessionService.issue(
@@ -87,6 +88,7 @@ export class AuthService {
         firstName: true,
         lastName: true,
         phone: true,
+        colorTheme: true,
         passwordHash: true,
         deletedAt: true,
       },
@@ -106,6 +108,7 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       phone: user.phone,
+      colorTheme: user.colorTheme,
     };
     return {
       response: await this.createAuthResponse(authenticatedUser),
@@ -134,6 +137,7 @@ export class AuthService {
         firstName: true,
         lastName: true,
         phone: true,
+        colorTheme: true,
       },
     });
   }
@@ -155,6 +159,25 @@ export class AuthService {
         firstName: true,
         lastName: true,
         phone: true,
+        colorTheme: true,
+      },
+    });
+  }
+
+  async updateColorTheme(
+    userId: string,
+    colorTheme: ColorTheme,
+  ): Promise<AuthenticatedUser> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { colorTheme },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        colorTheme: true,
       },
     });
   }

@@ -13,6 +13,7 @@ import { authClient } from '../api/auth-client';
 import type {
   AuthenticatedUser,
   AuthStatus,
+  ColorTheme,
   ChangePasswordInput,
   DeleteAccountInput,
   Credentials,
@@ -27,6 +28,8 @@ interface AuthContextValue {
   login(credentials: Credentials): Promise<void>;
   register(credentials: RegistrationCredentials): Promise<void>;
   updateProfile(input: UpdateProfileInput): Promise<AuthenticatedUser>;
+  colorTheme: ColorTheme;
+  updateColorTheme(colorTheme: ColorTheme): Promise<void>;
   changePassword(input: ChangePasswordInput): Promise<void>;
   deleteAccount(input: DeleteAccountInput): Promise<void>;
   logout(): Promise<void>;
@@ -39,10 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewColorTheme, setPreviewColorTheme] = useState<ColorTheme | null>(
+    null,
+  );
 
   useEffect(() => {
     const unsubscribe = authClient.subscribe((session) => {
       setUser(session?.user ?? null);
+      setPreviewColorTheme(null);
       setStatus(session ? 'authenticated' : 'unauthenticated');
       setError(null);
     });
@@ -72,6 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return updatedUser;
   }, []);
 
+  const updateColorTheme = useCallback(async (colorTheme: ColorTheme) => {
+    setPreviewColorTheme(colorTheme);
+    try {
+      const updatedUser = await authClient.updateColorTheme(colorTheme);
+      setUser(updatedUser);
+    } finally {
+      setPreviewColorTheme(null);
+    }
+  }, []);
+
   const changePassword = useCallback(async (input: ChangePasswordInput) => {
     await authClient.changePassword(input);
   }, []);
@@ -97,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       updateProfile,
+      colorTheme: previewColorTheme ?? user?.colorTheme ?? 'GRAPHITE',
+      updateColorTheme,
       changePassword,
       deleteAccount,
       logout,
@@ -109,6 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       updateProfile,
+      previewColorTheme,
+      updateColorTheme,
       changePassword,
       deleteAccount,
       logout,

@@ -43,6 +43,7 @@ import { DeleteAccountDto } from './dto/delete-account.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateColorThemeDto } from './dto/update-color-theme.dto';
 import { RefreshCookieService } from './sessions/refresh-cookie.service';
 
 @ApiTags('authentication')
@@ -145,6 +146,22 @@ export class AuthController {
     @Body() dto: UpdateProfileDto,
   ): Promise<AuthenticatedUser> {
     return this.authService.updateCurrentUser(user.id, dto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('me/theme')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Update the authenticated user color theme' })
+  @ApiOkResponse({ type: AuthenticatedUserResponseDto })
+  @ApiBadRequestResponse({ description: 'Color theme is unsupported' })
+  @ApiUnauthorizedResponse({
+    description: 'Access token is missing or invalid',
+  })
+  updateColorTheme(
+    @CurrentUser() user: AuthenticatedPrincipal,
+    @Body() dto: UpdateColorThemeDto,
+  ): Promise<AuthenticatedUser> {
+    return this.authService.updateColorTheme(user.id, dto.colorTheme);
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)

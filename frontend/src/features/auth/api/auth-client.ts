@@ -3,6 +3,7 @@ import 'client-only';
 import { publicEnvironment } from '@/config/public-environment';
 import type {
   AuthResponse,
+  ColorTheme,
   ChangePasswordInput,
   DeleteAccountInput,
   Credentials,
@@ -92,6 +93,14 @@ export class AuthClient {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
+    });
+  }
+
+  updateColorTheme(colorTheme: ColorTheme): Promise<AuthResponse['user']> {
+    return this.request<AuthResponse['user']>('/auth/me/theme', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ colorTheme }),
     });
   }
 

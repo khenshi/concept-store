@@ -66,7 +66,11 @@ describe('SessionService', () => {
       refreshTokenHash: hashSecret(secret),
       expiresAt,
       revokedAt: null,
-      user: { id: 'user-id', email: 'owner@example.com' },
+      user: {
+        id: 'user-id',
+        email: 'owner@example.com',
+        colorTheme: 'FOREST',
+      },
     });
     prisma.userSession.updateMany.mockResolvedValue({ count: 1 });
 
@@ -77,6 +81,7 @@ describe('SessionService', () => {
     );
     expect(rotated.refreshSession.token).not.toBe(token);
     expect(rotated.refreshSession.expiresAt).toEqual(expiresAt);
+    expect(rotated.user.colorTheme).toBe('FOREST');
     const [rotationArguments] = prisma.userSession.updateMany.mock
       .calls[0] as unknown as [
       { where: { id: string; refreshTokenHash: string } },

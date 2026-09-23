@@ -7,6 +7,7 @@ import {
   PickType,
 } from '@nestjs/swagger';
 import {
+  ColorTheme,
   InventoryMovementType,
   MerchantStatus,
   OrganizationRole,
@@ -25,6 +26,8 @@ export class AuthenticatedUserResponseDto {
   @ApiProperty({ example: 'Santos' }) lastName!: string;
   @ApiPropertyOptional({ nullable: true, example: '+63 917 123 4567' }) phone!:
     string | null;
+  @ApiProperty({ enum: ColorTheme, example: ColorTheme.GRAPHITE })
+  colorTheme!: ColorTheme;
 }
 
 export class AuthResponseDto {

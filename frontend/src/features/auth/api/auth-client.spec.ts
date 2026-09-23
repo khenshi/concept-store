@@ -9,6 +9,7 @@ const firstSession: AuthResponse = {
     firstName: 'Maria',
     lastName: 'Santos',
     phone: null,
+    colorTheme: 'GRAPHITE',
   },
 };
 
@@ -89,6 +90,34 @@ describe('AuthClient', () => {
     expect(new Headers(requestInit?.headers).get('Authorization')).toBe(
       `Bearer ${firstSession.accessToken}`,
     );
+  });
+
+  it('updates the personal color theme through an authenticated request', async () => {
+    const updatedUser = { ...firstSession.user, colorTheme: 'OCEAN' as const };
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(firstSession))
+      .mockResolvedValueOnce(jsonResponse(updatedUser));
+    const client = new AuthClient('http://localhost:3000');
+    await client.login({
+      email: firstSession.user.email,
+      password: 'password',
+    });
+
+    await expect(client.updateColorTheme('OCEAN')).resolves.toEqual(
+      updatedUser,
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:3000/auth/me/theme',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ colorTheme: 'OCEAN' }),
+      }),
+    );
+    expect(
+      new Headers(fetchMock.mock.calls[1][1]?.headers).get('Authorization'),
+    ).toBe(`Bearer ${firstSession.accessToken}`);
   });
 
   it('changes the password and clears the in-memory session', async () => {
