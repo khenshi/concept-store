@@ -283,7 +283,7 @@ export function OrganizationEntry() {
         </div>
       </div>
       <dialog
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-4xl overflow-y-auto rounded-panel border border-hairline bg-surface p-0 text-ink shadow-overlay backdrop:bg-ink/40"
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-4xl overflow-y-auto rounded-panel border border-hairline bg-surface p-0 text-ink shadow-overlay backdrop:bg-scrim"
         ref={createDialogRef}
         onCancel={(event) => {
           if (isSubmitting) event.preventDefault();

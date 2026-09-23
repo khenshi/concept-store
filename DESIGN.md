@@ -89,28 +89,29 @@ inheriting the workspace sidebar.
 
 ### Warm neutrality
 
-Use Warm Canvas around Paper and Soft Surface layers. White is a content surface,
-not every area's default. Ink is nearly black rather than blue slate. Quiet text is
-secondary but must retain accessible contrast.
+The default Graphite theme uses Warm Canvas around Paper and Soft Surface layers.
+The other ten light choices use softly tinted canvas and surfaces; three dark choices use distinct canvas, surface, and raised levels.
+Surfaces remain lighter than the page canvas. Quiet text is secondary but must
+retain accessible contrast in every palette.
 
 ### Neutral emphasis
 
-Graphite, weight, contrast, and position establish emphasis. Primary actions use
-Graphite Action; hover uses Graphite Hover. Selected items use Selected Surface and
-Selected Border with stronger text and an additional structural cue. This neutral
-foundation lets each concept store's products and photography supply visual color
-without forcing Kapwesto into a fashion, food, beauty, or lifestyle palette.
+Weight, contrast, and position establish emphasis. Primary actions use the
+selected theme's action color; selected items use its Selected Surface and
+Selected Border with stronger text and an additional structural cue. The calm
+foundation lets each concept store's products and photography remain prominent.
 
-### Monochrome operational foundation
+### Operational accent palettes
 
-For now, operational actions, active navigation, chooser badges and data
-visualization use the graphite/neutral scale. The accent token is intentionally
-an alias of Graphite Action so shared components stay consistent without
-introducing blue. Reserve green for success/healthy state, amber for caution/low
-stock, and red for errors/destructive/out-of-stock state; these are semantic
-feedback colors, not decorative branding. Labels, icons and structure must also
-communicate the meaning. The public landing page keeps its existing graphite
-action treatment.
+Graphite remains the default. Signed-in users may choose eight other light palettes
+and Stellar, Corona, or JustDo dark palettes for canvas, surfaces, text, borders, controls,
+actions, selected states, focus, and accent data marks. Reserve semantic green
+for success/healthy state, amber for caution/low stock, and red for
+errors/destructive/out-of-stock state. Labels, icons and structure must also
+communicate meaning. Public and authentication pages keep the Graphite palette.
+The added light choices use green (Sypher), warm cream and yellow (Crextio),
+industrial gray and orange (SBB), and teal (Wellness Teal). Retired violet and
+blue choices remain as aliases for saved account preferences.
 
 ### Designed density
 
@@ -124,27 +125,37 @@ Static cards do not receive shadows merely because they are important.
 
 ## Color system
 
+The values below define the default Graphite palette. The twelve selectable
+signed-in palettes use complete semantic tokens from `frontend/src/app/themes.css`. Their canvas,
+surface, and ink foundations are respectively `#EAF3F6` / `#F8FCFD` /
+`#102B3A`, `#EDF3ED` / `#FBFDF9` / `#1A3024`, and `#F3EEF5` / `#FDFAFD` /
+`#31243A`. All palettes keep readable secondary text and visible control borders. Dark palettes
+use brighter status text and accent companions; danger buttons use an explicit foreground.
+Sypher, Crextio, SBB, and Wellness Teal use green, warm yellow, orange, and teal
+actions with readable theme-specific foregrounds.
+
 - **Warm Canvas** (`#F4F4F1`): outer page and application canvas.
 - **Paper** (`#FFFFFF`): content, controls, sidebar, and dialogs.
 - **Soft Surface** (`#F8F8F6`): inset zones and alternating sections.
 - **Ink** (`#171717`): headings, copy, and dark public actions.
-- **Quiet Ink** (`#6F706D`): descriptions and metadata.
-- **Faint Ink** (`#9A9B97`): placeholders and nonessential decoration only.
+- **Quiet Ink** (`#595A57`): descriptions and metadata.
+- **Faint Ink** (`#64655F`): readable placeholders and metadata.
 - **Hairline** (`#E7E7E2`) and **Strong Hairline** (`#D8D8D2`): dividers,
   surfaces, and decorative boundaries.
-- **Control Border** (`#D8D8D2`): quiet resting button/input outlines. Hover may
+- **Control Border** (`#888882`): quiet resting button/input outlines. Hover may
   strengthen to Selected Border; keyboard focus remains high-contrast Focus Ring.
 - **Graphite Action** (`#242422`) and **Graphite Hover** (`#3A3A37`): primary
-  public and operational actions.
-- **Operational Accent** (`#242422`) and hover (`#3A3A37`): a neutral alias of
-  Graphite Action for selected application actions and navigation, with a soft
-  neutral tint (`#ECECE7`) for small supporting cues. White text on the accent
-  meets AA.
-- **Selected Surface** (`#ECECE7`) and **Selected Border** (`#A8A8A0`): active
+  public actions and default operational actions.
+- **Operational Accent** (`#242422`) and hover (`#3A3A37`) in the default
+  Graphite theme. Ocean (`#075985`), Forest (`#166534`), and Plum (`#6B21A8`)
+  are optional signed-in action/accent colors with coordinated soft tints. New
+  green, yellow, orange, and teal themes specify a dark or white action
+  foreground to maintain readable button labels.
+- **Selected Surface** (`#ECECE7`) and **Selected Border** (`#85857E`): active
   navigation, selected rows, filters, and low-emphasis state.
 - **Focus Ring** (`#575752`): keyboard focus paired with a separating Paper or
   Warm Canvas outer ring.
-- **Success** (`#168A52`), **Warning** (`#8A4B10`), and **Danger** (`#C53B37`):
+- **Success** (`#168A52`), **Warning** (`#8A4B10`), and **Danger** (`#B52E2C`):
   named outcomes that also use text, icons, or structure. Use the darker
   **Success Ink** (`#117447`) for normal-size success text on Paper.
 
@@ -183,11 +194,11 @@ characters per line; operational prose near 65–75.
 
 ### Operational mode
 
-- A Paper sidebar and utility header frame a Warm Canvas content area.
+- A theme surface sidebar and utility header frame the theme canvas content area.
 - Sidebar is approximately 15–16rem expanded and 4.5rem collapsed.
 - Content may grow to approximately 90rem with 1.25–2.5rem responsive gutters.
 - Headers, toolbars, and panels align to one grid; filters and rows remain compact.
-- Application content rests on an open Paper plane beside the divided sidebar.
+- Application content rests on an open theme surface beside the divided sidebar.
   Ordinary sections use vertical rhythm, alignment and type rather than a
   repeated frame or top-and-bottom rule. Use a few hairlines for structural
   transitions, such as shell edges, a table header or a summary strip.
@@ -224,8 +235,8 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 ### Actions
 
 - Public primary: Ink background, Paper text, 2.75rem visual height.
-- Operational primary: Graphite Action or the single Operational Accent when
-  action hierarchy benefits from color, Paper text, 2.625rem visual height with
+- Operational primary: the selected theme's Action or Accent when
+  action hierarchy benefits from color, theme surface text, 2.625rem visual height with
   a 44-pixel minimum touch target. Do not color every button.
 - Secondary: Paper, Ink, Control Border. Quiet actions use transparent or
   Soft Surface. Destructive actions become solid Danger only in final confirmation.
@@ -235,7 +246,7 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 
 ### Fields
 
-- Paper fill, Control Border, Ink text, `0.625rem` radius, 2.75rem minimum
+- Theme surface fill, Control Border, Ink text, `0.625rem` radius, 2.75rem minimum
   visual height, persistent label, and linked hint/error.
 - Focus strengthens the border and adds a visible ring. Error uses Danger plus text.
 - Search may use a leading outline icon and compact toolbar height.

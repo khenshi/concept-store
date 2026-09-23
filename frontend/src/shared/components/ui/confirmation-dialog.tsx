@@ -84,7 +84,7 @@ export function useConfirmationDialog(): {
       className="fixed inset-0 z-[70] grid place-items-center p-5"
       role="presentation"
     >
-      <div className="absolute inset-0 bg-ink/40" aria-hidden="true" />
+      <div className="absolute inset-0 bg-scrim" aria-hidden="true" />
       <section
         ref={dialogRef}
         className="relative max-h-[calc(100dvh-2.5rem)] w-full max-w-md overflow-y-auto rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay"

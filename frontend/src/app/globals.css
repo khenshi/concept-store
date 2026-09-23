@@ -1,27 +1,33 @@
 @import 'tailwindcss';
+@import './themes.css';
 
 @theme {
   --color-canvas: #f4f4f1;
   --color-surface: #ffffff;
   --color-subtle: #f8f8f6;
+  --color-hover: #efefeb;
   --color-ink: #171717;
-  --color-muted: #6f706d;
-  --color-faint: #9a9b97;
+  --color-muted: #595a57;
+  --color-faint: #64655f;
   --color-hairline: #e7e7e2;
   --color-border-strong: #d8d8d2;
-  --color-control-border: #d8d8d2;
+  --color-control-border: #888882;
   --color-action: #242422;
   --color-action-hover: #3a3a37;
+  --color-action-foreground: #ffffff;
   --color-accent: #242422;
   --color-accent-hover: #3a3a37;
   --color-accent-soft: #ecece7;
   --color-selected: #ecece7;
-  --color-selected-border: #a8a8a0;
+  --color-selected-border: #85857e;
   --color-focus: #575752;
   --color-success: #168a52;
   --color-success-ink: #117447;
   --color-warning: #8a4b10;
-  --color-danger: #c53b37;
+  --color-danger: #b52e2c;
+  --color-danger-foreground: #ffffff;
+  --color-info: #075985;
+  --color-scrim: rgb(14 17 22 / 0.55);
   --radius-compact: 0.5rem;
   --radius-control: 0.625rem;
   --radius-panel: 0.875rem;
@@ -113,11 +119,11 @@
   }
 
   .ui-button-primary {
-    @apply border-action bg-action text-surface hover:border-action-hover hover:bg-action-hover;
+    @apply border-action bg-action text-action-foreground hover:border-action-hover hover:bg-action-hover;
   }
 
   .ui-button-accent {
-    @apply border-accent bg-accent text-surface hover:border-accent-hover hover:bg-accent-hover;
+    @apply border-action bg-action text-action-foreground hover:border-action-hover hover:bg-action-hover;
   }
 
   .ui-button-secondary {
@@ -129,7 +135,7 @@
   }
 
   .ui-button-danger {
-    @apply border-danger bg-danger text-surface hover:brightness-90;
+    @apply border-danger bg-danger text-danger-foreground hover:brightness-90;
   }
 
   .ui-button:disabled {
@@ -238,5 +244,14 @@
 
   .inventory-movement-row {
     @apply transition-colors duration-150 hover:bg-subtle;
+  }
+}
+
+@media print {
+  html,
+  body {
+    background: #fff;
+    color: #000;
+    color-scheme: light;
   }
 }

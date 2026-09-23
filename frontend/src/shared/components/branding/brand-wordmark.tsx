@@ -18,7 +18,7 @@ export function BrandWordmark({
       aria-label="Kapwesto home"
     >
       <span
-        className="grid size-8 place-items-center rounded-lg bg-action text-[0.65rem] font-bold tracking-[-0.04em] text-surface"
+        className="grid size-8 place-items-center rounded-lg bg-action text-[0.65rem] font-bold tracking-[-0.04em] text-action-foreground"
         aria-hidden="true"
       >
         K

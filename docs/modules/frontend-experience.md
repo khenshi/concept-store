@@ -447,6 +447,18 @@ authorization, tenant, or business behavior changes are introduced.
 
 ## Shared design foundations
 
+Signed-in pages offer twelve personal themes: Graphite (default), Ocean, Forest,
+Plum, Star Admin, Sypher, Crextio, SBB, and Wellness Teal in the Light group;
+Stellar, Corona, and JustDo in the Dark group. Older Pollux, Skydash, Azia,
+Purple, Plus Admin, and Breeze preferences remain supported as Ocean or Plum
+aliases. The account picker previews each theme from the same CSS token map used by the application.
+The selected theme is applied to the document before protected content paints,
+including dialogs, menus, and native controls, and is removed on route exit.
+Public, sign-in, and invitation pages use Graphite. Account changes preview
+immediately, save through the authenticated account endpoint, and roll back on
+failure. Printed receipts remain black on white. Palette definitions live in
+`frontend/src/app/themes.css`; contrast coverage lives alongside them.
+
 Semantic Tailwind/CSS tokens define the neutral palette, accessible control
 outlines, focus, typography, spacing, radii, and floating/overlay elevation.
 Feature-specific layouts are migrated in separately reviewed parts. Global focus is neutral

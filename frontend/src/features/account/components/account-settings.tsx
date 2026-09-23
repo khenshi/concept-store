@@ -14,6 +14,7 @@ import {
 } from '@/shared/components/ui/text-field';
 import { updateProfileSchema } from '../model/account.schemas';
 import { ChangePasswordForm } from './change-password-form';
+import { ColorThemePicker } from './color-theme-picker';
 import { DeleteAccountForm } from './delete-account-form';
 
 type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'phone', string>>;
@@ -138,6 +139,7 @@ export function AccountSettings() {
           </div>
         </form>
       </OperationalPanel>
+      <ColorThemePicker />
       <ChangePasswordForm />
       <DeleteAccountForm />
     </div>

@@ -53,7 +53,7 @@ export function MobileOrganizationDrawer({
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(22rem,calc(100%_-_2rem))] max-w-none flex-col border-0 border-r border-hairline bg-surface p-0 text-ink shadow-overlay open:flex backdrop:bg-ink/40 print:hidden"
+      className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(22rem,calc(100%_-_2rem))] max-w-none flex-col border-0 border-r border-hairline bg-surface p-0 text-ink shadow-overlay open:flex backdrop:bg-scrim print:hidden"
     >
       <header className="flex shrink-0 items-start justify-between gap-4 border-b border-hairline p-5">
         <div className="min-w-0">
