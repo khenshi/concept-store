@@ -55,7 +55,7 @@ export function ReportDateFilter({
       ref={form}
       noValidate
       onSubmit={apply}
-      className="grid min-w-0 items-start gap-5 py-5 sm:grid-cols-2 sm:py-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+      className="grid w-fit max-w-full min-w-0 items-end gap-x-0 gap-y-4 sm:grid-cols-[10.5rem_10.5rem] lg:justify-self-end lg:grid-cols-[10.5rem_10.5rem_auto]"
       onChange={() => {
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(validate, 300);
@@ -69,32 +69,33 @@ export function ReportDateFilter({
         name="fromDay"
         type="date"
         required
-        label="From (Philippines, inclusive)"
+        label="From (PH, inclusive)"
+        containerClassName="w-full max-w-[10.5rem]"
+        className="max-w-[10rem]"
         value={value.fromDay}
         onChange={(event) =>
           onChange({ ...value, fromDay: event.target.value })
         }
         error={errors.fromDay}
-        hint="Philippines calendar day, not your browser timezone."
       />
       <TextField
         name="throughDay"
         type="date"
         required
-        label="Through (Philippines, inclusive)"
+        label="Through (PH, inclusive)"
+        containerClassName="w-full max-w-[10.5rem]"
+        className="max-w-[10rem]"
         value={value.throughDay}
         onChange={(event) =>
           onChange({ ...value, throughDay: event.target.value })
         }
         error={errors.throughDay}
-        hint="Same day is allowed. Maximum period: 366 days."
       />
-      <button
-        type="submit"
-        className={buttonStyles({ variant: 'accent', className: 'lg:mt-6' })}
-      >
-        Apply period
-      </button>
+      <div className="flex items-center sm:col-span-2 lg:col-span-1">
+        <button type="submit" className={buttonStyles({ variant: 'accent' })}>
+          Apply period
+        </button>
+      </div>
     </form>
   );
 }

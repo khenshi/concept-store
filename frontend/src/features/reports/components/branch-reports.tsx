@@ -6,10 +6,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import {
-  OperationalPage,
-  OperationalPanel,
-} from '@/shared/components/ui/operational-page';
+import { OperationalPage } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import {
@@ -178,37 +175,50 @@ function ScopedBranchReports({
         }
       />
       {merchant ? <MerchantReportGuidance /> : null}
-      <OperationalPanel
-        variant="open"
-        title="Report period"
-        description="Philippines calendar dates (Asia/Manila, UTC+08:00). From and Through are inclusive."
+      <section
+        aria-labelledby="report-period-heading"
+        className="mt-10 bg-surface text-ink"
       >
-        <ReportDateFilter
-          value={draft}
-          onChange={setDraft}
-          onApply={(next) => {
-            invalidate();
-            setApplied(next);
-          }}
-        />
-      </OperationalPanel>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">
-          Applied period (Philippines): {applied.fromDay} through{' '}
-          {applied.throughDay}
-        </p>
-        <button
-          type="button"
-          className={buttonStyles({ variant: 'secondary' })}
-          disabled={loading || !validDraft}
-          onClick={() => {
-            invalidate();
-            setRevision((value) => value + 1);
-          }}
-        >
-          Refresh report
-        </button>
-      </div>
+        <div className="grid gap-5 py-5 sm:py-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <div className="min-w-0">
+            <h2
+              id="report-period-heading"
+              className="text-base font-semibold text-ink"
+            >
+              Report period
+            </h2>
+            <p className="mt-1.5 text-sm leading-6 text-muted">
+              Dates use Philippine time. Both the start and end dates are
+              included.
+            </p>
+          </div>
+          <ReportDateFilter
+            value={draft}
+            onChange={setDraft}
+            onApply={(next) => {
+              invalidate();
+              setApplied(next);
+            }}
+          />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted">
+            Applied period (Philippines): {applied.fromDay} through{' '}
+            {applied.throughDay}
+          </p>
+          <button
+            type="button"
+            className={buttonStyles({ variant: 'secondary' })}
+            disabled={loading || !validDraft}
+            onClick={() => {
+              invalidate();
+              setRevision((value) => value + 1);
+            }}
+          >
+            Refresh report
+          </button>
+        </div>
+      </section>
       {loading ? (
         <ListSkeleton label="Loading sales report" />
       ) : error ? (

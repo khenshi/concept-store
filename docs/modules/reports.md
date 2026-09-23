@@ -282,6 +282,11 @@ maximum of 366 inclusive days. Typing does not fetch; Apply sets a new period.
 Refresh/retry read the visibly labeled applied period, never write, and are blocked
 while the draft dates are invalid. Branch changes reset the period to Philippines
 today. There are no persistent report drafts.
+The branch report period heading, date inputs and Apply period action share a row
+at desktop widths and wrap responsively on narrower screens. Date inputs are
+10rem wide, their labels align with the Report period heading, and the date
+fields and Apply action form a compact group at the row's right edge. Refresh
+report sits beside the applied-period text below, without a divider between rows.
 
 Strict runtime schemas validate identity-only distinct options, STAFF scope,
 branch/range correspondence, canonical exact money/integer strings, three distinct
