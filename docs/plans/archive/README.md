@@ -1,5 +1,17 @@
 # Archived Implementation Plans
 
+The completed September 25 Sales Reports Chart Refresh, including selectable
+sales trends, top-five performance charts, weekday averages, payment methods and
+responsive viewport review, is retained in
+[`sales-reports-chart-refresh-2026-09-25.md`](sales-reports-chart-refresh-2026-09-25.md).
+
+The completed September 24 Sales Analytics Graph Layout refinement, including
+three payment-method donuts, merchant/product charts and daily bar charts, is
+retained in
+[`sales-analytics-graph-layout-2026-09-24.md`](sales-analytics-graph-layout-2026-09-24.md).
+Responsive grid tests and Safari viewport review covered tablet portrait,
+landscape and desktop widths; the rendered review used an empty report period.
+
 The completed shared table pattern propagation, following the reviewed
 Inventory first part, is retained in
 [`shared-table-pattern-propagation-2026-09-19.md`](shared-table-pattern-propagation-2026-09-19.md).
