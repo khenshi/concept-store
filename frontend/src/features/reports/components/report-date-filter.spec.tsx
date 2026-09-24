@@ -24,7 +24,7 @@ describe('live report date validation', () => {
     vi.useFakeTimers();
     const onApply = vi.fn();
     render(<Form onApply={onApply} />);
-    const through = screen.getByLabelText('Through (Philippines, inclusive)');
+    const through = screen.getByLabelText('Through (PH, inclusive)');
     fireEvent.change(through, { target: { value: '2026-09-13' } });
     act(() => vi.advanceTimersByTime(299));
     expect(through).not.toHaveAttribute('aria-invalid', 'true');
@@ -41,7 +41,7 @@ describe('live report date validation', () => {
   it('validates immediately on blur without reading', () => {
     const onApply = vi.fn();
     render(<Form onApply={onApply} />);
-    const from = screen.getByLabelText('From (Philippines, inclusive)');
+    const from = screen.getByLabelText('From (PH, inclusive)');
     fireEvent.change(from, { target: { value: '' } });
     fireEvent.blur(from);
     expect(from).toHaveAttribute('aria-invalid', 'true');
@@ -50,7 +50,7 @@ describe('live report date validation', () => {
   it('blocks invalid Apply, focuses the first invalid field, then applies a valid range', async () => {
     const onApply = vi.fn();
     render(<Form onApply={onApply} />);
-    const from = screen.getByLabelText('From (Philippines, inclusive)');
+    const from = screen.getByLabelText('From (PH, inclusive)');
     fireEvent.change(from, { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
     await waitFor(() => expect(from).toHaveFocus());
@@ -65,7 +65,7 @@ describe('live report date validation', () => {
   it('cancels pending validation when unmounted', () => {
     vi.useFakeTimers();
     const view = render(<Form onApply={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText('From (Philippines, inclusive)'), {
+    fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
       target: { value: '' },
     });
     view.unmount();

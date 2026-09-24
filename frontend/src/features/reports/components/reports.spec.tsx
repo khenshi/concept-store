@@ -65,6 +65,11 @@ const report: StaffSalesReport = {
 };
 const analyticsReport: StaffSalesAnalytics = {
   ...report,
+  netByPaymentMethod: [
+    { paymentMethod: 'CASH', netRecordedSales: '10.00' },
+    { paymentMethod: 'GCASH', netRecordedSales: '20.00' },
+    { paymentMethod: 'CARD', netRecordedSales: '30.00' },
+  ],
   dailyTrends: [
     {
       date: '2026-09-14',
@@ -92,6 +97,13 @@ const analyticsReport: StaffSalesAnalytics = {
     },
   ],
   totalProducts: '1',
+  topMerchants: [
+    {
+      merchantId: '44444444-4444-4444-8444-444444444444',
+      merchantName: 'Local maker',
+      grossSales: '60.00',
+    },
+  ],
 };
 function analyticsFor(path: string): StaffSalesAnalytics {
   const query = new URLSearchParams(path.split('?')[1]);
@@ -218,11 +230,11 @@ describe('staff Reports workspace', () => {
     expect(request.mock.calls[1][0]).toContain(
       new URLSearchParams(range).toString(),
     );
-    expect(screen.getByLabelText('From (Philippines, inclusive)')).toHaveValue(
+    expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
       '2026-09-14',
     );
-    expect(screen.getAllByText('GCash (manual, unverified)')).toHaveLength(2);
-    expect(screen.getAllByText('Card (manual, unverified)')).toHaveLength(2);
+    expect(screen.getAllByText('GCash (manual, unverified)')).toHaveLength(1);
+    expect(screen.getAllByText('Card (manual, unverified)')).toHaveLength(1);
   });
   it('does not fetch a summary for an inaccessible branch or select a fallback', async () => {
     request.mockResolvedValue([second]);
@@ -236,7 +248,7 @@ describe('staff Reports workspace', () => {
   it('blocks invalid dates, does not read while typing, and reads only on valid Apply', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await screen.findAllByText('PHP 60.00');
-    const from = screen.getByLabelText('From (Philippines, inclusive)');
+    const from = screen.getByLabelText('From (PH, inclusive)');
     fireEvent.change(from, { target: { value: '' } });
     expect(
       screen.getByRole('button', { name: 'Refresh report' }),
@@ -275,7 +287,7 @@ describe('staff Reports workspace', () => {
     request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
-    fireEvent.change(screen.getByLabelText('From (Philippines, inclusive)'), {
+    fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
       target: { value: '2026-09-13' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
@@ -317,14 +329,14 @@ describe('staff Reports workspace', () => {
       <BranchReports organizationId="org" branchId={branch.id} />,
     );
     await screen.findAllByText('PHP 60.00');
-    fireEvent.change(screen.getByLabelText('From (Philippines, inclusive)'), {
+    fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
       target: { value: '2026-09-13' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
     await screen.findAllByText('PHP 60.00');
     view.rerender(<BranchReports organizationId="org" branchId={second.id} />);
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('From (Philippines, inclusive)')).toHaveValue(
+    expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
       '2026-09-14',
     );
     await screen.findAllByText('PHP 60.00');
@@ -589,7 +601,7 @@ describe('staff Reports workspace', () => {
       expect(
         screen.getByText(/If your profile is not linked/),
       ).toBeInTheDocument();
-      fireEvent.change(screen.getByLabelText('From (Philippines, inclusive)'), {
+      fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
         target: { value: '2026-09-13' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
@@ -681,7 +693,7 @@ describe('staff Reports workspace', () => {
       request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
-      fireEvent.change(screen.getByLabelText('From (Philippines, inclusive)'), {
+      fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
         target: { value: '2026-09-13' },
       });
       fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));

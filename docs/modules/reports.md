@@ -18,7 +18,10 @@ payments or ledger history.
 No report entities, migration, analytics infrastructure or new indexes are added.
 The [manual refund API](refunds.md) records completed returns separately without
 editing original sales. Frontend cards display separate gross/refunded/net figures;
-staff gross sale payments and actual refund methods remain separate breakdowns.
+staff analytics keeps gross sale payments and actual refund methods in separate
+response arrays.
+The staff analytics response also has a per-original-sale-method net breakdown;
+it does not change the actual refund-method totals.
 
 ## API
 
@@ -82,8 +85,11 @@ counts matching completed refunds; returned units sum all matching RefundItem
 quantities, regardless of restocking. A separate fixed CASH, GCASH, CARD
 refundMethods array contains paymentMethod, refundedAmount and refundCount,
 including explicit missing-method zeros. Those amounts/counts reconcile to the
-refund summary. Actual refund method may differ from original sale method; methods
-are never netted together or described as available cash/provider reconciliation.
+refund summary. Actual refund method may differ from original sale method. The
+summary's gross payment and actual refund method arrays remain independent;
+neither is presented as available cash or provider reconciliation. The staff
+analytics endpoint adds a separately labeled net breakdown attributed to original
+sale methods below.
 Original transactionCount/unitsSold and gross payment breakdown are unchanged,
 not net counts/units.
 
@@ -114,7 +120,7 @@ Sale/refund streams and parent totals/item quantities use separate PostgreSQL
 aggregation to avoid item-join or sale/refund-join inflation. Refund queries filter
 Refund completion dates, never require the original Sale to be in the period.
 Exact signed net subtraction uses BigInt cents without a Decimal precision cap.
-Authorization, summaries and both method arrays share one REPEATABLE READ
+Authorization, summaries and method arrays share one REPEATABLE READ
 snapshot. Existing scoped history/report indexes are retained; no additional
 schema/migration/index is introduced by this part.
 
@@ -125,8 +131,14 @@ with explicit STAFF/MERCHANT discriminator mappings.
 
 The analytics route accepts the same strict range, UUID and unknown-field rules.
 It returns the existing role-appropriate summary plus `dailyTrends`, `topProducts`
-and canonical integer-string `totalProducts`. Existing summary/lookup responses
-remain unchanged. Fresh membership/user/role/link/grants, branch identity, summary,
+and canonical integer-string `totalProducts`. STAFF also receives a fixed
+`netByPaymentMethod` array with signed per-method `netRecordedSales`. For each
+original sale method, it subtracts refunds processed in the selected period from
+sales completed in that period, attributing each refund to its linked Sale's
+payment method. The three amounts reconcile to summary `netRecordedSales`, may be
+negative, and are distinct from the actual refund-method array. MERCHANT responses
+do not include this field. Existing summary/lookup responses remain unchanged.
+Fresh membership/user/role/link/grants, branch identity, summary,
 methods, daily aggregates, product count, ranking and saved labels share one
 REPEATABLE READ transaction. No client profile, role, ranking or limit overrides.
 
@@ -159,6 +171,14 @@ items, private actors/commands, contacts or payment methods. Assigned unlinked
 merchants receive zero-filled own days and empty products. Historical Reports
 access does not widen POS or Inventory.
 
+STAFF analytics also returns up to ten `topMerchants` rows with `merchantId`,
+`merchantName` and `grossSales`. Each row groups matching branch sale items by
+merchant ID and sums their exact gross line amounts. Its label comes from the
+latest contributing saved SaleItem name, ordered by Sale completion time
+descending and SaleItem ID descending. Rows rank by gross sales descending, then
+merchant ID ascending. The merchant response does not include these rankings or
+other merchant identities.
+
 Money/counts/units retain exact unlimited canonical strings; BigInt cents compute
 signed net without negative zero. No schema, migration, index or infrastructure
 changes, and no frontend redesign is delivered in this part. New rendered QA is
@@ -189,15 +209,17 @@ their own analytics delivery.
 Four primary cards show gross recorded sales, refunded amount, net recorded sales
 and completed transactions. Supporting metrics retain units sold, completed refunds
 and returned units. Copy states that net is gross minus refunds, may be negative and
-is not profit, payout or available cash. Gross-payment and actual-refund methods
-remain distinct side-by-side panels; manual GCash/card remain unverified.
+is not profit, payout or available cash. The sales trend has accessible metric
+controls for Net Sales, Gross Sales and Refunds, defaulting to Net Sales. It uses
+the applied report's daily rows in Asia/Manila date order, includes exact values
+for each date in accessible text, and shows a zero baseline so negative net values
+remain clear. The Payment Method donut shows gross sale totals by recorded method,
+with exact amounts and transaction counts. Manual GCash/card remain unverified.
+Merchants use their separate own-only analytics response and view described below.
 
-Repo-native SVG panels show daily gross versus dashed refunds and signed daily net,
-with a visible zero line and Asia/Manila basis. Line style and text labels distinguish
-series without relying on color. A keyboard-expandable semantic table provides all
-exact daily values. BigInt performs unlimited accounting/validation arithmetic;
-SVG coordinates use only bounded integer ratios, never direct unlimited-money Number
-conversion. Constant, zero and negative series retain stable geometry.
+BigInt performs unlimited accounting arithmetic; SVG coordinates use only bounded
+integer ratios, never direct unlimited-money Number conversion. A keyboard-
+expandable semantic table retains all exact daily values.
 
 The products table shows rank, saved name/ID, nullable SKU/barcode, saved merchant,
 units/gross/returns/refunds/net and “Top X of N.” It uses contained horizontal
@@ -205,17 +227,51 @@ scrolling and real headers. It has no photos, current price, inventory status or
 claim that bounded rows reconcile to report totals. Empty/refund-only periods remain
 explicit.
 
-The strict runtime contract rejects unexpected/private/merchant fields and validates
-the complete staff summary, exact branch/range, 1–367 contiguous Manila dates, daily
-reconciliation, canonical signed nets, unique products, at most ten rows, exact
-gross/units/ID ordering and ten-of-N row count. Tests cover API paths, stale scope,
+The refreshed owner/manager chart layout uses three responsive rows: a full-width
+selectable daily trend; side-by-side Top Merchants and Top Products gross-sales
+bars; and Average Sales by Weekday beside the gross Payment Method donut. The two
+performance charts show up to the first five ranked results. At medium widths and
+above, the weekday chart spans two-thirds of its row and the payment donut
+one-third; they stack on narrow phones. Merchant bars use the staff-only ranking.
+The weekday average sums daily gross sales and divides by every matching weekday
+date in the selected Manila range, including zero-sales dates, then rounds to the
+nearest cent. A weekday with no date in the range is labeled accordingly. The
+detailed product table continues to show every product row returned by analytics.
+Chart values and metric controls are accessible; decorative SVGs are hidden from
+assistive technology, and empty panels state when their series have no values.
+The September 25 chart refresh uses only the existing analytics response and
+changes no API, DTO or database behavior. The Reports frontend suite passes 168
+tests across ten files; changed-file formatting, lint, typecheck and production
+build pass. Safari viewport review at 390×844, 834×1194, 1180×820 and 1600×900
+confirmed phone stacking, the weekday/payment two-thirds-to-one-third layout at
+medium widths, side-by-side performance charts when space allows, and no
+page-level horizontal overflow. The review included populated and empty periods.
+The production build retains the existing multiple-lockfile workspace-root
+warning.
+
+The September 24 chart refinement passes backend formatting, lint, build, 37
+Reports unit tests, 30 Reports HTTP/OpenAPI tests and 45 PostgreSQL Reports
+integration tests. Frontend changed-file formatting, lint, typecheck, production
+build and 165 Reports tests across 10 files pass. Tests cover strict merchant
+aggregate validation, saved-label/ranking/scope behavior, strict signed-method
+validation, accessible values, negative and zero states, and responsive grid
+classes. Safari viewport review at 834×1194, 1194×834 and 1600×820 confirmed
+two chart columns in tablet portrait, three in tablet landscape, and no page-level
+horizontal overflow. The viewport review used an empty report period.
+
+The strict staff runtime contract rejects unexpected/private fields and own-prefixed
+merchant-only aggregates. It validates the complete summary, exact branch/range,
+1–367 contiguous Manila dates, daily reconciliation, canonical signed nets,
+unique product and merchant IDs, at most ten rows per ranking, exact product
+gross/units/ID and merchant gross/ID ordering, and the ten-of-N product count.
+Tests cover API paths, stale scope,
 date/ranking/reconciliation failures, unlimited exact values, accessible tables,
 negative/refund-only rendering, Apply/branch/role/user resets and late reads. Part 2
 was reviewed and committed. Changed-file formatting, lint, sequential typecheck,
 production build, 131 Reports tests across eight files and all 722 frontend tests
 across 85 files pass. A parallel typecheck/build attempt raced on generated
 `.next/types`; both pass sequentially. The existing multiple-lockfile warning is
-unchanged. Rendered QA belongs to Part 4 and needs a new waiver or browser run.
+unchanged. The September 24 chart refinement is documented below.
 
 ## Owner/manager workspace
 
@@ -226,12 +282,18 @@ contracts independently require the own refund group, without staff fallback or
 private fields. Aggregate values render as exact strings without number rounding.
 
 Existing gross cards retain original sale counts/units. Separate cards show refunded
-amount, completed refund count, returned units and net recorded sales. Staff gets
-three actual refund-method amount/count rows independently of gross sale payments;
-there is no payment-method netting or available-cash claim. Date guidance explains
+amount, completed refund count, returned units and net recorded sales. Staff analytics
+response data retains actual refund methods separately from gross sale methods,
+plus a net breakdown attributed to original sale methods. The refreshed dashboard
+charts gross sale methods only; actual refund methods are not reclassified. No
+chart represents available cash or provider reconciliation.
+Date guidance explains
 sale completion versus refund processing dates, including older original sales and
 negative net periods. A refund-only period displays its refund/net values without
 incorrect no-activity feedback. Empty periods display explicit zeros for both streams.
+The four staff analytics totals sit in one row at large-screen widths, with inset
+vertical dividers that stop short of the top and bottom rules; smaller screens use
+a responsive two-column or stacked layout.
 
 Reports appears in expanded/collapsed sidebar and mobile navigation for owners
 and managers. Both organization and branch Reports routes mark Reports active
@@ -437,7 +499,7 @@ reset or seeded.
 The refund UI part passes frontend changed-file formatting, lint, type checking,
 production build and 680 tests across 82 files. Expanded report tests verify
 required complete groups (no legacy fake-zero fallback), refund-only negative
-periods, independent gross-payment/refund-method panels, processing-date guidance
+periods, independent gross-payment/refund-method breakdowns, processing-date guidance
 and merchant own-only cards without payment/private exposure. Existing exact-
 capacity, signed arithmetic and date/scope/read-only regressions remain passing.
 No backend/schema/database/infrastructure changes are included in this UI part.

@@ -135,7 +135,7 @@
   }
 
   .ui-button-danger {
-    @apply border-danger bg-danger text-danger-foreground hover:brightness-90;
+    @apply border-danger bg-danger text-danger-foreground;
   }
 
   .ui-button:disabled {
@@ -151,7 +151,7 @@
   }
 
   .data-row {
-    @apply border-t border-hairline transition-colors duration-150 hover:bg-subtle;
+    @apply border-t border-hairline transition-colors duration-150;
   }
 
   .filter-field > input {
@@ -243,7 +243,7 @@
   }
 
   .inventory-movement-row {
-    @apply transition-colors duration-150 hover:bg-subtle;
+    @apply transition-colors duration-150;
   }
 }
 
