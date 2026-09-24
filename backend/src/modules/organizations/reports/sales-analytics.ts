@@ -21,6 +21,16 @@ type Product = Metrics & {
   merchantName: string;
   totalProducts: string;
 };
+type MerchantSales = {
+  merchantId: string;
+  merchantName: string;
+  grossSales: string;
+};
+type NetPaymentMethodAggregate = {
+  paymentMethod: 'CASH' | 'GCASH' | 'CARD';
+  grossSales: string;
+  refundsAgainstSales: string;
+};
 const zero = {
   grossSales: '0.00',
   unitsSold: '0',
@@ -148,6 +158,84 @@ export async function readAnalytics(
     FROM identities n LEFT JOIN sales s USING ("productId") LEFT JOIN refunds r USING ("productId")
     ORDER BY COALESCE(s.gross, 0) DESC, COALESCE(s.units, 0) DESC, n."productId" ASC LIMIT 10
   `);
+  const topMerchants: MerchantSales[] = own
+    ? []
+    : await tx.$queryRaw<MerchantSales[]>(Prisma.sql`
+    WITH matched_items AS (
+      SELECT i."merchantId", i."merchantName", i."lineTotal", i."id",
+        s."completedAt"
+      FROM "SaleItem" i
+      JOIN "Sale" s ON s."id" = i."saleId"
+        AND s."organizationId" = i."organizationId"
+        AND s."branchId" = i."branchId"
+      WHERE i."organizationId" = ${context.organizationId}
+        AND i."branchId" = ${branchId}
+        AND s."organizationId" = ${context.organizationId}
+        AND s."branchId" = ${branchId}
+        AND s."completedAt" >= ${from} AND s."completedAt" < ${until}
+    ), sales AS (
+      SELECT "merchantId", SUM("lineTotal") AS gross
+      FROM matched_items GROUP BY "merchantId"
+    ), names AS (
+      SELECT DISTINCT ON ("merchantId") "merchantId", "merchantName"
+      FROM matched_items
+      ORDER BY "merchantId", "completedAt" DESC, "id" DESC
+    )
+    SELECT sales."merchantId", names."merchantName",
+      sales.gross::text AS "grossSales"
+    FROM sales JOIN names USING ("merchantId")
+    ORDER BY sales.gross DESC, sales."merchantId" ASC
+    LIMIT 10
+  `);
+  const netMethodRows: NetPaymentMethodAggregate[] = own
+    ? []
+    : await tx.$queryRaw<NetPaymentMethodAggregate[]>(Prisma.sql`
+    WITH sales AS (
+      SELECT "paymentMethod", SUM("total") AS gross
+      FROM "Sale"
+      WHERE "organizationId" = ${context.organizationId}
+        AND "branchId" = ${branchId}
+        AND "completedAt" >= ${from} AND "completedAt" < ${until}
+      GROUP BY "paymentMethod"
+    ), refunds AS (
+      SELECT source."paymentMethod", SUM(r."total") AS refunded
+      FROM "Refund" r
+      JOIN "Sale" source ON source."id" = r."saleId"
+        AND source."organizationId" = r."organizationId"
+        AND source."branchId" = r."branchId"
+      WHERE r."organizationId" = ${context.organizationId}
+        AND r."branchId" = ${branchId}
+        AND source."organizationId" = ${context.organizationId}
+        AND source."branchId" = ${branchId}
+        AND r."completedAt" >= ${from} AND r."completedAt" < ${until}
+      GROUP BY source."paymentMethod"
+    ), methods AS (
+      SELECT "paymentMethod" FROM sales
+      UNION
+      SELECT "paymentMethod" FROM refunds
+    )
+    SELECT methods."paymentMethod",
+      COALESCE(sales.gross, 0)::text AS "grossSales",
+      COALESCE(refunds.refunded, 0)::text AS "refundsAgainstSales"
+    FROM methods
+    LEFT JOIN sales USING ("paymentMethod")
+    LEFT JOIN refunds USING ("paymentMethod")
+  `);
+  const netMethodMap = new Map(
+    netMethodRows.map((row) => [row.paymentMethod, row]),
+  );
+  const netByPaymentMethod = (['CASH', 'GCASH', 'CARD'] as const).map(
+    (paymentMethod) => {
+      const row = netMethodMap.get(paymentMethod);
+      return {
+        paymentMethod,
+        netRecordedSales: netRecordedSales(
+          row?.grossSales ?? '0.00',
+          row?.refundsAgainstSales ?? '0.00',
+        ),
+      };
+    },
+  );
   const byDate = new Map(daily.map((row) => [row.date, row]));
   return {
     dailyTrends: intersectingManilaDates(from, until).map((date) => {
@@ -179,6 +267,8 @@ export async function readAnalytics(
       merchantName: row.merchantName,
       ...metrics(row, own),
     })),
+    ...(!own ? { topMerchants } : {}),
+    ...(!own ? { netByPaymentMethod } : {}),
     totalProducts: products[0]?.totalProducts ?? '0',
   };
 }

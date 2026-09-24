@@ -270,6 +270,19 @@ const staffTopProduct = analyticsIdentity
     netRecordedSales: signedAmount,
   })
   .strict();
+const staffTopMerchant = z
+  .object({
+    merchantId: z.uuidv4(),
+    merchantName: z.string().min(1),
+    grossSales: amount,
+  })
+  .strict();
+const staffNetPaymentMethod = z
+  .object({
+    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
+    netRecordedSales: signedAmount,
+  })
+  .strict();
 
 function manilaDay(date: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -296,6 +309,7 @@ function analyticsValid(
     from: string;
     until: string;
     grossSales: string;
+    netRecordedSales?: string;
     transactionCount: string;
     unitsSold: string;
     refundedAmount: string;
@@ -303,6 +317,8 @@ function analyticsValid(
     returnedUnits: string;
     dailyTrends: z.infer<typeof staffDailyTrend>[];
     topProducts: z.infer<typeof staffTopProduct>[];
+    topMerchants?: z.infer<typeof staffTopMerchant>[];
+    netByPaymentMethod?: z.infer<typeof staffNetPaymentMethod>[];
     totalProducts: string;
   },
   context: z.RefinementCtx,
@@ -321,6 +337,53 @@ function analyticsValid(
       BigInt(0),
     );
   const productIds = report.topProducts.map((row) => row.productId);
+  const topMerchants: z.infer<typeof staffTopMerchant>[] = Array.isArray(
+    report.topMerchants,
+  )
+    ? (report.topMerchants as z.infer<typeof staffTopMerchant>[])
+    : [];
+  const merchantIds = topMerchants.map((row) => row?.merchantId ?? '');
+  const merchantRowsValid = topMerchants.every(
+    (row) => staffTopMerchant.safeParse(row).success,
+  );
+  const merchantSalesValid =
+    report.topMerchants === undefined ||
+    (merchantRowsValid &&
+      topMerchants.every((row, index) => {
+        const previous = topMerchants[index - 1];
+        return (
+          moneyCents(row.grossSales) > BigInt(0) &&
+          (!previous ||
+            moneyCents(previous.grossSales) > moneyCents(row.grossSales) ||
+            (previous.grossSales === row.grossSales &&
+              previous.merchantId < row.merchantId))
+        );
+      }));
+  const topMerchantGross = topMerchants.reduce((sum, row) => {
+    const parsed = staffTopMerchant.safeParse(row);
+    return (
+      sum + (parsed.success ? moneyCents(parsed.data.grossSales) : BigInt(0))
+    );
+  }, BigInt(0));
+  const netByPaymentMethod = Array.isArray(report.netByPaymentMethod)
+    ? report.netByPaymentMethod
+    : [];
+  const netMethodRowsValid = netByPaymentMethod.every(
+    (row) => staffNetPaymentMethod.safeParse(row).success,
+  );
+  const netMethodIds = netByPaymentMethod.map(
+    (row) => row?.paymentMethod ?? '',
+  );
+  const netMethodTotal = netByPaymentMethod.reduce((sum, row) => {
+    const parsed = staffNetPaymentMethod.safeParse(row);
+    return (
+      sum +
+      (parsed.success
+        ? BigInt(parsed.data.netRecordedSales.replace('.', ''))
+        : BigInt(0))
+    );
+  }, BigInt(0));
+  const reportNet = signedAmount.safeParse(report.netRecordedSales);
   const productsValid = report.topProducts.every((row, index) => {
     const previous = report.topProducts[index - 1];
     return (
@@ -373,11 +436,29 @@ function analyticsValid(
       ? BigInt(report.totalProducts) !== BigInt(report.topProducts.length)
       : report.topProducts.length !== 10) ||
     new Set(productIds).size !== productIds.length ||
-    !productsValid
+    !productsValid ||
+    (report.netByPaymentMethod !== undefined &&
+      (!netMethodRowsValid ||
+        new Set(netMethodIds).size !== 3 ||
+        !reportNet.success ||
+        netMethodTotal !==
+          (reportNet.success
+            ? BigInt(reportNet.data.replace('.', ''))
+            : BigInt(0)))) ||
+    (report.topMerchants !== undefined &&
+      (topMerchants.length > 10 ||
+        new Set(merchantIds).size !== merchantIds.length ||
+        !merchantSalesValid ||
+        (moneyCents(report.grossSales) === BigInt(0)
+          ? topMerchants.length !== 0
+          : topMerchants.length === 0) ||
+        topMerchantGross > moneyCents(report.grossSales) ||
+        (topMerchants.length < 10 &&
+          topMerchantGross !== moneyCents(report.grossSales))))
   )
     context.addIssue({
       code: 'custom',
-      message: 'Analytics trends, totals or product ranking do not reconcile.',
+      message: 'Analytics trends, totals or rankings do not reconcile.',
     });
 }
 
@@ -399,6 +480,8 @@ export const staffSalesAnalyticsSchema = z
     dailyTrends: staffDailyTrend.array().min(1).max(367),
     topProducts: staffTopProduct.array().max(10),
     totalProducts: integer,
+    topMerchants: staffTopMerchant.array().max(10),
+    netByPaymentMethod: staffNetPaymentMethod.array().length(3),
   })
   .strict()
   .superRefine((report, context) => {

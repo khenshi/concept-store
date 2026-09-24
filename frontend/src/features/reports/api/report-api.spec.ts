@@ -39,6 +39,10 @@ const empty = {
 };
 const analyticsEmpty = {
   ...empty,
+  netByPaymentMethod: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
+    paymentMethod,
+    netRecordedSales: '0.00',
+  })),
   dailyTrends: [
     {
       date: '2026-09-14',
@@ -53,6 +57,7 @@ const analyticsEmpty = {
   ],
   topProducts: [],
   totalProducts: '0',
+  topMerchants: [],
 };
 
 describe('report reads', () => {

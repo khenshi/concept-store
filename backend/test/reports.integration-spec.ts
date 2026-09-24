@@ -197,6 +197,49 @@ describe('PostgreSQL branch sales reporting', () => {
       ['Product 1', '0.03', '3', '0.02', '2', '0.01'],
     ]);
     expect(result.totalProducts).toBe('3');
+    expect(result.netByPaymentMethod).toEqual([
+      { paymentMethod: 'CASH', netRecordedSales: '27.51' },
+      { paymentMethod: 'GCASH', netRecordedSales: '17.50' },
+      { paymentMethod: 'CARD', netRecordedSales: '10.00' },
+    ]);
+    expect(result.refundMethods).toEqual([
+      { paymentMethod: 'CASH', refundedAmount: '0.00', refundCount: '0' },
+      { paymentMethod: 'GCASH', refundedAmount: '0.00', refundCount: '0' },
+      { paymentMethod: 'CARD', refundedAmount: '17.52', refundCount: '1' },
+    ]);
+    expect(
+      result.netByPaymentMethod.reduce(
+        (sum, row) => sum + BigInt(row.netRecordedSales.replace('.', '')),
+        BigInt(0),
+      ),
+    ).toBe(BigInt(result.netRecordedSales.replace('.', '')));
+    const refundOnly = await reports.analytics(context(), branchId, {
+      from: '2026-09-02T16:00:00Z',
+      until: '2026-09-04T16:00:00Z',
+    });
+    if (refundOnly.scope !== 'STAFF') throw new Error('Wrong scope');
+    expect(refundOnly).toMatchObject({
+      grossSales: '0.00',
+      refundedAmount: '17.52',
+      netRecordedSales: '-17.52',
+      netByPaymentMethod: [
+        { paymentMethod: 'CASH', netRecordedSales: '-17.52' },
+        { paymentMethod: 'GCASH', netRecordedSales: '0.00' },
+        { paymentMethod: 'CARD', netRecordedSales: '0.00' },
+      ],
+    });
+    expect(result.topMerchants).toEqual([
+      {
+        merchantId,
+        merchantName: 'Own merchant',
+        grossSales: '37.53',
+      },
+      {
+        merchantId: otherMerchantId,
+        merchantName: 'Other merchant',
+        grossSales: '35.00',
+      },
+    ]);
     expect(
       await reports.analytics(context(managerId), branchId, applied),
     ).toEqual(result);
@@ -228,6 +271,7 @@ describe('PostgreSQL branch sales reporting', () => {
       'Product 0',
       'Product 1',
     ]);
+    expect(own).not.toHaveProperty('topMerchants');
     expect(Object.keys(own.topProducts[0]).sort()).toEqual(
       [
         'productId',
@@ -289,6 +333,225 @@ describe('PostgreSQL branch sales reporting', () => {
       totalProducts: '0',
       refundedAmount: '0.00',
     });
+  });
+  it('merchant aggregates enforce exact date, branch and tenant scope', async () => {
+    const outsideDate = await complete('CASH', [[0, 1]]);
+    await prisma.sale.update({
+      where: { id: outsideDate.id },
+      data: { completedAt: new Date(range.until) },
+    });
+
+    const otherBranchProduct = await products.create(
+      organizationId,
+      {
+        merchantId,
+        name: 'Other branch product',
+        requestId: randomUUID(),
+        initialInventory: {
+          branchId: emptyBranchId,
+          sellingPrice: '2.00',
+          quantity: 5,
+        },
+      },
+      ownerId,
+    );
+    const otherBranchInventory = await prisma.branchInventory.findFirstOrThrow({
+      where: { organizationId, productId: otherBranchProduct.id },
+    });
+    const otherBranchSale = await checkout.complete(context(), emptyBranchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '2.00',
+      items: [
+        {
+          branchInventoryId: otherBranchInventory.id,
+          quantity: 1,
+          expectedUnitPrice: '2.00',
+        },
+      ],
+    });
+    await prisma.sale.update({
+      where: { id: otherBranchSale.id },
+      data: { completedAt: new Date('2026-09-01T18:00:00Z') },
+    });
+
+    const foreignOrganization = await prisma.organization.create({
+      data: { name: randomUUID() },
+    });
+    const foreignOwner = await prisma.user.create({
+      data: {
+        firstName: 'Foreign',
+        lastName: 'Owner',
+        email: `${randomUUID()}@example.test`,
+        passwordHash: 'unused',
+      },
+    });
+    await prisma.organizationMembership.create({
+      data: {
+        organizationId: foreignOrganization.id,
+        userId: foreignOwner.id,
+        role: 'OWNER',
+      },
+    });
+    const foreignMerchant = await prisma.merchant.create({
+      data: {
+        organizationId: foreignOrganization.id,
+        name: 'Foreign tenant merchant',
+        contactName: 'Contact',
+        phone: '09171234567',
+      },
+    });
+    const foreignBranch = await prisma.branch.create({
+      data: {
+        organizationId: foreignOrganization.id,
+        name: 'Foreign branch',
+        addressLine1: 'Test',
+        city: 'Makati',
+        province: 'Metro Manila',
+        countryCode: 'PH',
+      },
+    });
+    const foreignProduct = await products.create(
+      foreignOrganization.id,
+      {
+        merchantId: foreignMerchant.id,
+        name: 'Foreign product',
+        requestId: randomUUID(),
+        initialInventory: {
+          branchId: foreignBranch.id,
+          sellingPrice: '3.00',
+          quantity: 5,
+        },
+      },
+      foreignOwner.id,
+    );
+    const foreignInventory = await prisma.branchInventory.findFirstOrThrow({
+      where: {
+        organizationId: foreignOrganization.id,
+        productId: foreignProduct.id,
+      },
+    });
+    const foreignSale = await checkout.complete(
+      {
+        organizationId: foreignOrganization.id,
+        userId: foreignOwner.id,
+        role: 'OWNER',
+      },
+      foreignBranch.id,
+      {
+        requestId: randomUUID(),
+        paymentMethod: 'CASH',
+        cashTender: '3.00',
+        items: [
+          {
+            branchInventoryId: foreignInventory.id,
+            quantity: 1,
+            expectedUnitPrice: '3.00',
+          },
+        ],
+      },
+    );
+    await prisma.sale.update({
+      where: { id: foreignSale.id },
+      data: { completedAt: new Date('2026-09-01T18:00:00Z') },
+    });
+
+    const result = await reports.analytics(context(), branchId, range);
+    if (result.scope !== 'STAFF') throw new Error('Wrong scope');
+    expect(result).toMatchObject({
+      grossSales: '0.00',
+      topMerchants: [],
+    });
+  });
+  it('ranks ten merchants by summed saved item gross, breaks ties by ID and selects the latest saved label', async () => {
+    const merchants: { id: string; name: string; inventoryId: string }[] = [];
+    for (let index = 0; index < 12; index++) {
+      const merchant = await prisma.merchant.create({
+        data: {
+          organizationId,
+          name: `Ranked merchant ${index}`,
+          contactName: 'Contact',
+          phone: '09171234567',
+        },
+      });
+      const product = await products.create(
+        organizationId,
+        {
+          merchantId: merchant.id,
+          name: `Ranked product ${index}`,
+          requestId: randomUUID(),
+          initialInventory: { branchId, sellingPrice: '1.00', quantity: 5 },
+        },
+        ownerId,
+      );
+      const inventory = await prisma.branchInventory.findFirstOrThrow({
+        where: { organizationId, productId: product.id },
+      });
+      merchants.push({
+        id: merchant.id,
+        name: merchant.name,
+        inventoryId: inventory.id,
+      });
+    }
+    const sale = await checkout.complete(context(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '12.00',
+      items: merchants.map((merchant) => ({
+        branchInventoryId: merchant.inventoryId,
+        quantity: 1,
+        expectedUnitPrice: '1.00',
+      })),
+    });
+    const firstCompletion = new Date('2026-09-01T18:00:00Z');
+    await prisma.sale.update({
+      where: { id: sale.id },
+      data: { completedAt: firstCompletion },
+    });
+    const selected = merchants.reduce((left, right) =>
+      left.id > right.id ? left : right,
+    );
+    await prisma.merchant.update({
+      where: { id: selected.id },
+      data: { name: 'Latest saved merchant name' },
+    });
+    const latestSale = await checkout.complete(context(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '1.00',
+      items: [
+        {
+          branchInventoryId: selected.inventoryId,
+          quantity: 1,
+          expectedUnitPrice: '1.00',
+        },
+      ],
+    });
+    await prisma.sale.update({
+      where: { id: latestSale.id },
+      data: { completedAt: new Date('2026-09-01T19:00:00Z') },
+    });
+    await prisma.merchant.update({
+      where: { id: selected.id },
+      data: { name: 'Later live profile name' },
+    });
+
+    const result = await reports.analytics(context(), branchId, range);
+    if (result.scope !== 'STAFF') throw new Error('Wrong scope');
+    const sortedIds = merchants.map((merchant) => merchant.id).sort();
+    expect(result.topMerchants).toHaveLength(10);
+    expect(result.topMerchants.map((row) => row.merchantId)).toEqual([
+      selected.id,
+      ...sortedIds.filter((id) => id !== selected.id).slice(0, 9),
+    ]);
+    expect(result.topMerchants.map((row) => row.grossSales)).toEqual([
+      '2.00',
+      ...Array.from({ length: 9 }, () => '1.00'),
+    ]);
+    expect(
+      result.topMerchants.find((row) => row.merchantId === selected.id)
+        ?.merchantName,
+    ).toBe('Latest saved merchant name');
   });
   it('analytics ranks ten of all matching products deterministically and picks latest original snapshot', async () => {
     const placements: string[] = [];

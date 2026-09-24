@@ -32,6 +32,8 @@ import {
 import { ReportsService } from './reports.service';
 import {
   MerchantSalesAnalyticsResponseDto,
+  StaffNetByPaymentMethodDto,
+  StaffTopMerchantDto,
   StaffSalesAnalyticsResponseDto,
 } from './sales-analytics.types';
 import {
@@ -53,6 +55,8 @@ import {
   MerchantSalesReportResponseDto,
   StaffSalesAnalyticsResponseDto,
   MerchantSalesAnalyticsResponseDto,
+  StaffNetByPaymentMethodDto,
+  StaffTopMerchantDto,
 )
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
 @ApiForbiddenResponse({ description: 'Cashiers cannot access Reports' })
@@ -69,7 +73,7 @@ export class ReportsController {
   @Get('branches/:branchId/reports/sales/analytics')
   @ApiOperation({
     summary:
-      'Read one authorized snapshot of summary, Manila daily trends and top ten saved products',
+      'Read one authorized snapshot of summary, Manila trends and top ten saved products and merchants',
   })
   @ApiOkResponse({
     schema: {

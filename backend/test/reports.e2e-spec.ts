@@ -191,6 +191,36 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       'properties.dailyTrends.maxItems',
       367,
     );
+    expect(schemas?.StaffSalesAnalyticsResponseDto).toHaveProperty(
+      'properties.topMerchants.maxItems',
+      10,
+    );
+    expect(schemas?.StaffSalesAnalyticsResponseDto).toHaveProperty(
+      'properties.netByPaymentMethod.minItems',
+      3,
+    );
+    expect(schemas?.StaffNetByPaymentMethodDto).toMatchObject({
+      properties: {
+        paymentMethod: { enum: ['CASH', 'GCASH', 'CARD'] },
+        netRecordedSales: {
+          type: 'string',
+          pattern: '^-?(0|[1-9][0-9]*)\\.[0-9]{2}$',
+        },
+      },
+    });
+    expect(schemas?.StaffTopMerchantDto).toMatchObject({
+      properties: {
+        merchantId: { format: 'uuid' },
+        merchantName: { type: 'string' },
+        grossSales: { type: 'string', pattern: '^(0|[1-9][0-9]*)\\.[0-9]{2}$' },
+      },
+    });
+    expect(schemas?.MerchantSalesAnalyticsResponseDto).not.toHaveProperty(
+      'properties.topMerchants',
+    );
+    expect(schemas?.MerchantSalesAnalyticsResponseDto).not.toHaveProperty(
+      'properties.netByPaymentMethod',
+    );
     expect(schemas?.MerchantSalesAnalyticsResponseDto).toHaveProperty(
       'properties.topProducts.maxItems',
       10,
@@ -281,6 +311,17 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
         ),
         topProducts: [],
         totalProducts: '0',
+        ...(current === 'MERCHANT'
+          ? {}
+          : {
+              topMerchants: [],
+              netByPaymentMethod: ['CASH', 'GCASH', 'CARD'].map(
+                (paymentMethod) => ({
+                  paymentMethod,
+                  netRecordedSales: '0.00',
+                }),
+              ),
+            }),
       });
     },
   );

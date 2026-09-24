@@ -66,6 +66,32 @@ export class MerchantTopProductDto extends SavedProductIdentityDto {
   @ApiProperty(integer) ownReturnedUnits!: string;
   @ApiProperty(signed) ownNetRecordedSales!: string;
 }
+export class StaffTopMerchantDto {
+  @ApiProperty({ format: 'uuid' }) merchantId!: string;
+  @ApiProperty({
+    description:
+      'Latest contributing saved merchant name by sale completion time, then sale-item ID',
+  })
+  merchantName!: string;
+  @ApiProperty({
+    ...money,
+    description: 'Gross sales summed from matching saved sale items',
+  })
+  grossSales!: string;
+}
+export class StaffNetByPaymentMethodDto {
+  @ApiProperty({
+    enum: ['CASH', 'GCASH', 'CARD'],
+    description: 'Original sale payment method for matching net sales',
+  })
+  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
+  @ApiProperty({
+    ...signed,
+    description:
+      'Gross sales less refunds processed in the selected period, attributed to the original sale method',
+  })
+  netRecordedSales!: string;
+}
 export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto {
   @ApiProperty({ type: [StaffDailyTrendDto], minItems: 1, maxItems: 367 })
   dailyTrends!: StaffDailyTrendDto[];
@@ -81,6 +107,21 @@ export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto 
     description: 'All distinct contributing products, not just the top ten',
   })
   totalProducts!: string;
+  @ApiProperty({
+    type: [StaffTopMerchantDto],
+    maxItems: 10,
+    description:
+      'Gross descending, merchant ID ascending; grouped by saved merchant ID',
+  })
+  topMerchants!: StaffTopMerchantDto[];
+  @ApiProperty({
+    type: [StaffNetByPaymentMethodDto],
+    minItems: 3,
+    maxItems: 3,
+    description:
+      'Fixed method totals; refunds are attributed to the original sale payment method and amounts reconcile to netRecordedSales',
+  })
+  netByPaymentMethod!: StaffNetByPaymentMethodDto[];
 }
 export class MerchantSalesAnalyticsResponseDto extends MerchantSalesReportResponseDto {
   @ApiProperty({ type: [MerchantDailyTrendDto], minItems: 1, maxItems: 367 })

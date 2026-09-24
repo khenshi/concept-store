@@ -93,4 +93,49 @@ describe('Sales analytics', () => {
     }
     expect((raw.mock.calls[1] as [Prisma.Sql])[0].sql).toContain('LIMIT 10');
   });
+  it('attributes completed refunds to the original sale method with tenant, branch and date filters', async () => {
+    const from = new Date('2026-09-01T16:00:00Z');
+    const until = new Date('2026-09-02T16:00:00Z');
+    const raw = jest
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          paymentMethod: 'CASH',
+          grossSales: '25.00',
+          refundsAgainstSales: '40.00',
+        },
+        {
+          paymentMethod: 'GCASH',
+          grossSales: '10.00',
+          refundsAgainstSales: '2.50',
+        },
+      ]);
+    const result = await readAnalytics(
+      { $queryRaw: raw } as unknown as Prisma.TransactionClient,
+      {
+        organizationId: 'org',
+        userId: 'owner',
+        role: 'OWNER',
+      },
+      'branch',
+      from,
+      until,
+    );
+    expect(result.netByPaymentMethod).toEqual([
+      { paymentMethod: 'CASH', netRecordedSales: '-15.00' },
+      { paymentMethod: 'GCASH', netRecordedSales: '7.50' },
+      { paymentMethod: 'CARD', netRecordedSales: '0.00' },
+    ]);
+    const [query] = raw.mock.calls[3] as [Prisma.Sql];
+    expect(query.sql).toContain('JOIN "Sale" source');
+    expect(query.sql).toContain('source."organizationId" =');
+    expect(query.sql).toContain('source."branchId" =');
+    expect(query.sql).toContain('r."completedAt" >=');
+    expect(query.values).toEqual(
+      expect.arrayContaining(['org', 'branch', from, until]),
+    );
+  });
 });
