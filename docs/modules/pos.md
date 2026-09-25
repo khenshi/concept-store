@@ -22,6 +22,16 @@ Unknown query fields and invalid UUID v4 identifiers are rejected.
 This dedicated cashier contract does not widen existing product, merchant,
 inventory/history, member-directory or stock-mutation permissions.
 
+Staff POS Sales History uses the existing scoped sales read and cashier-options
+routes. The history screen has server-backed receipt-code, cashier, payment-method
+and optional Manila calendar-date filters. Search is debounced by 300 ms; select
+changes reload immediately. The table uses a fixed ten-row page and shows Manila
+date/time, cashier, payment method, amount and a saved receipt action. It has no
+branch column because the active POS scope already identifies the branch.
+Merchant own-sales routes keep their reduced projections, separate UTC filter
+controls and existing 50-row behavior; they never request the staff cashier
+directory or receive cashier/payment fields.
+
 ## Catalog rules and response
 
 Only placed ACTIVE products of ACTIVE merchants are returned. Zero-stock rows

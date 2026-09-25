@@ -119,8 +119,17 @@ these immutable snapshots; see [Branch POS](pos.md) for validation and safe retr
 ```text
 GET /organizations/:organizationId/branches/:branchId/sales?from=&until=&page=&limit=
 GET /organizations/:organizationId/branches/:branchId/sales/:saleId
+GET /organizations/:organizationId/branches/:branchId/sales/cashiers
 GET /organizations/:organizationId/sales/branches
 ```
+
+The staff list also accepts `q` (case-insensitive receipt-code search),
+`cashierId`, and `paymentMethod` (`CASH`, `GCASH`, or `CARD`). These predicates
+are applied inside the same repeatable-read transaction as the permitted sale
+scope, before the matching count and page query. The cashier-options route is
+staff-only and returns distinct `{ id, name }` snapshots from the permitted
+branch sale scope, ordered by cashier name then ID. Merchant reads retain their
+reduced own-item projection and do not expose cashier or payment fields.
 
 List/detail require authentication and current membership. OWNER reads all tenant
 branches; MANAGER reads assigned branches; CASHIER reads only their own completed
@@ -152,7 +161,8 @@ there is no alternate full-receipt endpoint for merchants.
 
 Lists return `{ items, page, limit, total, totalPages }`, newest completion first
 then descending sale ID. `total` counts only permitted matching sales. Default
-page/limit are 1/50; limit is 1–100 and page is bounded to 21474836 to keep database
+page/limit are 1/50 at the API boundary; the staff POS history requests a fixed
+ten-row page. Limit is 1–100 and page is bounded to 21474836 to keep database
 offsets within integer bounds. `from` is inclusive and `until` exclusive; optional
 strict UTC timestamps end in Z, with up to millisecond precision. Both supplied
 requires from < until. Unknown fields, malformed dates/pagination and non-v4 UUIDs
@@ -211,10 +221,12 @@ Both delivery parts were reviewed and approved; the
 is archived.
 
 Branch details expose sales history for owners/managers/cashiers and own sales for
-merchants. POS completion links to its saved receipt within History. Staff
-lists show receipt code/time, saved branch identity, exact total and saved cashier/
-payment method. Cashier copy describes only their own sales; backend filtering
-remains authoritative. Staff detail renders immutable receipt snapshots and offers
+merchants. POS completion links to its saved receipt within History. Staff lists
+show separate Date, Sale Code, Cashier, Payment Method, Amount and Action columns,
+with completion time under the Manila date. Saved branch identity, exact total and
+saved cashier/payment method remain authoritative in the response. Cashier copy
+describes only their own sales; backend filtering remains authoritative. Staff
+detail renders immutable receipt snapshots and offers
 internal browser printing, never a checkout or sale mutation. Refresh/print retries
 perform only reads/printing.
 
@@ -233,13 +245,18 @@ navigates to the chosen branch's own-sales list and updates shared branch memory
 only after existing checkout/refund navigation guards allow it. Staff sales remain
 inside POS and therefore use the POS header selector.
 
-Lists default to 50 per page, with previous/next bounded pagination and optional
-strict UTC From-inclusive/Until-exclusive filters. Applying/clearing filters resets
-page to one. Counts are labeled permitted sales, never aggregate monetary reports;
+Lists default to 50 per page for the general Sales screens, with previous/next
+bounded pagination and optional strict UTC From-inclusive/Until-exclusive filters.
+The staff POS Sales History screen uses ten rows per page. Its receipt search and
+cashier/payment selects reload automatically; its optional From Date and Through
+Date inputs are Asia/Manila calendar dates, with From inclusive and Through
+inclusive converted to the next Manila midnight for the exclusive API boundary.
+Applying/clearing filters resets page to one. Counts are labeled permitted sales,
+never aggregate monetary reports;
 merchant counts include only own matching sales. Responses validate IDs/scope,
 pagination, exact line amounts/subtotals and distinct records before rendering.
 Separate loading, empty/range-empty and failed/revoked access states offer read-only
-retry and Refresh access. User/organization/role/branch/sale changes reset screen
+retry. User/organization/role/branch/sale changes reset screen
 state; obsolete reads cannot restore old staff receipts or merchant data. Refresh
 clears stale data and print controls before making another authorized read.
 
