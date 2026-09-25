@@ -26,6 +26,7 @@ type Product = Metrics & {
   merchantName: string;
   totalProducts: string;
 };
+export const PRODUCT_RANKING_PAGE_SIZE = 10;
 type MerchantSales = {
   merchantId: string;
   merchantName: string;
@@ -86,6 +87,68 @@ function metrics(row: Metrics, own: boolean) {
         returnedUnits: row.returnedUnits,
         netRecordedSales: net,
       };
+}
+
+export async function readProductRankings(
+  tx: Prisma.TransactionClient,
+  context: OrganizationContext,
+  branchId: string,
+  from: Date,
+  until: Date,
+  page: number,
+) {
+  const own = context.role === 'MERCHANT';
+  if (own && !context.merchantId)
+    return { rows: [] as Product[], totalProducts: '0' };
+  const merchantFilter = own
+    ? Prisma.sql`AND i."merchantId" = ${context.merchantId}`
+    : Prisma.empty;
+  const offset = (page - 1) * PRODUCT_RANKING_PAGE_SIZE;
+  const productCte = Prisma.sql`
+    WITH sale_items AS (
+      SELECT i."productId", i."id", i."productName", i."sku", i."barcode", i."merchantName", i."lineTotal", i."quantity", s."completedAt" AS original_date
+      FROM "SaleItem" i JOIN "Sale" s ON s."id" = i."saleId" AND s."organizationId" = i."organizationId" AND s."branchId" = i."branchId"
+      WHERE s."organizationId" = ${context.organizationId} AND s."branchId" = ${branchId}
+        AND s."completedAt" >= ${from} AND s."completedAt" < ${until} ${merchantFilter}
+    ), refund_items AS (
+      SELECT source."productId", source."id", source."productName", source."sku", source."barcode", source."merchantName",
+        s."completedAt" AS original_date, i."lineTotal", i."quantity"
+      FROM "RefundItem" i JOIN "Refund" r ON r."id" = i."refundId" AND r."organizationId" = i."organizationId" AND r."branchId" = i."branchId" AND r."saleId" = i."saleId"
+      JOIN "SaleItem" source ON source."id" = i."saleItemId" AND source."organizationId" = i."organizationId" AND source."branchId" = i."branchId" AND source."saleId" = i."saleId" AND source."merchantId" = i."merchantId"
+      JOIN "Sale" s ON s."id" = source."saleId" AND s."organizationId" = source."organizationId" AND s."branchId" = source."branchId"
+      WHERE r."organizationId" = ${context.organizationId} AND r."branchId" = ${branchId}
+        AND r."completedAt" >= ${from} AND r."completedAt" < ${until} ${merchantFilter}
+    ), identities AS (
+      SELECT DISTINCT ON ("productId") * FROM (
+        SELECT "productId", "id", "productName", "sku", "barcode", "merchantName", original_date FROM sale_items
+        UNION ALL
+        SELECT "productId", "id", "productName", "sku", "barcode", "merchantName", original_date FROM refund_items
+      ) contributing ORDER BY "productId", original_date DESC, "id" DESC
+    ), sales AS (
+      SELECT "productId", SUM("lineTotal") AS gross, SUM("quantity"::numeric) AS units FROM sale_items GROUP BY "productId"
+    ), refunds AS (
+      SELECT "productId", SUM("lineTotal") AS refunded, SUM("quantity"::numeric) AS returned FROM refund_items GROUP BY "productId"
+    )
+  `;
+  const rows = await tx.$queryRaw<Product[]>(Prisma.sql`
+    ${productCte}
+    SELECT n."productId", n."productName", n."sku", n."barcode", n."merchantName",
+      COALESCE(s.gross::text, '0.00') AS "grossSales", COALESCE(s.units::text, '0') AS "unitsSold",
+      COALESCE(r.refunded::text, '0.00') AS "refundedAmount", COALESCE(r.returned::text, '0') AS "returnedUnits",
+      COUNT(*) OVER ()::text AS "totalProducts"
+    FROM identities n LEFT JOIN sales s USING ("productId") LEFT JOIN refunds r USING ("productId")
+    ORDER BY COALESCE(s.gross, 0) DESC, COALESCE(s.units, 0) DESC, n."productId" ASC
+    LIMIT ${PRODUCT_RANKING_PAGE_SIZE} OFFSET ${offset}
+  `);
+  let totalProducts = rows[0]?.totalProducts ?? '0';
+  if (!rows.length && page > 1) {
+    const [count] = await tx.$queryRaw<{ totalProducts: string }[]>(Prisma.sql`
+      ${productCte}
+      SELECT COUNT(*)::text AS "totalProducts" FROM identities
+    `);
+    totalProducts = count?.totalProducts ?? '0';
+  }
+  return { rows, totalProducts };
 }
 
 // Called only after fresh branch authorization, inside the summary's RepeatableRead transaction.
@@ -158,41 +221,14 @@ export async function readAnalytics(
     ORDER BY 1
   `)
     : [];
-  const products: Product[] =
-    own && !context.merchantId
-      ? []
-      : await tx.$queryRaw<Product[]>(Prisma.sql`
-    WITH sale_items AS (
-      SELECT i."productId", i."id", i."productName", i."sku", i."barcode", i."merchantName", i."lineTotal", i."quantity", s."completedAt" AS original_date
-      FROM "SaleItem" i JOIN "Sale" s ON s."id" = i."saleId" AND s."organizationId" = i."organizationId" AND s."branchId" = i."branchId"
-      WHERE s."organizationId" = ${context.organizationId} AND s."branchId" = ${branchId}
-        AND s."completedAt" >= ${from} AND s."completedAt" < ${until} ${merchantFilter}
-    ), refund_items AS (
-      SELECT source."productId", source."id", source."productName", source."sku", source."barcode", source."merchantName",
-        s."completedAt" AS original_date, i."lineTotal", i."quantity"
-      FROM "RefundItem" i JOIN "Refund" r ON r."id" = i."refundId" AND r."organizationId" = i."organizationId" AND r."branchId" = i."branchId" AND r."saleId" = i."saleId"
-      JOIN "SaleItem" source ON source."id" = i."saleItemId" AND source."organizationId" = i."organizationId" AND source."branchId" = i."branchId" AND source."saleId" = i."saleId" AND source."merchantId" = i."merchantId"
-      JOIN "Sale" s ON s."id" = source."saleId" AND s."organizationId" = source."organizationId" AND s."branchId" = source."branchId"
-      WHERE r."organizationId" = ${context.organizationId} AND r."branchId" = ${branchId}
-        AND r."completedAt" >= ${from} AND r."completedAt" < ${until} ${merchantFilter}
-    ), identities AS (
-      SELECT DISTINCT ON ("productId") * FROM (
-        SELECT "productId", "id", "productName", "sku", "barcode", "merchantName", original_date FROM sale_items
-        UNION ALL
-        SELECT "productId", "id", "productName", "sku", "barcode", "merchantName", original_date FROM refund_items
-      ) contributing ORDER BY "productId", original_date DESC, "id" DESC
-    ), sales AS (
-      SELECT "productId", SUM("lineTotal") AS gross, SUM("quantity"::numeric) AS units FROM sale_items GROUP BY "productId"
-    ), refunds AS (
-      SELECT "productId", SUM("lineTotal") AS refunded, SUM("quantity"::numeric) AS returned FROM refund_items GROUP BY "productId"
-    )
-    SELECT n."productId", n."productName", n."sku", n."barcode", n."merchantName",
-      COALESCE(s.gross::text, '0.00') AS "grossSales", COALESCE(s.units::text, '0') AS "unitsSold",
-      COALESCE(r.refunded::text, '0.00') AS "refundedAmount", COALESCE(r.returned::text, '0') AS "returnedUnits",
-      COUNT(*) OVER ()::text AS "totalProducts"
-    FROM identities n LEFT JOIN sales s USING ("productId") LEFT JOIN refunds r USING ("productId")
-    ORDER BY COALESCE(s.gross, 0) DESC, COALESCE(s.units, 0) DESC, n."productId" ASC LIMIT 10
-  `);
+  const { rows: products, totalProducts } = await readProductRankings(
+    tx,
+    context,
+    branchId,
+    from,
+    until,
+    1,
+  );
   const topMerchants: MerchantSales[] = own
     ? []
     : await tx.$queryRaw<MerchantSales[]>(Prisma.sql`
@@ -323,6 +359,6 @@ export async function readAnalytics(
     })),
     ...(!own ? { topMerchants } : {}),
     ...(!own ? { netByPaymentMethod } : {}),
-    totalProducts: products[0]?.totalProducts ?? '0',
+    totalProducts,
   };
 }

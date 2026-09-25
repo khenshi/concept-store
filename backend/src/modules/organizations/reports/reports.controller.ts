@@ -27,13 +27,16 @@ import { OrganizationRoles } from '../authorization/organization-roles.decorator
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import {
   ReportBranchesQueryDto,
+  SalesRankingQueryDto,
   SalesReportQueryDto,
 } from './dto/sales-report-query.dto';
 import { ReportsService } from './reports.service';
 import {
   MerchantSalesAnalyticsResponseDto,
+  MerchantSalesRankingPageResponseDto,
   StaffHourlyTrendDto,
   StaffNetByPaymentMethodDto,
+  StaffSalesRankingPageResponseDto,
   StaffTopMerchantDto,
   StaffSalesAnalyticsResponseDto,
 } from './sales-analytics.types';
@@ -59,6 +62,8 @@ import {
   StaffNetByPaymentMethodDto,
   StaffTopMerchantDto,
   StaffHourlyTrendDto,
+  StaffSalesRankingPageResponseDto,
+  MerchantSalesRankingPageResponseDto,
 )
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
 @ApiForbiddenResponse({ description: 'Cashiers cannot access Reports' })
@@ -98,6 +103,34 @@ export class ReportsController {
     @Query() query: SalesReportQueryDto,
   ) {
     return this.reports.analytics(context, branchId.toLowerCase(), query);
+  }
+
+  @Get('branches/:branchId/reports/sales/rankings')
+  @ApiOperation({
+    summary:
+      'Read one authorized page of saved product rankings for the applied period',
+  })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffSalesRankingPageResponseDto) },
+        { $ref: getSchemaPath(MerchantSalesRankingPageResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffSalesRankingPageResponseDto),
+          MERCHANT: getSchemaPath(MerchantSalesRankingPageResponseDto),
+        },
+      },
+    },
+  })
+  rankings(
+    @CurrentOrganization() context: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: SalesRankingQueryDto,
+  ) {
+    return this.reports.rankings(context, branchId.toLowerCase(), query);
   }
 
   @Get('reports/sales/branches')

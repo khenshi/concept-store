@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import {
   ReportBranchesQueryDto,
+  SalesRankingQueryDto,
   SalesReportQueryDto,
 } from './sales-report-query.dto';
 const pipe = new ValidationPipe({
@@ -45,5 +46,27 @@ describe('Report query validation', () => {
         { type: 'query', metatype: ReportBranchesQueryDto },
       ),
     ).rejects.toThrow();
+  });
+  it('defaults ranking pages and rejects invalid ranking pages', async () => {
+    await expect(
+      pipe.transform(valid, {
+        type: 'query',
+        metatype: SalesRankingQueryDto,
+      }),
+    ).resolves.toMatchObject({ ...valid, page: 1 });
+    await expect(
+      pipe.transform(
+        { ...valid, page: '2' },
+        { type: 'query', metatype: SalesRankingQueryDto },
+      ),
+    ).resolves.toMatchObject({ ...valid, page: 2 });
+    for (const page of ['0', '21474837', '1.5', 'nope']) {
+      await expect(
+        pipe.transform(
+          { ...valid, page },
+          { type: 'query', metatype: SalesRankingQueryDto },
+        ),
+      ).rejects.toThrow();
+    }
   });
 });

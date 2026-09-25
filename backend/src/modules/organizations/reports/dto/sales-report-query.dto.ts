@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsISO8601, IsString, Matches } from 'class-validator';
+import { IsInt, IsISO8601, IsString, Matches, Max, Min } from 'class-validator';
 import { trimRequiredString } from '../../products/dto/product-dto.transforms';
 
 export class SalesReportQueryDto {
@@ -27,3 +27,21 @@ export class SalesReportQueryDto {
 }
 
 export class ReportBranchesQueryDto {}
+
+const queryInteger = ({ value }: { value: unknown }) =>
+  typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+
+export class SalesRankingQueryDto extends SalesReportQueryDto {
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    maximum: 21474836,
+    default: 1,
+    description: 'One-based product ranking page; each page contains ten rows',
+  })
+  @Transform(queryInteger)
+  @IsInt()
+  @Min(1)
+  @Max(21474836)
+  page = 1;
+}

@@ -8,9 +8,16 @@ import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { branchScope } from '../authorization/resource-access';
-import type { SalesReportQueryDto } from './dto/sales-report-query.dto';
-import { readAnalytics } from './sales-analytics';
-import type { SalesAnalytics } from './sales-analytics.types';
+import type {
+  SalesRankingQueryDto,
+  SalesReportQueryDto,
+} from './dto/sales-report-query.dto';
+import {
+  PRODUCT_RANKING_PAGE_SIZE,
+  readAnalytics,
+  readProductRankings,
+} from './sales-analytics';
+import type { SalesAnalytics, SalesRankingPage } from './sales-analytics.types';
 import { netRecordedSales } from './report-money';
 export { netRecordedSales } from './report-money';
 import type {
@@ -63,6 +70,85 @@ export class ReportsService {
     query: SalesReportQueryDto,
   ): Promise<SalesAnalytics> {
     return this.read(context, branchId, query, true) as Promise<SalesAnalytics>;
+  }
+
+  async rankings(
+    context: OrganizationContext,
+    branchId: string,
+    query: SalesRankingQueryDto,
+  ): Promise<SalesRankingPage> {
+    const from = new Date(query.from);
+    const until = new Date(query.until);
+    const duration = until.getTime() - from.getTime();
+    if (
+      !Number.isFinite(duration) ||
+      duration <= 0 ||
+      duration > 366 * 86400000
+    )
+      throw new BadRequestException(
+        'from must precede until by no more than 366 days',
+      );
+    const page = query.page ?? 1;
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await this.currentContext(tx, context);
+        const branch = await tx.branch.findFirst({
+          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
+          select: identitySelect,
+        });
+        if (!branch) throw new NotFoundException('Branch not found');
+        const ranking = await readProductRankings(
+          tx,
+          current,
+          branchId,
+          from,
+          until,
+          page,
+        );
+        const own = current.role === 'MERCHANT';
+        const items = ranking.rows.map((row) => {
+          const identity = {
+            productId: row.productId,
+            productName: row.productName,
+            sku: row.sku,
+            barcode: row.barcode,
+            merchantName: row.merchantName,
+          };
+          const net = netRecordedSales(row.grossSales, row.refundedAmount);
+          return own
+            ? {
+                ...identity,
+                ownGrossSales: row.grossSales,
+                ownUnitsSold: row.unitsSold,
+                ownRefundedAmount: row.refundedAmount,
+                ownReturnedUnits: row.returnedUnits,
+                ownNetRecordedSales: net,
+              }
+            : {
+                ...identity,
+                grossSales: row.grossSales,
+                unitsSold: row.unitsSold,
+                refundedAmount: row.refundedAmount,
+                returnedUnits: row.returnedUnits,
+                netRecordedSales: net,
+              };
+        });
+        return {
+          branch,
+          from: from.toISOString(),
+          until: until.toISOString(),
+          page,
+          limit: PRODUCT_RANKING_PAGE_SIZE,
+          totalProducts: ranking.totalProducts,
+          hasNext:
+            BigInt(page * PRODUCT_RANKING_PAGE_SIZE) <
+            BigInt(ranking.totalProducts),
+          scope: own ? ('MERCHANT' as const) : ('STAFF' as const),
+          items,
+        } as SalesRankingPage;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 
   private async read(

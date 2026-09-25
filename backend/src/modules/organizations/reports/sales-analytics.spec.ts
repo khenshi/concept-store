@@ -91,7 +91,9 @@ describe('Sales analytics', () => {
         /paymentMethod|reason|checkoutCommand|refundCommand|contactName|createdById/,
       );
     }
-    expect((raw.mock.calls[1] as [Prisma.Sql])[0].sql).toContain('LIMIT 10');
+    const productQuery = (raw.mock.calls[1] as [Prisma.Sql])[0];
+    expect(productQuery.sql).toMatch(/LIMIT .* OFFSET/);
+    expect(productQuery.values).toEqual(expect.arrayContaining([10, 0]));
   });
   it('attributes completed refunds to the original sale method with tenant, branch and date filters', async () => {
     const from = new Date('2026-09-01T16:00:00Z');

@@ -307,4 +307,72 @@ describe('ReportsService', () => {
     expect(refundSql.values).toContain('branch');
     expect(refundSql.sql).not.toContain('JOIN "Sale"');
   });
+  it('returns ten-row staff ranking pages with stable global ranks and tenant scope', async () => {
+    tx.$queryRaw.mockReset().mockResolvedValueOnce([
+      {
+        productId: 'product-11',
+        productName: 'Product 11',
+        sku: 'SKU-11',
+        barcode: null,
+        merchantName: 'Merchant',
+        grossSales: '12.34',
+        unitsSold: '2',
+        refundedAmount: '0.00',
+        returnedUnits: '0',
+        netRecordedSales: '12.34',
+        totalProducts: '21',
+      },
+    ]);
+    await expect(
+      service.rankings(context, 'branch', { ...query, page: 2 }),
+    ).resolves.toEqual({
+      branch: { id: 'branch', name: 'Branch', code: null },
+      from: '2026-09-01T00:00:00.000Z',
+      until: '2026-09-02T00:00:00.000Z',
+      scope: 'STAFF',
+      page: 2,
+      limit: 10,
+      totalProducts: '21',
+      hasNext: true,
+      items: [
+        {
+          productId: 'product-11',
+          productName: 'Product 11',
+          sku: 'SKU-11',
+          barcode: null,
+          merchantName: 'Merchant',
+          grossSales: '12.34',
+          unitsSold: '2',
+          refundedAmount: '0.00',
+          returnedUnits: '0',
+          netRecordedSales: '12.34',
+        },
+      ],
+    });
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
+    expect(sql.values).toEqual(
+      expect.arrayContaining(['org', 'branch', 10, 10]),
+    );
+  });
+  it('returns an empty ranking page for an unlinked merchant without SQL', async () => {
+    tx.organizationMembership.findUnique.mockResolvedValue({
+      role: 'MERCHANT',
+      merchantId: null,
+    });
+    await expect(
+      service.rankings({ ...context, role: 'MERCHANT' }, 'branch', {
+        ...query,
+        page: 1,
+      }),
+    ).resolves.toMatchObject({
+      scope: 'MERCHANT',
+      page: 1,
+      limit: 10,
+      totalProducts: '0',
+      hasNext: false,
+      items: [],
+    });
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
 });

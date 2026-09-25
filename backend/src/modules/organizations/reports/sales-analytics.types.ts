@@ -3,6 +3,7 @@ import {
   MerchantSalesReportResponseDto,
   StaffSalesReportResponseDto,
 } from './reports.types';
+import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
 
 const money = { type: String, pattern: '^(0|[1-9][0-9]*)\\.[0-9]{2}$' };
 const integer = { type: String, pattern: '^(0|[1-9][0-9]*)$' };
@@ -148,5 +149,33 @@ export class MerchantSalesAnalyticsResponseDto extends MerchantSalesReportRespon
   topProducts!: MerchantTopProductDto[];
   @ApiProperty(integer) totalProducts!: string;
 }
+class SalesRankingPageResponseDto {
+  @ApiProperty({ type: BranchIdentityResponseDto })
+  branch!: BranchIdentityResponseDto;
+  @ApiProperty({ format: 'date-time' }) from!: string;
+  @ApiProperty({ format: 'date-time' }) until!: string;
+  @ApiProperty({ type: 'integer', minimum: 1 }) page!: number;
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 10, example: 10 })
+  limit!: number;
+  @ApiProperty({
+    ...integer,
+    description: 'All distinct contributing products in the applied period',
+  })
+  totalProducts!: string;
+  @ApiProperty({ description: 'Whether another page follows this page' })
+  hasNext!: boolean;
+}
+export class StaffSalesRankingPageResponseDto extends SalesRankingPageResponseDto {
+  @ApiProperty({ enum: ['STAFF'] }) scope!: 'STAFF';
+  @ApiProperty({ type: [StaffTopProductDto], maxItems: 10 })
+  items!: StaffTopProductDto[];
+}
+export class MerchantSalesRankingPageResponseDto extends SalesRankingPageResponseDto {
+  @ApiProperty({ enum: ['MERCHANT'] }) scope!: 'MERCHANT';
+  @ApiProperty({ type: [MerchantTopProductDto], maxItems: 10 })
+  items!: MerchantTopProductDto[];
+}
 export type SalesAnalytics =
   StaffSalesAnalyticsResponseDto | MerchantSalesAnalyticsResponseDto;
+export type SalesRankingPage =
+  StaffSalesRankingPageResponseDto | MerchantSalesRankingPageResponseDto;
