@@ -29,6 +29,7 @@ it does not change the actual refund-method totals.
 GET /organizations/:organizationId/reports/sales/branches
 GET /organizations/:organizationId/branches/:branchId/reports/sales?from=&until=
 GET /organizations/:organizationId/branches/:branchId/reports/sales/analytics?from=&until=
+GET /organizations/:organizationId/branches/:branchId/reports/sales/rankings?from=&until=&page=
 ```
 
 Authentication and current organization membership are required. OWNER, MANAGER
@@ -159,8 +160,10 @@ The exact UTC range still controls which events are included in the hourly bucke
 
 Products group by historical `productId`, include either sales or refunds in the
 period, and rank by exact gross descending, units descending, product ID ascending.
-At most ten rows are returned; `totalProducts` counts all contributing products.
-A truncated ranking subtotal is not the whole report total. Refund-only products
+Analytics includes the first ten rows and `totalProducts`; the rankings route uses
+the same snapshot, filters and ordering to return one server-paginated page of
+ten rows with `page`, `limit`, `totalProducts` and `hasNext`. A truncated ranking
+subtotal is not the whole report total. Refund-only products
 have zero gross/units and possibly negative net. Sale/refund streams aggregate
 separately in PostgreSQL to prevent join multiplication; only bounded results are
 loaded, not paginated histories or live catalog records.
@@ -182,7 +185,9 @@ merchant ID and sums their exact gross line amounts. Its label comes from the
 latest contributing saved SaleItem name, ordered by Sale completion time
 descending and SaleItem ID descending. Rows rank by gross sales descending, then
 merchant ID ascending. The merchant response does not include these rankings or
-other merchant identities.
+other merchant identities. The merchant rankings route returns the same
+ten-row page shape with own-prefixed product metrics and never exposes another
+merchant's product data.
 
 Money/counts/units retain exact unlimited canonical strings; BigInt cents compute
 signed net without negative zero. No schema, migration, index or infrastructure
@@ -208,8 +213,8 @@ method breakdowns load and clear as one response. Applied branch/range correspon
 is checked before rendering; stale, failed, private or malformed responses cannot
 leave old panels visible. Date Apply/debounce/focus, shared branch preference,
 read-only retries, pending-write navigation locks and generation guards are
-preserved. Merchants continue using their separate summary endpoint/view until
-their own analytics delivery.
+preserved. Merchants use their separate own-only analytics response and the same
+tabbed workspace described below.
 
 Four primary cards show gross recorded sales, refunded amount, net recorded sales
 and completed transactions. Supporting metrics retain units sold, completed refunds
@@ -226,14 +231,19 @@ with exact amounts and transaction counts. Manual GCash/card remain unverified.
 Merchants use their separate own-only analytics response and view described below.
 
 BigInt performs unlimited accounting arithmetic; SVG coordinates use only bounded
-integer ratios, never direct unlimited-money Number conversion. A keyboard-
-expandable semantic table retains all exact daily values.
+integer ratios, never direct unlimited-money Number conversion. The Daily Data
+tab retains all exact daily values in a paginated semantic table.
 
-The products table shows rank, saved name/ID, nullable SKU/barcode, saved merchant,
-units/gross/returns/refunds/net and “Top X of N.” It uses contained horizontal
-scrolling and real headers. It has no photos, current price, inventory status or
-claim that bounded rows reconcile to report totals. Empty/refund-only periods remain
-explicit.
+The Sales Reports workspace has Inventory-style `Overview`, `Daily Data` and
+`Rankings` tabs beside the title-cased `Refresh Report` action. Switching tabs
+keeps the selected Philippines date range and branch filters in place. Overview
+contains the cards and charts. Daily Data moves the exact Asia/Manila daily table
+into a semantic Inventory-style table with ten rows per page and local pagination.
+Rankings moves the saved product table into a semantic Inventory-style table with
+ten rows per server page; next/previous requests the scoped rankings endpoint.
+The ranking table shows rank, saved name/ID, nullable SKU/barcode, saved merchant,
+units/gross/returns/refunds/net and never claims bounded rows reconcile to report
+totals. Empty/refund-only periods remain explicit.
 
 The refreshed owner/manager chart layout uses three responsive rows: a full-width
 selectable daily trend; side-by-side Top Merchants and Top Products gross-sales
@@ -398,8 +408,10 @@ rendered or fetched. Extra/private/staff-shaped responses fail the read rather
 than being silently stripped or converted. Own aggregates retain exact unlimited
 money and integer strings and must have consistent empty/count/unit invariants.
 Merchants request the reduced analytics route directly, never a staff response
-that is later hidden. Own-prefixed daily trends and an exact expandable daily table
-use Asia/Manila dates. The Top X of N own-products table shows only saved historical
+that is later hidden. Own-prefixed daily trends use Asia/Manila dates. The shared
+Sales Reports tabs keep Overview charts, move the exact daily table to Daily Data
+with ten local rows per page, and move the own product table to Rankings with ten
+server-paginated rows per page. The Rankings table shows only saved historical
 identity and own gross/units/refund/net fields. It has no live price, inventory
 status or other merchants' products. The shared SVG renderer receives an explicit
 reduced row projection and cannot expose method or private response data.
