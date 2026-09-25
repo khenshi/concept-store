@@ -90,6 +90,20 @@ export class SalesReadService {
         await this.authorizeBranch(tx, current, branchId);
         const where: Prisma.SaleWhereInput = {
           ...this.saleScope(current, branchId),
+          ...(query.q
+            ? {
+                receiptCode: {
+                  contains: query.q,
+                  mode: 'insensitive' as const,
+                },
+              }
+            : {}),
+          ...(current.role !== 'MERCHANT' && query.cashierId
+            ? { createdById: query.cashierId }
+            : {}),
+          ...(current.role !== 'MERCHANT' && query.paymentMethod
+            ? { paymentMethod: query.paymentMethod }
+            : {}),
           ...(query.from || query.until
             ? {
                 completedAt: {
@@ -130,6 +144,28 @@ export class SalesReadService {
           total,
           totalPages: Math.ceil(total / query.limit),
         };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  async listCashiers(context: OrganizationContext, branchId: string) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await this.currentContext(tx, context);
+        if (current.role === 'MERCHANT')
+          throw new ForbiddenException('Only staff can list cashiers');
+        await this.authorizeBranch(tx, current, branchId);
+        const rows = await tx.sale.findMany({
+          where: this.saleScope(current, branchId),
+          select: { createdById: true, cashierName: true },
+          distinct: ['createdById'],
+          orderBy: [{ cashierName: 'asc' }, { createdById: 'asc' }],
+        });
+        return rows.map(({ createdById, cashierName }) => ({
+          id: createdById,
+          name: cashierName,
+        }));
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );

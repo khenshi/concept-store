@@ -21,6 +21,7 @@ import {
 import { OrganizationRole } from '../../../generated/prisma/client';
 import {
   BranchIdentityResponseDto,
+  CashierOptionResponseDto,
   CompletedSaleResponseDto,
   MerchantSaleResponseDto,
   SalesPageResponseDto,
@@ -52,10 +53,29 @@ export class SalesIdentityQueryDto {}
 })
 @ApiBadRequestResponse({
   description:
-    'Invalid identifier, UTC range, pagination or unknown query fields',
+    'Invalid identifier, filter, UTC range, pagination or unknown query fields',
 })
 export class SalesReadController {
   constructor(private readonly sales: SalesReadService) {}
+
+  @Get('cashiers')
+  @OrganizationRoles(
+    OrganizationRole.OWNER,
+    OrganizationRole.MANAGER,
+    OrganizationRole.CASHIER,
+  )
+  @ApiOperation({
+    summary: 'List cashiers represented in permitted branch sales',
+  })
+  @ApiForbiddenResponse({ description: 'Only staff can list cashiers' })
+  @ApiOkResponse({ type: CashierOptionResponseDto, isArray: true })
+  listCashiers(
+    @CurrentOrganization() context: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+  ) {
+    return this.sales.listCashiers(context, branchId);
+  }
+
   @Get()
   @ApiOperation({
     summary:

@@ -275,6 +275,11 @@ export class CompletedSaleResponseDto {
   items!: CompletedSaleItemResponseDto[];
 }
 
+export class CashierOptionResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+}
+
 export class MerchantSaleItemResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) productId!: string;

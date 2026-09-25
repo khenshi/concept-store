@@ -8,18 +8,32 @@ const pipe = new ValidationPipe({
 const validate = (query: unknown) =>
   pipe.transform(query, { type: 'query', metatype: ListSalesQueryDto });
 describe('Sales directory query validation', () => {
-  it('defaults pagination and accepts UTC timestamps', async () => {
+  it('defaults pagination and accepts expanded staff filters', async () => {
     await expect(validate({})).resolves.toMatchObject({ page: 1, limit: 50 });
     await expect(
       validate({
+        q: '  SALE-001  ',
+        cashierId: '11111111-1111-4111-8111-111111111111',
+        paymentMethod: 'GCASH',
         page: '2',
         limit: '100',
         from: '2026-09-13T00:00:00Z',
         until: '2026-09-14T00:00:00.000Z',
       }),
-    ).resolves.toMatchObject({ page: 2, limit: 100 });
+    ).resolves.toMatchObject({
+      q: 'SALE-001',
+      cashierId: '11111111-1111-4111-8111-111111111111',
+      paymentMethod: 'GCASH',
+      page: 2,
+      limit: 100,
+    });
   });
   it.each([
+    { q: ['SALE-001'] },
+    { q: 'x'.repeat(255) },
+    { cashierId: '11111111-1111-5111-8111-111111111111' },
+    { cashierId: 'not-a-uuid' },
+    { paymentMethod: 'BANK_TRANSFER' },
     { page: '0' },
     { page: '1.5' },
     { page: '1e2' },
