@@ -5,8 +5,12 @@ import {
   staffSalesReportSchema,
   merchantSalesReportSchema,
   merchantSalesAnalyticsSchema,
+  merchantSalesRankingPageSchema,
+  reportRankingQuerySchema,
   staffSalesAnalyticsSchema,
+  staffSalesRankingPageSchema,
   type ReportQuery,
+  type ReportRankingQuery,
 } from '../model/report.schemas';
 
 export async function listReportBranches(
@@ -107,6 +111,68 @@ export async function getMerchantSalesAnalytics(
   )
     throw new Error(
       'The own-sales analytics response does not match the selected branch and period.',
+    );
+  return report;
+}
+
+export async function getStaffSalesRankings(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: ReportRankingQuery,
+) {
+  const query = reportRankingQuerySchema.parse(input);
+  const report = staffSalesRankingPageSchema.parse(
+    await request<unknown>(
+      `/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/reports/sales/rankings?${new URLSearchParams(
+        {
+          from: query.from,
+          until: query.until,
+          page: String(query.page),
+        },
+      )}`,
+    ),
+  );
+  if (
+    report.scope !== 'STAFF' ||
+    report.branch.id !== branchId ||
+    Date.parse(report.from) !== Date.parse(query.from) ||
+    Date.parse(report.until) !== Date.parse(query.until) ||
+    report.page !== query.page
+  )
+    throw new Error(
+      'The ranking response does not match the selected branch, period or page.',
+    );
+  return report;
+}
+
+export async function getMerchantSalesRankings(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: ReportRankingQuery,
+) {
+  const query = reportRankingQuerySchema.parse(input);
+  const report = merchantSalesRankingPageSchema.parse(
+    await request<unknown>(
+      `/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/reports/sales/rankings?${new URLSearchParams(
+        {
+          from: query.from,
+          until: query.until,
+          page: String(query.page),
+        },
+      )}`,
+    ),
+  );
+  if (
+    report.scope !== 'MERCHANT' ||
+    report.branch.id !== branchId ||
+    Date.parse(report.from) !== Date.parse(query.from) ||
+    Date.parse(report.until) !== Date.parse(query.until) ||
+    report.page !== query.page
+  )
+    throw new Error(
+      'The ranking response does not match the selected branch, period or page.',
     );
   return report;
 }

@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import type { StaffSalesAnalytics } from '../model/report.schemas';
+import { buttonStyles } from '@/shared/components/ui/button';
+import { RequestError } from '@/shared/components/ui/request-error';
+import type {
+  StaffSalesAnalytics,
+  StaffSalesRankingPage,
+} from '../model/report.schemas';
+
+export type SalesReportTab = 'overview' | 'daily' | 'rankings';
 
 function cents(value: string) {
   return BigInt(value.replace('.', ''));
@@ -626,13 +633,280 @@ function PaymentMethodDonut({
   );
 }
 
-export function StaffAnalyticsDashboard({
-  report,
+function StaffDailyData({
+  rows,
 }: {
-  report: StaffSalesAnalytics;
+  rows: StaffSalesAnalytics['dailyTrends'];
+}) {
+  const [pageState, setPageState] = useState<{
+    rows: StaffSalesAnalytics['dailyTrends'];
+    page: number;
+  }>({ rows, page: 1 });
+  const page = pageState.rows === rows ? pageState.page : 1;
+  const pageRows = rows.slice((page - 1) * 10, page * 10);
+  const hasNext = page * 10 < rows.length;
+  return (
+    <section
+      className="data-surface"
+      role="tabpanel"
+      id="sales-daily-panel"
+      aria-labelledby="sales-report-tab-daily"
+      tabIndex={0}
+    >
+      <header className="border-b border-hairline px-5 py-5 sm:px-6">
+        <h2 className="font-semibold">Daily sales data</h2>
+        <p className="mt-1 text-sm text-muted">
+          Exact daily sales analytics in Asia/Manila. Ten rows per page.
+        </p>
+      </header>
+      <div className="overflow-x-auto">
+        <table className="data-table w-full min-w-[50rem] border-collapse text-left text-sm">
+          <caption className="sr-only">Daily sales data in Asia/Manila</caption>
+          <thead className="text-xs uppercase tracking-[0.08em] text-muted">
+            <tr>
+              {[
+                'Date',
+                'Gross sales',
+                'Transactions',
+                'Units sold',
+                'Refunded',
+                'Refunds',
+                'Returned units',
+                'Net recorded sales',
+              ].map((value) => (
+                <th key={value} scope="col">
+                  {value}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {pageRows.map((row) => (
+              <tr key={row.date}>
+                <th scope="row" className="px-4 py-3 font-medium">
+                  {row.date}
+                </th>
+                {[
+                  money(row.grossSales),
+                  row.transactionCount,
+                  row.unitsSold,
+                  money(row.refundedAmount),
+                  row.refundCount,
+                  row.returnedUnits,
+                  money(row.netRecordedSales),
+                ].map((value, index) => (
+                  <td key={index} className="px-4 py-3 tabular-nums">
+                    {value}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
+        <p className="text-sm text-muted">Page {page}</p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className={buttonStyles({ variant: 'quiet' })}
+            disabled={page === 1}
+            onClick={() =>
+              setPageState({ rows, page: Math.max(1, page - 1) })
+            }
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            className={buttonStyles({ variant: 'secondary' })}
+            disabled={!hasNext}
+            onClick={() => setPageState({ rows, page: page + 1 })}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StaffRankings({
+  page,
+  loading,
+  error,
+  errorPage,
+  onPageChange,
+}: {
+  page: StaffSalesRankingPage;
+  loading: boolean;
+  error: string | null;
+  errorPage: number | null;
+  onPageChange(page: number): void;
 }) {
   return (
-    <>
+    <section
+      className="data-surface"
+      role="tabpanel"
+      id="sales-rankings-panel"
+      aria-labelledby="sales-report-tab-rankings"
+      tabIndex={0}
+    >
+      <header className="border-b border-hairline px-5 py-5 sm:px-6">
+        <h2 className="font-semibold">Top products by gross sales</h2>
+        <p className="mt-1 text-sm text-muted">
+          Page {page.page} of saved product rankings. Ten rows per page; saved
+          sale identity, not current inventory or pricing.
+        </p>
+      </header>
+      {error && errorPage !== null ? (
+        <RequestError
+          className="p-5 sm:p-6"
+          message={error}
+          onRetry={() => onPageChange(errorPage)}
+        />
+      ) : page.items.length ? (
+        <div className="overflow-x-auto">
+          <table
+            aria-label="Top products by gross sales"
+            className="data-table w-full min-w-[62rem] border-collapse text-left text-sm"
+          >
+            <thead className="text-xs uppercase tracking-[0.08em] text-muted">
+              <tr>
+                {[
+                  'Rank',
+                  'Product',
+                  'SKU / barcode',
+                  'Merchant',
+                  'Units sold',
+                  'Gross sales',
+                  'Returned',
+                  'Refunded',
+                  'Net recorded',
+                ].map((value) => (
+                  <th key={value} scope="col">
+                    {value}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {page.items.map((row, index) => (
+                <tr key={row.productId}>
+                  <td className="px-4 py-4 tabular-nums">
+                    {(page.page - 1) * page.limit + index + 1}
+                  </td>
+                  <th scope="row" className="max-w-64 px-4 py-4 font-semibold">
+                    <span className="block break-words">{row.productName}</span>
+                    <span className="mt-1 block break-all text-xs font-normal text-muted">
+                      {row.productId}
+                    </span>
+                  </th>
+                  <td className="px-4 py-4">
+                    {row.sku ?? '—'} / {row.barcode ?? '—'}
+                  </td>
+                  <td className="max-w-48 break-words px-4 py-4">
+                    {row.merchantName}
+                  </td>
+                  <td className="px-4 py-4 tabular-nums">{row.unitsSold}</td>
+                  <td className="px-4 py-4 tabular-nums">
+                    {money(row.grossSales)}
+                  </td>
+                  <td className="px-4 py-4 tabular-nums">
+                    {row.returnedUnits}
+                  </td>
+                  <td className="px-4 py-4 tabular-nums">
+                    {money(row.refundedAmount)}
+                  </td>
+                  <td className="px-4 py-4 tabular-nums">
+                    {money(row.netRecordedSales)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p role="status" className="px-5 py-6 text-sm text-muted sm:px-6">
+          No products contributed sales or refunds in this period.
+        </p>
+      )}
+      {page.totalProducts !== '0' ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
+          <p className="text-sm text-muted">
+            Page {page.page} · {page.totalProducts} total products
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'quiet' })}
+              disabled={loading || page.page === 1}
+              onClick={() => onPageChange(page.page - 1)}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'secondary' })}
+              disabled={loading || !page.hasNext}
+              onClick={() => onPageChange(page.page + 1)}
+            >
+              {loading ? 'Loading…' : 'Next'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+export function StaffAnalyticsDashboard({
+  report,
+  activeTab = 'overview',
+  ranking,
+  rankingLoading = false,
+  rankingError = null,
+  rankingErrorPage = null,
+  onRankingPageChange = () => undefined,
+}: {
+  report: StaffSalesAnalytics;
+  activeTab?: SalesReportTab;
+  ranking?: StaffSalesRankingPage;
+  rankingLoading?: boolean;
+  rankingError?: string | null;
+  rankingErrorPage?: number | null;
+  onRankingPageChange?: (page: number) => void;
+}) {
+  const initialRanking: StaffSalesRankingPage = ranking ?? {
+    scope: 'STAFF',
+    branch: report.branch,
+    from: report.from,
+    until: report.until,
+    page: 1,
+    limit: 10,
+    totalProducts: report.totalProducts,
+    hasNext: BigInt(10) < BigInt(report.totalProducts),
+    items: report.topProducts,
+  };
+  if (activeTab === 'daily')
+    return <StaffDailyData rows={report.dailyTrends} />;
+  if (activeTab === 'rankings')
+    return (
+      <StaffRankings
+        page={initialRanking}
+        loading={rankingLoading}
+        error={rankingError}
+        errorPage={rankingErrorPage}
+        onPageChange={onRankingPageChange}
+      />
+    );
+  return (
+    <div
+      role="tabpanel"
+      id="sales-overview-panel"
+      aria-labelledby="sales-report-tab-overview"
+      tabIndex={0}
+    >
       <dl
         aria-label="Sales analytics summary"
         className="mt-2 grid gap-y-2 border-y border-hairline sm:grid-cols-2 lg:grid-cols-4 lg:gap-y-0"
@@ -734,145 +1008,6 @@ export function StaffAnalyticsDashboard({
           </div>
         </div>
       </div>
-      <details className="data-surface mt-4">
-        <summary className="min-h-11 cursor-pointer px-5 py-3 text-sm font-semibold sm:px-6">
-          View exact daily data
-        </summary>
-        <div className="overflow-x-auto border-t border-hairline">
-          <table className="data-table w-full min-w-[50rem] border-collapse text-left text-sm">
-            <caption className="sr-only">
-              Exact daily sales analytics in Asia/Manila
-            </caption>
-            <thead className="bg-subtle text-xs uppercase tracking-[0.08em] text-muted">
-              <tr>
-                {[
-                  'Date',
-                  'Gross sales',
-                  'Transactions',
-                  'Units sold',
-                  'Refunded',
-                  'Refunds',
-                  'Returned units',
-                  'Net recorded sales',
-                ].map((value) => (
-                  <th
-                    key={value}
-                    scope="col"
-                    className="border-b border-hairline px-4 py-3 font-semibold"
-                  >
-                    {value}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-hairline">
-              {report.dailyTrends.map((row) => (
-                <tr key={row.date}>
-                  <th scope="row" className="px-4 py-3 font-medium">
-                    {row.date}
-                  </th>
-                  {[
-                    money(row.grossSales),
-                    row.transactionCount,
-                    row.unitsSold,
-                    money(row.refundedAmount),
-                    row.refundCount,
-                    row.returnedUnits,
-                    money(row.netRecordedSales),
-                  ].map((value, index) => (
-                    <td key={index} className="px-4 py-3 tabular-nums">
-                      {value}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
-      <section className="data-surface mt-8">
-        <header className="border-b border-hairline px-5 py-5 sm:px-6">
-          <h2 className="font-semibold">Top products by gross sales</h2>
-          <p className="mt-1 text-sm text-muted">
-            Top {report.topProducts.length} of {report.totalProducts}{' '}
-            contributing products. Saved sale identity; not current inventory or
-            pricing.
-          </p>
-        </header>
-        {report.topProducts.length ? (
-          <div className="overflow-x-auto">
-            <table
-              aria-label="Top products by gross sales"
-              className="data-table w-full min-w-[62rem] border-collapse text-left text-sm"
-            >
-              <thead className="bg-subtle text-xs uppercase tracking-[0.08em] text-muted">
-                <tr>
-                  {[
-                    'Rank',
-                    'Product',
-                    'SKU / barcode',
-                    'Merchant',
-                    'Units sold',
-                    'Gross sales',
-                    'Returned',
-                    'Refunded',
-                    'Net recorded',
-                  ].map((value) => (
-                    <th
-                      key={value}
-                      scope="col"
-                      className="border-b border-hairline px-4 py-3 font-semibold"
-                    >
-                      {value}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-hairline">
-                {report.topProducts.map((row, index) => (
-                  <tr key={row.productId}>
-                    <td className="px-4 py-4 tabular-nums">{index + 1}</td>
-                    <th
-                      scope="row"
-                      className="max-w-64 px-4 py-4 font-semibold"
-                    >
-                      <span className="block break-words">
-                        {row.productName}
-                      </span>
-                      <span className="mt-1 block break-all text-xs font-normal text-muted">
-                        {row.productId}
-                      </span>
-                    </th>
-                    <td className="px-4 py-4">
-                      {row.sku ?? '—'} / {row.barcode ?? '—'}
-                    </td>
-                    <td className="max-w-48 break-words px-4 py-4">
-                      {row.merchantName}
-                    </td>
-                    <td className="px-4 py-4 tabular-nums">{row.unitsSold}</td>
-                    <td className="px-4 py-4 tabular-nums">
-                      {money(row.grossSales)}
-                    </td>
-                    <td className="px-4 py-4 tabular-nums">
-                      {row.returnedUnits}
-                    </td>
-                    <td className="px-4 py-4 tabular-nums">
-                      {money(row.refundedAmount)}
-                    </td>
-                    <td className="px-4 py-4 tabular-nums">
-                      {money(row.netRecordedSales)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="py-5 text-sm text-muted">
-            No products contributed sales or refunds in this period.
-          </p>
-        )}
-      </section>
-    </>
+    </div>
   );
 }
