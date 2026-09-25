@@ -13,6 +13,11 @@ type Daily = Metrics & {
   transactionCount: string;
   refundCount: string;
 };
+type Hourly = Metrics & {
+  hour: number;
+  transactionCount: string;
+  refundCount: string;
+};
 type Product = Metrics & {
   productId: string;
   productName: string;
@@ -123,6 +128,36 @@ export async function readAnalytics(
       COALESCE(r.refunds::text, '0') AS "refundCount"
     FROM sales s FULL OUTER JOIN refunds r ON r.date = s.date
   `);
+  const includeHourly =
+    !own && intersectingManilaDates(from, until).length === 1;
+  const hourly: Hourly[] = includeHourly
+    ? await tx.$queryRaw<Hourly[]>(Prisma.sql`
+    WITH sales AS (
+      SELECT EXTRACT(HOUR FROM (s."completedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila'))::int AS hour,
+        SUM(i."lineTotal") AS gross, SUM(i."quantity"::numeric) AS units,
+        COUNT(DISTINCT s."id") AS transactions
+      FROM "Sale" s JOIN "SaleItem" i ON i."saleId" = s."id" AND i."organizationId" = s."organizationId" AND i."branchId" = s."branchId"
+      WHERE s."organizationId" = ${context.organizationId} AND s."branchId" = ${branchId}
+        AND s."completedAt" >= ${from} AND s."completedAt" < ${until}
+      GROUP BY 1
+    ), refunds AS (
+      SELECT EXTRACT(HOUR FROM (r."completedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila'))::int AS hour,
+        SUM(i."lineTotal") AS refunded, SUM(i."quantity"::numeric) AS returned,
+        COUNT(DISTINCT r."id") AS refunds
+      FROM "Refund" r JOIN "RefundItem" i ON i."refundId" = r."id" AND i."organizationId" = r."organizationId" AND i."branchId" = r."branchId" AND i."saleId" = r."saleId"
+      WHERE r."organizationId" = ${context.organizationId} AND r."branchId" = ${branchId}
+        AND r."completedAt" >= ${from} AND r."completedAt" < ${until}
+      GROUP BY 1
+    )
+    SELECT COALESCE(s.hour, r.hour)::int AS hour,
+      COALESCE(s.gross::text, '0.00') AS "grossSales", COALESCE(s.units::text, '0') AS "unitsSold",
+      COALESCE(s.transactions::text, '0') AS "transactionCount",
+      COALESCE(r.refunded::text, '0.00') AS "refundedAmount", COALESCE(r.returned::text, '0') AS "returnedUnits",
+      COALESCE(r.refunds::text, '0') AS "refundCount"
+    FROM sales s FULL OUTER JOIN refunds r ON r.hour = s.hour
+    ORDER BY 1
+  `)
+    : [];
   const products: Product[] =
     own && !context.merchantId
       ? []
@@ -237,6 +272,7 @@ export async function readAnalytics(
     },
   );
   const byDate = new Map(daily.map((row) => [row.date, row]));
+  const byHour = new Map(hourly.map((row) => [row.hour, row]));
   return {
     dailyTrends: intersectingManilaDates(from, until).map((date) => {
       const row = byDate.get(date) ?? {
@@ -259,6 +295,24 @@ export async function readAnalytics(
             }),
       };
     }),
+    ...(!includeHourly
+      ? {}
+      : {
+          hourlyTrends: Array.from({ length: 24 }, (_, hour) => {
+            const row = byHour.get(hour) ?? {
+              ...zero,
+              hour,
+              transactionCount: '0',
+              refundCount: '0',
+            };
+            return {
+              hour,
+              ...metrics(row, false),
+              transactionCount: row.transactionCount,
+              refundCount: row.refundCount,
+            };
+          }),
+        }),
     topProducts: products.map((row) => ({
       productId: row.productId,
       productName: row.productName,

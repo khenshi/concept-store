@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   MerchantSalesReportResponseDto,
   StaffSalesReportResponseDto,
@@ -32,6 +32,16 @@ export class StaffDailyTrendDto extends StaffAnalyticsMetricsDto {
     description: 'Asia/Manila date; exact instant filtering precedes bucketing',
   })
   date!: string;
+  @ApiProperty(integer) transactionCount!: string;
+  @ApiProperty(integer) refundCount!: string;
+}
+export class StaffHourlyTrendDto extends StaffAnalyticsMetricsDto {
+  @ApiProperty({
+    minimum: 0,
+    maximum: 23,
+    description: 'Asia/Manila hour of day, from 0 through 23',
+  })
+  hour!: number;
   @ApiProperty(integer) transactionCount!: string;
   @ApiProperty(integer) refundCount!: string;
 }
@@ -95,6 +105,14 @@ export class StaffNetByPaymentMethodDto {
 export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto {
   @ApiProperty({ type: [StaffDailyTrendDto], minItems: 1, maxItems: 367 })
   dailyTrends!: StaffDailyTrendDto[];
+  @ApiPropertyOptional({
+    type: [StaffHourlyTrendDto],
+    minItems: 24,
+    maxItems: 24,
+    description:
+      'Zero-filled Asia/Manila hourly trends, returned when the selected period covers one calendar day',
+  })
+  hourlyTrends?: StaffHourlyTrendDto[];
   @ApiProperty({
     type: [StaffTopProductDto],
     maxItems: 10,

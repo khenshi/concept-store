@@ -261,6 +261,18 @@ const staffDailyTrend = z
     netRecordedSales: signedAmount,
   })
   .strict();
+const staffHourlyTrend = z
+  .object({
+    hour: z.number().int().min(0).max(23),
+    grossSales: amount,
+    transactionCount: integer,
+    unitsSold: integer,
+    refundedAmount: amount,
+    refundCount: integer,
+    returnedUnits: integer,
+    netRecordedSales: signedAmount,
+  })
+  .strict();
 const staffTopProduct = analyticsIdentity
   .extend({
     grossSales: amount,
@@ -319,6 +331,7 @@ function analyticsValid(
     topProducts: z.infer<typeof staffTopProduct>[];
     topMerchants?: z.infer<typeof staffTopMerchant>[];
     netByPaymentMethod?: z.infer<typeof staffNetPaymentMethod>[];
+    hourlyTrends?: z.infer<typeof staffHourlyTrend>[];
     totalProducts: string;
   },
   context: z.RefinementCtx,
@@ -384,6 +397,69 @@ function analyticsValid(
     );
   }, BigInt(0));
   const reportNet = signedAmount.safeParse(report.netRecordedSales);
+  const reportNetCents = reportNet.success
+    ? BigInt(reportNet.data.replace('.', ''))
+    : null;
+  const hourlyTrends = report.hourlyTrends;
+  const hourlyData = hourlyTrends?.every(
+    (row) => staffHourlyTrend.safeParse(row).success,
+  )
+    ? hourlyTrends
+    : [];
+  const hourlyGross = hourlyData.reduce(
+    (sum, row) => sum + moneyCents(row.grossSales),
+    BigInt(0),
+  );
+  const hourlyRefunded = hourlyData.reduce(
+    (sum, row) => sum + moneyCents(row.refundedAmount),
+    BigInt(0),
+  );
+  const hourlyTransactions = hourlyData.reduce(
+    (sum, row) => sum + BigInt(row.transactionCount),
+    BigInt(0),
+  );
+  const hourlyUnits = hourlyData.reduce(
+    (sum, row) => sum + BigInt(row.unitsSold),
+    BigInt(0),
+  );
+  const hourlyRefunds = hourlyData.reduce(
+    (sum, row) => sum + BigInt(row.refundCount),
+    BigInt(0),
+  );
+  const hourlyReturned = hourlyData.reduce(
+    (sum, row) => sum + BigInt(row.returnedUnits),
+    BigInt(0),
+  );
+  const hourlyNet = hourlyData.reduce(
+    (sum, row) => sum + BigInt(row.netRecordedSales.replace('.', '')),
+    BigInt(0),
+  );
+  const hourlyRowsValid =
+    hourlyTrends === undefined ||
+    (hourlyData.length === 24 &&
+      hourlyTrends.every(
+        (row, index) =>
+          row.hour === index &&
+          validRefunds(
+            row.grossSales,
+            row.refundedAmount,
+            row.refundCount,
+            row.returnedUnits,
+            row.netRecordedSales,
+          ) &&
+          (BigInt(row.transactionCount) === BigInt(0)
+            ? row.grossSales === '0.00' && row.unitsSold === '0'
+            : moneyCents(row.grossSales) > BigInt(0) &&
+              BigInt(row.unitsSold) >= BigInt(row.transactionCount)),
+      ) &&
+      hourlyGross === moneyCents(report.grossSales) &&
+      hourlyRefunded === moneyCents(report.refundedAmount) &&
+      hourlyTransactions === BigInt(report.transactionCount) &&
+      hourlyUnits === BigInt(report.unitsSold) &&
+      hourlyRefunds === BigInt(report.refundCount) &&
+      hourlyReturned === BigInt(report.returnedUnits) &&
+      reportNetCents !== null &&
+      hourlyNet === reportNetCents);
   const productsValid = report.topProducts.every((row, index) => {
     const previous = report.topProducts[index - 1];
     return (
@@ -437,6 +513,7 @@ function analyticsValid(
       : report.topProducts.length !== 10) ||
     new Set(productIds).size !== productIds.length ||
     !productsValid ||
+    !hourlyRowsValid ||
     (report.netByPaymentMethod !== undefined &&
       (!netMethodRowsValid ||
         new Set(netMethodIds).size !== 3 ||
@@ -482,6 +559,7 @@ export const staffSalesAnalyticsSchema = z
     totalProducts: integer,
     topMerchants: staffTopMerchant.array().max(10),
     netByPaymentMethod: staffNetPaymentMethod.array().length(3),
+    hourlyTrends: staffHourlyTrend.array().length(24).optional(),
   })
   .strict()
   .superRefine((report, context) => {

@@ -33,6 +33,19 @@ function points(values: bigint[], min: bigint, max: bigint) {
     })
     .join(' ');
 }
+function samplePoints<T>(rows: T[], limit = 7) {
+  if (rows.length <= limit) return rows;
+  return Array.from(
+    { length: limit },
+    (_, index) => rows[Math.round((index * (rows.length - 1)) / (limit - 1))],
+  );
+}
+function formatHour(hour: number) {
+  if (hour === 0) return '12 AM';
+  if (hour < 12) return `${hour} AM`;
+  if (hour === 12) return '12 PM';
+  return `${hour - 12} PM`;
+}
 export interface AnalyticsTrendRow {
   date: string;
   grossSales: string;
@@ -197,18 +210,38 @@ const staffTrendMetrics: {
   },
 ];
 
-function SelectableStaffTrendChart({ rows }: { rows: AnalyticsTrendRow[] }) {
+function SelectableStaffTrendChart({
+  rows,
+  hourlyRows,
+}: {
+  rows: AnalyticsTrendRow[];
+  hourlyRows?: StaffSalesAnalytics['hourlyTrends'];
+}) {
   const [metric, setMetric] = useState<StaffTrendMetric>('netRecordedSales');
   const selectedMetric = staffTrendMetrics.find(
     (candidate) => candidate.value === metric,
   )!;
-  const values = rows.map((row) => ({
-    date: row.date,
-    amount:
-      metric === 'netRecordedSales'
-        ? BigInt(row.netRecordedSales.replace('.', ''))
-        : cents(row[metric]),
-  }));
+  const isHourly = rows.length === 1 && hourlyRows?.length === 24;
+  const values = isHourly
+    ? hourlyRows!.map((row) => ({
+        key: String(row.hour),
+        axisLabel: formatHour(row.hour),
+        accessibleLabel: formatHour(row.hour),
+        amount:
+          metric === 'netRecordedSales'
+            ? BigInt(row.netRecordedSales.replace('.', ''))
+            : cents(row[metric]),
+      }))
+    : rows.map((row) => ({
+        key: row.date,
+        axisLabel: row.date.slice(5),
+        accessibleLabel: row.date,
+        amount:
+          metric === 'netRecordedSales'
+            ? BigInt(row.netRecordedSales.replace('.', ''))
+            : cents(row[metric]),
+      }));
+  const plottedValues = samplePoints(values);
   const extent = [...values.map((row) => row.amount), BigInt(0)];
   const min = extent.reduce((result, value) =>
     value < result ? value : result,
@@ -216,25 +249,19 @@ function SelectableStaffTrendChart({ rows }: { rows: AnalyticsTrendRow[] }) {
   const max = extent.reduce((result, value) =>
     value > result ? value : result,
   );
-  const dates = [
-    values[0],
-    values[Math.floor((values.length - 1) / 2)],
-    values.at(-1),
-  ].filter(
-    (row, index, list) =>
-      row &&
-      list.findIndex((candidate) => candidate?.date === row.date) === index,
-  );
   const hasValues = values.some((row) => row.amount !== BigInt(0));
 
   return (
     <section className="data-surface min-w-0">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-hairline px-5 py-5 sm:px-6">
         <div>
-          <h2 className="font-semibold">Daily sales trend</h2>
+          <h2 className="font-semibold">
+            {isHourly ? 'Hourly sales trend' : 'Daily sales trend'}
+          </h2>
           <p className="mt-1 text-sm text-muted">
-            {selectedMetric.label} by Philippine date for the applied report
-            period. Net sales may fall below zero when refunds exceed sales.
+            {selectedMetric.label} by Philippine {isHourly ? 'hour' : 'date'}
+            for the applied report period. Net sales may fall below zero when
+            refunds exceed sales.
           </p>
         </div>
         <fieldset className="flex flex-wrap gap-2">
@@ -242,7 +269,7 @@ function SelectableStaffTrendChart({ rows }: { rows: AnalyticsTrendRow[] }) {
           {staffTrendMetrics.map((option) => (
             <label
               key={option.value}
-              className="flex min-h-11 cursor-pointer items-center rounded-md border border-hairline px-3 py-2 text-sm font-medium focus-within:ring-2 focus-within:ring-ink focus-within:ring-offset-2 has-[:checked]:border-ink has-[:checked]:bg-subtle"
+              className="flex min-h-11 cursor-pointer items-center rounded-full border border-hairline px-4 py-2 text-sm font-medium focus-within:ring-2 focus-within:ring-ink focus-within:ring-offset-2 has-[:checked]:border-ink has-[:checked]:bg-subtle"
             >
               <input
                 className="sr-only"
@@ -279,7 +306,7 @@ function SelectableStaffTrendChart({ rows }: { rows: AnalyticsTrendRow[] }) {
           />
           <polyline
             points={points(
-              values.map((row) => row.amount),
+              plottedValues.map((row) => row.amount),
               min,
               max,
             )}
@@ -288,11 +315,13 @@ function SelectableStaffTrendChart({ rows }: { rows: AnalyticsTrendRow[] }) {
             strokeWidth="3"
             vectorEffect="non-scaling-stroke"
           />
-          {values.map((row, index) => (
+          {plottedValues.map((row, index) => (
             <circle
-              key={row.date}
+              key={row.key}
               cx={
-                values.length === 1 ? 300 : (index * 600) / (values.length - 1)
+                plottedValues.length === 1
+                  ? 300
+                  : (index * 600) / (plottedValues.length - 1)
               }
               cy={scale(row.amount, min, max)}
               r="3"
@@ -301,19 +330,19 @@ function SelectableStaffTrendChart({ rows }: { rows: AnalyticsTrendRow[] }) {
           ))}
         </svg>
         <div className="flex justify-between gap-2 text-xs text-muted">
-          {dates.map((row) => (
-            <span key={row!.date}>{row!.date.slice(5)}</span>
+          {plottedValues.map((row) => (
+            <span key={row.key}>{row.axisLabel}</span>
           ))}
         </div>
       </div>
       <ol
-        aria-label={`${selectedMetric.label} exact daily values`}
+        aria-label={`${selectedMetric.label} exact ${isHourly ? 'hourly' : 'daily'} values`}
         className="sr-only"
       >
         {values.map((row) => (
           <li
-            key={row.date}
-          >{`${row.date}: ${money(fromCents(row.amount))}`}</li>
+            key={row.key}
+          >{`${row.accessibleLabel}: ${money(fromCents(row.amount))}`}</li>
         ))}
       </ol>
     </section>
@@ -362,7 +391,8 @@ function AverageWeekdayChart({ rows }: { rows: AnalyticsTrendRow[] }) {
       <header className="border-b border-hairline px-5 py-5 sm:px-6">
         <h2 className="font-semibold">Average sales by weekday</h2>
         <p className="mt-1 text-sm text-muted">
-          Average sales for each weekday, calculated using all matching days in the selected period, including days with no sales.
+          Average sales for each weekday, calculated using all matching days in
+          the selected period, including days with no sales.
         </p>
       </header>
       {!hasGrossSales ? (
@@ -601,17 +631,11 @@ export function StaffAnalyticsDashboard({
 }: {
   report: StaffSalesAnalytics;
 }) {
-  const empty = report.transactionCount === '0' && report.refundCount === '0';
   return (
     <>
-      {empty ? (
-        <p role="status" className="mt-5 text-sm text-muted">
-          No completed sales or refunds in this branch for the applied period.
-        </p>
-      ) : null}
       <dl
         aria-label="Sales analytics summary"
-        className="mt-6 grid gap-y-2 border-y border-hairline sm:grid-cols-2 lg:grid-cols-4 lg:gap-y-0"
+        className="mt-2 grid gap-y-2 border-y border-hairline sm:grid-cols-2 lg:grid-cols-4 lg:gap-y-0"
       >
         {[
           ['Gross recorded sales', money(report.grossSales), 'Before refunds'],
@@ -654,7 +678,10 @@ export function StaffAnalyticsDashboard({
         aria-label="Sales analytics charts"
         className="mt-6 space-y-4"
       >
-        <SelectableStaffTrendChart rows={report.dailyTrends} />
+        <SelectableStaffTrendChart
+          rows={report.dailyTrends}
+          hourlyRows={report.hourlyTrends}
+        />
         <div
           role="group"
           aria-label="Performance charts"

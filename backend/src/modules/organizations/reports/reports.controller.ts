@@ -32,6 +32,7 @@ import {
 import { ReportsService } from './reports.service';
 import {
   MerchantSalesAnalyticsResponseDto,
+  StaffHourlyTrendDto,
   StaffNetByPaymentMethodDto,
   StaffTopMerchantDto,
   StaffSalesAnalyticsResponseDto,
@@ -57,6 +58,7 @@ import {
   MerchantSalesAnalyticsResponseDto,
   StaffNetByPaymentMethodDto,
   StaffTopMerchantDto,
+  StaffHourlyTrendDto,
 )
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
 @ApiForbiddenResponse({ description: 'Cashiers cannot access Reports' })

@@ -101,6 +101,7 @@ describe('Sales analytics', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         {
           paymentMethod: 'CASH',
@@ -129,13 +130,58 @@ describe('Sales analytics', () => {
       { paymentMethod: 'GCASH', netRecordedSales: '7.50' },
       { paymentMethod: 'CARD', netRecordedSales: '0.00' },
     ]);
-    const [query] = raw.mock.calls[3] as [Prisma.Sql];
+    const [query] = raw.mock.calls[4] as [Prisma.Sql];
     expect(query.sql).toContain('JOIN "Sale" source');
     expect(query.sql).toContain('source."organizationId" =');
     expect(query.sql).toContain('source."branchId" =');
     expect(query.sql).toContain('r."completedAt" >=');
     expect(query.values).toEqual(
       expect.arrayContaining(['org', 'branch', from, until]),
+    );
+  });
+  it('returns zero-filled Manila hours for a one-day staff period', async () => {
+    const raw = jest
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          hour: 9,
+          grossSales: '5.00',
+          unitsSold: '1',
+          transactionCount: '1',
+          refundedAmount: '0.00',
+          returnedUnits: '0',
+          refundCount: '0',
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+    const result = await readAnalytics(
+      { $queryRaw: raw } as unknown as Prisma.TransactionClient,
+      {
+        organizationId: 'org',
+        userId: 'owner',
+        role: 'OWNER',
+      },
+      'branch',
+      new Date('2026-09-01T16:00:00Z'),
+      new Date('2026-09-02T16:00:00Z'),
+    );
+    expect(result.hourlyTrends).toHaveLength(24);
+    expect(result.hourlyTrends?.[0]).toMatchObject({
+      hour: 0,
+      grossSales: '0.00',
+      netRecordedSales: '0.00',
+    });
+    expect(result.hourlyTrends?.[9]).toMatchObject({
+      hour: 9,
+      grossSales: '5.00',
+      transactionCount: '1',
+      netRecordedSales: '5.00',
+    });
+    expect((raw.mock.calls[1] as [Prisma.Sql])[0].sql).toContain(
+      'EXTRACT(HOUR',
     );
   });
 });

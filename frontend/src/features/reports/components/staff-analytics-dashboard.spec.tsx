@@ -219,6 +219,7 @@ describe('staff analytics dashboard', () => {
       name: 'Net Sales',
     });
     expect(netSales).toBeChecked();
+    expect(netSales.closest('label')).toHaveClass('rounded-full');
     const netValues = screen.getByRole('list', {
       name: 'Net Sales exact daily values',
     });
@@ -323,12 +324,8 @@ describe('staff analytics dashboard', () => {
     expect(
       within(paymentChart!).getByText('1 transactions'),
     ).toBeInTheDocument();
-    expect(
-      within(paymentChart!).getByText('GCash (manual, unverified)'),
-    ).toBeInTheDocument();
-    expect(
-      within(paymentChart!).getByText('Card (manual, unverified)'),
-    ).toBeInTheDocument();
+    expect(within(paymentChart!).getByText('GCash')).toBeInTheDocument();
+    expect(within(paymentChart!).getByText('Card')).toBeInTheDocument();
     const productTable = screen.getByRole('table', {
       name: 'Top products by gross sales',
     });
@@ -346,6 +343,12 @@ describe('staff analytics dashboard', () => {
       until: '2026-09-21T16:00:00.000Z',
     });
     render(<StaffAnalyticsDashboard report={partialWeeks} />);
+    const trend = screen
+      .getByRole('heading', { name: 'Daily sales trend' })
+      .closest('section');
+    expect(
+      trend?.querySelector('polyline')?.getAttribute('points')?.split(' '),
+    ).toHaveLength(7);
     const weekdayValues = screen.getByRole('list', {
       name: 'Average gross sales by weekday values',
     });
@@ -383,6 +386,44 @@ describe('staff analytics dashboard', () => {
       }),
     ).toBeInTheDocument();
     expect(within(weekdayValues).getAllByText('No dates')).toHaveLength(6);
+  });
+
+  it('uses hourly points for a one-day period while keeping the axis readable', () => {
+    const oneDay = grossOnlyReport({
+      dates: ['2026-09-14'],
+      salesByDate: { '2026-09-14': '5.00' },
+      from: '2026-09-13T16:00:00.000Z',
+      until: '2026-09-14T16:00:00.000Z',
+    });
+    const hourlyTrends = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      grossSales: hour === 9 ? '5.00' : '0.00',
+      transactionCount: hour === 9 ? '1' : '0',
+      unitsSold: hour === 9 ? '1' : '0',
+      refundedAmount: '0.00',
+      refundCount: '0',
+      returnedUnits: '0',
+      netRecordedSales: hour === 9 ? '5.00' : '0.00',
+    }));
+    const hourlyReport = staffSalesAnalyticsSchema.parse({
+      ...oneDay,
+      hourlyTrends,
+    });
+    render(<StaffAnalyticsDashboard report={hourlyReport} />);
+    expect(
+      screen.getByText(/Net Sales by Philippine hour/),
+    ).toBeInTheDocument();
+    const trend = screen
+      .getByRole('heading', { name: 'Hourly sales trend' })
+      .closest('section');
+    expect(trend?.querySelectorAll('circle')).toHaveLength(7);
+    expect(screen.getByText('12 AM')).toBeInTheDocument();
+    expect(screen.getByText('12 PM')).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole('list', { name: 'Net Sales exact hourly values' }),
+      ).getByText('9 AM: PHP 5.00'),
+    ).toBeInTheDocument();
   });
 
   it('keeps a one-cent negative net value signed in the selectable line chart', () => {

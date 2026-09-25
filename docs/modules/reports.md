@@ -12,7 +12,7 @@ completion dates; refunds use refund completion dates independently of the
 original sale date. Net recorded sales is gross minus refunds and may be negative;
 it is not profit, available cash, commissions or merchant payouts. No shifts,
 settlements, exports, printing or payment verification are provided. A separate
-analytics API adds daily trends and top-product rankings; the existing frontend
+analytics API adds daily trends, single-day hourly trends and top-product rankings; the existing frontend
 still uses the unchanged summary endpoint. Reports never mutate sales, inventory,
 payments or ledger history.
 No report entities, migration, analytics infrastructure or new indexes are added.
@@ -152,6 +152,11 @@ completion dates, including older original sales. Staff rows contain `date`,
 own-prefixed fields plus `date`. Distinct parent counts prevent mixed/multiple
 lines inflating counts. Daily totals reconcile to the same snapshot summary.
 
+Staff analytics adds `hourlyTrends` only when the range intersects one Manila
+calendar date. It contains all 24 hours in ascending order, zero-filled, and uses
+the same exact gross, refund, count, unit and signed-net fields as daily rows.
+The exact UTC range still controls which events are included in the hourly buckets.
+
 Products group by historical `productId`, include either sales or refunds in the
 period, and rank by exact gross descending, units descending, product ID ascending.
 At most ten rows are returned; `totalProducts` counts all contributing products.
@@ -213,7 +218,10 @@ is not profit, payout or available cash. The sales trend has accessible metric
 controls for Net Sales, Gross Sales and Refunds, defaulting to Net Sales. It uses
 the applied report's daily rows in Asia/Manila date order, includes exact values
 for each date in accessible text, and shows a zero baseline so negative net values
-remain clear. The Payment Method donut shows gross sale totals by recorded method,
+remain clear. The plotted daily trend samples at most seven dates and labels every
+plotted point. When the selected period is one Manila calendar day, staff analytics
+also returns 24 zero-filled hourly rows and the trend switches to Philippine-hour
+points, while the accessible list retains every hour. The Payment Method donut shows gross sale totals by recorded method,
 with exact amounts and transaction counts. Manual GCash/card remain unverified.
 Merchants use their separate own-only analytics response and view described below.
 
@@ -239,8 +247,9 @@ nearest cent. A weekday with no date in the range is labeled accordingly. The
 detailed product table continues to show every product row returned by analytics.
 Chart values and metric controls are accessible; decorative SVGs are hidden from
 assistive technology, and empty panels state when their series have no values.
-The September 25 chart refresh uses only the existing analytics response and
-changes no API, DTO or database behavior. The Reports frontend suite passes 168
+The September 25 chart refresh keeps the existing report route and database model;
+the staff analytics response adds an optional hourly trend only for one-day
+periods. The Reports frontend suite passes 169
 tests across ten files; changed-file formatting, lint, typecheck and production
 build pass. Safari viewport review at 390×844, 834×1194, 1180×820 and 1600×900
 confirmed phone stacking, the weekday/payment two-thirds-to-one-third layout at
