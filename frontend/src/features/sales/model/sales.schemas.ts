@@ -3,6 +3,7 @@ import {
   completedSaleSchema,
   money,
   moneyCents,
+  paymentMethod,
 } from '@/features/pos/model/checkout';
 
 const uuid = z.string().uuid();
@@ -96,6 +97,15 @@ export const sellingBranchesSchema = z
     (rows) => new Set(rows.map((row) => row.id)).size === rows.length,
     'Selling branches must be distinct.',
   );
+export const cashierOptionSchema = z
+  .object({ id: z.uuidv4(), name: z.string().min(1) })
+  .strict();
+export const cashierOptionsSchema = z
+  .array(cashierOptionSchema)
+  .refine(
+    (rows) => new Set(rows.map((row) => row.id)).size === rows.length,
+    'Cashier options must be distinct.',
+  );
 const utc = z
   .string()
   .regex(
@@ -105,6 +115,14 @@ const utc = z
   .datetime({ precision: null });
 export const salesQuerySchema = z
   .object({
+    q: z
+      .string()
+      .trim()
+      .max(254)
+      .transform((value) => value || undefined)
+      .optional(),
+    cashierId: z.uuidv4().optional(),
+    paymentMethod: paymentMethod.optional(),
     from: utc.optional(),
     until: utc.optional(),
     page: z.number().int().min(1).max(21474836),
@@ -120,3 +138,4 @@ export const salesQuerySchema = z
   );
 export type SalesQuery = z.infer<typeof salesQuerySchema>;
 export type MerchantSale = z.infer<typeof merchantSaleSchema>;
+export type CashierOption = z.infer<typeof cashierOptionSchema>;

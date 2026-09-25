@@ -8,6 +8,7 @@ import {
   merchantSaleSchema,
   merchantSalesPageSchema,
   staffSalesPageSchema,
+  cashierOptionsSchema,
   sellingBranchesSchema,
   salesQuerySchema,
   type SalesQuery,
@@ -25,6 +26,9 @@ export async function listSales(
   const params = new URLSearchParams({
     page: String(query.page),
     limit: String(query.limit),
+    ...(query.q ? { q: query.q } : {}),
+    ...(query.cashierId ? { cashierId: query.cashierId } : {}),
+    ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
     ...(query.from ? { from: query.from } : {}),
     ...(query.until ? { until: query.until } : {}),
   });
@@ -47,6 +51,14 @@ export async function listSales(
   )
     throw new Error('Sales response scope is inconsistent.');
   return result;
+}
+export async function listCashiers(
+  request: AuthenticatedRequest,
+  scope: PosScope,
+) {
+  return cashierOptionsSchema.parse(
+    await request<unknown>(`${salesPath(scope)}/cashiers`),
+  );
 }
 export async function getSale(
   request: AuthenticatedRequest,

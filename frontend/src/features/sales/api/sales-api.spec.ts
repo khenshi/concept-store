@@ -1,4 +1,9 @@
-import { listSales, getSale, listSellingBranches } from './sales-api';
+import {
+  listCashiers,
+  listSales,
+  getSale,
+  listSellingBranches,
+} from './sales-api';
 import {
   scope,
   product,
@@ -11,6 +16,51 @@ import {
   sellingBranches,
 } from '../model/sales.test-fixtures';
 describe('scoped role-specific sales read API', () => {
+  it('serializes the staff filters and validates scoped cashier options', async () => {
+    const cashierId = '44444444-4444-4444-8444-444444444444';
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(staffPage)
+      .mockResolvedValueOnce([
+        { id: cashierId, name: 'A Cashier' },
+        { id: completedSale.items[0].merchantId, name: 'B Cashier' },
+      ]);
+    await expect(
+      listSales(request, scope, 'OWNER', {
+        page: 1,
+        limit: 10,
+        q: 'SALE-001',
+        cashierId,
+        paymentMethod: 'CARD',
+        from: '2026-09-12T16:00:00.000Z',
+        until: '2026-09-13T16:00:00.000Z',
+      }),
+    ).resolves.toEqual({ kind: 'staff', page: staffPage });
+    expect(request.mock.calls[0][0]).toBe(
+      `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=10&q=SALE-001&cashierId=${cashierId}&paymentMethod=CARD&from=2026-09-12T16%3A00%3A00.000Z&until=2026-09-13T16%3A00%3A00.000Z`,
+    );
+    await expect(listCashiers(request, scope)).resolves.toEqual([
+      { id: cashierId, name: 'A Cashier' },
+      { id: completedSale.items[0].merchantId, name: 'B Cashier' },
+    ]);
+    expect(request.mock.calls[1][0]).toBe(
+      `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales/cashiers`,
+    );
+  });
+  it('rejects stale or non-strict cashier responses', async () => {
+    await expect(
+      listCashiers(
+        vi.fn().mockResolvedValue([
+          {
+            id: completedSale.items[0].merchantId,
+            name: 'Cashier',
+            branchId: scope.branchId,
+          },
+        ]),
+        scope,
+      ),
+    ).rejects.toThrow();
+  });
   it.each(['OWNER', 'MANAGER', 'CASHIER'] as const)(
     'reads explicit persisted staff contracts for %s without writes',
     async (role) => {
@@ -21,13 +71,13 @@ describe('scoped role-specific sales read API', () => {
       expect(
         await listSales(request, scope, role, {
           page: 1,
-          limit: 50,
+          limit: 10,
           from: '2026-09-13T00:00:00Z',
           until: '2026-09-14T00:00:00Z',
         }),
       ).toEqual({ kind: 'staff', page: staffPage });
       expect(request.mock.calls[0][0]).toBe(
-        `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=50&from=2026-09-13T00%3A00%3A00Z&until=2026-09-14T00%3A00%3A00Z`,
+        `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=10&from=2026-09-13T00%3A00%3A00Z&until=2026-09-14T00%3A00%3A00Z`,
       );
       expect(await getSale(request, scope, role, completedSale.id)).toEqual({
         kind: 'staff',
@@ -120,7 +170,7 @@ describe('scoped role-specific sales read API', () => {
         }),
         scope,
         'OWNER',
-        { page: 1, limit: 50 },
+        { page: 1, limit: 10 },
       ),
     ).rejects.toThrow();
     await expect(

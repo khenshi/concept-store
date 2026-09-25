@@ -1,4 +1,5 @@
 import {
+  cashierOptionsSchema,
   merchantSaleSchema,
   merchantSalesPageSchema,
   salesQuerySchema,
@@ -80,6 +81,36 @@ describe('historical own-sale schema invariants', () => {
         from: '2026-09-13T00:00:00Z',
         until: '2026-09-13T00:00:00Z',
       }).success,
+    ).toBe(false);
+  });
+  it('accepts staff filters but keeps cashier responses strict and distinct', () => {
+    expect(
+      salesQuerySchema.parse({
+        q: '  SALE-001 ',
+        cashierId: '44444444-4444-4444-8444-444444444444',
+        paymentMethod: 'CASH',
+        page: 1,
+        limit: 10,
+      }),
+    ).toMatchObject({
+      q: 'SALE-001',
+      cashierId: '44444444-4444-4444-8444-444444444444',
+      paymentMethod: 'CASH',
+    });
+    expect(
+      cashierOptionsSchema.safeParse([
+        { id: '44444444-4444-4444-8444-444444444444', name: 'Cashier' },
+        { id: '44444444-4444-4444-8444-444444444444', name: 'Duplicate' },
+      ]).success,
+    ).toBe(false);
+    expect(
+      cashierOptionsSchema.safeParse([
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          name: 'Cashier',
+          branchId: ownSale.branchId,
+        },
+      ]).success,
     ).toBe(false);
   });
 });
