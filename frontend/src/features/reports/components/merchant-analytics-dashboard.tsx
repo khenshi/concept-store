@@ -177,9 +177,6 @@ function MerchantRankings({
                   </td>
                   <th scope="row" className="max-w-64 px-4 py-4 font-semibold">
                     <span className="block break-words">{row.productName}</span>
-                    <span className="mt-1 block break-all text-xs font-normal text-muted">
-                      {row.productId}
-                    </span>
                   </th>
                   <td className="px-4 py-4">
                     {row.sku ?? '—'} / {row.barcode ?? '—'}

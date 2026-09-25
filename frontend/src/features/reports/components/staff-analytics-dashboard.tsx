@@ -798,9 +798,6 @@ function StaffRankings({
                   </td>
                   <th scope="row" className="max-w-64 px-4 py-4 font-semibold">
                     <span className="block break-words">{row.productName}</span>
-                    <span className="mt-1 block break-all text-xs font-normal text-muted">
-                      {row.productId}
-                    </span>
                   </th>
                   <td className="px-4 py-4">
                     {row.sku ?? '—'} / {row.barcode ?? '—'}
@@ -909,7 +906,7 @@ export function StaffAnalyticsDashboard({
     >
       <dl
         aria-label="Sales analytics summary"
-        className="mt-2 grid gap-y-2 border-y border-hairline sm:grid-cols-2 lg:grid-cols-4 lg:gap-y-0"
+        className="mt-1 grid gap-y-2 border-b border-hairline sm:grid-cols-2 lg:grid-cols-4 lg:gap-y-0"
       >
         {[
           ['Gross recorded sales', money(report.grossSales), 'Before refunds'],
