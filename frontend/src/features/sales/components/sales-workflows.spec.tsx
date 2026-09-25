@@ -95,6 +95,9 @@ describe('read-only scoped sales workflows', () => {
     render(<BranchSales {...scope} />);
     await screen.findByText('Own items subtotal: PHP 850.00');
     expect(
+      screen.queryByRole('button', { name: 'Refresh access' }),
+    ).not.toBeInTheDocument();
+    expect(
       screen.getByRole('link', {
         name: `View own items ${ownSale.receiptCode}`,
       }),
@@ -117,6 +120,10 @@ describe('read-only scoped sales workflows', () => {
       render(<BranchSales {...scope} />);
       await screen.findByText('Total: PHP 850.00');
       expect(
+        screen.queryByRole('button', { name: 'Refresh access' }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText('Sale Code')).toBeInTheDocument();
+      expect(
         screen.getByText('Cashier: Saved Cashier · Cash'),
       ).toBeInTheDocument();
       if (role === 'CASHIER')
@@ -130,6 +137,82 @@ describe('read-only scoped sales workflows', () => {
       ).toBeInTheDocument();
     },
   );
+  it('automatically filters the ten-row staff history with Manila date-only controls', async () => {
+    const cashierId = '44444444-4444-4444-8444-444444444444';
+    workspace('OWNER');
+    request.mockImplementation(async (path: string) =>
+      path.endsWith('/cashiers')
+        ? [{ id: cashierId, name: 'Another Cashier' }]
+        : staffPage,
+    );
+    render(<BranchSales {...scope} />);
+
+    await screen.findByRole('link', {
+      name: `View receipt ${completedSale.receiptCode}`,
+    });
+    expect(
+      request.mock.calls.some(([path]) => path.endsWith('page=1&limit=10')),
+    ).toBe(true);
+    expect(screen.getByText('Payment Method')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Branch', { exact: true }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Asia/Manila, inclusive'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', { name: 'Sales pagination' }),
+    ).not.toHaveClass('bg-subtle');
+
+    const filterForm = screen
+      .getByRole('searchbox', { name: 'Search receipt code' })
+      .closest('form');
+    expect(filterForm).not.toHaveClass('bg-subtle');
+    expect(screen.getByRole('button', { name: 'Apply Dates' })).toHaveClass(
+      'rounded-full',
+    );
+
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Search receipt code' }),
+      {
+        target: { value: completedSale.receiptCode },
+      },
+    );
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(([path]) => path.includes('q=SALE-SAVED-001')),
+      ).toBe(true),
+    );
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Cashier' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'Another Cashier' }),
+    );
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(([path]) =>
+          path.includes(`cashierId=${cashierId}`),
+        ),
+      ).toBe(true),
+    );
+
+    fireEvent.change(screen.getByLabelText('From Date'), {
+      target: { value: '2026-09-13' },
+    });
+    fireEvent.change(screen.getByLabelText('Through Date'), {
+      target: { value: '2026-09-13' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Dates' }));
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(
+          ([path]) =>
+            path.includes('from=2026-09-12T16%3A00%3A00.000Z') &&
+            path.includes('until=2026-09-13T16%3A00%3A00.000Z'),
+        ),
+      ).toBe(true),
+    );
+  });
   it('validates half-open UTC dates and resets pagination when applying or clearing ranges', async () => {
     request.mockResolvedValue(ownPage);
     render(<BranchSales {...scope} />);

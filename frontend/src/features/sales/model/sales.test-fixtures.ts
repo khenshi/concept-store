@@ -41,7 +41,7 @@ export const ownPage = {
   total: 1,
   totalPages: 1,
 };
-export const staffPage = { ...ownPage, items: [completedSale] };
+export const staffPage = { ...ownPage, limit: 10, items: [completedSale] };
 export const sellingBranches = [
   { id: branchId, name: 'Current Makati', code: 'MKT' },
 ];

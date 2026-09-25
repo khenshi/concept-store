@@ -123,30 +123,31 @@ describe('Persistent route-backed POS workspace', () => {
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     const page1 = {
       ...staffPage,
-      items: Array.from({ length: 50 }, (_, index) => ({
+      items: Array.from({ length: 10 }, (_, index) => ({
         ...completedSale,
         id: `11111111-1111-4111-8111-${String(index).padStart(12, '0')}`,
       })),
       total: 51,
-      totalPages: 2,
+      totalPages: 6,
     };
     request.mockResolvedValue(page1);
     const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
-    await screen.findByText('51 permitted sales · Page 1 of 2');
+    await screen.findByText('51 permitted sales · Page 1 of 6');
     request.mockResolvedValue({
       ...staffPage,
+      items: page1.items,
       page: 2,
       total: 51,
-      totalPages: 2,
+      totalPages: 6,
     });
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
-    await screen.findByText('51 permitted sales · Page 2 of 2');
+    await screen.findByText('51 permitted sales · Page 2 of 6');
     vi.mocked(usePathname).mockReturnValue(base);
     view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
     await readyCart();
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
-    await screen.findByText('51 permitted sales · Page 2 of 2');
+    await screen.findByText('51 permitted sales · Page 2 of 6');
     expect(request).toHaveBeenLastCalledWith(expect.stringContaining('page=2'));
   });
   it('locks History during a pending checkout and retains the original request', async () => {
@@ -266,13 +267,12 @@ describe('Persistent route-backed POS workspace', () => {
   it('keeps history date filters through receipt detail and Cart and uses a single receipt print surface', async () => {
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
-    await screen.findByRole('button', { name: 'Apply dates' });
-    const from = '2026-09-13T00:00:00Z';
-    fireEvent.change(
-      screen.getByRole('textbox', { name: 'From (UTC, inclusive)' }),
-      { target: { value: from } },
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Apply dates' }));
+    await screen.findByRole('button', { name: 'Apply Dates' });
+    const from = '2026-09-13';
+    fireEvent.change(screen.getByLabelText('From Date'), {
+      target: { value: from },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Dates' }));
     await screen.findByRole('link', {
       name: `View receipt ${completedSale.receiptCode}`,
     });
@@ -304,11 +304,9 @@ describe('Persistent route-backed POS workspace', () => {
     await screen.findByRole('link', {
       name: `View receipt ${completedSale.receiptCode}`,
     });
-    expect(
-      screen.getByRole('textbox', { name: 'From (UTC, inclusive)' }),
-    ).toHaveValue(from);
+    expect(screen.getByLabelText('From Date')).toHaveValue(from);
     expect(request).toHaveBeenLastCalledWith(
-      expect.stringContaining(`from=${encodeURIComponent(from)}`),
+      expect.stringContaining('from=2026-09-12T16%3A00%3A00.000Z'),
     );
     expect(document.querySelectorAll('#pos-receipt-print-root')).toHaveLength(
       0,
