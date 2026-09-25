@@ -3,6 +3,8 @@ import {
   getStaffSalesAnalytics,
   getMerchantSalesReport,
   getMerchantSalesAnalytics,
+  getStaffSalesRankings,
+  getMerchantSalesRankings,
   listReportBranches,
 } from './report-api';
 
@@ -58,6 +60,52 @@ const analyticsEmpty = {
   topProducts: [],
   totalProducts: '0',
   topMerchants: [],
+};
+const staffRanking = {
+  scope: 'STAFF',
+  branch,
+  ...range,
+  page: 2,
+  limit: 10,
+  totalProducts: '11',
+  hasNext: false,
+  items: [
+    {
+      productId: '22222222-2222-4222-8222-222222222222',
+      productName: 'Ranked product',
+      sku: null,
+      barcode: null,
+      merchantName: 'Merchant',
+      grossSales: '12.34',
+      unitsSold: '2',
+      refundedAmount: '0.00',
+      returnedUnits: '0',
+      netRecordedSales: '12.34',
+    },
+  ],
+};
+const merchantRanking = {
+  scope: 'MERCHANT',
+  branch,
+  ...range,
+  page: 1,
+  limit: 10,
+  totalProducts: '1',
+  hasNext: false,
+  items: [
+    {
+      productId: '22222222-2222-4222-8222-222222222222',
+      productName: 'Own ranked product',
+      sku: null,
+      barcode: null,
+      merchantName: 'Own merchant',
+      ownGrossSales: '12.34',
+      ownUnitsSold: '2',
+      ownRefundedAmount: '0.00',
+      ownReturnedUnits: '0',
+      ownNetRecordedSales: '12.34',
+    },
+  ],
 };
 
 describe('report reads', () => {
@@ -117,6 +165,24 @@ describe('report reads', () => {
       }),
     ).rejects.toThrow();
     expect(request).not.toHaveBeenCalled();
+  });
+  it('reads a server-paginated staff ranking page and validates its cursor', async () => {
+    const request = vi.fn().mockResolvedValue(staffRanking);
+    expect(
+      await getStaffSalesRankings(request, 'org/path', branch.id, {
+        ...range,
+        page: 2,
+      }),
+    ).toEqual(staffRanking);
+    expect(request).toHaveBeenCalledExactlyOnceWith(
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/rankings?${new URLSearchParams({ ...range, page: '2' })}`,
+    );
+    await expect(
+      getStaffSalesRankings(request, 'org', branch.id, {
+        ...range,
+        page: 3,
+      }),
+    ).rejects.toThrow();
   });
   it.each([
     {
@@ -235,6 +301,18 @@ describe('merchant Reports API', () => {
     ).toEqual(own);
     expect(request).toHaveBeenCalledExactlyOnceWith(
       `/organizations/org%2Fpath/branches/${branch.id}/reports/sales?${new URLSearchParams(range)}`,
+    );
+  });
+  it('reads a merchant ranking page through the same scoped route', async () => {
+    const request = vi.fn().mockResolvedValue(merchantRanking);
+    expect(
+      await getMerchantSalesRankings(request, 'org/path', branch.id, {
+        ...range,
+        page: 1,
+      }),
+    ).toEqual(merchantRanking);
+    expect(request).toHaveBeenCalledExactlyOnceWith(
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/rankings?${new URLSearchParams({ ...range, page: '1' })}`,
     );
   });
   it.each([

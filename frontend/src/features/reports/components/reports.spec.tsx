@@ -127,6 +127,23 @@ function analyticsFor(path: string): StaffSalesAnalytics {
   });
   return { ...analyticsReport, from, until, dailyTrends };
 }
+function rankingFor(path: string) {
+  const query = new URLSearchParams(path.split('?')[1]);
+  const from = query.get('from') ?? range.from;
+  const until = query.get('until') ?? range.until;
+  const page = Number(query.get('page') ?? '1');
+  return {
+    scope: 'STAFF' as const,
+    branch,
+    from,
+    until,
+    page,
+    limit: 10 as const,
+    totalProducts: analyticsReport.totalProducts,
+    hasNext: false,
+    items: analyticsReport.topProducts,
+  };
+}
 const request = vi.fn();
 const push = vi.fn();
 const refreshOrganization = vi.fn();
@@ -164,11 +181,15 @@ describe('staff Reports workspace', () => {
     request.mockImplementation(async (path: string) =>
       path.endsWith('/reports/sales/branches')
         ? [branch, second]
-        : {
-            ...(path.includes('/analytics') ? analyticsFor(path) : report),
-            branch: path.includes(`/branches/${second.id}/`) ? second : branch,
-            ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
-          },
+        : path.includes('/rankings')
+          ? rankingFor(path)
+          : {
+              ...(path.includes('/analytics') ? analyticsFor(path) : report),
+              branch: path.includes(`/branches/${second.id}/`)
+                ? second
+                : branch,
+              ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
+            },
     );
   });
   afterEach(() => {
@@ -233,8 +254,37 @@ describe('staff Reports workspace', () => {
     expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
       '2026-09-14',
     );
-    expect(screen.getAllByText('GCash (manual, unverified)')).toHaveLength(1);
-    expect(screen.getAllByText('Card (manual, unverified)')).toHaveLength(1);
+    expect(screen.getAllByText('GCash')).toHaveLength(1);
+    expect(screen.getAllByText('Card')).toHaveLength(1);
+  });
+  it('switches report tabs without leaving the section or changing the applied range', async () => {
+    render(<BranchReports organizationId="org" branchId={branch.id} />);
+    await screen.findAllByText('PHP 60.00');
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Daily Data' }));
+    expect(
+      screen.getByRole('tabpanel', { name: 'Daily Data' }),
+    ).toHaveAttribute('id', 'sales-daily-panel');
+    expect(
+      screen.getByRole('table', { name: 'Daily sales data in Asia/Manila' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
+      '2026-09-14',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Rankings' }));
+    expect(
+      await screen.findByRole('table', { name: 'Top products by gross sales' }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
+      '2026-09-14',
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    expect(
+      screen.getByRole('heading', { name: 'Daily sales trend' }),
+    ).toBeInTheDocument();
   });
   it('does not fetch a summary for an inaccessible branch or select a fallback', async () => {
     request.mockResolvedValue([second]);
@@ -251,7 +301,7 @@ describe('staff Reports workspace', () => {
     const from = screen.getByLabelText('From (PH, inclusive)');
     fireEvent.change(from, { target: { value: '' } });
     expect(
-      screen.getByRole('button', { name: 'Refresh report' }),
+      screen.getByRole('button', { name: 'Refresh Report' }),
     ).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
     expect(request).toHaveBeenCalledTimes(2);
@@ -268,7 +318,7 @@ describe('staff Reports workspace', () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await screen.findAllByText('PHP 60.00');
     request.mockRejectedValueOnce(new ApiError(403, 'Reports access revoked'));
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Reports access revoked',
@@ -302,9 +352,7 @@ describe('staff Reports workspace', () => {
       }),
     );
     expect(screen.queryByText('PHP 99.00')).not.toBeInTheDocument();
-    expect(screen.getByText(/Applied period/)).toHaveTextContent(
-      '2026-09-13 through 2026-09-14',
-    );
+    expect(screen.queryByText(/Applied period/)).not.toBeInTheDocument();
   });
   it('clears scoped data when the role or organization access changes', async () => {
     const view = render(
@@ -379,7 +427,7 @@ describe('staff Reports workspace', () => {
       ownTransactionCount: '1',
       ownUnitsSold: '1',
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
     await screen.findByRole('alert');
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     expect(
@@ -532,7 +580,7 @@ describe('staff Reports workspace', () => {
         screen.getByRole('heading', { name: 'Own-sales reports' }),
       ).toBeInTheDocument();
       expect(screen.getAllByText('Transactions with own items')).toHaveLength(
-        2,
+        1,
       );
       expect(
         screen.queryByRole('list', { name: 'Payment breakdown' }),
@@ -597,10 +645,7 @@ describe('staff Reports workspace', () => {
             },
       );
       render(<BranchReports organizationId="org" branchId={branch.id} />);
-      await screen.findByText(/No completed sales or refunds involving your/);
-      expect(
-        screen.getByText(/If your profile is not linked/),
-      ).toBeInTheDocument();
+      await screen.findByText(/If your profile is not linked/);
       fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
         target: { value: '2026-09-13' },
       });
@@ -624,7 +669,7 @@ describe('staff Reports workspace', () => {
           .mockResolvedValueOnce(
             kind === 'STAFF' ? report : { ...own, payments: report.payments },
           );
-        fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
         expect(screen.queryByText('PHP 25.00')).not.toBeInTheDocument();
         await screen.findByRole('alert');
         expect(
@@ -660,7 +705,7 @@ describe('staff Reports workspace', () => {
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await screen.findAllByText('PHP 25.00');
       request.mockResolvedValueOnce([second]);
-      fireEvent.click(screen.getByRole('button', { name: 'Refresh report' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
       await screen.findByRole('alert');
       expect(screen.queryByText('PHP 25.00')).not.toBeInTheDocument();
       expect(push).not.toHaveBeenCalled();

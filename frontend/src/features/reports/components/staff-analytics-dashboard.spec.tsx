@@ -181,13 +181,14 @@ function grossOnlyReport({
 
 describe('staff analytics dashboard', () => {
   it('renders the dashboard hierarchy, negative net and saved top-product data', () => {
-    render(<StaffAnalyticsDashboard report={report} />);
+    const { rerender } = render(<StaffAnalyticsDashboard report={report} />);
     expect(
       screen.getByRole('heading', { name: 'Daily sales trend' }),
     ).toBeInTheDocument();
+    rerender(<StaffAnalyticsDashboard report={report} activeTab="rankings" />);
     expect(
       screen.getByText(
-        'Top 2 of 2 contributing products. Saved sale identity; not current inventory or pricing.',
+        /Page 1 of saved product rankings\. Ten rows per page; saved sale identity/,
       ),
     ).toBeInTheDocument();
     const products = screen.getByRole('table', { name: /Top products/i });
@@ -198,17 +199,60 @@ describe('staff analytics dashboard', () => {
     ).not.toBeInTheDocument();
   });
   it('keeps exact daily values in a labeled table while decorative charts stay hidden', () => {
-    const { container } = render(<StaffAnalyticsDashboard report={report} />);
+    const { container, rerender } = render(
+      <StaffAnalyticsDashboard report={report} />,
+    );
     expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(
       2,
     );
-    fireEvent.click(screen.getByText('View exact daily data'));
+    rerender(<StaffAnalyticsDashboard report={report} activeTab="daily" />);
     const daily = screen.getByRole('table', {
-      name: 'Exact daily sales analytics in Asia/Manila',
+      name: 'Daily sales data in Asia/Manila',
     });
     expect(within(daily).getByText('2026-09-15')).toBeInTheDocument();
     expect(within(daily).getByText('PHP -10.00')).toBeInTheDocument();
-    expect(screen.getByText('View exact daily data')).toBeInTheDocument();
+  });
+  it('paginates daily rows at ten and requests the next ranking page', () => {
+    const dates = Array.from({ length: 21 }, (_, index) =>
+      new Date(Date.UTC(2026, 8, 1 + index)).toISOString().slice(0, 10),
+    );
+    const manyRows = grossOnlyReport({
+      dates,
+      salesByDate: {},
+      from: '2026-08-31T16:00:00.000Z',
+      until: '2026-09-21T16:00:00.000Z',
+    });
+    const { rerender } = render(
+      <StaffAnalyticsDashboard report={manyRows} activeTab="daily" />,
+    );
+    const daily = screen.getByRole('table', {
+      name: 'Daily sales data in Asia/Manila',
+    });
+    expect(within(daily).getAllByRole('row')).toHaveLength(11);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(within(daily).getAllByRole('row')).toHaveLength(11);
+    expect(within(daily).queryByText('2026-09-01')).not.toBeInTheDocument();
+    const onRankingPageChange = vi.fn();
+    rerender(
+      <StaffAnalyticsDashboard
+        report={report}
+        activeTab="rankings"
+        ranking={{
+          scope: 'STAFF',
+          branch: report.branch,
+          from: report.from,
+          until: report.until,
+          page: 1,
+          limit: 10,
+          totalProducts: '11',
+          hasNext: true,
+          items: [report.topProducts[0]],
+        }}
+        onRankingPageChange={onRankingPageChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(onRankingPageChange).toHaveBeenCalledWith(2);
   });
   it('switches between accessible metrics and follows the applied daily report range', () => {
     render(<StaffAnalyticsDashboard report={report} />);
@@ -284,7 +328,7 @@ describe('staff analytics dashboard', () => {
       totalProducts: '6',
       topMerchants,
     });
-    render(<StaffAnalyticsDashboard report={ranked} />);
+    const { rerender } = render(<StaffAnalyticsDashboard report={ranked} />);
 
     const performance = screen.getByRole('group', {
       name: 'Performance charts',
@@ -326,6 +370,7 @@ describe('staff analytics dashboard', () => {
     ).toBeInTheDocument();
     expect(within(paymentChart!).getByText('GCash')).toBeInTheDocument();
     expect(within(paymentChart!).getByText('Card')).toBeInTheDocument();
+    rerender(<StaffAnalyticsDashboard report={ranked} activeTab="rankings" />);
     const productTable = screen.getByRole('table', {
       name: 'Top products by gross sales',
     });

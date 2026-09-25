@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { merchantSalesAnalyticsSchema } from '../model/report.schemas';
 import { MerchantAnalyticsDashboard } from './merchant-analytics-dashboard';
 
@@ -48,31 +48,37 @@ const report = merchantSalesAnalyticsSchema.parse({
 });
 describe('merchant analytics dashboard', () => {
   it('renders only explicitly own-labeled analytics and no staff methods/private data', () => {
-    render(<MerchantAnalyticsDashboard report={report} />);
+    const { rerender } = render(<MerchantAnalyticsDashboard report={report} />);
     expect(screen.getByText('Own gross recorded sales')).toBeInTheDocument();
-    expect(screen.getByText('Own refund-only item')).toBeInTheDocument();
     expect(screen.getAllByText('PHP -8.00').length).toBeGreaterThan(0);
     expect(screen.queryByText('Gross sale payments')).not.toBeInTheDocument();
     expect(screen.queryByText('Actual refund methods')).not.toBeInTheDocument();
     expect(
       screen.queryByText(/contact|cashier|reference/i),
     ).not.toBeInTheDocument();
+    rerender(
+      <MerchantAnalyticsDashboard report={report} activeTab="rankings" />,
+    );
+    expect(screen.getByText('Own refund-only item')).toBeInTheDocument();
   });
   it('provides exact own daily and product tables with decorative charts hidden', () => {
-    const { container } = render(
+    const { container, rerender } = render(
       <MerchantAnalyticsDashboard report={report} />,
     );
     expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(
       2,
     );
-    fireEvent.click(screen.getByText('View exact own daily data'));
+    rerender(<MerchantAnalyticsDashboard report={report} activeTab="daily" />);
     expect(
       within(
         screen.getByRole('table', {
-          name: 'Exact own daily sales analytics in Asia/Manila',
+          name: 'Daily own-sales data in Asia/Manila',
         }),
       ).getByText('PHP -8.00'),
     ).toBeInTheDocument();
+    rerender(
+      <MerchantAnalyticsDashboard report={report} activeTab="rankings" />,
+    );
     expect(
       screen.getByRole('table', { name: 'Own top products by gross sales' }),
     ).toBeInTheDocument();
