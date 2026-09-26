@@ -224,6 +224,11 @@ must be supplied together and in chronological order. Cursors are opaque and
 bound to the organization, branch, role/member visibility, and every active
 filter; malformed, foreign, or stale cursors return not-found behavior.
 
+The Movement records filter toolbar uses a compact Search label with an example
+placeholder, a leading search icon, and leading calendar icons on the Philippine
+date inputs. At tablet widths the date and action group is start-aligned and
+shrink-wrapped rather than filling the entire second row.
+
 Each item contains movement and placement IDs, product name/SKU/barcode,
 merchant identity, movement type/reason, signed quantity change, resulting
 balance and creation timestamp. The response deliberately excludes request IDs,

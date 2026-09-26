@@ -7,6 +7,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
+import { Icon } from '@/shared/components/ui/icon';
 import { TextField } from '@/shared/components/ui/text-field';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
@@ -244,6 +245,10 @@ function StaffBranchSales({
               <label className="sr-only" htmlFor="sales-search">
                 Search receipt code
               </label>
+              <Icon
+                name="search"
+                className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
+              />
               <input
                 id="sales-search"
                 type="search"
@@ -256,7 +261,7 @@ function StaffBranchSales({
                   );
                 }}
                 placeholder="Search receipt code"
-                className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-4 py-2 text-sm placeholder:text-muted focus-visible:border-focus"
+                className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:border-focus"
               />
             </div>
             <SelectControl
@@ -295,20 +300,38 @@ function StaffBranchSales({
             </SelectControl>
           </div>
           <div className="grid min-w-0 items-end gap-3 sm:grid-cols-[minmax(9rem,12rem)_minmax(9rem,12rem)_auto]">
-            <TextField
-              label="From Date"
-              type="date"
-              value={fromDay}
-              onChange={(event) => setFromDay(event.target.value)}
-              className="rounded-full"
-            />
-            <TextField
-              label="Through Date"
-              type="date"
-              value={throughDay}
-              onChange={(event) => setThroughDay(event.target.value)}
-              className="rounded-full"
-            />
+            <label className="min-w-0 text-xs font-medium text-muted">
+              <span className="block">From Date</span>
+              <span className="relative mt-1 block">
+                <Icon
+                  name="calendar"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+                />
+                <input
+                  type="date"
+                  value={fromDay}
+                  onChange={(event) => setFromDay(event.target.value)}
+                  aria-label="From Date"
+                  className="min-h-11 w-full min-w-0 appearance-none rounded-full border border-control-border bg-surface py-2 pr-3 pl-10 text-sm text-muted focus-visible:border-focus"
+                />
+              </span>
+            </label>
+            <label className="min-w-0 text-xs font-medium text-muted">
+              <span className="block">Through Date</span>
+              <span className="relative mt-1 block">
+                <Icon
+                  name="calendar"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+                />
+                <input
+                  type="date"
+                  value={throughDay}
+                  onChange={(event) => setThroughDay(event.target.value)}
+                  aria-label="Through Date"
+                  className="min-h-11 w-full min-w-0 appearance-none rounded-full border border-control-border bg-surface py-2 pr-3 pl-10 text-sm text-muted focus-visible:border-focus"
+                />
+              </span>
+            </label>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="submit"

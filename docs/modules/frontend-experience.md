@@ -274,8 +274,9 @@ organization, role or access resets the tab data and ignores obsolete responses.
 
 The panel uses the shared open data-list layout with a leading-icon search field,
 a 300 ms debounced query over product name, SKU, barcode and reason, a movement
-type dropdown, and a staff-only merchant dropdown. Optional From and Through
-inputs are labeled in Philippine time; Apply requires both dates, validates
+type dropdown, and a staff-only merchant dropdown. The search field has a compact
+label and example placeholder. Optional From and Through inputs are labeled in
+Philippine time with calendar icons; Apply requires both dates, validates
 `From ≤ Through`, and converts the inclusive local range to a UTC start and
 exclusive next-day boundary. Blank dates mean all history. Search and filter
 changes reset the cursor to page one.
@@ -292,7 +293,8 @@ five-row movement history remains unchanged.
 The movement filter toolbar uses the surrounding surface rather than a gray
 inset. It has no horizontal side padding; at tablet widths the search, movement
 type and staff merchant controls share the first row, while the From, Through
-and Apply controls stay together on the second row. Larger desktop widths retain
+and Apply controls stay together, start-aligned and shrink-wrapped on the second
+row. Larger desktop widths retain
 the single-row arrangement. The date row also provides a Clear dates action, and
 movement timestamps are displayed as Philippine-local numeric date/time values
 with seconds.

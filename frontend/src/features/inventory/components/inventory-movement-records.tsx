@@ -237,10 +237,13 @@ export function InventoryMovementRecords({
           className="grid gap-3 px-0 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(14rem,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(19rem,1.2fr)_auto]"
         >
           <div className="min-w-0">
-            <label className="sr-only" htmlFor="movement-record-search">
-              Search movement records
+            <label
+              className="block text-xs font-medium text-muted"
+              htmlFor="movement-record-search"
+            >
+              Search
             </label>
-            <div className="relative">
+            <div className="relative mt-1">
               <Icon
                 name="search"
                 className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
@@ -251,7 +254,7 @@ export function InventoryMovementRecords({
                 value={search}
                 maxLength={254}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Product, SKU, barcode, or reason"
+                placeholder="e.g. Amihan Vase or AMI-001"
                 className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:outline-offset-[-2px]"
               />
             </div>
@@ -296,28 +299,40 @@ export function InventoryMovementRecords({
             </div>
           ) : null}
           <form
-            className="grid min-w-0 grid-cols-2 gap-2 md:col-span-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end md:gap-3 xl:col-span-1"
+            className="grid min-w-0 grid-cols-2 gap-2 md:col-span-3 md:w-fit md:justify-self-start md:grid-cols-[minmax(9rem,12rem)_minmax(9rem,12rem)_auto] md:items-end md:gap-3 xl:col-span-1"
             onSubmit={applyDateFilter}
           >
             <label className="min-w-0 text-xs font-medium text-muted">
-              From (PH)
-              <input
-                type="date"
-                value={fromDay}
-                onChange={(event) => setFromDay(event.target.value)}
-                aria-invalid={Boolean(dateError)}
-                className="mt-1 min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 text-sm text-ink"
-              />
+              <span className="block">From (PH)</span>
+              <span className="relative mt-1 block">
+                <Icon
+                  name="calendar"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+                />
+                <input
+                  type="date"
+                  value={fromDay}
+                  onChange={(event) => setFromDay(event.target.value)}
+                  aria-invalid={Boolean(dateError)}
+                  className="min-h-11 w-full min-w-0 appearance-none rounded-full border border-control-border bg-surface py-2 pr-3 pl-10 text-sm text-muted"
+                />
+              </span>
             </label>
             <label className="min-w-0 text-xs font-medium text-muted">
-              Through (PH)
-              <input
-                type="date"
-                value={throughDay}
-                onChange={(event) => setThroughDay(event.target.value)}
-                aria-invalid={Boolean(dateError)}
-                className="mt-1 min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 text-sm text-ink"
-              />
+              <span className="block">Through (PH)</span>
+              <span className="relative mt-1 block">
+                <Icon
+                  name="calendar"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
+                />
+                <input
+                  type="date"
+                  value={throughDay}
+                  onChange={(event) => setThroughDay(event.target.value)}
+                  aria-invalid={Boolean(dateError)}
+                  className="min-h-11 w-full min-w-0 appearance-none rounded-full border border-control-border bg-surface py-2 pr-3 pl-10 text-sm text-muted"
+                />
+              </span>
             </label>
             {dateError ? (
               <p

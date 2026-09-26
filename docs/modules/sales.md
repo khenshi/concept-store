@@ -251,6 +251,9 @@ The staff POS Sales History screen uses ten rows per page. Its receipt search an
 cashier/payment selects reload automatically; its optional From Date and Through
 Date inputs are Asia/Manila calendar dates, with From inclusive and Through
 inclusive converted to the next Manila midnight for the exclusive API boundary.
+The staff search control includes a leading search icon; date controls use leading
+calendar icons with compact muted labels and input text. Pagination remains a
+plain surface without a gray background.
 Applying/clearing filters resets page to one. Counts are labeled permitted sales,
 never aggregate monetary reports;
 merchant counts include only own matching sales. Responses validate IDs/scope,

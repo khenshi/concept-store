@@ -95,8 +95,18 @@ describe('InventoryMovementRecords', () => {
       `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/inventory/${scope.inventoryId}`,
     );
     const search = screen.getByRole('searchbox', {
-      name: 'Search movement records',
+      name: 'Search',
     });
+    expect(search).toHaveAttribute(
+      'placeholder',
+      'e.g. Amihan Vase or AMI-001',
+    );
+    expect(
+      screen.getByLabelText('From (PH)').closest('label')?.querySelector('svg'),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Apply dates' }).closest('form'),
+    ).toHaveClass('md:w-fit', 'md:justify-self-start');
     fireEvent.change(search, { target: { value: 'opening' } });
     expect(listMovementRecords).toHaveBeenCalledOnce();
     await waitFor(() => expect(listMovementRecords).toHaveBeenCalledTimes(2));
