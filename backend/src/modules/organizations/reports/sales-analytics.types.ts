@@ -4,6 +4,7 @@ import {
   StaffSalesReportResponseDto,
 } from './reports.types';
 import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
+import { SalesRankingSortBy } from './dto/sales-report-query.dto';
 
 const money = { type: String, pattern: '^(0|[1-9][0-9]*)\\.[0-9]{2}$' };
 const integer = { type: String, pattern: '^(0|[1-9][0-9]*)$' };
@@ -154,6 +155,10 @@ class SalesRankingPageResponseDto {
   branch!: BranchIdentityResponseDto;
   @ApiProperty({ format: 'date-time' }) from!: string;
   @ApiProperty({ format: 'date-time' }) until!: string;
+  @ApiProperty({ enum: SalesRankingSortBy })
+  sortBy!: SalesRankingSortBy;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  merchantId!: string | null;
   @ApiProperty({ type: 'integer', minimum: 1 }) page!: number;
   @ApiProperty({ type: 'integer', minimum: 1, maximum: 10, example: 10 })
   limit!: number;

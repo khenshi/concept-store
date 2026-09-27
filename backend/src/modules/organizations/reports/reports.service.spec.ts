@@ -1,11 +1,13 @@
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { SalesRankingSortBy } from './dto/sales-report-query.dto';
 import { ReportsService, netRecordedSales } from './reports.service';
 
 describe('ReportsService', () => {
   const tx = {
     organizationMembership: { findUnique: jest.fn() },
     branch: { findFirst: jest.fn(), findMany: jest.fn() },
+    merchant: { findFirst: jest.fn() },
     $queryRaw: jest.fn(),
   };
   const prisma = { $transaction: jest.fn() };
@@ -329,6 +331,8 @@ describe('ReportsService', () => {
       branch: { id: 'branch', name: 'Branch', code: null },
       from: '2026-09-01T00:00:00.000Z',
       until: '2026-09-02T00:00:00.000Z',
+      sortBy: 'GROSS_SALES',
+      merchantId: null,
       scope: 'STAFF',
       page: 2,
       limit: 10,
@@ -354,6 +358,64 @@ describe('ReportsService', () => {
     expect(sql.values).toEqual(
       expect.arrayContaining(['org', 'branch', 10, 10]),
     );
+  });
+  it('supports units ordering and a tenant-scoped merchant filter', async () => {
+    const merchantId = '11111111-1111-4111-8111-111111111111';
+    tx.merchant.findFirst.mockResolvedValue({ id: merchantId });
+    tx.$queryRaw.mockReset().mockResolvedValueOnce([
+      {
+        productId: 'product-1',
+        productName: 'Product 1',
+        sku: null,
+        barcode: null,
+        merchantName: 'Merchant',
+        grossSales: '12.34',
+        unitsSold: '20',
+        refundedAmount: '0.00',
+        returnedUnits: '0',
+        netRecordedSales: '12.34',
+        totalProducts: '1',
+      },
+    ]);
+    await expect(
+      service.rankings(context, 'branch', {
+        ...query,
+        page: 1,
+        sortBy: SalesRankingSortBy.UNITS_SOLD,
+        merchantId,
+      }),
+    ).resolves.toMatchObject({
+      sortBy: SalesRankingSortBy.UNITS_SOLD,
+      merchantId,
+      totalProducts: '1',
+    });
+    expect(tx.merchant.findFirst).toHaveBeenCalled();
+    const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
+    expect(sql.sql).toContain('COALESCE(s.units, 0) DESC');
+    expect(sql.values).toContain(merchantId);
+  });
+  it('rejects inaccessible staff merchant filters and all merchant selectors', async () => {
+    const merchantId = '11111111-1111-4111-8111-111111111111';
+    tx.merchant.findFirst.mockResolvedValue(null);
+    await expect(
+      service.rankings(context, 'branch', {
+        ...query,
+        merchantId,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+
+    tx.organizationMembership.findUnique.mockResolvedValue({
+      role: 'MERCHANT',
+      merchantId,
+    });
+    await expect(
+      service.rankings({ ...context, role: 'MERCHANT' }, 'branch', {
+        ...query,
+        merchantId: '22222222-2222-4222-8222-222222222222',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
   });
   it('returns an empty ranking page for an unlinked merchant without SQL', async () => {
     tx.organizationMembership.findUnique.mockResolvedValue({

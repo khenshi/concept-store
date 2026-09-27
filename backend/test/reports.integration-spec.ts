@@ -10,6 +10,7 @@ import { ProductsService } from '../src/modules/organizations/products/products.
 import { CheckoutService } from '../src/modules/organizations/sales/checkout.service';
 import { RefundsService } from '../src/modules/organizations/refunds/refunds.service';
 import type { OrganizationContext } from '../src/modules/organizations/authorization/organization-authorization.types';
+import { SalesRankingSortBy } from '../src/modules/organizations/reports/dto/sales-report-query.dto';
 import type { SalesReport } from '../src/modules/organizations/reports/reports.types';
 
 const connectionString = process.env.TEST_DATABASE_URL;
@@ -630,6 +631,65 @@ describe('PostgreSQL branch sales reporting', () => {
       (await reports.analytics(context(), branchId, range)).topProducts[0]
         .productName,
     ).toBe(snapshots[0].productName);
+  });
+  it('rankings switches to units, filters by merchant, and keeps merchant accounts own-only', async () => {
+    await mixedSales();
+    const byUnits = await reports.rankings(context(), branchId, {
+      ...range,
+      page: 1,
+      sortBy: SalesRankingSortBy.UNITS_SOLD,
+    });
+    expect(byUnits).toMatchObject({
+      scope: 'STAFF',
+      sortBy: SalesRankingSortBy.UNITS_SOLD,
+      merchantId: null,
+      totalProducts: '3',
+    });
+    expect(byUnits.items.map((row) => row.productName)).toEqual([
+      'Product 2',
+      'Product 0',
+      'Product 1',
+    ]);
+
+    const filtered = await reports.rankings(context(), branchId, {
+      ...range,
+      page: 1,
+      sortBy: SalesRankingSortBy.UNITS_SOLD,
+      merchantId,
+    });
+    expect(filtered).toMatchObject({
+      scope: 'STAFF',
+      sortBy: SalesRankingSortBy.UNITS_SOLD,
+      merchantId,
+      totalProducts: '2',
+    });
+    expect(filtered.items.map((row) => row.productName)).toEqual([
+      'Product 0',
+      'Product 1',
+    ]);
+
+    const own = await reports.rankings(context(merchantUserId), branchId, {
+      ...range,
+      page: 1,
+      sortBy: SalesRankingSortBy.UNITS_SOLD,
+    });
+    expect(own).toMatchObject({
+      scope: 'MERCHANT',
+      sortBy: SalesRankingSortBy.UNITS_SOLD,
+      merchantId: null,
+    });
+    expect(own.items.map((row) => row.productName)).toEqual([
+      'Product 0',
+      'Product 1',
+    ]);
+    await expect(
+      reports.rankings(context(merchantUserId), branchId, {
+        ...range,
+        page: 1,
+        sortBy: SalesRankingSortBy.GROSS_SALES,
+        merchantId,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
   });
   it('analytics enforces fresh role, grants, links, tenant and assigned unlinked zeros', async () => {
     await mixedSales();

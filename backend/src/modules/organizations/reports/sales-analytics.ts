@@ -1,5 +1,6 @@
 import { Prisma } from '../../../generated/prisma/client';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
+import { SalesRankingSortBy } from './dto/sales-report-query.dto';
 import { netRecordedSales } from './report-money';
 
 type Metrics = {
@@ -96,12 +97,15 @@ export async function readProductRankings(
   from: Date,
   until: Date,
   page: number,
+  sortBy: SalesRankingSortBy = SalesRankingSortBy.GROSS_SALES,
+  merchantId?: string,
 ) {
   const own = context.role === 'MERCHANT';
   if (own && !context.merchantId)
     return { rows: [] as Product[], totalProducts: '0' };
-  const merchantFilter = own
-    ? Prisma.sql`AND i."merchantId" = ${context.merchantId}`
+  const effectiveMerchantId = own ? context.merchantId! : merchantId;
+  const merchantFilter = effectiveMerchantId
+    ? Prisma.sql`AND i."merchantId" = ${effectiveMerchantId}`
     : Prisma.empty;
   const offset = (page - 1) * PRODUCT_RANKING_PAGE_SIZE;
   const productCte = Prisma.sql`
@@ -130,6 +134,10 @@ export async function readProductRankings(
       SELECT "productId", SUM("lineTotal") AS refunded, SUM("quantity"::numeric) AS returned FROM refund_items GROUP BY "productId"
     )
   `;
+  const orderBy =
+    sortBy === SalesRankingSortBy.UNITS_SOLD
+      ? Prisma.sql`COALESCE(s.units, 0) DESC, COALESCE(s.gross, 0) DESC, n."productId" ASC`
+      : Prisma.sql`COALESCE(s.gross, 0) DESC, COALESCE(s.units, 0) DESC, n."productId" ASC`;
   const rows = await tx.$queryRaw<Product[]>(Prisma.sql`
     ${productCte}
     SELECT n."productId", n."productName", n."sku", n."barcode", n."merchantName",
@@ -137,7 +145,7 @@ export async function readProductRankings(
       COALESCE(r.refunded::text, '0.00') AS "refundedAmount", COALESCE(r.returned::text, '0') AS "returnedUnits",
       COUNT(*) OVER ()::text AS "totalProducts"
     FROM identities n LEFT JOIN sales s USING ("productId") LEFT JOIN refunds r USING ("productId")
-    ORDER BY COALESCE(s.gross, 0) DESC, COALESCE(s.units, 0) DESC, n."productId" ASC
+    ORDER BY ${orderBy}
     LIMIT ${PRODUCT_RANKING_PAGE_SIZE} OFFSET ${offset}
   `);
   let totalProducts = rows[0]?.totalProducts ?? '0';

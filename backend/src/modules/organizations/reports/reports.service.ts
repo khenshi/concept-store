@@ -7,11 +7,12 @@ import {
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
-import { branchScope } from '../authorization/resource-access';
+import { branchScope, merchantScope } from '../authorization/resource-access';
 import type {
   SalesRankingQueryDto,
   SalesReportQueryDto,
 } from './dto/sales-report-query.dto';
+import { SalesRankingSortBy } from './dto/sales-report-query.dto';
 import {
   PRODUCT_RANKING_PAGE_SIZE,
   readAnalytics,
@@ -97,6 +98,22 @@ export class ReportsService {
           select: identitySelect,
         });
         if (!branch) throw new NotFoundException('Branch not found');
+        const sortBy = query.sortBy ?? SalesRankingSortBy.GROSS_SALES;
+        const merchantId = query.merchantId;
+        if (current.role === 'MERCHANT' && merchantId) {
+          throw new BadRequestException(
+            'Merchant accounts cannot select a merchant ranking filter',
+          );
+        }
+        if (current.role !== 'MERCHANT' && merchantId) {
+          const merchant = await tx.merchant.findFirst({
+            where: {
+              AND: [merchantScope(current), { id: merchantId }],
+            },
+            select: { id: true },
+          });
+          if (!merchant) throw new NotFoundException('Merchant not found');
+        }
         const ranking = await readProductRankings(
           tx,
           current,
@@ -104,6 +121,8 @@ export class ReportsService {
           from,
           until,
           page,
+          sortBy,
+          merchantId,
         );
         const own = current.role === 'MERCHANT';
         const items = ranking.rows.map((row) => {
@@ -137,6 +156,8 @@ export class ReportsService {
           branch,
           from: from.toISOString(),
           until: until.toISOString(),
+          sortBy,
+          merchantId: merchantId ?? null,
           page,
           limit: PRODUCT_RANKING_PAGE_SIZE,
           totalProducts: ranking.totalProducts,

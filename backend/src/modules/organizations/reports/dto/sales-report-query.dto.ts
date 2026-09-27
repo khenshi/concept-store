@@ -1,7 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsInt, IsISO8601, IsString, Matches, Max, Min } from 'class-validator';
-import { trimRequiredString } from '../../products/dto/product-dto.transforms';
+import {
+  IsEnum,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
+import {
+  trimOptionalString,
+  trimRequiredString,
+} from '../../products/dto/product-dto.transforms';
 
 export class SalesReportQueryDto {
   @ApiProperty({
@@ -28,6 +41,11 @@ export class SalesReportQueryDto {
 
 export class ReportBranchesQueryDto {}
 
+export enum SalesRankingSortBy {
+  GROSS_SALES = 'GROSS_SALES',
+  UNITS_SOLD = 'UNITS_SOLD',
+}
+
 const queryInteger = ({ value }: { value: unknown }) =>
   typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
 
@@ -44,4 +62,23 @@ export class SalesRankingQueryDto extends SalesReportQueryDto {
   @Min(1)
   @Max(21474836)
   page = 1;
+
+  @ApiPropertyOptional({
+    enum: SalesRankingSortBy,
+    default: SalesRankingSortBy.GROSS_SALES,
+    description: 'Product ranking metric; ties use the other metric then ID',
+  })
+  @IsOptional()
+  @IsEnum(SalesRankingSortBy)
+  sortBy = SalesRankingSortBy.GROSS_SALES;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description:
+      'Tenant merchant filter for Owner/Manager rankings; unavailable to Merchant accounts',
+  })
+  @Transform(trimOptionalString)
+  @IsOptional()
+  @IsUUID('4')
+  merchantId?: string;
 }

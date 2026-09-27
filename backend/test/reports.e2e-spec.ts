@@ -15,6 +15,7 @@ const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const actor = '11111111-1111-4111-8111-111111111111';
 const path = `/organizations/${org}/branches/${branch}/reports/sales`;
+const rankingPath = `${path}/rankings`;
 const lookup = `/organizations/${org}/reports/sales/branches`;
 const valid = { from: '2026-09-01T00:00:00Z', until: '2026-09-02T00:00:00Z' };
 describe('Reports HTTP and OpenAPI boundaries', () => {
@@ -25,6 +26,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
     user: { findFirst: jest.fn() },
     organizationMembership: { findUnique: jest.fn() },
     branch: { findFirst: jest.fn(), findMany: jest.fn() },
+    merchant: { findFirst: jest.fn() },
     $queryRaw: jest.fn(),
     $transaction: jest.fn(),
   };
@@ -82,6 +84,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
     prisma.branch.findMany.mockResolvedValue([
       { id: branch, name: 'Branch', code: null },
     ]);
+    prisma.merchant.findFirst.mockResolvedValue({ id: actor });
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof prisma) => unknown) => callback(prisma),
     );
@@ -181,6 +184,37 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       .query(valid)
       .expect(400);
   });
+  it('accepts ranking controls and echoes the applied metric and merchant', async () => {
+    const response = await http()
+      .get(rankingPath)
+      .auth(token(), { type: 'bearer' })
+      .query({
+        ...valid,
+        page: 2,
+        sortBy: 'UNITS_SOLD',
+        merchantId: actor,
+      })
+      .expect(200);
+    expect(response.body).toMatchObject({
+      scope: 'STAFF',
+      page: 2,
+      sortBy: 'UNITS_SOLD',
+      merchantId: actor,
+      limit: 10,
+    });
+  });
+  it.each([
+    { ...valid, sortBy: 'grossSales' },
+    { ...valid, sortBy: 'UNITS' },
+    { ...valid, merchantId: 'not-a-uuid' },
+  ])('rejects malformed ranking controls %j', async (query) => {
+    await http()
+      .get(rankingPath)
+      .auth(token(), { type: 'bearer' })
+      .query(query)
+      .expect(400);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
   it('documents separate discriminated staff and merchant contracts and required ranges', () => {
     const document = SwaggerModule.createDocument(
       app,
@@ -215,6 +249,14 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
         grossSales: { type: 'string', pattern: '^(0|[1-9][0-9]*)\\.[0-9]{2}$' },
       },
     });
+    expect(schemas?.StaffSalesRankingPageResponseDto).toHaveProperty(
+      'properties.sortBy.enum',
+      ['GROSS_SALES', 'UNITS_SOLD'],
+    );
+    expect(schemas?.StaffSalesRankingPageResponseDto).toHaveProperty(
+      'properties.merchantId.nullable',
+      true,
+    );
     expect(schemas?.MerchantSalesAnalyticsResponseDto).not.toHaveProperty(
       'properties.topMerchants',
     );

@@ -47,19 +47,38 @@ describe('Report query validation', () => {
       ),
     ).rejects.toThrow();
   });
-  it('defaults ranking pages and rejects invalid ranking pages', async () => {
+  it('defaults ranking pages and gross ordering, and rejects invalid ranking fields', async () => {
     await expect(
       pipe.transform(valid, {
         type: 'query',
         metatype: SalesRankingQueryDto,
       }),
-    ).resolves.toMatchObject({ ...valid, page: 1 });
+    ).resolves.toMatchObject({
+      ...valid,
+      page: 1,
+      sortBy: 'GROSS_SALES',
+    });
     await expect(
       pipe.transform(
         { ...valid, page: '2' },
         { type: 'query', metatype: SalesRankingQueryDto },
       ),
     ).resolves.toMatchObject({ ...valid, page: 2 });
+    await expect(
+      pipe.transform(
+        {
+          ...valid,
+          sortBy: 'UNITS_SOLD',
+          merchantId: '11111111-1111-4111-8111-111111111111',
+        },
+        { type: 'query', metatype: SalesRankingQueryDto },
+      ),
+    ).resolves.toMatchObject({
+      ...valid,
+      page: 1,
+      sortBy: 'UNITS_SOLD',
+      merchantId: '11111111-1111-4111-8111-111111111111',
+    });
     for (const page of ['0', '21474837', '1.5', 'nope']) {
       await expect(
         pipe.transform(
@@ -68,5 +87,19 @@ describe('Report query validation', () => {
         ),
       ).rejects.toThrow();
     }
+    for (const sortBy of ['grossSales', 'UNITS', '']) {
+      await expect(
+        pipe.transform(
+          { ...valid, sortBy },
+          { type: 'query', metatype: SalesRankingQueryDto },
+        ),
+      ).rejects.toThrow();
+    }
+    await expect(
+      pipe.transform(
+        { ...valid, merchantId: 'foreign' },
+        { type: 'query', metatype: SalesRankingQueryDto },
+      ),
+    ).rejects.toThrow();
   });
 });
