@@ -29,7 +29,7 @@ it does not change the actual refund-method totals.
 GET /organizations/:organizationId/reports/sales/branches
 GET /organizations/:organizationId/branches/:branchId/reports/sales?from=&until=
 GET /organizations/:organizationId/branches/:branchId/reports/sales/analytics?from=&until=
-GET /organizations/:organizationId/branches/:branchId/reports/sales/rankings?from=&until=&page=
+GET /organizations/:organizationId/branches/:branchId/reports/sales/rankings?from=&until=&page=&sortBy=&merchantId=
 ```
 
 Authentication and current organization membership are required. OWNER, MANAGER
@@ -159,10 +159,16 @@ the same exact gross, refund, count, unit and signed-net fields as daily rows.
 The exact UTC range still controls which events are included in the hourly buckets.
 
 Products group by historical `productId`, include either sales or refunds in the
-period, and rank by exact gross descending, units descending, product ID ascending.
-Analytics includes the first ten rows and `totalProducts`; the rankings route uses
-the same snapshot, filters and ordering to return one server-paginated page of
-ten rows with `page`, `limit`, `totalProducts` and `hasNext`. A truncated ranking
+period, and rank by the requested `sortBy`: `GROSS_SALES` orders exact gross
+descending, units descending, product ID ascending; `UNITS_SOLD` orders units
+descending, gross descending, product ID ascending. The default is
+`GROSS_SALES`. Analytics includes the first ten rows using the default
+unfiltered ordering and `totalProducts`; the rankings route uses the same
+snapshot and returns one server-paginated page of ten rows with `page`, `limit`,
+`sortBy`, nullable `merchantId`, `totalProducts` and `hasNext`. An optional
+`merchantId` filter is available to Owner and Manager users after tenant and
+role-scope validation and applies to both sale and refund item streams. A valid
+merchant with no matching history returns an empty page. A truncated ranking
 subtotal is not the whole report total. Refund-only products
 have zero gross/units and possibly negative net. Sale/refund streams aggregate
 separately in PostgreSQL to prevent join multiplication; only bounded results are
@@ -241,9 +247,14 @@ contains the cards and charts. Daily Data moves the exact Asia/Manila daily tabl
 into a semantic Inventory-style table with ten rows per page and local pagination.
 Rankings moves the saved product table into a semantic Inventory-style table with
 ten rows per server page; next/previous requests the scoped rankings endpoint.
-The ranking table shows rank, saved name/ID, nullable SKU/barcode, saved merchant,
-units/gross/returns/refunds/net and never claims bounded rows reconcile to report
-totals. Empty/refund-only periods remain explicit.
+Owner and Manager users can rank by gross sales or units sold and filter by any
+role-visible merchant, with those controls preserved across pagination.
+Merchant users can choose either ranking metric but always receive their own
+products only. The ranking controls use compact muted labels and the shared
+subtle-background dropdown treatment used by Inventory filters. The ranking
+table shows rank, saved name/ID, nullable SKU/barcode,
+saved merchant, units/gross/returns/refunds/net and never claims bounded rows
+reconcile to report totals. Empty/refund-only periods remain explicit.
 
 The refreshed owner/manager chart layout uses three responsive rows: a full-width
 selectable daily trend; side-by-side Top Merchants and Top Products gross-sales
@@ -259,7 +270,7 @@ Chart values and metric controls are accessible; decorative SVGs are hidden from
 assistive technology, and empty panels state when their series have no values.
 The September 25 chart refresh keeps the existing report route and database model;
 the staff analytics response adds an optional hourly trend only for one-day
-periods. The Reports frontend suite passes 169
+periods. The Reports frontend suite passes 177
 tests across ten files; changed-file formatting, lint, typecheck and production
 build pass. Safari viewport review at 390×844, 834×1194, 1180×820 and 1600×900
 confirmed phone stacking, the weekday/payment two-thirds-to-one-third layout at

@@ -207,6 +207,12 @@ focus/zoom QA remains pending for final delivery; prior milestone waivers do not
 cover these screens. That pending QA was subsequently waived for Reports on
 September 14, 2026, as recorded below. See [Sales Reports](reports.md).
 
+The Rankings tab adds metric and merchant controls without changing Overview
+totals or charts. Owner/Manager merchant choices are loaded from the existing
+role-scoped merchant directory when Rankings is opened; selecting a control
+reloads page one and clears stale rows before rendering the matching response.
+Merchant accounts receive only the metric control and remain own-product-only.
+
 ## Merchant own-sales reports
 
 Merchant sidebar/mobile navigation now includes Reports alongside unchanged Sales.
