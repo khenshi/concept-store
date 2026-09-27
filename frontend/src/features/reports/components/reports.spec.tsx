@@ -137,6 +137,9 @@ function rankingFor(path: string) {
     branch,
     from,
     until,
+    sortBy: (query.get('sortBy') ?? 'GROSS_SALES') as
+      'GROSS_SALES' | 'UNITS_SOLD',
+    merchantId: query.get('merchantId'),
     page,
     limit: 10 as const,
     totalProducts: analyticsReport.totalProducts,
@@ -181,15 +184,30 @@ describe('staff Reports workspace', () => {
     request.mockImplementation(async (path: string) =>
       path.endsWith('/reports/sales/branches')
         ? [branch, second]
-        : path.includes('/rankings')
-          ? rankingFor(path)
-          : {
-              ...(path.includes('/analytics') ? analyticsFor(path) : report),
-              branch: path.includes(`/branches/${second.id}/`)
-                ? second
-                : branch,
-              ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
-            },
+        : path.includes('/merchants')
+          ? [
+              {
+                id: '44444444-4444-4444-8444-444444444444',
+                organizationId: '11111111-1111-4111-8111-111111111111',
+                name: 'Local maker',
+                code: 'LOCAL',
+                contactName: 'Contact',
+                email: null,
+                phone: '09171234567',
+                status: 'ACTIVE',
+                createdAt: '2026-01-01T00:00:00.000Z',
+                updatedAt: '2026-01-01T00:00:00.000Z',
+              },
+            ]
+          : path.includes('/rankings')
+            ? rankingFor(path)
+            : {
+                ...(path.includes('/analytics') ? analyticsFor(path) : report),
+                branch: path.includes(`/branches/${second.id}/`)
+                  ? second
+                  : branch,
+                ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
+              },
     );
   });
   afterEach(() => {
@@ -285,6 +303,40 @@ describe('staff Reports workspace', () => {
     expect(
       screen.getByRole('heading', { name: 'Daily sales trend' }),
     ).toBeInTheDocument();
+  });
+  it('loads staff merchant options on Rankings and requests changed controls', async () => {
+    render(<BranchReports organizationId="org" branchId={branch.id} />);
+    await screen.findAllByText('PHP 60.00');
+    expect(
+      request.mock.calls.some(([path]) => path.includes('/merchants')),
+    ).toBe(false);
+    fireEvent.click(screen.getByRole('tab', { name: 'Rankings' }));
+    const merchant = await screen.findByRole('combobox', { name: 'Merchant' });
+    await waitFor(() => expect(merchant).toBeEnabled());
+    expect(
+      request.mock.calls.some(([path]) => path.includes('/merchants')),
+    ).toBe(true);
+    fireEvent.click(screen.getByRole('combobox', { name: 'Rank by' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Units sold' }));
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(
+          ([path]) =>
+            path.includes('/rankings') && path.includes('sortBy=UNITS_SOLD'),
+        ),
+      ).toBe(true),
+    );
+    fireEvent.click(merchant);
+    fireEvent.click(screen.getByRole('option', { name: 'Local maker' }));
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(
+          ([path]) =>
+            path.includes('/rankings') &&
+            path.includes('merchantId=44444444-4444-4444-8444-444444444444'),
+        ),
+      ).toBe(true),
+    );
   });
   it('does not fetch a summary for an inaccessible branch or select a fallback', async () => {
     request.mockResolvedValue([second]);

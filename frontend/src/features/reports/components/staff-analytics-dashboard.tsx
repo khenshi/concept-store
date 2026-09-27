@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { SelectControl } from '@/shared/components/ui/select-control';
 import type {
+  ReportMerchantOption,
+  ReportRankingControls,
+  ReportRankingSort,
   StaffSalesAnalytics,
   StaffSalesRankingPage,
 } from '../model/report.schemas';
@@ -711,9 +715,7 @@ function StaffDailyData({
             type="button"
             className={buttonStyles({ variant: 'quiet' })}
             disabled={page === 1}
-            onClick={() =>
-              setPageState({ rows, page: Math.max(1, page - 1) })
-            }
+            onClick={() => setPageState({ rows, page: Math.max(1, page - 1) })}
           >
             Previous
           </button>
@@ -731,19 +733,134 @@ function StaffDailyData({
   );
 }
 
+export function RankingControls({
+  controls,
+  merchantOptions = [],
+  merchantOptionsLoading = false,
+  merchantOptionsError = null,
+  showMerchantFilter,
+  onMerchantOptionsRetry = () => undefined,
+  onChange,
+}: {
+  controls: ReportRankingControls;
+  merchantOptions?: ReportMerchantOption[];
+  merchantOptionsLoading?: boolean;
+  merchantOptionsError?: string | null;
+  showMerchantFilter: boolean;
+  onMerchantOptionsRetry?: () => void;
+  onChange: (controls: ReportRankingControls) => void;
+}) {
+  const sortOptions: { value: ReportRankingSort; label: string }[] = [
+    { value: 'GROSS_SALES', label: 'Gross sales' },
+    { value: 'UNITS_SOLD', label: 'Units sold' },
+  ];
+  return (
+    <div
+      className="flex flex-wrap items-end gap-3"
+      aria-label="Ranking filters"
+    >
+      <label
+        className="min-w-0 text-xs font-medium text-muted"
+        htmlFor="sales-report-ranking-sort"
+      >
+        <span className="block">Rank by</span>
+        <SelectControl
+          id="sales-report-ranking-sort"
+          aria-label="Rank by"
+          value={controls.sortBy}
+          className="mt-1 bg-subtle px-4 text-sm font-medium"
+          onValueChange={(value) =>
+            onChange({
+              ...controls,
+              sortBy: value as ReportRankingSort,
+            })
+          }
+        >
+          {sortOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </SelectControl>
+      </label>
+      {showMerchantFilter ? (
+        <label
+          className="min-w-48 text-xs font-medium text-muted"
+          htmlFor="sales-report-ranking-merchant"
+        >
+          <span className="block">Merchant</span>
+          <SelectControl
+            id="sales-report-ranking-merchant"
+            aria-label="Merchant"
+            value={controls.merchantId ?? ''}
+            disabled={merchantOptionsLoading || merchantOptionsError !== null}
+            className="mt-1 bg-subtle px-4 text-sm font-medium"
+            onValueChange={(value) =>
+              onChange({
+                ...controls,
+                merchantId: value || null,
+              })
+            }
+          >
+            <option value="">All merchants</option>
+            {merchantOptions.map((merchant) => (
+              <option key={merchant.id} value={merchant.id}>
+                {merchant.name}
+              </option>
+            ))}
+          </SelectControl>
+        </label>
+      ) : null}
+      {showMerchantFilter && merchantOptionsLoading ? (
+        <span role="status" className="pb-2 text-xs text-muted">
+          Loading merchants…
+        </span>
+      ) : null}
+      {showMerchantFilter && merchantOptionsError ? (
+        <span className="flex items-center gap-2 pb-2 text-xs text-danger">
+          <span role="status">{merchantOptionsError}</span>
+          <button
+            type="button"
+            className="underline"
+            onClick={onMerchantOptionsRetry}
+          >
+            Try again
+          </button>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function StaffRankings({
   page,
   loading,
   error,
   errorPage,
   onPageChange,
+  controls,
+  merchantOptions,
+  merchantOptionsLoading,
+  merchantOptionsError,
+  onMerchantOptionsRetry,
+  onControlsChange,
 }: {
-  page: StaffSalesRankingPage;
+  page: StaffSalesRankingPage | null;
   loading: boolean;
   error: string | null;
   errorPage: number | null;
   onPageChange(page: number): void;
+  controls: ReportRankingControls;
+  merchantOptions: ReportMerchantOption[];
+  merchantOptionsLoading: boolean;
+  merchantOptionsError: string | null;
+  onMerchantOptionsRetry: () => void;
+  onControlsChange: (controls: ReportRankingControls) => void;
 }) {
+  const title =
+    controls.sortBy === 'UNITS_SOLD'
+      ? 'Top products by units sold'
+      : 'Top products by gross sales';
   return (
     <section
       className="data-surface"
@@ -752,12 +869,24 @@ function StaffRankings({
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
     >
-      <header className="border-b border-hairline px-5 py-5 sm:px-6">
-        <h2 className="font-semibold">Top products by gross sales</h2>
-        <p className="mt-1 text-sm text-muted">
-          Page {page.page} of saved product rankings. Ten rows per page; saved
-          sale identity, not current inventory or pricing.
-        </p>
+      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div>
+          <h2 className="font-semibold">{title}</h2>
+          <p className="mt-1 text-sm text-muted">
+            {page
+              ? `Page ${page.page} of saved product rankings. Ten rows per page; saved sale identity, not current inventory or pricing.`
+              : 'Choose a ranking metric or merchant to load the matching saved product rankings.'}
+          </p>
+        </div>
+        <RankingControls
+          controls={controls}
+          merchantOptions={merchantOptions}
+          merchantOptionsLoading={merchantOptionsLoading}
+          merchantOptionsError={merchantOptionsError}
+          showMerchantFilter
+          onMerchantOptionsRetry={onMerchantOptionsRetry}
+          onChange={onControlsChange}
+        />
       </header>
       {error && errorPage !== null ? (
         <RequestError
@@ -765,10 +894,14 @@ function StaffRankings({
           message={error}
           onRetry={() => onPageChange(errorPage)}
         />
-      ) : page.items.length ? (
+      ) : loading && !page ? (
+        <p role="status" className="px-5 py-6 text-sm text-muted sm:px-6">
+          Loading product rankings…
+        </p>
+      ) : page?.items.length ? (
         <div className="overflow-x-auto">
           <table
-            aria-label="Top products by gross sales"
+            aria-label={title}
             className="data-table w-full min-w-[62rem] border-collapse text-left text-sm"
           >
             <thead className="text-xs uppercase tracking-[0.08em] text-muted">
@@ -828,7 +961,7 @@ function StaffRankings({
           No products contributed sales or refunds in this period.
         </p>
       )}
-      {page.totalProducts !== '0' ? (
+      {page && page.totalProducts !== '0' ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
           <p className="text-sm text-muted">
             Page {page.page} · {page.totalProducts} total products
@@ -861,6 +994,12 @@ export function StaffAnalyticsDashboard({
   report,
   activeTab = 'overview',
   ranking,
+  rankingControls = { sortBy: 'GROSS_SALES', merchantId: null },
+  merchantOptions = [],
+  merchantOptionsLoading = false,
+  merchantOptionsError = null,
+  onMerchantOptionsRetry = () => undefined,
+  onRankingControlsChange = () => undefined,
   rankingLoading = false,
   rankingError = null,
   rankingErrorPage = null,
@@ -869,32 +1008,51 @@ export function StaffAnalyticsDashboard({
   report: StaffSalesAnalytics;
   activeTab?: SalesReportTab;
   ranking?: StaffSalesRankingPage;
+  rankingControls?: ReportRankingControls;
+  merchantOptions?: ReportMerchantOption[];
+  merchantOptionsLoading?: boolean;
+  merchantOptionsError?: string | null;
+  onMerchantOptionsRetry?: () => void;
+  onRankingControlsChange?: (controls: ReportRankingControls) => void;
   rankingLoading?: boolean;
   rankingError?: string | null;
   rankingErrorPage?: number | null;
   onRankingPageChange?: (page: number) => void;
 }) {
-  const initialRanking: StaffSalesRankingPage = ranking ?? {
+  const initialRanking: StaffSalesRankingPage = {
     scope: 'STAFF',
     branch: report.branch,
     from: report.from,
     until: report.until,
+    sortBy: 'GROSS_SALES',
+    merchantId: null,
     page: 1,
     limit: 10,
     totalProducts: report.totalProducts,
     hasNext: BigInt(10) < BigInt(report.totalProducts),
     items: report.topProducts,
   };
+  const isDefaultRanking =
+    rankingControls.sortBy === 'GROSS_SALES' &&
+    rankingControls.merchantId === null;
+  const displayedRanking =
+    ranking ?? (isDefaultRanking && !rankingLoading ? initialRanking : null);
   if (activeTab === 'daily')
     return <StaffDailyData rows={report.dailyTrends} />;
   if (activeTab === 'rankings')
     return (
       <StaffRankings
-        page={initialRanking}
+        page={displayedRanking}
         loading={rankingLoading}
         error={rankingError}
         errorPage={rankingErrorPage}
         onPageChange={onRankingPageChange}
+        controls={rankingControls}
+        merchantOptions={merchantOptions}
+        merchantOptionsLoading={merchantOptionsLoading}
+        merchantOptionsError={merchantOptionsError}
+        onMerchantOptionsRetry={onMerchantOptionsRetry}
+        onControlsChange={onRankingControlsChange}
       />
     );
   return (

@@ -44,8 +44,11 @@ export const reportQuerySchema = z
     const length = Date.parse(range.until) - Date.parse(range.from);
     return length > 0 && length <= 366 * 86400000;
   }, 'Choose a valid UTC report period of no more than 366 days.');
+export const reportRankingSortSchema = z.enum(['GROSS_SALES', 'UNITS_SOLD']);
 export const reportRankingQuerySchema = reportQuerySchema.extend({
   page: z.number().int().min(1).max(21474836),
+  sortBy: reportRankingSortSchema.default('GROSS_SALES'),
+  merchantId: z.uuidv4().optional(),
 });
 export const reportBranchSchema = z
   .object({
@@ -175,7 +178,13 @@ export const staffSalesReportSchema = z
   });
 export type ReportBranch = z.infer<typeof reportBranchSchema>;
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
-export type ReportRankingQuery = z.infer<typeof reportRankingQuerySchema>;
+export type ReportRankingSort = z.infer<typeof reportRankingSortSchema>;
+export type ReportRankingQuery = z.input<typeof reportRankingQuerySchema>;
+export type ReportMerchantOption = { id: string; name: string };
+export type ReportRankingControls = {
+  sortBy: ReportRankingSort;
+  merchantId: string | null;
+};
 export type StaffSalesReport = z.infer<typeof staffSalesReportSchema>;
 
 export const merchantSalesReportSchema = z
@@ -615,6 +624,8 @@ const rankingPageBase = z
     branch: reportBranchSchema,
     from: utc,
     until: utc,
+    sortBy: reportRankingSortSchema,
+    merchantId: z.uuidv4().nullable(),
     page: z.number().int().min(1),
     limit: z.literal(10),
     totalProducts: integer,

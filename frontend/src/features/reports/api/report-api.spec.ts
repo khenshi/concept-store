@@ -65,6 +65,8 @@ const staffRanking = {
   scope: 'STAFF',
   branch,
   ...range,
+  sortBy: 'GROSS_SALES',
+  merchantId: null,
   page: 2,
   limit: 10,
   totalProducts: '11',
@@ -88,6 +90,8 @@ const merchantRanking = {
   scope: 'MERCHANT',
   branch,
   ...range,
+  sortBy: 'GROSS_SALES',
+  merchantId: null,
   page: 1,
   limit: 10,
   totalProducts: '1',
@@ -175,13 +179,42 @@ describe('report reads', () => {
       }),
     ).toEqual(staffRanking);
     expect(request).toHaveBeenCalledExactlyOnceWith(
-      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/rankings?${new URLSearchParams({ ...range, page: '2' })}`,
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/rankings?${new URLSearchParams({ ...range, page: '2', sortBy: 'GROSS_SALES' })}`,
     );
     await expect(
       getStaffSalesRankings(request, 'org', branch.id, {
         ...range,
         page: 3,
       }),
+    ).rejects.toThrow();
+  });
+  it('serializes ranking metric and merchant filters and validates their echo', async () => {
+    const merchantId = '44444444-4444-4444-8444-444444444444';
+    const response = {
+      ...staffRanking,
+      page: 1,
+      sortBy: 'UNITS_SOLD' as const,
+      merchantId,
+    };
+    const request = vi.fn().mockResolvedValue(response);
+    await expect(
+      getStaffSalesRankings(request, 'org', branch.id, {
+        ...range,
+        page: 1,
+        sortBy: 'UNITS_SOLD',
+        merchantId,
+      }),
+    ).resolves.toEqual(response);
+    expect(request).toHaveBeenCalledWith(
+      `/organizations/org/branches/${branch.id}/reports/sales/rankings?${new URLSearchParams({ ...range, page: '1', sortBy: 'UNITS_SOLD', merchantId })}`,
+    );
+    await expect(
+      getStaffSalesRankings(
+        vi.fn().mockResolvedValue({ ...response, sortBy: 'GROSS_SALES' }),
+        'org',
+        branch.id,
+        { ...range, page: 1, sortBy: 'UNITS_SOLD', merchantId },
+      ),
     ).rejects.toThrow();
   });
   it.each([
@@ -312,7 +345,7 @@ describe('merchant Reports API', () => {
       }),
     ).toEqual(merchantRanking);
     expect(request).toHaveBeenCalledExactlyOnceWith(
-      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/rankings?${new URLSearchParams({ ...range, page: '1' })}`,
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/rankings?${new URLSearchParams({ ...range, page: '1', sortBy: 'GROSS_SALES' })}`,
     );
   });
   it.each([

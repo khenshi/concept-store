@@ -2,10 +2,14 @@ import { useState } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { RequestError } from '@/shared/components/ui/request-error';
 import type {
+  ReportRankingControls,
   MerchantSalesAnalytics,
   MerchantSalesRankingPage,
 } from '../model/report.schemas';
-import { AnalyticsTrendCharts } from './staff-analytics-dashboard';
+import {
+  AnalyticsTrendCharts,
+  RankingControls,
+} from './staff-analytics-dashboard';
 import type { SalesReportTab } from './staff-analytics-dashboard';
 
 const money = (value: string) => `PHP ${value}`;
@@ -90,9 +94,7 @@ function MerchantDailyData({
             type="button"
             className={buttonStyles({ variant: 'quiet' })}
             disabled={page === 1}
-            onClick={() =>
-              setPageState({ rows, page: Math.max(1, page - 1) })
-            }
+            onClick={() => setPageState({ rows, page: Math.max(1, page - 1) })}
           >
             Previous
           </button>
@@ -116,13 +118,21 @@ function MerchantRankings({
   error,
   errorPage,
   onPageChange,
+  controls,
+  onControlsChange,
 }: {
-  page: MerchantSalesRankingPage;
+  page: MerchantSalesRankingPage | null;
   loading: boolean;
   error: string | null;
   errorPage: number | null;
   onPageChange(page: number): void;
+  controls: ReportRankingControls;
+  onControlsChange: (controls: ReportRankingControls) => void;
 }) {
+  const title =
+    controls.sortBy === 'UNITS_SOLD'
+      ? 'Your top products by units sold'
+      : 'Your top products by gross sales';
   return (
     <section
       className="data-surface"
@@ -131,12 +141,20 @@ function MerchantRankings({
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
     >
-      <header className="border-b border-hairline px-5 py-5 sm:px-6">
-        <h2 className="font-semibold">Your top products by gross sales</h2>
-        <p className="mt-1 text-sm text-muted">
-          Page {page.page} of own saved product rankings. Ten rows per page;
-          saved sale identity, not current catalog or inventory.
-        </p>
+      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div>
+          <h2 className="font-semibold">{title}</h2>
+          <p className="mt-1 text-sm text-muted">
+            {page
+              ? `Page ${page.page} of own saved product rankings. Ten rows per page; saved sale identity, not current catalog or inventory.`
+              : 'Choose a ranking metric to load your matching saved product rankings.'}
+          </p>
+        </div>
+        <RankingControls
+          controls={controls}
+          showMerchantFilter={false}
+          onChange={onControlsChange}
+        />
       </header>
       {error && errorPage !== null ? (
         <RequestError
@@ -144,10 +162,14 @@ function MerchantRankings({
           message={error}
           onRetry={() => onPageChange(errorPage)}
         />
-      ) : page.items.length ? (
+      ) : loading && !page ? (
+        <p role="status" className="px-5 py-6 text-sm text-muted sm:px-6">
+          Loading product rankings…
+        </p>
+      ) : page?.items.length ? (
         <div className="overflow-x-auto">
           <table
-            aria-label="Own top products by gross sales"
+            aria-label={title}
             className="data-table w-full min-w-[60rem] border-collapse text-left text-sm"
           >
             <thead className="text-xs uppercase tracking-[0.08em] text-muted">
@@ -209,7 +231,7 @@ function MerchantRankings({
           zeros.
         </p>
       )}
-      {page.totalProducts !== '0' ? (
+      {page && page.totalProducts !== '0' ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
           <p className="text-sm text-muted">
             Page {page.page} · {page.totalProducts} total products
@@ -242,6 +264,8 @@ export function MerchantAnalyticsDashboard({
   report,
   activeTab = 'overview',
   ranking,
+  rankingControls = { sortBy: 'GROSS_SALES', merchantId: null },
+  onRankingControlsChange = () => undefined,
   rankingLoading = false,
   rankingError = null,
   rankingErrorPage = null,
@@ -250,32 +274,43 @@ export function MerchantAnalyticsDashboard({
   report: MerchantSalesAnalytics;
   activeTab?: SalesReportTab;
   ranking?: MerchantSalesRankingPage;
+  rankingControls?: ReportRankingControls;
+  onRankingControlsChange?: (controls: ReportRankingControls) => void;
   rankingLoading?: boolean;
   rankingError?: string | null;
   rankingErrorPage?: number | null;
   onRankingPageChange?: (page: number) => void;
 }) {
-  const initialRanking: MerchantSalesRankingPage = ranking ?? {
+  const initialRanking: MerchantSalesRankingPage = {
     scope: 'MERCHANT',
     branch: report.branch,
     from: report.from,
     until: report.until,
+    sortBy: 'GROSS_SALES',
+    merchantId: null,
     page: 1,
     limit: 10,
     totalProducts: report.totalProducts,
     hasNext: BigInt(10) < BigInt(report.totalProducts),
     items: report.topProducts,
   };
+  const isDefaultRanking =
+    rankingControls.sortBy === 'GROSS_SALES' &&
+    rankingControls.merchantId === null;
+  const displayedRanking =
+    ranking ?? (isDefaultRanking && !rankingLoading ? initialRanking : null);
   if (activeTab === 'daily')
     return <MerchantDailyData rows={report.dailyTrends} />;
   if (activeTab === 'rankings')
     return (
       <MerchantRankings
-        page={initialRanking}
+        page={displayedRanking}
         loading={rankingLoading}
         error={rankingError}
         errorPage={rankingErrorPage}
         onPageChange={onRankingPageChange}
+        controls={rankingControls}
+        onControlsChange={onRankingControlsChange}
       />
     );
   const trends = report.dailyTrends.map((row) => ({

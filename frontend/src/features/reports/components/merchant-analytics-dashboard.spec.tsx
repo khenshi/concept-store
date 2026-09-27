@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { merchantSalesAnalyticsSchema } from '../model/report.schemas';
 import { MerchantAnalyticsDashboard } from './merchant-analytics-dashboard';
 
@@ -80,7 +80,24 @@ describe('merchant analytics dashboard', () => {
       <MerchantAnalyticsDashboard report={report} activeTab="rankings" />,
     );
     expect(
-      screen.getByRole('table', { name: 'Own top products by gross sales' }),
+      screen.getByRole('table', { name: 'Your top products by gross sales' }),
     ).toBeInTheDocument();
+  });
+  it('offers both sorts without exposing a merchant selector', () => {
+    const onRankingControlsChange = vi.fn();
+    render(
+      <MerchantAnalyticsDashboard
+        report={report}
+        activeTab="rankings"
+        onRankingControlsChange={onRankingControlsChange}
+      />,
+    );
+    expect(screen.queryByRole('combobox', { name: 'Merchant' })).toBeNull();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Rank by' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Units sold' }));
+    expect(onRankingControlsChange).toHaveBeenCalledWith({
+      sortBy: 'UNITS_SOLD',
+      merchantId: null,
+    });
   });
 });

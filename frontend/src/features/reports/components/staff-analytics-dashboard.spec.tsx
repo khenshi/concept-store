@@ -242,6 +242,8 @@ describe('staff analytics dashboard', () => {
           branch: report.branch,
           from: report.from,
           until: report.until,
+          sortBy: 'GROSS_SALES',
+          merchantId: null,
           page: 1,
           limit: 10,
           totalProducts: '11',
@@ -253,6 +255,40 @@ describe('staff analytics dashboard', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(onRankingPageChange).toHaveBeenCalledWith(2);
+  });
+  it('offers metric and merchant ranking controls for staff', () => {
+    const onRankingControlsChange = vi.fn();
+    render(
+      <StaffAnalyticsDashboard
+        report={report}
+        activeTab="rankings"
+        merchantOptions={[
+          {
+            id: '44444444-4444-4444-8444-444444444444',
+            name: 'Merchant one',
+          },
+        ]}
+        onRankingControlsChange={onRankingControlsChange}
+      />,
+    );
+    expect(screen.getByRole('combobox', { name: 'Rank by' })).toHaveTextContent(
+      'Gross sales',
+    );
+    expect(
+      screen.getByRole('combobox', { name: 'Merchant' }),
+    ).toHaveTextContent('All merchants');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Rank by' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Units sold' }));
+    expect(onRankingControlsChange).toHaveBeenLastCalledWith({
+      sortBy: 'UNITS_SOLD',
+      merchantId: null,
+    });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Merchant' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Merchant one' }));
+    expect(onRankingControlsChange).toHaveBeenLastCalledWith({
+      sortBy: 'GROSS_SALES',
+      merchantId: '44444444-4444-4444-8444-444444444444',
+    });
   });
   it('switches between accessible metrics and follows the applied daily report range', () => {
     render(<StaffAnalyticsDashboard report={report} />);

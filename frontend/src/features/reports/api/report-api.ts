@@ -129,6 +129,8 @@ export async function getStaffSalesRankings(
           from: query.from,
           until: query.until,
           page: String(query.page),
+          sortBy: query.sortBy,
+          ...(query.merchantId ? { merchantId: query.merchantId } : {}),
         },
       )}`,
     ),
@@ -138,7 +140,9 @@ export async function getStaffSalesRankings(
     report.branch.id !== branchId ||
     Date.parse(report.from) !== Date.parse(query.from) ||
     Date.parse(report.until) !== Date.parse(query.until) ||
-    report.page !== query.page
+    report.page !== query.page ||
+    report.sortBy !== query.sortBy ||
+    report.merchantId !== (query.merchantId ?? null)
   )
     throw new Error(
       'The ranking response does not match the selected branch, period or page.',
@@ -160,6 +164,8 @@ export async function getMerchantSalesRankings(
           from: query.from,
           until: query.until,
           page: String(query.page),
+          sortBy: query.sortBy,
+          ...(query.merchantId ? { merchantId: query.merchantId } : {}),
         },
       )}`,
     ),
@@ -169,7 +175,9 @@ export async function getMerchantSalesRankings(
     report.branch.id !== branchId ||
     Date.parse(report.from) !== Date.parse(query.from) ||
     Date.parse(report.until) !== Date.parse(query.until) ||
-    report.page !== query.page
+    report.page !== query.page ||
+    report.sortBy !== query.sortBy ||
+    report.merchantId !== (query.merchantId ?? null)
   )
     throw new Error(
       'The ranking response does not match the selected branch, period or page.',

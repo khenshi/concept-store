@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
+import { listMerchants } from '@/features/merchants/api/merchant-api';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { OperationalPage } from '@/shared/components/ui/operational-page';
@@ -28,6 +29,8 @@ import type {
   MerchantSalesAnalytics,
   StaffSalesRankingPage,
   MerchantSalesRankingPage,
+  ReportMerchantOption,
+  ReportRankingControls,
 } from '../model/report.schemas';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
@@ -56,6 +59,7 @@ export function BranchReports(props: {
         <ScopedBranchReports
           key={`${scope}:${props.branchId}`}
           {...props}
+          role={role}
           merchant={role === 'MERCHANT'}
         />
       )}
@@ -66,10 +70,12 @@ function ScopedBranchReports({
   organizationId,
   branchId,
   merchant,
+  role,
 }: {
   organizationId: string;
   branchId: string;
   merchant: boolean;
+  role: 'OWNER' | 'MANAGER' | 'MERCHANT';
 }) {
   const { request, user } = useAuth();
   const { refreshOrganization, setSelectedBranchId } =
@@ -91,10 +97,25 @@ function ScopedBranchReports({
   const [rankingLoading, setRankingLoading] = useState(false);
   const [rankingError, setRankingError] = useState<string | null>(null);
   const [rankingErrorPage, setRankingErrorPage] = useState<number | null>(null);
+  const [rankingControls, setRankingControls] = useState<ReportRankingControls>(
+    {
+      sortBy: 'GROSS_SALES',
+      merchantId: null,
+    },
+  );
+  const [merchantOptions, setMerchantOptions] = useState<
+    ReportMerchantOption[] | null
+  >(null);
+  const [merchantOptionsError, setMerchantOptionsError] = useState<
+    string | null
+  >(null);
+  const [merchantOptionsRevision, setMerchantOptionsRevision] = useState(0);
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
+  const rankingRequest = useRef(0);
   function invalidate() {
     generation.current++;
+    rankingRequest.current++;
     setReport(null);
     setBranches(null);
     setError(null);
@@ -104,6 +125,9 @@ function ScopedBranchReports({
     setRankingLoading(false);
     setRankingError(null);
     setRankingErrorPage(null);
+    setRankingControls({ sortBy: 'GROSS_SALES', merchantId: null });
+    setMerchantOptions(null);
+    setMerchantOptionsError(null);
   }
   useEffect(() => {
     let active = true;
@@ -156,14 +180,64 @@ function ScopedBranchReports({
     merchant,
     setSelectedBranchId,
   ]);
-  async function loadRankingPage(page: number) {
-    if (rankingLoading || page < 1) return;
+  useEffect(() => {
+    if (
+      merchant ||
+      role === 'MERCHANT' ||
+      activeTab !== 'rankings' ||
+      !report ||
+      merchantOptions !== null ||
+      merchantOptionsError !== null
+    )
+      return;
+    let active = true;
+    void listMerchants(request, organizationId, {}, role)
+      .then((items) => {
+        if (!active) return;
+        setMerchantOptions(items.map(({ id, name }) => ({ id, name })));
+      })
+      .catch((cause) => {
+        if (!active) return;
+        setMerchantOptionsError(
+          cause instanceof ApiError
+            ? cause.message
+            : 'Merchant filters could not be loaded.',
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    activeTab,
+    merchant,
+    merchantOptions,
+    merchantOptionsError,
+    merchantOptionsRevision,
+    organizationId,
+    report,
+    request,
+    role,
+  ]);
+  const merchantOptionsLoading =
+    !merchant && merchantOptions === null && merchantOptionsError === null;
+  async function loadRankingPage(
+    page: number,
+    controls: ReportRankingControls = rankingControls,
+    force = false,
+  ) {
+    if ((rankingLoading && !force) || page < 1) return;
     const current = generation.current;
+    const currentRequest = ++rankingRequest.current;
     setRankingLoading(true);
     setRankingError(null);
     setRankingErrorPage(null);
     try {
-      const query = { ...reportUtcRange(applied), page };
+      const query = {
+        ...reportUtcRange(applied),
+        page,
+        sortBy: controls.sortBy,
+        ...(controls.merchantId ? { merchantId: controls.merchantId } : {}),
+      };
       const result = merchant
         ? await getMerchantSalesRankings(
             request,
@@ -172,10 +246,18 @@ function ScopedBranchReports({
             query,
           )
         : await getStaffSalesRankings(request, organizationId, branchId, query);
-      if (current !== generation.current) return;
+      if (
+        current !== generation.current ||
+        currentRequest !== rankingRequest.current
+      )
+        return;
       setRanking(result);
     } catch (cause) {
-      if (current !== generation.current) return;
+      if (
+        current !== generation.current ||
+        currentRequest !== rankingRequest.current
+      )
+        return;
       setRankingError(
         cause instanceof ApiError
           ? cause.message
@@ -183,8 +265,20 @@ function ScopedBranchReports({
       );
       setRankingErrorPage(page);
     } finally {
-      if (current === generation.current) setRankingLoading(false);
+      if (
+        current === generation.current &&
+        currentRequest === rankingRequest.current
+      )
+        setRankingLoading(false);
     }
+  }
+  function changeRankingControls(next: ReportRankingControls) {
+    rankingRequest.current++;
+    setRankingControls(next);
+    setRanking(null);
+    setRankingError(null);
+    setRankingErrorPage(null);
+    void loadRankingPage(1, next, true);
   }
   const validDraft = reportDateRangeSchema.safeParse(draft).success;
   return (
@@ -328,6 +422,8 @@ function ScopedBranchReports({
             report={report}
             activeTab={activeTab}
             ranking={ranking?.scope === 'MERCHANT' ? ranking : undefined}
+            rankingControls={rankingControls}
+            onRankingControlsChange={changeRankingControls}
             rankingLoading={rankingLoading}
             rankingError={rankingError}
             rankingErrorPage={rankingErrorPage}
@@ -338,6 +434,16 @@ function ScopedBranchReports({
             report={report}
             activeTab={activeTab}
             ranking={ranking?.scope === 'STAFF' ? ranking : undefined}
+            rankingControls={rankingControls}
+            merchantOptions={merchantOptions ?? []}
+            merchantOptionsLoading={merchantOptionsLoading}
+            merchantOptionsError={merchantOptionsError}
+            onMerchantOptionsRetry={() => {
+              setMerchantOptions(null);
+              setMerchantOptionsError(null);
+              setMerchantOptionsRevision((value) => value + 1);
+            }}
+            onRankingControlsChange={changeRankingControls}
             rankingLoading={rankingLoading}
             rankingError={rankingError}
             rankingErrorPage={rankingErrorPage}
