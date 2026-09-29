@@ -26,3 +26,8 @@ out/
 /.claude/
 /.cursor/
 /.gemini/
+
+# Local UI tooling runtime state
+/.impeccable/config.local.json
+/.impeccable/live/
+/frontend/.impeccable/live/
