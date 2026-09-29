@@ -596,6 +596,33 @@ navigation warn before discarding a cart; history navigation clears on unmount.
 Rendered POS browser QA was explicitly waived for this milestone on September 13,
 2026, including responsive, keyboard/dialog, zoom and print checks.
 
+## POS cashier workflow and tablet layout
+
+The Cart tab now prioritizes rapid barcode/SKU entry and keeps the existing
+scanner, exact lookup, repeated-scan quantity and focus-restoration behavior.
+Product rows are reduced to product name, merchant, SKU, price, stock and a
+compact Add action. iPad landscape uses a two-column product/cart workspace; the
+cart is viewport-bounded with a stationary heading and checkout footer and an
+independently scrolling item list. Quantity steppers use 44-pixel touch targets
+and preserve the existing input, stock and payment validation.
+
+Narrow/portrait layouts show products in one column and keep a sticky cart count,
+total and Review payment action. View cart opens a focus-managed native bottom
+sheet. Optional in-app full-screen mode hides the authenticated header and
+organization navigation, leaves branch/history/exit controls in a compact POS
+toolbar, and ends when leaving the Cart route. It is not persisted and does not
+invoke browser fullscreen. The existing color, typography, neutral action and
+fine-border tokens are reused; no API, database or checkout business logic
+changed.
+
+The POS/workspace/shell focused suite passes 128 tests; frontend lint, typecheck
+and production build pass. The full frontend run is 854/857 because three tests
+in the separately modified Inventory movement and Sales workflow UI still expect
+their previous accessible labels (“From (PH)” and “Search receipt code”). Those
+pre-existing unrelated edits were preserved. Rendered tablet/portrait browser
+review was unavailable because no browser surface was connected, so automated
+layout tests do not certify final rendered dimensions.
+
 ## POS payment and completion
 
 The shared native payment dialog presents a reviewed cart, cash tender/exact change

@@ -1,75 +1,82 @@
 # Product
 
+<!-- impeccable:product-schema 1 -->
+
 ## Platform
 
 web
 
 ## Users
 
-The primary users for the initial release are concept-store owners, managers,
-and cashiers who manage store operations.
-
-Platform superadministration is part of the broader product model but is not a
-primary initial-release experience.
+Primary users are concept-store owners, managers, cashiers, and independent
+merchants. Owners and managers administer their organization and branches;
+cashiers handle authorized point-of-sale work; merchants use the features
+available for their own products and sales.
 
 ## Product Purpose
 
-The product is a multi-tenant SaaS Concept Store Management System. It replaces fragmented spreadsheets, paper records, messaging, and manual calculations with one operational system for concept-store businesses and their merchants.
-
-Only the multi-tenant foundation is currently implemented. Merchant Profiles
-has a proposed current plan, but implementation has not yet been approved.
+Kapwesto is a multi-tenant SaaS workspace for concept-store businesses and their
+merchants. It brings organization and branch administration, product and stock
+work, checkout, sales history, refunds, and sales reporting into one operational
+system, reducing reliance on fragmented spreadsheets, paper records, messaging,
+and manual calculations.
 
 ## Positioning
 
-This is one connected system with experiences and data access separated by
-authorization. Product direction outside the current approved implementation
-plan must not be treated as active scope.
+Kapwesto connects store operations while keeping each user's experience and data
+access scoped to their organization, branch assignments, and role. The product
+serves both store operators and independent merchants within that access model.
 
 ## Operating Context
 
-The product is intended initially for concept stores in the Philippines and uses English throughout the application.
-
-Concept stores may operate multiple physical branches. Their workflows involve
-store owners, managers, cashiers, and independent merchants.
+The product is intended for concept stores in the Philippines and uses English
+throughout the application. Stores may have multiple physical branches and work
+with independent merchants as well as owners, managers, and cashiers.
 
 ## Capabilities and Constraints
 
-- Only the foundation modules are currently implemented: authentication,
-  accounts, organizations, branches, memberships/RBAC, and invitations.
-- Merchant Profiles is proposed as the next module; agents must wait for
-  explicit user approval before implementing it.
-- The application is a multi-tenant modular monolith developed module by module.
-- An organization represents one subscribed concept-store business and may have multiple branches.
-- Data belonging to one organization must never be accessible by another organization.
-- Roles include `PLATFORM_SUPERADMIN`, `OWNER`, `MANAGER`, `CASHIER`, and `MERCHANT`.
-- Role-specific pages and operations must remain separated by backend-authoritative authentication, membership, tenant, and role checks.
-- Every new module or substantial module change must be planned and explicitly
-  approved before implementation.
-- Advanced features and infrastructure must not be introduced outside an
-  approved current plan.
-- Product-specific accessibility requirements remain an open decision.
+- Current behavior is documented in `docs/modules/`: authentication and
+  accounts, organizations, branches, memberships and invitations, merchant
+  profiles, products, branch inventory, point of sale, sales, refunds, and
+  sales reports.
+- Feature details and role-specific limits are defined by the corresponding
+  module documentation. Do not assume functionality beyond documented behavior.
+- Organization membership is the tenant boundary. Branch-owned records also
+  enforce branch access where applicable; authorization is checked by the
+  backend.
+- Organization roles are `OWNER`, `MANAGER`, `CASHIER`, and `MERCHANT`.
+  `PLATFORM_SUPERADMIN` is a product-level role and is not an implemented
+  organization experience.
+- The system is a PostgreSQL-backed modular monolith. New modules and
+  substantial changes require an explicitly approved plan; the current plan is
+  maintained in `docs/plans/current.md`.
 
 ## Brand Commitments
 
-The product name is Concept Store Management System.
-
-The approved brand direction is maintained in
-`DESIGN.md`, while global frontend architecture is maintained in `AGENTS.md`.
-Frontend work must preserve those references and prioritize clear, consistent,
-usable, fast, professional B2B SaaS experiences.
+The product name is Kapwesto. `DESIGN.md` is the approved brand and visual
+reference; `AGENTS.md` documents global frontend architecture and engineering
+constraints.
 
 ## Evidence on Hand
 
-- Current scope controls and engineering rules are documented in `AGENTS.md`.
-- The approved brand commitments are documented in `DESIGN.md`.
-- Implemented behavior is documented one module per file under `docs/modules/`.
-- The repository currently contains working tenant operations for authentication,
-  accounts, organizations, branches, memberships, and invitations only.
-- No customer testimonials, usage benchmarks, case studies, press coverage, or commercial proof have been provided. Future interfaces must not fabricate them.
+- Implemented behavior is described in `docs/modules/`, one module per file.
+- The repository contains the application and its working module flows; the
+  module documentation is the source for their exact contracts and limits.
+- No customer testimonials, usage benchmarks, case studies, press coverage, or
+  commercial proof have been provided. Future interfaces must not fabricate
+  them.
 
 ## Product Principles
 
 1. Protect tenant isolation and authorization before convenience.
-2. Treat only the current approved plan as implementation scope.
-3. Expose only what each actor is authorized to access.
-4. Deliver the smallest complete approved change without silently expanding scope.
+2. Expose only the data and actions each actor is authorized to access.
+3. Treat only documented behavior and explicitly approved plans as current
+   product scope.
+4. Deliver the smallest complete approved change without silently expanding
+   scope.
+
+## Accessibility & Inclusion
+
+The interface must meet WCAG 2.2 AA. Support keyboard-only use, visible focus,
+200% zoom, reduced motion, long content, and 320-pixel viewports. No
+product-specific accommodation needs have been documented.

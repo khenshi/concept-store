@@ -115,6 +115,36 @@ Building/editing a cart performs no sale/payment writes or stock deductions.
 Confirmed checkout uses the [sales API](sales.md), which remains authoritative
 for price, stock, payment values and authorization.
 
+## Fast cashier workspace
+
+The Cart tab presents a compact scanner/SKU field, debounced product search and
+product rows containing product name, merchant, SKU, price, available stock and
+an Add action. Scanner Enter still performs the existing exact-code lookup;
+repeated scans increment the existing cart line and restore scanner focus. No
+catalog or checkout rules changed.
+
+Landscape tablet/desktop layouts use a roughly 62/38 product-browser/cart split.
+The cart stays within the viewport: its heading and checkout footer remain fixed
+while only its item list scrolls. Cart lines retain the validated quantity input
+and add 44-pixel decrement, increment and remove actions. Increment/decrement
+remain bounded by the existing positive-whole-quantity and observed-stock rules.
+
+Portrait and narrow layouts use a single product browser with a sticky item-count
+and total summary. View cart opens the native bottom-sheet cart; Escape/backdrop
+dismissal restores focus to the trigger. Review payment remains available from
+both the summary and cart sheet. The optional Full screen POS action hides the
+authenticated header and organization navigation while leaving compact branch,
+Sales history and Exit full screen controls. This is in-app presentation state,
+not the browser Fullscreen API; it is not persisted and automatically ends when
+leaving Cart or when the active branch becomes unavailable.
+
+The September 29, 2026 presentation refinement passes 128 POS, workspace and
+shell tests, frontend lint, type checking and production build. The full frontend
+test run reports 854/857 passing; the three failures are existing assertions in
+the separately modified Inventory movement and Sales workflow UI, which now use
+the labels “From” and “Search”. Those unrelated working-tree edits were preserved.
+Rendered viewport QA was not run because no browser surface was available.
+
 ## Payment confirmation and recovery
 
 Review payment opens a native dialog showing the cart and estimated total. Cash

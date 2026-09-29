@@ -1,5 +1,10 @@
 # Archived Implementation Plans
 
+The completed POS Cart Fast Cashier redesign, including the landscape cart
+workspace, narrow-screen sheet, route-scoped in-app full-screen mode and the
+documented verification limits, is retained in
+[`pos-cart-fast-cashier-redesign-2026-09-29.md`](pos-cart-fast-cashier-redesign-2026-09-29.md).
+
 The completed September 25 Sales Reports Chart Refresh, including selectable
 sales trends, top-five performance charts, weekday averages, payment methods and
 responsive viewport review, is retained in
