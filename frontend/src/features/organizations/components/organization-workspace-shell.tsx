@@ -15,6 +15,7 @@ import { OrganizationNavigation } from './organization-navigation';
 import { OrganizationSwitcher } from './organization-switcher';
 import { MobileOrganizationDrawer } from './mobile-organization-drawer';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
+import { useWorkspaceChrome } from '@/features/app-shell/components/workspace-chrome-context';
 
 export function OrganizationWorkspaceShell({
   organizationId,
@@ -25,6 +26,7 @@ export function OrganizationWorkspaceShell({
 }) {
   const { organization, organizationStatus } =
     useOrganizationWorkspaceContext();
+  const { posFullscreen } = useWorkspaceChrome();
   const canManage =
     organization?.role === 'OWNER' ||
     organization?.role === 'MANAGER' ||
@@ -86,79 +88,93 @@ export function OrganizationWorkspaceShell({
 
   return (
     <div
-      className={`w-full print:block lg:grid ${isSidebarCollapsed ? 'lg:grid-cols-[4.5rem_minmax(0,1fr)]' : 'lg:grid-cols-[15.5rem_minmax(0,1fr)]'}`}
+      className={
+        posFullscreen
+          ? 'h-full min-h-0 w-full overflow-hidden'
+          : `w-full print:block lg:grid ${isSidebarCollapsed ? 'lg:grid-cols-[4.5rem_minmax(0,1fr)]' : 'lg:grid-cols-[15.5rem_minmax(0,1fr)]'}`
+      }
     >
-      <aside
-        className={`hidden min-w-0 border-r border-hairline bg-surface print:hidden lg:sticky lg:top-17 lg:flex lg:h-[calc(100dvh-4.25rem)] lg:flex-col lg:self-start ${isSidebarCollapsed ? 'px-2' : 'px-4'}`}
-        aria-label="Workspace sidebar"
-      >
-        <div className="shrink-0 pt-5">
-          <OrganizationSwitcher
-            organizationId={organizationId}
-            organizationName={organization?.name}
-            collapsed={isSidebarCollapsed}
-          />
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-5">
-          {navigation(isSidebarCollapsed)}
-        </div>
-        <div className="grid shrink-0 gap-2 border-t border-hairline py-3">
-          <Link
-            href="/app"
-            className={buttonStyles({
-              variant: 'quiet',
-              className: isSidebarCollapsed ? 'px-2' : 'justify-start px-3',
-            })}
-            title={isSidebarCollapsed ? 'All organizations' : undefined}
-          >
-            <Icon name="building" />
-            <span className={isSidebarCollapsed ? 'sr-only' : ''}>
-              All organizations
-            </span>
-          </Link>
-          <Button
-            variant="quiet"
-            aria-label={
-              isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'
-            }
-            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={toggleSidebar}
-            className={
-              isSidebarCollapsed
-                ? 'w-full px-2'
-                : 'justify-start px-3 text-muted'
-            }
-          >
-            <Icon name={isSidebarCollapsed ? 'expand' : 'collapse'} />
-            <span className={isSidebarCollapsed ? 'sr-only' : ''}>
-              Collapse sidebar
-            </span>
-          </Button>
-        </div>
-      </aside>
-      <div className="min-h-[calc(100dvh-4.25rem)] min-w-0 bg-surface">
-        <div className="flex items-center gap-3 border-b border-hairline bg-surface px-4 py-3 print:hidden sm:px-6 lg:hidden">
-          <div className="min-w-0 flex-1">
+      {posFullscreen ? null : (
+        <aside
+          className={`hidden min-w-0 border-r border-hairline bg-surface print:hidden lg:sticky lg:top-17 lg:flex lg:h-[calc(100dvh-4.25rem)] lg:flex-col lg:self-start ${isSidebarCollapsed ? 'px-2' : 'px-4'}`}
+          aria-label="Workspace sidebar"
+        >
+          <div className="shrink-0 pt-5">
             <OrganizationSwitcher
               organizationId={organizationId}
               organizationName={organization?.name}
-              compact
+              collapsed={isSidebarCollapsed}
             />
           </div>
-          <Button
-            ref={menuTriggerRef}
-            variant="secondary"
-            aria-expanded={isMenuOpen}
-            aria-controls={drawerId}
-            aria-haspopup="dialog"
-            onClick={() => setIsMenuOpen(true)}
-            className="shrink-0 px-3"
-          >
-            <Icon name="menu" className="size-4" />
-            Menu
-          </Button>
-        </div>
-        {isMenuOpen ? (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-5">
+            {navigation(isSidebarCollapsed)}
+          </div>
+          <div className="grid shrink-0 gap-2 border-t border-hairline py-3">
+            <Link
+              href="/app"
+              className={buttonStyles({
+                variant: 'quiet',
+                className: isSidebarCollapsed ? 'px-2' : 'justify-start px-3',
+              })}
+              title={isSidebarCollapsed ? 'All organizations' : undefined}
+            >
+              <Icon name="building" />
+              <span className={isSidebarCollapsed ? 'sr-only' : ''}>
+                All organizations
+              </span>
+            </Link>
+            <Button
+              variant="quiet"
+              aria-label={
+                isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'
+              }
+              title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              onClick={toggleSidebar}
+              className={
+                isSidebarCollapsed
+                  ? 'w-full px-2'
+                  : 'justify-start px-3 text-muted'
+              }
+            >
+              <Icon name={isSidebarCollapsed ? 'expand' : 'collapse'} />
+              <span className={isSidebarCollapsed ? 'sr-only' : ''}>
+                Collapse sidebar
+              </span>
+            </Button>
+          </div>
+        </aside>
+      )}
+      <div
+        className={
+          posFullscreen
+            ? 'h-full min-h-0 min-w-0 overflow-hidden bg-surface'
+            : 'min-h-[calc(100dvh-4.25rem)] min-w-0 bg-surface'
+        }
+      >
+        {posFullscreen ? null : (
+          <div className="flex items-center gap-3 border-b border-hairline bg-surface px-4 py-3 print:hidden sm:px-6 lg:hidden">
+            <div className="min-w-0 flex-1">
+              <OrganizationSwitcher
+                organizationId={organizationId}
+                organizationName={organization?.name}
+                compact
+              />
+            </div>
+            <Button
+              ref={menuTriggerRef}
+              variant="secondary"
+              aria-expanded={isMenuOpen}
+              aria-controls={drawerId}
+              aria-haspopup="dialog"
+              onClick={() => setIsMenuOpen(true)}
+              className="shrink-0 px-3"
+            >
+              <Icon name="menu" className="size-4" />
+              Menu
+            </Button>
+          </div>
+        )}
+        {!posFullscreen && isMenuOpen ? (
           <MobileOrganizationDrawer
             id={drawerId}
             organizationName={organization?.name}
@@ -179,7 +195,13 @@ export function OrganizationWorkspaceShell({
             </Link>
           </MobileOrganizationDrawer>
         ) : null}
-        <div className="mx-auto min-w-0 max-w-[90rem] px-4 pb-10 print:p-0 sm:px-6 lg:px-8 xl:px-10">
+        <div
+          className={
+            posFullscreen
+              ? 'h-full min-h-0 w-full max-w-none overflow-hidden'
+              : 'mx-auto min-w-0 max-w-[90rem] px-4 pb-10 print:p-0 sm:px-6 lg:px-8 xl:px-10'
+          }
+        >
           {children}
         </div>
       </div>

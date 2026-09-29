@@ -9,6 +9,10 @@ import {
 import { usePathname } from 'next/navigation';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
 import { OrganizationWorkspaceShell } from './organization-workspace-shell';
+import {
+  useWorkspaceChrome,
+  WorkspaceChromeProvider,
+} from '@/features/app-shell/components/workspace-chrome-context';
 
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 vi.mock('./organization-workspace-context', () => ({
@@ -54,6 +58,11 @@ function renderShell() {
       <h1>Workspace content</h1>
     </OrganizationWorkspaceShell>,
   );
+}
+
+function EnterFullscreen() {
+  const { enterPosFullscreen } = useWorkspaceChrome();
+  return <button onClick={enterPosFullscreen}>Enter POS full screen</button>;
 }
 
 describe('OrganizationWorkspaceShell', () => {
@@ -152,6 +161,35 @@ describe('OrganizationWorkspaceShell', () => {
       ).toBeInTheDocument();
     },
   );
+
+  it('hides workspace navigation while POS full-screen mode is active', () => {
+    context('OWNER');
+    render(
+      <WorkspaceChromeProvider>
+        <OrganizationWorkspaceShell organizationId="org">
+          <EnterFullscreen />
+          <h1>Workspace content</h1>
+        </OrganizationWorkspaceShell>
+      </WorkspaceChromeProvider>,
+    );
+    expect(
+      screen.getByRole('complementary', { name: 'Workspace sidebar' }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Enter POS full screen' }),
+    );
+
+    expect(
+      screen.queryByRole('complementary', { name: 'Workspace sidebar' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Menu' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Workspace content' }),
+    ).toBeInTheDocument();
+  });
 
   it.each(['OWNER', 'MANAGER', 'MERCHANT', 'CASHIER'] as const)(
     'exposes Reports in sidebar and mobile navigation only for allowed roles: %s',
