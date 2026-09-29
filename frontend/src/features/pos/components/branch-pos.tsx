@@ -18,19 +18,12 @@ import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   OperationalPage,
   OperationalPanel,
-  StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
-import { TextField } from '@/shared/components/ui/text-field';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { getPosBranch, lookupPosCode, searchPosProducts } from '../api/pos-api';
-import {
-  addPosProduct,
-  posCartTotal,
-  posLineTotal,
-  quantityError,
-} from '../model/pos-cart';
+import { addPosProduct, quantityError } from '../model/pos-cart';
 import { posCodeSchema, posQuantitySchema } from '../model/pos.schemas';
 import { POS_NAVIGATION_EVENT } from '../model/pos-navigation';
 import type { PosCartLine, PosProduct, PosScope } from '../model/pos.types';
@@ -47,6 +40,11 @@ import {
   setCheckoutAttempt,
   useCheckoutAttempt,
 } from '../model/checkout-attempt';
+import { useWorkspaceChrome } from '@/features/app-shell/components/workspace-chrome-context';
+import { PosProductBrowser } from './pos-product-browser';
+import { PosCartPanel } from './pos-cart-panel';
+import { PosCartSummary } from './pos-cart-summary';
+import { PosCartSheet } from './pos-cart-sheet';
 
 type BranchPosProps = PosScope & {
   cartActive?: boolean;
@@ -100,6 +98,8 @@ function ScopedBranchPos({
 }: BranchPosProps & { role: 'OWNER' | 'MANAGER' | 'CASHIER' }) {
   const { request, user } = useAuth();
   const { setSelectedBranchId } = useOrganizationWorkspaceContext();
+  const { posFullscreen, enterPosFullscreen, exitPosFullscreen } =
+    useWorkspaceChrome();
   const attemptKey = checkoutAttemptKey(organizationId, user?.id ?? '');
   const attempt = useCheckoutAttempt(attemptKey);
   const recovering = Boolean(
@@ -109,6 +109,23 @@ function ScopedBranchPos({
   );
   // A browser-history/deep-link transition cannot conceal a frozen checkout.
   const cartActive = requestedCartActive || recovering;
+
+  useEffect(() => {
+    if (!posFullscreen) return;
+    function exitOnEscape(event: KeyboardEvent) {
+      if (
+        event.key === 'Escape' &&
+        !event.defaultPrevented &&
+        !document.querySelector('dialog[open]')
+      ) {
+        exitPosFullscreen();
+        window.requestAnimationFrame(() => codeRef.current?.focus());
+      }
+    }
+    document.addEventListener('keydown', exitOnEscape);
+    return () => document.removeEventListener('keydown', exitOnEscape);
+  }, [posFullscreen, exitPosFullscreen]);
+
   const [branchChecking, setBranchChecking] = useState(true);
   const [checkedCartActive, setCheckedCartActive] = useState<boolean | null>(
     null,
@@ -121,6 +138,24 @@ function ScopedBranchPos({
   } | null>(null);
   const [branchError, setBranchError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  useEffect(() => {
+    if (
+      posFullscreen &&
+      (!requestedCartActive ||
+        recovering ||
+        Boolean(branchError) ||
+        accessDenied)
+    )
+      exitPosFullscreen();
+  }, [
+    posFullscreen,
+    requestedCartActive,
+    recovering,
+    branchReady,
+    branchError,
+    accessDenied,
+    exitPosFullscreen,
+  ]);
   const [revision, setRevision] = useState(0);
   const [products, setProducts] = useState<PosProduct[]>([]);
   const [search, setSearch] = useState('');
@@ -139,6 +174,18 @@ function ScopedBranchPos({
   const [matches, setMatches] = useState<PosProduct[] | null>(null);
   const [cart, setCart] = useState<PosCartLine[]>([]);
   const cartRef = useRef<PosCartLine[]>([]);
+  const [cartSheetState, setCartSheetState] = useState({
+    routeActive: requestedCartActive,
+    open: false,
+  });
+  if (cartSheetState.routeActive !== requestedCartActive)
+    setCartSheetState({ routeActive: requestedCartActive, open: false });
+  const cartSheetOpen =
+    cartSheetState.routeActive === requestedCartActive && cartSheetState.open;
+  const openCartSheet = () =>
+    setCartSheetState({ routeActive: requestedCartActive, open: true });
+  const closeCartSheet = () =>
+    setCartSheetState({ routeActive: requestedCartActive, open: false });
   const [notice, setNotice] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -548,6 +595,52 @@ function ScopedBranchPos({
   const invalidCart = cart.some((line) =>
     quantityError(line.quantityInput, line.product.quantity),
   );
+  const cartLocked =
+    lookupPending ||
+    Boolean(matches) ||
+    clearing ||
+    paying ||
+    recovering ||
+    !branchReady ||
+    Boolean(branchError);
+  const reviewDisabled =
+    !cart.length || invalidCart || cartLocked || !cartCatalogReady;
+
+  function adjustQuantity(line: PosCartLine, delta: -1 | 1) {
+    if (
+      paymentOpen.current ||
+      unsafeCheckout.current ||
+      quantityError(line.quantityInput, line.product.quantity)
+    )
+      return;
+    const next = line.quantity + delta;
+    if (next < 1 || next > line.product.quantity) return;
+    const id = line.product.branchInventoryId;
+    const value = String(next);
+    changeQuantity(id, value);
+    validateQuantity(id, value, true);
+  }
+
+  function removeCartLine(line: PosCartLine) {
+    if (paymentOpen.current || unsafeCheckout.current || cartLocked) return;
+    const id = line.product.branchInventoryId;
+    window.clearTimeout(quantityTimers.current.get(id));
+    quantityTimers.current.delete(id);
+    commitCart(
+      cartRef.current.filter((row) => row.product.branchInventoryId !== id),
+    );
+    setNotice(null);
+    focusCode();
+  }
+
+  function reviewPayment() {
+    if (lookupBusy.current || unsafeCheckout.current || reviewDisabled) return;
+    for (const timer of quantityTimers.current.values())
+      window.clearTimeout(timer);
+    paymentOpen.current = true;
+    setPaying(true);
+  }
+
   useEffect(() => {
     if (
       attempt?.state !== 'completed' ||
@@ -665,49 +758,98 @@ function ScopedBranchPos({
         )}
       </OperationalPage>
     );
+  const branchSelector = (
+    <PosBranchSelector
+      key={String(cartActive)}
+      organizationId={organizationId}
+      branchId={branchId}
+      role={role}
+      disabled={paying || recovering || !branchReady || Boolean(branchError)}
+      onAccessDenied={denyAccess}
+      rememberBranch={setSelectedBranchId}
+      compact
+    />
+  );
+  const tabs = [
+    { label: 'Cart', href: pathname, active: cartActive },
+    {
+      label: 'Sales History',
+      href: `${pathname}/sales`,
+      active: !cartActive,
+    },
+  ];
   return (
-    <OperationalPage>
-      <PageHeader
-        title="POS"
-        description="Build a branch-specific cart, review payment and complete one sale. Prices and stock are estimates until server checkout."
-        action={
-          <PosBranchSelector
-            key={String(cartActive)}
-            organizationId={organizationId}
-            branchId={branchId}
-            role={role}
-            disabled={
-              paying || recovering || !branchReady || Boolean(branchError)
+    <section
+      className={
+        posFullscreen
+          ? 'flex h-full min-w-0 min-h-0 w-full max-w-none flex-col overflow-hidden bg-surface'
+          : 'mx-auto mt-5 w-full max-w-7xl sm:mt-6'
+      }
+    >
+      {posFullscreen ? (
+        <header className="flex min-h-[3.75rem] flex-[0_0_auto] items-center justify-between gap-3 border-b border-hairline bg-surface px-4 py-1.5 max-lg:items-start max-lg:flex-wrap max-lg:py-2">
+          <h1 className="min-w-0 text-base font-semibold">POS · Cart</h1>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+            {branchSelector}
+            <Link
+              href={`${pathname}/sales`}
+              aria-disabled={recovering ? true : undefined}
+              className={buttonStyles({ variant: 'secondary' })}
+            >
+              Sales history
+            </Link>
+            <Button
+              variant="quiet"
+              onClick={() => {
+                exitPosFullscreen();
+                focusCode();
+              }}
+            >
+              Exit full screen
+            </Button>
+          </div>
+        </header>
+      ) : (
+        <>
+          <PageHeader
+            title="POS"
+            description="Scan or search products, then review the cart."
+            className="!pb-5"
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                {branchSelector}
+                {requestedCartActive && !recovering ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      enterPosFullscreen();
+                      focusCode();
+                    }}
+                  >
+                    Full screen POS
+                  </Button>
+                ) : null}
+              </div>
             }
-            onAccessDenied={denyAccess}
-            rememberBranch={setSelectedBranchId}
-            compact
           />
-        }
-      />
-      <nav
-        aria-label="POS pages"
-        className="mb-6 flex flex-wrap gap-6 border-b border-hairline"
-      >
-        {[
-          { label: 'Cart', href: pathname, active: cartActive },
-          {
-            label: 'Sales History',
-            href: `${pathname}/sales`,
-            active: !cartActive,
-          },
-        ].map((tab) => (
-          <Link
-            key={tab.label}
-            href={tab.href}
-            aria-current={tab.active ? 'page' : undefined}
-            aria-disabled={!tab.active && recovering ? true : undefined}
-            className="flex min-h-11 items-center border-b-2 border-transparent py-2 text-sm font-medium text-muted no-underline hover:text-accent aria-[current=page]:border-accent aria-[current=page]:text-accent"
+          <nav
+            aria-label="POS pages"
+            className="mb-4 flex flex-wrap gap-6 border-b border-hairline"
           >
-            {tab.label}
-          </Link>
-        ))}
-      </nav>
+            {tabs.map((tab) => (
+              <Link
+                key={tab.label}
+                href={tab.href}
+                aria-current={tab.active ? 'page' : undefined}
+                aria-disabled={!tab.active && recovering ? true : undefined}
+                className="flex min-h-11 items-center border-b-2 border-transparent py-2 text-sm font-medium text-muted no-underline hover:text-accent aria-[current=page]:border-accent aria-[current=page]:text-accent"
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </nav>
+        </>
+      )}
       {branchError ? (
         <RequestError
           message={branchError}
@@ -717,8 +859,14 @@ function ScopedBranchPos({
       <div hidden={cartActive || !branchReady || Boolean(branchError)}>
         {history?.(!cartActive && branchReady && !branchError)}
       </div>
-      <div hidden={!cartActive}>
-        {notice ? <StatusNotice>{notice}</StatusNotice> : null}
+      <div
+        hidden={!cartActive}
+        className={
+          posFullscreen
+            ? 'flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden'
+            : 'pb-32 lg:pb-0'
+        }
+      >
         {completed && cartActive ? (
           <OperationalPanel
             variant="open"
@@ -753,266 +901,100 @@ function ScopedBranchPos({
           disabled={
             paying || recovering || !branchReady || Boolean(branchError)
           }
-          className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]"
+          aria-label="POS checkout workspace"
+          className={`grid min-w-0 gap-4 border-0 p-0 lg:landscape:h-[calc(100dvh-18rem)] lg:landscape:min-h-[20rem] lg:landscape:grid-cols-[minmax(0,1.62fr)_minmax(19rem,1fr)] ${posFullscreen ? 'lg:landscape:h-auto lg:landscape:max-h-none lg:landscape:min-h-0 lg:landscape:flex-1 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden' : ''}`}
         >
-          <div className="min-w-0">
-            <OperationalPanel
-              variant="open"
-              title="Add products"
-              description="Enter an exact SKU or barcode. Repeating a code increases its cart quantity."
-            >
-              <form
-                noValidate
-                className="grid gap-4 py-5 sm:py-6"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void lookup();
-                }}
-              >
-                <TextField
-                  ref={codeRef}
-                  label="SKU or barcode"
-                  value={code}
-                  autoComplete="off"
-                  spellCheck={false}
-                  disabled={lookupPending || Boolean(matches) || clearing}
-                  error={codeError}
-                  onChange={(event) => {
-                    setCode(event.target.value);
-                    validateCode(event.target.value);
-                  }}
-                  onBlur={() => validateCode(code, true)}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === 'Enter' &&
-                      !event.nativeEvent.isComposing
-                    ) {
-                      event.preventDefault();
-                      void lookup();
-                    }
-                  }}
-                  hint="Barcode case and leading zeroes are preserved. Ambiguous codes require a choice."
-                />
-                <Button
-                  type="submit"
-                  variant="accent"
-                  className="w-fit max-sm:w-full"
-                  pending={lookupPending}
-                  pendingLabel="Looking up code…"
-                  disabled={Boolean(matches) || clearing}
-                >
-                  Add code to cart
-                </Button>
-              </form>
-            </OperationalPanel>
-            <OperationalPanel
-              variant="open"
-              title="Product search"
-              description="Active products placed here only; at most 100 results. Narrow search for larger catalogs."
-            >
-              <div className="border-b border-hairline bg-surface py-5 sm:py-6">
-                <TextField
-                  label="Search products"
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  hint="Search product name, SKU or barcode."
-                />
-              </div>
-              {!settled || catalogLoading ? (
-                <ListSkeleton
-                  className="p-6"
-                  label="Searching branch products"
-                  rows={3}
-                />
-              ) : catalogError ? (
-                <RequestError
-                  className="p-6"
-                  message={catalogError}
-                  onRetry={() => setCatalogRevision((value) => value + 1)}
-                />
-              ) : !products.length ? (
-                <p className="p-6 text-sm text-muted">
-                  {q.trim()
-                    ? 'No matching active placed products. Try another search or code.'
-                    : 'No active products are placed in this branch. Ask an owner to configure products and stock.'}
-                </p>
-              ) : (
-                <ul className="border-t border-hairline">
-                  {products.map((product) => (
-                    <li
-                      key={product.branchInventoryId}
-                      className="grid min-w-0 gap-4 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:py-6"
-                    >
-                      <div className="min-w-0 break-words">
-                        <h3 className="text-sm font-semibold">
-                          {product.name}
-                        </h3>
-                        <p className="mt-1 text-xs text-muted">
-                          {product.merchantName} · SKU{' '}
-                          {product.sku ?? 'not set'} · Barcode{' '}
-                          {product.barcode ?? 'not set'}
-                        </p>
-                        <p className="mt-2 text-sm tabular-nums">
-                          PHP {product.sellingPrice} · {product.quantity} units
-                          {!product.eligible ? ' · Out of stock' : ''}
-                        </p>
-                      </div>
-                      <Button
-                        variant="secondary"
-                        aria-label={`Add ${product.name}`}
-                        disabled={
-                          !product.eligible ||
-                          lookupPending ||
-                          Boolean(matches) ||
-                          clearing
-                        }
-                        onClick={() => {
-                          add(product);
-                          focusCode();
-                        }}
-                      >
-                        Add to cart
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </OperationalPanel>
-          </div>
-          <div className="min-w-0">
-            <OperationalPanel
-              title="Cart"
-              description={`${cart.length} distinct products · this branch only`}
-              action={
-                cart.length ? (
-                  <Button
-                    variant="quiet"
-                    disabled={lookupPending || Boolean(matches)}
-                    onClick={() => setClearing(true)}
-                  >
-                    Clear cart
-                  </Button>
-                ) : undefined
+          <PosProductBrowser
+            fullscreen={posFullscreen}
+            code={code}
+            codeError={codeError}
+            codeRef={codeRef}
+            lookupPending={lookupPending}
+            hasMatches={Boolean(matches)}
+            clearing={clearing}
+            onCodeChange={(value) => {
+              setCode(value);
+              validateCode(value);
+            }}
+            onCodeBlur={() => validateCode(code, true)}
+            onLookup={() => void lookup()}
+            search={search}
+            onSearchChange={setSearch}
+            settled={settled}
+            catalogLoading={catalogLoading}
+            catalogError={catalogError}
+            onCatalogRetry={() => setCatalogRevision((value) => value + 1)}
+            products={products}
+            onAdd={(product) => {
+              add(product);
+              focusCode();
+            }}
+            notice={notice}
+          />
+          <div className="hidden min-w-0 lg:landscape:block lg:landscape:h-full lg:landscape:min-h-0">
+            <PosCartPanel
+              fullscreen={posFullscreen}
+              lines={cart}
+              locked={cartLocked}
+              invalid={invalidCart}
+              reviewDisabled={reviewDisabled}
+              onClear={() => setClearing(true)}
+              onRemove={removeCartLine}
+              onQuantityChange={(line, value) =>
+                changeQuantity(line.product.branchInventoryId, value)
               }
-            >
-              {!cart.length ? (
-                <p className="p-6 text-sm text-muted">
-                  Your cart is empty. Enter a code or choose a product.
-                </p>
-              ) : (
-                <ul className="divide-y divide-hairline">
-                  {cart.map((line) => (
-                    <li
-                      key={line.product.branchInventoryId}
-                      className="grid min-w-0 gap-4 p-5 sm:p-6"
-                    >
-                      <div className="flex min-w-0 items-start justify-between gap-4">
-                        <div className="min-w-0 break-words">
-                          <h3 className="text-sm font-semibold">
-                            {line.product.name}
-                          </h3>
-                          <p className="mt-1 text-xs text-muted">
-                            {line.product.merchantName} · PHP{' '}
-                            {line.product.sellingPrice} each
-                          </p>
-                        </div>
-                        <Button
-                          variant="quiet"
-                          aria-label={`Remove ${line.product.name}`}
-                          disabled={
-                            lookupPending || Boolean(matches) || clearing
-                          }
-                          onClick={() => {
-                            window.clearTimeout(
-                              quantityTimers.current.get(
-                                line.product.branchInventoryId,
-                              ),
-                            );
-                            commitCart(
-                              cartRef.current.filter((row) => row !== line),
-                            );
-                            setNotice(null);
-                            focusCode();
-                          }}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                      <TextField
-                        label={`Quantity for ${line.product.name}`}
-                        inputMode="numeric"
-                        value={line.quantityInput}
-                        error={line.error}
-                        disabled={lookupPending || Boolean(matches) || clearing}
-                        hint={`Latest observed stock: ${line.product.quantity} whole units.`}
-                        onChange={(event) =>
-                          changeQuantity(
-                            line.product.branchInventoryId,
-                            event.target.value,
-                          )
-                        }
-                        onBlur={() =>
-                          validateQuantity(
-                            line.product.branchInventoryId,
-                            line.quantityInput,
-                            true,
-                          )
-                        }
-                      />
-                      <p className="text-right text-sm font-semibold tabular-nums">
-                        Line estimate: PHP {posLineTotal(line)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="grid gap-3 border-t border-hairline bg-subtle p-5 sm:p-6">
-                <p className="flex flex-wrap justify-between gap-3 font-semibold">
-                  <span>Estimated total</span>
-                  <output aria-label="Estimated total" className="tabular-nums">
-                    PHP {posCartTotal(cart)}
-                  </output>
-                </p>
-                {invalidCart ? (
-                  <p role="alert" className="text-sm text-danger">
-                    Fix invalid cart quantities. The estimate retains the last
-                    valid quantity.
-                  </p>
-                ) : null}
-                <p className="text-xs leading-5 text-muted">
-                  Cart only: no stock has been deducted and no sale or payment
-                  has been recorded.
-                </p>
-                <Button
-                  disabled={
-                    !cart.length ||
-                    invalidCart ||
-                    lookupPending ||
-                    Boolean(matches) ||
-                    clearing ||
-                    paying ||
-                    !cartCatalogReady
-                  }
-                  onClick={() => {
-                    if (
-                      lookupBusy.current ||
-                      unsafeCheckout.current ||
-                      !cartRef.current.length
-                    )
-                      return;
-                    for (const timer of quantityTimers.current.values())
-                      window.clearTimeout(timer);
-                    paymentOpen.current = true;
-                    setPaying(true);
-                  }}
-                >
-                  Review payment
-                </Button>
-              </div>
-            </OperationalPanel>
+              onQuantityBlur={(line) =>
+                validateQuantity(
+                  line.product.branchInventoryId,
+                  line.quantityInput,
+                  true,
+                )
+              }
+              onAdjustQuantity={adjustQuantity}
+              onReviewPayment={reviewPayment}
+            />
           </div>
         </fieldset>
+        <PosCartSummary
+          lines={cart}
+          reviewDisabled={reviewDisabled}
+          onOpenCart={openCartSheet}
+          onReviewPayment={reviewPayment}
+        />
+        <PosCartSheet
+          open={cartSheetOpen && cartActive}
+          lockBackground={!posFullscreen}
+          onClose={closeCartSheet}
+        >
+          {cartSheetOpen && cartActive ? (
+            <PosCartPanel
+              lines={cart}
+              locked={cartLocked}
+              invalid={invalidCart}
+              reviewDisabled={reviewDisabled}
+              onClear={() => setClearing(true)}
+              onRemove={removeCartLine}
+              onQuantityChange={(line, value) =>
+                changeQuantity(line.product.branchInventoryId, value)
+              }
+              onQuantityBlur={(line) =>
+                validateQuantity(
+                  line.product.branchInventoryId,
+                  line.quantityInput,
+                  true,
+                )
+              }
+              onAdjustQuantity={adjustQuantity}
+              onReviewPayment={() => {
+                closeCartSheet();
+                reviewPayment();
+              }}
+              onClose={closeCartSheet}
+              estimatedTotalLabel="Cart sheet estimated total"
+              reviewButtonLabel="Review payment from cart sheet"
+            />
+          ) : null}
+        </PosCartSheet>
         <PaymentConfirmation
           key={paymentRevision}
           open={cartActive && (paying || recovering)}
@@ -1034,6 +1016,7 @@ function ScopedBranchPos({
             setCompleted(sale);
             setCode('');
             setNotice(null);
+            closeCartSheet();
             paymentOpen.current = false;
             setPaying(false);
             setPaymentRevision((value) => value + 1);
@@ -1122,6 +1105,6 @@ function ScopedBranchPos({
           </FormDialog>
         ) : null}
       </div>
-    </OperationalPage>
+    </section>
   );
 }

@@ -141,6 +141,19 @@ describe('Branch POS cart workflows', () => {
     await waitFor(() => expect(codeInput()).toHaveFocus());
     expect(lookupPosCode).toHaveBeenCalledTimes(2);
   });
+  it('leaves Enter unhandled while an input method editor is composing', async () => {
+    render(<BranchPos {...scope} />);
+    await screen.findByRole('button', { name: `Add ${product.name}` });
+
+    const composingEnter = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+      isComposing: true,
+    });
+    expect(codeInput().dispatchEvent(composingEnter)).toBe(true);
+    expect(lookupPosCode).not.toHaveBeenCalled();
+  });
   async function startPayment() {
     await screen.findByRole('button', { name: `Add ${product.name}` });
     enterCode();

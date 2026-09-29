@@ -21,6 +21,10 @@ import {
 import { allowPosNavigation } from '../model/pos-navigation';
 import { setCheckoutAttempt } from '../model/checkout-attempt';
 import { PosWorkspace } from './pos-workspace';
+import {
+  useWorkspaceChrome,
+  WorkspaceChromeProvider,
+} from '@/features/app-shell/components/workspace-chrome-context';
 
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(),
@@ -39,7 +43,77 @@ vi.mock('../api/pos-api', () => ({
 }));
 vi.mock('../api/checkout-api', () => ({ completeCheckout: vi.fn() }));
 
+function ChromeStatus() {
+  const { posFullscreen } = useWorkspaceChrome();
+  return (
+    <p>
+      {posFullscreen ? 'POS full screen active' : 'Normal workspace chrome'}
+    </p>
+  );
+}
+
 describe('Persistent route-backed POS workspace', () => {
+  it('keeps full-screen mode on Cart only and exits when navigating to Sales History', async () => {
+    const view = render(
+      <WorkspaceChromeProvider>
+        <PosWorkspace {...scope}>{null}</PosWorkspace>
+      </WorkspaceChromeProvider>,
+    );
+    await readyCart();
+    fireEvent.click(screen.getByRole('button', { name: 'Full screen POS' }));
+    expect(
+      screen.getByRole('button', { name: 'Exit full screen' }),
+    ).toBeInTheDocument();
+
+    vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
+    view.rerender(
+      <WorkspaceChromeProvider>
+        <PosWorkspace {...scope}>{null}</PosWorkspace>
+      </WorkspaceChromeProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('link', { name: 'Sales History' }),
+      ).toHaveAttribute('aria-current', 'page'),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Exit full screen' }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Full screen POS' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('exits full-screen mode when leaving the POS workspace route', async () => {
+    const view = render(
+      <WorkspaceChromeProvider>
+        <>
+          <ChromeStatus />
+          <PosWorkspace {...scope}>{null}</PosWorkspace>
+        </>
+      </WorkspaceChromeProvider>,
+    );
+    await readyCart();
+    fireEvent.click(screen.getByRole('button', { name: 'Full screen POS' }));
+    expect(screen.getByText('POS full screen active')).toBeInTheDocument();
+
+    view.rerender(
+      <WorkspaceChromeProvider>
+        <>
+          <ChromeStatus />
+          <main>Outside POS</main>
+        </>
+      </WorkspaceChromeProvider>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('Normal workspace chrome')).toBeInTheDocument(),
+    );
+  });
+
   it('preserves the cart but blocks payment after a failed return catalog read until read retry succeeds', async () => {
     const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
     await addProduct();
