@@ -242,66 +242,87 @@ function StaffBranchSales({
         >
           <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,0.7fr)_minmax(10rem,0.65fr)]">
             <div className="relative min-w-0">
-              <label className="sr-only" htmlFor="sales-search">
-                Search receipt code
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="sales-search"
+              >
+                Search
               </label>
-              <Icon
-                name="search"
-                className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
-              />
-              <input
-                id="sales-search"
-                type="search"
-                maxLength={254}
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setQuery((current) =>
-                    current.page === 1 ? current : { ...current, page: 1 },
-                  );
-                }}
-                placeholder="Search receipt code"
-                className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:border-focus"
-              />
+              <div className=" relative mt-1">
+                <Icon
+                  name="search"
+                  className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
+                />
+                <input
+                  id="sales-search"
+                  type="search"
+                  maxLength={254}
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setQuery((current) =>
+                      current.page === 1 ? current : { ...current, page: 1 },
+                    );
+                  }}
+                  placeholder="Search receipt code"
+                  className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:border-focus"
+                />
+              </div>
             </div>
-            <SelectControl
-              id="sales-cashier"
-              aria-label="Cashier"
-              className="rounded-full bg-surface px-4 text-sm font-medium"
-              value={cashierId}
-              onValueChange={(value) => {
-                setCashierId(value);
-                updateQuery({ cashierId: value || undefined });
-              }}
-            >
-              <option value="">All cashiers</option>
-              {cashiers.map((cashier) => (
-                <option key={cashier.id} value={cashier.id}>
-                  {cashier.name}
-                </option>
-              ))}
-            </SelectControl>
-            <SelectControl
-              id="sales-payment-method"
-              aria-label="Payment method"
-              className="rounded-full bg-surface px-4 text-sm font-medium"
-              value={paymentMethod ?? ''}
-              onValueChange={(value) => {
-                const next = (value ||
-                  undefined) as SalesQuery['paymentMethod'];
-                setPaymentMethod(next);
-                updateQuery({ paymentMethod: next });
-              }}
-            >
-              <option value="">All payment methods</option>
-              <option value="CASH">Cash</option>
-              <option value="GCASH">GCash</option>
-              <option value="CARD">Card</option>
-            </SelectControl>
+            <div className="min-w-0">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="sales-cashier"
+              >
+                Cashier
+              </label>
+              <SelectControl
+                id="sales-cashier"
+                aria-label="Cashier"
+                className="rounded-full bg-surface px-4 text-sm font-medium mt-1"
+                value={cashierId}
+                onValueChange={(value) => {
+                  setCashierId(value);
+                  updateQuery({ cashierId: value || undefined });
+                }}
+              >
+                <option value="">All cashiers</option>
+                {cashiers.map((cashier) => (
+                  <option key={cashier.id} value={cashier.id}>
+                    {cashier.name}
+                  </option>
+                ))}
+              </SelectControl>
+            </div>
+            <div className="min-w-0">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="sales-payment-method"
+              >
+                Payment method
+              </label>
+              <SelectControl
+                id="sales-payment-method"
+                aria-label="Payment method"
+                className="rounded-full bg-surface px-4 text-sm font-medium mt-1"
+                value={paymentMethod ?? ''}
+                onValueChange={(value) => {
+                  const next = (value ||
+                    undefined) as SalesQuery['paymentMethod'];
+                  setPaymentMethod(next);
+                  updateQuery({ paymentMethod: next });
+                }}
+              >
+                <option value="">All payment methods</option>
+                <option value="CASH">Cash</option>
+                <option value="GCASH">GCash</option>
+                <option value="CARD">Card</option>
+              </SelectControl>
+            </div>
           </div>
           <div className="grid min-w-0 items-end gap-3 sm:grid-cols-[minmax(9rem,12rem)_minmax(9rem,12rem)_auto]">
             <label className="min-w-0 text-xs font-medium text-muted">
-              <span className="block">From Date</span>
+              <span className="block">From</span>
               <span className="relative mt-1 block">
                 <Icon
                   name="calendar"
@@ -317,7 +338,7 @@ function StaffBranchSales({
               </span>
             </label>
             <label className="min-w-0 text-xs font-medium text-muted">
-              <span className="block">Through Date</span>
+              <span className="block">Through</span>
               <span className="relative mt-1 block">
                 <Icon
                   name="calendar"

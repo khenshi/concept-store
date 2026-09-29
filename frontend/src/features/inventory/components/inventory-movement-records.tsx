@@ -260,14 +260,17 @@ export function InventoryMovementRecords({
             </div>
           </div>
           <div className="min-w-0">
-            <label className="sr-only" htmlFor="movement-record-type">
+            <label
+              className="block text-xs font-medium text-muted"
+              htmlFor="movement-record-type"
+            >
               Movement type
             </label>
             <SelectControl
               id="movement-record-type"
               aria-label="Movement type"
               value={type}
-              className="bg-subtle px-4 text-sm font-medium"
+              className="bg-subtle px-4 text-sm font-medium mt-1"
               onValueChange={(value) => setType(value as MovementType | '')}
             >
               <option value="">All movement types</option>
@@ -279,14 +282,17 @@ export function InventoryMovementRecords({
           </div>
           {canWrite ? (
             <div className="min-w-0">
-              <label className="sr-only" htmlFor="movement-record-merchant">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="movement-record-merchant"
+              >
                 Merchant
               </label>
               <SelectControl
                 id="movement-record-merchant"
                 aria-label="Merchant"
                 value={merchantId}
-                className="bg-subtle px-4 text-sm font-medium"
+                className="bg-subtle px-4 text-sm font-medium mt-1"
                 onValueChange={setMerchantId}
               >
                 <option value="">All merchants</option>
@@ -303,7 +309,7 @@ export function InventoryMovementRecords({
             onSubmit={applyDateFilter}
           >
             <label className="min-w-0 text-xs font-medium text-muted">
-              <span className="block">From (PH)</span>
+              <span className="block">From</span>
               <span className="relative mt-1 block">
                 <Icon
                   name="calendar"
@@ -319,7 +325,7 @@ export function InventoryMovementRecords({
               </span>
             </label>
             <label className="min-w-0 text-xs font-medium text-muted">
-              <span className="block">Through (PH)</span>
+              <span className="block">Through</span>
               <span className="relative mt-1 block">
                 <Icon
                   name="calendar"

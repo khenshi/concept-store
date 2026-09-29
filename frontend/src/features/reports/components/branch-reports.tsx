@@ -375,7 +375,7 @@ function ScopedBranchReports({
           </div>
           <button
             type="button"
-            className={buttonStyles({ variant: 'secondary' })}
+            className={buttonStyles({ variant: 'secondary' }) + 'border-0'}
             disabled={loading || !validDraft}
             onClick={() => {
               invalidate();
