@@ -213,6 +213,13 @@ role-scoped merchant directory when Rankings is opened; selecting a control
 reloads page one and clears stale rows before rendering the matching response.
 Merchant accounts receive only the metric control and remain own-product-only.
 
+The applied branch is also shown in a compact sticky Report context bar below
+the global workspace header. Report tabs stay at the left, the branch name is
+centered, and Refresh Report stays at the right while long chart and table views
+scroll. On narrow screens the navigation, branch name and refresh action stack
+in reading order; the full date editor remains above the bar and is the only
+period-editing control.
+
 ## Merchant own-sales reports
 
 Merchant sidebar/mobile navigation now includes Reports alongside unchanged Sales.

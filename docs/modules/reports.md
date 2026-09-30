@@ -377,8 +377,13 @@ today. There are no persistent report drafts.
 The branch report period heading, date inputs and Apply period action share a row
 at desktop widths and wrap responsively on narrower screens. Date inputs are
 10rem wide, their labels align with the Report period heading, and the date
-fields and Apply action form a compact group at the row's right edge. Refresh
-report sits beside the applied-period text below, without a divider between rows.
+fields and Apply action form a compact group at the row's right edge. The applied
+branch is repeated in a compact sticky Report context bar below the date editor.
+The bar keeps Overview/Daily Data/Rankings at the left, centers the branch name,
+and keeps Refresh Report at the right while the report scrolls. It stacks the
+navigation, branch name and refresh action responsively on narrow screens. The
+full date editor remains the single source of truth for changing the applied
+period.
 
 Strict runtime schemas validate identity-only distinct options, STAFF scope,
 branch/range correspondence, canonical exact money/integer strings, three distinct

@@ -278,6 +278,10 @@ describe('staff Reports workspace', () => {
   it('switches report tabs without leaving the section or changing the applied range', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await screen.findAllByText('PHP 60.00');
+    const contextBar = screen.getByRole('region', { name: 'Report context' });
+    expect(contextBar).toHaveClass('sticky', 'top-17');
+    expect(contextBar).toHaveTextContent('Main');
+    expect(contextBar).not.toHaveTextContent('Sep 14, 2026');
     expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
       'aria-selected',
       'true',
