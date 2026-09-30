@@ -41,7 +41,7 @@ export function PosCartSheet({
       aria-label="Cart"
       aria-hidden={!open}
       inert={!open}
-      className="fixed inset-x-0 bottom-0 m-0 hidden h-[min(88dvh,48rem)] max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-none flex-col overflow-hidden rounded-t-panel border border-b-0 border-hairline bg-surface p-0 text-ink open:flex backdrop:bg-scrim"
+      className="fixed inset-x-0 bottom-0 m-0 hidden h-[min(88dvh,48rem)] max-h-[calc(100dvh-env(safe-area-inset-top))] w-full max-w-none flex-col overflow-hidden rounded-t-panel border border-b-0 border-hairline bg-surface p-0 text-ink shadow-overlay open:flex backdrop:bg-scrim"
       onCancel={(event) => {
         event.preventDefault();
         onClose();

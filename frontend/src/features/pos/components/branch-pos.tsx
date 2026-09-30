@@ -787,23 +787,37 @@ function ScopedBranchPos({
       }
     >
       {posFullscreen ? (
-        <header className="flex min-h-[3.75rem] flex-[0_0_auto] items-center justify-between gap-3 border-b border-hairline bg-surface px-4 py-1.5 max-lg:items-start max-lg:flex-wrap max-lg:py-2">
-          <h1 className="min-w-0 text-base font-semibold">POS · Cart</h1>
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+        <header className="grid min-h-16 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-b border-hairline bg-surface px-4 py-2 max-lg:flex max-lg:flex-wrap max-lg:gap-x-4 max-lg:gap-y-2 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <h1 className="min-w-0 text-base font-semibold tracking-[-0.02em]">
+              POS
+            </h1>
+          </div>
+          <nav
+            aria-label="POS views"
+            className="flex min-w-0 items-center gap-1 max-lg:order-2 max-lg:w-full"
+          >
+            {tabs.map((tab) => (
+              <Link
+                key={tab.label}
+                href={tab.href}
+                aria-current={tab.active ? 'page' : undefined}
+                aria-disabled={!tab.active && recovering ? true : undefined}
+                className="inline-flex min-h-10 items-center rounded-compact border border-transparent px-3 text-sm font-medium text-muted no-underline hover:bg-subtle hover:text-ink aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="flex min-w-0 items-end justify-end gap-2 max-lg:order-3 max-lg:ml-auto max-lg:w-full max-lg:flex-wrap">
             {branchSelector}
-            <Link
-              href={`${pathname}/sales`}
-              aria-disabled={recovering ? true : undefined}
-              className={buttonStyles({ variant: 'secondary' })}
-            >
-              Sales history
-            </Link>
             <Button
               variant="quiet"
               onClick={() => {
                 exitPosFullscreen();
                 focusCode();
               }}
+              className="shrink-0 px-3"
             >
               Exit full screen
             </Button>
@@ -863,7 +877,7 @@ function ScopedBranchPos({
         hidden={!cartActive}
         className={
           posFullscreen
-            ? 'flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden'
+            ? 'flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4'
             : 'pb-32 lg:pb-0'
         }
       >
@@ -902,7 +916,7 @@ function ScopedBranchPos({
             paying || recovering || !branchReady || Boolean(branchError)
           }
           aria-label="POS checkout workspace"
-          className={`grid min-w-0 gap-4 border-0 p-0 lg:landscape:h-[calc(100dvh-18rem)] lg:landscape:min-h-[20rem] lg:landscape:grid-cols-[minmax(0,1.62fr)_minmax(19rem,1fr)] ${posFullscreen ? 'lg:landscape:h-auto lg:landscape:max-h-none lg:landscape:min-h-0 lg:landscape:flex-1 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden' : ''}`}
+          className={`grid min-w-0 gap-3 border-0 p-0 max-lg:gap-3 lg:landscape:h-[calc(100dvh-18rem)] lg:landscape:min-h-[20rem] lg:landscape:grid-cols-[minmax(0,1.62fr)_minmax(19rem,1fr)] lg:landscape:gap-5 lg:landscape:overflow-hidden ${posFullscreen ? 'lg:landscape:h-auto lg:landscape:max-h-none lg:landscape:min-h-0 lg:landscape:flex-1 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden' : ''}`}
         >
           <PosProductBrowser
             fullscreen={posFullscreen}

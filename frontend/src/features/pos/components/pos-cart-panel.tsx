@@ -42,18 +42,18 @@ export function PosCartPanel({
 
   return (
     <section
-      className={`flex h-full min-h-0 w-full flex-col overflow-hidden border border-hairline bg-surface lg:landscape:max-h-[calc(100dvh-18rem)] ${fullscreen ? 'lg:landscape:max-h-none' : ''}`}
+      className={`flex h-full min-h-0 w-full flex-col overflow-hidden bg-surface ${onClose ? 'rounded-none border-0' : 'rounded-panel border border-hairline'} lg:landscape:max-h-[calc(100dvh-18rem)] ${fullscreen ? 'lg:landscape:max-h-none' : ''}`}
       aria-label="Cart"
     >
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-hairline px-4 py-3">
+      <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-hairline bg-subtle px-5 py-4">
         <div className="min-w-0">
           <h2
             tabIndex={onClose ? -1 : undefined}
-            className="text-base font-semibold"
+            className="text-base font-semibold tracking-[-0.01em]"
           >
             Cart
           </h2>
-          <p className="text-xs text-muted">{countLabel}</p>
+          <p className="mt-0.5 text-xs text-muted">{countLabel}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {lines.length ? (
@@ -88,7 +88,7 @@ export function PosCartPanel({
         {!lines.length ? (
           <p className="px-4 py-5 text-sm text-muted">Cart is empty.</p>
         ) : (
-          <ul className="divide-y divide-hairline px-4">
+          <ul className="divide-y divide-hairline px-5">
             {lines.map((line) => {
               const available = line.product.quantity;
               const quantityIsValid = !quantityError(
@@ -98,7 +98,7 @@ export function PosCartPanel({
               return (
                 <li
                   key={line.product.branchInventoryId}
-                  className="min-w-0 py-3"
+                  className="min-w-0 py-4"
                 >
                   <div className="flex min-w-0 items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -176,15 +176,18 @@ export function PosCartPanel({
         )}
       </div>
 
-      <footer className="grid shrink-0 gap-2 border-t border-hairline bg-subtle px-4 py-3">
+      <footer className="grid shrink-0 gap-3 border-t border-hairline bg-subtle px-5 py-4">
         {invalid ? (
           <p role="alert" className="text-xs text-danger">
             Fix the highlighted quantity before reviewing payment.
           </p>
         ) : null}
-        <p className="flex items-center justify-between gap-3 font-semibold">
-          <span>Estimated total</span>
-          <output aria-label={estimatedTotalLabel} className="tabular-nums">
+        <p className="flex items-end justify-between gap-3 font-semibold">
+          <span className="text-sm text-muted">Estimated total</span>
+          <output
+            aria-label={estimatedTotalLabel}
+            className="text-lg tabular-nums"
+          >
             PHP {posCartTotal(lines)}
           </output>
         </p>

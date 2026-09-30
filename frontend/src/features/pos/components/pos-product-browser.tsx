@@ -57,11 +57,11 @@ export function PosProductBrowser({
 
   return (
     <section
-      className={`min-w-0 lg:landscape:flex lg:landscape:h-full lg:landscape:min-h-0 lg:landscape:flex-col lg:landscape:overflow-hidden ${fullscreen ? 'max-lg:flex max-lg:h-full max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden' : ''}`}
+      className={`min-w-0 lg:landscape:flex lg:landscape:h-full lg:landscape:min-h-0 lg:landscape:flex-col lg:landscape:overflow-hidden lg:landscape:border-r lg:landscape:border-hairline lg:landscape:pr-5 ${fullscreen ? 'max-lg:flex max-lg:h-full max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden' : ''}`}
     >
       <form
         noValidate
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border-b border-hairline pb-3"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-control border border-selected-border bg-subtle p-3 sm:p-4"
         onSubmit={submit}
       >
         <TextField
@@ -94,7 +94,7 @@ export function PosProductBrowser({
         </Button>
       </form>
 
-      <div className="border-b border-hairline py-3">
+      <div className="border-b border-hairline py-4">
         <TextField
           label="Search products"
           type="search"
@@ -114,8 +114,8 @@ export function PosProductBrowser({
       <div
         className={`min-w-0 lg:landscape:min-h-0 lg:landscape:flex-1 lg:landscape:overflow-y-auto lg:landscape:overscroll-contain ${fullscreen ? 'max-lg:min-h-0 max-lg:flex-1 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:pb-28' : ''}`}
       >
-        <div className="flex min-h-10 items-center justify-between gap-3 border-b border-hairline py-2">
-          <h2 className="text-sm font-semibold">Products</h2>
+        <div className="flex min-h-12 items-center justify-between gap-3 border-b border-hairline py-3">
+          <h2 className="text-base font-semibold">Products</h2>
           {!catalogLoading && settled && !catalogError ? (
             <span className="text-xs text-muted">
               {products.length} {products.length === 1 ? 'match' : 'matches'}
@@ -145,7 +145,7 @@ export function PosProductBrowser({
             {products.map((product) => (
               <li
                 key={product.branchInventoryId}
-                className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3"
+                className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-4 transition-colors hover:bg-subtle"
               >
                 <div className="min-w-0">
                   <h3 className="break-words text-sm font-semibold">
@@ -154,7 +154,7 @@ export function PosProductBrowser({
                   <p className="mt-0.5 break-words text-xs text-muted">
                     {product.merchantName} · SKU {product.sku ?? 'not set'}
                   </p>
-                  <p className="mt-1 text-sm tabular-nums">
+                  <p className="mt-1 text-sm font-medium tabular-nums">
                     PHP {product.sellingPrice}
                     <span className="ml-2 text-xs text-muted">
                       {product.eligible

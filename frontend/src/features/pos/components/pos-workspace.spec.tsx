@@ -64,6 +64,13 @@ describe('Persistent route-backed POS workspace', () => {
     expect(
       screen.getByRole('button', { name: 'Exit full screen' }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', { name: 'POS views' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Cart' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
 
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     view.rerender(

@@ -114,7 +114,14 @@ export function PosBranchSelector({
   });
   return (
     <div className={compact ? 'w-full min-w-56 max-w-sm' : 'my-6 max-w-xl'}>
-      <label htmlFor={id} className="mb-2 block text-sm font-medium text-ink">
+      <label
+        htmlFor={id}
+        className={
+          compact
+            ? 'mb-1 block text-xs font-medium text-muted'
+            : 'mb-2 block text-sm font-medium text-ink'
+        }
+      >
         POS branch
       </label>
       <SelectControl
