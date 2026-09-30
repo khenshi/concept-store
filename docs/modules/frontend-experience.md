@@ -195,8 +195,15 @@ field focus. Typing does not read, invalid drafts block reads, and the applied
 period remains visibly labeled. Date/branch changes and failed/revoked reads clear
 old data; scoped guards prevent obsolete responses from restoring totals.
 
-Operational cards/payment rows display exact gross recorded sales, transactions
-and units without numeric rounding. Strict staff contracts verify branch/range
+Report Overview leads with net recorded sales after refunds, with gross sales,
+refunded amount and completed transactions kept as supporting metrics. The
+Overview reading order is summary, primary daily/hourly trend, then grouped
+merchant/product and weekday/payment breakdowns. Trend, weekday and payment
+visualizations use compact status rows when their series are zero-valued, so an
+empty period does not reserve a full chart or imply missing insight. Populated
+charts retain their exact accessible values. Operational
+cards/payment rows display exact gross recorded sales, transactions and units
+without numeric rounding. Strict staff contracts verify branch/range
 scope and three-method reconciliation; GCash/card remain explicitly manual and
 unverified. Loading, missing assignments, empty periods, failure and denied access
 offer safe read/access refresh. Cashiers cannot fetch Reports; merchants use the
@@ -212,6 +219,13 @@ totals or charts. Owner/Manager merchant choices are loaded from the existing
 role-scoped merchant directory when Rankings is opened; selecting a control
 reloads page one and clears stale rows before rendering the matching response.
 Merchant accounts receive only the metric control and remain own-product-only.
+On tablet, the ranking table keeps product identity, merchant, units/gross, and
+net in the primary scan row; SKU/barcode and return/refund details move into
+compact product metadata while the full columns remain available on large
+screens. The selected sort metric and merchant scope stay visible above the
+table, and rank/product columns remain fixed during horizontal metric scrolling.
+Merchant-option loading is announced beside its reserved filter width without
+blocking the Rank by control.
 
 The applied branch is also shown in a compact sticky Report context bar below
 the global workspace header. Report tabs stay at the left, the branch name is

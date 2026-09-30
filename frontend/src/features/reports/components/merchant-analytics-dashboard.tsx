@@ -8,6 +8,7 @@ import type {
 } from '../model/report.schemas';
 import {
   AnalyticsTrendCharts,
+  ReportSummary,
   RankingControls,
 } from './staff-analytics-dashboard';
 import type { SalesReportTab } from './staff-analytics-dashboard';
@@ -37,7 +38,7 @@ function MerchantDailyData({
       <header className="border-b border-hairline px-5 py-5 sm:px-6">
         <h2 className="font-semibold">Daily own-sales data</h2>
         <p className="mt-1 text-sm text-muted">
-          Exact own daily sales analytics in Asia/Manila. Ten rows per page.
+          Exact own daily sales analytics in Asia/Manila.
         </p>
       </header>
       <div className="overflow-x-auto">
@@ -133,6 +134,8 @@ function MerchantRankings({
     controls.sortBy === 'UNITS_SOLD'
       ? 'Your top products by units sold'
       : 'Your top products by gross sales';
+  const sortLabel =
+    controls.sortBy === 'UNITS_SOLD' ? 'Units sold' : 'Gross sales';
   return (
     <section
       className="data-surface"
@@ -141,13 +144,11 @@ function MerchantRankings({
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
     >
-      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <header className="grid gap-4 border-b border-hairline py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div>
           <h2 className="font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-muted">
-            {page
-              ? `Page ${page.page} of own saved product rankings. Ten rows per page; saved sale identity, not current catalog or inventory.`
-              : 'Choose a ranking metric to load your matching saved product rankings.'}
+            Product rankings by {sortLabel}.
           </p>
         </div>
         <RankingControls
@@ -170,54 +171,105 @@ function MerchantRankings({
         <div className="overflow-x-auto">
           <table
             aria-label={title}
-            className="data-table w-full min-w-[60rem] border-collapse text-left text-sm"
+            className="data-table w-full min-w-[44rem] border-collapse text-left text-sm xl:min-w-[60rem]"
           >
-            <thead className="text-xs uppercase tracking-[0.08em] text-muted">
+            <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
               <tr>
-                {[
-                  'Rank',
-                  'Product',
-                  'SKU / barcode',
-                  'Saved merchant',
-                  'Own units sold',
-                  'Own gross',
-                  'Own returned',
-                  'Own refunded',
-                  'Own net recorded',
-                ].map((value) => (
-                  <th key={value} scope="col">
-                    {value}
-                  </th>
-                ))}
+                <th
+                  scope="col"
+                  className="sticky left-0 z-30 w-12 bg-surface px-3"
+                >
+                  Rank
+                </th>
+                <th
+                  scope="col"
+                  className="sticky left-12 z-30 min-w-56 bg-surface px-4"
+                >
+                  Product
+                </th>
+                <th scope="col">Saved merchant</th>
+                <th
+                  scope="col"
+                  aria-sort={
+                    controls.sortBy === 'UNITS_SOLD' ? 'descending' : undefined
+                  }
+                  className={
+                    controls.sortBy === 'UNITS_SOLD'
+                      ? 'font-semibold text-ink'
+                      : ''
+                  }
+                >
+                  Own units sold
+                </th>
+                <th
+                  scope="col"
+                  aria-sort={
+                    controls.sortBy === 'GROSS_SALES' ? 'descending' : undefined
+                  }
+                  className={
+                    controls.sortBy === 'GROSS_SALES'
+                      ? 'font-semibold text-ink'
+                      : ''
+                  }
+                >
+                  Own gross
+                </th>
+                <th scope="col" className="font-semibold text-ink">
+                  Own net recorded
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  SKU / barcode
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Own returned
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Own refunded
+                </th>
               </tr>
             </thead>
             <tbody>
               {page.items.map((row, index) => (
                 <tr key={row.productId}>
-                  <td className="px-4 py-4 tabular-nums">
+                  <td className="sticky left-0 z-10 w-12 bg-surface px-3 py-4 tabular-nums">
                     {(page.page - 1) * page.limit + index + 1}
                   </td>
-                  <th scope="row" className="max-w-64 px-4 py-4 font-semibold">
+                  <th
+                    scope="row"
+                    className="sticky left-12 z-10 min-w-56 max-w-64 bg-surface px-4 py-4 font-semibold"
+                  >
                     <span className="block break-words">{row.productName}</span>
+                    <span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs font-normal leading-5 text-muted xl:hidden">
+                      <span>SKU {row.sku ?? '—'}</span>
+                      <span>Barcode {row.barcode ?? '—'}</span>
+                      <span>Returned {row.ownReturnedUnits}</span>
+                      <span>Refunded {money(row.ownRefundedAmount)}</span>
+                    </span>
                   </th>
-                  <td className="px-4 py-4">
-                    {row.sku ?? '—'} / {row.barcode ?? '—'}
-                  </td>
                   <td className="max-w-48 break-words px-4 py-4">
                     {row.merchantName}
                   </td>
-                  <td className="px-4 py-4 tabular-nums">{row.ownUnitsSold}</td>
-                  <td className="px-4 py-4 tabular-nums">
+                  <td
+                    className={`px-4 py-4 tabular-nums ${controls.sortBy === 'UNITS_SOLD' ? 'font-semibold text-ink' : ''}`}
+                  >
+                    {row.ownUnitsSold}
+                  </td>
+                  <td
+                    className={`px-4 py-4 tabular-nums ${controls.sortBy === 'GROSS_SALES' ? 'font-semibold text-ink' : ''}`}
+                  >
                     {money(row.ownGrossSales)}
                   </td>
-                  <td className="px-4 py-4 tabular-nums">
+                  <td className="px-4 py-4 font-semibold tabular-nums text-ink">
+                    {money(row.ownNetRecordedSales)}
+                  </td>
+                  <td className="hidden px-4 py-4 xl:table-cell">
+                    {row.sku ?? '—'} / {row.barcode ?? '—'}
+                  </td>
+                  <td className="hidden px-4 py-4 tabular-nums xl:table-cell">
                     {row.ownReturnedUnits}
                   </td>
-                  <td className="px-4 py-4 tabular-nums">
+                  <td className="hidden px-4 py-4 tabular-nums xl:table-cell">
                     {money(row.ownRefundedAmount)}
-                  </td>
-                  <td className="px-4 py-4 tabular-nums">
-                    {money(row.ownNetRecordedSales)}
                   </td>
                 </tr>
               ))}
@@ -326,50 +378,53 @@ export function MerchantAnalyticsDashboard({
       aria-labelledby="sales-report-tab-overview"
       tabIndex={0}
     >
-      <dl
-        aria-label="Own-sales analytics summary"
-        className="mt-6 grid gap-y-2 border-y border-hairline sm:grid-cols-2 xl:grid-cols-4"
-      >
-        {[
-          [
-            'Own gross recorded sales',
-            money(report.ownGrossSales),
-            'Your historical items only',
-          ],
-          [
-            'Own refunded amount',
-            money(report.ownRefundedAmount),
-            `${report.ownRefundCount} matching refunds`,
-          ],
-          [
-            'Own net recorded sales',
-            money(report.ownNetRecordedSales),
-            'Own gross minus own refunds',
-          ],
-          [
-            'Transactions with own items',
-            report.ownTransactionCount,
-            `${report.ownUnitsSold} own units sold`,
-          ],
-        ].map(([label, value, detail]) => (
-          <div
-            key={label}
-            className="min-w-0 py-5 sm:px-5 xl:border-l xl:border-hairline xl:first:border-l-0 xl:first:pl-0 xl:last:pr-0"
-          >
-            <dt className="text-sm text-muted">{label}</dt>
-            <dd className="mt-3 break-all text-2xl font-semibold tracking-tight tabular-nums">
-              {value}
-            </dd>
-            <dd className="mt-2 text-xs text-muted">{detail}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="mt-3 text-sm text-muted">
-        Own returned units: {report.ownReturnedUnits}. Own net is not profit or
-        payout. Refunds use their own completion dates. Figures never include
-        other merchants’ items.
+      <ReportSummary
+        ariaLabel="Own-sales analytics summary"
+        primary={{
+          label: 'Own net recorded sales',
+          value: money(report.ownNetRecordedSales),
+          detail: 'Own gross minus own refunds',
+        }}
+        supporting={[
+          {
+            label: 'Own gross recorded sales',
+            value: money(report.ownGrossSales),
+            detail: 'Your historical items only',
+          },
+          {
+            label: 'Own refunded amount',
+            value: money(report.ownRefundedAmount),
+            detail: `${report.ownRefundCount} matching refunds`,
+          },
+          {
+            label: 'Transactions with own items',
+            value: report.ownTransactionCount,
+            detail: `${report.ownUnitsSold} own units sold`,
+          },
+        ]}
+      />
+      <p className="mt-4 max-w-2xl text-xs leading-5 text-muted">
+        Own returned units: {report.ownReturnedUnits}. Net is not profit or
+        payout; figures exclude other merchants’ items.
       </p>
-      <AnalyticsTrendCharts rows={trends} own />
+      <section
+        aria-labelledby="own-sales-trends-heading"
+        className="mt-8 border-t border-hairline pt-8"
+      >
+        <div className="max-w-2xl">
+          <h2 id="own-sales-trends-heading" className="text-base font-semibold">
+            Sales trends
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Your gross sales, refunds, and net recorded sales over time.
+          </p>
+        </div>
+        <AnalyticsTrendCharts
+          rows={trends}
+          own
+          className="mt-5 grid gap-6 xl:grid-cols-2"
+        />
+      </section>
     </div>
   );
 }

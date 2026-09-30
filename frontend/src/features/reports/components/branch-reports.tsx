@@ -400,7 +400,7 @@ function ScopedBranchReports({
       {merchant ? <MerchantReportGuidance /> : null}
       <section
         aria-labelledby="report-period-heading"
-        className="mt-10 bg-surface text-ink"
+        className="my-3 bg-surface text-ink"
       >
         <div className="grid gap-5 py-5 sm:py-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="min-w-0">

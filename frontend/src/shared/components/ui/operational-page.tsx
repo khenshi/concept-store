@@ -29,7 +29,7 @@ export function OperationalPanel({
   return (
     <section
       id={id}
-      className={`${open ? 'mt-10 bg-surface' : 'mt-6 rounded-panel border border-hairline bg-surface'} text-ink ${className}`}
+      className={`${open ? 'mt-7 bg-surface' : 'mt-6 rounded-panel border border-hairline bg-surface'} text-ink ${className}`}
     >
       <header
         className={`flex items-start justify-between gap-5 max-sm:grid ${open ? 'pb-4' : 'border-b border-hairline px-5 py-5 sm:px-6'}`}

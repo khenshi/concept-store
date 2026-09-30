@@ -25,6 +25,55 @@ function fromCents(value: bigint) {
 function money(value: string) {
   return `PHP ${value}`;
 }
+
+export type ReportSummaryMetric = {
+  label: string;
+  value: string;
+  detail: string;
+};
+
+export function ReportSummary({
+  primary,
+  supporting,
+  ariaLabel,
+}: {
+  primary: ReportSummaryMetric;
+  supporting: ReportSummaryMetric[];
+  ariaLabel: string;
+}) {
+  return (
+    <section
+      aria-labelledby="sales-summary-heading"
+      className="mt-1 px-4 border-b border-hairline pb-6"
+    >
+      <dl
+        aria-label={ariaLabel}
+        className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-[minmax(14rem,1.35fr)_repeat(3,minmax(0,1fr))] lg:gap-0"
+      >
+        <div className="min-w-0 lg:pr-6">
+          <dt className="text-sm font-medium text-muted">{primary.label}</dt>
+          <dd className="mt-2 break-all text-3xl font-semibold tracking-tight tabular-nums">
+            {primary.value}
+          </dd>
+          <dd className="mt-1 text-xs text-muted">{primary.detail}</dd>
+        </div>
+        {supporting.map((metric) => (
+          <div
+            key={metric.label}
+            className="min-w-0 border-hairline sm:pl-5 lg:border-l lg:py-1"
+          >
+            <dt className="text-sm text-muted">{metric.label}</dt>
+            <dd className="mt-2 break-all text-xl font-semibold tracking-tight tabular-nums">
+              {metric.value}
+            </dd>
+            <dd className="mt-1 text-xs text-muted">{metric.detail}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 function barPercent(value: bigint, max: bigint) {
   if (max === BigInt(0) || value === BigInt(0)) return 0;
   return Number((value * BigInt(1000000)) / max) / 10000;
@@ -79,6 +128,29 @@ function TrendChart({
     kind === 'activity'
       ? [...gross, ...refunds, BigInt(0)]
       : [...net, BigInt(0)];
+  const hasValues =
+    kind === 'activity'
+      ? gross.some((value) => value !== BigInt(0)) ||
+        refunds.some((value) => value !== BigInt(0))
+      : net.some((value) => value !== BigInt(0));
+  const title =
+    kind === 'activity'
+      ? `${own ? 'Own gross sales' : 'Gross sales'} and refunds`
+      : `${own ? 'Own net recorded sales' : 'Net recorded sales'}`;
+  if (!hasValues) {
+    return (
+      <section className="bg-surface px-5 py-4 sm:px-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold">{title}</h2>
+          <p role="status" className="text-sm text-muted">
+            {kind === 'activity'
+              ? 'No sales or refunds in this period.'
+              : 'No net sales in this period.'}
+          </p>
+        </div>
+      </section>
+    );
+  }
   const min = values.reduce((result, value) =>
     value < result ? value : result,
   );
@@ -98,11 +170,7 @@ function TrendChart({
     <section className="bg-surface py-5 sm:py-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold">
-            {kind === 'activity'
-              ? `${own ? 'Own gross sales' : 'Gross sales'} and refunds`
-              : `${own ? 'Own net recorded sales' : 'Net recorded sales'}`}
-          </h2>
+          <h2 className="font-semibold">{title}</h2>
           <p className="mt-1 text-xs text-muted">
             Daily, Asia/Manila · zero line shown
           </p>
@@ -270,9 +338,7 @@ function SelectableStaffTrendChart({
             {isHourly ? 'Hourly sales trend' : 'Daily sales trend'}
           </h2>
           <p className="mt-1 text-sm text-muted">
-            {selectedMetric.label} by Philippine {isHourly ? 'hour' : 'date'}
-            for the applied report period. Net sales may fall below zero when
-            refunds exceed sales.
+            {`${selectedMetric.label} by Philippine ${isHourly ? 'hour' : 'date'}. Net sales may fall below zero after refunds.`}
           </p>
         </div>
         <fieldset className="flex flex-wrap gap-2">
@@ -295,57 +361,61 @@ function SelectableStaffTrendChart({
           ))}
         </fieldset>
       </header>
-      {!hasValues ? (
-        <p role="status" className="px-5 pt-5 text-sm text-muted sm:px-6">
+      {hasValues ? (
+        <div className="px-5 py-5 sm:px-6">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 600 180"
+            className="h-48 w-full"
+            preserveAspectRatio="none"
+          >
+            <line
+              x1="0"
+              y1={scale(BigInt(0), min, max)}
+              x2="600"
+              y2={scale(BigInt(0), min, max)}
+              stroke="var(--color-border-strong)"
+              strokeWidth="1"
+            />
+            <polyline
+              points={points(
+                plottedValues.map((row) => row.amount),
+                min,
+                max,
+              )}
+              fill="none"
+              stroke={selectedMetric.color}
+              strokeWidth="3"
+              vectorEffect="non-scaling-stroke"
+            />
+            {plottedValues.map((row, index) => (
+              <circle
+                key={row.key}
+                cx={
+                  plottedValues.length === 1
+                    ? 300
+                    : (index * 600) / (plottedValues.length - 1)
+                }
+                cy={scale(row.amount, min, max)}
+                r="3"
+                fill={selectedMetric.color}
+              />
+            ))}
+          </svg>
+          <div className="flex justify-between gap-2 text-xs text-muted">
+            {plottedValues.map((row) => (
+              <span key={row.key}>{row.axisLabel}</span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p
+          role="status"
+          className="border-t border-hairline px-5 py-4 text-sm text-muted sm:px-6"
+        >
           {selectedMetric.emptyMessage}
         </p>
-      ) : null}
-      <div className="px-5 py-5 sm:px-6">
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 600 180"
-          className="h-48 w-full"
-          preserveAspectRatio="none"
-        >
-          <line
-            x1="0"
-            y1={scale(BigInt(0), min, max)}
-            x2="600"
-            y2={scale(BigInt(0), min, max)}
-            stroke="var(--color-border-strong)"
-            strokeWidth="1"
-          />
-          <polyline
-            points={points(
-              plottedValues.map((row) => row.amount),
-              min,
-              max,
-            )}
-            fill="none"
-            stroke={selectedMetric.color}
-            strokeWidth="3"
-            vectorEffect="non-scaling-stroke"
-          />
-          {plottedValues.map((row, index) => (
-            <circle
-              key={row.key}
-              cx={
-                plottedValues.length === 1
-                  ? 300
-                  : (index * 600) / (plottedValues.length - 1)
-              }
-              cy={scale(row.amount, min, max)}
-              r="3"
-              fill={selectedMetric.color}
-            />
-          ))}
-        </svg>
-        <div className="flex justify-between gap-2 text-xs text-muted">
-          {plottedValues.map((row) => (
-            <span key={row.key}>{row.axisLabel}</span>
-          ))}
-        </div>
-      </div>
+      )}
       <ol
         aria-label={`${selectedMetric.label} exact ${isHourly ? 'hourly' : 'daily'} values`}
         className="sr-only"
@@ -399,54 +469,60 @@ function AverageWeekdayChart({ rows }: { rows: AnalyticsTrendRow[] }) {
 
   return (
     <section className="data-surface min-w-0">
-      <header className="border-b border-hairline px-5 py-5 sm:px-6">
-        <h2 className="font-semibold">Average sales by weekday</h2>
-        <p className="mt-1 text-sm text-muted">
-          Average sales for each weekday, calculated using all matching days in
-          the selected period, including days with no sales.
-        </p>
-      </header>
-      {!hasGrossSales ? (
-        <p role="status" className="px-5 pt-5 text-sm text-muted sm:px-6">
-          No gross sales in this period.
-        </p>
-      ) : null}
-      <ol
-        aria-label="Average gross sales by weekday values"
-        className="m-0 list-none space-y-4 p-5 sm:px-6"
-      >
-        {averages.map((row) => (
-          <li
-            key={row.label}
-            aria-label={`${row.label}: ${row.averageCents === null ? 'No dates in this period' : `${money(fromCents(row.averageCents))} average across ${row.dateCount} ${row.dateCount === 1 ? 'date' : 'dates'}`}`}
+      {hasGrossSales ? (
+        <>
+          <header className="border-b border-hairline py-5">
+            <h2 className="font-semibold">Average sales by weekday</h2>
+            <p className="mt-1 text-sm text-muted">
+              Gross sales by weekday across the period, including zero-sales
+              dates.
+            </p>
+          </header>
+          <ol
+            aria-label="Average gross sales by weekday values"
+            className="m-0 list-none space-y-4 p-5 sm:px-6"
           >
-            <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="font-medium">{row.label}</span>
-              <span className="shrink-0 text-right tabular-nums">
-                {row.averageCents === null
-                  ? 'No dates'
-                  : money(fromCents(row.averageCents))}
-                {row.averageCents !== null ? (
-                  <span className="ml-2 text-xs text-muted">
-                    {row.dateCount} {row.dateCount === 1 ? 'date' : 'dates'}
+            {averages.map((row) => (
+              <li
+                key={row.label}
+                aria-label={`${row.label}: ${row.averageCents === null ? 'No dates in this period' : `${money(fromCents(row.averageCents))} average across ${row.dateCount} ${row.dateCount === 1 ? 'date' : 'dates'}`}`}
+              >
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="font-medium">{row.label}</span>
+                  <span className="shrink-0 text-right tabular-nums">
+                    {row.averageCents === null
+                      ? 'No dates'
+                      : money(fromCents(row.averageCents))}
+                    {row.averageCents !== null ? (
+                      <span className="ml-2 text-xs text-muted">
+                        {row.dateCount} {row.dateCount === 1 ? 'date' : 'dates'}
+                      </span>
+                    ) : null}
                   </span>
-                ) : null}
-              </span>
-            </div>
-            <div
-              aria-hidden="true"
-              className="mt-2 h-2 overflow-hidden rounded-full bg-subtle"
-            >
-              <span
-                className="block h-full rounded-full bg-ink"
-                style={{
-                  width: `${row.averageCents === null ? 0 : barPercent(row.averageCents, max)}%`,
-                }}
-              />
-            </div>
-          </li>
-        ))}
-      </ol>
+                </div>
+                <div
+                  aria-hidden="true"
+                  className="mt-2 h-2 overflow-hidden rounded-full bg-subtle"
+                >
+                  <span
+                    className="block h-full rounded-full bg-ink"
+                    style={{
+                      width: `${row.averageCents === null ? 0 : barPercent(row.averageCents, max)}%`,
+                    }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : (
+        <div className="flex flex-col items-baseline justify-between gap-2 px-5 py-4 sm:px-6">
+          <h2 className="font-semibold">Average sales by weekday</h2>
+          <p role="status" className="text-sm text-muted">
+            No weekday sales to compare in this period.
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -475,49 +551,54 @@ function HorizontalSalesBars({
   }, BigInt(0));
   return (
     <section className={`data-surface min-w-0 ${className}`.trim()}>
-      <header className="border-b border-hairline px-5 py-5 sm:px-6">
-        <h2 className="font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted">{description}</p>
-      </header>
       {rows.length ? (
-        <ol aria-label={`${title} values`} className="m-0 list-none p-0">
-          {rows.map((row, index) => (
-            <li
-              key={row.id}
-              className="data-row px-5 py-4 sm:px-6"
-              aria-label={`${index + 1}. ${row.label}${row.detail ? `, ${row.detail}` : ''}: ${money(row.grossSales)}`}
-            >
-              <div className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
-                <span className="min-w-0 break-words font-medium">
-                  <span className="block">{row.label}</span>
-                  {row.detail ? (
-                    <span className="mt-1 block break-all text-xs font-normal text-muted">
-                      {row.detail}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 tabular-nums">
-                  {money(row.grossSales)}
-                </span>
-              </div>
-              <div
-                aria-hidden="true"
-                className="mt-3 h-2 overflow-hidden rounded-full bg-subtle"
+        <>
+          <header className="border-b border-hairline px-5 py-5 sm:px-6">
+            <h2 className="font-semibold">{title}</h2>
+            <p className="mt-1 text-sm text-muted">{description}</p>
+          </header>
+          <ol aria-label={`${title} values`} className="m-0 list-none p-0">
+            {rows.map((row, index) => (
+              <li
+                key={row.id}
+                className="data-row px-5 py-4 sm:px-6"
+                aria-label={`${index + 1}. ${row.label}${row.detail ? `, ${row.detail}` : ''}: ${money(row.grossSales)}`}
               >
-                <span
-                  className="block h-full rounded-full bg-ink"
-                  style={{
-                    width: `${barPercent(cents(row.grossSales), max)}%`,
-                  }}
-                />
-              </div>
-            </li>
-          ))}
-        </ol>
+                <div className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
+                  <span className="min-w-0 break-words font-medium">
+                    <span className="block">{row.label}</span>
+                    {row.detail ? (
+                      <span className="mt-1 block break-all text-xs font-normal text-muted">
+                        {row.detail}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 tabular-nums">
+                    {money(row.grossSales)}
+                  </span>
+                </div>
+                <div
+                  aria-hidden="true"
+                  className="mt-3 h-2 overflow-hidden rounded-full bg-subtle"
+                >
+                  <span
+                    className="block h-full rounded-full bg-ink"
+                    style={{
+                      width: `${barPercent(cents(row.grossSales), max)}%`,
+                    }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ol>
+        </>
       ) : (
-        <p role="status" className="px-5 py-5 text-sm text-muted sm:px-6">
-          {emptyMessage}
-        </p>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4 sm:px-6">
+          <h2 className="font-semibold">{title}</h2>
+          <p role="status" className="text-sm text-muted">
+            {emptyMessage}
+          </p>
+        </div>
       )}
     </section>
   );
@@ -572,67 +653,73 @@ function PaymentMethodDonut({
   }));
   return (
     <section className="data-surface min-w-0">
-      <header className="border-b border-hairline px-5 py-5 sm:px-6">
-        <h2 className="font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted">{description}</p>
-      </header>
-      <div className="grid justify-items-center gap-4 p-5 sm:px-6">
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 42 42"
-          className="h-32 w-32 max-w-full -rotate-90"
-        >
-          <circle
-            cx="21"
-            cy="21"
-            r="15.9155"
-            fill="none"
-            stroke="var(--color-hairline)"
-            strokeWidth="8"
-          />
-          {slices.map((segment) => (
-            <circle
-              key={segment.paymentMethod}
-              cx="21"
-              cy="21"
-              r="15.9155"
-              fill="none"
-              stroke={segment.color}
-              strokeWidth="8"
-              strokeDasharray={`${(segment.share / 1000000) * 100} ${100 - (segment.share / 1000000) * 100}`}
-              strokeDashoffset={-(segment.start / 1000000) * 100}
-            />
-          ))}
-        </svg>
-        <dl aria-label={`${title} values`} className="m-0 w-full space-y-3">
-          {slices.map((row) => (
-            <div
-              key={row.paymentMethod}
-              className="flex items-start justify-between gap-3 text-sm"
-            >
-              <dt className="flex min-w-0 items-start gap-2">
-                <span
-                  aria-hidden="true"
-                  className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm"
-                  style={{ backgroundColor: row.color }}
-                />
-                <span>{labels[row.paymentMethod]}</span>
-              </dt>
-              <dd className="shrink-0 text-right tabular-nums">
-                <span className="block">{row.amount}</span>
-                {row.detail ? (
-                  <span className="text-xs text-muted">{row.detail}</span>
-                ) : null}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        {total === BigInt(0) ? (
-          <p role="status" className="w-full text-sm text-muted">
+      {total === BigInt(0) ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4 sm:px-6">
+          <h2 className="font-semibold">{title}</h2>
+          <p role="status" className="text-sm text-muted">
             {emptyMessage}
           </p>
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <>
+          <header className="border-b border-hairline px-5 py-5 sm:px-6">
+            <h2 className="font-semibold">{title}</h2>
+            <p className="mt-1 text-sm text-muted">{description}</p>
+          </header>
+          <div className="grid justify-items-center gap-4 p-5 sm:px-6">
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 42 42"
+              className="h-32 w-32 max-w-full -rotate-90"
+            >
+              <circle
+                cx="21"
+                cy="21"
+                r="15.9155"
+                fill="none"
+                stroke="var(--color-hairline)"
+                strokeWidth="8"
+              />
+              {slices.map((segment) => (
+                <circle
+                  key={segment.paymentMethod}
+                  cx="21"
+                  cy="21"
+                  r="15.9155"
+                  fill="none"
+                  stroke={segment.color}
+                  strokeWidth="8"
+                  strokeDasharray={`${(segment.share / 1000000) * 100} ${100 - (segment.share / 1000000) * 100}`}
+                  strokeDashoffset={-(segment.start / 1000000) * 100}
+                />
+              ))}
+            </svg>
+            <dl aria-label={`${title} values`} className="m-0 w-full space-y-3">
+              {slices.map((row) => (
+                <div
+                  key={row.paymentMethod}
+                  className="flex items-start justify-between gap-3 text-sm"
+                >
+                  <dt className="flex min-w-0 items-start gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm"
+                      style={{ backgroundColor: row.color }}
+                    />
+                    <span>{labels[row.paymentMethod]}</span>
+                  </dt>
+                  <dd className="shrink-0 text-right tabular-nums">
+                    <span className="block">{row.amount}</span>
+                    {row.detail ? (
+                      <span className="text-xs text-muted">{row.detail}</span>
+                    ) : null}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -657,10 +744,10 @@ function StaffDailyData({
       aria-labelledby="sales-report-tab-daily"
       tabIndex={0}
     >
-      <header className="border-b border-hairline px-5 py-5 sm:px-6">
+      <header className="border-b border-hairline py-5">
         <h2 className="font-semibold">Daily sales data</h2>
         <p className="mt-1 text-sm text-muted">
-          Exact daily sales analytics in Asia/Manila. Ten rows per page.
+          Exact daily sales analytics in Asia/Manila.
         </p>
       </header>
       <div className="overflow-x-auto">
@@ -757,7 +844,11 @@ export function RankingControls({
   return (
     <div
       className="flex flex-wrap items-end gap-3"
+      role="group"
       aria-label="Ranking filters"
+      aria-busy={
+        showMerchantFilter && merchantOptionsLoading ? true : undefined
+      }
     >
       <label
         className="min-w-0 text-xs font-medium text-muted"
@@ -784,16 +875,16 @@ export function RankingControls({
         </SelectControl>
       </label>
       {showMerchantFilter ? (
-        <label
-          className="min-w-48 text-xs font-medium text-muted"
-          htmlFor="sales-report-ranking-merchant"
-        >
-          <span className="block">Merchant</span>
+        <div className="w-48 text-xs font-medium text-muted">
+          <label className="block" htmlFor="sales-report-ranking-merchant">
+            Merchant
+          </label>
           <SelectControl
             id="sales-report-ranking-merchant"
             aria-label="Merchant"
             value={controls.merchantId ?? ''}
             disabled={merchantOptionsLoading || merchantOptionsError !== null}
+            aria-describedby="sales-report-ranking-merchant-status"
             className="mt-1 bg-subtle px-4 text-sm font-medium"
             onValueChange={(value) =>
               onChange({
@@ -809,24 +900,30 @@ export function RankingControls({
               </option>
             ))}
           </SelectControl>
-        </label>
-      ) : null}
-      {showMerchantFilter && merchantOptionsLoading ? (
-        <span role="status" className="pb-2 text-xs text-muted">
-          Loading merchants…
-        </span>
-      ) : null}
-      {showMerchantFilter && merchantOptionsError ? (
-        <span className="flex items-center gap-2 pb-2 text-xs text-danger">
-          <span role="status">{merchantOptionsError}</span>
-          <button
-            type="button"
-            className="underline"
-            onClick={onMerchantOptionsRetry}
-          >
-            Try again
-          </button>
-        </span>
+          {merchantOptionsLoading ? (
+            <span
+              id="sales-report-ranking-merchant-status"
+              role="status"
+              className="mt-1 block text-xs font-normal text-muted"
+            >
+              Loading merchants…
+            </span>
+          ) : merchantOptionsError ? (
+            <span
+              id="sales-report-ranking-merchant-status"
+              className="mt-1 flex items-start gap-2 text-xs font-normal text-danger"
+            >
+              <span role="status">{merchantOptionsError}</span>
+              <button
+                type="button"
+                className="shrink-0 underline"
+                onClick={onMerchantOptionsRetry}
+              >
+                Try again
+              </button>
+            </span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -861,6 +958,12 @@ function StaffRankings({
     controls.sortBy === 'UNITS_SOLD'
       ? 'Top products by units sold'
       : 'Top products by gross sales';
+  const sortLabel =
+    controls.sortBy === 'UNITS_SOLD' ? 'Units sold' : 'Gross sales';
+  const merchantLabel = controls.merchantId
+    ? (merchantOptions.find((merchant) => merchant.id === controls.merchantId)
+        ?.name ?? 'Selected merchant')
+    : 'All merchants';
   return (
     <section
       className="data-surface"
@@ -869,13 +972,11 @@ function StaffRankings({
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
     >
-      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <header className="grid gap-4 border-b border-hairline py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div>
           <h2 className="font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-muted">
-            {page
-              ? `Page ${page.page} of saved product rankings. Ten rows per page; saved sale identity, not current inventory or pricing.`
-              : 'Choose a ranking metric or merchant to load the matching saved product rankings.'}
+            Product rankings by {sortLabel} for {merchantLabel}.
           </p>
         </div>
         <RankingControls
@@ -902,54 +1003,105 @@ function StaffRankings({
         <div className="overflow-x-auto">
           <table
             aria-label={title}
-            className="data-table w-full min-w-[62rem] border-collapse text-left text-sm"
+            className="data-table w-full min-w-[46rem] border-collapse text-left text-sm xl:min-w-[62rem]"
           >
-            <thead className="text-xs uppercase tracking-[0.08em] text-muted">
+            <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
               <tr>
-                {[
-                  'Rank',
-                  'Product',
-                  'SKU / barcode',
-                  'Merchant',
-                  'Units sold',
-                  'Gross sales',
-                  'Returned',
-                  'Refunded',
-                  'Net recorded',
-                ].map((value) => (
-                  <th key={value} scope="col">
-                    {value}
-                  </th>
-                ))}
+                <th
+                  scope="col"
+                  className="sticky left-0 z-30 w-12 bg-surface px-3"
+                >
+                  Rank
+                </th>
+                <th
+                  scope="col"
+                  className="sticky left-12 z-30 min-w-56 bg-surface px-4"
+                >
+                  Product
+                </th>
+                <th scope="col">Merchant</th>
+                <th
+                  scope="col"
+                  aria-sort={
+                    controls.sortBy === 'UNITS_SOLD' ? 'descending' : undefined
+                  }
+                  className={
+                    controls.sortBy === 'UNITS_SOLD'
+                      ? 'font-semibold text-ink'
+                      : ''
+                  }
+                >
+                  Units sold
+                </th>
+                <th
+                  scope="col"
+                  aria-sort={
+                    controls.sortBy === 'GROSS_SALES' ? 'descending' : undefined
+                  }
+                  className={
+                    controls.sortBy === 'GROSS_SALES'
+                      ? 'font-semibold text-ink'
+                      : ''
+                  }
+                >
+                  Gross sales
+                </th>
+                <th scope="col" className="font-semibold text-ink">
+                  Net recorded
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  SKU / barcode
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Returned
+                </th>
+                <th scope="col" className="hidden xl:table-cell">
+                  Refunded
+                </th>
               </tr>
             </thead>
             <tbody>
               {page.items.map((row, index) => (
                 <tr key={row.productId}>
-                  <td className="px-4 py-4 tabular-nums">
+                  <td className="sticky left-0 z-10 w-12 bg-surface px-3 py-4 tabular-nums">
                     {(page.page - 1) * page.limit + index + 1}
                   </td>
-                  <th scope="row" className="max-w-64 px-4 py-4 font-semibold">
+                  <th
+                    scope="row"
+                    className="sticky left-12 z-10 min-w-56 max-w-64 bg-surface px-4 py-4 font-semibold"
+                  >
                     <span className="block break-words">{row.productName}</span>
+                    <span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs font-normal leading-5 text-muted xl:hidden">
+                      <span>SKU {row.sku ?? '—'}</span>
+                      <span>Barcode {row.barcode ?? '—'}</span>
+                      <span>Returned {row.returnedUnits}</span>
+                      <span>Refunded {money(row.refundedAmount)}</span>
+                    </span>
                   </th>
-                  <td className="px-4 py-4">
-                    {row.sku ?? '—'} / {row.barcode ?? '—'}
-                  </td>
                   <td className="max-w-48 break-words px-4 py-4">
                     {row.merchantName}
                   </td>
-                  <td className="px-4 py-4 tabular-nums">{row.unitsSold}</td>
-                  <td className="px-4 py-4 tabular-nums">
+                  <td
+                    className={`px-4 py-4 tabular-nums ${controls.sortBy === 'UNITS_SOLD' ? 'font-semibold text-ink' : ''}`}
+                  >
+                    {row.unitsSold}
+                  </td>
+                  <td
+                    className={`px-4 py-4 tabular-nums ${controls.sortBy === 'GROSS_SALES' ? 'font-semibold text-ink' : ''}`}
+                  >
                     {money(row.grossSales)}
                   </td>
-                  <td className="px-4 py-4 tabular-nums">
+                  <td className="px-4 py-4 font-semibold tabular-nums text-ink">
+                    {money(row.netRecordedSales)}
+                  </td>
+                  <td className="hidden px-4 py-4 xl:table-cell">
+                    {row.sku ?? '—'} / {row.barcode ?? '—'}
+                  </td>
+                  <td className="hidden px-4 py-4 tabular-nums xl:table-cell">
                     {row.returnedUnits}
                   </td>
-                  <td className="px-4 py-4 tabular-nums">
+                  <td className="hidden px-4 py-4 tabular-nums xl:table-cell">
                     {money(row.refundedAmount)}
-                  </td>
-                  <td className="px-4 py-4 tabular-nums">
-                    {money(row.netRecordedSales)}
                   </td>
                 </tr>
               ))}
@@ -1062,106 +1214,104 @@ export function StaffAnalyticsDashboard({
       aria-labelledby="sales-report-tab-overview"
       tabIndex={0}
     >
-      <dl
-        aria-label="Sales analytics summary"
-        className="mt-1 grid gap-y-2 border-b border-hairline sm:grid-cols-2 lg:grid-cols-4 lg:gap-y-0"
-      >
-        {[
-          ['Gross recorded sales', money(report.grossSales), 'Before refunds'],
-          [
-            'Refunded amount',
-            money(report.refundedAmount),
-            `${report.refundCount} completed refunds`,
-          ],
-          [
-            'Net recorded sales',
-            money(report.netRecordedSales),
-            'Gross minus refunds',
-          ],
-          [
-            'Completed transactions',
-            report.transactionCount,
-            `${report.unitsSold} units sold`,
-          ],
-        ].map(([label, value, detail], index) => (
-          <div
-            key={label}
-            className="relative min-w-0 py-5 sm:px-5 lg:first:pl-0 lg:last:pr-0"
-          >
-            {index > 0 ? (
-              <span
-                aria-hidden="true"
-                className="absolute inset-y-5 left-0 hidden w-px bg-hairline lg:block"
-              />
-            ) : null}
-            <dt className="text-sm text-muted">{label}</dt>
-            <dd className="mt-3 break-all text-2xl font-semibold tracking-tight tabular-nums">
-              {value}
-            </dd>
-            <dd className="mt-2 text-xs text-muted">{detail}</dd>
-          </div>
-        ))}
-      </dl>
+      <ReportSummary
+        ariaLabel="Sales analytics summary"
+        primary={{
+          label: 'Net recorded sales',
+          value: money(report.netRecordedSales),
+          detail: 'Gross minus refunds',
+        }}
+        supporting={[
+          {
+            label: 'Gross recorded sales',
+            value: money(report.grossSales),
+            detail: 'Before refunds',
+          },
+          {
+            label: 'Refunded amount',
+            value: money(report.refundedAmount),
+            detail: `${report.refundCount} completed refunds`,
+          },
+          {
+            label: 'Completed transactions',
+            value: report.transactionCount,
+            detail: `${report.unitsSold} units sold`,
+          },
+        ]}
+      />
       <div
         role="group"
         aria-label="Sales analytics charts"
-        className="mt-6 space-y-4"
+        className="mt-8 space-y-10"
       >
         <SelectableStaffTrendChart
           rows={report.dailyTrends}
           hourlyRows={report.hourlyTrends}
         />
-        <div
-          role="group"
-          aria-label="Performance charts"
-          className="grid gap-4 md:grid-cols-2"
+        <section
+          aria-labelledby="sales-explore-heading"
+          className="border-t border-hairline pt-8 px-5 "
         >
-          <HorizontalSalesBars
-            title="Top merchants by gross sales"
-            description="Top 5 merchants with the highest gross sales for the selected period."
-            rows={report.topMerchants.slice(0, 5).map((row) => ({
-              id: row.merchantId,
-              label: row.merchantName,
-              grossSales: row.grossSales,
-            }))}
-            emptyMessage="No merchant gross sales in this period."
-          />
-          <HorizontalSalesBars
-            title="Top products by gross sales"
-            description="Top 5 products with the highest gross sales for the selected period."
-            rows={report.topProducts
-              .slice(0, 5)
-              .filter((row) => row.grossSales !== '0.00')
-              .map((row) => ({
-                id: row.productId,
-                label: row.productName,
+          <div className="max-w-2xl">
+            <h2 id="sales-explore-heading" className="text-base font-semibold">
+              Explore the period
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Gross sales by merchant, product, weekday, and payment method.
+            </p>
+          </div>
+          <div
+            role="group"
+            aria-label="Performance charts"
+            className="mt-5 grid gap-6 md:grid-cols-2"
+          >
+            <HorizontalSalesBars
+              title="Top merchants by gross sales"
+              description="Top 5 merchants by gross sales."
+              rows={report.topMerchants.slice(0, 5).map((row) => ({
+                id: row.merchantId,
+                label: row.merchantName,
                 grossSales: row.grossSales,
               }))}
-            emptyMessage="No product gross sales in this period."
-          />
-        </div>
-        <div
-          role="group"
-          aria-label="Weekday and payment method charts"
-          className="grid gap-4 md:grid-cols-3"
-        >
-          <div className="min-w-0 md:col-span-2">
-            <AverageWeekdayChart rows={report.dailyTrends} />
-          </div>
-          <div className="min-w-0 md:col-span-1">
-            <PaymentMethodDonut
-              title="Gross sales by payment method"
-              description="Gross sales by payment method. GCash and card payments are manually recorded."
-              rows={report.payments.map((row) => ({
-                paymentMethod: row.paymentMethod,
-                amount: money(row.grossSales),
-                weight: cents(row.grossSales),
-                detail: `${row.transactionCount} transactions`,
-              }))}
-              emptyMessage="No gross sales by payment method in this period."
+              emptyMessage="No merchant gross sales in this period."
+            />
+            <HorizontalSalesBars
+              title="Top products by gross sales"
+              description="Top 5 products by gross sales."
+              rows={report.topProducts
+                .slice(0, 5)
+                .filter((row) => row.grossSales !== '0.00')
+                .map((row) => ({
+                  id: row.productId,
+                  label: row.productName,
+                  grossSales: row.grossSales,
+                }))}
+              emptyMessage="No product gross sales in this period."
             />
           </div>
-        </div>
+          <div
+            role="group"
+            aria-label="Weekday and payment method charts"
+            className="mt-8 grid gap-6 border-t border-hairline pt-8 md:grid-cols-3"
+          >
+            <div className="min-w-0 md:col-span-2">
+              <AverageWeekdayChart rows={report.dailyTrends} />
+            </div>
+            <div className="min-w-0 md:col-span-1">
+              <PaymentMethodDonut
+                title="Gross sales by payment method"
+                description="Gross sales by method. GCash and card are manual."
+                rows={report.payments.map((row) => ({
+                  paymentMethod: row.paymentMethod,
+                  amount: money(row.grossSales),
+                  weight: cents(row.grossSales),
+                  detail: `${row.transactionCount} transactions`,
+                }))}
+                emptyMessage="No gross sales by payment method in this period."
+              />
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

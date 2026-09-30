@@ -50,6 +50,9 @@ describe('merchant analytics dashboard', () => {
   it('renders only explicitly own-labeled analytics and no staff methods/private data', () => {
     const { rerender } = render(<MerchantAnalyticsDashboard report={report} />);
     expect(screen.getByText('Own gross recorded sales')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sales trends' }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText('PHP -8.00').length).toBeGreaterThan(0);
     expect(screen.queryByText('Gross sale payments')).not.toBeInTheDocument();
     expect(screen.queryByText('Actual refund methods')).not.toBeInTheDocument();
@@ -82,6 +85,13 @@ describe('merchant analytics dashboard', () => {
     expect(
       screen.getByRole('table', { name: 'Your top products by gross sales' }),
     ).toBeInTheDocument();
+    expect(screen.getByText('Sorted by Gross sales')).toBeInTheDocument();
+    expect(screen.getByText('Your products only')).toBeInTheDocument();
+    const rankingTable = screen.getByRole('table', {
+      name: 'Your top products by gross sales',
+    });
+    expect(rankingTable).toHaveClass('min-w-[44rem]', 'xl:min-w-[60rem]');
+    expect(screen.getAllByText(/SKU/)).toHaveLength(2);
   });
   it('offers both sorts without exposing a merchant selector', () => {
     const onRankingControlsChange = vi.fn();
@@ -99,5 +109,43 @@ describe('merchant analytics dashboard', () => {
       sortBy: 'UNITS_SOLD',
       merchantId: null,
     });
+  });
+
+  it('collapses zero-value trend plots into compact status rows', () => {
+    const emptyReport = merchantSalesAnalyticsSchema.parse({
+      ...report,
+      ownGrossSales: '0.00',
+      ownTransactionCount: '0',
+      ownUnitsSold: '0',
+      ownRefundedAmount: '0.00',
+      ownRefundCount: '0',
+      ownReturnedUnits: '0',
+      ownNetRecordedSales: '0.00',
+      dailyTrends: report.dailyTrends.map((row) => ({
+        ...row,
+        ownGrossSales: '0.00',
+        ownTransactionCount: '0',
+        ownUnitsSold: '0',
+        ownRefundedAmount: '0.00',
+        ownRefundCount: '0',
+        ownReturnedUnits: '0',
+        ownNetRecordedSales: '0.00',
+      })),
+      topProducts: [],
+      totalProducts: '0',
+    });
+    const { container } = render(
+      <MerchantAnalyticsDashboard report={emptyReport} />,
+    );
+
+    expect(
+      screen.getByText('No sales or refunds in this period.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('No net sales in this period.'),
+    ).toBeInTheDocument();
+    expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(
+      0,
+    );
   });
 });

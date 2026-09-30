@@ -1,5 +1,8 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { StaffAnalyticsDashboard } from './staff-analytics-dashboard';
+import {
+  RankingControls,
+  StaffAnalyticsDashboard,
+} from './staff-analytics-dashboard';
 import { staffSalesAnalyticsSchema } from '../model/report.schemas';
 
 const report = staffSalesAnalyticsSchema.parse({
@@ -183,12 +186,18 @@ describe('staff analytics dashboard', () => {
   it('renders the dashboard hierarchy, negative net and saved top-product data', () => {
     const { rerender } = render(<StaffAnalyticsDashboard report={report} />);
     expect(
+      screen.getByRole('heading', { name: 'Period summary' }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole('heading', { name: 'Daily sales trend' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Explore the period' }),
     ).toBeInTheDocument();
     rerender(<StaffAnalyticsDashboard report={report} activeTab="rankings" />);
     expect(
       screen.getByText(
-        /Page 1 of saved product rankings\. Ten rows per page; saved sale identity/,
+        /Page 1 of saved product rankings\./,
       ),
     ).toBeInTheDocument();
     const products = screen.getByRole('table', { name: /Top products/i });
@@ -289,6 +298,27 @@ describe('staff analytics dashboard', () => {
       sortBy: 'GROSS_SALES',
       merchantId: '44444444-4444-4444-8444-444444444444',
     });
+  });
+  it('keeps merchant loading feedback attached to its reserved filter space', () => {
+    render(
+      <RankingControls
+        controls={{ sortBy: 'GROSS_SALES', merchantId: null }}
+        showMerchantFilter
+        merchantOptionsLoading
+        onChange={() => undefined}
+      />,
+    );
+    const filters = screen.getByRole('group', { name: 'Ranking filters' });
+    expect(filters).toHaveAttribute('aria-busy', 'true');
+    expect(
+      within(filters).getByRole('combobox', { name: 'Rank by' }),
+    ).not.toBeDisabled();
+    expect(
+      within(filters).getByRole('combobox', { name: 'Merchant' }),
+    ).toBeDisabled();
+    expect(within(filters).getByRole('status')).toHaveTextContent(
+      'Loading merchants…',
+    );
   });
   it('switches between accessible metrics and follows the applied daily report range', () => {
     render(<StaffAnalyticsDashboard report={report} />);
@@ -411,6 +441,10 @@ describe('staff analytics dashboard', () => {
       name: 'Top products by gross sales',
     });
     expect(within(productTable).getAllByRole('row')).toHaveLength(7);
+    expect(screen.getByText('Sorted by Gross sales')).toBeInTheDocument();
+    expect(screen.getAllByText('All merchants')).toHaveLength(2);
+    expect(productTable).toHaveClass('min-w-[46rem]', 'xl:min-w-[62rem]');
+    expect(within(productTable).getAllByText(/SKU/)).toHaveLength(7);
   });
 
   it('averages gross sales over every weekday date in partial weeks and rounds half cents up', () => {
@@ -609,7 +643,9 @@ describe('staff analytics dashboard', () => {
       totalProducts: '0',
       topMerchants: [],
     });
-    render(<StaffAnalyticsDashboard report={emptyReport} />);
+    const { container } = render(
+      <StaffAnalyticsDashboard report={emptyReport} />,
+    );
     expect(
       screen.getByText('No gross sales by payment method in this period.'),
     ).toBeInTheDocument();
@@ -617,7 +653,7 @@ describe('staff analytics dashboard', () => {
       screen.getByText('Net sales are zero on every date in this period.'),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('No gross sales in this period.'),
+      screen.getByText('No weekday sales to compare in this period.'),
     ).toBeInTheDocument();
     expect(
       screen.getByText('No merchant gross sales in this period.'),
@@ -625,5 +661,13 @@ describe('staff analytics dashboard', () => {
     expect(
       screen.getByText('No product gross sales in this period.'),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('list', {
+        name: 'Average gross sales by weekday values',
+      }),
+    ).not.toBeInTheDocument();
+    expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(
+      0,
+    );
   });
 });

@@ -222,10 +222,11 @@ read-only retries, pending-write navigation locks and generation guards are
 preserved. Merchants use their separate own-only analytics response and the same
 tabbed workspace described below.
 
-Four primary cards show gross recorded sales, refunded amount, net recorded sales
-and completed transactions. Supporting metrics retain units sold, completed refunds
-and returned units. Copy states that net is gross minus refunds, may be negative and
-is not profit, payout or available cash. The sales trend has accessible metric
+The Overview summary leads with net recorded sales after refunds; gross sales,
+refunded amount and completed transactions remain as supporting metrics. Supporting
+details retain units sold, completed refunds and returned units. Copy states that
+net is gross minus refunds, may be negative and is not profit, payout or available
+cash. The sales trend has accessible metric
 controls for Net Sales, Gross Sales and Refunds, defaulting to Net Sales. It uses
 the applied report's daily rows in Asia/Manila date order, includes exact values
 for each date in accessible text, and shows a zero baseline so negative net values
@@ -252,25 +253,33 @@ role-visible merchant, with those controls preserved across pagination.
 Merchant users can choose either ranking metric but always receive their own
 products only. The ranking controls use compact muted labels and the shared
 subtle-background dropdown treatment used by Inventory filters. The ranking
-table shows rank, saved name/ID, nullable SKU/barcode,
-saved merchant, units/gross/returns/refunds/net and never claims bounded rows
-reconcile to report totals. Empty/refund-only periods remain explicit.
+table shows rank, saved name/ID, saved merchant, units/gross and net as the
+primary scan columns, with nullable SKU/barcode and return/refund detail kept in
+responsive product metadata on tablet and narrow widths and expanded columns on
+large screens. The selected sort metric and merchant scope remain visible above
+the table, and the rank/product identity columns stay fixed while supporting
+metrics scroll horizontally. The table never claims bounded rows reconcile to
+report totals. Empty/refund-only periods remain explicit.
 
-The refreshed owner/manager chart layout uses three responsive rows: a full-width
-selectable daily trend; side-by-side Top Merchants and Top Products gross-sales
-bars; and Average Sales by Weekday beside the gross Payment Method donut. The two
-performance charts show up to the first five ranked results. At medium widths and
-above, the weekday chart spans two-thirds of its row and the payment donut
-one-third; they stack on narrow phones. Merchant bars use the staff-only ranking.
+The refreshed owner/manager Overview layout puts the period summary first, then a
+full-width selectable daily trend as the primary reading surface. An `Explore the
+period` group follows with side-by-side Top Merchants and Top Products gross-sales
+bars, then a separated Average Sales by Weekday and gross Payment Method
+breakdown. The two performance charts show up to the first five ranked results.
+At medium widths and above, the weekday chart spans two-thirds of its row and the
+payment donut one-third; they stack on narrow phones. Merchant bars use the
+staff-only ranking.
 The weekday average sums daily gross sales and divides by every matching weekday
 date in the selected Manila range, including zero-sales dates, then rounds to the
 nearest cent. A weekday with no date in the range is labeled accordingly. The
 detailed product table continues to show every product row returned by analytics.
 Chart values and metric controls are accessible; decorative SVGs are hidden from
-assistive technology, and empty panels state when their series have no values.
+assistive technology. Zero-value trend, weekday and payment panels collapse to
+compact status rows without axes, legends or an empty donut; populated series
+retain their full visualizations and exact accessible values.
 The September 25 chart refresh keeps the existing report route and database model;
 the staff analytics response adds an optional hourly trend only for one-day
-periods. The Reports frontend suite passes 177
+periods. The Reports frontend suite passes 179
 tests across ten files; changed-file formatting, lint, typecheck and production
 build pass. Safari viewport review at 390×844, 834×1194, 1180×820 and 1600×900
 confirmed phone stacking, the weekday/payment two-thirds-to-one-third layout at
