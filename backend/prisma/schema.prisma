@@ -527,8 +527,6 @@ model SpaceOccupancy {
   assignedById   String
   releasedById   String?
   releaseReason  SpaceReleaseReason?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
   space          Space               @relation(fields: [spaceId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
   merchantBranch MerchantBranch      @relation(fields: [organizationId, branchId, merchantId], references: [organizationId, branchId, merchantId], onDelete: Restrict)
   assignedBy     User                @relation("SpaceAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)

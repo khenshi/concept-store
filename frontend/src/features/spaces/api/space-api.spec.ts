@@ -4,6 +4,7 @@ import {
   listSpaces,
   listSpaceTypes,
   createSpaceType,
+  getSpace,
   occupiedSpaceCount,
   releaseSpace,
 } from './space-api';
@@ -42,6 +43,30 @@ describe('Space API contracts', () => {
       expect.not.stringContaining('occupancy='),
     );
   });
+  it('serializes history search and date filters', async () => {
+    request.mockResolvedValue(page([occupancy]));
+    await listOccupancies(
+      request,
+      org,
+      {
+        kind: 'space',
+        id: spaceId,
+        branchId: branch,
+      },
+      {
+        page: 2,
+        view: 'HISTORY',
+        q: 'Amihan & Co',
+        dateFrom: '2026-01-01T00:00:00.000Z',
+        dateTo: '2026-02-01T00:00:00.000Z',
+      },
+    );
+    expect(request).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'page=2&view=HISTORY&q=Amihan+%26+Co&dateFrom=2026-01-01T00%3A00%3A00.000Z&dateTo=2026-02-01T00%3A00%3A00.000Z',
+      ),
+    );
+  });
   it('rejects cross-tenant and wrong branch list responses', async () => {
     request.mockResolvedValue(page([{ ...space, organizationId: merchant }]));
     await expect(listSpaces(request, org, branch)).rejects.toThrow(
@@ -50,6 +75,13 @@ describe('Space API contracts', () => {
     request.mockResolvedValue(page([{ ...space, branchId: merchant }]));
     await expect(listSpaces(request, org, branch)).rejects.toThrow(
       'scope mismatch',
+    );
+  });
+  it('loads one space through the scoped detail endpoint', async () => {
+    request.mockResolvedValue({ ...space, currentOccupancy: undefined });
+    await getSpace(request, org, branch, space.id);
+    expect(request).toHaveBeenCalledWith(
+      `/organizations/${org}/branches/${branch}/spaces/${space.id}`,
     );
   });
   it('rejects occupancy identity mismatches and strips contacts', async () => {

@@ -4,6 +4,7 @@ const identity = z.object({
   name: z.string(),
   code: z.string().nullable(),
 });
+const actorIdentity = z.object({ id: z.uuidv4(), name: z.string() });
 export const spaceStatusSchema = z.enum(['ACTIVE', 'ARCHIVED']);
 export const releaseReasonSchema = z.enum([
   'MANUAL',
@@ -22,8 +23,7 @@ export const occupancySchema = z
     startedAt: z.iso.datetime(),
     endedAt: z.iso.datetime().nullable(),
     releaseReason: releaseReasonSchema.nullable(),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
+    releasedBy: actorIdentity.nullable(),
     space: z.object({
       id: z.uuidv4(),
       name: z.string(),
@@ -98,9 +98,11 @@ export const spaceFormSchema = z.object({
 export function occupancyDates(start: string, end: string, now = Date.now()) {
   const convert = (value: string) => {
     if (!value) return undefined;
-    const date = new Date(value);
+    const date = new Date(
+      /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000Z` : value,
+    );
     if (!Number.isFinite(date.getTime()))
-      throw new Error('Enter a valid date and time.');
+      throw new Error('Enter a valid date.');
     return date.toISOString();
   };
   const startedAt = convert(start);

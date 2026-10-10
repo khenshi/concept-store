@@ -52,13 +52,37 @@ export async function listSpaces(
   page.items.forEach((row) => check(row, org, branch));
   return page;
 }
+export async function getSpace(
+  request: AuthenticatedRequest,
+  org: string,
+  branch: string,
+  id: string,
+) {
+  const row = check(
+    spaceSchema.parse(
+      await request<unknown>(
+        `${spaceRoot(org, branch)}/${encodeURIComponent(id)}`,
+      ),
+    ),
+    org,
+    branch,
+  );
+  if (row.id !== id) throw new Error('Space response identity mismatch');
+  return row;
+}
 export async function listOccupancies(
   request: AuthenticatedRequest,
   org: string,
   scope:
     | { kind: 'merchant'; id: string; branchId?: string }
     | { kind: 'space'; id: string; branchId: string },
-  filters: { page?: number; view?: 'CURRENT' | 'HISTORY' } = {},
+  filters: {
+    page?: number;
+    view?: 'CURRENT' | 'HISTORY';
+    q?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  } = {},
 ) {
   const path =
     scope.kind === 'merchant'
@@ -66,6 +90,9 @@ export async function listOccupancies(
       : `${spaceRoot(org, scope.branchId)}/${encodeURIComponent(scope.id)}/occupancies`;
   const query = new URLSearchParams({ page: String(filters.page ?? 1) });
   if (filters.view) query.set('view', filters.view);
+  if (filters.q) query.set('q', filters.q);
+  if (filters.dateFrom) query.set('dateFrom', filters.dateFrom);
+  if (filters.dateTo) query.set('dateTo', filters.dateTo);
   if (scope.kind === 'merchant' && scope.branchId)
     query.set('branchId', scope.branchId);
   const page = occupancyPageSchema.parse(

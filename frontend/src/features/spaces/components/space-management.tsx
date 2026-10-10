@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useSpaceTypes } from '../model/use-space-types';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -7,7 +8,7 @@ import type { AssociationScope } from '@/features/merchant-branches/api/merchant
 import { buttonStyles } from '@/shared/components/ui/button';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import { SelectControl } from '@/shared/components/ui/select-control';
-import { FormDialog } from '@/shared/components/ui/form-dialog';
+import { Icon } from '@/shared/components/ui/icon';
 import { listOccupancies, listSpaces, setSpaceStatus } from '../api/space-api';
 import {
   releaseLabels,
@@ -17,17 +18,30 @@ import {
   type SpacePage,
 } from '../model/space.schemas';
 import { AssignmentForm, ReleaseForm, SpaceForm } from './space-forms';
+import { SpaceRowsSkeleton } from './space-content-skeleton';
 const quiet = buttonStyles({ variant: 'quiet' });
 const control =
-  'min-h-11 w-full min-w-0 rounded-control border border-control-border bg-surface px-3';
+  'min-h-11 w-full min-w-0 rounded-full border border-control-border bg-subtle px-4 text-sm font-medium';
 const message = (cause: unknown) =>
   cause instanceof Error
     ? cause.message
     : 'Spaces could not be loaded. Try again.';
+const action = buttonStyles({
+  variant: 'quiet',
+  className: 'min-h-9 shrink-0 px-2 py-1 text-xs',
+});
+const archiveAction = buttonStyles({
+  variant: 'quiet',
+  className: 'min-h-9 shrink-0 px-2 py-1 text-xs text-danger hover:text-danger',
+});
+const statusPill =
+  'inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold';
+const spaceTableGrid =
+  'lg:grid-cols-[minmax(15rem,2fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_minmax(12rem,1.2fr)_11rem]';
+const spaceTableCell = 'min-w-0 break-words lg:justify-self-start';
 function date(value: string) {
   return new Date(value).toLocaleString(undefined, {
     dateStyle: 'medium',
-    timeStyle: 'short',
   });
 }
 function Pagination({
@@ -116,92 +130,6 @@ function OccupancyRows({
     </ul>
   );
 }
-function SpaceHistory({
-  scope,
-  space,
-  onClose,
-}: {
-  scope: AssociationScope;
-  space: SpaceListItem;
-  onClose(): void;
-}) {
-  const { request } = useAuth();
-  const { organization } = useOrganizationWorkspaceContext();
-  const [data, setData] = useState<OccupancyPage | null>(null),
-    [page, setPage] = useState(1),
-    [error, setError] = useState<string | null>(null),
-    [revision, setRevision] = useState(0);
-  useEffect(() => {
-    let active = true;
-    void Promise.resolve()
-      .then(() => {
-        if (active) {
-          setData(null);
-          setError(null);
-        }
-        return listOccupancies(
-          request,
-          scope.organizationId,
-          { kind: 'space', id: space.id, branchId: space.branchId },
-          { page },
-        );
-      })
-      .then((rows) => {
-        if (active) setData(rows);
-      })
-      .catch((cause) => {
-        if (active) setError(message(cause));
-      });
-    return () => {
-      active = false;
-    };
-  }, [
-    request,
-    organization,
-    scope.organizationId,
-    space.id,
-    space.branchId,
-    page,
-    revision,
-  ]);
-  return (
-    <FormDialog
-      title={`${space.name} occupancy history`}
-      description="Current and completed assignments, with dates and release reasons."
-      onClose={onClose}
-    >
-      <div className="mt-5">
-        {error && (
-          <div role="alert">
-            <p className="text-danger">{error}</p>
-            <button
-              type="button"
-              className={quiet}
-              onClick={() => setRevision((value) => value + 1)}
-            >
-              Retry space history
-            </button>
-          </div>
-        )}
-        {!data && !error && <p role="status">Loading occupancy history…</p>}
-        {data && (
-          <>
-            <OccupancyRows rows={data.items} owner={false} />
-            {!data.items.length && (
-              <p className="text-sm text-muted">
-                No occupancy history for this space.
-              </p>
-            )}
-            <Pagination data={data} pending={false} onPage={setPage} />
-          </>
-        )}
-        <button type="button" className={`${quiet} mt-5`} onClick={onClose}>
-          Close history
-        </button>
-      </div>
-    </FormDialog>
-  );
-}
 export function SpaceManagement(
   props: AssociationScope & {
     revision?: number;
@@ -238,7 +166,7 @@ function ScopedSpaces(
   const [page, setPage] = useState(1),
     [q, setQ] = useState(''),
     [type, setType] = useState(''),
-    [status, setStatus] = useState(''),
+    [status, setStatus] = useState('ACTIVE'),
     [occupancy, setOccupancy] = useState<'' | 'OCCUPIED' | 'VACANT'>(''),
     [view, setView] = useState<'CURRENT' | 'HISTORY'>('CURRENT');
   const [revision, setRevision] = useState(0),
@@ -250,8 +178,7 @@ function ScopedSpaces(
       space?: SpaceListItem;
       historyOnly?: boolean;
     } | null>(null),
-    [release, setRelease] = useState<Occupancy | null>(null),
-    [history, setHistory] = useState<SpaceListItem | null>(null);
+    [release, setRelease] = useState<Occupancy | null>(null);
   const {
     types,
     error: typesError,
@@ -374,17 +301,24 @@ function ScopedSpaces(
   const data = scope.kind === 'branch' ? spaces : occupancies;
   return (
     <section
-      className="mt-8 min-w-0 bg-surface py-6"
+      className="mt-4 min-w-0 bg-surface py-4"
       aria-label="Space occupancy"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">
-          {own ? 'Your spaces' : 'Spaces'}
-        </h2>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold">
+            {own ? 'Your spaces' : 'Spaces'}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            {own
+              ? 'Your current spaces and past occupancy records.'
+              : 'Track physical space occupancy. Space assignments are optional.'}
+          </p>
+        </div>
         {owner && (
           <button
             type="button"
-            className={buttonStyles({ variant: 'secondary' })}
+            className={`${buttonStyles({ variant: 'primary' })} shrink-0`}
             disabled={pending}
             onClick={() =>
               scope.kind === 'branch' ? setEdit('new') : setAssign({})
@@ -394,25 +328,26 @@ function ScopedSpaces(
           </button>
         )}
       </div>
-      <p className="mt-2 text-sm text-muted">
-        {own
-          ? 'Your current spaces and past occupancy records.'
-          : 'Track physical space occupancy. Space assignments are optional.'}
-      </p>
       {scope.kind === 'branch' ? (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="grid min-w-0 flex-1 gap-2 text-sm">
-            Search spaces
-            <input
-              className={control}
-              maxLength={120}
-              value={q}
-              disabled={pending}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-            />
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <label className="grid min-w-0 gap-2 text-sm">
+            <span>Search spaces</span>
+            <span className="relative">
+              <Icon
+                name="search"
+                className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
+              />
+              <input
+                className={`${control} py-2 pr-4 pl-10`}
+                maxLength={120}
+                value={q}
+                disabled={pending}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </span>
           </label>
           <div className="grid min-w-0 gap-2 text-sm">
             <label className="grid gap-2">
@@ -530,64 +465,74 @@ function ScopedSpaces(
         </div>
       )}
       {!data && !error && (
-        <p className="mt-5 text-sm text-muted" role="status">
-          Loading spaces…
-        </p>
+        <div role="status" aria-label="Loading spaces" aria-busy="true">
+          <SpaceRowsSkeleton kind={scope.kind} />
+        </div>
       )}
       {spaces && (
         <ul className="mt-5 list-none p-0">
+          <li
+            className={`data-column-header hidden px-4 text-left gap-x-6 gap-y-3 lg:grid lg:justify-items-start ${spaceTableGrid}`}
+          >
+            <span>Space</span>
+            <span>Type</span>
+            <span>Status</span>
+            <span>Occupancy</span>
+            <span>Actions</span>
+          </li>
           {spaces.items.map((row) => (
             <li
-              className="data-row grid min-w-0 gap-x-6 gap-y-3 py-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.6fr)]"
+              className={`data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-5 sm:grid-cols-2 lg:items-center lg:justify-items-start ${spaceTableGrid}`}
               key={row.id}
             >
-              <div className="min-w-0 break-words">
+              <div className={spaceTableCell}>
                 <p className="font-semibold">{row.name}</p>
-                <p className="mt-1 text-sm text-muted">
-                  {row.type} · {row.status === 'ACTIVE' ? 'Active' : 'Archived'}
-                </p>
               </div>
-              <div className="min-w-0 break-words text-sm">
+              <div className={`${spaceTableCell} text-sm text-muted`}>
+                {row.type}
+              </div>
+              <div className={spaceTableCell}>
+                <span
+                  className={`${statusPill} ${row.status === 'ACTIVE' ? 'border-success/20 bg-success/5 text-success-ink' : 'border-danger/20 bg-danger/5 text-danger'}`}
+                >
+                  {row.status === 'ACTIVE' ? 'Active' : 'Archived'}
+                </span>
+              </div>
+              <div className={`${spaceTableCell} text-sm`}>
                 {row.currentOccupancy ? (
                   <>
-                    <p>{row.currentOccupancy.merchant.name}</p>
+                    <span
+                      className={`${statusPill} border-success/20 bg-success/5 text-success-ink`}
+                    >
+                      Occupied
+                    </span>
+                    <p className="mt-2">{row.currentOccupancy.merchant.name}</p>
                     <p className="mt-1 text-muted">
                       Since {date(row.currentOccupancy.startedAt)}
                     </p>
                   </>
                 ) : (
-                  <p className="text-muted">
-                    {own
-                      ? 'No current assignment for you'
-                      : row.status === 'ARCHIVED'
-                        ? 'Retired space'
-                        : 'Available'}
-                  </p>
+                  <>
+                    <span
+                      className={`${statusPill} border-danger/20 bg-danger/5 text-danger`}
+                    >
+                      {own ? 'No assignment' : 'Vacant'}
+                    </span>
+                    {own && (
+                      <p className="mt-2 text-muted">
+                        No current assignment for you
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
-              <div className="flex flex-wrap items-start gap-2">
-                <button
-                  type="button"
-                  className={quiet}
-                  disabled={pending}
-                  onClick={() => setHistory(row)}
-                >
-                  History
-                </button>
+              <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto lg:justify-self-end lg:whitespace-nowrap">
                 {owner && (
                   <>
-                    <button
-                      type="button"
-                      className={quiet}
-                      disabled={pending}
-                      onClick={() => setEdit(row)}
-                    >
-                      Edit space
-                    </button>
                     {row.status === 'ACTIVE' && (
                       <button
                         type="button"
-                        className={quiet}
+                        className={action}
                         disabled={pending}
                         onClick={() =>
                           setAssign({
@@ -596,33 +541,27 @@ function ScopedSpaces(
                           })
                         }
                       >
-                        {row.currentOccupancy
-                          ? 'Record history'
-                          : 'Assign space'}
+                        Assign
                       </button>
                     )}
-                    {row.currentOccupancy && (
+                    {row.status === 'ACTIVE' ? (
                       <button
                         type="button"
-                        className={quiet}
-                        disabled={pending}
-                        onClick={() => setRelease(row.currentOccupancy)}
+                        className={archiveAction}
+                        disabled={pending || !!row.currentOccupancy}
+                        onClick={() => void archive(row)}
                       >
-                        Release space
+                        Archive
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      className={quiet}
-                      disabled={pending || !!row.currentOccupancy}
-                      onClick={() => void archive(row)}
-                    >
-                      {row.status === 'ACTIVE'
-                        ? 'Archive space'
-                        : 'Reactivate space'}
-                    </button>
+                    ) : null}
                   </>
                 )}
+                <Link
+                  className={action}
+                  href={`/app/organizations/${scope.organizationId}/branches/${row.branchId}/spaces/${row.id}`}
+                >
+                  View
+                </Link>
               </div>
             </li>
           ))}
@@ -678,13 +617,6 @@ function ScopedSpaces(
           occupancy={release}
           onClose={() => setRelease(null)}
           onSaved={() => saved('Space released.')}
-        />
-      )}
-      {history && (
-        <SpaceHistory
-          scope={scope}
-          space={history}
-          onClose={() => setHistory(null)}
         />
       )}
       {confirmationDialog}

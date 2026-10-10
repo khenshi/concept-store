@@ -69,6 +69,9 @@ it('waits for branch access and gives the URL precedence over remembered selecti
   );
   render(<SpacesWorkspace organizationId="org" branchId="main" />);
   expect(manage).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole('status', { name: 'Loading spaces' }),
+  ).toBeInTheDocument();
   await act(async () => resolve([main] as never));
   expect(await screen.findByText('Space rows')).toBeInTheDocument();
   expect(remember).toHaveBeenCalledWith('main');

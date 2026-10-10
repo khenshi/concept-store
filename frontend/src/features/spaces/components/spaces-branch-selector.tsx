@@ -29,6 +29,7 @@ export function SpacesBranchSelector({
   rememberBranch,
   compact = false,
   onReady,
+  onLoadingChange,
 }: {
   organizationId: string;
   branchId?: string;
@@ -40,6 +41,7 @@ export function SpacesBranchSelector({
   rememberBranch?(branchId: string): void;
   compact?: boolean;
   onReady?(name: string): void;
+  onLoadingChange?(loading: boolean): void;
 }) {
   const { request, user } = useAuth();
   const router = useRouter();
@@ -55,6 +57,7 @@ export function SpacesBranchSelector({
   useEffect(() => {
     if (role === 'CASHIER') return;
     let active = true;
+    onLoadingChange?.(true);
     listBranches(request, organizationId, role)
       .then((result) => {
         if (!active) return;
@@ -83,6 +86,9 @@ export function SpacesBranchSelector({
           [403, 404].includes(cause.status)
         )
           onAccessDenied?.();
+      })
+      .finally(() => {
+        if (active) onLoadingChange?.(false);
       });
     return () => {
       active = false;
@@ -96,6 +102,7 @@ export function SpacesBranchSelector({
     onAccessDenied,
     onReady,
     rememberBranch,
+    onLoadingChange,
   ]);
   function navigate(next: string) {
     if (disabled || role === 'CASHIER') return false;

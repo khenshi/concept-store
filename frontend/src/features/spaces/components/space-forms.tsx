@@ -7,6 +7,8 @@ import {
 } from '@/features/merchant-branches/api/merchant-branch-api';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
+import { InputControl } from '@/shared/components/ui/input-control';
+import { TextField } from '@/shared/components/ui/text-field';
 import { useSpaceTypes } from '../model/use-space-types';
 import { SpaceTypeCreator } from './space-type-creator';
 import { buttonStyles } from '@/shared/components/ui/button';
@@ -23,7 +25,7 @@ import {
   type SpaceListItem,
 } from '../model/space.schemas';
 const control =
-  'min-h-11 w-full rounded-control border border-control-border bg-surface px-3 font-normal';
+  'min-h-11 w-full rounded-full border border-control-border bg-surface px-3 font-normal';
 const message = (cause: unknown) =>
   cause instanceof Error ? cause.message : 'Could not save. Try again.';
 function Actions({
@@ -38,10 +40,13 @@ function Actions({
   label: string;
 }) {
   return (
-    <div className="flex flex-wrap justify-end gap-3">
+    <div className="flex flex-col gap-3 border-t border-hairline pt-5 sm:flex-row sm:justify-end">
       <button
         type="button"
-        className={buttonStyles({ variant: 'quiet' })}
+        className={buttonStyles({
+          variant: 'quiet',
+          className: 'order-2 w-full sm:order-1 sm:w-auto',
+        })}
         disabled={pending}
         onClick={onClose}
       >
@@ -49,7 +54,7 @@ function Actions({
       </button>
       <button
         type="submit"
-        className={buttonStyles({ variant: 'primary' })}
+        className={`${buttonStyles({ variant: 'primary' })} order-1 w-full sm:order-2 sm:w-auto`}
         disabled={pending || disabled}
         aria-busy={pending}
       >
@@ -110,16 +115,32 @@ export function SpaceForm({
   const errorId = useId();
   const nameRef = useRef<HTMLInputElement>(null),
     typeRef = useRef<HTMLDivElement>(null);
-  const [invalid, setInvalid] = useState<'name' | 'type' | null>(null);
+  const [validation, setValidation] = useState<{
+    name?: string;
+    type?: string;
+  }>({});
+  const [nameTouched, setNameTouched] = useState(false);
+  const initialName = space?.name ?? '';
+  const initialType = space?.type ?? '';
+  const dirty =
+    name !== initialName ||
+    type !== initialType ||
+    (addingType && typeDraftDirty);
+  function close() {
+    if (dirty && !window.confirm('Discard unsaved space changes?')) return;
+    onClose();
+  }
   return (
     <FormDialog
-      title={space ? 'Edit space' : 'Add space'}
-      description="Name a physical space in this branch and give it a type, such as rack or shelf."
+      title={space ? 'Edit space' : 'Create a space'}
+      description="Add a named location to this branch. Choose an existing type or create one for the organization."
+      initialFocusRef={nameRef}
+      size="form"
       pending={pending || typePending}
-      onClose={onClose}
+      onClose={close}
     >
       <form
-        className="mt-5 grid gap-5"
+        className="mt-6 grid gap-6"
         onSubmit={(event) => {
           event.preventDefault();
           if (lock.current || typePending || !types || typesError) return;
@@ -127,8 +148,9 @@ export function SpaceForm({
           if (!parsed.success) {
             const field =
               parsed.error.issues[0].path[0] === 'type' ? 'type' : 'name';
-            setInvalid(field);
-            setError(parsed.error.issues[0].message);
+            setValidation({ [field]: parsed.error.issues[0].message });
+            if (field === 'name') setNameTouched(true);
+            setError(null);
             if (field === 'name') nameRef.current?.focus();
             else typeRef.current?.querySelector('button')?.focus();
             return;
@@ -136,7 +158,7 @@ export function SpaceForm({
           lock.current = true;
           setPending(true);
           setError(null);
-          setInvalid(null);
+          setValidation({});
           void saveSpace(
             request,
             organizationId,
@@ -157,104 +179,145 @@ export function SpaceForm({
             {error}
           </p>
         )}
-        <label className="grid gap-2 text-sm font-semibold">
-          Space name
-          <input
-            className={control}
+        <div className="grid gap-5 md:grid-cols-2 md:items-start">
+          <TextField
+            label="Space name"
+            hint="Use a name people can recognize quickly, such as Rack A1."
+            containerClassName="md:col-span-2"
             required
             maxLength={120}
             disabled={pending}
             value={name}
             ref={nameRef}
-            aria-invalid={invalid === 'name'}
-            aria-describedby={invalid === 'name' ? errorId : undefined}
-            onChange={(e) => setName(e.target.value)}
+            error={validation.name}
+            autoComplete="off"
             placeholder="Rack A1"
+            onBlur={() => {
+              setNameTouched(true);
+              setValidation((current) => ({
+                ...current,
+                name: name.trim() ? undefined : 'Enter a space name.',
+              }));
+            }}
+            onChange={(event) => {
+              const value = event.target.value;
+              setName(value);
+              setError(null);
+              setValidation((current) => ({
+                ...current,
+                name:
+                  nameTouched && !value.trim()
+                    ? 'Enter a space name.'
+                    : undefined,
+              }));
+            }}
           />
-        </label>
-        <div ref={typeRef} className="grid gap-3">
-          <label className="grid gap-2 text-sm font-semibold">
-            Space type
-            <SelectControl
-              aria-label="Space type"
-              className={control}
-              required
-              value={type}
-              disabled={pending || typePending || !types || !!typesError}
-              onValueChange={(value) => {
-                setType(value);
-                setAddingType(false);
-              }}
-            >
-              <option value="">
-                {types ? 'Choose a type' : 'Loading types…'}
-              </option>
-              {space && !types?.some((row) => row.name === space.type) && (
-                <option value={space.type}>{space.type}</option>
-              )}
-              {types?.map((row) => (
-                <option key={row.id} value={row.name}>
-                  {row.name}
-                </option>
-              ))}
-            </SelectControl>
-          </label>
-          {typesError && (
-            <p role="alert" className="text-sm text-danger">
-              {typesError}
-            </p>
-          )}
-          {invalid === 'type' && (
-            <p className="text-sm text-danger">Choose a space type.</p>
-          )}
-          {!addingType && (
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'quiet' })}
-              disabled={pending || typePending}
-              onClick={() => setAddingType(true)}
-            >
-              Add type
-            </button>
-          )}
-          {addingType && (
-            <div className="grid gap-3 rounded-control border border-hairline p-4">
+          <div ref={typeRef} className="grid min-w-0 gap-3 md:col-span-2">
+            {addingType ? (
               <SpaceTypeCreator
+                compact
                 organizationId={organizationId}
                 onPendingChange={setTypePending}
                 onDirtyChange={setTypeDraftDirty}
+                onDiscard={() => setAddingType(false)}
                 onCreated={(created) => {
                   setType(created.name);
                   setAddingType(false);
+                  setError(null);
+                  setValidation({});
                   reloadTypes();
                   onTypeCreated?.();
                 }}
               />
-              <p className="text-sm text-muted">
-                The type stays available even if you cancel this space.
-              </p>
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'quiet' })}
-                disabled={typePending}
-                onClick={() => setAddingType(false)}
+            ) : (
+              <>
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                  <label htmlFor="space-type" className="grid gap-2">
+                    <span className="text-label font-semibold text-ink">
+                      Space type
+                    </span>
+                    <SelectControl
+                      id="space-type"
+                      aria-label="Space type"
+                      aria-invalid={Boolean(validation.type)}
+                      aria-describedby={`${errorId}-type-hint${validation.type ? ` ${errorId}-type-error` : ''}`}
+                      className={control}
+                      required
+                      value={type}
+                      disabled={
+                        pending || typePending || !types || !!typesError
+                      }
+                      onValueChange={(value) => {
+                        setType(value);
+                        setError(null);
+                        setValidation((current) => ({
+                          ...current,
+                          type: undefined,
+                        }));
+                        setAddingType(false);
+                      }}
+                    >
+                      <option value="">
+                        {types ? 'Choose a type' : 'Loading types…'}
+                      </option>
+                      {space &&
+                        !types?.some((row) => row.name === space.type) && (
+                          <option value={space.type}>{space.type}</option>
+                        )}
+                      {types?.map((row) => (
+                        <option key={row.id} value={row.name}>
+                          {row.name}
+                        </option>
+                      ))}
+                    </SelectControl>
+                  </label>
+                  <button
+                    type="button"
+                    className={buttonStyles({
+                      variant: 'secondary',
+                      className: 'w-full md:w-fit',
+                    })}
+                    disabled={pending || typePending}
+                    onClick={() => setAddingType(true)}
+                  >
+                    Create a new type
+                  </button>
+                </div>
+                <p
+                  id={`${errorId}-type-hint`}
+                  className="text-xs leading-5 text-muted"
+                >
+                  Shared across branches so similar spaces stay easy to filter.
+                </p>
+              </>
+            )}
+            {typesError && (
+              <div className="grid gap-2" role="alert">
+                <p className="text-sm text-danger">{typesError}</p>
+                <button
+                  type="button"
+                  className={buttonStyles({ variant: 'quiet' })}
+                  disabled={pending || typePending}
+                  onClick={reloadTypes}
+                >
+                  Retry loading types
+                </button>
+              </div>
+            )}
+            {validation.type && (
+              <p
+                id={`${errorId}-type-error`}
+                className="text-sm text-danger"
+                role="alert"
               >
-                Cancel adding type
-              </button>
-            </div>
-          )}
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'quiet' })}
-            disabled={pending || typePending}
-            onClick={reloadTypes}
-          >
-            Refresh types
-          </button>
+                {validation.type}
+              </p>
+            )}
+          </div>
         </div>
         <Actions
           pending={pending || typePending}
-          onClose={onClose}
+          onClose={close}
           disabled={!types || !!typesError || !type || typePending}
           label={space ? 'Save space' : 'Add space'}
         />
@@ -375,8 +438,9 @@ export function AssignmentForm({
   return (
     <FormDialog
       title={historyOnly ? 'Record past occupancy' : 'Assign space'}
-      description="Choose an active merchant and branch space. Dates use your local time. Leave start blank to assign now, or enter past dates to record history."
+      description="Choose an active merchant and branch space. Leave start blank to use today, or enable past occupancy to record a completed date range."
       pending={pending}
+      size="form"
       onClose={onClose}
     >
       <form
@@ -428,78 +492,97 @@ export function AssignmentForm({
             Retry assignment choices
           </button>
         )}
-        <label className="grid gap-2 text-sm font-semibold">
-          {scope.kind === 'branch' ? 'Merchant' : 'Branch'}
-          <SelectControl
-            aria-label={scope.kind === 'branch' ? 'Merchant' : 'Branch'}
-            className={control}
-            value={relatedId}
-            required
-            disabled={pending || !choices || !!readError}
-            onValueChange={(value) => {
-              setRelatedId(value);
-              if (!space) setSpaceId('');
+        <div className="flex items-center justify-between gap-4 rounded-control border border-control-border bg-subtle px-3 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">
+              Record a completed past occupancy
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              Turn this on to enter a completed date range.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-label="Record a completed past occupancy"
+            aria-checked={historical}
+            disabled={pending || historyOnly}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60 ${historical ? 'border-ink bg-ink' : 'border-control-border bg-surface'}`}
+            onClick={() => {
+              setHistorical(!historical);
+              setSpaceId(space?.id ?? '');
             }}
           >
-            <option value="">
-              {choices ? 'Choose one' : 'Loading choices…'}
-            </option>
-            {choices?.map((choice) => (
-              <option key={choice.id} value={choice.id}>
-                {choice.name}
+            <span
+              aria-hidden="true"
+              className={`size-5 rounded-full border border-control-border bg-surface transition-transform ${historical ? 'translate-x-6' : 'translate-x-1'}`}
+            />
+          </button>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2">
+          <label className="grid gap-2 text-sm font-semibold">
+            {scope.kind === 'branch' ? 'Merchant' : 'Branch'}
+            <SelectControl
+              aria-label={scope.kind === 'branch' ? 'Merchant' : 'Branch'}
+              className={control}
+              value={relatedId}
+              required
+              disabled={pending || !choices || !!readError}
+              onValueChange={(value) => {
+                setRelatedId(value);
+                if (!space) setSpaceId('');
+              }}
+            >
+              <option value="">
+                {choices ? 'Choose one' : 'Loading choices…'}
               </option>
-            ))}
-          </SelectControl>
-        </label>
+              {choices?.map((choice) => (
+                <option key={choice.id} value={choice.id}>
+                  {choice.name}
+                </option>
+              ))}
+            </SelectControl>
+          </label>
+          {space ? (
+            <div className="grid content-end gap-2 text-sm">
+              <span className="font-semibold">Space</span>
+              <p className="min-h-11 rounded-full border border-control-border bg-subtle px-4 py-2.5 font-normal text-muted">
+                {space.name} · {space.type}
+              </p>
+            </div>
+          ) : (
+            <label className="grid gap-2 text-sm font-semibold">
+              Space
+              <SelectControl
+                aria-label="Space"
+                className={control}
+                value={spaceId}
+                required
+                disabled={pending || !spaces || !!readError}
+                onValueChange={setSpaceId}
+              >
+                <option value="">
+                  {branchId && !spaces ? 'Loading spaces…' : 'Choose a space'}
+                </option>
+                {spaces?.map((row) => (
+                  <option
+                    key={row.id}
+                    value={row.id}
+                    disabled={!historical && !!row.currentOccupancy}
+                  >
+                    {row.name} · {row.type}
+                    {row.currentOccupancy ? ' · Occupied' : ''}
+                  </option>
+                ))}
+              </SelectControl>
+            </label>
+          )}
+        </div>
         {choices && !choices.length && (
           <p className="text-sm text-muted">
             No active merchant participation is available. Configure it in the
             Branches or Merchants section first.
           </p>
-        )}
-        <label className="flex min-h-11 items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={historical}
-            disabled={pending || historyOnly}
-            onChange={(e) => {
-              setHistorical(e.target.checked);
-              setSpaceId(space?.id ?? '');
-            }}
-          />
-          Record a completed past occupancy
-        </label>
-        {space ? (
-          <p className="text-sm">
-            <span className="font-semibold">Space: </span>
-            {space.name} · {space.type}
-          </p>
-        ) : (
-          <label className="grid gap-2 text-sm font-semibold">
-            Space
-            <SelectControl
-              aria-label="Space"
-              className={control}
-              value={spaceId}
-              required
-              disabled={pending || !spaces || !!readError}
-              onValueChange={setSpaceId}
-            >
-              <option value="">
-                {branchId && !spaces ? 'Loading spaces…' : 'Choose a space'}
-              </option>
-              {spaces?.map((row) => (
-                <option
-                  key={row.id}
-                  value={row.id}
-                  disabled={!historical && !!row.currentOccupancy}
-                >
-                  {row.name} · {row.type}
-                  {row.currentOccupancy ? ' · Occupied' : ''}
-                </option>
-              ))}
-            </SelectControl>
-          </label>
         )}
         {spaces && !spaces.length && (
           <p className="text-sm text-muted">
@@ -507,37 +590,39 @@ export function AssignmentForm({
             first.
           </p>
         )}
-        <label className="grid gap-2 text-sm font-semibold">
-          Start date and time
-          {!historical && (
-            <span className="font-normal text-muted">
-              Optional; leave blank to start now.
-            </span>
-          )}
-          <input
-            className={control}
-            type="datetime-local"
-            step="1"
-            value={start}
-            required={historical}
-            disabled={pending}
-            onChange={(e) => setStart(e.target.value)}
-          />
-        </label>
-        {historical && (
+        <div className={historical ? 'grid gap-5 md:grid-cols-2' : undefined}>
           <label className="grid gap-2 text-sm font-semibold">
-            End date and time
-            <input
-              className={control}
-              type="datetime-local"
-              step="1"
-              value={end}
-              required
+            Start date
+            {!historical && (
+              <span className="font-normal text-muted">
+                Optional; leave blank to use today.
+              </span>
+            )}
+            <InputControl
+              icon="calendar"
+              className="font-normal text-muted"
+              type="date"
+              value={start}
+              required={historical}
               disabled={pending}
-              onChange={(e) => setEnd(e.target.value)}
+              onChange={(e) => setStart(e.target.value)}
             />
           </label>
-        )}
+          {historical && (
+            <label className="grid gap-2 text-sm font-semibold">
+              End date
+              <InputControl
+                icon="calendar"
+                className="font-normal text-muted"
+                type="date"
+                value={end}
+                required
+                disabled={pending}
+                onChange={(e) => setEnd(e.target.value)}
+              />
+            </label>
+          )}
+        </div>
         <Actions
           pending={pending}
           disabled={
@@ -578,8 +663,9 @@ export function ReleaseForm({
   return (
     <FormDialog
       title={`Release ${occupancy.space.name}`}
-      description={`End ${occupancy.merchant.name}’s occupancy and retain its history. Leave the date blank to release now.`}
+      description={`End ${occupancy.merchant.name}’s occupancy and retain its history. Leave the date blank to release today.`}
       pending={pending}
+      size="form"
       onClose={onClose}
     >
       <form
@@ -594,7 +680,9 @@ export function ReleaseForm({
               (Date.parse(endedAt) > Date.now() ||
                 Date.parse(endedAt) <= Date.parse(occupancy.startedAt))
             )
-              throw new Error('End must be after start and no later than now.');
+              throw new Error(
+                'End date must be after start and no later than today.',
+              );
             lock.current = true;
             setPending(true);
             setError(null);
@@ -616,11 +704,11 @@ export function ReleaseForm({
           </p>
         )}
         <label className="grid gap-2 text-sm font-semibold">
-          End date and time
-          <input
-            type="datetime-local"
-            step="1"
-            className={control}
+          End date
+          <InputControl
+            icon="calendar"
+            type="date"
+            className="font-normal text-muted"
             value={end}
             disabled={pending}
             onChange={(e) => setEnd(e.target.value)}

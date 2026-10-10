@@ -30,8 +30,9 @@ export const occupancySelect = {
   startedAt: true,
   endedAt: true,
   releaseReason: true,
-  createdAt: true,
-  updatedAt: true,
+  releasedBy: {
+    select: { id: true, firstName: true, lastName: true },
+  },
   space: { select: { id: true, name: true, type: true, status: true } },
   merchantBranch: {
     select: {
@@ -43,8 +44,17 @@ export const occupancySelect = {
 function projectOccupancy(
   row: Prisma.SpaceOccupancyGetPayload<{ select: typeof occupancySelect }>,
 ) {
-  const { merchantBranch, ...rest } = row;
-  return { ...rest, ...merchantBranch };
+  const { merchantBranch, releasedBy, ...rest } = row;
+  return {
+    ...rest,
+    ...merchantBranch,
+    releasedBy: releasedBy
+      ? {
+          id: releasedBy.id,
+          name: `${releasedBy.firstName} ${releasedBy.lastName}`.trim(),
+        }
+      : null,
+  };
 }
 function pageResult<T>(items: T[], total: number, page: number) {
   return {
@@ -294,6 +304,12 @@ export class SpacesService {
     branchId?: string,
   ) {
     return this.transaction(context, false, async (tx, current) => {
+      const dateFrom = query.dateFrom ? new Date(query.dateFrom) : undefined;
+      const dateTo = query.dateTo ? new Date(query.dateTo) : undefined;
+      if (dateFrom && dateTo && dateFrom >= dateTo)
+        throw new BadRequestException(
+          'dateFrom must be before dateTo for occupancy history',
+        );
       if (kind === 'merchant') await this.merchant(tx, current, id);
       if (branchId ?? query.branchId)
         await this.branch(tx, current, (branchId ?? query.branchId)!);
@@ -313,6 +329,22 @@ export class SpacesService {
           : query.view === 'HISTORY'
             ? { endedAt: { not: null } }
             : {}),
+        ...(query.q
+          ? {
+              merchantBranch: {
+                merchant: {
+                  OR: [
+                    { name: { contains: query.q, mode: 'insensitive' } },
+                    { code: { contains: query.q, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            }
+          : {}),
+        ...(dateTo ? { startedAt: { lt: dateTo } } : {}),
+        ...(dateFrom
+          ? { OR: [{ endedAt: null }, { endedAt: { gt: dateFrom } }] }
+          : {}),
       };
       const total = await tx.spaceOccupancy.count({ where });
       const rows = await tx.spaceOccupancy.findMany({

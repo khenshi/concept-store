@@ -58,6 +58,10 @@ class OccupancyIdentityDto {
   @ApiProperty() name!: string;
   @ApiProperty({ type: String, nullable: true }) code!: string | null;
 }
+class OccupancyActorDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() name!: string;
+}
 export class SpaceOccupancyResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;
@@ -69,8 +73,8 @@ export class SpaceOccupancyResponseDto {
   endedAt!: Date | null;
   @ApiProperty({ enum: SpaceReleaseReason, nullable: true })
   releaseReason!: SpaceReleaseReason | null;
-  @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date;
-  @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: Date;
+  @ApiProperty({ type: OccupancyActorDto, nullable: true })
+  releasedBy!: OccupancyActorDto | null;
   @ApiProperty({ type: SpaceIdentityDto }) space!: SpaceIdentityDto;
   @ApiProperty({ type: OccupancyIdentityDto }) branch!: OccupancyIdentityDto;
   @ApiProperty({ type: OccupancyIdentityDto }) merchant!: OccupancyIdentityDto;

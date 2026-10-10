@@ -9,8 +9,8 @@ import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SpacesBranchSelector } from './spaces-branch-selector';
 import { SpaceTypesPanel } from './space-types-panel';
-import { buttonStyles } from '@/shared/components/ui/button';
 import { SpaceManagement } from './space-management';
+import { SpaceContentSkeleton } from './space-content-skeleton';
 
 export function SpacesWorkspace(props: {
   organizationId: string;
@@ -60,6 +60,7 @@ function ScopedSpacesWorkspace({
   const { organization, selectedBranchId, setSelectedBranchId } =
     useOrganizationWorkspaceContext();
   const [branchName, setBranchName] = useState<string | null>(null);
+  const [branchLoading, setBranchLoading] = useState(Boolean(branchId));
   const [denied, setDenied] = useState(false);
   const [tab, setTab] = useState<'spaces' | 'types'>('spaces');
   const [blocked, setBlocked] = useState(false);
@@ -86,6 +87,7 @@ function ScopedSpacesWorkspace({
   return (
     <OperationalPage>
       <PageHeader
+        className="pb-4"
         title="Spaces"
         description={
           tab === 'types'
@@ -106,6 +108,7 @@ function ScopedSpacesWorkspace({
               rememberBranch={setSelectedBranchId}
               onReady={ready}
               onAccessDenied={accessDenied}
+              onLoadingChange={setBranchLoading}
               beforeChange={() => guard.current()}
               disabled={blocked}
               compact
@@ -117,7 +120,7 @@ function ScopedSpacesWorkspace({
         <div
           role="tablist"
           aria-label="Spaces workspace"
-          className="mt-6 flex gap-2"
+          className="mt-1 flex flex-wrap items-center gap-1 border-b border-hairline"
         >
           {(['spaces', 'types'] as const).map((value) => (
             <button
@@ -129,9 +132,11 @@ function ScopedSpacesWorkspace({
               aria-controls={`spaces-panel-${value}`}
               tabIndex={tab === value ? 0 : -1}
               disabled={blocked}
-              className={buttonStyles({
-                variant: tab === value ? 'secondary' : 'quiet',
-              })}
+              className={`min-h-11 rounded-none border-b-2 px-3 text-sm font-semibold transition-colors ${
+                tab === value
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-muted hover:text-ink'
+              }`}
               onClick={() => {
                 changeTab(value);
               }}
@@ -185,6 +190,12 @@ function ScopedSpacesWorkspace({
           <p role="alert">
             This branch is unavailable. Choose an accessible branch.
           </p>
+        ) : branchId && branchLoading && !branchName ? (
+          <SpaceContentSkeleton
+            kind="branch"
+            owner={organization.role === 'OWNER'}
+            own={organization.role === 'MERCHANT'}
+          />
         ) : branchId && branchName ? (
           <SpaceManagement
             organizationId={organizationId}

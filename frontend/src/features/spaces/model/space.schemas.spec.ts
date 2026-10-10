@@ -33,16 +33,15 @@ describe('Space validation', () => {
         .success,
     ).toBe(false);
   });
-  it('converts local inputs, permits action defaults, and rejects future/reversed dates', () => {
+  it('converts date inputs, permits action defaults, and rejects future/reversed dates', () => {
     expect(occupancyDates('', '')).toEqual({});
-    expect(
-      occupancyDates('2020-01-01T12:00', '2020-01-02T12:00').endedAt,
-    ).toBeDefined();
-    expect(() => occupancyDates('2099-01-01T00:00', '')).toThrow(
-      'past or present',
+    expect(occupancyDates('2020-01-01', '2020-01-02')).toEqual({
+      startedAt: '2020-01-01T00:00:00.000Z',
+      endedAt: '2020-01-02T00:00:00.000Z',
+    });
+    expect(() => occupancyDates('2099-01-01', '')).toThrow('past or present');
+    expect(() => occupancyDates('2020-01-02', '2020-01-01')).toThrow(
+      'after start',
     );
-    expect(() =>
-      occupancyDates('2020-01-02T12:00', '2020-01-01T12:00'),
-    ).toThrow('after start');
   });
 });

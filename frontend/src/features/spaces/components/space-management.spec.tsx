@@ -27,6 +27,7 @@ import {
   org,
   page,
   space,
+  timestamp,
 } from '../model/space.test-fixtures';
 import { SpaceManagement } from './space-management';
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -99,8 +100,8 @@ beforeEach(() => {
         branchId: branch,
         merchantId: merchant,
         status: 'ACTIVE',
-        createdAt: occupancy.createdAt,
-        updatedAt: occupancy.updatedAt,
+        createdAt: timestamp,
+        updatedAt: timestamp,
         merchant: { ...occupancy.merchant, status: 'ACTIVE' },
         branch: occupancy.branch,
       },
@@ -113,9 +114,15 @@ describe('Space management', () => {
     await screen.findByText('Rack A1');
     fireEvent.click(screen.getByRole('button', { name: 'Add space' }));
     const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByLabelText('Space name')).toHaveFocus();
+    fireEvent.blur(within(dialog).getByLabelText('Space name'));
+    expect(within(dialog).getByText('Enter a space name.')).toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText('Space name'), {
       target: { value: 'Shelf B2' },
     });
+    expect(
+      within(dialog).queryByText('Enter a space name.'),
+    ).not.toBeInTheDocument();
     await waitFor(() =>
       expect(
         within(dialog).getByRole('combobox', { name: 'Space type' }),
@@ -135,11 +142,58 @@ describe('Space management', () => {
       undefined,
     );
   });
+  it('shows a row skeleton while spaces are loading', () => {
+    vi.mocked(listSpaces).mockReturnValueOnce(new Promise(() => undefined));
+    setup();
+    expect(
+      screen.getByRole('status', { name: 'Loading spaces' }),
+    ).toBeInTheDocument();
+  });
+  it('defaults to active spaces and exposes focused row actions', async () => {
+    setup();
+    await screen.findByText('Rack A1');
+    expect(listSpaces).toHaveBeenLastCalledWith(
+      request,
+      org,
+      branch,
+      expect.objectContaining({ page: 1, status: 'ACTIVE' }),
+    );
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Assign' })).toBeInTheDocument();
+    const archive = screen.getByRole('button', { name: 'Archive' });
+    expect(archive).toHaveClass('text-danger');
+    expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute(
+      'href',
+      `/app/organizations/${org}/branches/${branch}/spaces/${space.id}`,
+    );
+  });
+  it('protects a dirty space draft when the dialog is dismissed', async () => {
+    setup();
+    await screen.findByText('Rack A1');
+    fireEvent.click(screen.getByRole('button', { name: 'Add space' }));
+    const dialog = screen.getByRole('dialog');
+    fireEvent.change(within(dialog).getByLabelText('Space name'), {
+      target: { value: 'Unfinished space' },
+    });
+    const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(confirmation).toHaveBeenCalledWith('Discard unsaved space changes?');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    confirmation.mockReturnValue(true);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+    confirmation.mockRestore();
+  });
   it('assigns an affiliated merchant and preserves action-time defaults', async () => {
     setup();
     await screen.findByText('Rack A1');
-    fireEvent.click(screen.getByRole('button', { name: 'Assign space' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
     const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass('max-w-2xl');
+    expect(within(dialog).queryByLabelText('Start date and time')).toBeNull();
+    expect(dialog.querySelector('input[type="date"]')).not.toBeNull();
     await waitFor(() =>
       expect(within(dialog).getByLabelText('Merchant')).toBeEnabled(),
     );
@@ -153,11 +207,29 @@ describe('Space management', () => {
       merchantId: merchant,
     });
   });
+  it('uses an accessible switch for completed past occupancy', async () => {
+    setup();
+    await screen.findByText('Rack A1');
+    fireEvent.click(screen.getByRole('button', { name: 'Assign' }));
+    const dialog = screen.getByRole('dialog');
+    const toggle = within(dialog).getByRole('switch', {
+      name: 'Record a completed past occupancy',
+    });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(dialog.querySelectorAll('input[type="date"]')).toHaveLength(2);
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(dialog.querySelectorAll('input[type="date"]')).toHaveLength(1);
+  });
   it('releases from the merchant profile and loads past occupancy with its reason', async () => {
     setup('OWNER', 'merchant');
     await screen.findByText('Rack A1');
     fireEvent.click(screen.getByRole('button', { name: 'Release space' }));
     const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveClass('max-w-2xl');
+    expect(dialog.querySelector('input[type="date"]')).not.toBeNull();
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Release space' }),
     );
@@ -192,13 +264,16 @@ describe('Space management', () => {
     for (const name of [
       'Add space',
       'Edit space',
-      'Assign space',
-      'Archive space',
+      'Assign',
+      'Archive',
       'Release space',
     ])
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'History' }));
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    const viewLink = screen.getByRole('link', { name: 'View' });
+    expect(viewLink).toHaveAttribute(
+      'href',
+      `/app/organizations/${org}/branches/${branch}/spaces/${space.id}`,
+    );
   });
   it('does not request space data for cashiers', () => {
     setup('CASHIER');
@@ -213,14 +288,12 @@ describe('Space management', () => {
     );
     const view = setup();
     expect(
-      await screen.findByRole('button', { name: 'Archive space' }),
+      await screen.findByRole('button', { name: 'Archive' }),
     ).toBeDisabled();
     view.unmount();
     vi.mocked(listSpaces).mockResolvedValue(page([space]));
     setup();
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Archive space' }),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive' }));
     await screen.findByText('Space archived.');
     expect(confirm).toHaveBeenCalled();
     expect(setSpaceStatus).toHaveBeenCalledWith(
@@ -256,9 +329,7 @@ describe('Space management', () => {
       new Error('Space is occupied'),
     );
     setup();
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Assign space' }),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Assign' }));
     const dialog = screen.getByRole('dialog');
     await waitFor(() =>
       expect(within(dialog).getByLabelText('Merchant')).toBeEnabled(),
@@ -359,7 +430,25 @@ it('creates a missing type inline, preserves the space draft, and selects the ne
   fireEvent.change(screen.getByLabelText('Space name'), {
     target: { value: 'Display A' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Add type' }));
+  expect(
+    screen.getByLabelText('Space name').parentElement?.parentElement,
+  ).toHaveClass('md:col-span-2');
+  expect(
+    screen.getByRole('button', { name: 'Create a new type' }).parentElement,
+  ).toHaveClass('md:grid-cols-[minmax(0,1fr)_auto]');
+  fireEvent.click(screen.getByRole('button', { name: 'Create a new type' }));
+  expect(
+    screen.queryByRole('combobox', { name: 'Space type' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByLabelText('New type name')).toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Discard' }).parentElement,
+  ).toHaveClass('md:grid-cols-[minmax(0,1fr)_auto_auto]');
+  expect(
+    screen.getByText('Available across all branches in this organization.'),
+  ).toBeInTheDocument();
+  fireEvent.blur(screen.getByLabelText('New type name'));
+  expect(screen.getByText('Enter a type name.')).toBeInTheDocument();
   const created = { id: merchant, organizationId: org, name: 'Display' };
   vi.mocked(createSpaceType).mockImplementation(async () => {
     vi.mocked(listSpaceTypes).mockResolvedValue([created]);
@@ -368,6 +457,7 @@ it('creates a missing type inline, preserves the space draft, and selects the ne
   fireEvent.change(screen.getByLabelText('New type name'), {
     target: { value: ' Display ' },
   });
+  expect(screen.queryByText('Enter a type name.')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Save type' }));
   await waitFor(() =>
     expect(
@@ -394,7 +484,7 @@ it('preserves inline type input after a conflict and prevents duplicate type sub
   setup();
   await screen.findByText(space.name);
   fireEvent.click(screen.getByRole('button', { name: 'Add space' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Add type' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Create a new type' }));
   fireEvent.change(screen.getByLabelText('New type name'), {
     target: { value: 'Rack' },
   });
@@ -408,9 +498,7 @@ it('preserves inline type input after a conflict and prevents duplicate type sub
   fireEvent.click(save);
   fireEvent.click(save);
   expect(createSpaceType).toHaveBeenCalledTimes(1);
-  expect(
-    screen.getByRole('button', { name: 'Cancel adding type' }),
-  ).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Discard' })).toBeDisabled();
   await act(async () => reject(new Error('This type already exists.')));
   expect(
     await screen.findByText('This type already exists.'),

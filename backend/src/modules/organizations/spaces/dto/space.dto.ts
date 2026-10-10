@@ -87,6 +87,26 @@ export class ListOccupanciesDto {
   @IsOptional()
   @IsEnum({ CURRENT: 'CURRENT', HISTORY: 'HISTORY' })
   view?: 'CURRENT' | 'HISTORY';
+  @ApiPropertyOptional({ maxLength: 120 })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(120)
+  q?: string;
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'Inclusive lower bound for occupancy-period overlap.',
+  })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  dateFrom?: string;
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'Exclusive upper bound for occupancy-period overlap.',
+  })
+  @IsOptional()
+  @IsDateString({ strict: true })
+  dateTo?: string;
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID('4')

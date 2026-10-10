@@ -282,6 +282,53 @@ describe('Optional branch spaces and occupancy', () => {
         .total,
     ).toBe(3);
   });
+  it('filters history by merchant and overlapping dates and returns the release actor name', async () => {
+    const a = await create(),
+      b = await create();
+    const firstStart = new Date(Date.now() - 5 * 86400000).toISOString();
+    const firstEnd = new Date(Date.now() - 4 * 86400000).toISOString();
+    await spaces.assign(context, branchId, a.id, {
+      merchantId,
+      startedAt: firstStart,
+      endedAt: firstEnd,
+    });
+    await spaces.assign(context, branchId, b.id, {
+      merchantId: secondMerchant,
+      startedAt: new Date(Date.now() - 10 * 86400000).toISOString(),
+      endedAt: new Date(Date.now() - 9 * 86400000).toISOString(),
+    });
+    const history = await spaces.occupancies(
+      context,
+      'space',
+      a.id,
+      {
+        page: 1,
+        view: 'HISTORY',
+        q: 'First',
+        dateFrom: new Date(Date.parse(firstStart) - 1000).toISOString(),
+        dateTo: new Date(Date.parse(firstEnd) + 1000).toISOString(),
+      },
+      branchId,
+    );
+    expect(history.total).toBe(1);
+    expect(history.items[0].releasedBy).toEqual({
+      id: context.userId,
+      name: 'Test User',
+    });
+    await expect(
+      spaces.occupancies(
+        context,
+        'space',
+        a.id,
+        {
+          page: 1,
+          dateFrom: firstEnd,
+          dateTo: firstStart,
+        },
+        branchId,
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+  });
   it('rejects future, reversed, timezone-less and null dates', async () => {
     const a = await create();
     for (const dates of [
@@ -644,9 +691,16 @@ describe('Optional branch spaces and occupancy', () => {
         startedAt: { format: 'date-time' },
         endedAt: { nullable: true },
         releaseReason: { nullable: true },
+        releasedBy: { nullable: true },
         space: expect.any(Object) as object,
       },
     });
+    expect(
+      document.components?.schemas?.SpaceOccupancyResponseDto?.properties,
+    ).not.toHaveProperty('createdAt');
+    expect(
+      document.components?.schemas?.SpaceOccupancyResponseDto?.properties,
+    ).not.toHaveProperty('updatedAt');
   });
   it('prevents concurrent archiving from leaving an archived space occupied', async () => {
     const a = await create();
