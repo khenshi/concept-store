@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 
 import {
   useEffect,
@@ -24,11 +25,13 @@ import type { InventoryScope } from '../model/inventory.types';
 
 export function InventoryPlacementForm({
   scope,
+  ownerCanAssign = false,
   onSaved,
   onCancel,
   onPendingChange,
 }: {
   scope: InventoryScope;
+  ownerCanAssign?: boolean;
   onSaved(): void;
   onCancel(): void;
   onPendingChange(pending: boolean): void;
@@ -205,6 +208,17 @@ export function InventoryPlacementForm({
   }
   return (
     <form className="mt-6 grid gap-5" noValidate onSubmit={submit}>
+      {ownerCanAssign && (
+        <p className="text-sm text-muted">
+          Products require active merchant participation in this branch.{' '}
+          <Link
+            href={`/app/organizations/${scope.organizationId}/branches/${scope.branchId}`}
+          >
+            Manage merchant assignments
+          </Link>
+          .
+        </p>
+      )}
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}

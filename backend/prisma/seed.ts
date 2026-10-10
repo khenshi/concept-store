@@ -283,6 +283,25 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
         },
       ],
     });
+    await tx.merchantBranch.createMany({
+      data: [
+        {
+          organizationId: ids.organization,
+          merchantId: ids.merchants.active,
+          branchId: ids.branches.makati,
+        },
+        {
+          organizationId: ids.organization,
+          merchantId: ids.merchants.active,
+          branchId: ids.branches.bgc,
+        },
+        {
+          organizationId: ids.organization,
+          merchantId: ids.merchants.secondActive,
+          branchId: ids.branches.makati,
+        },
+      ],
+    });
     await tx.branchInventory.createMany({
       data: [
         {
@@ -290,6 +309,7 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
           organizationId: ids.organization,
           branchId: ids.branches.makati,
           productId: ids.products.vase,
+          merchantId: ids.merchants.active,
           sellingPrice: '850.00',
         },
         {
@@ -297,6 +317,7 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
           organizationId: ids.organization,
           branchId: ids.branches.bgc,
           productId: ids.products.vase,
+          merchantId: ids.merchants.active,
           sellingPrice: '925.50',
         },
         {
@@ -304,6 +325,7 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
           organizationId: ids.organization,
           branchId: ids.branches.makati,
           productId: ids.products.tray,
+          merchantId: ids.merchants.active,
           sellingPrice: '450.00',
         },
         {
@@ -311,6 +333,7 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
           organizationId: ids.organization,
           branchId: ids.branches.makati,
           productId: ids.products.inactive,
+          merchantId: ids.merchants.active,
           sellingPrice: '600.00',
         },
         {
@@ -318,6 +341,7 @@ async function seedProductInventory(prisma: PrismaClient): Promise<void> {
           organizationId: ids.organization,
           branchId: ids.branches.makati,
           productId: ids.products.pouch,
+          merchantId: ids.merchants.secondActive,
           sellingPrice: '250.00',
         },
       ],
@@ -579,9 +603,7 @@ async function seedSales(prisma: PrismaClient): Promise<void> {
         paymentReference: null,
         total: saleItem.unitPrice,
         refundCommand: {
-          items: [
-            { saleItemId: saleItem.id, quantity: 1, restockQuantity: 1 },
-          ],
+          items: [{ saleItemId: saleItem.id, quantity: 1, restockQuantity: 1 }],
           reason: 'Demo customer return',
           paymentMethod: SalePaymentMethod.CASH,
           refundConfirmed: true,

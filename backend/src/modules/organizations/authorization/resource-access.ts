@@ -12,14 +12,7 @@ export function branchScope(
   if (!merchantId) return { organizationId, id: { in: [] } };
   return {
     organizationId,
-    OR: [
-      assigned,
-      {
-        inventory: {
-          some: { organizationId, product: { organizationId, merchantId } },
-        },
-      },
-    ],
+    merchants: { some: { organizationId, merchantId } },
   };
 }
 
@@ -31,10 +24,12 @@ export function productScope(
   if (role === OrganizationRole.MANAGER)
     return {
       organizationId,
-      inventory: {
-        some: {
-          organizationId,
-          branch: { memberships: { some: { organizationId, userId } } },
+      merchant: {
+        branches: {
+          some: {
+            organizationId,
+            branch: { memberships: { some: { organizationId, userId } } },
+          },
         },
       },
     };
@@ -52,7 +47,17 @@ export function merchantScope(
   const { organizationId, role, merchantId } = context;
   if (role === OrganizationRole.OWNER) return { organizationId };
   if (role === OrganizationRole.MANAGER)
-    return { organizationId, products: { some: productScope(context) } };
+    return {
+      organizationId,
+      branches: {
+        some: {
+          organizationId,
+          branch: {
+            memberships: { some: { organizationId, userId: context.userId } },
+          },
+        },
+      },
+    };
   return {
     organizationId,
     id:

@@ -706,6 +706,20 @@ function ScopedBranchPos({
       setNotice(
         `${issue.message}. Review quantities or remove the unavailable line. No sale was recorded.`,
       );
+    } else if (issue.code === 'MERCHANT_BRANCH_INACTIVE') {
+      commitCart(
+        cartRef.current.map((line) => ({
+          ...line,
+          product: {
+            ...line.product,
+            eligible: false,
+            participationStatus: 'INACTIVE',
+          },
+          error:
+            'Branch participation changed. Refresh the catalog and remove unavailable lines before selling.',
+        })),
+      );
+      setNotice(`${issue.message}. No sale was recorded.`);
     } else if (issue.code === 'PRODUCT_UNAVAILABLE' && id) {
       commitCart(
         cartRef.current.map((line) =>
@@ -1062,7 +1076,11 @@ function ScopedBranchPos({
                     </p>
                     <p className="mt-1 tabular-nums">
                       PHP {product.sellingPrice} · {product.quantity} units
-                      {!product.eligible ? ' · Out of stock' : ''}
+                      {!product.eligible
+                        ? product.participationStatus === 'INACTIVE'
+                          ? ' · Branch participation inactive'
+                          : ' · Out of stock'
+                        : ''}
                     </p>
                   </div>
                   <Button

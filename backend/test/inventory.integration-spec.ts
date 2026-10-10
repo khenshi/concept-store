@@ -1,3 +1,9 @@
+import {
+  fixtureInventory,
+  fixtureInventoryMany,
+  fixturePlace,
+  fixtureProduct,
+} from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -80,8 +86,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     });
     const invitation = await invites.create(organizationId, actor, {
       email: recipient.email,
-      role: 'MERCHANT',
-      merchantId,
+      role: 'MANAGER',
       branchIds: [branchId],
     });
     // Trigger exists only in this run's isolated schema; fail the actual grant write.
@@ -242,8 +247,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     });
     const invitation = await invites.create(organizationId, actor, {
       email: recipient.email,
-      role: 'MERCHANT',
-      merchantId,
+      role: 'MANAGER',
       branchIds: [branchId, otherBranchId],
     });
     const results = await Promise.allSettled(
@@ -354,14 +358,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       manager,
     );
     expect(summary).not.toHaveProperty('contactName');
-    const unplaced = await products.create(organizationId, {
+    const unplaced = await fixtureProduct(products, prisma, organizationId, {
       merchantId,
       name: 'Unplaced',
     });
     await expect(
       products.findOne(organizationId, unplaced.id, manager),
-    ).rejects.toThrow();
-    await inventory.create(
+    ).resolves.toMatchObject({ id: unplaced.id });
+    await fixturePlace(
+      inventory,
+      prisma,
       organizationId,
       otherBranchId,
       {
@@ -403,11 +409,18 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         phone: '09171234567',
       },
     });
-    const otherProduct = await products.create(organizationId, {
-      merchantId: otherMerchant.id,
-      name: 'Other product',
-    });
-    const hidden = await inventory.create(
+    const otherProduct = await fixtureProduct(
+      products,
+      prisma,
+      organizationId,
+      {
+        merchantId: otherMerchant.id,
+        name: 'Other product',
+      },
+    );
+    const hidden = await fixturePlace(
+      inventory,
+      prisma,
       organizationId,
       branchId,
       {
@@ -482,9 +495,8 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       email: recipient.email,
       role: 'MERCHANT',
       merchantId,
-      branchIds: [branchId, otherBranchId],
     });
-    expect(created.invitation.branches).toHaveLength(2);
+    expect(created.invitation.branches).toHaveLength(0);
     expect(await invites.preview(created.token)).not.toHaveProperty(
       'merchantId',
     );
@@ -500,12 +512,11 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       await prisma.branchMembership.count({
         where: { organizationId, userId: recipient.id },
       }),
-    ).toBe(2);
+    ).toBe(0);
     await expect(invites.accept(created.token, recipient)).rejects.toThrow();
     const revoked = await invites.create(organizationId, actor, {
       email: `${randomUUID()}@example.test`,
       role: 'CASHIER',
-      branchIds: [branchId],
     });
     await invites.revoke(organizationId, revoked.invitation.id);
     await expect(invites.accept(revoked.token, recipient)).rejects.toThrow();
@@ -523,7 +534,6 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       email,
       role: 'MERCHANT',
       merchantId,
-      branchIds: [branchId],
     });
     await expect(
       invites.accept(created.token, { id: randomUUID(), email }),
@@ -597,7 +607,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       await prisma.branch.create({ data: { ...branchData, name: 'Second' } })
     ).id;
     productId = (
-      await products.create(organizationId, {
+      await fixtureProduct(products, prisma, organizationId, {
         merchantId,
         name: 'Product',
         sku: 'SKU',
@@ -605,7 +615,9 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       })
     ).id;
     inventoryId = (
-      await inventory.create(
+      await fixturePlace(
+        inventory,
+        prisma,
         organizationId,
         branchId,
         {
@@ -630,12 +642,14 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       data: placements[0],
     });
     for (const [index, state] of placements.slice(1).entries()) {
-      const product = await products.create(organizationId, {
+      const product = await fixtureProduct(products, prisma, organizationId, {
         merchantId,
         name: `Boundary ${index}`,
         sku: randomUUID(),
       });
-      const placed = await inventory.create(
+      const placed = await fixturePlace(
+        inventory,
+        prisma,
         organizationId,
         branchId,
         {
@@ -677,12 +691,14 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     const owner = { organizationId, userId, role: 'OWNER' as const };
     const names = ['Alpha', 'Bravo', 'Charlie'];
     for (const name of names) {
-      const product = await products.create(organizationId, {
+      const product = await fixtureProduct(products, prisma, organizationId, {
         merchantId,
         name,
         sku: randomUUID(),
       });
-      await inventory.create(
+      await fixturePlace(
+        inventory,
+        prisma,
         organizationId,
         branchId,
         {
@@ -701,7 +717,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       sku: `PAGE-${randomUUID()}`,
     }));
     await prisma.product.createMany({ data: bulkProducts });
-    await prisma.branchInventory.createMany({
+    await fixtureInventoryMany(prisma, {
       data: bulkProducts.map((product) => ({
         organizationId,
         branchId,
@@ -748,12 +764,19 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         data: { organizationId, branchId: id, userId },
       });
     const manager = { organizationId, userId, role: 'MANAGER' as const };
-    const otherProduct = await products.create(organizationId, {
-      merchantId,
-      name: 'Eligible elsewhere',
-      sku: randomUUID(),
-    });
-    await inventory.create(
+    const otherProduct = await fixtureProduct(
+      products,
+      prisma,
+      organizationId,
+      {
+        merchantId,
+        name: 'Eligible elsewhere',
+        sku: randomUUID(),
+      },
+    );
+    await fixturePlace(
+      inventory,
+      prisma,
       organizationId,
       otherBranchId,
       {
@@ -763,7 +786,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       },
       userId,
     );
-    const unplaced = await products.create(organizationId, {
+    const unplaced = await fixtureProduct(products, prisma, organizationId, {
       merchantId,
       name: 'Unplaced',
       sku: randomUUID(),
@@ -860,7 +883,9 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         (a, b) => b - a,
       ),
     );
-    const other = await inventory.create(
+    const other = await fixturePlace(
+      inventory,
+      prisma,
       organizationId,
       otherBranchId,
       {
@@ -920,13 +945,20 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         phone: '09171234567',
       },
     });
-    const otherProduct = await products.create(organizationId, {
-      merchantId: otherMerchant.id,
-      name: 'Other product',
-      sku: 'OTHER-SKU',
-      barcode: 'OTHER-BARCODE',
-    });
-    const otherInventory = await inventory.create(
+    const otherProduct = await fixtureProduct(
+      products,
+      prisma,
+      organizationId,
+      {
+        merchantId: otherMerchant.id,
+        name: 'Other product',
+        sku: 'OTHER-SKU',
+        barcode: 'OTHER-BARCODE',
+      },
+    );
+    const otherInventory = await fixturePlace(
+      inventory,
+      prisma,
       organizationId,
       branchId,
       {
@@ -1084,12 +1116,19 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     await prisma.branchMembership.create({
       data: { organizationId, userId, branchId },
     });
-    const anotherProduct = await products.create(organizationId, {
-      merchantId,
-      name: 'Second product',
-      sku: randomUUID(),
-    });
-    const another = await inventory.create(
+    const anotherProduct = await fixtureProduct(
+      products,
+      prisma,
+      organizationId,
+      {
+        merchantId,
+        name: 'Second product',
+        sku: randomUUID(),
+      },
+    );
+    const another = await fixturePlace(
+      inventory,
+      prisma,
       organizationId,
       branchId,
       {
@@ -1099,7 +1138,9 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       },
       userId,
     );
-    const otherPlacement = await inventory.create(
+    const otherPlacement = await fixturePlace(
+      inventory,
+      prisma,
       organizationId,
       otherBranchId,
       {
@@ -1153,7 +1194,9 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
   });
 
   it('keeps branch prices and quantities independent', async () => {
-    const second = await inventory.create(
+    const second = await fixturePlace(
+      inventory,
+      prisma,
       organizationId,
       otherBranchId,
       {
@@ -1202,10 +1245,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       role: 'MERCHANT',
       merchantId,
     });
-    expect(await memberships.findBranches(organizationId, userId)).toEqual([]);
+    expect(await memberships.findBranches(organizationId, userId)).toEqual([
+      expect.objectContaining({ id: branchId }),
+    ]);
     await memberships.setMerchant(organizationId, userId, merchantId);
-    await memberships.setBranch(organizationId, userId, branchId, false);
-    await memberships.setBranch(organizationId, userId, branchId, true);
+    await expect(
+      memberships.setBranch(organizationId, userId, branchId, false),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      memberships.setBranch(organizationId, userId, branchId, true),
+    ).rejects.toMatchObject({ status: 409 });
     await memberships.remove(organizationId, userId);
     expect(
       await prisma.branchMembership.count({
@@ -1470,7 +1519,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       },
     });
     await expect(
-      products.create(foreign.id, {
+      fixtureProduct(products, prisma, foreign.id, {
         merchantId: foreignMerchant.id,
         name: 'Other',
         sku: 'SKU',
@@ -1498,7 +1547,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       }),
     ).rejects.toThrow();
     await expect(
-      prisma.branchInventory.create({
+      fixtureInventory(prisma, {
         data: {
           organizationId: foreign.id,
           branchId,
@@ -1508,14 +1557,16 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       }),
     ).rejects.toThrow();
     await expect(
-      products.create(organizationId, {
+      fixtureProduct(products, prisma, organizationId, {
         merchantId,
         name: 'Duplicate',
         sku: 'SKU',
       }),
     ).rejects.toThrow('already exists');
     await expect(
-      inventory.create(
+      fixturePlace(
+        inventory,
+        prisma,
         organizationId,
         branchId,
         {

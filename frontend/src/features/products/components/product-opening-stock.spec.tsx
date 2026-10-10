@@ -6,7 +6,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
-import { listBranches } from '@/features/branches/api/branch-api';
+import { listActiveMerchantBranches } from '@/features/merchant-branches/api/merchant-branch-api';
 import { createProduct } from '../api/product-api';
 import {
   merchant,
@@ -17,8 +17,8 @@ import {
 import { ProductForm } from './product-form';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
-vi.mock('@/features/branches/api/branch-api', () => ({
-  listBranches: vi.fn(),
+vi.mock('@/features/merchant-branches/api/merchant-branch-api', () => ({
+  listActiveMerchantBranches: vi.fn(),
 }));
 vi.mock('../api/product-api', () => ({
   createProduct: vi.fn(),
@@ -32,7 +32,7 @@ describe('Optional new-product opening stock', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(useAuth).mockReturnValue({ request } as never);
-    vi.mocked(listBranches).mockResolvedValue([placement.branch]);
+    vi.mocked(listActiveMerchantBranches).mockResolvedValue([placement.branch]);
     vi.mocked(createProduct).mockResolvedValue(product);
   });
   afterEach(() => vi.useRealTimers());
@@ -88,7 +88,7 @@ describe('Optional new-product opening stock', () => {
       sku: null,
       barcode: null,
     });
-    expect(listBranches).not.toHaveBeenCalled();
+    expect(listActiveMerchantBranches).not.toHaveBeenCalled();
   });
   it('requires explicit selection even with one branch and focuses the invalid branch', async () => {
     setup();
@@ -124,10 +124,15 @@ describe('Optional new-product opening stock', () => {
       },
     });
     expect(createProduct).toHaveBeenCalledTimes(1);
-    expect(listBranches).toHaveBeenCalledWith(request, organizationId, 'OWNER');
+    expect(listActiveMerchantBranches).toHaveBeenCalledWith(
+      request,
+      organizationId,
+      merchant.id,
+    );
   });
   it('validates quantity and price on input after 300ms and immediately on blur', async () => {
     setup();
+    identity();
     await opening();
     vi.useFakeTimers();
     const quantity = screen.getByRole('textbox', {
@@ -177,7 +182,7 @@ describe('Optional new-product opening stock', () => {
     );
   });
   it('blocks enabled creation during branch loading and after read failure, with read-only retry', async () => {
-    vi.mocked(listBranches)
+    vi.mocked(listActiveMerchantBranches)
       .mockRejectedValueOnce(new Error('Offline'))
       .mockResolvedValueOnce([placement.branch]);
     setup();
@@ -199,10 +204,12 @@ describe('Optional new-product opening stock', () => {
     expect(createProduct).not.toHaveBeenCalled();
   });
   it('explains an empty branch directory without falling back to product-only creation', async () => {
-    vi.mocked(listBranches).mockResolvedValue([]);
+    vi.mocked(listActiveMerchantBranches).mockResolvedValue([]);
     setup();
     fireEvent.click(screen.getByRole('checkbox'));
-    await screen.findByText('Add a branch before adding initial stock.');
+    await screen.findByText(
+      'Assign an active branch to this merchant before adding initial stock.',
+    );
     expect(
       screen.getByRole('button', { name: 'Create product' }),
     ).toBeDisabled();
@@ -210,7 +217,7 @@ describe('Optional new-product opening stock', () => {
   });
   it('ignores branch results after the opening section is disabled', async () => {
     let resolve!: (value: (typeof placement.branch)[]) => void;
-    vi.mocked(listBranches).mockReturnValueOnce(
+    vi.mocked(listActiveMerchantBranches).mockReturnValueOnce(
       new Promise((done) => {
         resolve = done;
       }),
@@ -297,6 +304,6 @@ describe('Optional new-product opening stock', () => {
       />,
     );
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(listBranches).not.toHaveBeenCalled();
+    expect(listActiveMerchantBranches).not.toHaveBeenCalled();
   });
 });

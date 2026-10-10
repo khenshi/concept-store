@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
-import { listBranches } from '@/features/branches/api/branch-api';
+import { listActiveMerchantBranches } from '@/features/merchant-branches/api/merchant-branch-api';
+import Link from 'next/link';
 import type { BranchView } from '@/features/branches/model/branch.types';
 import { buttonStyles } from '@/shared/components/ui/button';
 import {
@@ -48,6 +49,9 @@ export function ProductForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [openingEnabled, setOpeningEnabled] = useState(false);
+  const [selectedMerchantId, setSelectedMerchantId] = useState(
+    product?.merchantId ?? '',
+  );
   const [branches, setBranches] = useState<BranchView[]>([]);
   const [branchState, setBranchState] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -62,7 +66,19 @@ export function ProductForm({
   useEffect(() => {
     if (product || !openingEnabled) return;
     let active = true;
-    void listBranches(request, organizationId, 'OWNER')
+    void Promise.resolve()
+      .then(async () => {
+        if (active) {
+          setBranches([]);
+          setBranchState('loading');
+        }
+        if (!selectedMerchantId) return [];
+        return listActiveMerchantBranches(
+          request,
+          organizationId,
+          selectedMerchantId,
+        );
+      })
       .then((items) => {
         if (active) {
           setBranches(items);
@@ -78,7 +94,14 @@ export function ProductForm({
     return () => {
       active = false;
     };
-  }, [request, organizationId, product, openingEnabled, branchRevision]);
+  }, [
+    request,
+    organizationId,
+    product,
+    openingEnabled,
+    branchRevision,
+    selectedMerchantId,
+  ]);
   useEffect(() => {
     if (!disabled) return;
     const beforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -282,7 +305,12 @@ export function ProductForm({
             disabled={disabled}
             aria-invalid={Boolean(errors.merchantId)}
             aria-describedby="product-merchant-hint"
-            onValueChange={() => validate('merchantId')}
+            onValueChange={(value) => {
+              setSelectedMerchantId(value);
+              const field = formRef.current?.elements.namedItem('branchId');
+              if (field instanceof HTMLSelectElement) field.value = '';
+              validate('merchantId');
+            }}
           >
             <option value="">Choose an active merchant</option>
             {activeMerchants.map((merchant) => (
@@ -394,6 +422,20 @@ export function ProductForm({
                     </option>
                   ))}
                 </SelectControl>
+                {selectedMerchantId &&
+                  branchState === 'ready' &&
+                  branches.length === 0 && (
+                    <p className="text-sm text-muted">
+                      No active branch participation.{' '}
+                      <Link
+                        href={`/app/organizations/${organizationId}/merchants/${selectedMerchantId}`}
+                      >
+                        Assign a branch on the merchant profile
+                      </Link>
+                      .
+                    </p>
+                  )}
+
                 <p
                   id="product-opening-branch-hint"
                   className={`text-xs ${errors.branchId || branchState === 'error' ? 'text-danger' : 'text-muted'}`}
@@ -405,7 +447,7 @@ export function ProductForm({
                       : branchState === 'error'
                         ? 'Branches could not be loaded. Retry before adding initial stock.'
                         : !branches.length
-                          ? 'Add a branch before adding initial stock.'
+                          ? 'Assign an active branch to this merchant before adding initial stock.'
                           : 'Explicitly choose where this product will be stocked.')}
                 </p>
                 {branchState === 'error' ? (

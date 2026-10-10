@@ -32,6 +32,10 @@ export function addPosProduct(
   lines: PosCartLine[],
   product: PosProduct,
 ): PosCartLine[] {
+  if (product.participationStatus === 'INACTIVE')
+    throw new Error(
+      `${product.merchantName} is inactive in this branch. Selling is unavailable.`,
+    );
   if (!product.eligible || product.quantity === 0)
     throw new Error(`${product.name} is out of stock.`);
   if (

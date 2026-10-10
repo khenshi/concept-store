@@ -62,6 +62,10 @@ export class OrganizationInvitationsService {
         throw new BadRequestException(
           'MERCHANT invitation requires merchantId',
         );
+      if (dto.role === OrganizationRole.MERCHANT && dto.branchIds?.length)
+        throw new BadRequestException(
+          'Merchant invitations inherit profile affiliations; branchIds must be empty',
+        );
       if (dto.merchantId) {
         const merchant = await transaction.merchant.findUnique({
           where: { id_organizationId: { id: dto.merchantId, organizationId } },
@@ -230,7 +234,10 @@ export class OrganizationInvitationsService {
               role: invitation.role,
               merchantId: invitation.merchantId ?? null,
               branches: {
-                create: invitation.branches.map(({ branchId }) => ({
+                create: (invitation.role === OrganizationRole.MERCHANT
+                  ? []
+                  : invitation.branches
+                ).map(({ branchId }) => ({
                   branchId,
                 })),
               },

@@ -23,6 +23,7 @@ describe('InventoryStockService', () => {
     requestId: 'request',
   };
   const tx = {
+    $queryRaw: jest.fn(),
     branchInventory: {
       findUnique: jest.fn(),
       updateMany: jest.fn(),
@@ -40,11 +41,15 @@ describe('InventoryStockService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    tx.$queryRaw.mockResolvedValue([
+      { merchantId: 'merchant', status: 'ACTIVE' },
+    ]);
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
     );
     tx.branchInventory.findUnique.mockResolvedValue({
       id: 'inventory',
+      merchantId: 'merchant',
       quantity: 5,
       product: { status: 'ACTIVE', merchant: { status: 'ACTIVE' } },
     });

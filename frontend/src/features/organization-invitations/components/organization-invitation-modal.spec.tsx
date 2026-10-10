@@ -77,7 +77,7 @@ it('validates email after input debounce and immediately on blur', async () => {
   );
 });
 
-it('includes selected branch and merchant grants on merchant invitations', async () => {
+it('merchant invitations inherit profile branches without individual grants', async () => {
   const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   vi.mocked(loadMemberAccessOptions).mockResolvedValue({
     branches: [{ id, name: 'Makati', code: null }],
@@ -111,13 +111,12 @@ it('includes selected branch and merchant grants on merchant invitations', async
   fireEvent.click(screen.getByRole('option', { name: 'Merchant' }));
   fireEvent.click(screen.getByRole('combobox', { name: 'Merchant profile' }));
   fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
-  fireEvent.click(screen.getByLabelText('Makati'));
+  expect(screen.queryByLabelText('Makati')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Create invitation' }));
   await screen.findByRole('heading', { name: 'Invitation ready' });
   expect(createOrganizationInvitation).toHaveBeenCalledWith(request, 'org', {
     email: 'merchant@example.test',
     role: 'MERCHANT',
-    branchIds: [id],
     merchantId: id,
   });
 });

@@ -28,7 +28,7 @@ describe('create organization invitation schema', () => {
       createOrganizationInvitationSchema.safeParse({
         ...input,
         merchantId: id,
-        branchIds: [id],
+        branchIds: [],
       }).success,
     ).toBe(true);
     expect(
@@ -42,7 +42,7 @@ describe('create organization invitation schema', () => {
       createOrganizationInvitationSchema.safeParse({
         ...input,
         merchantId: id,
-        branchIds: [id, id],
+        branchIds: [id],
       }).success,
     ).toBe(false);
     expect(

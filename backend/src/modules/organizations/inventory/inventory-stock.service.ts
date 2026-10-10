@@ -1,3 +1,4 @@
+import { requireActiveParticipation } from '../merchant-branches/merchant-branch-participation';
 import {
   BadRequestException,
   ConflictException,
@@ -91,6 +92,7 @@ export class InventoryStockService {
             select: {
               id: true,
               quantity: true,
+              merchantId: true,
               product: {
                 select: {
                   status: true,
@@ -112,6 +114,10 @@ export class InventoryStockService {
             },
           });
           if (original) return this.resolveReplay(original, command);
+          if (command.type === InventoryMovementType.RECEIPT)
+            await requireActiveParticipation(tx, organizationId, branchId, [
+              inventory.merchantId,
+            ]);
 
           const delta =
             command.targetQuantity === undefined

@@ -20,7 +20,7 @@ describe('Resource query scopes', () => {
       memberships: { some: base },
     });
     expect(JSON.stringify(productScope(context))).toContain('memberships');
-    expect(JSON.stringify(merchantScope(context))).toContain('products');
+    expect(JSON.stringify(merchantScope(context))).toContain('branches');
     expect(JSON.stringify(inventoryScope(context))).not.toContain('status');
     expect(JSON.stringify(inventoryScope(context))).not.toContain('quantity');
   });

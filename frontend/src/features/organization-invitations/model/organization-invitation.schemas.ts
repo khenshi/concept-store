@@ -42,6 +42,13 @@ export const createOrganizationInvitationSchema = z
     merchantId: z.uuidv4('Choose a merchant profile.').optional(),
   })
   .superRefine((value, context) => {
+    if (value.role === 'MERCHANT' && value.branchIds?.length)
+      context.addIssue({
+        code: 'custom',
+        path: ['branchIds'],
+        message:
+          'Merchant users inherit profile affiliations; individual branch grants are not supported.',
+      });
     if (value.role === 'MERCHANT' && !value.merchantId)
       context.addIssue({
         code: 'custom',

@@ -1,4 +1,7 @@
 'use client';
+import { occupiedSpaceCount } from '@/features/spaces/api/space-api';
+import { SpaceManagement } from '@/features/spaces/components/space-management';
+import { MerchantBranchManagement } from '@/features/merchant-branches/components/merchant-branch-management';
 
 import { useEffect, useRef, useState } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
@@ -51,6 +54,7 @@ function ScopedMerchantProfile({
   const [changingStatus, setChangingStatus] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [spaceRevision, setSpaceRevision] = useState(0);
   const [revision, setRevision] = useState(0);
   const load = () => setRevision((value) => value + 1);
   const statusLock = useRef(false);
@@ -101,10 +105,14 @@ function ScopedMerchantProfile({
       return;
     statusLock.current = true;
     try {
+      setChangingStatus(true);
+      const occupied =
+        status === 'ACTIVE'
+          ? 0
+          : await occupiedSpaceCount(request, organizationId, merchant.id);
       const accepted = await confirm({
         title: `Change ${merchant.name} to ${status.toLowerCase()}?`,
-        description:
-          'This changes the merchant lifecycle state but preserves the profile and its history.',
+        description: `This changes the merchant lifecycle state and preserves history.${status !== 'ACTIVE' ? ` All ${occupied} occupied spaces across branches will be released.` : ' Previous space assignments will not be restored.'}`,
         confirmLabel: 'Change status',
         tone:
           status === 'ENDED' || status === 'SUSPENDED' ? 'danger' : 'primary',
@@ -119,6 +127,7 @@ function ScopedMerchantProfile({
         status,
       );
       setMerchant(saved);
+      setSpaceRevision((value) => value + 1);
       setSuccess(`${saved.name} is now ${saved.status.toLowerCase()}.`);
     } catch (cause: unknown) {
       setError(
@@ -303,6 +312,18 @@ function ScopedMerchantProfile({
           </div>
         </section>
       ) : null}
+      <MerchantBranchManagement
+        organizationId={organizationId}
+        kind="merchant"
+        id={merchantId}
+        onChanged={() => setSpaceRevision((value) => value + 1)}
+      />
+      <SpaceManagement
+        organizationId={organizationId}
+        kind="merchant"
+        id={merchantId}
+        revision={spaceRevision}
+      />
       {confirmationDialog}
     </section>
   );

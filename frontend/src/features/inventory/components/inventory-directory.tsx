@@ -480,6 +480,9 @@ function ScopedInventoryDirectory({
                   </div>
                   <span className="min-w-0 break-words text-sm text-muted">
                     {item.product.sku ?? 'Not set'}
+                    {item.participationStatus === 'INACTIVE'
+                      ? ' · Branch participation inactive'
+                      : ''}
                   </span>
                   <span className="text-sm tabular-nums">
                     PHP {item.sellingPrice}
@@ -505,7 +508,14 @@ function ScopedInventoryDirectory({
                           variant: 'quiet',
                           className: 'min-h-9 px-2 py-1 text-xs',
                         })}
-                        disabled={pending}
+                        disabled={
+                          pending || item.participationStatus === 'INACTIVE'
+                        }
+                        title={
+                          item.participationStatus === 'INACTIVE'
+                            ? 'Receiving is disabled while branch participation is inactive'
+                            : undefined
+                        }
                         onClick={() => {
                           dirty.current = false;
                           setSuccess(null);
@@ -622,6 +632,7 @@ function ScopedInventoryDirectory({
             }
           >
             <InventoryPlacementForm
+              ownerCanAssign={organization?.role === 'OWNER'}
               scope={{ organizationId, branchId }}
               onPendingChange={setPending}
               onCancel={() => {

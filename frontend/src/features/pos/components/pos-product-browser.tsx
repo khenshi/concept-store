@@ -159,7 +159,9 @@ export function PosProductBrowser({
                     <span className="ml-2 text-xs text-muted">
                       {product.eligible
                         ? `${product.quantity} available`
-                        : 'Out of stock'}
+                        : product.participationStatus === 'INACTIVE'
+                          ? 'Branch participation inactive'
+                          : 'Out of stock'}
                     </span>
                   </p>
                 </div>

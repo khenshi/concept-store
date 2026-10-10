@@ -146,6 +146,7 @@ export class MerchantsController {
       organization.organizationId,
       merchantId,
       dto,
+      organization.userId,
     );
   }
 }

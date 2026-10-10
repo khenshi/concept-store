@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -146,7 +147,7 @@ describe('OrganizationInvitationsService', () => {
         merchantId: invitation.id,
         branchIds: [invitation.id],
       }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(BadRequestException);
     transaction.branch.count.mockResolvedValue(1);
     transaction.organizationMembership.findFirst.mockResolvedValue(null);
     transaction.organizationInvitation.create.mockResolvedValue(invitation);
@@ -154,13 +155,13 @@ describe('OrganizationInvitationsService', () => {
       email: user.email,
       role: 'MERCHANT',
       merchantId: invitation.id,
-      branchIds: [invitation.id],
+      branchIds: [],
     });
     expect(transaction.organizationInvitation.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           merchantId: invitation.id,
-          branches: { create: [{ branchId: invitation.id }] },
+          branches: { create: [] },
         }) as unknown,
       }),
     );
@@ -193,7 +194,7 @@ describe('OrganizationInvitationsService', () => {
         userId: user.id,
         role: 'MERCHANT',
         merchantId: invitation.id,
-        branches: { create: [{ branchId: invitation.id }] },
+        branches: { create: [] },
       },
     });
   });

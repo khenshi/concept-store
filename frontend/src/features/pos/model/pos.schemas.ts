@@ -29,9 +29,12 @@ export const posProductSchema = z
     sellingPrice: z.string().regex(/^(?=.*[1-9])\d{1,10}\.\d{2}$/),
     quantity: z.number().int().min(0).max(2147483647),
     eligible: z.boolean(),
+    participationStatus: z.enum(['ACTIVE', 'INACTIVE']),
   })
   .refine(
-    (row) => row.eligible === row.quantity > 0,
+    (row) =>
+      row.eligible ===
+      (row.quantity > 0 && row.participationStatus === 'ACTIVE'),
     'Stock eligibility is inconsistent.',
   );
 const distinct = (rows: z.infer<typeof posProductSchema>[]) =>

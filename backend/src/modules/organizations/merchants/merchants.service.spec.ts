@@ -31,6 +31,10 @@ describe('MerchantsService', () => {
     phone: merchant.phone,
   };
   const prisma = {
+    $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
+    organizationMembership: { findFirst: jest.fn() },
+    spaceOccupancy: { findMany: jest.fn(), updateMany: jest.fn() },
     merchant: {
       create: jest.fn(),
       findMany: jest.fn(),
@@ -42,6 +46,14 @@ describe('MerchantsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation((work: (tx: unknown) => unknown) =>
+      work(prisma),
+    );
+    prisma.$queryRaw.mockResolvedValue([{ id: merchantId, status: 'ACTIVE' }]);
+    prisma.organizationMembership.findFirst.mockResolvedValue({
+      role: 'OWNER',
+    });
+    prisma.spaceOccupancy.findMany.mockResolvedValue([]);
     const moduleRef = await Test.createTestingModule({
       providers: [
         MerchantsService,
@@ -144,10 +156,23 @@ describe('MerchantsService', () => {
     });
 
     await expect(
-      service.updateStatus(organizationId, merchantId, {
-        status: MerchantStatus.SUSPENDED,
-      }),
+      service.updateStatus(
+        organizationId,
+        merchantId,
+        {
+          status: MerchantStatus.SUSPENDED,
+        },
+        'owner-id',
+      ),
     ).resolves.toMatchObject({ status: MerchantStatus.SUSPENDED });
+    expect(prisma.spaceOccupancy.updateMany).toHaveBeenCalledWith({
+      where: { organizationId, merchantId, endedAt: null },
+      data: {
+        endedAt: expect.any(Date) as Date,
+        releasedById: 'owner-id',
+        releaseReason: 'MERCHANT_SUSPENDED',
+      },
+    });
     expect(prisma.merchant.update).toHaveBeenCalledWith({
       where: { id: merchantId, organizationId },
       data: { status: MerchantStatus.SUSPENDED },

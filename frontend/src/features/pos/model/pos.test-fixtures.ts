@@ -13,6 +13,7 @@ export const product: PosProduct = {
   merchantName: 'Amihan Home',
   sellingPrice: '850.00',
   quantity: 10,
+  participationStatus: 'ACTIVE',
   eligible: true,
 };
 export const secondProduct: PosProduct = {

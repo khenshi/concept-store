@@ -113,6 +113,7 @@ export const adjustmentInputSchema = z
       });
   });
 export const inventoryResponseSchema = z.object({
+  participationStatus: z.enum(['ACTIVE', 'INACTIVE']),
   id: z.uuidv4(),
   organizationId: z.uuidv4(),
   branchId: z.uuidv4(),

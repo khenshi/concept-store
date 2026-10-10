@@ -1,3 +1,7 @@
+import {
+  fixtureInventory,
+  fixtureInventoryMany,
+} from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { ConflictException } from '@nestjs/common';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -198,7 +202,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         name: 'Other merchant goods',
       },
     });
-    const second = await prisma.branchInventory.create({
+    const second = await fixtureInventory(prisma, {
       data: {
         organizationId,
         branchId,
@@ -325,7 +329,13 @@ describe('PostgreSQL sale persistence integrity', () => {
         userId: context.userId,
       })),
     });
-    for (const context of [unlinked, unrelated]) {
+    await expect(
+      salesReads.findAll(unlinked, branchId, new ListSalesQueryDto()),
+    ).rejects.toThrow('Branch not found');
+    await prisma.merchantBranch.create({
+      data: { organizationId, branchId, merchantId: otherMerchantId },
+    });
+    for (const context of [unrelated]) {
       expect(
         await salesReads.findAll(context, branchId, new ListSalesQueryDto()),
       ).toEqual({ items: [], page: 1, limit: 50, total: 0, totalPages: 0 });
@@ -701,7 +711,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         name: 'Other goods',
       },
     });
-    const second = await prisma.branchInventory.create({
+    const second = await fixtureInventory(prisma, {
       data: {
         organizationId,
         branchId,
@@ -794,7 +804,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         name: 'Limited stock',
       },
     });
-    const placement = await prisma.branchInventory.create({
+    const placement = await fixtureInventory(prisma, {
       data: {
         organizationId,
         branchId,
@@ -890,7 +900,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         name: row.name,
       })),
     });
-    await prisma.branchInventory.createMany({
+    await fixtureInventoryMany(prisma, {
       data: extra.map((row) => ({
         id: row.id,
         organizationId,
@@ -982,7 +992,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         name: 'Second stock',
       },
     });
-    const placement = await prisma.branchInventory.create({
+    const placement = await fixtureInventory(prisma, {
       data: {
         organizationId,
         branchId,
@@ -1053,7 +1063,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         name: 'Rollback goods',
       },
     });
-    const placement = await prisma.branchInventory.create({
+    const placement = await fixtureInventory(prisma, {
       data: {
         organizationId,
         branchId,
@@ -1249,7 +1259,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         barcode: 'ORIGINAL',
       },
     });
-    await prisma.branchInventory.create({
+    await fixtureInventory(prisma, {
       data: {
         organizationId,
         branchId,
@@ -1269,6 +1279,7 @@ describe('PostgreSQL sale persistence integrity', () => {
       merchantName: 'Original merchant',
       sellingPrice: '12.50',
       quantity: 5,
+      participationStatus: 'ACTIVE',
       eligible: true,
     });
     expect(matches[1].eligible).toBe(false);
@@ -1413,7 +1424,7 @@ describe('PostgreSQL sale persistence integrity', () => {
       })
     ).id;
     inventoryId = (
-      await prisma.branchInventory.create({
+      await fixtureInventory(prisma, {
         data: {
           organizationId,
           branchId,
@@ -1612,7 +1623,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         prisma.inventoryMovement.create({ data: movementData(item.id, extra) }),
       ).rejects.toThrow();
     }
-    const secondPlacement = await prisma.branchInventory.create({
+    const secondPlacement = await fixtureInventory(prisma, {
       data: {
         organizationId,
         branchId: otherBranchId,

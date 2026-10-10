@@ -91,7 +91,7 @@ export function OrganizationInvitationModal({
     const result = createOrganizationInvitationSchema.safeParse({
       email,
       role,
-      ...(branchIds.length ? { branchIds } : {}),
+      ...(role !== 'MERCHANT' && branchIds.length ? { branchIds } : {}),
       ...(role === 'MERCHANT' && merchantId ? { merchantId } : {}),
     });
     setEmailError(
@@ -113,7 +113,7 @@ export function OrganizationInvitationModal({
         email,
         role,
         ...(role === 'MERCHANT' && merchantId ? { merchantId } : {}),
-        branchIds,
+        branchIds: role === 'MERCHANT' ? [] : branchIds,
       });
       setEmailError(
         result.success
@@ -393,50 +393,58 @@ export function OrganizationInvitationModal({
                 )}
               </div>
             )}
-            <fieldset disabled={isSubmitting || !options} className="min-w-0">
-              <legend className="text-sm font-bold">Branch assignments</legend>
-              <p className="mt-2 text-sm text-muted">
-                Optional. Staff without assignments cannot access branches.
-                Merchants also see their own inventory wherever placed.
+            {role === 'MERCHANT' ? (
+              <p className="text-sm text-muted">
+                Merchant users inherit every branch associated with the selected
+                merchant profile.
               </p>
-              <div className="mt-3 grid max-h-60 gap-3 overflow-y-auto">
-                {options?.branches.map((branch) => (
-                  <label
-                    key={branch.id}
-                    className="flex min-w-0 items-start gap-3 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={branchIds.includes(branch.id)}
-                      disabled={
-                        !branchIds.includes(branch.id) &&
-                        branchIds.length >= 100
-                      }
-                      onChange={(event) => {
-                        dirty.current = true;
-                        setBranchIds((ids) =>
-                          event.target.checked
-                            ? [...ids, branch.id]
-                            : ids.filter((id) => id !== branch.id),
-                        );
-                      }}
-                    />
-                    <span className="min-w-0 break-words">
-                      {branch.name}
-                      {branch.code ? ` · ${branch.code}` : ''}
-                    </span>
-                  </label>
-                ))}
-              </div>
-              {options?.branches.length === 0 && (
-                <p className="mt-3 text-sm text-muted">
-                  No branches available. Access can be assigned later.
+            ) : (
+              <fieldset disabled={isSubmitting || !options} className="min-w-0">
+                <legend className="text-sm font-bold">
+                  Branch assignments
+                </legend>
+                <p className="mt-2 text-sm text-muted">
+                  Optional. Staff without assignments cannot access branches.
                 </p>
-              )}
-              <p className="mt-2 text-xs text-muted">
-                {branchIds.length}/100 selected
-              </p>
-            </fieldset>
+                <div className="mt-3 grid max-h-60 gap-3 overflow-y-auto">
+                  {options?.branches.map((branch) => (
+                    <label
+                      key={branch.id}
+                      className="flex min-w-0 items-start gap-3 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={branchIds.includes(branch.id)}
+                        disabled={
+                          !branchIds.includes(branch.id) &&
+                          branchIds.length >= 100
+                        }
+                        onChange={(event) => {
+                          dirty.current = true;
+                          setBranchIds((ids) =>
+                            event.target.checked
+                              ? [...ids, branch.id]
+                              : ids.filter((id) => id !== branch.id),
+                          );
+                        }}
+                      />
+                      <span className="min-w-0 break-words">
+                        {branch.name}
+                        {branch.code ? ` · ${branch.code}` : ''}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {options?.branches.length === 0 && (
+                  <p className="mt-3 text-sm text-muted">
+                    No branches available. Access can be assigned later.
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-muted">
+                  {branchIds.length}/100 selected
+                </p>
+              </fieldset>
+            )}
             <div className="mt-2 flex justify-end gap-3">
               <button
                 className={buttonStyles({ variant: 'secondary' })}

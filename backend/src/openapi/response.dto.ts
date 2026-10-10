@@ -257,8 +257,11 @@ export class PosCatalogResponseDto {
   sellingPrice!: string;
   @ApiProperty({ type: 'integer', minimum: 0, maximum: 2147483647 })
   quantity!: number;
+  @ApiProperty({ enum: ['ACTIVE', 'INACTIVE'] }) participationStatus!:
+    'ACTIVE' | 'INACTIVE';
   @ApiProperty({
-    description: 'Current stock is positive; checkout must revalidate',
+    description:
+      'Stock is positive and merchant branch participation is active; checkout revalidates',
   })
   eligible!: boolean;
 }
@@ -358,6 +361,8 @@ export class SalesPageResponseDto {
 }
 
 export class BranchInventoryResponseDto {
+  @ApiProperty({ enum: ['ACTIVE', 'INACTIVE'] }) participationStatus!:
+    'ACTIVE' | 'INACTIVE';
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;
   @ApiProperty({ format: 'uuid' }) branchId!: string;

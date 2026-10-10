@@ -247,7 +247,12 @@ describe('ReportsService', () => {
       where: {
         organizationId: 'org',
         OR: [
-          { memberships: { some: { organizationId: 'org', userId: 'actor' } } },
+          {
+            organizationId: 'org',
+            merchants: {
+              some: { organizationId: 'org', merchantId: 'linked' },
+            },
+          },
           {
             sales: {
               some: {

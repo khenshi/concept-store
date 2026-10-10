@@ -6,6 +6,15 @@ import {
 } from './pos-cart';
 import { product, secondProduct } from './pos.test-fixtures';
 describe('POS cart rules and exact arithmetic', () => {
+  it('rejects inactive participation even with available stock', () => {
+    expect(() =>
+      addPosProduct([], {
+        ...product,
+        participationStatus: 'INACTIVE',
+        eligible: false,
+      }),
+    ).toThrow('inactive in this branch');
+  });
   it('merges repeated placements without adding another line', () => {
     const cart = addPosProduct(addPosProduct([], product), product);
     expect(cart).toHaveLength(1);

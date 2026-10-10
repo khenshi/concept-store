@@ -389,6 +389,7 @@ describe('Merchant profiles (e2e)', () => {
       ORGANIZATION_ID,
       MERCHANT_ID,
       { status: MerchantStatus.ENDED },
+      OWNER_ID,
     );
   });
 });

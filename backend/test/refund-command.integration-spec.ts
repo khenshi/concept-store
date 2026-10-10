@@ -1,3 +1,4 @@
+import { fixtureInventory } from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -170,7 +171,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
           name: `Original ${price}`,
         },
       });
-      const inventory = await prisma.branchInventory.create({
+      const inventory = await fixtureInventory(prisma, {
         data: {
           organizationId,
           branchId,
@@ -1115,7 +1116,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
       const product = await prisma.product.create({
         data: { organizationId, merchantId, name: `Maximum ${index}` },
       });
-      const inventory = await prisma.branchInventory.create({
+      const inventory = await fixtureInventory(prisma, {
         data: {
           organizationId,
           branchId,

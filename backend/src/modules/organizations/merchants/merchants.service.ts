@@ -1,3 +1,9 @@
+import { ForbiddenException } from '@nestjs/common';
+import {
+  lockSpaceMerchant,
+  releaseMerchantSpaces,
+  rethrowSpaceConflict,
+} from '../spaces/space-occupancy';
 import {
   BadRequestException,
   ConflictException,
@@ -133,12 +139,43 @@ export class MerchantsService {
     organizationId: string,
     merchantId: string,
     dto: UpdateMerchantStatusDto,
+    actorId: string,
   ): Promise<MerchantRecord> {
-    await this.findOne(organizationId, merchantId);
-    return this.prisma.merchant.update({
-      where: { id: merchantId, organizationId },
-      data: { status: dto.status },
-    });
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT "userId" FROM "OrganizationMembership" WHERE "organizationId" = ${organizationId} AND "userId" = ${actorId} FOR UPDATE`;
+          const member = await tx.organizationMembership.findFirst({
+            where: {
+              organizationId,
+              userId: actorId,
+              user: { deletedAt: null },
+            },
+            select: { role: true },
+          });
+          if (!member)
+            throw new NotFoundException('Organization membership not found');
+          if (member.role !== 'OWNER')
+            throw new ForbiddenException('Only owners change merchant status');
+          await lockSpaceMerchant(tx, organizationId, merchantId);
+          if (dto.status !== 'ACTIVE')
+            await releaseMerchantSpaces(
+              tx,
+              organizationId,
+              merchantId,
+              actorId,
+              `MERCHANT_${dto.status}`,
+            );
+          return tx.merchant.update({
+            where: { id: merchantId, organizationId },
+            data: { status: dto.status },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      rethrowSpaceConflict(error);
+    }
   }
 
   private rethrowKnownError(error: unknown): never {

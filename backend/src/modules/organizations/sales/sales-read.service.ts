@@ -266,14 +266,7 @@ export class SalesReadService {
     // Assigned branches may have an empty own-sales directory. Historical own
     // sales also grant access without assignments or current product placements.
     // Neither path grants another merchant's sale/detail or branch addresses.
-    const assigned = {
-      memberships: {
-        some: {
-          organizationId: context.organizationId,
-          userId: context.userId,
-        },
-      },
-    };
+    const assigned = branchScope(context);
     const scope =
       context.role === 'MERCHANT'
         ? {

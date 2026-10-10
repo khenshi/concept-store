@@ -16,6 +16,7 @@ export const scope = {
   inventoryId: placement.id,
 };
 export const inventory: BranchInventory = {
+  participationStatus: 'ACTIVE',
   id: placement.id,
   organizationId: placement.organizationId,
   branchId: placement.branchId,

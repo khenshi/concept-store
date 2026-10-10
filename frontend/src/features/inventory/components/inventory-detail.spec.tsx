@@ -41,6 +41,19 @@ vi.mock('../api/inventory-api', () => ({
 }));
 
 describe('InventoryDetail workflows', () => {
+  it('disables receiving after deactivation and retains correction and history controls', async () => {
+    vi.mocked(getInventory).mockResolvedValue({
+      ...inventory,
+      participationStatus: 'INACTIVE',
+    });
+    render(<InventoryDetail {...scope} />);
+    await screen.findByRole('button', { name: 'View' });
+    expect(screen.getByRole('tab', { name: 'Receive' })).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'Adjust' })).toBeEnabled();
+    expect(
+      screen.getByRole('heading', { name: 'Movement history' }),
+    ).toBeInTheDocument();
+  });
   it('retains edits when a branch switch is cancelled and navigates to the new directory on confirmation', async () => {
     vi.mocked(listBranches).mockResolvedValue([
       { id: scope.branchId, name: branch.name, code: branch.code },

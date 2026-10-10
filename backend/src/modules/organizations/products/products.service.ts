@@ -1,3 +1,4 @@
+import { requireActiveParticipation } from '../merchant-branches/merchant-branch-participation';
 import {
   BadRequestException,
   ConflictException,
@@ -253,6 +254,12 @@ export class ProductsService {
             throw new ConflictException(
               'New products require an active merchant',
             );
+          await requireActiveParticipation(
+            tx,
+            organizationId,
+            command.initialInventory.branchId,
+            [command.merchantId],
+          );
           const product = await tx.product.create({
             select: productSelect,
             data: {
@@ -271,6 +278,7 @@ export class ProductsService {
               organizationId,
               branchId: command.initialInventory.branchId,
               productId: product.id,
+              merchantId: command.merchantId,
               sellingPrice: new Prisma.Decimal(
                 command.initialInventory.sellingPrice,
               ),

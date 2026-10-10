@@ -21,7 +21,16 @@ export class OrganizationMembershipsService {
           organizationId,
           ...(member.role === OrganizationRole.OWNER
             ? {}
-            : { memberships: { some: { organizationId, userId } } }),
+            : member.role === OrganizationRole.MERCHANT
+              ? {
+                  merchants: {
+                    some: {
+                      organizationId,
+                      merchantId: member.merchantId ?? '',
+                    },
+                  },
+                }
+              : { memberships: { some: { organizationId, userId } } }),
         },
         select: { id: true, name: true, code: true },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
@@ -37,6 +46,10 @@ export class OrganizationMembershipsService {
   ): Promise<void> {
     return this.withOwnerInvariant(async (tx) => {
       const member = await this.findMembership(tx, organizationId, userId);
+      if (member.role === OrganizationRole.MERCHANT)
+        throw new ConflictException(
+          'Merchant users inherit branch access from their profile; manage merchant–branch associations instead',
+        );
       if (member.role === OrganizationRole.OWNER)
         throw new ConflictException(
           'Owners have implicit access to all branches',
@@ -197,6 +210,7 @@ export class OrganizationMembershipsService {
       where: { organizationId_userId: { organizationId, userId } },
       select: {
         role: true,
+        merchantId: true,
         createdAt: true,
         user: {
           select: {

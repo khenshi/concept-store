@@ -12,6 +12,7 @@ export const posCatalogSelect = {
   id: true,
   sellingPrice: true,
   quantity: true,
+  merchantBranch: { select: { status: true } },
   product: {
     select: {
       id: true,
@@ -102,7 +103,8 @@ export class PosCatalogService {
       merchantName: row.product.merchant.name,
       sellingPrice: row.sellingPrice.toFixed(2),
       quantity: row.quantity,
-      eligible: row.quantity > 0,
+      participationStatus: row.merchantBranch.status,
+      eligible: row.quantity > 0 && row.merchantBranch.status === 'ACTIVE',
     }));
   }
 }

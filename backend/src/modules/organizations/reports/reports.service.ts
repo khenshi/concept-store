@@ -374,14 +374,7 @@ export class ReportsService {
     return {
       organizationId: context.organizationId,
       OR: [
-        {
-          memberships: {
-            some: {
-              organizationId: context.organizationId,
-              userId: context.userId,
-            },
-          },
-        },
+        branchScope(context),
         ...(context.merchantId
           ? [
               {

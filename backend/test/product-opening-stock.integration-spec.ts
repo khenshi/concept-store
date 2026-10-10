@@ -1,3 +1,4 @@
+import { fixtureProduct } from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -46,7 +47,9 @@ const counts = async () =>
 
 describe('PostgreSQL atomic product opening stock', () => {
   it('persists an explicit zero threshold without changing opening stock atomicity', async () => {
-    const created = await products.create(
+    const created = await fixtureProduct(
+      products,
+      prisma,
       organizationId,
       {
         ...command(),
@@ -86,7 +89,9 @@ describe('PostgreSQL atomic product opening stock', () => {
     );
     const catalog = new PosCatalogService(prisma as unknown as PrismaService);
     const context = { organizationId, userId: actorId, role: 'OWNER' as const };
-    const created = await products.create(
+    const created = await fixtureProduct(
+      products,
+      prisma,
       organizationId,
       { ...command(), sku: 'OPENING-SKU', barcode: '001Opening' },
       actorId,
@@ -194,7 +199,9 @@ describe('PostgreSQL atomic product opening stock', () => {
   });
 
   it('preserves legacy product-only creation without placement, movement or request metadata', async () => {
-    const product = await products.create(
+    const product = await fixtureProduct(
+      products,
+      prisma,
       organizationId,
       { merchantId, name: 'Legacy' },
       actorId,
@@ -217,7 +224,13 @@ describe('PostgreSQL atomic product opening stock', () => {
     async (opening) => {
       const dto = command();
       dto.initialInventory = { branchId, ...opening };
-      const product = await products.create(organizationId, dto, actorId);
+      const product = await fixtureProduct(
+        products,
+        prisma,
+        organizationId,
+        dto,
+        actorId,
+      );
       const placement = await prisma.branchInventory.findFirstOrThrow({
         where: { organizationId, productId: product.id },
       });
@@ -257,7 +270,13 @@ describe('PostgreSQL atomic product opening stock', () => {
   );
   it('replays a no-code product after identity, price, quantity and merchant lifecycle edits', async () => {
     const dto = command();
-    const original = await products.create(organizationId, dto, actorId);
+    const original = await fixtureProduct(
+      products,
+      prisma,
+      organizationId,
+      dto,
+      actorId,
+    );
     const placement = await prisma.branchInventory.findFirstOrThrow({
       where: { organizationId, productId: original.id },
     });
@@ -278,7 +297,9 @@ describe('PostgreSQL atomic product opening stock', () => {
       data: { status: 'INACTIVE' },
     });
     expect(
-      await products.create(
+      await fixtureProduct(
+        products,
+        prisma,
         organizationId,
         {
           ...dto,
@@ -301,7 +322,7 @@ describe('PostgreSQL atomic product opening stock', () => {
     'rejects changed %s content with the same request ID',
     async (field) => {
       const dto = command();
-      await products.create(organizationId, dto, actorId);
+      await fixtureProduct(products, prisma, organizationId, dto, actorId);
       const changed = structuredClone(dto);
       if (field === 'name') changed.name = 'Different';
       if (field === 'quantity') changed.initialInventory!.quantity = 4;
@@ -310,7 +331,7 @@ describe('PostgreSQL atomic product opening stock', () => {
         changed.initialInventory!.branchId = otherBranchId;
       if (field === 'merchant') changed.merchantId = randomUUID();
       await expect(
-        products.create(organizationId, changed, actorId),
+        fixtureProduct(products, prisma, organizationId, changed, actorId),
       ).rejects.toMatchObject({
         response: { code: 'PRODUCT_CREATE_REQUEST_CONFLICT' },
       });
@@ -319,7 +340,7 @@ describe('PostgreSQL atomic product opening stock', () => {
   );
   it('rejects another owner reusing a request ID without disclosing the original command', async () => {
     const dto = command();
-    await products.create(organizationId, dto, actorId);
+    await fixtureProduct(products, prisma, organizationId, dto, actorId);
     const other = (
       await prisma.user.create({
         data: {
@@ -334,7 +355,7 @@ describe('PostgreSQL atomic product opening stock', () => {
       data: { organizationId, userId: other, role: 'OWNER' },
     });
     await expect(
-      products.create(organizationId, dto, other),
+      fixtureProduct(products, prisma, organizationId, dto, other),
     ).rejects.toMatchObject({
       response: { code: 'PRODUCT_CREATE_REQUEST_CONFLICT' },
     });
@@ -344,16 +365,16 @@ describe('PostgreSQL atomic product opening stock', () => {
     'denies fresh writes and replay after role changes to %s',
     async (role) => {
       const dto = command();
-      await products.create(organizationId, dto, actorId);
+      await fixtureProduct(products, prisma, organizationId, dto, actorId);
       await prisma.organizationMembership.update({
         where: { organizationId_userId: { organizationId, userId: actorId } },
         data: { role, ...(role === 'MERCHANT' ? { merchantId } : {}) },
       });
       await expect(
-        products.create(organizationId, dto, actorId),
+        fixtureProduct(products, prisma, organizationId, dto, actorId),
       ).rejects.toMatchObject({ status: 403 });
       await expect(
-        products.create(organizationId, command(), actorId),
+        fixtureProduct(products, prisma, organizationId, command(), actorId),
       ).rejects.toMatchObject({ status: 403 });
       expect(await counts()).toEqual([1, 1, 1]);
     },
@@ -394,7 +415,7 @@ describe('PostgreSQL atomic product opening stock', () => {
         if (field === 'branch') dto.initialInventory!.branchId = id;
         else dto.merchantId = id;
         await expect(
-          products.create(organizationId, dto, actorId),
+          fixtureProduct(products, prisma, organizationId, dto, actorId),
         ).rejects.toMatchObject({ status: 404 });
       }
       expect(await counts()).toEqual([0, 0, 0]);
@@ -408,7 +429,7 @@ describe('PostgreSQL atomic product opening stock', () => {
         data: { status },
       });
       await expect(
-        products.create(organizationId, command(), actorId),
+        fixtureProduct(products, prisma, organizationId, command(), actorId),
       ).rejects.toMatchObject({ status: 409 });
       expect(await counts()).toEqual([0, 0, 0]);
     },
@@ -424,7 +445,7 @@ describe('PostgreSQL atomic product opening stock', () => {
       );
       try {
         await expect(
-          products.create(organizationId, command(), actorId),
+          fixtureProduct(products, prisma, organizationId, command(), actorId),
         ).rejects.toThrow();
         expect(await counts()).toEqual([0, 0, 0]);
       } finally {
@@ -437,7 +458,7 @@ describe('PostgreSQL atomic product opening stock', () => {
     const dto = command();
     const results = await Promise.allSettled(
       Array.from({ length: 6 }, () =>
-        products.create(organizationId, dto, actorId),
+        fixtureProduct(products, prisma, organizationId, dto, actorId),
       ),
     );
     const winner = results.find((result) => result.status === 'fulfilled');
@@ -447,20 +468,30 @@ describe('PostgreSQL atomic product opening stock', () => {
         expect(result.reason).toMatchObject({
           response: { code: 'PRODUCT_CREATE_RETRY' },
         });
-      const replay = await products.create(organizationId, dto, actorId);
+      const replay = await fixtureProduct(
+        products,
+        prisma,
+        organizationId,
+        dto,
+        actorId,
+      );
       if (winner?.status === 'fulfilled')
         expect(replay.id).toBe(winner.value.id);
     }
     expect(await counts()).toEqual([1, 1, 1]);
   });
   it('rolls back identifier conflicts without treating a new request as a replay', async () => {
-    await products.create(
+    await fixtureProduct(
+      products,
+      prisma,
       organizationId,
       { ...command(), sku: 'DUPLICATE' },
       actorId,
     );
     await expect(
-      products.create(
+      fixtureProduct(
+        products,
+        prisma,
         organizationId,
         { ...command(), sku: 'DUPLICATE' },
         actorId,
@@ -472,7 +503,7 @@ describe('PostgreSQL atomic product opening stock', () => {
     'denies replay after the owner is %s',
     async (state) => {
       const dto = command();
-      await products.create(organizationId, dto, actorId);
+      await fixtureProduct(products, prisma, organizationId, dto, actorId);
       if (state === 'removed')
         await prisma.organizationMembership.delete({
           where: { organizationId_userId: { organizationId, userId: actorId } },
@@ -483,14 +514,20 @@ describe('PostgreSQL atomic product opening stock', () => {
           data: { deletedAt: new Date() },
         });
       await expect(
-        products.create(organizationId, dto, actorId),
+        fixtureProduct(products, prisma, organizationId, dto, actorId),
       ).rejects.toMatchObject({ status: 403 });
       expect(await counts()).toEqual([1, 1, 1]);
     },
   );
   it('scopes identical request IDs to each tenant without returning a foreign product', async () => {
     const dto = command();
-    const original = await products.create(organizationId, dto, actorId);
+    const original = await fixtureProduct(
+      products,
+      prisma,
+      organizationId,
+      dto,
+      actorId,
+    );
     const foreignOrg = (
       await prisma.organization.create({ data: { name: 'Second tenant' } })
     ).id;
@@ -520,7 +557,9 @@ describe('PostgreSQL atomic product opening stock', () => {
         },
       })
     ).id;
-    const other = await products.create(
+    const other = await fixtureProduct(
+      products,
+      prisma,
       foreignOrg,
       {
         ...dto,

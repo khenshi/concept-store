@@ -1,3 +1,4 @@
+import { fixtureInventory } from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -25,24 +26,50 @@ async function fixture(legacySchema = false) {
   const organization = await prisma.organization.create({
     data: { name: randomUUID() },
   });
-  const user = await prisma.user.create({
-    data: {
-      firstName: 'Test',
-      lastName: 'Actor',
-      email: `${randomUUID()}@example.test`,
-      passwordHash: 'unused',
-    },
-  });
-  const branch = await prisma.branch.create({
-    data: {
-      organizationId: organization.id,
-      name: 'Original',
-      addressLine1: 'Test',
-      city: 'Makati',
-      province: 'Metro Manila',
-      countryCode: 'PH',
-    },
-  });
+  const user = legacySchema
+    ? await (async () => {
+        const id = randomUUID();
+        await admin.query(
+          'INSERT INTO "User" ("id","firstName","lastName","email","passwordHash","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,NOW(),NOW())',
+          [id, 'Test', 'Actor', `${randomUUID()}@example.test`, 'unused'],
+        );
+        return { id };
+      })()
+    : await prisma.user.create({
+        data: {
+          firstName: 'Test',
+          lastName: 'Actor',
+          email: `${randomUUID()}@example.test`,
+          passwordHash: 'unused',
+        },
+      });
+  const branch = legacySchema
+    ? await (async () => {
+        const id = randomUUID();
+        await admin.query(
+          'INSERT INTO "Branch" ("id","organizationId","name","addressLine1","city","province","countryCode","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())',
+          [
+            id,
+            organization.id,
+            'Original',
+            'Test',
+            'Makati',
+            'Metro Manila',
+            'PH',
+          ],
+        );
+        return { id };
+      })()
+    : await prisma.branch.create({
+        data: {
+          organizationId: organization.id,
+          name: 'Original',
+          addressLine1: 'Test',
+          city: 'Makati',
+          province: 'Metro Manila',
+          countryCode: 'PH',
+        },
+      });
   const merchant = await prisma.merchant.create({
     data: {
       organizationId: organization.id,
@@ -78,7 +105,7 @@ async function fixture(legacySchema = false) {
           updatedAt: now,
         };
       })()
-    : await prisma.branchInventory.create({
+    : await fixtureInventory(prisma, {
         data: {
           organizationId: organization.id,
           branchId: branch.id,

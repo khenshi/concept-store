@@ -32,6 +32,7 @@ describe('BranchInventoryService', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
     },
+    $queryRaw: jest.fn(),
     $transaction: jest.fn(),
   };
   const service = new BranchInventoryService(
@@ -39,26 +40,36 @@ describe('BranchInventoryService', () => {
   );
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$queryRaw.mockResolvedValue([
+      { merchantId: 'merchant', status: 'ACTIVE' },
+    ]);
     prisma.$transaction.mockImplementation(
       (run: (tx: typeof prisma) => unknown) => run(prisma),
     );
     prisma.branch.findUnique.mockResolvedValue({ id: 'branch' });
     prisma.product.findUnique.mockResolvedValue({
+      merchantId: 'merchant',
       status: 'ACTIVE',
       merchant: { status: 'ACTIVE' },
     });
     prisma.branchInventory.create.mockResolvedValue({
       id: 'placement',
+      merchantId: 'merchant',
+      merchantBranch: { status: 'ACTIVE' },
       sellingPrice: new Prisma.Decimal('12.50'),
       quantity: 10,
       lowStockThreshold: 5,
     });
     prisma.branchInventory.findUnique.mockResolvedValue({
+      merchantId: 'merchant',
+      merchantBranch: { status: 'ACTIVE' },
       sellingPrice: new Prisma.Decimal('12.50'),
       quantity: 5,
       lowStockThreshold: 5,
     });
     prisma.branchInventory.update.mockResolvedValue({
+      merchantId: 'merchant',
+      merchantBranch: { status: 'ACTIVE' },
       sellingPrice: new Prisma.Decimal('13.75'),
       quantity: 5,
       lowStockThreshold: 5,
@@ -76,6 +87,7 @@ describe('BranchInventoryService', () => {
         'branch',
         {
           productId: 'product',
+          merchantId: 'merchant',
           sellingPrice: '12.50',
           initialQuantity: 10,
         },
@@ -88,6 +100,8 @@ describe('BranchInventoryService', () => {
           organizationId: 'org',
           branchId: 'branch',
           productId: 'product',
+          merchantId: 'merchant',
+          merchantId: 'merchant',
           sellingPrice: new Prisma.Decimal('12.50'),
           quantity: 10,
           lowStockThreshold: 5,
@@ -112,6 +126,8 @@ describe('BranchInventoryService', () => {
   it('keeps an explicit zero opening balance without a zero-delta movement', async () => {
     prisma.branchInventory.create.mockResolvedValueOnce({
       id: 'placement',
+      merchantId: 'merchant',
+      merchantBranch: { status: 'ACTIVE' },
       sellingPrice: new Prisma.Decimal('12.50'),
       quantity: 0,
       lowStockThreshold: 5,
@@ -122,6 +138,7 @@ describe('BranchInventoryService', () => {
         'branch',
         {
           productId: 'product',
+          merchantId: 'merchant',
           sellingPrice: '12.50',
           initialQuantity: 0,
         },
@@ -149,6 +166,8 @@ describe('BranchInventoryService', () => {
           organizationId: 'org',
           branchId: 'branch',
           productId: 'product',
+          merchantId: 'merchant',
+          merchantId: 'merchant',
           sellingPrice: new Prisma.Decimal('12.50'),
           quantity: 10,
           lowStockThreshold: 0,
@@ -165,6 +184,7 @@ describe('BranchInventoryService', () => {
         'foreign',
         {
           productId: 'product',
+          merchantId: 'merchant',
           sellingPrice: '1',
           initialQuantity: 1,
         },
@@ -208,6 +228,7 @@ describe('BranchInventoryService', () => {
           'branch',
           {
             productId: 'product',
+            merchantId: 'merchant',
             sellingPrice: '1',
             initialQuantity: 1,
           },
@@ -234,6 +255,8 @@ describe('BranchInventoryService', () => {
 
   it('threshold edits write only the threshold under branch and tenant scope', async () => {
     prisma.branchInventory.update.mockResolvedValue({
+      merchantId: 'merchant',
+      merchantBranch: { status: 'ACTIVE' },
       sellingPrice: new Prisma.Decimal('12.50'),
       quantity: 5,
       lowStockThreshold: 0,
@@ -266,6 +289,8 @@ describe('BranchInventoryService', () => {
     'derives quantity %s and threshold %s as %s',
     async (quantity, lowStockThreshold, stockStatus) => {
       prisma.branchInventory.findUnique.mockResolvedValue({
+        merchantId: 'merchant',
+        merchantBranch: { status: 'ACTIVE' },
         sellingPrice: new Prisma.Decimal('12.50'),
         quantity,
         lowStockThreshold,
@@ -280,6 +305,8 @@ describe('BranchInventoryService', () => {
     prisma.branchInventory.findMany.mockResolvedValue([
       {
         id: 'low',
+        merchantId: 'merchant',
+        merchantBranch: { status: 'ACTIVE' },
         sellingPrice: new Prisma.Decimal('12.50'),
         quantity: 5,
         lowStockThreshold: 5,
@@ -313,6 +340,8 @@ describe('BranchInventoryService', () => {
     };
     const row = (id: string) => ({
       id,
+      merchantId: 'merchant',
+      merchantBranch: { status: 'ACTIVE' },
       sellingPrice: new Prisma.Decimal('12.50'),
       quantity: 1,
       lowStockThreshold: 5,
@@ -426,10 +455,20 @@ describe('BranchInventoryService', () => {
         where: expect.objectContaining({
           organizationId: 'org',
           status: 'ACTIVE',
-          merchant: { organizationId: 'org', status: 'ACTIVE' },
+          merchant: {
+            organizationId: 'org',
+            status: 'ACTIVE',
+            branches: {
+              some: {
+                organizationId: 'org',
+                branchId: 'branch',
+                status: 'ACTIVE',
+              },
+            },
+          },
           AND: [
             // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            expect.objectContaining({ inventory: expect.any(Object) }),
+            expect.objectContaining({ merchant: expect.any(Object) }),
             {
               inventory: {
                 none: { organizationId: 'org', branchId: 'branch' },

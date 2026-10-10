@@ -1,3 +1,4 @@
+import { requireActiveParticipation } from '../merchant-branches/merchant-branch-participation';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import {
@@ -76,6 +77,12 @@ export class CheckoutService {
           });
           if (lines.length !== dto.items.length)
             throw new NotFoundException('Branch inventory not found');
+          await requireActiveParticipation(
+            tx,
+            context.organizationId,
+            branchId,
+            lines.map((line) => line.product.merchantId),
+          );
           const quantities = new Map(
             dto.items.map((item) => [item.branchInventoryId, item]),
           );

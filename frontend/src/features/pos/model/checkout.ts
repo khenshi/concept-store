@@ -43,8 +43,10 @@ export function checkoutContent(lines: PosCartLine[], draft: PaymentDraft) {
   if (
     !lines.length ||
     lines.length > 100 ||
-    lines.some((line) =>
-      quantityError(line.quantityInput, line.product.quantity),
+    lines.some(
+      (line) =>
+        !line.product.eligible ||
+        quantityError(line.quantityInput, line.product.quantity),
     )
   )
     throw new Error('Fix cart quantities before checkout.');

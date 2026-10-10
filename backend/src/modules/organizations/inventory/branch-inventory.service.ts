@@ -1,3 +1,4 @@
+import { requireActiveParticipation } from '../merchant-branches/merchant-branch-participation';
 import {
   ConflictException,
   BadRequestException,
@@ -57,7 +58,11 @@ export class BranchInventoryService {
     await this.resolveBranch(organizationId, branchId);
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId, organizationId },
-      select: { status: true, merchant: { select: { status: true } } },
+      select: {
+        merchantId: true,
+        status: true,
+        merchant: { select: { status: true } },
+      },
     });
     if (!product) throw new NotFoundException('Product not found');
     if (
@@ -71,16 +76,23 @@ export class BranchInventoryService {
     try {
       const inventory = await this.prisma.$transaction(
         async (tx) => {
+          await requireActiveParticipation(tx, organizationId, branchId, [
+            product.merchantId,
+          ]);
           const created = await tx.branchInventory.create({
             data: {
               organizationId,
               branchId,
               productId: dto.productId,
+              merchantId: product.merchantId,
               sellingPrice: new Prisma.Decimal(dto.sellingPrice),
               quantity: dto.initialQuantity,
               lowStockThreshold: dto.lowStockThreshold ?? 5,
             },
-            include: { product: { select: inventoryProductSelect } },
+            include: {
+              product: { select: inventoryProductSelect },
+              merchantBranch: { select: { status: true } },
+            },
           });
           if (dto.initialQuantity > 0)
             await tx.inventoryMovement.create({
@@ -165,7 +177,10 @@ export class BranchInventoryService {
     }
     const inventory = await this.prisma.branchInventory.findMany({
       where,
-      include: { product: { select: inventoryProductSelect } },
+      include: {
+        product: { select: inventoryProductSelect },
+        merchantBranch: { select: { status: true } },
+      },
       orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
       take: limit + 1,
       ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
@@ -191,7 +206,11 @@ export class BranchInventoryService {
     const where: Prisma.ProductWhereInput = {
       organizationId,
       status: ProductStatus.ACTIVE,
-      merchant: { organizationId, status: MerchantStatus.ACTIVE },
+      merchant: {
+        organizationId,
+        status: MerchantStatus.ACTIVE,
+        branches: { some: { organizationId, branchId, status: 'ACTIVE' } },
+      },
       AND: [
         productScope(context),
         { inventory: { none: { organizationId, branchId } } },
@@ -377,7 +396,10 @@ export class BranchInventoryService {
         branchId,
         ...(context ? { AND: [inventoryScope(context)] } : {}),
       },
-      include: { product: { select: inventoryProductSelect } },
+      include: {
+        product: { select: inventoryProductSelect },
+        merchantBranch: { select: { status: true } },
+      },
     });
     if (!inventory) throw new NotFoundException('Branch inventory not found');
     return this.toRecord(inventory);
@@ -447,7 +469,10 @@ export class BranchInventoryService {
       const inventory = await this.prisma.branchInventory.update({
         where: { id: inventoryId, organizationId, branchId },
         data: { sellingPrice: new Prisma.Decimal(dto.sellingPrice) },
-        include: { product: { select: inventoryProductSelect } },
+        include: {
+          product: { select: inventoryProductSelect },
+          merchantBranch: { select: { status: true } },
+        },
       });
       return this.toRecord(inventory);
     } catch (error: unknown) {
@@ -466,7 +491,10 @@ export class BranchInventoryService {
       const inventory = await this.prisma.branchInventory.update({
         where: { id: inventoryId, organizationId, branchId },
         data: { lowStockThreshold: dto.lowStockThreshold },
-        include: { product: { select: inventoryProductSelect } },
+        include: {
+          product: { select: inventoryProductSelect },
+          merchantBranch: { select: { status: true } },
+        },
       });
       return this.toRecord(inventory);
     } catch (error: unknown) {
@@ -546,16 +574,22 @@ export class BranchInventoryService {
       sellingPrice: Prisma.Decimal;
       quantity: number;
       lowStockThreshold: number;
+      merchantBranch: { status: 'ACTIVE' | 'INACTIVE' };
+      merchantId: string;
     },
   >(
     inventory: T,
-  ): Omit<T, 'sellingPrice'> & {
+  ): Omit<T, 'sellingPrice' | 'merchantBranch' | 'merchantId'> & {
+    participationStatus: 'ACTIVE' | 'INACTIVE';
     sellingPrice: string;
     stockStatus: ReturnType<typeof deriveInventoryStockStatus>;
   } {
+    const { merchantBranch, merchantId, sellingPrice, ...record } = inventory;
+    void merchantId;
     return {
-      ...inventory,
-      sellingPrice: inventory.sellingPrice.toFixed(2),
+      ...record,
+      participationStatus: merchantBranch.status,
+      sellingPrice: sellingPrice.toFixed(2),
       stockStatus: deriveInventoryStockStatus(inventory),
     };
   }

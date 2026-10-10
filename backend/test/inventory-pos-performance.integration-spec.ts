@@ -1,3 +1,4 @@
+import { fixtureInventoryMany } from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -116,7 +117,7 @@ suite('disposable Inventory/POS performance baseline', () => {
     }));
     hotInventoryId = placements[0].id;
     for (let offset = 0; offset < placements.length; offset += 500)
-      await db.branchInventory.createMany({
+      await fixtureInventoryMany(db, {
         data: placements.slice(offset, offset + 500),
       });
     for (let offset = 0; offset < 10000; offset += 500)

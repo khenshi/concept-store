@@ -1,3 +1,14 @@
+import { occupiedSpaceCount } from '@/features/spaces/api/space-api';
+vi.mock('@/features/spaces/api/space-api', () => ({
+  occupiedSpaceCount: vi.fn(),
+}));
+vi.mock('@/features/spaces/components/space-management', () => ({
+  SpaceManagement: () => null,
+}));
+vi.mock(
+  '@/features/merchant-branches/components/merchant-branch-management',
+  () => ({ MerchantBranchManagement: () => null }),
+);
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -41,6 +52,7 @@ describe('MerchantProfile', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(occupiedSpaceCount).mockResolvedValue(2);
     vi.mocked(useAuth).mockReturnValue({ request } as never);
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { id: merchant.organizationId, role: 'OWNER' },
@@ -136,6 +148,13 @@ describe('MerchantProfile', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Change status' }));
 
     await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+    expect(confirm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining(
+          'All 2 occupied spaces across branches will be released.',
+        ),
+      }),
+    );
     expect(updateMerchantStatus).toHaveBeenCalledWith(
       request,
       merchant.organizationId,
@@ -145,5 +164,27 @@ describe('MerchantProfile', () => {
     expect(
       await screen.findByText(`${merchant.name} is now ended.`),
     ).toBeInTheDocument();
+  });
+  it('does not change merchant status if the occupied-space count cannot be loaded', async () => {
+    vi.mocked(occupiedSpaceCount).mockRejectedValueOnce(
+      new Error('Count unavailable'),
+    );
+    render(
+      <MerchantProfile
+        merchantId={merchant.id}
+        organizationId={merchant.organizationId}
+      />,
+    );
+    await screen.findByText(merchant.contactName);
+    fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Ended' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Change status' }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Change status' }),
+      ).toBeEnabled(),
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    expect(updateMerchantStatus).not.toHaveBeenCalled();
   });
 });

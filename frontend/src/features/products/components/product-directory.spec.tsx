@@ -9,7 +9,7 @@ import {
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
-import { listBranches } from '@/features/branches/api/branch-api';
+import { listActiveMerchantBranches } from '@/features/merchant-branches/api/merchant-branch-api';
 import { createProduct, listProducts } from '../api/product-api';
 import {
   merchant,
@@ -27,8 +27,8 @@ vi.mock(
 vi.mock('@/features/merchants/api/merchant-api', () => ({
   listMerchants: vi.fn(),
 }));
-vi.mock('@/features/branches/api/branch-api', () => ({
-  listBranches: vi.fn(),
+vi.mock('@/features/merchant-branches/api/merchant-branch-api', () => ({
+  listActiveMerchantBranches: vi.fn(),
 }));
 vi.mock('../api/product-api', () => ({
   listProducts: vi.fn(),
@@ -47,7 +47,7 @@ describe('ProductDirectory workflows', () => {
     } as never);
     vi.mocked(listMerchants).mockResolvedValue([merchant]);
     vi.mocked(listProducts).mockResolvedValue([product]);
-    vi.mocked(listBranches).mockResolvedValue([placement.branch]);
+    vi.mocked(listActiveMerchantBranches).mockResolvedValue([placement.branch]);
   });
   it.each(['CASHIER'])(
     'does not request or show product controls for %s',

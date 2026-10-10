@@ -421,7 +421,11 @@ function ScopedInventoryDetail({
                 ? 'text-ink after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-ink'
                 : 'text-muted hover:text-ink'
             }`}
-            disabled={pendingOperation !== null}
+            disabled={
+              pendingOperation !== null ||
+              (action === 'receipt' &&
+                inventory.participationStatus === 'INACTIVE')
+            }
             onClick={() => selectAction(action)}
           >
             {label}
@@ -435,6 +439,12 @@ function ScopedInventoryDetail({
         aria-labelledby={`inventory-action-tab-${activeAction}`}
         className="min-w-0 outline-none"
       >
+        {inventory.participationStatus === 'INACTIVE' && (
+          <p className="mt-4 text-sm text-warning" role="status">
+            Branch participation is inactive. Receiving and selling are
+            disabled; corrections and history remain available.
+          </p>
+        )}
         {activeAction === 'receipt' ? (
           <OperationalPanel
             variant="open"
@@ -444,7 +454,8 @@ function ScopedInventoryDetail({
             <fieldset
               className="min-w-0 border-0 p-0"
               disabled={
-                pendingOperation !== null && pendingOperation !== 'receipt'
+                inventory.participationStatus === 'INACTIVE' ||
+                (pendingOperation !== null && pendingOperation !== 'receipt')
               }
             >
               <InventoryStockForm

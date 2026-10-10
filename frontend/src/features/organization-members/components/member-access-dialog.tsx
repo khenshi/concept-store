@@ -186,12 +186,13 @@ export function MemberAccessDialog({
           {member.role === 'OWNER' ? (
             <p>Owners have access to all current and future branches.</p>
           ) : (
-            !changeToMerchant && (
+            !changeToMerchant &&
+            member.role !== 'MERCHANT' && (
               <section>
                 <h3 className="text-base font-semibold">Branch assignments</h3>
                 <p className="mt-2 text-sm text-muted">
-                  Changes save individually. Merchants also see their own stock
-                  wherever their products are placed.
+                  Changes save individually. Staff access is limited to assigned
+                  branches.
                 </p>
                 <ul className="mt-3 max-h-72 list-none divide-y divide-hairline overflow-y-auto p-0">
                   {options.branches.map((branch) => {
@@ -245,6 +246,12 @@ export function MemberAccessDialog({
                 )}
               </section>
             )
+          )}
+          {member.role === 'MERCHANT' && (
+            <p className="text-sm text-muted">
+              This user inherits all branches associated with their merchant
+              profile. Manage participation on the merchant profile.
+            </p>
           )}
           {(member.role === 'MERCHANT' || changeToMerchant) && (
             <section className="grid gap-3">

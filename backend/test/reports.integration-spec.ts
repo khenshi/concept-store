@@ -1,3 +1,4 @@
+import { fixtureProduct } from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -342,7 +343,9 @@ describe('PostgreSQL branch sales reporting', () => {
       data: { completedAt: new Date(range.until) },
     });
 
-    const otherBranchProduct = await products.create(
+    const otherBranchProduct = await fixtureProduct(
+      products,
+      prisma,
       organizationId,
       {
         merchantId,
@@ -412,7 +415,9 @@ describe('PostgreSQL branch sales reporting', () => {
         countryCode: 'PH',
       },
     });
-    const foreignProduct = await products.create(
+    const foreignProduct = await fixtureProduct(
+      products,
+      prisma,
       foreignOrganization.id,
       {
         merchantId: foreignMerchant.id,
@@ -475,7 +480,9 @@ describe('PostgreSQL branch sales reporting', () => {
           phone: '09171234567',
         },
       });
-      const product = await products.create(
+      const product = await fixtureProduct(
+        products,
+        prisma,
         organizationId,
         {
           merchantId: merchant.id,
@@ -557,7 +564,9 @@ describe('PostgreSQL branch sales reporting', () => {
   it('analytics ranks ten of all matching products deterministically and picks latest original snapshot', async () => {
     const placements: string[] = [];
     for (let index = 0; index < 12; index++) {
-      const product = await products.create(
+      const product = await fixtureProduct(
+        products,
+        prisma,
         organizationId,
         {
           merchantId,
@@ -735,14 +744,9 @@ describe('PostgreSQL branch sales reporting', () => {
     await expect(
       reports.analytics(context(merchantUserId), branchId, range),
     ).rejects.toMatchObject({ status: 404 });
-    expect(
-      await reports.analytics(context(merchantUserId), emptyBranchId, range),
-    ).toMatchObject({
-      ownGrossSales: '0.00',
-      dailyTrends: [{ ownGrossSales: '0.00', ownRefundedAmount: '0.00' }],
-      topProducts: [],
-      totalProducts: '0',
-    });
+    await expect(
+      reports.analytics(context(merchantUserId), emptyBranchId, range),
+    ).rejects.toMatchObject({ status: 404 });
     await prisma.user.update({
       where: { id: ownerId },
       data: { deletedAt: new Date() },
@@ -811,12 +815,16 @@ describe('PostgreSQL branch sales reporting', () => {
       data: [
         { organizationId, branchId, userId: managerId },
         { organizationId, branchId, userId: cashierId },
-        { organizationId, branchId: emptyBranchId, userId: merchantUserId },
       ],
+    });
+    await prisma.merchantBranch.create({
+      data: { organizationId, branchId: emptyBranchId, merchantId },
     });
     inventories = [];
     for (let index = 0; index < 3; index++) {
-      const created = await products.create(
+      const created = await fixtureProduct(
+        products,
+        prisma,
         organizationId,
         {
           merchantId: index === 2 ? otherMerchantId : merchantId,
@@ -935,11 +943,15 @@ describe('PostgreSQL branch sales reporting', () => {
       ownUnitsSold: '0',
     });
   });
-  it('does not grant report access solely from unsold current product placements', async () => {
+  it('grants empty own-report access through current affiliations before any sales', async () => {
     expect(await reports.branches(context(merchantUserId))).toEqual([
       identity(emptyBranchId),
+      identity(branchId),
     ]);
-    await expect(read(merchantUserId)).rejects.toMatchObject({ status: 404 });
+    expect(await read(merchantUserId)).toMatchObject({
+      ownGrossSales: '0.00',
+      ownTransactionCount: '0',
+    });
   });
   it('includes the start, excludes the end, and preserves millisecond boundaries', async () => {
     const sales = [
@@ -990,6 +1002,7 @@ describe('PostgreSQL branch sales reporting', () => {
     });
     expect(await read(merchantUserId)).toEqual(before);
     expect(await reports.branches(context(merchantUserId))).toEqual([
+      identity(emptyBranchId),
       identity(branchId),
     ]);
   });
@@ -1018,18 +1031,11 @@ describe('PostgreSQL branch sales reporting', () => {
       },
       data: { merchantId: null },
     });
-    expect(await reports.branches(context(merchantUserId))).toEqual([
-      identity(emptyBranchId),
-    ]);
+    expect(await reports.branches(context(merchantUserId))).toEqual([]);
     await expect(read(merchantUserId)).rejects.toMatchObject({ status: 404 });
-    expect(
-      await reports.sales(context(merchantUserId), emptyBranchId, range),
-    ).toMatchObject({
-      scope: 'MERCHANT',
-      ownGrossSales: '0.00',
-      ownTransactionCount: '0',
-      ownUnitsSold: '0',
-    });
+    await expect(
+      reports.sales(context(merchantUserId), emptyBranchId, range),
+    ).rejects.toMatchObject({ status: 404 });
   });
   it('denies cashiers even when assigned and after stale owner-context role changes', async () => {
     await mixedSales();
@@ -1111,7 +1117,9 @@ describe('PostgreSQL branch sales reporting', () => {
   });
   it('excludes other-branch recorded sales from the selected branch report', async () => {
     await mixedSales();
-    const created = await products.create(
+    const created = await fixtureProduct(
+      products,
+      prisma,
       organizationId,
       {
         merchantId,
@@ -1603,12 +1611,7 @@ describe('PostgreSQL branch sales reporting', () => {
       },
       data: { merchantId: null },
     });
-    expect(await read(merchantUserId)).toMatchObject({
-      ownRefundedAmount: '0.00',
-      ownReturnedUnits: '0',
-      ownRefundCount: '0',
-      ownNetRecordedSales: '0.00',
-    });
+    await expect(read(merchantUserId)).rejects.toMatchObject({ status: 404 });
   });
   it('never lets assignments expose other-only refunds and retains explicit empty own zeros', async () => {
     const sale = await complete('CARD', [[2, 1]]);
@@ -1638,7 +1641,13 @@ describe('PostgreSQL branch sales reporting', () => {
         quantity: 2,
       },
     };
-    const created = await products.create(organizationId, data, ownerId);
+    const created = await fixtureProduct(
+      products,
+      prisma,
+      organizationId,
+      data,
+      ownerId,
+    );
     const placement = await prisma.branchInventory.findFirstOrThrow({
       where: { organizationId, productId: created.id },
     });

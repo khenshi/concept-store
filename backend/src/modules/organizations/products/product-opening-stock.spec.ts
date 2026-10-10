@@ -10,6 +10,7 @@ import { productSelect } from './products.types';
 
 describe('Product opening stock transactions', () => {
   const tx = {
+    $queryRaw: jest.fn(),
     organizationMembership: { findUnique: jest.fn() },
     branch: { findUnique: jest.fn() },
     merchant: { findUnique: jest.fn() },
@@ -48,6 +49,9 @@ describe('Product opening stock transactions', () => {
     });
   beforeEach(() => {
     jest.resetAllMocks();
+    tx.$queryRaw.mockResolvedValue([
+      { merchantId: 'merchant', status: 'ACTIVE' },
+    ]);
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof tx) => unknown) => callback(tx),
     );
@@ -103,6 +107,7 @@ describe('Product opening stock transactions', () => {
         organizationId: 'org',
         branchId: 'branch',
         productId: 'product',
+        merchantId: 'merchant',
         sellingPrice: new Prisma.Decimal('12.50'),
         quantity: 3,
         lowStockThreshold: 5,
