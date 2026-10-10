@@ -2,8 +2,10 @@ import type { AuthenticatedRequest } from '@/features/organizations/model/organi
 import {
   createBranch,
   getBranch,
+  listBranchDirectory,
   listBranches,
   updateBranch,
+  updateBranchStatus,
 } from './branch-api';
 import type { BranchInput, BranchUpdateInput } from '../model/branch.types';
 
@@ -74,6 +76,79 @@ describe('branch API', () => {
       expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify(updateInput),
+      }),
+    );
+  });
+
+  it('lists the paginated staff directory with encoded filters', async () => {
+    vi.mocked(request).mockResolvedValue({
+      items: [
+        {
+          id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+          organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          name: 'Makati',
+          code: 'MKT-01',
+          status: 'ACTIVE',
+          addressLine1: '123 Retail Street',
+          addressLine2: null,
+          city: 'Makati',
+          province: 'Metro Manila',
+          postalCode: '1200',
+          countryCode: 'PH',
+          createdAt: '2026-09-01T00:00:00.000Z',
+          updatedAt: '2026-09-01T00:00:00.000Z',
+          merchantCount: 2,
+        },
+      ],
+      page: 2,
+      limit: 10,
+      total: 11,
+      totalPages: 2,
+      hasNext: false,
+      summary: { total: 24, active: 20, inactive: 4 },
+    });
+
+    await expect(
+      listBranchDirectory(request, 'organization/id', {
+        search: 'Metro Manila',
+        status: 'ACTIVE',
+        page: 2,
+      }),
+    ).resolves.toMatchObject({ total: 11, summary: { inactive: 4 } });
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%2Fid/branches/directory?page=2&q=Metro+Manila&status=ACTIVE',
+    );
+  });
+
+  it('updates a branch lifecycle status', async () => {
+    vi.mocked(request).mockResolvedValue({
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      name: 'Makati',
+      code: null,
+      status: 'INACTIVE',
+      addressLine1: '123 Retail Street',
+      addressLine2: null,
+      city: 'Makati',
+      province: 'Metro Manila',
+      postalCode: null,
+      countryCode: 'PH',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    });
+
+    await updateBranchStatus(
+      request,
+      'organization/id',
+      'branch/id',
+      'INACTIVE',
+    );
+
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%2Fid/branches/branch%2Fid/status',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'INACTIVE' }),
       }),
     );
   });

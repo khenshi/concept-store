@@ -1,4 +1,4 @@
-import { branchSchema } from './branch.schemas';
+import { branchDirectoryPageSchema, branchSchema } from './branch.schemas';
 
 describe('branch schema', () => {
   it('normalizes a valid branch form', () => {
@@ -38,5 +38,30 @@ describe('branch schema', () => {
         countryCode: 'PH',
       }).success,
     ).toBe(false);
+  });
+
+  it('validates directory pagination and summary invariants', () => {
+    expect(
+      branchDirectoryPageSchema.parse({
+        items: [],
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        summary: { total: 4, active: 3, inactive: 1 },
+      }),
+    ).toMatchObject({ limit: 10 });
+    expect(() =>
+      branchDirectoryPageSchema.parse({
+        items: [],
+        page: 1,
+        limit: 10,
+        total: 11,
+        totalPages: 1,
+        hasNext: false,
+        summary: { total: 4, active: 3, inactive: 1 },
+      }),
+    ).toThrow();
   });
 });

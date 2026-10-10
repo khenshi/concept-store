@@ -7,6 +7,7 @@ import {
   PickType,
 } from '@nestjs/swagger';
 import {
+  BranchStatus,
   ColorTheme,
   InventoryMovementType,
   MerchantStatus,
@@ -126,6 +127,8 @@ export class BranchResponseDto {
   @ApiProperty({ example: 'Makati Main' }) name!: string;
   @ApiPropertyOptional({ nullable: true, example: 'MKT-01' }) code!:
     string | null;
+  @ApiProperty({ enum: BranchStatus, example: BranchStatus.ACTIVE })
+  status!: BranchStatus;
   @ApiProperty({ example: '123 Retail Street' }) addressLine1!: string;
   @ApiPropertyOptional({ nullable: true }) addressLine2!: string | null;
   @ApiProperty({ example: 'Makati' }) city!: string;
@@ -136,6 +139,28 @@ export class BranchResponseDto {
   countryCode!: string;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
+}
+
+export class BranchDirectoryItemResponseDto extends BranchResponseDto {
+  @ApiProperty({ minimum: 0, type: 'integer' }) merchantCount!: number;
+}
+
+export class BranchDirectorySummaryResponseDto {
+  @ApiProperty({ minimum: 0, type: 'integer' }) total!: number;
+  @ApiProperty({ minimum: 0, type: 'integer' }) active!: number;
+  @ApiProperty({ minimum: 0, type: 'integer' }) inactive!: number;
+}
+
+export class BranchDirectoryResponseDto {
+  @ApiProperty({ type: [BranchDirectoryItemResponseDto] })
+  items!: BranchDirectoryItemResponseDto[];
+  @ApiProperty({ minimum: 1, type: 'integer' }) page!: number;
+  @ApiProperty({ example: 10, type: 'integer' }) limit!: number;
+  @ApiProperty({ minimum: 0, type: 'integer' }) total!: number;
+  @ApiProperty({ minimum: 0, type: 'integer' }) totalPages!: number;
+  @ApiProperty() hasNext!: boolean;
+  @ApiProperty({ type: BranchDirectorySummaryResponseDto })
+  summary!: BranchDirectorySummaryResponseDto;
 }
 
 export class MerchantResponseDto {

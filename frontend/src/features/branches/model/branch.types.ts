@@ -1,8 +1,11 @@
+export type BranchStatus = 'ACTIVE' | 'INACTIVE';
+
 export interface Branch {
   id: string;
   organizationId: string;
   name: string;
   code: string | null;
+  status: BranchStatus;
   addressLine1: string;
   addressLine2: string | null;
   city: string;
@@ -26,6 +29,24 @@ export interface BranchInput {
 
 export type BranchIdentity = Pick<Branch, 'id' | 'name' | 'code'>;
 export type BranchView = Branch | BranchIdentity;
+
+export interface BranchDirectoryItem extends Branch {
+  merchantCount: number;
+}
+
+export interface BranchDirectoryPage {
+  items: BranchDirectoryItem[];
+  page: number;
+  limit: 10;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  summary: {
+    total: number;
+    active: number;
+    inactive: number;
+  };
+}
 
 export type BranchUpdateInput = Omit<
   BranchInput,

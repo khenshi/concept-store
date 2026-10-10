@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Prisma } from '../../../generated/prisma/client';
+import {
+  BranchStatus,
+  OrganizationRole,
+  Prisma,
+} from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BranchesService } from './branches.service';
 
@@ -16,6 +20,7 @@ describe('BranchesService', () => {
     organizationId,
     name: 'Makati',
     code: 'MKT-01',
+    status: BranchStatus.ACTIVE,
     addressLine1: '123 Retail Street',
     addressLine2: null,
     city: 'Makati',
@@ -40,7 +45,11 @@ describe('BranchesService', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
+    $transaction: jest.fn((queries: Promise<unknown>[]) =>
+      Promise.all(queries),
+    ),
   };
   let service: BranchesService;
 
@@ -120,5 +129,125 @@ describe('BranchesService', () => {
         'Branch name or code already exists in this organization',
       ),
     );
+  });
+
+  it('returns a scoped, searchable page with summary and distinct merchant counts', async () => {
+    const directoryBranch = {
+      ...branch,
+      _count: { merchants: 2 },
+    };
+    prisma.branch.count
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(0);
+    prisma.branch.findMany.mockResolvedValueOnce([directoryBranch]);
+
+    const result = await service.findDirectory(
+      {
+        organizationId,
+        userId: 'user-id',
+        role: OrganizationRole.OWNER,
+        merchantId: null,
+      },
+      { page: 1, q: 'Makati' },
+    );
+
+    expect(result).toEqual({
+      items: [{ ...branch, merchantCount: 2 }],
+      page: 1,
+      limit: 10,
+      total: 1,
+      totalPages: 1,
+      hasNext: false,
+      summary: { total: 2, active: 2, inactive: 0 },
+    });
+    expect(prisma.branch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: 0,
+        take: 10,
+      }),
+    );
+  });
+
+  it('uses assigned-branch scope and status filters for managers', async () => {
+    prisma.branch.count.mockResolvedValue(0);
+    prisma.branch.findMany.mockResolvedValue([]);
+
+    await service.findDirectory(
+      {
+        organizationId,
+        userId: 'manager-id',
+        role: OrganizationRole.MANAGER,
+        merchantId: null,
+      },
+      { page: 2, q: 'Makati', status: BranchStatus.INACTIVE },
+    );
+
+    type DirectoryFindManyArgs = {
+      where: { AND: Array<Record<string, unknown>> };
+      skip: number;
+    };
+    const [findManyArgs] = prisma.branch.findMany.mock.calls.at(
+      -1,
+    ) as unknown as [DirectoryFindManyArgs];
+    expect(findManyArgs.where.AND).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ organizationId }),
+        expect.objectContaining({ status: BranchStatus.INACTIVE }),
+      ]),
+    );
+    expect(
+      findManyArgs.where.AND.some(
+        (entry) => 'OR' in entry && Array.isArray(entry.OR),
+      ),
+    ).toBe(true);
+    expect(findManyArgs.skip).toBe(10);
+  });
+
+  it('changes status only inside the authorized branch scope', async () => {
+    prisma.branch.findFirst.mockResolvedValue(branch);
+    prisma.branch.update.mockResolvedValue({
+      ...branch,
+      status: BranchStatus.INACTIVE,
+    });
+
+    await expect(
+      service.updateStatus(
+        organizationId,
+        branchId,
+        {
+          organizationId,
+          userId: 'manager-id',
+          role: OrganizationRole.MANAGER,
+          merchantId: null,
+        },
+        { status: BranchStatus.INACTIVE },
+      ),
+    ).resolves.toMatchObject({ status: BranchStatus.INACTIVE });
+    expect(prisma.branch.update).toHaveBeenCalledWith({
+      where: { id: branchId, organizationId },
+      data: { status: BranchStatus.INACTIVE },
+    });
+  });
+
+  it('does not change status for an unassigned or foreign branch', async () => {
+    prisma.branch.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.updateStatus(
+        organizationId,
+        branchId,
+        {
+          organizationId,
+          userId: 'manager-id',
+          role: OrganizationRole.MANAGER,
+          merchantId: null,
+        },
+        { status: BranchStatus.INACTIVE },
+      ),
+    ).rejects.toThrow(new NotFoundException('Branch not found'));
+    expect(prisma.branch.update).not.toHaveBeenCalled();
   });
 });

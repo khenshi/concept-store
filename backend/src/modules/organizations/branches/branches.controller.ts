@@ -1,4 +1,9 @@
-import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
+import {
+  BranchDirectoryResponseDto,
+  BranchDirectoryItemResponseDto,
+  BranchDirectorySummaryResponseDto,
+  BranchIdentityResponseDto,
+} from '../../../openapi/response.dto';
 import {
   Body,
   Controller,
@@ -7,6 +12,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -33,10 +39,18 @@ import { OrganizationRoles } from '../authorization/organization-roles.decorator
 import { BranchesService } from './branches.service';
 import type { BranchRecord } from './branches.types';
 import { CreateBranchDto } from './dto/create-branch.dto';
+import { ListBranchDirectoryQueryDto } from './dto/list-branch-directory-query.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
+import { UpdateBranchStatusDto } from './dto/update-branch-status.dto';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard, ResourceAccessGuard)
-@ApiExtraModels(BranchResponseDto, BranchIdentityResponseDto)
+@ApiExtraModels(
+  BranchResponseDto,
+  BranchIdentityResponseDto,
+  BranchDirectoryResponseDto,
+  BranchDirectoryItemResponseDto,
+  BranchDirectorySummaryResponseDto,
+)
 @ApiTags('branches')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
@@ -82,6 +96,21 @@ export class BranchesController {
     );
   }
 
+  @OrganizationRoles(
+    OrganizationRole.OWNER,
+    OrganizationRole.MANAGER,
+    OrganizationRole.CASHIER,
+  )
+  @Get('directory')
+  @ApiOperation({ summary: 'Page the staff branch directory' })
+  @ApiOkResponse({ type: BranchDirectoryResponseDto })
+  findDirectory(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() query: ListBranchDirectoryQueryDto,
+  ) {
+    return this.branchesService.findDirectory(organization, query);
+  }
+
   @Get(':branchId')
   @ApiOperation({ summary: 'Get a branch' })
   @ApiOkResponse({
@@ -121,6 +150,26 @@ export class BranchesController {
     return this.branchesService.update(
       organization.organizationId,
       branchId,
+      dto,
+    );
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+  @Patch(':branchId/status')
+  @ApiOperation({ summary: 'Change a branch lifecycle status' })
+  @ApiOkResponse({ type: BranchResponseDto })
+  @ApiForbiddenResponse({
+    description: 'The organization role cannot change branch status',
+  })
+  updateStatus(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Body() dto: UpdateBranchStatusDto,
+  ): Promise<BranchRecord> {
+    return this.branchesService.updateStatus(
+      organization.organizationId,
+      branchId,
+      organization,
       dto,
     );
   }
