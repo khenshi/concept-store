@@ -31,7 +31,7 @@ filter. Results are not paginated.
 
 - Every route requires authentication and organization membership.
 - Only owners create/edit/change lifecycle. Managers read identity/status summaries
-  of merchants represented in assigned branches, without contact details.
+  of merchants affiliated with assigned branches, without contact details.
 - Linked MERCHANT members read their own profile including own contact details.
   Cashiers cannot use merchant routes. Unlinked merchants receive empty lists.
 - Manager search uses name/code only, not hidden contact fields.
@@ -91,7 +91,7 @@ Managers read represented identity/status summaries with no contact fields; thei
 search prompt is business/code only. Runtime parsing strips contacts from manager
 responses. Merchants read their linked profile, including their own contacts, with
 no mutation actions; inactive profiles remain readable. Empty access explains
-asking an owner to configure the link or placements. Role/organization/profile
+asking an owner to configure the profile link or branch associations. Role/organization/profile
 changes reset screen state; obsolete reads and failed refreshes do not retain
 actionable profiles.
 
@@ -121,3 +121,19 @@ authorization, tenant isolation, deterministic filtering, conflicts, and the
 complete API workflow. Frontend tests cover response validation, form behavior,
 directory states and filters, role-aware navigation, creation and editing, and
 confirmed lifecycle changes.
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.
+
+## Optional space occupancy
+
+See [Branch space occupancy](spaces.md). Owners can assign/release spaces from
+merchant profiles; managers and linked merchants read scoped current/history views.
+Changing a merchant to `INACTIVE`, `SUSPENDED`, or `ENDED` atomically releases its
+open spaces across all branches, retaining release dates, actor, and reason.
+Returning to `ACTIVE` does not restore assignments. Confirmation explains the
+advisory affected count; existing inventory and sales rules remain independent.

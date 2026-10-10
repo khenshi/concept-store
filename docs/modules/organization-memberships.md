@@ -50,9 +50,9 @@ its assignments, never inventory or movement history. Merchant links are restric
 
 ## Access management delivery (Part 2)
 
-Owner APIs list explicit assignments (all branches for owner targets), grant/revoke
+Owner APIs list staff assignments, inherited profile affiliations for MERCHANT targets (including inactive participation), and all branches for owner targets, grant/revoke
 tenant-local branches idempotently with 204 responses, and set a merchant link with
-a merchantId response. Owner targets reject explicit assignments. Branch/member/
+a merchantId response. Owner and MERCHANT targets reject explicit assignments. Merchant rejections direct owners to association management. Branch/member/
 merchant resolution is tenant-scoped; missing and foreign objects use 404.
 Assignment commands accept no fields; unknown fields are rejected. Merchant-link
 commands require a UUID v4 merchantId and a MERCHANT target membership.
@@ -89,7 +89,7 @@ dialog requiring a merchant profile in the same role command.
 
 The access dialog loads tenant-local branch/profile choices and current assignments.
 Owners have an implicit all-branches explanation instead of grant controls.
-Nonowners can receive individual branch grants; revocations require confirmation.
+Managers and cashiers can receive individual branch grants; revocations require confirmation. Merchant dialogs explain inherited profile access and omit branch-grant controls.
 MERCHANT links can be changed with confirmation explaining the read-access change
 without changing product ownership or history. Pending writes prevent duplicate
 actions and dismissal; loading, retryable failures, and success are explicit.
@@ -112,3 +112,10 @@ choice loading, required merchant links, cancellation, pending protection, reduc
 role data, scope changes, and fresh access denial. Rendered browser QA for this
 access-control milestone was explicitly waived on September 13, 2026; automated
 tests do not certify actual top-layer/focus, responsive layout, or contrast.
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.

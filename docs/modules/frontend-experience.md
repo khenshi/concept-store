@@ -672,3 +672,52 @@ responses instead of falling back to staff data. Scope changes unmount old read
 state; loading/error/empty states and read-only access refresh preserve isolation.
 The new September 13, 2026 waiver covers these POS/sales screens; automated checks
 do not certify rendered accessibility or printing.
+
+## Merchant branch participation
+
+Merchant and branch detail pages use the shared paginated association section. Owner
+assignment/status controls use native dialogs and confirmations; managers and
+merchants see scoped read-only associations. Member/invitation dialogs remove
+merchant branch grants and explain inherited profile access. Inventory and POS
+show inactive participation and disable receiving/selling; corrections and history
+remain available. Opening stock and placement choices require active affiliations.
+See [Merchant–branch relationships](merchant-branches.md).
+
+## Branch space occupancy
+
+Branch details and merchant profiles now include the optional space workflow
+specified in [Branch space occupancy](spaces.md). It uses the existing flat
+operational rows, native dialogs, and role-scoped read-only views. Lifecycle and
+participation confirmations explain automatic release with an advisory occupied
+space count; successful status changes refresh occupancy. No new visual system or
+product/inventory/sales placement requirement is introduced.
+
+## Spaces workspace (October 10, 2026)
+
+Branch operations includes Spaces after Inventory for owners, managers, and
+merchants. The organization entry `/app/organizations/[organizationId]/spaces`
+and direct branch route
+`/app/organizations/[organizationId]/branches/[branchId]/spaces` share authorized
+branch selection and the existing workspace's remembered branch. The direct URL
+wins; unavailable remembered choices require an explicit accessible selection.
+Cashiers have no entry or Spaces data requests, including on direct visits.
+
+The page follows the existing operational layout and reuses the branch Spaces
+component, forms, and history. Owners manage, managers view assigned branches,
+and merchants view only their own spaces/history. Staff can filter occupied or
+vacant spaces with server pagination; merchants cannot browse vacancy. Existing
+branch-detail and merchant-profile entry points are preserved. Branch switching
+honors POS/refund guards, confirms dirty form discard, and is disabled during
+pending space writes. Loading, empty, unavailable, and retry states use existing
+controls. See [spaces](spaces.md) for API and privacy semantics.
+
+### Spaces and Types tabs
+
+Owners/managers receive Spaces and Types tabs in the dedicated Spaces workspace.
+Spaces remains branch-scoped; Types manages the organization's shared vocabulary
+without branch selection. Owners add types, managers view/search them, and
+merchants retain only their scoped Spaces view. Creation/edit and type filters
+use catalog choices. Space forms offer inline Add type, preserving the draft and
+selecting the new type after success; that type persists even if the space is
+cancelled. Tabs support arrow/Home/End keyboard navigation and prevent discarding
+dirty drafts or switching during pending writes without the existing safeguards.

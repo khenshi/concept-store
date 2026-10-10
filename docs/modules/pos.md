@@ -35,10 +35,10 @@ directory or receive cashier/payment fields.
 ## Catalog rules and response
 
 Only placed ACTIVE products of ACTIVE merchants are returned. Zero-stock rows
-remain visible with `eligible: false`; positive stock sets `eligible: true`.
+remain visible with `eligible: false`; positive stock and active participation set `eligible: true`.
 Eligibility and prices are read-time observations, not checkout authorization.
 Each row contains only branchInventoryId, productId, name, SKU, barcode,
-merchantName, sellingPrice as an exact two-decimal PHP string, quantity and eligible.
+merchantName, sellingPrice as an exact two-decimal PHP string, quantity, participationStatus, and eligible.
 No contacts, addresses, actor IDs, movement history or organization-wide catalog
 are included. Reads never change stock or prices.
 
@@ -218,3 +218,10 @@ production build pass. The user
 explicitly waived rendered responsive, keyboard/dialog, zoom and print QA for this
 POS/sales milestone on September 13, 2026. This is a new waiver, separate from access
 control. Automated dialog and print tests do not certify browser-rendered behavior.
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.

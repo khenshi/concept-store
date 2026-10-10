@@ -174,8 +174,7 @@ state resets on role/organization/product changes and obsolete reads are ignored
 failed refreshes clear prior product/merchant/placement data.
 Managers' placement lists contain assigned branches only; merchants see own
 products' placements across all selling branches. Placement candidate checks
-prevent managers discovering or placing unrepresented catalog products; an owner
-must place them first. Lifecycle and quantity do not affect read visibility.
+include products owned by affiliated merchants in assigned branches, including products with no placements. New placement requires active participation. Lifecycle and quantity do not affect read visibility.
 
 ```text
 /app/organizations/:organizationId/products
@@ -205,3 +204,10 @@ must place them first. Lifecycle and quantity do not affect read visibility.
   receiving, corrections, and immutable history. See [Branch Inventory](branch-inventory.md).
 - API response schemas reject malformed identities, status, dates, quantity bounds,
   and non-decimal-string prices before rendering.
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.

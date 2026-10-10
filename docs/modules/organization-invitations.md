@@ -45,8 +45,8 @@ references remain restrictive. Existing invitation retention is unchanged.
 
 ## Invitation access grants (Part 3)
 
-Creation accepts optional distinct UUID v4 branchIds (maximum 100). MERCHANT
-invitations require one merchantId; other roles reject it. Branches and merchant
+Staff invitation creation accepts optional distinct UUID v4 branchIds (maximum 100). MERCHANT
+invitations require one merchantId and reject nonempty branchIds; other roles reject merchantId. Branches and merchant
 must belong to the trusted organization; foreign/absent related records return
 404. Empty branch selections are allowed. Existing supported invitation roles
 remain MANAGER, CASHIER, and MERCHANT; OWNER invitations remain unsupported.
@@ -56,8 +56,8 @@ revoke responses include nullable merchantId, merchant identity/status, and bran
 identity grants. Public token preview still exposes only organization name, email,
 role, and expiry—no branch, merchant, or contact details.
 
-Acceptance creates membership, merchant link, branch assignments, and accepted
-marker in one serializable transaction. Matching-email, expiry, revocation,
+Acceptance creates membership, merchant link, staff branch assignments, and accepted
+marker in one serializable transaction. Merchant acceptance inherits profile affiliations and creates no individual grants. Matching-email, expiry, revocation,
 single-use, and existing-membership checks remain enforced. Failed writes roll
 back the claim and membership/grants. Concurrent membership/invitation conflicts
 return 409 with retry guidance. Legacy unlinked MERCHANT invitations return 409
@@ -90,8 +90,8 @@ Owners manage invitations from the organization member workflow. A separate
 token route previews and accepts invitations.
 
 The owner invitation modal loads tenant-local branches and merchant profiles.
-Branch checkboxes allow zero to 100 distinct assignments; MERCHANT requires a
-profile selection. Switching away from MERCHANT clears the link selection.
+Staff branch checkboxes allow zero to 100 distinct assignments; MERCHANT requires a
+profile selection and shows inherited-access guidance instead of branch checkboxes. Switching away from MERCHANT clears the link selection.
 Validation runs 300 ms after input changes, immediately on blur, and again on
 submit. Loading/choice failures have retry feedback; pending creation disables
 fields and repeat submission. Create/list/revoke responses are runtime validated.
@@ -118,3 +118,10 @@ the draft, required merchant selection before submit, branch/link commands,
 debounced and blur validation, and pending/dismissal behavior. Public preview and
 acceptance remain unchanged. Rendered QA for this milestone was explicitly waived
 on September 13, 2026; automated dialog shims do not certify browser behavior.
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.

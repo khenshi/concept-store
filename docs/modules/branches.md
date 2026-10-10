@@ -38,8 +38,7 @@ PATCH /organizations/:organizationId/branches/:branchId
 
 - Owners read all branches and alone create branches.
 - Managers/cashiers read only assigned branches; managers edit assigned branches.
-- Linked merchants read identity-only branches where explicitly assigned or their
-  own products are placed. Unlinked merchants receive empty lists.
+- Linked merchants read identity-only branches associated with their linked merchant profile, including inactive participation. Unlinked merchants receive empty lists.
 - Unassigned/foreign/missing branch IDs return the same 404.
 - Organization membership and object scope are enforced by the backend.
 
@@ -48,7 +47,7 @@ for merchants with matching historical sale items. It grants no address/general
 branch-detail access and does not change these existing branch routes.
 
 The [Reports branch lookup](reports.md) also returns identity only: all tenant
-branches for owners, assigned branches for managers and assigned/historical-own-sale
+branches for owners, assigned branches for managers and profile-affiliated/historical-own-sale
 branches for merchants. It does not grant general branch/address/inventory access.
 Cashiers cannot use Reports and retain their existing branch/POS access.
 
@@ -56,6 +55,10 @@ Cashiers cannot use Reports and retain their existing branch/POS access.
 
 `Branch` belongs to one organization and contains name, optional code, address
 lines, city, province, optional postal code, and a two-letter country code.
+
+Branches also have an explicit `status` of `ACTIVE` or `INACTIVE`. New branches
+default to `ACTIVE`; changing status is reversible metadata for the directory
+and does not remove branch access or change POS, inventory, or sales behavior.
 
 - Name and non-null code are independently unique within an organization.
 - Codes are normalized to uppercase.
@@ -78,7 +81,7 @@ Backend-filtered branches drive the directory. Runtime schemas accept full branc
 records for staff and identity-only records for merchants, stripping address fields
 from merchant reads. Managers cannot create branches; assigned branch editing is
 retained. Merchants see identity/code and own-inventory links, no addresses or
-location filter. Empty access explains asking an owner to configure assignments
+location filter. Empty access explains asking an owner to configure staff assignments or merchant affiliations
 or the merchant link. Workspace branch cache clears on access refresh and organization
 changes; obsolete read responses cannot repopulate it. Directory entry refreshes
 accessible branches rather than relying on an indefinitely cached assignment list.
@@ -86,12 +89,33 @@ accessible branches rather than relying on an indefinitely cached assignment lis
 The organization workspace provides branch listing, creation, detail, and edit
 flows with validation and request-state feedback.
 
-The directory uses full-width responsive rows with visible branch identity,
-optional code, complete address, and a detail link. Debounced local search matches
-name/code/address; a labeled location selector filters by city and province.
-Empty, filtered-empty, loading, and request-error states remain distinct. Owners
-alone can add branches; managers can edit assigned branches, while cashiers and
-merchants remain read-only.
+Staff also use the paginated directory projection:
+
+```text
+GET   /organizations/:organizationId/branches/directory?q=&status=&page=
+PATCH /organizations/:organizationId/branches/:branchId/status
+```
+
+The directory is limited to ten rows per page, searches branch name, code, city,
+province, and address, and returns the filtered total, page metadata, an
+unfiltered accessible summary of total/active/inactive counts, and each row's
+active merchant count. The count includes all active merchant–branch associations,
+including merchants without placements. Owners and
+assigned managers may change branch status; cashiers may read it but cannot
+change it. The original branch list and merchant identity-only projection
+remain available to branch selectors and merchant workflows.
+
+The staff directory keeps the page header, then presents a compact horizontal
+summary row, search/status controls with clear filters, and one flat, open data
+surface. Its rows use the Inventory directory's shared column-header and
+data-row geometry: quiet hairline dividers, the same wide-screen column rhythm,
+stacked narrow-screen content, and compact quiet View actions. Rows show branch
+name/code, city and short address, merchant count, semantic Active/Inactive text,
+and a View action. The footer reports the current range such as
+`Showing 1–10 of 24` with previous/next pagination. Search and status changes
+reset to page one. Empty, filtered-empty, loading, and request-error states
+remain distinct. Owners alone can add branches; managers can edit assigned
+branches and change their status, while cashiers remain read-only.
 Add branch appears in the Store locations panel header, consistent with other
 directories. The Branches page title has no organization-name eyebrow above it.
 
@@ -111,3 +135,17 @@ Rendered branch inventory-health card layout, filtered-link behavior, keyboard/
 focus behavior, non-color communication and 200% zoom QA were explicitly waived
 September 16, 2026. Automated tests cover the contracts and state transitions but
 do not certify those rendered behaviors.
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.
+
+## Optional physical spaces
+
+See [Branch space occupancy](spaces.md) for named space management, dated
+assignments, authorization, and automatic release. Branch details show owner
+controls and scoped manager/merchant reads. A branch can have no configured spaces;
+its lifecycle status remains metadata and does not release space occupancy.

@@ -142,9 +142,9 @@ subsequent reads, regardless of a stale context. Deleted accounts are denied.
 MERCHANT reads only items historically owned by their currently linked profile,
 including inactive products/merchants and zero-stock placements. Historical own
 sales grant branch sales access without assignments or current-placement-based
-authorization; explicit assignments may instead grant an empty own-sales directory.
-An unlinked merchant has no historical access, receives empty assigned-branch lists,
-and receives an empty historical branch lookup. Neither assignments nor a guessed
+authorization; profile affiliations may instead grant an empty own-sales directory.
+An unlinked merchant has no historical access, receives no operational branches,
+and receives an empty historical branch lookup. Neither affiliations nor a guessed
 sale ID can expose another merchant's sale. Relinking changes subsequent reads
 without rewriting historical ownership; multiple members linked to the same
 business see the same own-sale projections.
@@ -300,3 +300,10 @@ opposite multi-line carts, second-line movement rollback and lock-controlled
 price/lifecycle changes. The destructive development seed adds three
 completed examples with CASH/GCASH/CARD and a mixed-merchant sale, inserting items,
 stock deductions and movements atomically. It is not the application checkout API.
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.

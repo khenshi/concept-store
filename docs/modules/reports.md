@@ -58,14 +58,13 @@ Lookup returns only `{ id, name, code }`, ordered by name then ID:
 
 - Owners: all tenant branches.
 - Managers: explicitly assigned branches only.
-- Merchants: explicitly assigned branches union branches containing historical
+- Merchants: profile-affiliated branches union branches containing historical
   own items for the currently linked profile. This is independent of report dates.
   No current product placement is required for historical sales access; an unsold
-  current placement alone does not grant Reports access.
+  profile affiliations grant own-only access before sales exist.
 
-Merchant assignments can grant an empty own-only report, never branch-wide data.
-Unlinked merchants have no historical branch lookup/access, but may read zero
-own-only totals in explicitly assigned branches. Shared profiles see the same own
+Merchant affiliations can grant an empty own-only report, never branch-wide data.
+Unlinked merchants have no branch lookup or report access. Shared profiles see the same own
 data; relinking changes future report access without rewriting historical ownership.
 Inactive products/merchants, renames and live price changes do not change recorded
 totals. The separate lookup does not widen general branch/address/inventory routes.
@@ -564,3 +563,10 @@ Those checks were not performed; automated checks do not certify rendered layout
 or accessibility. Final delivery was reviewed and approved; the completed refund
 plan is archived in
 [Item Returns and Manual Refunds MVP](../plans/archive/item-returns-and-manual-refunds-mvp-2026-09-14.md).
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.

@@ -86,7 +86,7 @@ whitelisting reject malformed IDs and unexpected fields.
   RECEIPT in the placement transaction, while explicit zero creates no movement.
   Setting the threshold to `0` is retained for the low-warning opt-out behavior.
   Duplicate product/branch placement returns `409`.
-- New placements require an active product and active merchant.
+- New placements require an active product, active merchant, and active merchant–branch association.
 - Price requests use positive decimal strings with at most 10 integer and two
   fractional digits. Numeric JSON values, scientific notation, and zero are
   rejected. Prisma Decimal stores prices; responses have exactly two decimals.
@@ -275,7 +275,7 @@ the picker, without a different-branch fallback or erasing another feature's cho
 The labeled
 branch dropdown also appears in inventory directories and placement details.
 Options reuse existing authorized general branch reads: tenant branches for owners,
-assigned branches for managers and assignment/own-placement-accessible branches for
+assigned branches for managers and profile-affiliated branches for
 merchants. Merchant historical-sales branch lookup is not used or widened.
 Inventory directory/detail routes mark Inventory, not Branches, as active.
 
@@ -326,8 +326,8 @@ controls in accessible branches, while merchants see own placements/history only
 Role/organization/branch/placement changes reset screen state and obsolete reads
 are ignored. A 403/404 stock/price response clears placement data and controls,
 offering read retry and owner-access guidance without replaying the denied command.
-Explicit merchant branch assignments with no own products return empty inventory;
-assignments never expose another merchant's stock. OpenAPI describes reduced history
+Merchant profile affiliations with no own products return empty inventory;
+affiliations never expose another merchant's stock. OpenAPI describes reduced history
 responses as well as full owner/manager responses.
 
 ```text
@@ -416,3 +416,10 @@ responses as well as full owner/manager responses.
   page visible and can be retried without repeating an inventory write.
 - Runtime schemas validate branch identity, inventory/product/merchant summaries,
   exact price strings, integer bounds, and movement type/delta before rendering.
+
+## Merchant branch participation
+
+See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
+active participation requirements, inactive read/history preservation, migration,
+and association management. This contract supersedes individual merchant grants
+and placement-derived merchant branch visibility described in earlier milestones.
