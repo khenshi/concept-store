@@ -378,7 +378,11 @@ responses as well as full owner/manager responses.
   positive opening quantity is written as an attributed RECEIPT in the same
   transaction as the placement; an explicit zero creates the empty balance
   without a movement. A concurrent duplicate still returns the backend conflict
-  without losing the draft.
+  without losing the draft. The dialog uses the shared narrow form layout,
+  focuses product search on open, and separates product selection from branch
+  settings with a responsive field grouping and action divider; placement
+  behavior and validation remain unchanged. Its low-stock threshold input starts
+  at `0`, while the backend's omitted-field API default remains `5`.
 - Movement history appears before the stock controls so recent activity is
   visible before mutation forms. Receiving and correction panels appear side by
   side at wide desktop widths and stack below the parallel receive/threshold

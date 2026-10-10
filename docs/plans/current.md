@@ -17,6 +17,22 @@ Add a Spaces destination alongside Inventory and Reports so users can open an
 authorized branch's spaces directly, identify vacant spaces, and use the existing
 assignment, release, archive, and history workflows.
 
+### User-approved scope adjustment (October 11, 2026)
+
+Add a standalone space detail route behind each branch-row View action. Reuse the
+existing space, occupancy, assignment, release, and status contracts and forms;
+do not add entities, migrations, dependencies, or a second management model.
+The detail history is a full-width section below the overview/actions area, uses
+the established operational table pattern, and adds server-backed merchant/date
+filters plus a privacy-limited released-by display name.
+
+The user also approved removing `SpaceOccupancy` record-creation and
+record-update timestamps from the database and API. Occupancy history keeps
+only its interval dates (`startedAt`/`endedAt`) and released-by identity; the
+space entity's own creation/update timestamps remain unchanged.
+Assignment and release dialogs use date-only controls and a compact two-column
+layout for related selections and historical date ranges.
+
 ### Existing dependencies and boundaries
 
 - Reuse the implemented [spaces module](../modules/spaces.md), its API client,
@@ -33,10 +49,11 @@ assignment, release, archive, and history workflows.
 
 ### Routes and navigation
 
-| Route                                                            | Responsibility                                                                                             |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `/app/organizations/[organizationId]/spaces`                     | Load access and branch choices; resume an accessible remembered branch or show branch selection.           |
-| `/app/organizations/[organizationId]/branches/[branchId]/spaces` | Validate branch access, show branch identity and selector, and render the existing branch Spaces workflow. |
+| Route                                                                      | Responsibility                                                                                             |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `/app/organizations/[organizationId]/spaces`                               | Load access and branch choices; resume an accessible remembered branch or show branch selection.           |
+| `/app/organizations/[organizationId]/branches/[branchId]/spaces`           | Validate branch access, show branch identity and selector, and render the existing branch Spaces workflow. |
+| `/app/organizations/[organizationId]/branches/[branchId]/spaces/[spaceId]` | Show the selected space overview, occupancy history, and authorized actions.                               |
 
 - Add **Spaces** immediately after Inventory in Branch operations, preserving
   the relative order of existing destinations. Support expanded, collapsed, and
@@ -63,7 +80,11 @@ assignment, release, archive, and history workflows.
   merchant where authorized, and existing actions/history. Avoid a second set of
   management forms or a second data model.
 - Retain name search, exact type filtering, status filtering, and ten-row
-  pagination. Default filters remain unchanged to preserve current behavior.
+  pagination. The branch list defaults its status filter to Active and shows
+  status in its own column.
+- Keep owner branch-row actions limited to Assign, Archive, and View. Archive is
+  disabled for occupied spaces; the detail route contains the remaining
+  owner-only edit, release, and reactivation actions.
 - Add an owner/manager **Occupancy** filter: All, Occupied, Vacant. Keep lifecycle
   status separate: an archived vacant space is not assignable. Existing row copy
   and disabled/absent actions must continue to make that distinction clear.
@@ -73,8 +94,9 @@ assignment, release, archive, and history workflows.
   guidance explaining that scope. Do not present vacancy filtering, other
   merchants, or language implying an organization-wide catalog. A null own
   occupancy projection must not be labeled as proof of vacancy.
-- Keep current history dialogs and merchant-profile views; no new standalone
-  space-detail route is required.
+- Keep merchant-profile views and existing occupancy workflows. The new detail
+  route replaces the branch-row history dialog for direct space review while
+  retaining the shared forms and authorization boundaries.
 - Handle access loading, branch loading, no accessible branches, no configured
   spaces, no own assignments, no filter matches, request errors, and retry.
   Role/access changes must discard stale rows and owner-only controls.
@@ -102,8 +124,15 @@ ten rows would produce incorrect totals and omit matching spaces.
   and privacy-preserving projections remain unchanged. Cashier access remains
   denied. Authentication and object access checks still run first.
 - Update the DTO, service, OpenAPI query documentation, client filter type, and
-  API tests. Keep the response contract and existing default behavior unchanged.
-- No schema change, new endpoint, migration, or database index is planned.
+  API tests. Keep existing fields and default query behavior unchanged.
+- Extend the existing occupancy query with optional `q`, `dateFrom`, and
+  exclusive `dateTo` filters. Search merchant name/code case-insensitively and
+  return occupancy periods that overlap the selected range; omission means all
+  merchants and all dates. Include only released actor ID/name in the response,
+  never email or phone.
+- No new endpoint or database index is planned. The approved timestamp cleanup
+  adds one destructive migration that drops only `SpaceOccupancy.createdAt` and
+  `SpaceOccupancy.updatedAt`; interval dates and release metadata remain.
 
 ### Authorization and integrity
 

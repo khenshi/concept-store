@@ -51,7 +51,9 @@ The add-placement modal now requires a nonnegative whole-number Initial stock va
 Selling price accepts numeric digits and a decimal point, while threshold and
 opening stock accept whole-number digits; unsupported letters and characters are
 removed as the user types. The fields continue to use the existing debounced
-live validation and authoritative backend validation. A valid placement creates
+live validation and authoritative backend validation. The low-stock threshold
+starts at `0` in the form; the backend's omitted-field API default remains `5`.
+A valid placement creates
 the branch balance and an attributed opening RECEIPT together, so the saved
 quantity and movement history cannot diverge when opening stock is positive;
 an explicit zero records no movement. Branch, organization, role,
@@ -78,6 +80,11 @@ and existing merchant, product-status and stock-status controls remain
 accessible but use quiet rounded reference-style controls. Add placement, branch
 selection, pagination, role visibility and all data requests are unchanged. This
 part was reviewed and committed before the remaining table surfaces are updated.
+Stock-in and adjustment dialogs use the focused form-sized dialog treatment so
+their short operational workflows do not expand to the wide default dialog. Long
+dialog titles wrap naturally, while branch and current-unit tags sit in a
+right-aligned metadata row below the description. Their form content uses the
+dialog's existing inner edge, without a second nested padding layer.
 While the branch list or Stock integrity check is loading, the page now uses a
 five-row, column-aligned skeleton that preserves the table's responsive structure
 instead of a generic list placeholder.
@@ -426,6 +433,11 @@ waiving rendered QA. Viewport, zoom, input alignment, modal/menu, keyboard,
 contrast, and reduced-motion checks were not performed. Their checklist remains
 in the [completed plan](../plans/archive/products-and-branch-inventory-2026-09-12.md).
 
+The add-placement dialog uses the shared narrow form layout, focuses the product
+search on open, and separates product selection from branch settings with a
+responsive field grouping and action divider. Placement behavior and validation
+remain unchanged; rendered browser QA remains pending.
+
 Member management and owner invitation controls use the neutral operational
 system. Invitation creation uses a native modal with focus restoration and
 pending dismissal protection; historical invitation status remains explicit.
@@ -510,8 +522,17 @@ the inventory filters across authenticated and public pages. Structural tabs,
 status tags, and dropdown menu options retain geometry appropriate to their
 role.
 
+Text inputs and native date/search controls use the same pill treatment with a
+small leading SVG icon selected for the field's meaning, such as account,
+calendar, tag, box, mail, or search. Shared `TextField`, `SelectControl`, and
+`InputControl` primitives preserve labels, hints, validation, autocomplete,
+read-only state, keyboard focus, and native field behavior while removing the
+older square control treatment. Checkboxes, radio choices, hidden form inputs,
+and popup/list surfaces retain their purpose-specific geometry.
+
 Shared selects retain controlled/uncontrolled values and form submission/reset
-behavior. Keyboard users can navigate enabled options with arrows or Home/End,
+behavior, with consistent leading-icon and trailing-chevron insets. Keyboard
+users can navigate enabled options with arrows or Home/End,
 select with Enter/Space, dismiss with Escape, and leave with Tab. Selection and
 dismissal restore trigger focus. Confirmation dialogs initially focus Cancel,
 trap Tab within their actions, restore focus and page scrolling on close, and
@@ -703,13 +724,19 @@ wins; unavailable remembered choices require an explicit accessible selection.
 Cashiers have no entry or Spaces data requests, including on direct visits.
 
 The page follows the existing operational layout and reuses the branch Spaces
-component, forms, and history. Owners manage, managers view assigned branches,
+component and forms. Space details use a dedicated operational page. Owners manage, managers view assigned branches,
 and merchants view only their own spaces/history. Staff can filter occupied or
 vacant spaces with server pagination; merchants cannot browse vacancy. Existing
 branch-detail and merchant-profile entry points are preserved. Branch switching
 honors POS/refund guards, confirms dirty form discard, and is disabled during
-pending space writes. Loading, empty, unavailable, and retry states use existing
-controls. See [spaces](spaces.md) for API and privacy semantics.
+pending space writes. Branch access and space reads show responsive skeletons
+that mirror the eventual controls and rows; error, empty, unavailable, and
+retry states remain explicit. See [spaces](spaces.md) for API and privacy
+semantics.
+
+The Spaces section header keeps its title and description in one left-aligned
+block with the owner action button in the same horizontal row; it wraps the
+button below the copy on narrow screens.
 
 ### Spaces and Types tabs
 
@@ -717,7 +744,39 @@ Owners/managers receive Spaces and Types tabs in the dedicated Spaces workspace.
 Spaces remains branch-scoped; Types manages the organization's shared vocabulary
 without branch selection. Owners add types, managers view/search them, and
 merchants retain only their scoped Spaces view. Creation/edit and type filters
-use catalog choices. Space forms offer inline Add type, preserving the draft and
-selecting the new type after success; that type persists even if the space is
-cancelled. Tabs support arrow/Home/End keyboard navigation and prevent discarding
+use catalog choices. Space forms give the space name a full first row and keep
+the type dropdown and Create a new type action together on the second row.
+Blank space names and blank new-type names show compact live errors beside their
+labels after interaction. Choosing that action replaces the dropdown with a
+new-type input, Save type, and Discard controls aligned with the input; a short
+organization-wide description sits below it. No expanded section is added below.
+The draft is preserved and the new type is selected after success; it persists
+even if the space is cancelled.
+The create/edit dialog focuses the space name, uses a compact responsive details
+layout with field-level guidance, protects dirty
+drafts on dismissal, and gives loading failures an explicit retry path. Tabs
+support arrow/Home/End keyboard navigation and prevent discarding
 dirty drafts or switching during pending writes without the existing safeguards.
+The tab switcher uses the same flat underline treatment as Inventory. The Spaces
+view uses the shared open data-list geometry with dedicated Space, Type, Status,
+Occupancy, and Actions columns. The list defaults to Active spaces. Status and
+occupancy values use compact success/danger pills, and the flexible Space column
+keeps the action group anchored at the far end of each row. Owner row actions are
+limited to Assign, Archive, and View, with Archive using the danger text
+treatment and disabled while occupied. View opens a focused detail page with
+a space overview, current occupancy, paginated history, branch navigation, and
+owner-only assignment, edit, release, and status actions; managers and merchants
+remain read-only. The history list labels Merchant, From date, Until date, and
+Released by columns. The history table spans the page below the overview/actions area and provides merchant
+search plus optional From date and Until date filters; empty dates show all history.
+History displays the occupancy interval dates only, without a time component, and does not expose separate
+record-creation or record-update timestamps.
+Assignment and release forms use date-only controls; the modal keeps merchant
+and space selection together and places historical start/end dates in one
+responsive row. The completed past occupancy option uses a custom accessible
+switch with a clear on/off state instead of the browser-default checkbox.
+Occupied, vacant, and archived states use distinct semantic treatments, while the
+action group stays on one desktop row.
+Its search control is a leading-icon pill sized wider than the type, status, and
+occupancy selectors. Types presents a separated create/catalog layout with
+shared-catalog labeling for scanability.

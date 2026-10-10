@@ -8,11 +8,11 @@ Optional tracking of named physical spaces (racks, shelves, and custom types) in
 
 `Space` stores tenant/branch IDs, a name, organization-catalog type label, `ACTIVE`/`ARCHIVED` status, and timestamps. Names are trimmed, 1–120 characters, and unique ignoring case within a branch, including archived spaces. Types are trimmed, 1–80 characters. Only an empty space can be archived; reactivation preserves history. There are no deletion routes.
 
-`SpaceOccupancy` stores the tenant, branch, space, merchant, start/end timestamps, assignment/release actors, release reason, and record timestamps. Composite foreign keys require the space and merchant–branch association to belong to the same tenant and branch. Actor IDs are retained internally and omitted from read projections. Space/merchant/branch names in reads are current identities rather than historical snapshots.
+`SpaceOccupancy` stores the tenant, branch, space, merchant, occupancy interval, assignment/release actors, and release reason. It does not store separate record-creation or record-update timestamps; history is represented by the occupancy interval (`startedAt`/`endedAt`). Composite foreign keys require the space and merchant–branch association to belong to the same tenant and branch. Actor IDs are retained internally and omitted from read projections. Space/merchant/branch names in reads are current identities rather than historical snapshots.
 
 ## Dates and consistency
 
-Intervals are `[startedAt, endedAt)`. An omitted end means current occupancy. Owners may supply past timestamps to backdate a current assignment or record a completed historical interval. Future dates and timezone-less timestamps are rejected; an end must be later than its start. Adjacent intervals are valid. Dates travel as UTC ISO timestamps; the UI accepts and displays local time. Closed intervals cannot be edited or deleted.
+Intervals are `[startedAt, endedAt)`. An omitted end means current occupancy. Owners may supply past dates to backdate a current assignment or record a completed historical interval. Future dates and timezone-less timestamps are rejected; an end must be later than its start. Adjacent intervals are valid. The assignment and release forms collect dates only, use an accessible switch for the completed-history mode, normalize dates to UTC ISO boundaries for the API, and history displays the occupancy interval as local dates. Closed intervals cannot be edited or deleted.
 
 Assignment requires an active space, active merchant profile, and active existing merchant–branch participation, including when recording past occupancy. It never creates or reactivates participation. A database partial unique index prevents multiple open occupancies; CHECK constraints protect interval and release metadata. Transactions lock the merchant, association, and space, then check every potentially overlapping interval before insert. This enforces historical exclusivity through the application write boundary without a new PostgreSQL extension.
 
@@ -33,7 +33,7 @@ All paths below are under `/organizations/:organizationId`. Object path IDs requ
 | PATCH       | `/branches/:branchId/spaces/:spaceId/occupancies/:occupancyId/release` | Release current occupancy                            |
 | GET         | `/merchants/:merchantId/spaces`                                        | Current/history occupancy across accessible branches |
 
-Space lists accept `page`, `q` (name search), `type` (case-insensitive exact label), `status`, and optional `merchantId` (current occupant for staff; own spaces for merchants). Occupancy lists accept `page`, `view=CURRENT|HISTORY`, and optional `branchId`. All lists use ten rows with `items`, `page`, `limit`, `total`, `totalPages`, and `hasNext`. Spaces sort by name then ID; occupancy sorts by start descending then ID descending. The space list includes `currentOccupancy`; occupancy includes space identity/type/status, branch identity/code, merchant identity/code, dates, and release reason, without contacts or actors.
+Space lists accept `page`, `q` (name search), `type` (case-insensitive exact label), `status`, and optional `merchantId` (current occupant for staff; own spaces for merchants). Occupancy lists accept `page`, `view=CURRENT|HISTORY`, and optional `branchId`. All lists use ten rows with `items`, `page`, `limit`, `total`, `totalPages`, and `hasNext`. Spaces sort by name then ID; occupancy sorts by start descending then ID descending. The space list includes `currentOccupancy`; occupancy includes space identity/type/status, branch identity/code, merchant identity/code, occupancy dates, release reason, and released-by ID/name, without contact details or record-creation/update timestamps.
 
 ## Authorization
 
@@ -43,11 +43,11 @@ Every request requires authentication and current organization membership. Owner
 
 Branch details contain an optional Spaces section with search, catalog type/status filters, current occupancy, history, and owner-only create/edit/assign/release/archive controls. Merchant profiles contain Current spaces and Past occupancy views across authorized branches, with owner assignment/release controls. Assignment choices use active affiliations and active profiles. Historical recording requires both start and end dates. A currently occupied space still permits an owner to record a non-overlapping past interval.
 
-Managers and merchants receive read-only lists/history, and cashiers receive no section or requests. Lists use flat responsive operational rows and existing native dialogs, with local loading/error/empty/success feedback, repeat-submit protection, retry controls, and obsolete-read protection. Participation and lifecycle confirmation dialogs load an advisory current occupancy count and explain automatic release before confirmation; failed count reads prevent the status command. The backend rechecks actual occupancy transactionally. Successful status/participation changes refresh the Spaces section.
+Managers and merchants receive read-only lists/history, and cashiers receive no section or requests. Lists use flat responsive operational rows and existing native dialogs, with responsive loading skeletons that mirror the filters and row geometry, local loading/error/empty/success feedback, repeat-submit protection, retry controls, and obsolete-read protection. Participation and lifecycle confirmation dialogs load an advisory current occupancy count and explain automatic release before confirmation; failed count reads prevent the status command. The backend rechecks actual occupancy transactionally. Successful status/participation changes refresh the Spaces section.
 
 ## Migration and deployment
 
-`20261009010000_add_space_occupancy` adds empty tables, enums, scoped foreign keys, indexes, and constraints. It creates no spaces and backfills no occupancy from inventory or sales. Apply it before deploying the matching API/frontend. Earlier pending branch/merchant-affiliation migrations retain their documented rollout requirements; this migration does not replace them. Production migration/deployment has not been performed.
+`20261009010000_add_space_occupancy` adds empty tables, enums, scoped foreign keys, indexes, and constraints. `20261011010000_remove_space_occupancy_recording_timestamps` removes the occupancy-only record-creation/update columns; it preserves occupancy interval dates and release metadata. These migrations create no spaces and backfill no occupancy from inventory or sales. Apply them before deploying the matching API/frontend. Earlier pending branch/merchant-affiliation migrations retain their documented rollout requirements; these migrations do not replace them. Production migration/deployment has not been performed.
 
 See [validation](../validation/spaces-2026-10-09.md) for local checks and baseline limitations.
 
@@ -62,13 +62,32 @@ inaccessible choices show guidance rather than loading space records or selectin
 an arbitrary replacement. Authorized inactive branches remain selectable.
 Cashiers receive no navigation entry or data requests and see a direct-route denial.
 
-The page reuses branch `SpaceManagement`, forms, and history dialogs; branch-detail
-and merchant-profile sections remain available. Switching branches resets list and
+The page reuses branch `SpaceManagement` and its forms; space details now have a
+dedicated route, while branch-detail and merchant-profile sections remain available.
+Switching branches resets list and
 dialog state, respects existing POS/refund navigation guards, confirms discarding
 dirty space forms, and is disabled while space mutations are pending. Obsolete
 branch reads are ignored. Managers remain read-only and merchants retain only their
 own occupancy projections, including historical spaces; a missing own current
 projection does not imply that the space is vacant.
+
+The branch list defaults to Active spaces and presents Space, Type, Status,
+Occupancy, and Actions columns. Status and occupancy values use compact pills;
+active/occupied values use the success treatment and archived/vacant values use
+the danger treatment. The Space column remains flexible, while a fixed Actions
+column keeps the header and row values aligned when role-specific actions differ.
+Owner row actions are limited to Assign, Archive, and View; Archive is disabled
+for occupied spaces and uses the danger treatment.
+View opens `/app/organizations/[organizationId]/branches/[branchId]/spaces/[spaceId]`,
+which provides the space overview, current occupancy, paginated occupancy history,
+and owner-only actions for assignment, editing, release, and status changes. The
+detail view keeps managers and merchants read-only and provides a branch switcher
+and return link without duplicating the list workflow. Its occupancy history is a
+full-width operational table below the overview/actions area with Merchant, From
+date, Until date, and Released by columns. Empty date filters mean all dates;
+merchant search and overlapping date-range filters are applied by the existing
+paginated occupancy endpoint so totals remain correct. Released by exposes only
+the actor ID/name, never contact details.
 
 Owners/managers can filter branch lists by Occupancy: All, Occupied, or Vacant,
 including in the existing branch-detail section. The existing GET branch spaces
@@ -101,12 +120,22 @@ their own accessible current/past spaces. POST on the same path creates a type
 and is owner-only; duplicate names receive 409, invalid/unknown body fields 400,
 and cashier access 403. Current membership is reloaded for both operations.
 
-Space creation/edit uses a catalog dropdown. Add type expands an inline creator,
-retains the space draft, and selects/reloads the created type. Failed creation
-preserves input for retry. A successfully created type remains available if the
-space form is cancelled. Branch-space filters use catalog choices, including
-privacy-scoped choices for merchants. Type-list failures have refresh/retry and
-do not silently submit a missing selection.
+Space creation/edit uses a focused form dialog with the name field receiving
+initial focus, persistent field guidance, live field-level validation, and a
+compact responsive layout. Blank space names show a small error beside the field
+label after the field is touched. The space name occupies the first row; the
+type dropdown and Create a new type action share the second row. Choosing Create
+a new type replaces the dropdown with a new-type input, Save type, and Discard
+controls aligned with that input; a short organization-wide description sits
+below the input. Blank new-type names show the same compact inline validation.
+There is no expanded section below it. The primary action stays last in the
+keyboard order and becomes the first full-width action on phones. Closing a
+dirty form asks before discarding the space draft. Creating a type retains the
+space draft and selects/reloads the created type;
+failed creation preserves input for retry. A successfully created type remains
+available if the space form is cancelled. Branch-space filters use catalog
+choices, including privacy-scoped choices for merchants. Type-list failures show
+an explicit retry action and do not silently submit a missing selection.
 
 Migration `20261010010000_add_space_types` runs transactionally while locking
 Space writes, backfills all existing labels (including archived spaces), and
