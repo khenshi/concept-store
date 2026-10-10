@@ -11,6 +11,7 @@ import { listBranches } from '@/features/branches/api/branch-api';
 import { listPosBranches } from '@/features/pos/api/pos-api';
 import { listReportBranches } from '@/features/reports/api/report-api';
 import { PosEntry } from '@/features/pos/components/pos-entry';
+import { SpacesWorkspace } from '@/features/spaces/components/spaces-workspace';
 import { InventoryEntry } from '@/features/inventory/components/inventory-entry';
 import { ReportsEntry } from '@/features/reports/components/reports-entry';
 import { PosBranchSelector } from '@/features/pos/components/pos-branch-selector';
@@ -50,7 +51,13 @@ const b = {
   name: 'South',
   code: 'SOUTH',
 };
-type Page = 'pos' | 'inventory' | 'reports' | 'direct-pos' | 'direct-inventory';
+type Page =
+  | 'spaces'
+  | 'pos'
+  | 'inventory'
+  | 'reports'
+  | 'direct-pos'
+  | 'direct-inventory';
 let retainedSetter: (id: string) => void;
 function Consumer({
   org,
@@ -75,7 +82,9 @@ function Consumer({
       <button onClick={() => void context.refreshOrganization()}>
         Reload access
       </button>
-      {page === 'pos' ? (
+      {page === 'spaces' ? (
+        <SpacesWorkspace organizationId={org} />
+      ) : page === 'pos' ? (
         <PosEntry organizationId={org} />
       ) : page === 'inventory' ? (
         <InventoryEntry organizationId={org} />
@@ -172,7 +181,7 @@ describe('shared organization workspace branch selection', () => {
     );
     expect(push).toHaveBeenCalledTimes(4);
   });
-  it.each(['pos', 'inventory', 'reports'] as const)(
+  it.each(['pos', 'inventory', 'reports', 'spaces'] as const)(
     'does not choose a default branch in %s without a remembered choice',
     async (page) => {
       render(tree(page));
@@ -195,7 +204,7 @@ describe('shared organization workspace branch selection', () => {
       ),
     );
   });
-  it.each(['pos', 'inventory', 'reports'] as const)(
+  it.each(['pos', 'inventory', 'reports', 'spaces'] as const)(
     'keeps feature-inaccessible remembered branch and shows an explicit %s picker without falling back',
     async (page) => {
       const view = render(tree('direct-pos'));
@@ -330,7 +339,7 @@ describe('shared organization workspace branch selection', () => {
       'none',
     );
   });
-  it.each(['pos', 'inventory', 'reports'] as const)(
+  it.each(['pos', 'inventory', 'reports', 'spaces'] as const)(
     'does not automatically resume %s across an unresolved refund',
     async (page) => {
       const view = render(tree('direct-pos'));

@@ -226,3 +226,34 @@ describe('OrganizationNavigation', () => {
     );
   });
 });
+
+it.each(['/spaces', '/branches/branch/spaces'])(
+  'marks Spaces active for %s without marking Branches',
+  (path) => {
+    vi.mocked(usePathname).mockReturnValue(`/app/organizations/org${path}`);
+    const view = render(
+      <OrganizationNavigation organizationId="org" showSpaces collapsed />,
+    );
+    expect(screen.getByRole('link', { name: 'Spaces' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Branches' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    view.rerender(<OrganizationNavigation organizationId="org" />);
+    expect(
+      screen.queryByRole('link', { name: 'Spaces' }),
+    ).not.toBeInTheDocument();
+  },
+);
+it.each(['/spaces-other', '/branches/branch/spaces-other'])(
+  'does not activate Spaces for %s',
+  (path) => {
+    vi.mocked(usePathname).mockReturnValue(`/app/organizations/org${path}`);
+    render(<OrganizationNavigation organizationId="org" showSpaces />);
+    expect(screen.getByRole('link', { name: 'Spaces' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  },
+);

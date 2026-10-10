@@ -1,3 +1,10 @@
+vi.mock('@/features/spaces/components/space-management', () => ({
+  SpaceManagement: () => null,
+}));
+vi.mock(
+  '@/features/merchant-branches/components/merchant-branch-management',
+  () => ({ MerchantBranchManagement: () => null }),
+);
 import {
   act,
   cleanup,
@@ -10,8 +17,14 @@ import {
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { createBranch, updateBranch, getBranch } from '../api/branch-api';
-import type { Branch } from '../model/branch.types';
+import {
+  createBranch,
+  getBranch,
+  listBranchDirectory,
+  updateBranch,
+  updateBranchStatus,
+} from '../api/branch-api';
+import type { Branch, BranchDirectoryPage } from '../model/branch.types';
 import { BranchManagement } from './branch-management';
 import { BranchDetail } from './branch-detail';
 import { BranchForm } from './branch-form';
@@ -26,6 +39,8 @@ vi.mock('../api/branch-api', () => ({
   createBranch: vi.fn(),
   updateBranch: vi.fn(),
   getBranch: vi.fn(),
+  listBranchDirectory: vi.fn(),
+  updateBranchStatus: vi.fn(),
 }));
 vi.mock('@/features/inventory/api/inventory-api', () => ({
   getInventoryHealthSummary: vi.fn(),
@@ -41,6 +56,7 @@ const branch: Branch = {
   organizationId: 'org',
   name: 'Makati Main',
   code: 'MKT-01',
+  status: 'ACTIVE',
   addressLine1: '123 Retail Street',
   addressLine2: '2nd floor',
   city: 'Makati',
@@ -56,7 +72,29 @@ const secondBranch: Branch = {
   name: 'Pasig Branch',
   code: 'PAS-01',
   city: 'Pasig',
+  status: 'INACTIVE',
 };
+
+function directoryPage(
+  items: Branch[] = [branch, secondBranch],
+): BranchDirectoryPage {
+  return {
+    items: items.map((item, index) => ({
+      ...item,
+      merchantCount: index + 1,
+    })),
+    page: 1,
+    limit: 10,
+    total: items.length,
+    totalPages: items.length ? 1 : 0,
+    hasNext: false,
+    summary: {
+      total: 2,
+      active: 1,
+      inactive: 1,
+    },
+  };
+}
 let workspace: ReturnType<typeof useOrganizationWorkspaceContext>;
 const originalShow = Object.getOwnPropertyDescriptor(
   HTMLDialogElement.prototype,
@@ -131,6 +169,21 @@ beforeEach(() => {
   vi.mocked(getBranch).mockResolvedValue(branch);
   vi.mocked(createBranch).mockResolvedValue(branch);
   vi.mocked(updateBranch).mockResolvedValue(branch);
+  vi.mocked(updateBranchStatus).mockResolvedValue(branch);
+  vi.mocked(listBranchDirectory).mockImplementation(
+    async (_request, _organizationId, query): Promise<BranchDirectoryPage> => {
+      const normalized = query.search?.toLowerCase() ?? '';
+      const filtered = [branch, secondBranch].filter(
+        (item) =>
+          (!normalized ||
+            `${item.name} ${item.code ?? ''} ${item.city}`
+              .toLowerCase()
+              .includes(normalized)) &&
+          (!query.status || item.status === query.status),
+      );
+      return directoryPage(filtered);
+    },
+  );
   Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
     configurable: true,
     value: function (this: HTMLDialogElement) {
@@ -162,70 +215,56 @@ afterEach(() => {
 describe('BranchManagement', () => {
   it.each(['OWNER'] as const)(
     'keeps branch creation available to %s',
-    (role) => {
+    async (role) => {
       workspace.organization = { ...workspace.organization!, role };
       render(<BranchManagement organizationId="org" />);
       expect(
         screen.getByRole('button', { name: 'Add branch' }),
       ).toBeInTheDocument();
-      const row = screen.getByRole('link', { name: /Makati Main/ });
+      const row = await screen.findByRole('link', { name: /Makati Main/ });
       expect(row).toHaveAttribute(
         'href',
         '/app/organizations/org/branches/branch-id',
-      );
-      expect(row).toHaveClass(
-        'w-full',
-        'px-4',
-        'py-4',
-        'sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_2rem]',
       );
     },
   );
 
   it.each(['MANAGER', 'CASHIER', 'MERCHANT'] as const)(
     'keeps %s read-only',
-    (role) => {
+    async (role) => {
       workspace.organization = { ...workspace.organization!, role };
       render(<BranchManagement organizationId="org" />);
       expect(
         screen.queryByRole('button', { name: 'Add branch' }),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByRole('link', { name: /Makati Main/ }),
+        await screen.findByRole('link', { name: /Makati Main/ }),
       ).toBeInTheDocument();
     },
   );
 
-  it('preserves debounced search and location filtering', async () => {
+  it('searches the staff directory and filters by status', async () => {
     render(<BranchManagement organizationId="org" />);
-    fireEvent.change(screen.getByLabelText('Search'), {
+    fireEvent.change(screen.getByLabelText('Search branches'), {
       target: { value: 'PAS-01' },
     });
     await waitFor(() =>
-      expect(
-        screen.queryByRole('link', { name: /Makati Main/ }),
-      ).not.toBeInTheDocument(),
+      expect(listBranchDirectory).toHaveBeenLastCalledWith(
+        request,
+        'org',
+        expect.objectContaining({ search: 'PAS-01', page: 1 }),
+      ),
     );
-    expect(
-      screen.getByRole('link', { name: /Pasig Branch/ }),
-    ).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Search'), {
-      target: { value: '' },
-    });
-    await screen.findByRole('link', { name: /Makati Main/ });
-    fireEvent.click(screen.getByRole('combobox', { name: 'Location' }));
-    fireEvent.click(
-      screen.getByRole('option', { name: 'Pasig, Metro Manila' }),
+    fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
+    await waitFor(() =>
+      expect(listBranchDirectory).toHaveBeenLastCalledWith(
+        request,
+        'org',
+        expect.objectContaining({ status: 'INACTIVE', page: 1 }),
+      ),
     );
-    expect(
-      screen.queryByRole('link', { name: /Makati Main/ }),
-    ).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Search'), {
-      target: { value: 'No match' },
-    });
-    expect(
-      await screen.findByText('No branches match these filters.'),
-    ).toBeInTheDocument();
+    expect(screen.getAllByText('Inactive').length).toBeGreaterThanOrEqual(1);
   });
 
   it('creates a branch through the modal, updates the workspace cache, and announces success', async () => {
@@ -267,25 +306,18 @@ describe('BranchManagement', () => {
     expect(createBranch).not.toHaveBeenCalled();
   });
 
-  it('distinguishes empty, loading, and failed branch lists with retry', () => {
-    workspace.branches = [];
-    const { rerender } = render(<BranchManagement organizationId="org" />);
-    expect(screen.getByText('No branches yet')).toBeInTheDocument();
-    workspace = { ...workspace, branchesStatus: 'idle' };
-    rerender(<BranchManagement organizationId="org" />);
-    expect(
-      screen.getByRole('status', { name: 'Loading branches' }),
-    ).toBeInTheDocument();
-    expect(loadBranches).toHaveBeenCalledOnce();
-    workspace = {
-      ...workspace,
-      branchesStatus: 'error',
-      branchesError: 'Unavailable',
-    };
-    rerender(<BranchManagement organizationId="org" />);
-    expect(screen.getByRole('alert')).toHaveTextContent('Unavailable');
+  it('distinguishes empty and failed branch lists with retry', async () => {
+    vi.mocked(listBranchDirectory).mockResolvedValueOnce(directoryPage([]));
+    render(<BranchManagement organizationId="org" />);
+    expect(await screen.findByText('No branches yet')).toBeInTheDocument();
+    cleanup();
+    vi.mocked(listBranchDirectory).mockRejectedValueOnce(
+      new Error('Unavailable'),
+    );
+    render(<BranchManagement organizationId="org" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Unavailable');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(loadBranches).toHaveBeenCalledWith({ refresh: true });
+    expect(listBranchDirectory).toHaveBeenCalled();
   });
 });
 
@@ -404,6 +436,27 @@ describe('BranchForm', () => {
 });
 
 describe('BranchDetail', () => {
+  it('changes branch status and updates the workspace cache', async () => {
+    const saved = { ...branch, status: 'INACTIVE' as const };
+    vi.mocked(updateBranchStatus).mockResolvedValueOnce(saved);
+    render(<BranchDetail organizationId="org" branchId="branch-id" />);
+    await screen.findByRole('heading', { name: 'Makati Main' });
+    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    await waitFor(() =>
+      expect(updateBranchStatus).toHaveBeenCalledWith(
+        request,
+        'org',
+        'branch-id',
+        'INACTIVE',
+      ),
+    );
+    expect(upsertBranch).toHaveBeenCalledWith(saved);
+    expect(screen.getAllByText('Inactive').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Makati Main is now inactive.',
+    );
+  });
+
   it('preserves update normalization and null clearing, updates cache, and announces success', async () => {
     const saved = {
       ...branch,

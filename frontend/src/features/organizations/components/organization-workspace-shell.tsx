@@ -70,6 +70,7 @@ export function OrganizationWorkspaceShell({
         showSales={organization.role === 'MERCHANT'}
         showPos={organization.role !== 'MERCHANT'}
         showInventory={organization.role !== 'CASHIER'}
+        showSpaces={organization.role !== 'CASHIER'}
         showReports={
           organization.role === 'OWNER' ||
           organization.role === 'MANAGER' ||

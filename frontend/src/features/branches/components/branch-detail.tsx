@@ -1,4 +1,6 @@
 'use client';
+import { SpaceManagement } from '@/features/spaces/components/space-management';
+import { MerchantBranchManagement } from '@/features/merchant-branches/components/merchant-branch-management';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -14,15 +16,15 @@ import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { getBranch } from '../api/branch-api';
+import { getBranch, updateBranchStatus } from '../api/branch-api';
 import { BranchForm } from './branch-form';
-import type { BranchView } from '../model/branch.types';
+import type { BranchStatus, BranchView } from '../model/branch.types';
 import { getInventoryHealthSummary } from '@/features/inventory/api/inventory-api';
 import type { InventoryHealthSummary } from '@/features/inventory/model/inventory.types';
 
 function addressFor(branch: BranchView): string {
   if (!('addressLine1' in branch))
-    return 'Read-only branch identity. Only your merchant’s inventory is available.';
+    return 'Read-only branch identity. Your merchant’s inventory and assigned spaces are available.';
   return [
     branch.addressLine1,
     branch.addressLine2,
@@ -67,9 +69,12 @@ function ScopedBranchDetail({
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusPending, setStatusPending] = useState(false);
   const [inventoryHealth, setInventoryHealth] =
     useState<InventoryHealthSummary | null>(null);
   const [inventoryHealthError, setInventoryHealthError] = useState(false);
+  const [spaceRevision, setSpaceRevision] = useState(0);
   const [revision, setRevision] = useState(0);
   const readGeneration = useRef(0);
   const canViewInventory =
@@ -90,6 +95,7 @@ function ScopedBranchDetail({
         setInventoryHealth(null);
         setInventoryHealthError(false);
         setError(null);
+        setStatusError(null);
         if (canViewInventory)
           void getInventoryHealthSummary(request, {
             organizationId,
@@ -164,6 +170,32 @@ function ScopedBranchDetail({
 
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
+  const canChangeStatus = canManage && 'status' in branch;
+
+  async function changeStatus() {
+    if (!canChangeStatus || !('status' in branch)) return;
+    const nextStatus: BranchStatus =
+      branch.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setStatusPending(true);
+    setStatusError(null);
+    try {
+      const saved = await updateBranchStatus(
+        request,
+        organizationId,
+        branchId,
+        nextStatus,
+      );
+      setBranch(saved);
+      upsertBranch(saved);
+      setSuccess(
+        `${saved.name} is now ${saved.status === 'ACTIVE' ? 'active' : 'inactive'}.`,
+      );
+    } catch {
+      setStatusError('The branch status could not be changed. Try again.');
+    } finally {
+      setStatusPending(false);
+    }
+  }
   return (
     <OperationalPage>
       <div className="mb-6">
@@ -181,18 +213,41 @@ function ScopedBranchDetail({
         }
         action={
           canManage ? (
-            <Button
-              className="max-sm:w-full"
-              onClick={() => {
-                setSuccess(null);
-                setEditing(true);
-              }}
-            >
-              Edit branch
-            </Button>
+            <div className="flex flex-wrap items-center gap-3 max-sm:w-full">
+              {'status' in branch ? (
+                <StatusBadge status={branch.status} />
+              ) : null}
+              {canChangeStatus ? (
+                <Button
+                  className="max-sm:flex-1"
+                  variant="secondary"
+                  pending={statusPending}
+                  pendingLabel="Saving status…"
+                  onClick={() => void changeStatus()}
+                >
+                  {branch.status === 'ACTIVE' ? 'Mark inactive' : 'Mark active'}
+                </Button>
+              ) : null}
+              <Button
+                className="max-sm:flex-1"
+                onClick={() => {
+                  setSuccess(null);
+                  setEditing(true);
+                }}
+              >
+                Edit branch
+              </Button>
+            </div>
+          ) : 'status' in branch ? (
+            <StatusBadge status={branch.status} />
           ) : undefined
         }
       />
+      {statusError ? (
+        <div className="mt-6">
+          <Notice tone="error">{statusError}</Notice>
+        </div>
+      ) : null}
       {success ? (
         <div className="mt-6">
           <Notice>{success}</Notice>
@@ -327,6 +382,18 @@ function ScopedBranchDetail({
           </div>
         </OperationalPanel>
       </div>
+      <MerchantBranchManagement
+        organizationId={organizationId}
+        kind="branch"
+        id={branchId}
+        onChanged={() => setSpaceRevision((value) => value + 1)}
+      />
+      <SpaceManagement
+        organizationId={organizationId}
+        kind="branch"
+        id={branchId}
+        revision={spaceRevision}
+      />
       {editing && canManage && 'addressLine1' in branch ? (
         <BranchForm
           branch={branch}
@@ -373,5 +440,20 @@ function InventoryHealthCount({
         </Link>
       </dd>
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: BranchStatus }) {
+  const active = status === 'ACTIVE';
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-compact border px-2.5 py-1 text-xs font-semibold ${active ? 'border-success/30 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
+    >
+      <span
+        aria-hidden="true"
+        className={`size-1.5 rounded-full ${active ? 'bg-success' : 'bg-muted'}`}
+      />
+      {active ? 'Active' : 'Inactive'}
+    </span>
   );
 }

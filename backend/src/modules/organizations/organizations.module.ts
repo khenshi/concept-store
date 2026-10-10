@@ -1,3 +1,7 @@
+import { SpacesController } from './spaces/spaces.controller';
+import { SpacesService } from './spaces/spaces.service';
+import { MerchantBranchesController } from './merchant-branches/merchant-branches.controller';
+import { MerchantBranchesService } from './merchant-branches/merchant-branches.service';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { OrganizationAccessGuard } from './authorization/organization-access.guard';
@@ -38,6 +42,8 @@ import { RefundReadService } from './refunds/refund-read.service';
 @Module({
   imports: [AuthModule],
   controllers: [
+    SpacesController,
+    MerchantBranchesController,
     RefundReadController,
     RefundsController,
     ReportsController,
@@ -55,6 +61,8 @@ import { RefundReadService } from './refunds/refund-read.service';
     MerchantSalesBranchesController,
   ],
   providers: [
+    SpacesService,
+    MerchantBranchesService,
     RefundReadService,
     RefundsService,
     ReportsService,
