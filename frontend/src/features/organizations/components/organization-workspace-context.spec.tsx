@@ -32,6 +32,7 @@ const branch = {
   organizationId: 'organization-id',
   name: 'Makati Main',
   code: 'MKT-01',
+  status: 'ACTIVE' as const,
   addressLine1: '123 Retail Street',
   addressLine2: null,
   city: 'Makati',
