@@ -71,7 +71,7 @@ Sales Reports feels polished, quiet, and trustworthy, but it reads more like a c
 
 **Why it matters:** On a no-activity day, the hourly chart still reserves a large plotting area, the payment donut renders an empty ring, and the weekday panel lists seven mostly empty rows. The page feels broken or unfinished even though the data is valid.
 
-**Fix:** Give every chart a designed zero state. Replace the empty donut with a compact “No payment activity” message; collapse the trend plot to a short status block with the selected period; replace seven “No dates” rows with one sentence and optionally a single zero-sales baseline. Render axes and chart legends only when there are values to interpret.
+**Fix:** Give every chart a designed zero state. Replace the empty donut with a compact “No payment activity” message; collapse the trend plot to a short status block with the selected period; replace seven “No dates” rows with one sentence and optionally a single zero-sales baseline. Render axes and chart     legends only when there are values to interpret.
 
 **Suggested command:** `$impeccable distill`
 
