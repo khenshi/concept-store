@@ -1,4 +1,5 @@
 import { useId, type ComponentProps, type ReactNode } from 'react';
+import { fieldIconForLabel, Icon, type IconName } from './icon';
 
 export function TextField({
   label,
@@ -8,6 +9,7 @@ export function TextField({
   containerClassName = '',
   className = '',
   id,
+  icon,
   ...props
 }: ComponentProps<'input'> & {
   label: ReactNode;
@@ -15,10 +17,15 @@ export function TextField({
   hint?: string;
   hintPosition?: 'before' | 'after';
   containerClassName?: string;
+  icon?: IconName;
 }) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   const compactError = error ? compactFieldError(error) : undefined;
+  const fieldIcon =
+    icon ??
+    fieldIconForLabel(`${typeof label === 'string' ? label : ''} ${id ?? ''}`);
+  const hintBefore = Boolean(hint && hintPosition === 'before');
   const fullErrorId = `${fieldId}-error-detail`;
   const describedBy =
     [
@@ -49,18 +56,24 @@ export function TextField({
           </span>
         ) : null}
       </div>
-      {hint && hintPosition === 'before' ? (
-        <p className="text-xs leading-5 text-muted" id={`${fieldId}-hint`}>
-          {hint}
-        </p>
-      ) : null}
-      <input
-        {...props}
-        id={fieldId}
-        aria-invalid={Boolean(error) || props['aria-invalid']}
-        aria-describedby={describedBy}
-        className={`min-h-11 w-full min-w-0 rounded-control border border-control-border bg-surface px-3 py-2.5 text-body text-ink placeholder:text-faint focus-visible:border-focus read-only:bg-subtle read-only:text-muted disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger ${className}`}
-      />
+      <div className="relative block min-w-0">
+        <Icon
+          name={fieldIcon}
+          className={`pointer-events-none absolute left-3.5 size-4 -translate-y-1/2 text-muted ${hintBefore ? 'bottom-3.5' : 'top-1/2'}`}
+        />
+        {hintBefore ? (
+          <p className="text-xs leading-5 text-muted" id={`${fieldId}-hint`}>
+            {hint}
+          </p>
+        ) : null}
+        <input
+          {...props}
+          id={fieldId}
+          aria-invalid={Boolean(error) || props['aria-invalid']}
+          aria-describedby={describedBy}
+          className={`min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 py-2.5 !pl-10 text-body text-ink placeholder:text-faint focus-visible:border-focus read-only:bg-subtle read-only:text-muted disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger ${className}`}
+        />
+      </div>
       {error && compactError !== error ? (
         <span id={fullErrorId} className="sr-only">
           {error}

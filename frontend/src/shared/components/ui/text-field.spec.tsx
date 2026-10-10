@@ -17,6 +17,7 @@ describe('shared field and page primitives', () => {
       />,
     );
     const input = screen.getByLabelText('Name');
+    expect(input).toHaveClass('rounded-full', '!pl-10');
     expect(input).toHaveAttribute('aria-invalid', 'true');
     expect(input).toHaveAccessibleDescription('Business name Enter a name');
     expect(input.getAttribute('aria-describedby')).toContain('external-help');

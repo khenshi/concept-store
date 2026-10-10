@@ -10,6 +10,7 @@ import { OrganizationPageHeader } from '@/features/organizations/components/orga
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
+import { InputControl } from '@/shared/components/ui/input-control';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   FilterField,
@@ -158,14 +159,15 @@ function ScopedProductDirectory({
           className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]"
         >
           <FilterField id="product-search" label="Search">
-            <input
+            <InputControl
               id="product-search"
+              icon="search"
               type="search"
               value={search}
               maxLength={254}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Product name, SKU, or barcode"
-              className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm"
+              className="text-sm"
               disabled={creating}
             />
           </FilterField>

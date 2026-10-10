@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { InputControl } from '@/shared/components/ui/input-control';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import {
   TextField,
@@ -298,9 +299,9 @@ export function OrganizationInvitationModal({
               <label className="text-sm font-bold" htmlFor="invitation-email">
                 Email address
               </label>
-              <input
-                className="min-h-11 min-w-0 rounded-control border border-control-border px-3 aria-invalid:border-danger"
+              <InputControl
                 id="invitation-email"
+                icon="mail"
                 name="email"
                 type="email"
                 autoComplete="email"

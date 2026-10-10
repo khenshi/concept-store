@@ -9,6 +9,8 @@ import { listMerchants } from '@/features/merchants/api/merchant-api';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
+import { Icon } from '@/shared/components/ui/icon';
+import { InputControl } from '@/shared/components/ui/input-control';
 import {
   listAssociations,
   saveAssociation,
@@ -229,10 +231,14 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
         profile. Inactive participation preserves stock and history.
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
-        <label className="grid flex-1 gap-1 text-sm">
+        <label
+          className="grid flex-1 gap-1 text-sm"
+          htmlFor="association-search"
+        >
           Search {title.toLowerCase()}
-          <input
-            className="min-h-11 rounded-control border border-control-border bg-surface px-3"
+          <InputControl
+            id="association-search"
+            icon="search"
             value={q}
             disabled={pending}
             maxLength={120}
@@ -242,21 +248,28 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
             }}
           />
         </label>
-        <label className="grid gap-1 text-sm">
+        <label className="grid gap-1 text-sm" htmlFor="association-status">
           Participation
-          <select
-            className="min-h-11 rounded-control border border-control-border bg-surface px-3"
-            value={status}
-            disabled={pending}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">All statuses</option>
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </select>
+          <span className="relative block min-w-0">
+            <Icon
+              name="filter"
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
+            />
+            <select
+              id="association-status"
+              className="min-h-11 w-full rounded-full border border-control-border bg-surface px-3 !pl-10 text-ink"
+              value={status}
+              disabled={pending}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">All statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </span>
         </label>
       </div>
       {success && (
@@ -382,25 +395,35 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
                 </button>
               </div>
             )}
-            <label className="grid gap-2 text-sm font-semibold">
+            <label
+              className="grid gap-2 text-sm font-semibold"
+              htmlFor="association-choice"
+            >
               {kind === 'merchant' ? 'Branch' : 'Merchant'}
-              <select
-                className="min-h-11 rounded-control border border-control-border bg-surface px-3"
-                required
-                value={selected}
-                disabled={pending || !choices}
-                onChange={(event) => setSelected(event.target.value)}
-              >
-                <option value="">
-                  Choose {kind === 'merchant' ? 'a branch' : 'a merchant'}
-                </option>
-                {choices?.map((choice) => (
-                  <option key={choice.id} value={choice.id}>
-                    {choice.name}
-                    {choice.code ? ` · ${choice.code}` : ''}
+              <span className="relative block min-w-0">
+                <Icon
+                  name={kind === 'merchant' ? 'building' : 'account'}
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
+                />
+                <select
+                  id="association-choice"
+                  className="min-h-11 w-full rounded-full border border-control-border bg-surface px-3 !pl-10 text-ink"
+                  required
+                  value={selected}
+                  disabled={pending || !choices}
+                  onChange={(event) => setSelected(event.target.value)}
+                >
+                  <option value="">
+                    Choose {kind === 'merchant' ? 'a branch' : 'a merchant'}
                   </option>
-                ))}
-              </select>
+                  {choices?.map((choice) => (
+                    <option key={choice.id} value={choice.id}>
+                      {choice.name}
+                      {choice.code ? ` · ${choice.code}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </span>
             </label>
             {!choices && !choiceError && (
               <p role="status">Loading assignment choices…</p>

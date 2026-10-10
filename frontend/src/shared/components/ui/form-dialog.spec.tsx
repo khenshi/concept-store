@@ -19,6 +19,14 @@ describe('FormDialog', () => {
     const dialog = screen.getByRole('dialog', { name: 'Add product' });
     expect(dialog).toHaveAccessibleDescription('Record identity');
     expect(screen.getByText('Branch: Makati')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Add product' })).toHaveClass(
+      'min-w-0',
+      'break-words',
+    );
+    expect(screen.getByText('Branch: Makati').parentElement).toHaveClass(
+      'mt-3',
+      'justify-end',
+    );
     expect(screen.getByRole('heading', { name: 'Add product' })).toHaveFocus();
     expect(document.body.style.overflow).toBe('hidden');
     unmount();

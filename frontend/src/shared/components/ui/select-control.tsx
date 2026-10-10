@@ -12,7 +12,7 @@ import {
   type AriaAttributes,
   type ReactNode,
 } from 'react';
-import { Icon } from './icon';
+import { fieldIconForLabel, Icon, type IconName } from './icon';
 
 interface SelectControlProps {
   children: ReactNode;
@@ -27,6 +27,7 @@ interface SelectControlProps {
   'aria-describedby'?: string;
   'aria-label'?: string;
   onValueChange?(value: string): void;
+  icon?: IconName;
 }
 
 interface SelectOption {
@@ -45,6 +46,7 @@ export function SelectControl({
   id,
   disabled,
   required,
+  icon,
   ...ariaProps
 }: SelectControlProps) {
   const generatedId = useId();
@@ -79,6 +81,8 @@ export function SelectControl({
   const selectedOption = options.find(
     (option) => option.value === selectedValue,
   );
+  const fieldIcon =
+    icon ?? fieldIconForLabel(`${ariaProps['aria-label'] ?? ''} ${id ?? ''}`);
 
   function select(nextValue: string) {
     if (value === undefined) setInternalValue(nextValue);
@@ -187,7 +191,7 @@ export function SelectControl({
       ) : null}
       <button
         ref={triggerRef}
-        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-full border border-control-border bg-surface px-3 py-2.5 text-left text-ink transition-colors hover:border-selected-border focus-visible:border-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted disabled:opacity-70 aria-invalid:border-danger ${className}`}
+        className={`relative flex min-h-11 w-full items-center justify-between gap-3 rounded-full border border-control-border bg-surface px-3 !pl-10 text-left text-ink transition-colors hover:border-selected-border focus-visible:border-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted disabled:opacity-70 aria-invalid:border-danger ${className}`}
         id={id}
         type="button"
         role="combobox"
@@ -205,6 +209,10 @@ export function SelectControl({
         }}
         {...ariaProps}
       >
+        <Icon
+          name={fieldIcon}
+          className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
+        />
         <span className="min-w-0 truncate">
           {selectedOption?.label || 'Select an option'}
         </span>

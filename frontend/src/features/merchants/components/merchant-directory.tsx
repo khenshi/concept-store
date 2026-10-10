@@ -9,6 +9,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
+import { InputControl } from '@/shared/components/ui/input-control';
 import {
   FilterField,
   OperationalPage,
@@ -171,9 +172,9 @@ function ScopedMerchantDirectory({
           className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]"
         >
           <FilterField id="merchant-search" label="Search">
-            <input
-              className="min-h-11 min-w-0 rounded-control border border-control-border bg-surface px-3 text-sm placeholder:text-faint"
+            <InputControl
               id="merchant-search"
+              icon="search"
               onChange={(event) => setSearch(event.target.value)}
               placeholder={
                 organization.role === 'MANAGER'

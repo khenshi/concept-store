@@ -6,6 +6,8 @@ export function FormDialog({
   title,
   description,
   headerAside,
+  initialFocusRef,
+  size = 'default',
   pending = false,
   onClose,
   children,
@@ -13,6 +15,8 @@ export function FormDialog({
   title: string;
   description: string;
   headerAside?: ReactNode;
+  initialFocusRef?: { current: HTMLElement | null };
+  size?: 'default' | 'form';
   pending?: boolean;
   onClose(): void;
   children: ReactNode;
@@ -25,7 +29,7 @@ export function FormDialog({
     const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     dialog?.showModal();
-    headingRef.current?.focus();
+    (initialFocusRef?.current ?? headingRef.current)?.focus();
     document.body.style.overflow = 'hidden';
     return () => {
       dialog?.close();
@@ -33,13 +37,13 @@ export function FormDialog({
       if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
         previousFocus.focus();
     };
-  }, []);
+  }, [initialFocusRef]);
   return (
     <dialog
       ref={dialogRef}
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-description`}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-5xl overflow-y-auto overscroll-contain rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-scrim sm:p-8"
+      className={`m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] overflow-y-auto overscroll-contain rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-scrim sm:p-8 ${size === 'form' ? 'max-w-2xl' : 'max-w-5xl'}`}
       onCancel={(event) => {
         event.preventDefault();
         if (!pending) onClose();
@@ -57,24 +61,24 @@ export function FormDialog({
           onClose();
       }}
     >
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      <div className="flex items-start">
         <h2
           id={`${id}-title`}
           ref={headingRef}
           tabIndex={-1}
-          className="text-2xl font-semibold tracking-tight outline-none"
+          className="min-w-0 break-words text-2xl font-semibold tracking-tight outline-none"
         >
           {title}
         </h2>
-        {headerAside ? (
-          <div className="ml-auto flex max-w-full flex-wrap justify-end gap-2">
-            {headerAside}
-          </div>
-        ) : null}
       </div>
       <p id={`${id}-description`} className="mt-2 text-sm leading-6 text-muted">
         {description}
       </p>
+      {headerAside ? (
+        <div className="mt-3 flex max-w-full flex-wrap justify-start gap-2">
+          {headerAside}
+        </div>
+      ) : null}
       {children}
     </dialog>
   );
