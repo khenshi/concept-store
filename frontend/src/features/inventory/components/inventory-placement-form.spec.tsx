@@ -67,7 +67,7 @@ describe('InventoryPlacementForm', () => {
         productId: product.id,
         sellingPrice: '925.50',
         initialQuantity: 10,
-        lowStockThreshold: 5,
+        lowStockThreshold: 0,
       }),
     );
     expect(onSaved).toHaveBeenCalledOnce();

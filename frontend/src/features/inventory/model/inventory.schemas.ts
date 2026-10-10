@@ -109,7 +109,7 @@ export const adjustmentInputSchema = z
         path: [hasDelta ? 'newQuantity' : 'quantityChange'],
         message: hasDelta
           ? 'Use either quantity change or new stock value.'
-          : 'Enter a quantity change or new stock value.',
+          : 'Enter a value',
       });
   });
 export const inventoryResponseSchema = z.object({

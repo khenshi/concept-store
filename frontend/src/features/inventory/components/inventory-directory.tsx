@@ -88,6 +88,7 @@ function ScopedInventoryDirectory({
   } | null>(null);
   const [pending, setPending] = useState(false);
   const dirty = useRef(false);
+  const placementProductRef = useRef<HTMLInputElement>(null);
   const readGeneration = useRef(0);
   const accessLost = useCallback(() => {
     readGeneration.current++;
@@ -617,7 +618,9 @@ function ScopedInventoryDirectory({
         >
           <FormDialog
             title="Add product placement"
-            description={`Place an existing product with its own selling price and stock tracking.`}
+            description="Choose a product, then set its branch price and opening stock."
+            initialFocusRef={placementProductRef}
+            size="form"
             pending={pending}
             onClose={() => {
               dirty.current = false;
@@ -633,6 +636,7 @@ function ScopedInventoryDirectory({
           >
             <InventoryPlacementForm
               ownerCanAssign={organization?.role === 'OWNER'}
+              productInputRef={placementProductRef}
               scope={{ organizationId, branchId }}
               onPendingChange={setPending}
               onCancel={() => {
@@ -677,6 +681,7 @@ function ScopedInventoryDirectory({
               </>
             }
             pending={pending}
+            size="form"
             onClose={() => {
               dirty.current = false;
               setStockAction(null);
@@ -691,6 +696,7 @@ function ScopedInventoryDirectory({
               inventory={stockAction.inventory}
               mode={stockAction.mode}
               branchName={branch?.name}
+              flush
               onPendingChange={setPending}
               onAccessLost={accessLost}
               onCancel={() => {

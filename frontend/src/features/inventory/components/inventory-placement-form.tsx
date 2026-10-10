@@ -8,11 +8,13 @@ import {
   useState,
   type FormEvent,
   type KeyboardEvent,
+  type RefObject,
 } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import type { Product } from '@/features/products/model/product.types';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { InputControl } from '@/shared/components/ui/input-control';
 import {
   TextField,
   focusFirstInvalidField,
@@ -26,12 +28,14 @@ import type { InventoryScope } from '../model/inventory.types';
 export function InventoryPlacementForm({
   scope,
   ownerCanAssign = false,
+  productInputRef,
   onSaved,
   onCancel,
   onPendingChange,
 }: {
   scope: InventoryScope;
   ownerCanAssign?: boolean;
+  productInputRef?: RefObject<HTMLInputElement | null>;
   onSaved(): void;
   onCancel(): void;
   onPendingChange(pending: boolean): void;
@@ -45,7 +49,7 @@ export function InventoryPlacementForm({
   const [productId, setProductId] = useState('');
   const [price, setPrice] = useState('');
   const [initialQuantity, setInitialQuantity] = useState('');
-  const [threshold, setThreshold] = useState('5');
+  const [threshold, setThreshold] = useState('0');
   const [errors, setErrors] = useState<
     Partial<
       Record<
@@ -207,29 +211,7 @@ export function InventoryPlacementForm({
     }
   }
   return (
-    <form className="mt-6 grid gap-5" noValidate onSubmit={submit}>
-      {ownerCanAssign && (
-        <p className="text-sm text-muted">
-          Products require active merchant participation in this branch.{' '}
-          <Link
-            href={`/app/organizations/${scope.organizationId}/branches/${scope.branchId}`}
-          >
-            Manage merchant assignments
-          </Link>
-          .
-        </p>
-      )}
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      {loadError ? (
-        <RequestError
-          message={loadError}
-          onRetry={() => setRevision((value) => value + 1)}
-        />
-      ) : null}
+    <form className="mt-7 grid gap-7" noValidate onSubmit={submit}>
       <ProductPicker
         products={products}
         selectedProduct={selectedProduct}
@@ -265,85 +247,32 @@ export function InventoryPlacementForm({
           )
         }
         onLoadMore={() => void loadMore()}
+        inputRef={productInputRef}
       />
-      <TextField
-        label="Initial stock"
-        name="initialQuantity"
-        inputMode="numeric"
-        value={initialQuantity}
-        error={errors.initialQuantity}
-        disabled={pending}
-        onChange={(event) => {
-          const next = sanitizeWholeNumber(event.target.value);
-          setInitialQuantity(next);
-          validate('initialQuantity', productId, price, threshold, next);
-        }}
-        onBlur={() =>
-          validate(
-            'initialQuantity',
-            productId,
-            price,
-            threshold,
-            initialQuantity,
-            true,
-          )
-        }
-        required
-        hint="Enter the starting stock quantity for this branch"
-      />
-      <div className="grid gap-5 sm:grid-cols-2">
+      {error ? (
+        <p className="text-sm text-danger" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <fieldset className="grid gap-5 border-t border-hairline pt-6">
+        <legend className="text-label font-semibold text-ink">
+          Branch settings
+        </legend>
         <TextField
-          label="Selling price (PHP)"
-          name="sellingPrice"
-          inputMode="decimal"
-          value={price}
-          error={errors.sellingPrice}
-          disabled={pending}
-          onChange={(event) => {
-            const next = sanitizePrice(event.target.value);
-            setPrice(next);
-            validate(
-              'sellingPrice',
-              productId,
-              next,
-              threshold,
-              initialQuantity,
-            );
-          }}
-          onBlur={() =>
-            validate(
-              'sellingPrice',
-              productId,
-              price,
-              threshold,
-              initialQuantity,
-              true,
-            )
-          }
-          required
-          hint="Set a different price for this branch"
-        />
-        <TextField
-          label="Low-stock threshold"
-          name="lowStockThreshold"
+          label="Initial stock"
+          name="initialQuantity"
           inputMode="numeric"
-          value={threshold}
-          error={errors.lowStockThreshold}
+          value={initialQuantity}
+          error={errors.initialQuantity}
           disabled={pending}
           onChange={(event) => {
             const next = sanitizeWholeNumber(event.target.value);
-            setThreshold(next);
-            validate(
-              'lowStockThreshold',
-              productId,
-              price,
-              next,
-              initialQuantity,
-            );
+            setInitialQuantity(next);
+            validate('initialQuantity', productId, price, threshold, next);
           }}
           onBlur={() =>
             validate(
-              'lowStockThreshold',
+              'initialQuantity',
               productId,
               price,
               threshold,
@@ -352,10 +281,74 @@ export function InventoryPlacementForm({
             )
           }
           required
-          hint="Set the low-stock warning level. Enter 0 to disable warnings."
+          hint="Enter the starting stock quantity for this branch"
         />
-      </div>
-      <div className="flex flex-wrap justify-end gap-3">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <TextField
+            label="Selling price (PHP)"
+            name="sellingPrice"
+            inputMode="decimal"
+            value={price}
+            error={errors.sellingPrice}
+            disabled={pending}
+            onChange={(event) => {
+              const next = sanitizePrice(event.target.value);
+              setPrice(next);
+              validate(
+                'sellingPrice',
+                productId,
+                next,
+                threshold,
+                initialQuantity,
+              );
+            }}
+            onBlur={() =>
+              validate(
+                'sellingPrice',
+                productId,
+                price,
+                threshold,
+                initialQuantity,
+                true,
+              )
+            }
+            required
+            hint="Set a different price for this branch"
+          />
+          <TextField
+            label="Low-stock threshold"
+            name="lowStockThreshold"
+            inputMode="numeric"
+            value={threshold}
+            error={errors.lowStockThreshold}
+            disabled={pending}
+            onChange={(event) => {
+              const next = sanitizeWholeNumber(event.target.value);
+              setThreshold(next);
+              validate(
+                'lowStockThreshold',
+                productId,
+                price,
+                next,
+                initialQuantity,
+              );
+            }}
+            onBlur={() =>
+              validate(
+                'lowStockThreshold',
+                productId,
+                price,
+                threshold,
+                initialQuantity,
+                true,
+              )
+            }
+            required
+            hint="low-stock warning level. 0 to disable warnings."
+          />
+        </div>
+      </fieldset>
+      <div className="flex flex-wrap justify-end gap-3 border-t border-hairline pt-6">
         <button
           className={buttonStyles({ variant: 'primary' })}
           type="submit"
@@ -400,6 +393,7 @@ function ProductPicker({
   loadingMore,
   moreError,
   disabled,
+  inputRef,
   error,
   onSearchChange,
   onSelect,
@@ -415,6 +409,7 @@ function ProductPicker({
   loadingMore: boolean;
   moreError: string | null;
   disabled: boolean;
+  inputRef?: RefObject<HTMLInputElement | null>;
   error?: string;
   onSearchChange(value: string): void;
   onSelect(product: Product): void;
@@ -424,7 +419,8 @@ function ProductPicker({
   const id = useId();
   const listboxId = `${id}-results`;
   const container = useRef<HTMLDivElement>(null);
-  const searchInput = useRef<HTMLInputElement>(null);
+  const fallbackSearchInput = useRef<HTMLInputElement>(null);
+  const searchInput = inputRef ?? fallbackSearchInput;
   const [open, setOpen] = useState(false);
   const openPicker = () => {
     if (!disabled) setOpen(true);
@@ -481,10 +477,11 @@ function ProductPicker({
           </span>
         ) : null}
       </div>
-      <div className="relative">
-        <input
+      <div>
+        <InputControl
           ref={searchInput}
           id={id}
+          icon="search"
           type="search"
           role="combobox"
           aria-autocomplete="list"
@@ -502,7 +499,7 @@ function ProductPicker({
               : 'Search by name, SKU, or barcode'
           }
           disabled={disabled}
-          className="min-h-11 w-full min-w-0 rounded-control border border-control-border bg-surface px-3 py-2.5 text-body text-ink placeholder:text-faint focus-visible:border-focus disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger"
+          className="placeholder:text-muted"
           onFocus={openPicker}
           onClick={openPicker}
           onChange={(event) => {

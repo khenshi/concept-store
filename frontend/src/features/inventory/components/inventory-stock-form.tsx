@@ -30,6 +30,7 @@ export function InventoryStockForm({
   onAccessLost,
   onCancel,
   inlineReceiptAction = false,
+  flush = false,
 }: {
   scope: InventoryDetailScope;
   inventory: BranchInventory;
@@ -40,6 +41,7 @@ export function InventoryStockForm({
   onAccessLost?(): void;
   onCancel?(): void;
   inlineReceiptAction?: boolean;
+  flush?: boolean;
 }) {
   const { request } = useAuth();
   const { confirm, confirmationDialog } = useConfirmationDialog();
@@ -305,7 +307,7 @@ export function InventoryStockForm({
   return (
     <>
       <form
-        className={`grid gap-4 ${inlineReceiptAction ? 'p-0' : 'p-6'}`}
+        className={`grid gap-4 ${flush || inlineReceiptAction ? 'py-6' : 'p-6'}`}
         noValidate
         onSubmit={submit}
       >
