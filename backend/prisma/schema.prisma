@@ -29,6 +29,11 @@ enum ColorTheme {
   WELLNESS_TEAL
 }
 
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model User {
   id           String     @id @default(uuid())
   firstName    String
@@ -44,6 +49,8 @@ model User {
   organizationMemberships         OrganizationMembership[]
   sentOrganizationInvitations     OrganizationInvitation[] @relation("InvitationSender")
   acceptedOrganizationInvitations OrganizationInvitation[] @relation("InvitationAcceptor")
+  assignedSpaces                  SpaceOccupancy[]         @relation("SpaceAssignedBy")
+  releasedSpaces                  SpaceOccupancy[]         @relation("SpaceReleasedBy")
   sessions                        UserSession[]
   inventoryMovements              InventoryMovement[]
   sales                           Sale[]
@@ -81,6 +88,7 @@ model Organization {
   products    Product[]
   sales       Sale[]
   refunds     Refund[]
+  spaceTypes  SpaceType[]
 }
 
 model Merchant {
@@ -97,6 +105,7 @@ model Merchant {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
+  branches    MerchantBranch[]
   products    Product[]
   memberships OrganizationMembership[]
   invitations OrganizationInvitation[]
@@ -111,20 +120,23 @@ model Merchant {
 }
 
 model Branch {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
   name           String
   code           String?
+  status         BranchStatus @default(ACTIVE)
   addressLine1   String
   addressLine2   String?
   city           String
   province       String
   postalCode     String?
-  countryCode    String   @db.Char(2)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  countryCode    String       @db.Char(2)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchants        MerchantBranch[]
+  spaces           Space[]
   inventory        BranchInventory[]
   memberships      BranchMembership[]
   invitationGrants InvitationBranch[]
@@ -134,6 +146,31 @@ model Branch {
   @@unique([id, organizationId])
   @@unique([organizationId, name])
   @@unique([organizationId, code])
+  @@index([organizationId, status])
+}
+
+enum MerchantBranchStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model MerchantBranch {
+  id             String               @id @default(uuid())
+  organizationId String
+  merchantId     String
+  branchId       String
+  status         MerchantBranchStatus @default(ACTIVE)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  merchant    Merchant          @relation(fields: [merchantId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  branch      Branch            @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  inventory   BranchInventory[]
+  occupancies SpaceOccupancy[]
+
+  @@unique([organizationId, branchId, merchantId])
+  @@index([organizationId, merchantId, status, branchId])
+  @@index([organizationId, branchId, status, merchantId])
 }
 
 model Product {
@@ -167,6 +204,7 @@ model Product {
 
 /// Quantity and price CHECK constraints are defined in the SQL migration.
 model BranchInventory {
+  merchantId        String
   id                String   @id @default(uuid())
   organizationId    String
   branchId          String
@@ -177,10 +215,11 @@ model BranchInventory {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  branch    Branch              @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  product   Product             @relation(fields: [productId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  movements InventoryMovement[]
-  saleItems SaleItem[]
+  branch         Branch              @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  product        Product             @relation(fields: [productId, organizationId, merchantId], references: [id, organizationId, merchantId], onDelete: Restrict)
+  merchantBranch MerchantBranch      @relation(fields: [organizationId, branchId, merchantId], references: [organizationId, branchId, merchantId], onDelete: Restrict)
+  movements      InventoryMovement[]
+  saleItems      SaleItem[]
 
   @@unique([organizationId, branchId, productId])
   @@unique([id, organizationId, branchId])
@@ -434,4 +473,67 @@ enum SalePaymentMethod {
   CASH
   GCASH
   CARD
+}
+
+enum SpaceStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum SpaceReleaseReason {
+  MANUAL
+  PARTICIPATION_INACTIVE
+  MERCHANT_INACTIVE
+  MERCHANT_SUSPENDED
+  MERCHANT_ENDED
+}
+
+model SpaceType {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  spaces         Space[]
+
+  @@unique([organizationId, name])
+}
+
+model Space {
+  id             String           @id @default(uuid())
+  organizationId String
+  branchId       String
+  name           String
+  type           String
+  status         SpaceStatus      @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  branch         Branch           @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  occupancies    SpaceOccupancy[]
+  spaceType      SpaceType        @relation(fields: [organizationId, type], references: [organizationId, name], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([id, organizationId, branchId])
+  @@index([organizationId, branchId, status, name])
+}
+
+model SpaceOccupancy {
+  id             String              @id @default(uuid())
+  organizationId String
+  branchId       String
+  spaceId        String
+  merchantId     String
+  startedAt      DateTime
+  endedAt        DateTime?
+  assignedById   String
+  releasedById   String?
+  releaseReason  SpaceReleaseReason?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  space          Space               @relation(fields: [spaceId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict)
+  merchantBranch MerchantBranch      @relation(fields: [organizationId, branchId, merchantId], references: [organizationId, branchId, merchantId], onDelete: Restrict)
+  assignedBy     User                @relation("SpaceAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+  releasedBy     User?               @relation("SpaceReleasedBy", fields: [releasedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, branchId, spaceId, startedAt, id])
+  @@index([organizationId, merchantId, endedAt, startedAt, id])
 }
