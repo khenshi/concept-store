@@ -136,6 +136,73 @@ async function read(userId = ownerId) {
 }
 
 describe('PostgreSQL branch sales reporting', () => {
+  it('combines completed sales and refunds with filters and merchant privacy', async () => {
+    const [sale] = await mixedSales();
+    await refund(sale, [[0, 1]], 'CARD');
+
+    const page = await reports.transactions(context(), branchId, {
+      ...range,
+      page: 1,
+      limit: 10,
+    });
+    expect(page.scope).toBe('STAFF');
+    if (page.scope !== 'STAFF') throw new Error('Wrong scope');
+    expect(page.total).toBe(4);
+    expect(page.items.map((item) => item.type)).toEqual([
+      'REFUND',
+      'SALE',
+      'SALE',
+      'SALE',
+    ]);
+    const refundItem = page.items[0];
+    expect(refundItem).toMatchObject({
+      type: 'REFUND',
+      saleId: sale.id,
+      amount: '12.50',
+      paymentMethod: 'CARD',
+      merchantNames: ['Own merchant'],
+    });
+    expect(refundItem.refundId).toEqual(expect.any(String));
+
+    const filtered = await reports.transactions(context(), branchId, {
+      ...range,
+      page: 1,
+      limit: 10,
+      type: 'REFUND',
+      q: refundItem.reference,
+    });
+    expect(filtered).toMatchObject({
+      scope: 'STAFF',
+      total: 1,
+      totalPages: 1,
+    });
+    if (filtered.scope !== 'STAFF') throw new Error('Wrong scope');
+    expect(filtered.items).toHaveLength(1);
+    expect(filtered.items[0]).toMatchObject({
+      type: 'REFUND',
+      refundId: refundItem.refundId,
+    });
+
+    const merchantPage = await reports.transactions(
+      context(merchantUserId),
+      branchId,
+      { ...range, page: 1, limit: 10 },
+    );
+    expect(merchantPage.scope).toBe('MERCHANT');
+    if (merchantPage.scope !== 'MERCHANT') throw new Error('Wrong scope');
+    expect(merchantPage.total).toBe(3);
+    expect(merchantPage.items).toHaveLength(3);
+    expect(merchantPage.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'SALE', amount: '25.03' }),
+        expect.objectContaining({ type: 'SALE', amount: '12.50' }),
+        expect.objectContaining({ type: 'REFUND', amount: '12.50' }),
+      ]),
+    );
+    expect(merchantPage.items.every((item) => !('paymentMethod' in item))).toBe(
+      true,
+    );
+  });
   it('analytics reconciles mixed lines, zero-filled dates, independent refunds and saved product identity', async () => {
     const [sale] = await mixedSales();
     await refund(

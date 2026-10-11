@@ -8,6 +8,7 @@ import {
   IsString,
   IsUUID,
   Matches,
+  MaxLength,
   Max,
   Min,
 } from 'class-validator';
@@ -15,6 +16,9 @@ import {
   trimOptionalString,
   trimRequiredString,
 } from '../../products/dto/product-dto.transforms';
+
+const queryInteger = ({ value }: { value: unknown }) =>
+  typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
 
 export class SalesReportQueryDto {
   @ApiProperty({
@@ -41,13 +45,61 @@ export class SalesReportQueryDto {
 
 export class ReportBranchesQueryDto {}
 
+export enum ReportTransactionType {
+  SALE = 'SALE',
+  REFUND = 'REFUND',
+}
+
+export class TransactionsQueryDto extends SalesReportQueryDto {
+  @ApiPropertyOptional({
+    enum: ReportTransactionType,
+    description: 'Optional completed transaction type filter',
+  })
+  @IsOptional()
+  @IsEnum(ReportTransactionType)
+  type?: ReportTransactionType;
+
+  @ApiPropertyOptional({
+    maxLength: 254,
+    description: 'Case-insensitive receipt or refund-code search',
+  })
+  @Transform(trimOptionalString)
+  @IsOptional()
+  @IsString()
+  @MaxLength(254)
+  q?: string;
+
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    maximum: 21474836,
+    default: 1,
+    description: 'One-based transaction page',
+  })
+  @Transform(queryInteger)
+  @IsInt()
+  @Min(1)
+  @Max(21474836)
+  page = 1;
+
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    maximum: 100,
+    default: 50,
+    description: 'Transaction rows per page',
+  })
+  @Transform(queryInteger)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit = 50;
+}
+
 export enum SalesRankingSortBy {
   GROSS_SALES = 'GROSS_SALES',
   UNITS_SOLD = 'UNITS_SOLD',
 }
-
-const queryInteger = ({ value }: { value: unknown }) =>
-  typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
 
 export class SalesRankingQueryDto extends SalesReportQueryDto {
   @ApiPropertyOptional({

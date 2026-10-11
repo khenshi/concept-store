@@ -3,6 +3,7 @@ import {
   ReportBranchesQueryDto,
   SalesRankingQueryDto,
   SalesReportQueryDto,
+  TransactionsQueryDto,
 } from './sales-report-query.dto';
 const pipe = new ValidationPipe({
   transform: true,
@@ -101,5 +102,33 @@ describe('Report query validation', () => {
         { type: 'query', metatype: SalesRankingQueryDto },
       ),
     ).rejects.toThrow();
+  });
+  it('defaults transaction pagination and validates type/search filters', async () => {
+    await expect(
+      pipe.transform(
+        { ...valid, type: 'REFUND', q: ' REF-12 ' },
+        { type: 'query', metatype: TransactionsQueryDto },
+      ),
+    ).resolves.toMatchObject({
+      ...valid,
+      type: 'REFUND',
+      q: 'REF-12',
+      page: 1,
+      limit: 50,
+    });
+    for (const input of [
+      { ...valid, type: 'ALL' },
+      { ...valid, page: '0' },
+      { ...valid, limit: '101' },
+      { ...valid, q: 'x'.repeat(255) },
+      { ...valid, unknown: 'field' },
+    ]) {
+      await expect(
+        pipe.transform(input, {
+          type: 'query',
+          metatype: TransactionsQueryDto,
+        }),
+      ).rejects.toThrow();
+    }
   });
 });

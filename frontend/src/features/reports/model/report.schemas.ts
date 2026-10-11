@@ -253,6 +253,94 @@ export const merchantSalesReportSchema = z
   });
 export type MerchantSalesReport = z.infer<typeof merchantSalesReportSchema>;
 
+export const reportTransactionTypeSchema = z.enum(['SALE', 'REFUND']);
+export const reportTransactionQuerySchema = reportQuerySchema
+  .extend({
+    page: z.number().int().min(1).max(21474836),
+    limit: z.number().int().min(1).max(100),
+    type: reportTransactionTypeSchema.optional(),
+    q: z.string().max(254).optional(),
+  })
+  .strict();
+const transactionBase = z
+  .object({
+    id: z.uuidv4(),
+    saleId: z.uuidv4(),
+    refundId: z.uuidv4().nullable(),
+    completedAt: utc,
+    reference: z.string().min(1),
+    amount,
+  })
+  .strict();
+const staffSaleTransaction = transactionBase
+  .extend({
+    type: z.literal('SALE'),
+    refundId: z.null(),
+    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
+    actorName: z.string().min(1),
+    merchantNames: z.string().min(1).array(),
+  })
+  .strict();
+const staffRefundTransaction = transactionBase
+  .extend({
+    type: z.literal('REFUND'),
+    refundId: z.uuidv4(),
+    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
+    actorName: z.string().min(1),
+    merchantNames: z.string().min(1).array(),
+  })
+  .strict();
+const merchantSaleTransaction = transactionBase
+  .extend({ type: z.literal('SALE'), refundId: z.null() })
+  .strict();
+const merchantRefundTransaction = transactionBase
+  .extend({ type: z.literal('REFUND'), refundId: z.uuidv4() })
+  .strict();
+const transactionPageBase = z
+  .object({
+    branch: reportBranchSchema,
+    from: utc,
+    until: utc,
+    page: z.number().int().min(1),
+    limit: z.number().int().min(1).max(100),
+    total: z.number().int().min(0),
+    totalPages: z.number().int().min(0),
+  })
+  .strict();
+export const staffTransactionsPageSchema = transactionPageBase
+  .extend({
+    scope: z.literal('STAFF'),
+    items: z
+      .discriminatedUnion('type', [
+        staffSaleTransaction,
+        staffRefundTransaction,
+      ])
+      .array(),
+  })
+  .strict();
+export const merchantTransactionsPageSchema = transactionPageBase
+  .extend({
+    scope: z.literal('MERCHANT'),
+    items: z
+      .discriminatedUnion('type', [
+        merchantSaleTransaction,
+        merchantRefundTransaction,
+      ])
+      .array(),
+  })
+  .strict();
+export type ReportTransactionType = z.infer<typeof reportTransactionTypeSchema>;
+export type ReportTransactionQuery = z.input<
+  typeof reportTransactionQuerySchema
+>;
+export type StaffTransactionsPage = z.infer<typeof staffTransactionsPageSchema>;
+export type MerchantTransactionsPage = z.infer<
+  typeof merchantTransactionsPageSchema
+>;
+export type ReportTransaction =
+  | StaffTransactionsPage['items'][number]
+  | MerchantTransactionsPage['items'][number];
+
 const analyticsIdentity = z
   .object({
     productId: z.uuidv4(),

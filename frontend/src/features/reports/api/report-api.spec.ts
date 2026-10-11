@@ -5,6 +5,8 @@ import {
   getMerchantSalesAnalytics,
   getStaffSalesRankings,
   getMerchantSalesRankings,
+  getStaffTransactions,
+  getMerchantTransactions,
   listReportBranches,
 } from './report-api';
 
@@ -111,6 +113,61 @@ const merchantRanking = {
     },
   ],
 };
+const staffTransactions = {
+  scope: 'STAFF' as const,
+  branch,
+  ...range,
+  page: 1,
+  limit: 25,
+  total: 2,
+  totalPages: 1,
+  items: [
+    {
+      type: 'SALE' as const,
+      id: '33333333-3333-4333-8333-333333333333',
+      saleId: '33333333-3333-4333-8333-333333333333',
+      refundId: null,
+      completedAt: '2026-09-14T05:00:00.000Z',
+      reference: 'RCPT-001',
+      amount: '25.00',
+      paymentMethod: 'CASH' as const,
+      actorName: 'Cashier One',
+      merchantNames: ['Maker'],
+    },
+    {
+      type: 'REFUND' as const,
+      id: '44444444-4444-4444-8444-444444444444',
+      saleId: '33333333-3333-4333-8333-333333333333',
+      refundId: '44444444-4444-4444-8444-444444444444',
+      completedAt: '2026-09-14T06:00:00.000Z',
+      reference: 'REF-001',
+      amount: '5.00',
+      paymentMethod: 'CASH' as const,
+      actorName: 'Manager One',
+      merchantNames: ['Maker'],
+    },
+  ],
+};
+const merchantTransactions = {
+  scope: 'MERCHANT' as const,
+  branch,
+  ...range,
+  page: 1,
+  limit: 25,
+  total: 1,
+  totalPages: 1,
+  items: [
+    {
+      type: 'SALE' as const,
+      id: '33333333-3333-4333-8333-333333333333',
+      saleId: '33333333-3333-4333-8333-333333333333',
+      refundId: null,
+      completedAt: '2026-09-14T05:00:00.000Z',
+      reference: 'RCPT-001',
+      amount: '12.50',
+    },
+  ],
+};
 
 describe('report reads', () => {
   it('uses the identity-only Reports lookup and encodes tenant identifiers', async () => {
@@ -136,6 +193,34 @@ describe('report reads', () => {
     ).toEqual(analyticsEmpty);
     expect(request).toHaveBeenCalledExactlyOnceWith(
       `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/analytics?${new URLSearchParams(range)}`,
+    );
+  });
+  it('reads and validates a filtered staff transaction page', async () => {
+    const request = vi.fn().mockResolvedValue(staffTransactions);
+    expect(
+      await getStaffTransactions(request, 'org/path', branch.id, {
+        ...range,
+        page: 1,
+        limit: 25,
+        type: 'REFUND',
+        q: 'REF-001',
+      }),
+    ).toEqual(staffTransactions);
+    expect(request).toHaveBeenCalledWith(
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/transactions?${new URLSearchParams({ ...range, page: '1', limit: '25', type: 'REFUND', q: 'REF-001' })}`,
+    );
+  });
+  it('keeps merchant transaction responses reduced to own snapshots', async () => {
+    const request = vi.fn().mockResolvedValue(merchantTransactions);
+    await expect(
+      getMerchantTransactions(request, 'org', branch.id, {
+        ...range,
+        page: 1,
+        limit: 25,
+      }),
+    ).resolves.toEqual(merchantTransactions);
+    expect(request).toHaveBeenCalledWith(
+      `/organizations/org/branches/${branch.id}/reports/transactions?${new URLSearchParams({ ...range, page: '1', limit: '25' })}`,
     );
   });
   it.each([

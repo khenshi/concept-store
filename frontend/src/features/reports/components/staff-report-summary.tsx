@@ -119,8 +119,8 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
                 {row.paymentMethod === 'CASH'
                   ? 'Cash refunds'
                   : row.paymentMethod === 'GCASH'
-                    ? 'GCash refunds (manual)'
-                    : 'Card refunds (manual)'}
+                    ? 'GCash refunds'
+                    : 'Card refunds'}
               </strong>
               <div className="min-w-0 break-all text-sm tabular-nums">
                 <p>Refunded: PHP {row.refundedAmount}</p>

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
 
 export class ReportPaymentResponseDto {
@@ -126,3 +126,90 @@ export class MerchantSalesReportResponseDto extends ReportScopeResponseDto {
 
 export type SalesReport =
   StaffSalesReportResponseDto | MerchantSalesReportResponseDto;
+
+class TransactionResponseBaseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) saleId!: string;
+  @ApiProperty({ type: String, format: 'uuid', nullable: true })
+  refundId!: string | null;
+  @ApiProperty({ format: 'date-time' }) completedAt!: Date;
+  @ApiProperty({ description: 'Receipt or refund code' }) reference!: string;
+  @ApiProperty({ example: '125.00' }) amount!: string;
+}
+
+export class StaffSaleTransactionResponseDto extends TransactionResponseBaseDto {
+  @ApiProperty({ enum: ['SALE'] }) type!: 'SALE';
+  @ApiProperty({ enum: ['CASH', 'GCASH', 'CARD'] })
+  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
+  @ApiProperty({ description: 'Saved cashier display name' })
+  actorName!: string;
+  @ApiProperty({ type: [String] }) merchantNames!: string[];
+}
+
+export class StaffRefundTransactionResponseDto extends TransactionResponseBaseDto {
+  @ApiProperty({ enum: ['REFUND'] }) type!: 'REFUND';
+  @ApiProperty({ enum: ['CASH', 'GCASH', 'CARD'] })
+  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
+  @ApiProperty({ description: 'Saved refund actor display name' })
+  actorName!: string;
+  @ApiProperty({ type: [String] }) merchantNames!: string[];
+}
+
+export class MerchantSaleTransactionResponseDto extends TransactionResponseBaseDto {
+  @ApiProperty({ enum: ['SALE'] }) type!: 'SALE';
+}
+
+export class MerchantRefundTransactionResponseDto extends TransactionResponseBaseDto {
+  @ApiProperty({ enum: ['REFUND'] }) type!: 'REFUND';
+}
+
+class TransactionsPageResponseDto {
+  @ApiProperty({ type: BranchIdentityResponseDto })
+  branch!: BranchIdentityResponseDto;
+  @ApiProperty({ format: 'date-time' }) from!: string;
+  @ApiProperty({ format: 'date-time' }) until!: string;
+  @ApiProperty({ type: 'integer' }) page!: number;
+  @ApiProperty({ type: 'integer' }) limit!: number;
+  @ApiProperty({ type: 'integer' }) total!: number;
+  @ApiProperty({ type: 'integer' }) totalPages!: number;
+}
+
+export class StaffTransactionsPageResponseDto extends TransactionsPageResponseDto {
+  @ApiProperty({ enum: ['STAFF'] }) scope!: 'STAFF';
+  @ApiProperty({
+    type: 'array',
+    items: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffSaleTransactionResponseDto) },
+        { $ref: getSchemaPath(StaffRefundTransactionResponseDto) },
+      ],
+    },
+  })
+  items!: (
+    StaffSaleTransactionResponseDto | StaffRefundTransactionResponseDto
+  )[];
+}
+
+export class MerchantTransactionsPageResponseDto extends TransactionsPageResponseDto {
+  @ApiProperty({ enum: ['MERCHANT'] }) scope!: 'MERCHANT';
+  @ApiProperty({
+    type: 'array',
+    items: {
+      oneOf: [
+        { $ref: getSchemaPath(MerchantSaleTransactionResponseDto) },
+        { $ref: getSchemaPath(MerchantRefundTransactionResponseDto) },
+      ],
+    },
+  })
+  items!: (
+    MerchantSaleTransactionResponseDto | MerchantRefundTransactionResponseDto
+  )[];
+}
+
+export type ReportTransactionItem =
+  | StaffSaleTransactionResponseDto
+  | StaffRefundTransactionResponseDto
+  | MerchantSaleTransactionResponseDto
+  | MerchantRefundTransactionResponseDto;
+export type TransactionsPage =
+  StaffTransactionsPageResponseDto | MerchantTransactionsPageResponseDto;

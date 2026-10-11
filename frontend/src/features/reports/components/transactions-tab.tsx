@@ -1,0 +1,242 @@
+import Link from 'next/link';
+import { buttonStyles } from '@/shared/components/ui/button';
+import { InputControl } from '@/shared/components/ui/input-control';
+import { RequestError } from '@/shared/components/ui/request-error';
+import { SelectControl } from '@/shared/components/ui/select-control';
+import type {
+  MerchantTransactionsPage,
+  ReportTransactionType,
+  StaffTransactionsPage,
+} from '../model/report.schemas';
+
+type TransactionsPage = StaffTransactionsPage | MerchantTransactionsPage;
+
+function completedDate(value: string) {
+  return new Intl.DateTimeFormat('en-PH', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Manila',
+  }).format(new Date(value));
+}
+
+function typeLabel(type: ReportTransactionType) {
+  return type === 'SALE' ? 'Sale' : 'Refund';
+}
+
+function typeClass(type: ReportTransactionType) {
+  return type === 'SALE'
+    ? 'border-success/40 bg-success/10 text-success-ink'
+    : 'border-danger/40 bg-danger/10 text-danger';
+}
+
+function TransactionsSkeleton() {
+  return (
+    <div className="p-5 sm:p-6" role="status" aria-label="Loading transactions">
+      <div className="grid gap-4" aria-hidden="true">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div
+            key={index}
+            className="grid h-14 animate-pulse grid-cols-[1.1fr_0.65fr_1.2fr_1.25fr_0.8fr_0.5fr] items-center gap-4 border-b border-hairline last:border-0"
+          >
+            <span className="h-3 w-28 rounded bg-selected" />
+            <span className="h-6 w-16 rounded-full bg-selected" />
+            <span className="h-3 w-24 rounded bg-selected" />
+            <span className="h-3 w-32 rounded bg-selected" />
+            <span className="h-3 w-20 rounded bg-selected" />
+            <span className="h-3 w-10 rounded bg-selected" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function TransactionsTab({
+  organizationId,
+  branchId,
+  merchant,
+  page,
+  loading,
+  error,
+  filterType,
+  search,
+  onTypeChange,
+  onSearchChange,
+  onRetry,
+  onPageChange,
+}: {
+  organizationId: string;
+  branchId: string;
+  merchant: boolean;
+  page: TransactionsPage | null;
+  loading: boolean;
+  error: string | null;
+  filterType: ReportTransactionType | 'ALL';
+  search: string;
+  onTypeChange(type: ReportTransactionType | 'ALL'): void;
+  onSearchChange(search: string): void;
+  onRetry(): void;
+  onPageChange(page: number): void;
+}) {
+  return (
+    <section
+      className="data-surface"
+      role="tabpanel"
+      id="sales-transactions-panel"
+      aria-labelledby="sales-report-tab-transactions"
+      tabIndex={0}
+    >
+      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <div>
+          <h2 className="font-semibold">
+            {merchant ? 'Your transaction history' : 'Transaction history'}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            {merchant
+              ? 'Your own completed sales and refunds in this branch.'
+              : 'Completed sales and refunds, newest first.'}
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[11rem_minmax(16rem,22rem)]">
+          <SelectControl
+            aria-label="Transaction type"
+            value={filterType}
+            onValueChange={(value) => {
+              if (value === 'ALL' || value === 'SALE' || value === 'REFUND')
+                onTypeChange(value);
+            }}
+            icon="filter"
+          >
+            <option value="ALL">All types</option>
+            <option value="SALE">Sales</option>
+            <option value="REFUND">Refunds</option>
+          </SelectControl>
+          <InputControl
+            type="search"
+            aria-label="Search transactions"
+            placeholder="Search receipt or refund code"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            icon="search"
+          />
+        </div>
+      </header>
+      {error ? (
+        <RequestError
+          className="p-5 sm:p-6"
+          message={error}
+          onRetry={onRetry}
+        />
+      ) : loading && !page ? (
+        <TransactionsSkeleton />
+      ) : page?.items.length ? (
+        <>
+          <div className="overflow-x-auto">
+            <table className="data-table w-full min-w-[62rem] border-collapse text-left text-sm">
+              <caption className="sr-only">
+                {merchant ? 'Own transaction history' : 'Transaction history'}
+              </caption>
+              <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Reference</th>
+                  <th scope="col">{merchant ? 'Context' : 'Merchant'}</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">View</th>
+                </tr>
+              </thead>
+              <tbody>
+                {page.items.map((item) => (
+                  <tr key={`${item.type}-${item.id}`}>
+                    <td className="whitespace-nowrap px-4 py-4 align-top tabular-nums">
+                      {completedDate(item.completedAt)}
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      <span
+                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeClass(item.type)}`}
+                      >
+                        {typeLabel(item.type)}
+                      </span>
+                    </td>
+                    <th
+                      scope="row"
+                      className="px-4 py-4 align-top font-semibold text-ink"
+                    >
+                      {item.reference}
+                      {'actorName' in item ? (
+                        <span className="mt-1 block text-xs font-normal text-muted">
+                          {item.actorName}
+                        </span>
+                      ) : null}
+                    </th>
+                    <td className="max-w-64 px-4 py-4 align-top text-muted">
+                      {'merchantNames' in item
+                        ? item.merchantNames.join(', ') ||
+                          'No merchant recorded'
+                        : 'Your items'}
+                    </td>
+                    <td
+                      className={`whitespace-nowrap px-4 py-4 align-top font-semibold tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-ink'}`}
+                    >
+                      {item.type === 'REFUND' ? '− ' : ''}PHP {item.amount}
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      <Link
+                        href={`/app/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/sales/${encodeURIComponent(item.saleId)}`}
+                        className={buttonStyles({
+                          variant: 'quiet',
+                          className:
+                            'min-h-0 px-0 underline underline-offset-4',
+                        })}
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-5 py-4 sm:px-6">
+            <p className="text-sm text-muted">
+              Page {page.page} of {Math.max(1, page.totalPages)} · {page.total}{' '}
+              {page.total === 1 ? 'transaction' : 'transactions'}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className={buttonStyles({ variant: 'quiet' })}
+                disabled={loading || page.page <= 1}
+                onClick={() => onPageChange(page.page - 1)}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className={buttonStyles({ variant: 'secondary' })}
+                disabled={loading || page.page >= page.totalPages}
+                onClick={() => onPageChange(page.page + 1)}
+              >
+                {loading ? 'Loading…' : 'Next'}
+              </button>
+            </div>
+          </footer>
+        </>
+      ) : (
+        <div className="px-5 py-12 text-center sm:px-6">
+          <h3 className="font-semibold text-ink">
+            {search || filterType !== 'ALL'
+              ? 'No transactions match these filters.'
+              : 'No completed transactions yet.'}
+          </h3>
+          <p className="mt-2 text-sm text-muted">
+            {search || filterType !== 'ALL'
+              ? 'Try another code or show all transaction types.'
+              : 'Completed sales and refunds will appear here for the selected period.'}
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}

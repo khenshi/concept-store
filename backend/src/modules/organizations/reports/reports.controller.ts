@@ -29,6 +29,7 @@ import {
   ReportBranchesQueryDto,
   SalesRankingQueryDto,
   SalesReportQueryDto,
+  TransactionsQueryDto,
 } from './dto/sales-report-query.dto';
 import { ReportsService } from './reports.service';
 import {
@@ -43,6 +44,12 @@ import {
 import {
   MerchantSalesReportResponseDto,
   StaffSalesReportResponseDto,
+  MerchantTransactionsPageResponseDto,
+  StaffTransactionsPageResponseDto,
+  MerchantSaleTransactionResponseDto,
+  MerchantRefundTransactionResponseDto,
+  StaffSaleTransactionResponseDto,
+  StaffRefundTransactionResponseDto,
 } from './reports.types';
 
 @Controller('organizations/:organizationId')
@@ -64,6 +71,12 @@ import {
   StaffHourlyTrendDto,
   StaffSalesRankingPageResponseDto,
   MerchantSalesRankingPageResponseDto,
+  StaffTransactionsPageResponseDto,
+  MerchantTransactionsPageResponseDto,
+  StaffSaleTransactionResponseDto,
+  StaffRefundTransactionResponseDto,
+  MerchantSaleTransactionResponseDto,
+  MerchantRefundTransactionResponseDto,
 )
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
 @ApiForbiddenResponse({ description: 'Cashiers cannot access Reports' })
@@ -173,5 +186,33 @@ export class ReportsController {
     @Query() query: SalesReportQueryDto,
   ) {
     return this.reports.sales(context, branchId.toLowerCase(), query);
+  }
+
+  @Get('branches/:branchId/reports/transactions')
+  @ApiOperation({
+    summary:
+      'Read a paginated, read-only cross-reference of completed sales and refunds',
+  })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffTransactionsPageResponseDto) },
+        { $ref: getSchemaPath(MerchantTransactionsPageResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffTransactionsPageResponseDto),
+          MERCHANT: getSchemaPath(MerchantTransactionsPageResponseDto),
+        },
+      },
+    },
+  })
+  transactions(
+    @CurrentOrganization() context: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: TransactionsQueryDto,
+  ) {
+    return this.reports.transactions(context, branchId.toLowerCase(), query);
   }
 }

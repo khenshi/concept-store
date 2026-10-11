@@ -11,8 +11,12 @@ import { branchScope, merchantScope } from '../authorization/resource-access';
 import type {
   SalesRankingQueryDto,
   SalesReportQueryDto,
+  TransactionsQueryDto,
 } from './dto/sales-report-query.dto';
-import { SalesRankingSortBy } from './dto/sales-report-query.dto';
+import {
+  ReportTransactionType,
+  SalesRankingSortBy,
+} from './dto/sales-report-query.dto';
 import {
   PRODUCT_RANKING_PAGE_SIZE,
   readAnalytics,
@@ -25,6 +29,7 @@ import type {
   ReportPaymentResponseDto,
   ReportRefundMethodResponseDto,
   SalesReport,
+  TransactionsPage,
 } from './reports.types';
 
 type Aggregate = {
@@ -36,6 +41,19 @@ type RefundAggregate = {
   refundedAmount: string;
   refundCount: string;
   returnedUnits: string;
+};
+type TransactionRow = {
+  type: 'SALE' | 'REFUND';
+  id: string;
+  saleId: string;
+  refundId: string | null;
+  completedAt: Date;
+  reference: string;
+  amount: string;
+  paymentMethod: 'CASH' | 'GCASH' | 'CARD' | null;
+  actorName: string | null;
+  merchantNames: string[];
+  totalCount: number;
 };
 const identitySelect = { id: true, name: true, code: true } as const;
 
@@ -63,6 +81,266 @@ export class ReportsService {
     query: SalesReportQueryDto,
   ): Promise<SalesReport> {
     return this.read(context, branchId, query, false);
+  }
+
+  async transactions(
+    context: OrganizationContext,
+    branchId: string,
+    query: TransactionsQueryDto,
+  ): Promise<TransactionsPage> {
+    const from = new Date(query.from);
+    const until = new Date(query.until);
+    const duration = until.getTime() - from.getTime();
+    if (
+      !Number.isFinite(duration) ||
+      duration <= 0 ||
+      duration > 366 * 86400000
+    )
+      throw new BadRequestException(
+        'from must precede until by no more than 366 days',
+      );
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await this.currentContext(tx, context);
+        const branch = await tx.branch.findFirst({
+          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
+          select: identitySelect,
+        });
+        if (!branch) throw new NotFoundException('Branch not found');
+
+        const offset = (query.page - 1) * query.limit;
+        const includeSale =
+          !query.type || query.type === ReportTransactionType.SALE;
+        const includeRefund =
+          !query.type || query.type === ReportTransactionType.REFUND;
+        const saleTypeFilter = includeSale
+          ? Prisma.empty
+          : Prisma.sql`AND FALSE`;
+        const refundTypeFilter = includeRefund
+          ? Prisma.empty
+          : Prisma.sql`AND FALSE`;
+        const saleSearch = query.q
+          ? Prisma.sql`AND s."receiptCode" ILIKE ${`%${query.q}%`}`
+          : Prisma.empty;
+        const refundSearch = query.q
+          ? Prisma.sql`AND r."refundCode" ILIKE ${`%${query.q}%`}`
+          : Prisma.empty;
+        const saleMerchantFilter =
+          current.role === 'MERCHANT'
+            ? current.merchantId
+              ? Prisma.sql`AND EXISTS (
+                  SELECT 1 FROM "SaleItem" own_sale_item
+                  WHERE own_sale_item."organizationId" = ${current.organizationId}
+                    AND own_sale_item."branchId" = ${branchId}
+                    AND own_sale_item."saleId" = s."id"
+                    AND own_sale_item."merchantId" = ${current.merchantId}
+                )`
+              : Prisma.sql`AND FALSE`
+            : Prisma.empty;
+        const refundMerchantFilter =
+          current.role === 'MERCHANT'
+            ? current.merchantId
+              ? Prisma.sql`AND EXISTS (
+                  SELECT 1 FROM "RefundItem" own_refund_item
+                  WHERE own_refund_item."organizationId" = ${current.organizationId}
+                    AND own_refund_item."branchId" = ${branchId}
+                    AND own_refund_item."refundId" = r."id"
+                    AND own_refund_item."saleId" = r."saleId"
+                    AND own_refund_item."merchantId" = ${current.merchantId}
+                )`
+              : Prisma.sql`AND FALSE`
+            : Prisma.empty;
+        const saleAmount =
+          current.role === 'MERCHANT'
+            ? Prisma.sql`(
+                SELECT COALESCE(SUM(own_sale_amount."lineTotal"), 0)::text
+                FROM "SaleItem" own_sale_amount
+                WHERE own_sale_amount."organizationId" = ${current.organizationId}
+                  AND own_sale_amount."branchId" = ${branchId}
+                  AND own_sale_amount."saleId" = s."id"
+                  AND own_sale_amount."merchantId" = ${current.merchantId}
+              )`
+            : Prisma.sql`s."total"::text`;
+        const refundAmount =
+          current.role === 'MERCHANT'
+            ? Prisma.sql`(
+                SELECT COALESCE(SUM(own_refund_amount."lineTotal"), 0)::text
+                FROM "RefundItem" own_refund_amount
+                WHERE own_refund_amount."organizationId" = ${current.organizationId}
+                  AND own_refund_amount."branchId" = ${branchId}
+                  AND own_refund_amount."refundId" = r."id"
+                  AND own_refund_amount."saleId" = r."saleId"
+                  AND own_refund_amount."merchantId" = ${current.merchantId}
+              )`
+            : Prisma.sql`r."total"::text`;
+        const saleMerchantNames =
+          current.role === 'MERCHANT'
+            ? Prisma.sql`ARRAY[]::text[]`
+            : Prisma.sql`COALESCE((
+                SELECT ARRAY_AGG(DISTINCT sale_merchant."merchantName")
+                FROM "SaleItem" sale_merchant
+                WHERE sale_merchant."organizationId" = ${current.organizationId}
+                  AND sale_merchant."branchId" = ${branchId}
+                  AND sale_merchant."saleId" = s."id"
+              ), ARRAY[]::text[])`;
+        const refundMerchantNames =
+          current.role === 'MERCHANT'
+            ? Prisma.sql`ARRAY[]::text[]`
+            : Prisma.sql`COALESCE((
+                SELECT ARRAY_AGG(DISTINCT refund_merchant."merchantName")
+                FROM "RefundItem" refund_item
+                JOIN "SaleItem" refund_merchant
+                  ON refund_merchant."id" = refund_item."saleItemId"
+                 AND refund_merchant."organizationId" = refund_item."organizationId"
+                 AND refund_merchant."branchId" = refund_item."branchId"
+                 AND refund_merchant."saleId" = refund_item."saleId"
+                WHERE refund_item."organizationId" = ${current.organizationId}
+                  AND refund_item."branchId" = ${branchId}
+                  AND refund_item."refundId" = r."id"
+                  AND refund_item."saleId" = r."saleId"
+              ), ARRAY[]::text[])`;
+        const actorName =
+          current.role === 'MERCHANT'
+            ? Prisma.sql`NULL::text`
+            : Prisma.sql`CONCAT(actor."firstName", ' ', actor."lastName")`;
+        const salePaymentMethod =
+          current.role === 'MERCHANT'
+            ? Prisma.sql`NULL::text`
+            : Prisma.sql`s."paymentMethod"::text`;
+        const refundPaymentMethod =
+          current.role === 'MERCHANT'
+            ? Prisma.sql`NULL::text`
+            : Prisma.sql`r."paymentMethod"::text`;
+        const actorJoin =
+          current.role === 'MERCHANT'
+            ? Prisma.empty
+            : Prisma.sql`JOIN "User" actor ON actor."id" = r."createdById"`;
+        const transactionCte = Prisma.sql`
+          WITH transaction_rows AS (
+            SELECT
+              'SALE'::text AS "type",
+              s."id" AS "id",
+              s."id" AS "saleId",
+              NULL::text AS "refundId",
+              s."completedAt" AS "completedAt",
+              s."receiptCode" AS "reference",
+              ${saleAmount} AS "amount",
+              ${salePaymentMethod} AS "paymentMethod",
+              ${current.role === 'MERCHANT' ? Prisma.sql`NULL::text` : Prisma.sql`s."cashierName"`} AS "actorName",
+              ${saleMerchantNames} AS "merchantNames"
+            FROM "Sale" s
+            WHERE s."organizationId" = ${current.organizationId}
+              AND s."branchId" = ${branchId}
+              AND s."completedAt" >= ${from}
+              AND s."completedAt" < ${until}
+              ${saleTypeFilter}
+              ${saleSearch}
+              ${saleMerchantFilter}
+            UNION ALL
+            SELECT
+              'REFUND'::text AS "type",
+              r."id" AS "id",
+              r."saleId" AS "saleId",
+              r."id" AS "refundId",
+              r."completedAt" AS "completedAt",
+              r."refundCode" AS "reference",
+              ${refundAmount} AS "amount",
+              ${refundPaymentMethod} AS "paymentMethod",
+              ${actorName} AS "actorName",
+              ${refundMerchantNames} AS "merchantNames"
+            FROM "Refund" r
+            ${actorJoin}
+            WHERE r."organizationId" = ${current.organizationId}
+              AND r."branchId" = ${branchId}
+              AND r."completedAt" >= ${from}
+              AND r."completedAt" < ${until}
+              ${refundTypeFilter}
+              ${refundSearch}
+              ${refundMerchantFilter}
+          )
+        `;
+        const rows = await tx.$queryRaw<TransactionRow[]>(Prisma.sql`
+          ${transactionCte}
+          SELECT *, COUNT(*) OVER()::int AS "totalCount"
+          FROM transaction_rows
+          ORDER BY "completedAt" DESC, "id" DESC
+          LIMIT ${query.limit} OFFSET ${offset}
+        `);
+        let total = rows[0]?.totalCount ?? 0;
+        if (!rows.length && query.page > 1) {
+          const [count] = await tx.$queryRaw<
+            { totalCount: number }[]
+          >(Prisma.sql`
+            ${transactionCte}
+            SELECT COUNT(*)::int AS "totalCount" FROM transaction_rows
+          `);
+          total = count?.totalCount ?? 0;
+        }
+        const base = {
+          branch,
+          from: from.toISOString(),
+          until: until.toISOString(),
+          page: query.page,
+          limit: query.limit,
+          total,
+          totalPages: Math.ceil(total / query.limit),
+        };
+        if (current.role === 'MERCHANT')
+          return {
+            ...base,
+            scope: 'MERCHANT' as const,
+            items: rows.map(
+              ({
+                type,
+                id,
+                saleId,
+                refundId,
+                completedAt,
+                reference,
+                amount,
+              }) => ({
+                type,
+                id,
+                saleId,
+                refundId,
+                completedAt,
+                reference,
+                amount,
+              }),
+            ),
+          };
+        return {
+          ...base,
+          scope: 'STAFF' as const,
+          items: rows.map(
+            ({
+              type,
+              id,
+              saleId,
+              refundId,
+              completedAt,
+              reference,
+              amount,
+              paymentMethod,
+              actorName,
+              merchantNames,
+            }) => ({
+              type,
+              id,
+              saleId,
+              refundId,
+              completedAt,
+              reference,
+              amount,
+              paymentMethod: paymentMethod!,
+              actorName: actorName!,
+              merchantNames,
+            }),
+          ),
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 
   async analytics(

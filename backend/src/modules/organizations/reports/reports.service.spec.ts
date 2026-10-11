@@ -1,6 +1,9 @@
 import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
-import { SalesRankingSortBy } from './dto/sales-report-query.dto';
+import {
+  ReportTransactionType,
+  SalesRankingSortBy,
+} from './dto/sales-report-query.dto';
 import { ReportsService, netRecordedSales } from './reports.service';
 
 describe('ReportsService', () => {
@@ -441,5 +444,120 @@ describe('ReportsService', () => {
       items: [],
     });
     expect(tx.$queryRaw).not.toHaveBeenCalled();
+  });
+  it('returns a stable staff transaction page from one report snapshot', async () => {
+    tx.$queryRaw.mockReset().mockResolvedValueOnce([
+      {
+        type: 'REFUND',
+        id: 'refund-1',
+        saleId: 'sale-1',
+        refundId: 'refund-1',
+        completedAt: new Date('2026-09-01T12:00:00.000Z'),
+        reference: 'REF-001',
+        amount: '25.00',
+        paymentMethod: 'CASH',
+        actorName: 'Alex Staff',
+        merchantNames: ['Maker'],
+        totalCount: 2,
+      },
+    ]);
+    await expect(
+      service.transactions(context, 'branch', {
+        ...query,
+        page: 1,
+        limit: 10,
+        type: ReportTransactionType.REFUND,
+        q: 'REF-001',
+      }),
+    ).resolves.toEqual({
+      branch: { id: 'branch', name: 'Branch', code: null },
+      from: '2026-09-01T00:00:00.000Z',
+      until: '2026-09-02T00:00:00.000Z',
+      page: 1,
+      limit: 10,
+      total: 2,
+      totalPages: 1,
+      scope: 'STAFF',
+      items: [
+        {
+          type: 'REFUND',
+          id: 'refund-1',
+          saleId: 'sale-1',
+          refundId: 'refund-1',
+          completedAt: new Date('2026-09-01T12:00:00.000Z'),
+          reference: 'REF-001',
+          amount: '25.00',
+          paymentMethod: 'CASH',
+          actorName: 'Alex Staff',
+          merchantNames: ['Maker'],
+        },
+      ],
+    });
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: 'RepeatableRead',
+    });
+    const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
+    expect(sql.sql).toContain('UNION ALL');
+    expect(sql.sql).toContain('"refundCode" ILIKE');
+    expect(sql.values).toEqual(
+      expect.arrayContaining(['org', 'branch', '%REF-001%', 10, 0]),
+    );
+  });
+  it('keeps merchant transaction rows own-only and omits staff fields', async () => {
+    tx.organizationMembership.findUnique.mockResolvedValue({
+      role: 'MERCHANT',
+      merchantId: 'merchant-1',
+    });
+    tx.$queryRaw.mockReset().mockResolvedValueOnce([
+      {
+        type: 'SALE',
+        id: 'sale-1',
+        saleId: 'sale-1',
+        refundId: null,
+        completedAt: new Date('2026-09-01T12:00:00.000Z'),
+        reference: 'RCPT-001',
+        amount: '12.50',
+        paymentMethod: null,
+        actorName: null,
+        merchantNames: [],
+        totalCount: 1,
+      },
+    ]);
+    const result = await service.transactions(
+      { ...context, role: 'MERCHANT' },
+      'branch',
+      { ...query, page: 1, limit: 10 },
+    );
+    expect(result).toMatchObject({
+      scope: 'MERCHANT',
+      total: 1,
+      items: [
+        {
+          type: 'SALE',
+          saleId: 'sale-1',
+          refundId: null,
+          reference: 'RCPT-001',
+          amount: '12.50',
+        },
+      ],
+    });
+    expect(result.items[0]).not.toHaveProperty('paymentMethod');
+    const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
+    expect(sql.sql).not.toContain('s."total"');
+    expect(sql.values).toContain('merchant-1');
+  });
+  it('recovers the total for an empty page inside the same snapshot', async () => {
+    tx.$queryRaw
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ totalCount: 51 }]);
+    await expect(
+      service.transactions(context, 'branch', {
+        ...query,
+        page: 6,
+        limit: 10,
+      }),
+    ).resolves.toMatchObject({ total: 51, totalPages: 6, items: [] });
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
   });
 });

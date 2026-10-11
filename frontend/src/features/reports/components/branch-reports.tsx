@@ -15,6 +15,8 @@ import {
   getMerchantSalesAnalytics,
   getStaffSalesRankings,
   getMerchantSalesRankings,
+  getStaffTransactions,
+  getMerchantTransactions,
   listReportBranches,
 } from '../api/report-api';
 import {
@@ -31,6 +33,9 @@ import type {
   MerchantSalesRankingPage,
   ReportMerchantOption,
   ReportRankingControls,
+  ReportTransactionType,
+  StaffTransactionsPage,
+  MerchantTransactionsPage,
 } from '../model/report.schemas';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
@@ -39,6 +44,8 @@ import { StaffAnalyticsDashboard } from './staff-analytics-dashboard';
 import type { SalesReportTab } from './staff-analytics-dashboard';
 import { MerchantAnalyticsDashboard } from './merchant-analytics-dashboard';
 import { MerchantReportGuidance } from './merchant-report-guidance';
+import { TransactionsTab } from './transactions-tab';
+import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
 import {
   getCheckoutAttempt,
@@ -51,6 +58,7 @@ import {
 
 const salesReportTabs: { value: SalesReportTab; label: string }[] = [
   ['overview', 'Overview'],
+  ['transactions', 'Transactions'],
   ['daily', 'Daily Data'],
   ['rankings', 'Rankings'],
 ].map(([value, label]) => ({
@@ -92,7 +100,7 @@ function ReportContextBar({
         <div
           className="order-1 flex min-w-0 items-center gap-1 overflow-x-auto sm:order-1 sm:self-stretch sm:justify-self-start"
           role="tablist"
-          aria-label="Sales report views"
+          aria-label="Report views"
         >
           {salesReportTabs.map(({ value, label }) => (
             <button
@@ -171,6 +179,18 @@ function ScopedBranchReports({
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [activeTab, setActiveTab] = useState<SalesReportTab>('overview');
+  const [transactions, setTransactions] = useState<
+    StaffTransactionsPage | MerchantTransactionsPage | null
+  >(null);
+  const [transactionLoading, setTransactionLoading] = useState(false);
+  const [transactionRevision, setTransactionRevision] = useState(0);
+  const [transactionError, setTransactionError] = useState<string | null>(null);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [transactionType, setTransactionType] = useState<
+    ReportTransactionType | 'ALL'
+  >('ALL');
+  const [transactionSearch, setTransactionSearch] = useState('');
+  const debouncedTransactionSearch = useDebouncedValue(transactionSearch);
   const [ranking, setRanking] = useState<
     StaffSalesRankingPage | MerchantSalesRankingPage | null
   >(null);
@@ -193,9 +213,12 @@ function ScopedBranchReports({
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
   const rankingRequest = useRef(0);
+  const transactionRequest = useRef(0);
   function invalidate() {
     generation.current++;
     rankingRequest.current++;
+    transactionRequest.current++;
+    setTransactionRevision((value) => value + 1);
     setReport(null);
     setBranches(null);
     setError(null);
@@ -208,6 +231,12 @@ function ScopedBranchReports({
     setRankingControls({ sortBy: 'GROSS_SALES', merchantId: null });
     setMerchantOptions(null);
     setMerchantOptionsError(null);
+    setTransactions(null);
+    setTransactionLoading(false);
+    setTransactionError(null);
+    setTransactionPage(1);
+    setTransactionType('ALL');
+    setTransactionSearch('');
   }
   useEffect(() => {
     let active = true;
@@ -259,6 +288,70 @@ function ScopedBranchReports({
     revision,
     merchant,
     setSelectedBranchId,
+  ]);
+  useEffect(() => {
+    if (activeTab !== 'transactions' || !report) return;
+    let active = true;
+    const current = generation.current;
+    const currentRequest = ++transactionRequest.current;
+    const query = {
+      ...reportUtcRange(applied),
+      page: transactionPage,
+      limit: 25,
+      ...(transactionType !== 'ALL' ? { type: transactionType } : {}),
+      ...(debouncedTransactionSearch ? { q: debouncedTransactionSearch } : {}),
+    };
+    void (
+      merchant
+        ? getMerchantTransactions(request, organizationId, branchId, query)
+        : getStaffTransactions(request, organizationId, branchId, query)
+    )
+      .then((result) => {
+        if (
+          !active ||
+          current !== generation.current ||
+          currentRequest !== transactionRequest.current
+        )
+          return;
+        setTransactions(result);
+      })
+      .catch((cause) => {
+        if (
+          !active ||
+          current !== generation.current ||
+          currentRequest !== transactionRequest.current
+        )
+          return;
+        setTransactions(null);
+        setTransactionError(
+          cause instanceof ApiError
+            ? cause.message
+            : 'The transaction history could not be loaded.',
+        );
+      })
+      .finally(() => {
+        if (
+          active &&
+          current === generation.current &&
+          currentRequest === transactionRequest.current
+        )
+          setTransactionLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    activeTab,
+    applied,
+    branchId,
+    debouncedTransactionSearch,
+    merchant,
+    organizationId,
+    report,
+    request,
+    transactionPage,
+    transactionRevision,
+    transactionType,
   ]);
   useEffect(() => {
     if (
@@ -470,7 +563,47 @@ function ScopedBranchReports({
           ) : null}
         </>
       ) : report ? (
-        report.scope === 'MERCHANT' ? (
+        activeTab === 'transactions' ? (
+          <TransactionsTab
+            organizationId={organizationId}
+            branchId={branchId}
+            merchant={merchant}
+            page={transactions}
+            loading={
+              transactionLoading ||
+              (transactions === null && transactionError === null)
+            }
+            error={transactionError}
+            filterType={transactionType}
+            search={transactionSearch}
+            onTypeChange={(next) => {
+              transactionRequest.current++;
+              setTransactions(null);
+              setTransactionError(null);
+              setTransactionPage(1);
+              setTransactionType(next);
+            }}
+            onSearchChange={(next) => {
+              transactionRequest.current++;
+              setTransactions(null);
+              setTransactionError(null);
+              setTransactionPage(1);
+              setTransactionSearch(next);
+            }}
+            onRetry={() => {
+              setTransactions(null);
+              setTransactionError(null);
+              setTransactionRevision((value) => value + 1);
+            }}
+            onPageChange={(next) => {
+              if (next < 1) return;
+              transactionRequest.current++;
+              setTransactions(null);
+              setTransactionError(null);
+              setTransactionPage(next);
+            }}
+          />
+        ) : report.scope === 'MERCHANT' ? (
           <MerchantAnalyticsDashboard
             report={report}
             activeTab={activeTab}

@@ -9,8 +9,12 @@ import {
   reportRankingQuerySchema,
   staffSalesAnalyticsSchema,
   staffSalesRankingPageSchema,
+  merchantTransactionsPageSchema,
+  reportTransactionQuerySchema,
+  staffTransactionsPageSchema,
   type ReportQuery,
   type ReportRankingQuery,
+  type ReportTransactionQuery,
 } from '../model/report.schemas';
 
 export async function listReportBranches(
@@ -23,6 +27,62 @@ export async function listReportBranches(
     ),
   );
 }
+
+async function getTransactions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: ReportTransactionQuery,
+  merchant: boolean,
+) {
+  const query = reportTransactionQuerySchema.parse(input);
+  const params = new URLSearchParams({
+    from: query.from,
+    until: query.until,
+    page: String(query.page),
+    limit: String(query.limit),
+    ...(query.type ? { type: query.type } : {}),
+    ...(query.q ? { q: query.q } : {}),
+  });
+  const raw = await request<unknown>(
+    `/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/reports/transactions?${params}`,
+  );
+  const page = (
+    merchant ? merchantTransactionsPageSchema : staffTransactionsPageSchema
+  ).parse(raw);
+  if (
+    page.scope !== (merchant ? 'MERCHANT' : 'STAFF') ||
+    page.branch.id !== branchId ||
+    Date.parse(page.from) !== Date.parse(query.from) ||
+    Date.parse(page.until) !== Date.parse(query.until) ||
+    page.page !== query.page ||
+    page.limit !== query.limit ||
+    new Set(page.items.map((item) => item.id)).size !== page.items.length
+  )
+    throw new Error(
+      'The transactions response does not match the selected branch, period or page.',
+    );
+  return page;
+}
+
+export function getStaffTransactions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: ReportTransactionQuery,
+) {
+  return getTransactions(request, organizationId, branchId, input, false);
+}
+
+export function getMerchantTransactions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: ReportTransactionQuery,
+) {
+  return getTransactions(request, organizationId, branchId, input, true);
+}
+
 export async function getStaffSalesReport(
   request: AuthenticatedRequest,
   organizationId: string,

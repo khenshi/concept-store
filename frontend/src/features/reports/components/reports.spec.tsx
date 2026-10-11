@@ -147,6 +147,33 @@ function rankingFor(path: string) {
     items: analyticsReport.topProducts,
   };
 }
+function transactionsFor(path: string) {
+  const query = new URLSearchParams(path.split('?')[1]);
+  return {
+    scope: 'STAFF' as const,
+    branch,
+    from: query.get('from') ?? range.from,
+    until: query.get('until') ?? range.until,
+    page: Number(query.get('page') ?? '1'),
+    limit: Number(query.get('limit') ?? '25'),
+    total: 1,
+    totalPages: 1,
+    items: [
+      {
+        type: 'SALE' as const,
+        id: '33333333-3333-4333-8333-333333333333',
+        saleId: '33333333-3333-4333-8333-333333333333',
+        refundId: null,
+        completedAt: '2026-09-14T05:00:00.000Z',
+        reference: 'RCPT-001',
+        amount: '25.00',
+        paymentMethod: 'CASH' as const,
+        actorName: 'Cashier One',
+        merchantNames: ['Local maker'],
+      },
+    ],
+  };
+}
 const request = vi.fn();
 const push = vi.fn();
 const refreshOrganization = vi.fn();
@@ -199,15 +226,21 @@ describe('staff Reports workspace', () => {
                 updatedAt: '2026-01-01T00:00:00.000Z',
               },
             ]
-          : path.includes('/rankings')
-            ? rankingFor(path)
-            : {
-                ...(path.includes('/analytics') ? analyticsFor(path) : report),
-                branch: path.includes(`/branches/${second.id}/`)
-                  ? second
-                  : branch,
-                ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
-              },
+          : path.includes('/transactions')
+            ? transactionsFor(path)
+            : path.includes('/rankings')
+              ? rankingFor(path)
+              : {
+                  ...(path.includes('/analytics')
+                    ? analyticsFor(path)
+                    : report),
+                  branch: path.includes(`/branches/${second.id}/`)
+                    ? second
+                    : branch,
+                  ...Object.fromEntries(
+                    new URLSearchParams(path.split('?')[1]),
+                  ),
+                },
     );
   });
   afterEach(() => {
@@ -307,6 +340,49 @@ describe('staff Reports workspace', () => {
     expect(
       screen.getByRole('heading', { name: 'Daily sales trend' }),
     ).toBeInTheDocument();
+  });
+  it('loads filtered transaction history with stable source links', async () => {
+    render(<BranchReports organizationId="org" branchId={branch.id} />);
+    await screen.findAllByText('PHP 60.00');
+    fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }));
+    expect(
+      await screen.findByRole('table', { name: 'Transaction history' }),
+    ).toBeInTheDocument();
+    expect(
+      request.mock.calls.some(([path]) =>
+        path.includes('/reports/transactions'),
+      ),
+    ).toBe(true);
+    expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute(
+      'href',
+      `/app/organizations/org/branches/${branch.id}/sales/33333333-3333-4333-8333-333333333333`,
+    );
+    fireEvent.click(screen.getByRole('combobox', { name: 'Transaction type' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Refunds' }));
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(
+          ([path]) =>
+            path.includes('/reports/transactions') &&
+            path.includes('type=REFUND'),
+        ),
+      ).toBe(true),
+    );
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Search transactions' }),
+      {
+        target: { value: 'REF-001' },
+      },
+    );
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(
+          ([path]) =>
+            path.includes('/reports/transactions') &&
+            path.includes('q=REF-001'),
+        ),
+      ).toBe(true),
+    );
   });
   it('loads staff merchant options on Rankings and requests changed controls', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);

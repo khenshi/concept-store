@@ -10,7 +10,7 @@ import type {
   StaffSalesRankingPage,
 } from '../model/report.schemas';
 
-export type SalesReportTab = 'overview' | 'daily' | 'rankings';
+export type SalesReportTab = 'overview' | 'transactions' | 'daily' | 'rankings';
 
 function cents(value: string) {
   return BigInt(value.replace('.', ''));
