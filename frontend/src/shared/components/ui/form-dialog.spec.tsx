@@ -23,9 +23,10 @@ describe('FormDialog', () => {
       'min-w-0',
       'break-words',
     );
+    expect(dialog).toHaveClass('max-w-3xl');
     expect(screen.getByText('Branch: Makati').parentElement).toHaveClass(
       'mt-3',
-      'justify-end',
+      'justify-start',
     );
     expect(screen.getByRole('heading', { name: 'Add product' })).toHaveFocus();
     expect(document.body.style.overflow).toBe('hidden');

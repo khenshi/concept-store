@@ -17,14 +17,18 @@ export function TextField({
   hint?: string;
   hintPosition?: 'before' | 'after';
   containerClassName?: string;
-  icon?: IconName;
+  icon?: IconName | null;
 }) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
   const compactError = error ? compactFieldError(error) : undefined;
   const fieldIcon =
-    icon ??
-    fieldIconForLabel(`${typeof label === 'string' ? label : ''} ${id ?? ''}`);
+    icon === null
+      ? null
+      : (icon ??
+        fieldIconForLabel(
+          `${typeof label === 'string' ? label : ''} ${id ?? ''}`,
+        ));
   const hintBefore = Boolean(hint && hintPosition === 'before');
   const fullErrorId = `${fieldId}-error-detail`;
   const describedBy =
@@ -57,10 +61,12 @@ export function TextField({
         ) : null}
       </div>
       <div className="relative block min-w-0">
-        <Icon
-          name={fieldIcon}
-          className={`pointer-events-none absolute left-3.5 size-4 -translate-y-1/2 text-muted ${hintBefore ? 'bottom-3.5' : 'top-1/2'}`}
-        />
+        {fieldIcon ? (
+          <Icon
+            name={fieldIcon}
+            className={`pointer-events-none absolute left-3.5 size-4 -translate-y-1/2 text-muted ${hintBefore ? 'bottom-3.5' : 'top-1/2'}`}
+          />
+        ) : null}
         {hintBefore ? (
           <p className="text-xs leading-5 text-muted" id={`${fieldId}-hint`}>
             {hint}
@@ -71,7 +77,7 @@ export function TextField({
           id={fieldId}
           aria-invalid={Boolean(error) || props['aria-invalid']}
           aria-describedby={describedBy}
-          className={`min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 py-2.5 !pl-10 text-body text-ink placeholder:text-faint focus-visible:border-focus read-only:bg-subtle read-only:text-muted disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger ${className}`}
+          className={`min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 py-2.5 ${fieldIcon ? '!pl-10' : ''} text-body text-ink placeholder:text-faint focus-visible:border-focus read-only:bg-subtle read-only:text-muted disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger ${className}`}
         />
       </div>
       {error && compactError !== error ? (
