@@ -106,11 +106,12 @@ checkout validation and existing explicit price-conflict review.
 
 Access
 denial clears cart and catalog data; late responses from an old scope are ignored.
-Outgoing links and organization-menu navigation ask before discarding a nonempty
-cart, except internal same-branch POS page links, and full-page unload uses the
-browser's unsaved-work warning. Leaving the POS layout clears editable drafts;
-browser history navigation outside it does not have a custom prompt.
-Clear-cart and ambiguous-code interactions use the shared native modal dialog.
+Outgoing links and organization-menu navigation open a custom discard dialog
+before discarding a nonempty cart, except internal same-branch POS page links,
+and full-page unload uses the browser's unsaved-work warning. Leaving the POS
+layout clears editable drafts; browser history navigation outside it does not
+have a custom prompt. Clear-cart and ambiguous-code interactions use the shared
+custom modal dialog as well.
 Building/editing a cart performs no sale/payment writes or stock deductions.
 Confirmed checkout uses the [sales API](sales.md), which remains authoritative
 for price, stock, payment values and authorization.
@@ -120,8 +121,9 @@ for price, stock, payment values and authorization.
 The Cart tab presents a compact scanner/SKU field, debounced product search and
 product rows containing product name, merchant, SKU, price, available stock and
 an Add action. Scanner Enter still performs the existing exact-code lookup;
-repeated scans increment the existing cart line and restore scanner focus. No
-catalog or checkout rules changed.
+repeated scans increment the existing cart line and restore scanner focus. Cart
+lines use compact quantity controls while keeping the validated quantity input
+and accessible action labels. No catalog or checkout rules changed.
 
 Landscape tablet/desktop layouts use a roughly 62/38 product-browser/cart split.
 The cart stays within the viewport: its heading and checkout footer remain fixed
@@ -132,11 +134,12 @@ remain bounded by the existing positive-whole-quantity and observed-stock rules.
 Portrait and narrow layouts use a single product browser with a sticky item-count
 and total summary. View cart opens the native bottom-sheet cart; Escape/backdrop
 dismissal restores focus to the trigger. Review payment remains available from
-both the summary and cart sheet. The optional Full screen POS action hides the
-authenticated header and organization navigation while leaving compact branch,
-Sales history and Exit full screen controls. This is in-app presentation state,
-not the browser Fullscreen API; it is not persisted and automatically ends when
-leaving Cart or when the active branch becomes unavailable.
+both the summary and cart sheet. The optional Full Screen action sits beside the
+compact branch selector in the page header and hides the authenticated header and
+organization navigation while leaving compact branch, Sales history and Exit full
+screen controls. This is in-app presentation state, not the browser Fullscreen
+API; it is not persisted and automatically ends when leaving Cart or when the
+active branch becomes unavailable.
 
 The September 29, 2026 presentation refinement passes 128 POS, workspace and
 shell tests, frontend lint, type checking and production build. The full frontend
@@ -147,12 +150,16 @@ Rendered viewport QA was not run because no browser surface was available.
 
 ## Payment confirmation and recovery
 
-Review payment opens a native dialog showing the cart and estimated total. Cash
-tender validates 300 ms after each input, immediately on blur and on submission;
-it must cover the total. GCash/card are explicitly manual and provider-unverified,
-requiring a trimmed 2–100 character reference. Staff must explicitly confirm that
-payment was received. Changing method clears its fields and received confirmation.
-Estimated change uses integer cents; completion displays backend-persisted change.
+Review payment opens a native dialog showing the cart and estimated total. The
+payment-method controls and received confirmation use custom accessible controls.
+Cash tender accepts only up to 22 whole digits and two decimal places; invalid
+characters are ignored, it must cover the total, and estimated change remains
+visible while editing. GCash/card are explicitly manual and provider-unverified,
+requiring a trimmed 2–100 character reference; overlong input is rejected. The
+reviewed item list has its own maximum height and scrolls independently. Staff
+must explicitly confirm that payment was received. Changing method clears its
+fields and received confirmation. Estimated change uses integer cents;
+completion displays backend-persisted change.
 
 Pending checkout blocks cart/payment edits, repeat activation, Escape/backdrop
 dismissal and outgoing link/menu navigation. A known rejected unchanged command
@@ -187,6 +194,12 @@ failure feedback without claiming the printer succeeded. Print cancellation/fail
 can retry printing only. Receipts are internal transaction records, not fiscal/tax
 invoices. POS links to branch history and the saved receipt detail; merchant own-sale
 screens remain separate and do not expose full receipt/print controls.
+The saved receipt detail groups receipt identity, purchased items and payment
+summary into distinct reading zones; the total is separated from supporting payment
+metadata. Its return workflow presents remaining quantities before recorded refund
+history and keeps the return action and estimate close to the data they affect.
+These presentation changes do not alter receipt snapshots, refund commands or
+authorization.
 
 ## Verification
 

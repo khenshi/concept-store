@@ -176,6 +176,11 @@ general branch-detail or inventory access. Staff details return the persisted fu
 snapshot shape from checkout completion for internal receipt rendering.
 No mutable sale/receipt routes are provided.
 
+Reports also provides a read-only Transactions tab that links completed sale rows
+back to this existing sale detail route. Refund rows link to their original sale
+detail rather than creating a second refund workflow; sale history remains the
+operational source for receipt lookup and refund actions.
+
 ## Workspace screens
 
 ```text

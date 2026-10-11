@@ -1,5 +1,9 @@
 # Archived Implementation Plans
 
+The completed local Spaces workspace plan, including its routes, role boundaries,
+history filters, and documented rollout limits, is retained in
+[`dedicated-spaces-workspace-2026-10-11.md`](dedicated-spaces-workspace-2026-10-11.md).
+
 The completed POS Cart Fast Cashier redesign, including the landscape cart
 workspace, narrow-screen sheet, route-scoped in-app full-screen mode and the
 documented verification limits, is retained in

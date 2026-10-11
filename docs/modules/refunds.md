@@ -35,6 +35,12 @@ unverified; cash sends no reference. Explicit confirmation that money was alread
 refunded outside the system is required. No provider operation or discretionary
 refund amount is offered.
 
+The sale-detail workflow presents returnable quantities and recorded refunds as
+separate sections. The return form groups item quantities first, then refund
+details, and keeps the estimated refund in a distinct summary row so the amount
+can be checked before submission. This improves scanning without changing the
+existing validation, confirmation, retry, authorization or persistence rules.
+
 Before POST, a memory-only organization/user-scoped attempt retains the exact
 command and request ID. Pending submissions freeze fields and block duplicates,
 Escape, backdrop/cancel dismissal, in-app link/programmatic POS navigation and
@@ -243,6 +249,12 @@ refunds, stock or movements. Original saved prices/names/ownership/branch identi
 survive current price, name and lifecycle edits. Swagger describes separate
 scope-discriminated staff and merchant list/detail schemas. Refund forms and
 rendered report refund/net cards remain later parts, not implied by these routes.
+
+The Reports Transactions tab now cross-references completed refund rows by their
+own completion date and saved refund code. Its refund rows expose only the
+role-appropriate amount and source sale link, and View returns to the existing
+sale detail/refund history workflow. The tab does not issue refunds or restock
+inventory.
 
 ## Persistence verification
 

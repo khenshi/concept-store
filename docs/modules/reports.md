@@ -1,8 +1,8 @@
 # Sales Reports
 
-**Status:** Refund-aware backend API and owner/manager/merchant report cards
-implemented. Final automated checks passed; refund-specific rendered QA explicitly
-waived September 14, 2026. Final refund milestone reviewed and approved.
+**Status:** Refund-aware backend API, owner/manager/merchant report cards and the
+read-only Transactions tab are implemented. Focused backend/frontend checks pass;
+full rendered Reports QA remains separately documented.
 
 ## Responsibilities and exclusions
 
@@ -30,6 +30,7 @@ GET /organizations/:organizationId/reports/sales/branches
 GET /organizations/:organizationId/branches/:branchId/reports/sales?from=&until=
 GET /organizations/:organizationId/branches/:branchId/reports/sales/analytics?from=&until=
 GET /organizations/:organizationId/branches/:branchId/reports/sales/rankings?from=&until=&page=&sortBy=&merchantId=
+GET /organizations/:organizationId/branches/:branchId/reports/transactions?from=&until=&page=&limit=&type=&q=
 ```
 
 Authentication and current organization membership are required. OWNER, MANAGER
@@ -44,6 +45,29 @@ Branch lookup accepts no query parameters. The backend does not infer a local
 calendar day for summary reads. Analytics labels dates in Asia/Manila after exact
 UTC filtering. The frontend converts inclusive Philippines calendar
 dates into the required half-open UTC range.
+
+## Transactions history
+
+The Reports workspace includes a read-only `Transactions` tab beside `Overview`,
+`Daily Data` and `Rankings`. It is a cross-reference for completed `SALE` and
+`REFUND` records; it does not replace Sales History and does not mount checkout,
+refund, restock, export or print actions. Sales use their completion date and
+refunds use their own completion date.
+
+The transactions query requires the same strict UTC `from`/`until` range as the
+summary and accepts `page`/`limit` (default 1/50), optional `type=SALE|REFUND`,
+and an optional case-insensitive `q` search over saved receipt and refund codes.
+The server combines both streams before sorting newest completion first with a
+stable descending source ID tie-breaker, then applies pagination and returns
+`branch`, the applied range, `items`, `page`, `limit`, `total`, and `totalPages`.
+
+Owner and Manager rows expose the saved reference, amount, payment method, actor
+display name and saved merchant-name context. Merchant rows contain only the
+currently linked profile's own sale/refund amount and source identifiers; they
+omit payment, actor and other-merchant fields. Every row includes the source sale
+ID so View opens the existing authorized sale detail and its refund workflow.
+All authorization, filters, counts and rows are read inside one REPEATABLE READ
+transaction. The endpoint is read-only and adds no schema, index or migration.
 
 ## Authorization and branch lookup
 

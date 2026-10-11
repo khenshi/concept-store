@@ -241,6 +241,16 @@ scroll. On narrow screens the navigation, branch name and refresh action stack
 in reading order; the full date editor remains above the bar and is the only
 period-editing control.
 
+The Reports context bar also provides a `Transactions` tab. It lazy-loads the
+server-paginated completed sale/refund cross-reference for the applied Philippine
+date range, with type and debounced receipt/refund-code filters. Staff see saved
+merchant, payment and actor context; merchants see only their own amounts and
+source references. The table uses the shared operational data-surface pattern,
+semantic type pills, a loading skeleton, explicit empty/error/retry states and
+previous/next pagination. View links return to the existing authorized sale
+detail, where refund actions remain governed by the existing workflow. Stale
+responses are discarded when the branch, period, role or filter changes.
+
 ## Merchant own-sales reports
 
 Merchant sidebar/mobile navigation now includes Reports alongside unchanged Sales.
@@ -368,10 +378,12 @@ waivers. Automated checks do not certify rendered behavior or actual printing.
 
 Product directory/profile screens use the neutral operational panels, controls,
 responsive divided rows, filters, status feedback, and owner/manager navigation.
-Product creation and identity editing use the shared native `FormDialog`: a wide,
-scroll-contained surface with browser focus containment, heading focus, safe
-pending dismissal, scroll locking, and focus restoration. Shared fields align
-labels and controls before hints/errors; product validation is debounced on each
+Product creation and identity editing use the shared native `FormDialog`: a
+focused, scroll-contained surface with browser focus containment, heading focus,
+safe pending dismissal, scroll locking, and focus restoration. The default dialog
+width is capped at `max-w-3xl`, while explicitly form-sized workflows retain the
+more compact `max-w-2xl` treatment. Shared fields align labels and controls before
+hints/errors; product validation is debounced on each
 input, immediate on blur, and final on submit. Stock mutation lives in the scoped
 branch inventory workspace. Expanded automated workflows pass. The user explicitly
 waived rendered visual/accessibility QA for these screens on September 12, 2026;
@@ -693,6 +705,14 @@ responses instead of falling back to staff data. Scope changes unmount old read
 state; loading/error/empty states and read-only access refresh preserve isolation.
 The new September 13, 2026 waiver covers these POS/sales screens; automated checks
 do not certify rendered accessibility or printing.
+
+Saved receipt detail uses a clear identity header, structured purchased-item rows,
+and a payment summary with the completed total visually separated from supporting
+payment metadata. Staff refund controls separate returnable quantities from
+recorded refund history, with the return action and estimated refund amount placed
+near the context they affect. These are presentation and workflow-clarity changes;
+receipt snapshots, refund APIs, authorization, pending-attempt recovery and
+printing behavior remain unchanged.
 
 ## Merchant branch participation
 
