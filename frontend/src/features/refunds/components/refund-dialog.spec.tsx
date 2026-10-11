@@ -87,9 +87,8 @@ describe('manual refund dialog and frozen recovery', () => {
       '0',
     );
     fill();
-    expect(
-      screen.getByText('Estimated refund: PHP 850.00'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Estimated refund')).toBeInTheDocument();
+    expect(screen.getByText('PHP 850.00')).toBeInTheDocument();
     submit();
     await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
     const body = JSON.parse(request.mock.calls[0][1].body);

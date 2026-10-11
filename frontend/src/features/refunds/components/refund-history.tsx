@@ -161,6 +161,9 @@ export function RefundHistory({
     'organizationId' in sale &&
     (open || recovering) &&
     Boolean(result);
+  const canStartReturn = Boolean(
+    result?.remainingItems.some((item) => item.remainingQuantity > 0),
+  );
   return (
     <>
       <OperationalPanel
@@ -238,121 +241,163 @@ export function RefundHistory({
           <ListSkeleton className="p-5" label="Loading refund history" />
         ) : (
           <div className="p-5 sm:p-6">
-            <ul
-              aria-label="Remaining returnable quantities"
-              className="mb-5 list-none p-0"
-            >
-              <li className="data-column-header hidden grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] gap-x-6 gap-y-3 sm:grid">
-                <span>Product</span>
-                <span>Returnable quantity</span>
-              </li>
-              {result.remainingItems.map((item) => (
-                <li
-                  key={item.saleItemId}
-                  className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] sm:items-center"
-                >
-                  <span className="break-words">
-                    {
-                      sale.items.find((line) => line.id === item.saleItemId)
-                        ?.productName
-                    }
-                  </span>
-                  <span className="tabular-nums sm:text-right">
-                    {item.remainingQuantity} remaining · {item.returnedQuantity}{' '}
-                    returned · {item.restockedQuantity} restocked
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {staff ? (
-              <Button
-                disabled={
-                  unresolved ||
-                  attempt?.state === 'completed' ||
-                  !result.remainingItems.some(
-                    (item) => item.remainingQuantity > 0,
-                  )
-                }
-                onClick={() => setOpen(true)}
-              >
-                Return items
-              </Button>
-            ) : null}
-            {!result.items.length ? (
-              <p className="mt-4 text-sm text-muted">
-                {role === 'MERCHANT'
-                  ? 'No matching own returns on this page.'
-                  : 'No refunds on this page.'}
-              </p>
-            ) : (
-              <ul className="mt-4 list-none p-0">
-                <li className="data-column-header hidden grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] gap-x-6 gap-y-3 sm:grid">
-                  <span>Refund</span>
-                  <span>Action</span>
-                </li>
-                {result.items.map((row) => (
-                  <li
-                    key={row.id}
-                    className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] sm:items-center"
+            <section aria-labelledby="returnable-quantities-title">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h3
+                    id="returnable-quantities-title"
+                    className="font-semibold"
                   >
-                    <div className="min-w-0 break-words">
-                      <h3 className="font-semibold">{row.refundCode}</h3>
-                      <p className="text-sm tabular-nums">
-                        {'total' in row
-                          ? `Refund: PHP ${row.total}`
-                          : `Own returned items subtotal: PHP ${row.ownItemsSubtotal}`}
-                      </p>
-                      <time
-                        className="text-xs text-muted"
-                        dateTime={row.completedAt}
-                      >
-                        {new Date(row.completedAt).toLocaleString()}
-                      </time>
-                    </div>
-                    <Button
-                      variant="secondary"
-                      disabled={unresolved}
-                      onClick={() => {
-                        setDetail(null);
-                        setDetailError(null);
-                        setSelected(row.id);
-                      }}
-                    >
-                      View refund {row.refundCode}
-                    </Button>
+                    Returnable quantities
+                  </h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Review what can still be returned before starting a return.
+                  </p>
+                </div>
+                {staff ? (
+                  <Button
+                    disabled={
+                      unresolved ||
+                      attempt?.state === 'completed' ||
+                      !canStartReturn
+                    }
+                    onClick={() => setOpen(true)}
+                  >
+                    Return items
+                  </Button>
+                ) : null}
+              </div>
+              <ul
+                aria-label="Returnable quantities"
+                className="mt-4 list-none p-0"
+              >
+                <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_8rem_6rem_6rem] gap-x-6 gap-y-3 sm:grid">
+                  <span>Product</span>
+                  <span>Available to return</span>
+                  <span>Returned</span>
+                  <span>Restocked</span>
+                </li>
+                {result.remainingItems.map((item) => (
+                  <li
+                    key={item.saleItemId}
+                    className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_8rem_6rem_6rem] sm:items-center"
+                  >
+                    <span className="break-words">
+                      {
+                        sale.items.find((line) => line.id === item.saleItemId)
+                          ?.productName
+                      }
+                    </span>
+                    <span className="flex items-center justify-between gap-3 tabular-nums sm:block">
+                      <span className="text-xs font-medium text-muted sm:hidden">
+                        Available to return
+                      </span>
+                      {item.remainingQuantity}
+                    </span>
+                    <span className="flex items-center justify-between gap-3 tabular-nums sm:block">
+                      <span className="text-xs font-medium text-muted sm:hidden">
+                        Returned
+                      </span>
+                      {item.returnedQuantity}
+                    </span>
+                    <span className="flex items-center justify-between gap-3 tabular-nums sm:block">
+                      <span className="text-xs font-medium text-muted sm:hidden">
+                        Restocked
+                      </span>
+                      {item.restockedQuantity}
+                    </span>
                   </li>
                 ))}
               </ul>
-            )}
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <p className="text-xs text-muted">
-                {result.total}{' '}
-                {role === 'MERCHANT'
-                  ? 'refunds containing own items'
-                  : 'refunds'}{' '}
-                · Page {result.page} of {Math.max(1, result.totalPages)}
-              </p>
-              <Button
-                variant="secondary"
-                disabled={unresolved || page <= 1}
-                onClick={() => {
-                  setResult(null);
-                  setPage((n) => n - 1);
-                }}
-              >
-                Previous refunds
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={unresolved || page >= result.totalPages}
-                onClick={() => {
-                  setResult(null);
-                  setPage((n) => n + 1);
-                }}
-              >
-                Next refunds
-              </Button>
-            </div>
+            </section>
+            <section
+              className="mt-8 border-t border-hairline pt-6"
+              aria-labelledby="recorded-refunds-title"
+            >
+              <div>
+                <h3 id="recorded-refunds-title" className="font-semibold">
+                  Recorded refunds
+                </h3>
+                <p className="mt-1 text-sm text-muted">
+                  Review completed returns without changing the original sale.
+                </p>
+              </div>
+              {!result.items.length ? (
+                <p className="mt-4 text-sm text-muted">
+                  {role === 'MERCHANT'
+                    ? 'No matching own returns on this page.'
+                    : 'No refunds on this page.'}
+                </p>
+              ) : (
+                <ul className="mt-4 list-none p-0">
+                  <li className="data-column-header hidden grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] gap-x-6 gap-y-3 sm:grid">
+                    <span>Refund</span>
+                    <span>Action</span>
+                  </li>
+                  {result.items.map((row) => (
+                    <li
+                      key={row.id}
+                      className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] sm:items-center"
+                    >
+                      <div className="min-w-0 break-words">
+                        <h3 className="font-semibold">{row.refundCode}</h3>
+                        <p className="text-sm tabular-nums">
+                          {'total' in row
+                            ? `Refund: PHP ${row.total}`
+                            : `Own returned items subtotal: PHP ${row.ownItemsSubtotal}`}
+                        </p>
+                        <time
+                          className="text-xs text-muted"
+                          dateTime={row.completedAt}
+                        >
+                          {new Date(row.completedAt).toLocaleString()}
+                        </time>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        disabled={unresolved}
+                        onClick={() => {
+                          setDetail(null);
+                          setDetailError(null);
+                          setSelected(row.id);
+                        }}
+                      >
+                        View refund {row.refundCode}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <p className="text-xs text-muted">
+                  {result.total}{' '}
+                  {role === 'MERCHANT'
+                    ? 'refunds containing own items'
+                    : 'refunds'}{' '}
+                  · Page {result.page} of {Math.max(1, result.totalPages)}
+                </p>
+                <Button
+                  variant="secondary"
+                  disabled={unresolved || page <= 1}
+                  onClick={() => {
+                    setResult(null);
+                    setPage((n) => n - 1);
+                  }}
+                >
+                  Previous refunds
+                </Button>
+                <Button
+                  variant="secondary"
+                  disabled={unresolved || page >= result.totalPages}
+                  onClick={() => {
+                    setResult(null);
+                    setPage((n) => n + 1);
+                  }}
+                >
+                  Next refunds
+                </Button>
+              </div>
+            </section>
           </div>
         )}
       </OperationalPanel>
@@ -413,7 +458,7 @@ export function RefundHistory({
               {detail.scope === 'STAFF' ? (
                 <>
                   <p className="mt-3">
-                    Actual refund method: {detail.paymentMethod} (manual)
+                    Actual refund method: {detail.paymentMethod}
                   </p>
                   {detail.paymentReference ? (
                     <p>Reference: {detail.paymentReference}</p>

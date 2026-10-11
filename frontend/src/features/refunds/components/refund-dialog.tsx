@@ -198,6 +198,7 @@ export function RefundDialog({
     <FormDialog
       title="Return items and record refund"
       description="Record money already refunded manually. Restock only the original branch placement; zero restock does not change inventory."
+      size="form"
       pending={locked}
       onClose={() => {
         if (!busy.current && !uncertain.current) onClose();
@@ -213,7 +214,14 @@ export function RefundDialog({
         }}
       >
         <section aria-label="Original sale return lines" className="min-w-0">
-          <ul className="divide-y divide-hairline">
+          <div>
+            <h3 className="font-semibold">Items to return</h3>
+            <p className="mt-1 text-sm text-muted">
+              Enter returned units and choose how many should go back into
+              stock.
+            </p>
+          </div>
+          <ul className="mt-4 divide-y divide-hairline">
             {sale.items.map((item) => {
               const left =
                 remaining.find((line) => line.saleItemId === item.id)
@@ -282,69 +290,77 @@ export function RefundDialog({
               {errors.items}
             </p>
           ) : null}
-          <p className="mt-4 font-semibold tabular-nums">
-            Estimated refund: PHP {refundEstimate(sale, draft)}
-          </p>
+          <div className="mt-5 flex flex-wrap items-baseline justify-between gap-3 border-t border-hairline pt-4">
+            <span className="text-sm text-muted">Estimated refund</span>
+            <span className="text-lg font-semibold tabular-nums">
+              PHP {refundEstimate(sale, draft)}
+            </span>
+          </div>
           <p className="mt-2 text-sm text-muted">
             Amounts use original saved prices, not today’s prices. Non-restocked
             units do not enter sellable inventory.
           </p>
         </section>
-        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-          <TextField
-            label="Refund reason"
-            value={draft.reason}
-            disabled={locked}
-            error={errors.reason}
-            onChange={(event) => edit({ ...draft, reason: event.target.value })}
-            onBlur={() => edit(draft, true)}
-          />
-          <fieldset disabled={locked} className="grid min-w-0 gap-2">
-            <legend className="mb-2 text-sm font-semibold">
-              Actual refund method
-            </legend>
-            <div className="flex flex-wrap gap-3">
-              {(['CASH', 'GCASH', 'CARD'] as const).map((method) => (
-                <label
-                  key={method}
-                  className="flex min-h-11 items-center gap-2 text-sm"
-                >
-                  <input
-                    type="radio"
-                    name="refund-method"
-                    checked={draft.method === method}
-                    onChange={() =>
-                      edit({
-                        ...draft,
-                        method,
-                        reference: '',
-                        confirmed: false,
-                      })
-                    }
-                  />
-                  {method === 'CASH'
-                    ? 'Cash'
-                    : method === 'GCASH'
-                      ? 'GCash (manual)'
-                      : 'Card (manual)'}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          {draft.method !== 'CASH' ? (
+        <section aria-label="Refund details" className="grid min-w-0 gap-4">
+          <h3 className="font-semibold">Refund details</h3>
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
             <TextField
-              label="Refund reference"
-              value={draft.reference}
+              label="Refund reason"
+              value={draft.reason}
               disabled={locked}
-              error={errors.reference}
-              hint="Manual, unverified reference. No provider processing occurs."
+              error={errors.reason}
               onChange={(event) =>
-                edit({ ...draft, reference: event.target.value })
+                edit({ ...draft, reason: event.target.value })
               }
               onBlur={() => edit(draft, true)}
             />
-          ) : null}
-        </div>
+            <fieldset disabled={locked} className="grid min-w-0 gap-2">
+              <legend className="mb-2 text-sm font-semibold">
+                Actual refund method
+              </legend>
+              <div className="flex flex-wrap gap-3">
+                {(['CASH', 'GCASH', 'CARD'] as const).map((method) => (
+                  <label
+                    key={method}
+                    className="flex min-h-11 items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="radio"
+                      name="refund-method"
+                      checked={draft.method === method}
+                      onChange={() =>
+                        edit({
+                          ...draft,
+                          method,
+                          reference: '',
+                          confirmed: false,
+                        })
+                      }
+                    />
+                    {method === 'CASH'
+                      ? 'Cash'
+                      : method === 'GCASH'
+                        ? 'GCash (manual)'
+                        : 'Card (manual)'}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {draft.method !== 'CASH' ? (
+              <TextField
+                label="Refund reference"
+                value={draft.reference}
+                disabled={locked}
+                error={errors.reference}
+                hint="Manual reference, 2–100 characters."
+                onChange={(event) =>
+                  edit({ ...draft, reference: event.target.value })
+                }
+                onBlur={() => edit(draft, true)}
+              />
+            ) : null}
+          </div>
+        </section>
         <label className="flex min-h-11 items-start gap-3 text-sm">
           <input
             type="checkbox"

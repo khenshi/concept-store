@@ -46,6 +46,15 @@ describe('saved refund history and role privacy', () => {
     });
     fireEvent.click(screen.getByRole('checkbox'));
   }
+  function expectReturnedQuantities() {
+    const list = screen.getByRole('list', {
+      name: 'Returnable quantities',
+    });
+    const row = within(list).getAllByRole('listitem')[1];
+    expect(row.children[1]).toHaveTextContent('0');
+    expect(row.children[2]).toHaveTextContent('1');
+    expect(row.children[3]).toHaveTextContent('0');
+  }
   beforeEach(() => {
     vi.resetAllMocks();
     setRefundAttempt(key, null);
@@ -77,7 +86,17 @@ describe('saved refund history and role privacy', () => {
           onDenied={denied}
         />,
       );
-      await screen.findByText(/0 remaining · 1 returned · 0 restocked/);
+      const remainingList = await screen.findByRole('list', {
+        name: 'Returnable quantities',
+      });
+      const header = within(remainingList).getByText('Product').parentElement;
+      expect(header).not.toBeNull();
+      expect(
+        within(header!).getByText('Available to return'),
+      ).toBeInTheDocument();
+      expect(within(header!).getByText('Returned')).toBeInTheDocument();
+      expect(within(header!).getByText('Restocked')).toBeInTheDocument();
+      expectReturnedQuantities();
       expect(
         screen.getByRole('button', { name: 'Return items' }),
       ).toBeDisabled();
@@ -89,7 +108,7 @@ describe('saved refund history and role privacy', () => {
       const dialog = await screen.findByRole('dialog');
       await within(dialog).findByText(`Reason: ${command.reason}`);
       expect(
-        within(dialog).getByText('Actual refund method: CASH (manual)'),
+        within(dialog).getByText('Actual refund method: CASH'),
       ).toBeInTheDocument();
       expect(
         within(dialog).queryByRole('button', { name: /print|edit|delete/i }),
@@ -174,9 +193,7 @@ describe('saved refund history and role privacy', () => {
     expect(screen.queryByText('REFUND-0')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await screen.findByText('11 refunds · Page 2 of 2');
-    expect(
-      screen.getByText(/0 remaining · 1 returned · 0 restocked/),
-    ).toBeInTheDocument();
+    expectReturnedQuantities();
     expect(request.mock.calls[2][0]).toContain('?page=2&limit=10');
     expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
   });
@@ -209,7 +226,10 @@ describe('saved refund history and role privacy', () => {
     expect(getRefundAttempt(key)?.state).toBe('completed');
     readRecovered = true;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    await screen.findByText(/0 remaining · 1 returned · 0 restocked/);
+    await screen.findByRole('list', {
+      name: 'Returnable quantities',
+    });
+    expectReturnedQuantities();
     await waitFor(() => expect(getRefundAttempt(key)).toBeNull());
     expect(
       request.mock.calls.filter((call) => call[1]?.method === 'POST'),
