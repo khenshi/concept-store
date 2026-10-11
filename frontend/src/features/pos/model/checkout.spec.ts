@@ -21,7 +21,7 @@ describe('checkout client validation and exact amounts', () => {
   );
   it('requires sufficient cash, explicit received confirmation and valid cart', () => {
     expect(paymentError({ ...cash, tender: '849.99' }, '850.00')).toMatch(
-      /cover/,
+      /below total/,
     );
     expect(() => checkoutContent(lines, { ...cash, received: false })).toThrow(
       /received/,

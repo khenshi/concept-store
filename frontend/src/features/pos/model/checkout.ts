@@ -25,13 +25,13 @@ export function paymentError(
   if (draft.method !== 'CASH') {
     const reference = draft.reference.trim();
     return reference.length < 2 || reference.length > 100
-      ? 'Enter a reference containing 2–100 characters.'
+      ? 'Use 2–100 characters.'
       : undefined;
   }
   if (!/^\d{1,22}(?:\.\d{1,2})?$/.test(draft.tender.trim()))
-    return 'Enter a PHP amount with at most 22 whole digits and two decimal places.';
+    return 'Enter a valid amount.';
   return moneyCents(draft.tender.trim()) < moneyCents(total)
-    ? 'Cash tender must cover the total.'
+    ? 'Amount is below total.'
     : undefined;
 }
 export function changeEstimate(draft: PaymentDraft, total: string) {
@@ -52,7 +52,7 @@ export function checkoutContent(lines: PosCartLine[], draft: PaymentDraft) {
     throw new Error('Fix cart quantities before checkout.');
   const error = paymentError(draft, posCartTotal(lines));
   if (error) throw new Error(error);
-  if (!draft.received) throw new Error('Confirm that payment was received.');
+  if (!draft.received) throw new Error('Confirm payment received.');
   return {
     items: lines
       .map((line) => ({

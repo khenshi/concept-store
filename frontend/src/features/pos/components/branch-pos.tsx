@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -97,6 +98,7 @@ function ScopedBranchPos({
   history,
 }: BranchPosProps & { role: 'OWNER' | 'MANAGER' | 'CASHIER' }) {
   const { request, user } = useAuth();
+  const router = useRouter();
   const { setSelectedBranchId } = useOrganizationWorkspaceContext();
   const { posFullscreen, enterPosFullscreen, exitPosFullscreen } =
     useWorkspaceChrome();
@@ -188,6 +190,9 @@ function ScopedBranchPos({
     setCartSheetState({ routeActive: requestedCartActive, open: false });
   const [notice, setNotice] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [pendingNavigationHref, setPendingNavigationHref] = useState<
+    string | null
+  >(null);
   const [paying, setPaying] = useState(false);
   const unsafeCheckout = useRef(false);
   const paymentOpen = useRef(false);
@@ -201,6 +206,12 @@ function ScopedBranchPos({
     cartRef.current = next;
     setCart(next);
   }, []);
+  const discardCartForNavigation = useCallback(() => {
+    commitCart([]);
+    lookupGeneration.current += 1;
+    lookupBusy.current = false;
+    setPaymentRevision((value) => value + 1);
+  }, [commitCart]);
   const denyAccess = useCallback(() => {
     lookupGeneration.current++;
     lookupBusy.current = false;
@@ -395,17 +406,9 @@ function ScopedBranchPos({
             url.pathname.startsWith(`${pathname}/sales/`)))
       )
         return true;
-      if (
-        !window.confirm(
-          'Discard this branch’s cart and leave POS? Unsaved cart quantities will be lost.',
-        )
-      )
-        return false;
-      commitCart([]);
-      lookupGeneration.current += 1;
-      lookupBusy.current = false;
-      setPaymentRevision((value) => value + 1);
-      return true;
+      if (pendingNavigationHref) return false;
+      setPendingNavigationHref(href);
+      return false;
     }
     function programmatic(event: Event) {
       if (event.defaultPrevented) return;
@@ -456,7 +459,18 @@ function ScopedBranchPos({
       document.removeEventListener('click', linkClick, true);
       window.removeEventListener('beforeunload', beforeUnload);
     };
-  }, [pathname, commitCart, attemptKey, branchId, organizationId]);
+  }, [pathname, pendingNavigationHref, attemptKey, branchId, organizationId]);
+
+  const confirmPendingNavigation = useCallback(() => {
+    if (!pendingNavigationHref) return;
+    const href = pendingNavigationHref;
+    setPendingNavigationHref(null);
+    discardCartForNavigation();
+    const target = new URL(href, window.location.href);
+    if (target.origin === window.location.origin)
+      router.push(`${target.pathname}${target.search}${target.hash}`);
+    else window.location.assign(target.href);
+  }, [discardCartForNavigation, pendingNavigationHref, router]);
 
   function validateCode(value: string, immediate = false) {
     window.clearTimeout(codeTimer.current);
@@ -487,7 +501,7 @@ function ScopedBranchPos({
       return false;
     try {
       commitCart(addPosProduct(cartRef.current, product));
-      setNotice(`${product.name} added to this branch’s cart.`);
+      setNotice(null);
       setCodeError(undefined);
       return true;
     } catch (cause) {
@@ -844,7 +858,7 @@ function ScopedBranchPos({
             description="Scan or search products, then review the cart."
             className="!pb-5"
             action={
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-wrap items-end justify-end gap-3">
                 {branchSelector}
                 {requestedCartActive && !recovering ? (
                   <Button
@@ -854,7 +868,7 @@ function ScopedBranchPos({
                       focusCode();
                     }}
                   >
-                    Full screen POS
+                    Full Screen
                   </Button>
                 ) : null}
               </div>
@@ -1108,6 +1122,26 @@ function ScopedBranchPos({
                 }}
               >
                 Cancel
+              </Button>
+            </div>
+          </FormDialog>
+        ) : null}
+        {pendingNavigationHref ? (
+          <FormDialog
+            title="Discard cart and leave?"
+            description="Your unsaved cart will be cleared if you leave POS. No stock or recorded sale will change."
+            size="form"
+            onClose={() => setPendingNavigationHref(null)}
+          >
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setPendingNavigationHref(null)}
+              >
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={confirmPendingNavigation}>
+                Discard cart and leave
               </Button>
             </div>
           </FormDialog>

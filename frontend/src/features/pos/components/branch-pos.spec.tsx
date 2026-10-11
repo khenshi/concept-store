@@ -43,7 +43,6 @@ describe('Branch POS cart workflows', () => {
       { id: scope.branchId, name: 'Makati', code: 'MKT' },
       { id: secondProduct.branchInventoryId, name: 'BGC', code: 'BGC' },
     ]);
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<BranchPos {...scope} />);
     await screen.findByRole('button', { name: `Add ${product.name}` });
     enterCode();
@@ -53,13 +52,19 @@ describe('Branch POS cart workflows', () => {
     fireEvent.click(screen.getByRole('combobox', { name: 'POS branch' }));
     fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
     expect(push).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole('dialog', { name: 'Discard cart and leave?' }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Estimated total')).toHaveTextContent(
       '850.00',
     );
     expect(screen.getByRole('combobox')).toHaveTextContent('Makati (MKT)');
-    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     fireEvent.click(screen.getByRole('combobox'));
     fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Discard cart and leave' }),
+    );
     expect(push).toHaveBeenCalledWith(
       `/app/organizations/${scope.organizationId}/branches/${secondProduct.branchInventoryId}/pos`,
     );
@@ -138,6 +143,9 @@ describe('Branch POS cart workflows', () => {
     expect(screen.getByLabelText('Estimated total')).toHaveTextContent(
       '1700.00',
     );
+    expect(
+      screen.queryByText(`${product.name} added to this branch’s cart.`),
+    ).not.toBeInTheDocument();
     await waitFor(() => expect(codeInput()).toHaveFocus());
     expect(lookupPosCode).toHaveBeenCalledTimes(2);
   });
@@ -504,7 +512,6 @@ describe('Branch POS cart workflows', () => {
     expect(screen.getByLabelText('Estimated total')).toHaveTextContent('0.00');
   });
   it('warns before programmatic organization switching or leaving through a link', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<BranchPos {...scope} />);
     await screen.findByRole('button', { name: `Add ${product.name}` });
     enterCode();
@@ -516,6 +523,9 @@ describe('Branch POS cart workflows', () => {
       allowed = allowPosNavigation('/app/organizations/another');
     });
     expect(allowed).toBe(false);
+    expect(
+      screen.getByRole('dialog', { name: 'Discard cart and leave?' }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Estimated total')).toHaveTextContent(
       '850.00',
     );
@@ -525,12 +535,18 @@ describe('Branch POS cart workflows', () => {
       once: true,
     });
     fireEvent.click(historyLink);
-    expect(confirm).toHaveBeenCalledTimes(1);
-    confirm.mockReturnValue(true);
+    expect(
+      screen.getAllByRole('dialog', { name: 'Discard cart and leave?' }),
+    ).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     act(() => {
       allowed = allowPosNavigation('/app/organizations/another');
     });
-    expect(allowed).toBe(true);
+    expect(allowed).toBe(false);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Discard cart and leave' }),
+    );
+    expect(push).toHaveBeenCalledWith('/app/organizations/another');
     expect(screen.getByLabelText('Estimated total')).toHaveTextContent('0.00');
   });
 });

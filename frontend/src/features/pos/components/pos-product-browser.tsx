@@ -112,7 +112,7 @@ export function PosProductBrowser({
       ) : null}
 
       <div
-        className={`min-w-0 lg:landscape:min-h-0 lg:landscape:flex-1 lg:landscape:overflow-y-auto lg:landscape:overscroll-contain ${fullscreen ? 'max-lg:min-h-0 max-lg:flex-1 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:pb-28' : ''}`}
+        className={`min-w-0 pr-2 lg:landscape:min-h-0 lg:landscape:flex-1 lg:landscape:overflow-y-auto lg:landscape:overscroll-contain ${fullscreen ? 'max-lg:min-h-0 max-lg:flex-1 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:pb-28' : ''}`}
       >
         <div className="flex min-h-12 items-center justify-between gap-3 border-b border-hairline py-3">
           <h2 className="text-base font-semibold">Products</h2>
@@ -170,7 +170,7 @@ export function PosProductBrowser({
                   aria-label={`Add ${product.name}`}
                   disabled={!product.eligible || entryLocked}
                   onClick={() => onAdd(product)}
-                  className="min-w-11 px-4"
+                  className="min-w-11 border-success px-4 text-success-ink hover:border-success hover:bg-subtle hover:text-success-ink"
                 >
                   <Icon name="plus" className="size-4" />
                   Add

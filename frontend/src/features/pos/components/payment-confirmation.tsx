@@ -5,6 +5,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
 import { Button } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
+import { Icon } from '@/shared/components/ui/icon';
 import { TextField } from '@/shared/components/ui/text-field';
 import { completeCheckout } from '../api/checkout-api';
 import {
@@ -31,6 +32,7 @@ export type CheckoutIssue = {
   sellingPrice?: string;
   quantity?: number;
 };
+const cashTenderInputPattern = /^(?:|\d{1,22}(?:\.\d{0,2})?)$/;
 export function PaymentConfirmation({
   open,
   attemptKey,
@@ -78,6 +80,7 @@ export function PaymentConfirmation({
   const mounted = useRef(true);
   const timer = useRef<number | undefined>(undefined);
   const total = posCartTotal(lines);
+  const estimatedChange = changeEstimate(draft, total);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -218,7 +221,7 @@ export function PaymentConfirmation({
       <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section className="min-w-0" aria-label="Reviewed cart">
           <h3 className="font-semibold">Reviewed cart</h3>
-          <ul className="mt-3 divide-y divide-hairline">
+          <ul className="mt-3 max-h-64 overflow-y-auto overscroll-contain divide-y divide-hairline pr-2">
             {lines.map((line) => (
               <li
                 key={line.product.branchInventoryId}
@@ -259,6 +262,7 @@ export function PaymentConfirmation({
                   className="flex min-h-11 items-center gap-2 text-sm"
                 >
                   <input
+                    className="peer sr-only"
                     type="radio"
                     name="payment-method"
                     value={method}
@@ -273,10 +277,16 @@ export function PaymentConfirmation({
                       });
                     }}
                   />
+                  <span
+                    aria-hidden="true"
+                    className="grid size-5 shrink-0 place-items-center rounded-full border border-control-border bg-surface text-transparent transition-colors peer-checked:border-action peer-checked:bg-action peer-checked:text-action-foreground peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-focus peer-disabled:bg-subtle peer-disabled:opacity-60"
+                  >
+                    <span className="size-2 rounded-full bg-current" />
+                  </span>
                   {method === 'GCASH'
-                    ? 'GCash (manual)'
+                    ? 'GCash'
                     : method === 'CARD'
-                      ? 'Card (manual)'
+                      ? 'Card'
                       : 'Cash'}
                 </label>
               ))}
@@ -287,43 +297,46 @@ export function PaymentConfirmation({
               <TextField
                 label="Cash tender (PHP)"
                 inputMode="decimal"
+                icon="money"
+                maxLength={25}
                 value={draft.tender}
                 disabled={locked}
                 error={fieldError}
-                onChange={(event) =>
-                  edit({ ...draft, tender: event.target.value })
-                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (!cashTenderInputPattern.test(value)) return;
+                  edit({ ...draft, tender: value });
+                }}
                 onBlur={() => edit(draft, true)}
-                hint="Must cover the estimated total. Change is calculated by the server."
+                hint="Must cover the total. Change is shown below."
               />
-              {changeEstimate(draft, total) !== null ? (
-                <p className="text-sm tabular-nums">
-                  Estimated change: PHP {changeEstimate(draft, total)}
-                </p>
-              ) : null}
+              <p className="text-sm tabular-nums">
+                Estimated change:{' '}
+                {estimatedChange === null ? '—' : `PHP ${estimatedChange}`}
+              </p>
             </>
           ) : (
             <>
-              <p className="text-sm text-warning">
-                Manually recorded and unverified. No provider authorization or
-                payment processing occurs here.
-              </p>
               <TextField
                 label="Payment reference"
+                icon="pencil"
+                maxLength={100}
                 value={draft.reference}
                 disabled={locked}
                 error={fieldError}
-                onChange={(event) =>
-                  edit({ ...draft, reference: event.target.value })
-                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value.length > 100) return;
+                  edit({ ...draft, reference: value });
+                }}
                 onBlur={() => edit(draft, true)}
-                hint="2–100 characters. Record the received payment's reference."
+                hint="Use 2–100 characters."
               />
             </>
           )}
-          <label className="flex min-h-11 items-start gap-3 text-sm">
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
             <input
-              className="mt-1"
+              className="peer sr-only"
               type="checkbox"
               checked={draft.received}
               disabled={locked}
@@ -331,6 +344,12 @@ export function PaymentConfirmation({
                 edit({ ...draft, received: event.target.checked })
               }
             />
+            <span
+              aria-hidden="true"
+              className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-compact border border-control-border bg-surface text-transparent transition-colors peer-checked:border-action peer-checked:bg-action peer-checked:text-action-foreground peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-focus peer-disabled:bg-subtle peer-disabled:opacity-60"
+            >
+              <Icon name="check" className="size-3.5" />
+            </span>
             <span>
               I confirm this payment was received
               {draft.method !== 'CASH' ? ' outside this system' : ''}.

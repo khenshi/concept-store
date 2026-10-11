@@ -47,19 +47,25 @@ describe('payment confirmation', () => {
     vi.useFakeTimers();
     const field = screen.getByRole('textbox', { name: 'Cash tender (PHP)' });
     fireEvent.change(field, { target: { value: '1e3' } });
-    expect(screen.queryByText(/Enter a PHP amount/)).not.toBeInTheDocument();
+    expect(field).toHaveValue('');
+    fireEvent.change(field, { target: { value: '.' } });
+    expect(field).toHaveValue('');
+    expect(screen.getByText('Estimated change: —')).toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(300);
     });
-    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field).not.toHaveAttribute('aria-invalid', 'true');
     fireEvent.change(field, { target: { value: '849.99' } });
     fireEvent.blur(field);
-    expect(
-      screen.getByText('Cash tender must cover the total.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Amount is below total.')).toBeInTheDocument();
     fireEvent.change(field, { target: { value: '1000' } });
+    expect(
+      screen.getByText('Estimated change: PHP 150.00'),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
-    expect(screen.getByRole('alert')).toHaveTextContent(/Confirm/);
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Confirm payment received.',
+    );
     expect(completeCheckout).not.toHaveBeenCalled();
   });
   it('blocks pending repeat activation, edits and Escape dismissal', async () => {
@@ -214,14 +220,12 @@ describe('payment confirmation', () => {
       expect(completeCheckout).toHaveBeenCalledTimes(1);
     },
   );
-  it.each(['GCash (manual)', 'Card (manual)'])(
+  it.each(['GCash', 'Card'])(
     'records %s without cash fields and requires received confirmation',
     async (label) => {
       render(<PaymentConfirmation {...props} />);
       fireEvent.click(screen.getByRole('radio', { name: label }));
-      expect(
-        screen.getByText(/Manually recorded and unverified/),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Use 2–100 characters.')).toBeInTheDocument();
       fireEvent.change(
         screen.getByRole('textbox', { name: 'Payment reference' }),
         { target: { value: ' ref-001 ' } },

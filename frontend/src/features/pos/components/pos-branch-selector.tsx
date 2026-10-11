@@ -113,7 +113,7 @@ export function PosBranchSelector({
       resumed.current = preferredBranchId;
   });
   return (
-    <div className={compact ? 'w-full min-w-56 max-w-sm' : 'my-6 max-w-xl'}>
+    <div className={compact ? 'w-full min-w-0 max-w-56' : 'my-6 max-w-xl'}>
       <label
         htmlFor={id}
         className={

@@ -66,6 +66,36 @@ describe('POS cart panel', () => {
     expect(
       screen.getByRole('button', { name: `Decrease ${product.name} quantity` }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole('button', {
+        name: `Increase ${product.name} quantity`,
+      }),
+    ).toHaveClass('!min-h-9', '!min-w-9', 'border-success', 'text-success-ink');
+    expect(
+      screen.getByRole('button', {
+        name: `Decrease ${product.name} quantity`,
+      }),
+    ).toHaveClass('border-danger', 'text-danger');
+    const quantity = screen.getByRole('textbox', {
+      name: `Quantity for ${product.name}`,
+    });
+    expect(quantity).toHaveClass(
+      'h-9',
+      '!min-h-9',
+      '!px-2',
+      '!py-1',
+      '!leading-5',
+    );
+    expect(quantity.parentElement?.querySelector('svg')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: `Remove ${product.name}` }),
+    ).toHaveClass('text-danger');
+    expect(
+      screen.getByRole('button', { name: `Remove ${product.name}` }),
+    ).not.toHaveClass('border-danger');
+    expect(screen.getByRole('button', { name: 'Clear cart' })).toHaveClass(
+      'text-danger',
+    );
     fireEvent.click(
       screen.getByRole('button', { name: `Remove ${product.name}` }),
     );

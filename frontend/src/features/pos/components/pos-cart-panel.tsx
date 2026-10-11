@@ -61,7 +61,7 @@ export function PosCartPanel({
               variant="quiet"
               disabled={locked}
               onClick={onClear}
-              className="px-3"
+              className="px-3 text-danger hover:bg-danger/10 hover:text-danger"
             >
               Clear cart
             </Button>
@@ -116,9 +116,9 @@ export function PosCartPanel({
                       title={`Remove ${line.product.name}`}
                       disabled={locked}
                       onClick={() => onRemove(line)}
-                      className="size-11 min-w-11 shrink-0 px-0 py-0"
+                      className="size-11 min-w-11 shrink-0 px-0 py-0 text-danger hover:bg-selected hover:text-danger"
                     >
-                      <Icon name="close" className="size-4" />
+                      <Icon name="trash" className="size-4" />
                     </Button>
                   </div>
                   <div className="mt-2 flex min-w-0 items-end justify-between gap-2">
@@ -130,9 +130,9 @@ export function PosCartPanel({
                           locked || !quantityIsValid || line.quantity <= 1
                         }
                         onClick={() => onAdjustQuantity(line, -1)}
-                        className="size-11 min-w-11 shrink-0 px-0 py-0"
+                        className="size-9 !min-h-9 !min-w-9 shrink-0 border-danger px-0 py-0 text-danger hover:border-danger hover:bg-subtle hover:text-danger"
                       >
-                        <Icon name="minus" className="size-4" />
+                        <Icon name="minus" className="size-3.5" />
                       </Button>
                       <TextField
                         label={
@@ -141,6 +141,7 @@ export function PosCartPanel({
                           </span>
                         }
                         inputMode="numeric"
+                        icon={null}
                         value={line.quantityInput}
                         error={line.error}
                         disabled={locked}
@@ -148,8 +149,8 @@ export function PosCartPanel({
                           onQuantityChange(line, event.target.value)
                         }
                         onBlur={() => onQuantityBlur(line)}
-                        containerClassName="w-[4.5rem] gap-1"
-                        className="px-2 text-center tabular-nums"
+                        containerClassName="w-16 gap-1"
+                        className="h-9 !min-h-9 !px-2 !py-1 !leading-5 text-center tabular-nums"
                       />
                       <Button
                         variant="secondary"
@@ -160,9 +161,9 @@ export function PosCartPanel({
                           line.quantity >= available
                         }
                         onClick={() => onAdjustQuantity(line, 1)}
-                        className="size-11 min-w-11 shrink-0 px-0 py-0"
+                        className="size-9 !min-h-9 !min-w-9 shrink-0 border-success px-0 py-0 text-success-ink hover:border-success hover:bg-subtle hover:text-success-ink"
                       >
-                        <Icon name="plus" className="size-4" />
+                        <Icon name="plus" className="size-3.5" />
                       </Button>
                     </div>
                     <p className="pb-2 text-right text-sm font-semibold tabular-nums">

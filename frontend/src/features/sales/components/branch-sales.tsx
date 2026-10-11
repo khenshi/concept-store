@@ -364,7 +364,7 @@ function StaffBranchSales({
               <Button
                 type="button"
                 variant="quiet"
-                className="rounded-full"
+                className="rounded-full text-danger hover:bg-subtle hover:text-danger"
                 onClick={clearDates}
               >
                 Clear Dates
@@ -438,17 +438,19 @@ function StaffBranchSales({
                   {paymentLabel(sale.paymentMethod)}
                 </span>
                 <span className="text-sm font-semibold tabular-nums">
-                  Total: PHP {sale.total}
+                  {embedded ? 'PHP' : 'Total: PHP'} {sale.total}
                 </span>
                 <Link
                   aria-label={`View receipt ${sale.receiptCode}`}
                   className={buttonStyles({
-                    variant: 'secondary',
-                    className: 'rounded-full',
+                    variant: embedded ? 'quiet' : 'secondary',
+                    className: embedded
+                      ? 'w-fit justify-self-start rounded-full !min-w-11 !px-2'
+                      : 'rounded-full',
                   })}
                   href={`/app/organizations/${organizationId}/branches/${branchId}/${embedded ? 'pos/sales' : 'sales'}/${sale.id}`}
                 >
-                  View Receipt
+                  {embedded ? 'View' : 'View Receipt'}
                   <span className="sr-only"> {sale.receiptCode}</span>
                 </Link>
                 <span className="sr-only">

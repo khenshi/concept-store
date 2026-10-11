@@ -60,7 +60,7 @@ describe('Persistent route-backed POS workspace', () => {
       </WorkspaceChromeProvider>,
     );
     await readyCart();
-    fireEvent.click(screen.getByRole('button', { name: 'Full screen POS' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Full Screen' }));
     expect(
       screen.getByRole('button', { name: 'Exit full screen' }),
     ).toBeInTheDocument();
@@ -90,7 +90,7 @@ describe('Persistent route-backed POS workspace', () => {
       ).not.toBeInTheDocument(),
     );
     expect(
-      screen.queryByRole('button', { name: 'Full screen POS' }),
+      screen.queryByRole('button', { name: 'Full Screen' }),
     ).not.toBeInTheDocument();
   });
 
@@ -104,7 +104,7 @@ describe('Persistent route-backed POS workspace', () => {
       </WorkspaceChromeProvider>,
     );
     await readyCart();
-    fireEvent.click(screen.getByRole('button', { name: 'Full screen POS' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Full Screen' }));
     expect(screen.getByText('POS full screen active')).toBeInTheDocument();
 
     view.rerender(
@@ -126,9 +126,10 @@ describe('Persistent route-backed POS workspace', () => {
     await addProduct();
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
-    await screen.findByRole('link', {
+    const receiptLink = await screen.findByRole('link', {
       name: `View receipt ${completedSale.receiptCode}`,
     });
+    expect(receiptLink).toHaveClass('ui-button-quiet');
     vi.mocked(searchPosProducts).mockRejectedValueOnce(new Error('offline'));
     vi.mocked(usePathname).mockReturnValue(base);
     view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
@@ -178,7 +179,7 @@ describe('Persistent route-backed POS workspace', () => {
     const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
     await addProduct();
     fireEvent.click(screen.getByRole('button', { name: 'Review payment' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'GCash (manual)' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'GCash' }));
     fireEvent.change(
       screen.getByRole('textbox', { name: 'Payment reference' }),
       { target: { value: 'GCASH-REFERENCE' } },
@@ -193,7 +194,7 @@ describe('Persistent route-backed POS workspace', () => {
     view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
     await readyCart();
     fireEvent.click(screen.getByRole('button', { name: 'Review payment' }));
-    expect(screen.getByRole('radio', { name: 'GCash (manual)' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'GCash' })).toBeChecked();
     expect(
       screen.getByRole('textbox', { name: 'Payment reference' }),
     ).toHaveValue('GCASH-REFERENCE');
@@ -291,6 +292,8 @@ describe('Persistent route-backed POS workspace', () => {
       name: `Add ${product.name}`,
     });
     await waitFor(() => expect(add).toBeEnabled());
+    expect(add).toHaveClass('border-success', 'text-success-ink');
+    expect(add).not.toHaveClass('bg-success');
     return add;
   };
   const addProduct = async () => {
