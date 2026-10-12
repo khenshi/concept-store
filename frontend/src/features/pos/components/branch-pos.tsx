@@ -11,15 +11,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import {
-  OperationalPage,
-  OperationalPanel,
-} from '@/shared/components/ui/operational-page';
+import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
@@ -51,6 +49,21 @@ type BranchPosProps = PosScope & {
   cartActive?: boolean;
   history?(active: boolean): ReactNode;
 };
+
+function PosPageFrame({
+  fullscreen,
+  children,
+}: {
+  fullscreen: boolean;
+  children: ReactNode;
+}) {
+  return fullscreen ? (
+    children
+  ) : (
+    <OrganizationPageFrame wide>{children}</OrganizationPageFrame>
+  );
+}
+
 export function BranchPos(props: BranchPosProps) {
   const { user } = useAuth();
   const {
@@ -61,7 +74,7 @@ export function BranchPos(props: BranchPosProps) {
   } = useOrganizationWorkspaceContext();
   if (!organization || organization.id !== props.organizationId)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         {organizationStatus === 'error' ? (
           <RequestError
             message={organizationError ?? 'Organization could not be loaded.'}
@@ -70,16 +83,16 @@ export function BranchPos(props: BranchPosProps) {
         ) : (
           <ListSkeleton label="Loading POS access" />
         )}
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (organization.role === 'MERCHANT')
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <p role="alert">
           Your organization role cannot access POS. Use your own sales view
           instead.
         </p>
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   return (
     <ScopedBranchPos
@@ -757,7 +770,7 @@ function ScopedBranchPos({
     attempt.state !== 'completed'
   )
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <p role="alert">
           An earlier checkout in another branch is pending or unconfirmed.
           Resolve that checkout before creating another sale.
@@ -767,11 +780,11 @@ function ScopedBranchPos({
         >
           Return to unresolved checkout
         </BackLink>
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (!branch && !recovering)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         {branchError ? (
           <RequestError
             className="mt-6"
@@ -784,7 +797,7 @@ function ScopedBranchPos({
             label="Loading authorized POS branch"
           />
         )}
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   const branchSelector = (
     <PosBranchSelector
@@ -807,370 +820,372 @@ function ScopedBranchPos({
     },
   ];
   return (
-    <section
-      className={
-        posFullscreen
-          ? 'flex h-full min-w-0 min-h-0 w-full max-w-none flex-col overflow-hidden bg-surface'
-          : 'mx-auto mt-5 w-full max-w-7xl sm:mt-6'
-      }
-    >
-      {posFullscreen ? (
-        <header className="grid min-h-16 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-b border-hairline bg-surface px-4 py-2 max-lg:flex max-lg:flex-wrap max-lg:gap-x-4 max-lg:gap-y-2 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <h1 className="min-w-0 text-base font-semibold tracking-[-0.02em]">
-              POS
-            </h1>
-          </div>
-          <nav
-            aria-label="POS views"
-            className="flex min-w-0 items-center gap-1 max-lg:order-2 max-lg:w-full"
-          >
-            {tabs.map((tab) => (
-              <Link
-                key={tab.label}
-                href={tab.href}
-                aria-current={tab.active ? 'page' : undefined}
-                aria-disabled={!tab.active && recovering ? true : undefined}
-                className="inline-flex min-h-10 items-center rounded-compact border border-transparent px-3 text-sm font-medium text-muted no-underline hover:bg-subtle hover:text-ink aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:font-semibold aria-[current=page]:text-ink"
-              >
-                {tab.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="flex min-w-0 items-end justify-end gap-2 max-lg:order-3 max-lg:ml-auto max-lg:w-full max-lg:flex-wrap">
-            {branchSelector}
-            <Button
-              variant="quiet"
-              onClick={() => {
-                exitPosFullscreen();
-                focusCode();
-              }}
-              className="shrink-0 px-3"
-            >
-              Exit full screen
-            </Button>
-          </div>
-        </header>
-      ) : (
-        <>
-          <PageHeader
-            title="POS"
-            description="Scan or search products, then review the cart."
-            className="!pb-5"
-            action={
-              <div className="flex w-full flex-wrap items-end justify-end gap-3">
-                {branchSelector}
-                {requestedCartActive && !recovering ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      enterPosFullscreen();
-                      focusCode();
-                    }}
-                  >
-                    Full Screen
-                  </Button>
-                ) : null}
-              </div>
-            }
-          />
-          <nav
-            aria-label="POS pages"
-            className="mb-4 flex flex-wrap gap-6 border-b border-hairline"
-          >
-            {tabs.map((tab) => (
-              <Link
-                key={tab.label}
-                href={tab.href}
-                aria-current={tab.active ? 'page' : undefined}
-                aria-disabled={!tab.active && recovering ? true : undefined}
-                className="flex min-h-11 items-center border-b-2 border-transparent py-2 text-sm font-medium text-muted no-underline hover:text-accent aria-[current=page]:border-accent aria-[current=page]:text-accent"
-              >
-                {tab.label}
-              </Link>
-            ))}
-          </nav>
-        </>
-      )}
-      {branchError ? (
-        <RequestError
-          message={branchError}
-          onRetry={() => setRevision((value) => value + 1)}
-        />
-      ) : null}
-      <div hidden={cartActive || !branchReady || Boolean(branchError)}>
-        {history?.(!cartActive && branchReady && !branchError)}
-      </div>
-      <div
-        hidden={!cartActive}
+    <PosPageFrame fullscreen={posFullscreen}>
+      <section
         className={
           posFullscreen
-            ? 'flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4'
-            : 'pb-32 lg:pb-0'
+            ? 'flex h-full min-w-0 min-h-0 w-full max-w-none flex-col overflow-hidden bg-surface'
+            : 'w-full'
         }
       >
-        {completed && cartActive ? (
-          <OperationalPanel
-            variant="open"
-            title="Sale completed"
-            description="This persisted sale is complete. Printing and catalog retries do not repeat checkout."
-          >
-            <div className="py-5 sm:py-6">
-              <SaleReceipt sale={completed} />
-              <Link
-                className={buttonStyles({
-                  variant: 'secondary',
-                  className: 'mt-4',
-                })}
-                href={`${pathname}/sales/${completed.id}`}
-              >
-                Open saved receipt
-              </Link>
+        {posFullscreen ? (
+          <header className="grid min-h-16 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-b border-hairline bg-surface px-4 py-2 max-lg:flex max-lg:flex-wrap max-lg:gap-x-4 max-lg:gap-y-2 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <h1 className="min-w-0 text-base font-semibold tracking-[-0.02em]">
+                POS
+              </h1>
+            </div>
+            <nav
+              aria-label="POS views"
+              className="flex min-w-0 items-center gap-1 max-lg:order-2 max-lg:w-full"
+            >
+              {tabs.map((tab) => (
+                <Link
+                  key={tab.label}
+                  href={tab.href}
+                  aria-current={tab.active ? 'page' : undefined}
+                  aria-disabled={!tab.active && recovering ? true : undefined}
+                  className="inline-flex min-h-10 items-center rounded-compact border border-transparent px-3 text-sm font-medium text-muted no-underline hover:bg-subtle hover:text-ink aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+                >
+                  {tab.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="flex min-w-0 items-end justify-end gap-2 max-lg:order-3 max-lg:ml-auto max-lg:w-full max-lg:flex-wrap">
+              {branchSelector}
               <Button
                 variant="quiet"
-                className="mt-4"
                 onClick={() => {
-                  setCompleted(null);
+                  exitPosFullscreen();
                   focusCode();
                 }}
+                className="shrink-0 px-3"
               >
-                Dismiss receipt
+                Exit full screen
               </Button>
             </div>
-          </OperationalPanel>
-        ) : null}
-        <fieldset
-          disabled={
-            paying || recovering || !branchReady || Boolean(branchError)
-          }
-          aria-label="POS checkout workspace"
-          className={`grid min-w-0 gap-3 border-0 p-0 max-lg:gap-3 lg:landscape:h-[calc(100dvh-18rem)] lg:landscape:min-h-[20rem] lg:landscape:grid-cols-[minmax(0,1.62fr)_minmax(19rem,1fr)] lg:landscape:gap-5 lg:landscape:overflow-hidden ${posFullscreen ? 'lg:landscape:h-auto lg:landscape:max-h-none lg:landscape:min-h-0 lg:landscape:flex-1 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden' : ''}`}
-        >
-          <PosProductBrowser
-            fullscreen={posFullscreen}
-            code={code}
-            codeError={codeError}
-            codeRef={codeRef}
-            lookupPending={lookupPending}
-            hasMatches={Boolean(matches)}
-            clearing={clearing}
-            onCodeChange={(value) => {
-              setCode(value);
-              validateCode(value);
-            }}
-            onCodeBlur={() => validateCode(code, true)}
-            onLookup={() => void lookup()}
-            search={search}
-            onSearchChange={setSearch}
-            settled={settled}
-            catalogLoading={catalogLoading}
-            catalogError={catalogError}
-            onCatalogRetry={() => setCatalogRevision((value) => value + 1)}
-            products={products}
-            onAdd={(product) => {
-              add(product);
-              focusCode();
-            }}
-            notice={notice}
-          />
-          <div className="hidden min-w-0 lg:landscape:block lg:landscape:h-full lg:landscape:min-h-0">
-            <PosCartPanel
-              fullscreen={posFullscreen}
-              lines={cart}
-              locked={cartLocked}
-              invalid={invalidCart}
-              reviewDisabled={reviewDisabled}
-              onClear={() => setClearing(true)}
-              onRemove={removeCartLine}
-              onQuantityChange={(line, value) =>
-                changeQuantity(line.product.branchInventoryId, value)
+          </header>
+        ) : (
+          <>
+            <PageHeader
+              title="POS"
+              description="Scan or search products, then review the cart."
+              className="!pb-5"
+              action={
+                <div className="flex w-full flex-wrap items-end justify-end gap-3">
+                  {branchSelector}
+                  {requestedCartActive && !recovering ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        enterPosFullscreen();
+                        focusCode();
+                      }}
+                    >
+                      Full Screen
+                    </Button>
+                  ) : null}
+                </div>
               }
-              onQuantityBlur={(line) =>
-                validateQuantity(
-                  line.product.branchInventoryId,
-                  line.quantityInput,
-                  true,
-                )
-              }
-              onAdjustQuantity={adjustQuantity}
-              onReviewPayment={reviewPayment}
             />
-          </div>
-        </fieldset>
-        <PosCartSummary
-          lines={cart}
-          reviewDisabled={reviewDisabled}
-          onOpenCart={openCartSheet}
-          onReviewPayment={reviewPayment}
-        />
-        <PosCartSheet
-          open={cartSheetOpen && cartActive}
-          lockBackground={!posFullscreen}
-          onClose={closeCartSheet}
-        >
-          {cartSheetOpen && cartActive ? (
-            <PosCartPanel
-              lines={cart}
-              locked={cartLocked}
-              invalid={invalidCart}
-              reviewDisabled={reviewDisabled}
-              onClear={() => setClearing(true)}
-              onRemove={removeCartLine}
-              onQuantityChange={(line, value) =>
-                changeQuantity(line.product.branchInventoryId, value)
-              }
-              onQuantityBlur={(line) =>
-                validateQuantity(
-                  line.product.branchInventoryId,
-                  line.quantityInput,
-                  true,
-                )
-              }
-              onAdjustQuantity={adjustQuantity}
-              onReviewPayment={() => {
-                closeCartSheet();
-                reviewPayment();
-              }}
-              onClose={closeCartSheet}
-              estimatedTotalLabel="Cart sheet estimated total"
-              reviewButtonLabel="Review payment from cart sheet"
-            />
-          ) : null}
-        </PosCartSheet>
-        <PaymentConfirmation
-          key={paymentRevision}
-          open={cartActive && (paying || recovering)}
-          attemptKey={attemptKey}
-          request={request}
-          scope={{ organizationId, branchId }}
-          lines={recovering ? attempt!.lines : cart}
-          onUnsafeChange={(value) => {
-            unsafeCheckout.current = value;
-          }}
-          onClose={() => {
-            paymentOpen.current = false;
-            setPaying(false);
-            focusCode();
-          }}
-          onIssue={checkoutIssue}
-          onCompleted={(sale) => {
-            commitCart([]);
-            setCompleted(sale);
-            setCode('');
-            setNotice(null);
-            closeCartSheet();
-            paymentOpen.current = false;
-            setPaying(false);
-            setPaymentRevision((value) => value + 1);
-            setCatalogRevision((value) => value + 1);
-            focusCode();
-          }}
-        />
-        {matches && cartActive ? (
-          <FormDialog
-            title="Choose the matching product"
-            description="This code matches more than one product’s SKU or barcode. Select explicitly; nothing has been added yet."
-            onClose={() => {
-              lookupBusy.current = false;
-              setMatches(null);
-              focusCode();
-            }}
-          >
-            <ul className="mt-6 divide-y divide-hairline">
-              {matches.map((product) => (
-                <li
-                  key={product.branchInventoryId}
-                  className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+            <nav
+              aria-label="POS pages"
+              className="mb-4 flex flex-wrap gap-6 border-b border-hairline"
+            >
+              {tabs.map((tab) => (
+                <Link
+                  key={tab.label}
+                  href={tab.href}
+                  aria-current={tab.active ? 'page' : undefined}
+                  aria-disabled={!tab.active && recovering ? true : undefined}
+                  className="flex min-h-11 items-center border-b-2 border-transparent py-2 text-sm font-medium text-muted no-underline hover:text-accent aria-[current=page]:border-accent aria-[current=page]:text-accent"
                 >
-                  <div className="min-w-0 break-words">
-                    <h3 className="font-semibold">{product.name}</h3>
-                    <p className="mt-1 text-sm text-muted">
-                      {product.merchantName} · SKU {product.sku ?? 'not set'} ·
-                      Barcode {product.barcode ?? 'not set'}
-                    </p>
-                    <p className="mt-1 tabular-nums">
-                      PHP {product.sellingPrice} · {product.quantity} units
-                      {!product.eligible
-                        ? product.participationStatus === 'INACTIVE'
-                          ? ' · Branch participation inactive'
-                          : ' · Out of stock'
-                        : ''}
-                    </p>
-                  </div>
-                  <Button
-                    disabled={!product.eligible}
-                    aria-label={`Choose ${product.name}`}
-                    onClick={() => {
-                      if (add(product)) setCode('');
-                      lookupBusy.current = false;
-                      setMatches(null);
-                      focusCode();
-                    }}
-                  >
-                    Choose product
-                  </Button>
-                </li>
+                  {tab.label}
+                </Link>
               ))}
-            </ul>
-            <div className="mt-6 flex justify-end">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  lookupBusy.current = false;
-                  setMatches(null);
-                  focusCode();
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          </FormDialog>
+            </nav>
+          </>
+        )}
+        {branchError ? (
+          <RequestError
+            message={branchError}
+            onRetry={() => setRevision((value) => value + 1)}
+          />
         ) : null}
-        {pendingNavigationHref ? (
-          <FormDialog
-            title="Discard cart and leave?"
-            description="Your unsaved cart will be cleared if you leave POS. No stock or recorded sale will change."
-            size="form"
-            onClose={() => setPendingNavigationHref(null)}
+        <div hidden={cartActive || !branchReady || Boolean(branchError)}>
+          {history?.(!cartActive && branchReady && !branchError)}
+        </div>
+        <div
+          hidden={!cartActive}
+          className={
+            posFullscreen
+              ? 'flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 pt-3 sm:px-6 sm:pb-6 sm:pt-4'
+              : 'pb-32 lg:pb-0'
+          }
+        >
+          {completed && cartActive ? (
+            <OperationalPanel
+              variant="open"
+              title="Sale completed"
+              description="This persisted sale is complete. Printing and catalog retries do not repeat checkout."
+            >
+              <div className="py-5 sm:py-6">
+                <SaleReceipt sale={completed} />
+                <Link
+                  className={buttonStyles({
+                    variant: 'secondary',
+                    className: 'mt-4',
+                  })}
+                  href={`${pathname}/sales/${completed.id}`}
+                >
+                  Open saved receipt
+                </Link>
+                <Button
+                  variant="quiet"
+                  className="mt-4"
+                  onClick={() => {
+                    setCompleted(null);
+                    focusCode();
+                  }}
+                >
+                  Dismiss receipt
+                </Button>
+              </div>
+            </OperationalPanel>
+          ) : null}
+          <fieldset
+            disabled={
+              paying || recovering || !branchReady || Boolean(branchError)
+            }
+            aria-label="POS checkout workspace"
+            className={`grid min-w-0 gap-3 border-0 p-0 max-lg:gap-3 lg:landscape:h-[calc(100dvh-18rem)] lg:landscape:min-h-[20rem] lg:landscape:grid-cols-[minmax(0,1.62fr)_minmax(19rem,1fr)] lg:landscape:gap-5 lg:landscape:overflow-hidden ${posFullscreen ? 'lg:landscape:h-auto lg:landscape:max-h-none lg:landscape:min-h-0 lg:landscape:flex-1 max-lg:flex max-lg:min-h-0 max-lg:flex-1 max-lg:flex-col max-lg:overflow-hidden' : ''}`}
           >
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <Button
-                variant="secondary"
-                onClick={() => setPendingNavigationHref(null)}
-              >
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={confirmPendingNavigation}>
-                Discard cart and leave
-              </Button>
+            <PosProductBrowser
+              fullscreen={posFullscreen}
+              code={code}
+              codeError={codeError}
+              codeRef={codeRef}
+              lookupPending={lookupPending}
+              hasMatches={Boolean(matches)}
+              clearing={clearing}
+              onCodeChange={(value) => {
+                setCode(value);
+                validateCode(value);
+              }}
+              onCodeBlur={() => validateCode(code, true)}
+              onLookup={() => void lookup()}
+              search={search}
+              onSearchChange={setSearch}
+              settled={settled}
+              catalogLoading={catalogLoading}
+              catalogError={catalogError}
+              onCatalogRetry={() => setCatalogRevision((value) => value + 1)}
+              products={products}
+              onAdd={(product) => {
+                add(product);
+                focusCode();
+              }}
+              notice={notice}
+            />
+            <div className="hidden min-w-0 lg:landscape:block lg:landscape:h-full lg:landscape:min-h-0">
+              <PosCartPanel
+                fullscreen={posFullscreen}
+                lines={cart}
+                locked={cartLocked}
+                invalid={invalidCart}
+                reviewDisabled={reviewDisabled}
+                onClear={() => setClearing(true)}
+                onRemove={removeCartLine}
+                onQuantityChange={(line, value) =>
+                  changeQuantity(line.product.branchInventoryId, value)
+                }
+                onQuantityBlur={(line) =>
+                  validateQuantity(
+                    line.product.branchInventoryId,
+                    line.quantityInput,
+                    true,
+                  )
+                }
+                onAdjustQuantity={adjustQuantity}
+                onReviewPayment={reviewPayment}
+              />
             </div>
-          </FormDialog>
-        ) : null}
-        {clearing && cartActive ? (
-          <FormDialog
-            title="Discard this cart?"
-            description="Remove all products and quantities from this branch’s unsaved cart. No stock or recorded sale will change."
-            onClose={() => setClearing(false)}
+          </fieldset>
+          <PosCartSummary
+            lines={cart}
+            reviewDisabled={reviewDisabled}
+            onOpenCart={openCartSheet}
+            onReviewPayment={reviewPayment}
+          />
+          <PosCartSheet
+            open={cartSheetOpen && cartActive}
+            lockBackground={!posFullscreen}
+            onClose={closeCartSheet}
           >
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <Button variant="secondary" onClick={() => setClearing(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={() => {
-                  commitCart([]);
-                  setNotice(null);
-                  setClearing(false);
-                  focusCode();
+            {cartSheetOpen && cartActive ? (
+              <PosCartPanel
+                lines={cart}
+                locked={cartLocked}
+                invalid={invalidCart}
+                reviewDisabled={reviewDisabled}
+                onClear={() => setClearing(true)}
+                onRemove={removeCartLine}
+                onQuantityChange={(line, value) =>
+                  changeQuantity(line.product.branchInventoryId, value)
+                }
+                onQuantityBlur={(line) =>
+                  validateQuantity(
+                    line.product.branchInventoryId,
+                    line.quantityInput,
+                    true,
+                  )
+                }
+                onAdjustQuantity={adjustQuantity}
+                onReviewPayment={() => {
+                  closeCartSheet();
+                  reviewPayment();
                 }}
-              >
-                Discard cart
-              </Button>
-            </div>
-          </FormDialog>
-        ) : null}
-      </div>
-    </section>
+                onClose={closeCartSheet}
+                estimatedTotalLabel="Cart sheet estimated total"
+                reviewButtonLabel="Review payment from cart sheet"
+              />
+            ) : null}
+          </PosCartSheet>
+          <PaymentConfirmation
+            key={paymentRevision}
+            open={cartActive && (paying || recovering)}
+            attemptKey={attemptKey}
+            request={request}
+            scope={{ organizationId, branchId }}
+            lines={recovering ? attempt!.lines : cart}
+            onUnsafeChange={(value) => {
+              unsafeCheckout.current = value;
+            }}
+            onClose={() => {
+              paymentOpen.current = false;
+              setPaying(false);
+              focusCode();
+            }}
+            onIssue={checkoutIssue}
+            onCompleted={(sale) => {
+              commitCart([]);
+              setCompleted(sale);
+              setCode('');
+              setNotice(null);
+              closeCartSheet();
+              paymentOpen.current = false;
+              setPaying(false);
+              setPaymentRevision((value) => value + 1);
+              setCatalogRevision((value) => value + 1);
+              focusCode();
+            }}
+          />
+          {matches && cartActive ? (
+            <FormDialog
+              title="Choose the matching product"
+              description="This code matches more than one product’s SKU or barcode. Select explicitly; nothing has been added yet."
+              onClose={() => {
+                lookupBusy.current = false;
+                setMatches(null);
+                focusCode();
+              }}
+            >
+              <ul className="mt-6 divide-y divide-hairline">
+                {matches.map((product) => (
+                  <li
+                    key={product.branchInventoryId}
+                    className="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto]"
+                  >
+                    <div className="min-w-0 break-words">
+                      <h3 className="font-semibold">{product.name}</h3>
+                      <p className="mt-1 text-sm text-muted">
+                        {product.merchantName} · SKU {product.sku ?? 'not set'}{' '}
+                        · Barcode {product.barcode ?? 'not set'}
+                      </p>
+                      <p className="mt-1 tabular-nums">
+                        PHP {product.sellingPrice} · {product.quantity} units
+                        {!product.eligible
+                          ? product.participationStatus === 'INACTIVE'
+                            ? ' · Branch participation inactive'
+                            : ' · Out of stock'
+                          : ''}
+                      </p>
+                    </div>
+                    <Button
+                      disabled={!product.eligible}
+                      aria-label={`Choose ${product.name}`}
+                      onClick={() => {
+                        if (add(product)) setCode('');
+                        lookupBusy.current = false;
+                        setMatches(null);
+                        focusCode();
+                      }}
+                    >
+                      Choose product
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6 flex justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    lookupBusy.current = false;
+                    setMatches(null);
+                    focusCode();
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </FormDialog>
+          ) : null}
+          {pendingNavigationHref ? (
+            <FormDialog
+              title="Discard cart and leave?"
+              description="Your unsaved cart will be cleared if you leave POS. No stock or recorded sale will change."
+              size="form"
+              onClose={() => setPendingNavigationHref(null)}
+            >
+              <div className="mt-6 flex flex-wrap justify-end gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => setPendingNavigationHref(null)}
+                >
+                  Cancel
+                </Button>
+                <Button variant="danger" onClick={confirmPendingNavigation}>
+                  Discard cart and leave
+                </Button>
+              </div>
+            </FormDialog>
+          ) : null}
+          {clearing && cartActive ? (
+            <FormDialog
+              title="Discard this cart?"
+              description="Remove all products and quantities from this branch’s unsaved cart. No stock or recorded sale will change."
+              onClose={() => setClearing(false)}
+            >
+              <div className="mt-6 flex flex-wrap justify-end gap-3">
+                <Button variant="secondary" onClick={() => setClearing(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    commitCart([]);
+                    setNotice(null);
+                    setClearing(false);
+                    focusCode();
+                  }}
+                >
+                  Discard cart
+                </Button>
+              </div>
+            </FormDialog>
+          ) : null}
+        </div>
+      </section>
+    </PosPageFrame>
   );
 }

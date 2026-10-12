@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/features/auth/model/auth-context';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { OperationalPage } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -28,7 +28,7 @@ export function PosEntry({ organizationId }: { organizationId: string }) {
   );
   if (!organization || organization.id !== organizationId)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         {organizationStatus === 'error' ? (
           <RequestError
             message={organizationError ?? 'Organization could not be loaded.'}
@@ -37,17 +37,17 @@ export function PosEntry({ organizationId }: { organizationId: string }) {
         ) : (
           <ListSkeleton label="Loading POS access" />
         )}
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (organization.role === 'MERCHANT')
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <p role="alert">Merchants cannot access POS.</p>
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   const unresolved = attempt && attempt.state !== 'completed';
   return (
-    <OperationalPage>
+    <OrganizationPageFrame wide>
       <PageHeader
         title="POS"
         description="Choose an authorized branch to start a branch-specific cart."
@@ -73,6 +73,6 @@ export function PosEntry({ organizationId }: { organizationId: string }) {
           </Link>
         </p>
       ) : null}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

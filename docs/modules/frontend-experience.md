@@ -734,6 +734,11 @@ navigation warn before discarding a cart; history navigation clears on unmount.
 Rendered POS browser QA was explicitly waived for this milestone on September 13,
 2026, including responsive, keyboard/dialog, zoom and print checks.
 
+The organization POS entry and branch checkout routes now share the warm-neutral
+canvas and centered wide workspace frame used by the other operational pages.
+Checkout panels, branch selection, route-backed Cart and Sales History tabs, cart
+guards, and full-screen mode are preserved.
+
 ## POS cashier workflow and tablet layout
 
 The Cart tab now prioritizes rapid barcode/SKU entry and keeps the existing

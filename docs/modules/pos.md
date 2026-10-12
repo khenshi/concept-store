@@ -2,6 +2,11 @@
 
 **Status:** Catalog, branch cart, payment confirmation, completion and internal receipt printing implemented.
 
+The organization POS entry and branch checkout routes use the shared warm-neutral
+canvas and wide centered workspace frame. The existing checkout panels, branch
+selector, route-backed Cart and Sales History tabs, unsaved-cart safeguards, and
+full-screen POS presentation remain unchanged.
+
 The separate [sales checkout API](sales.md) completes reviewed branch commands;
 catalog eligibility remains a read-time observation only.
 
