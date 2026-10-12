@@ -58,10 +58,12 @@ unchanged.
 
 The overview links to existing branches and account settings for all members, and
 merchant profiles/products for owners, managers, and merchants. Members navigation
-is owner-only. Catalog destinations use backend-filtered records, not a full-tenant
-catalog for nonowners. It shows the authenticated organization role, not mock
-financial metrics. Backend guards remain authoritative. Organization identity
-responses do not embed branch summaries, counts, or access grants.
+is owner-only. The overview presents those role-aware destinations in a centered
+warm-neutral canvas with responsive rounded section cards. Catalog destinations use
+backend-filtered records, not a full-tenant catalog for nonowners. It shows the
+authenticated organization role, not mock financial metrics. Backend guards remain
+authoritative. Organization identity responses do not embed branch summaries,
+counts, or access grants.
 
 Workspace scope changes reset cached data. Access refresh clears branch cache;
 obsolete branch responses cannot restore data from an earlier access scope.

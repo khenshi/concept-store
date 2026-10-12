@@ -49,6 +49,11 @@ describe('OrganizationWorkspace', () => {
       expect(
         screen.getByRole('heading', { name: 'Branch operations' }),
       ).toBeInTheDocument();
+      expect(
+        screen
+          .getByRole('heading', { name: 'Branch operations' })
+          .closest('section'),
+      ).toHaveClass('rounded-panel', 'border-hairline', 'bg-surface');
       expect(screen.getByRole('link', { name: /Reports/ })).toHaveAttribute(
         'href',
         '/app/organizations/org/reports',
@@ -97,6 +102,14 @@ describe('OrganizationWorkspace', () => {
         ).not.toBeInTheDocument();
     },
   );
+  it('uses the shared canvas around the overview content', () => {
+    context('OWNER');
+    render(<OrganizationWorkspace organizationId="org" />);
+    const overviewSection = screen
+      .getByRole('heading', { name: 'Workspace overview' })
+      .closest('section');
+    expect(overviewSection?.parentElement).toHaveClass('bg-canvas');
+  });
   it.each(['CASHIER'] as const)(
     'preserves restricted-role visibility for %s',
     (role) => {

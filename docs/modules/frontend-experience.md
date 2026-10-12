@@ -690,11 +690,11 @@ Shared fields connect labels, hints, existing described-by content, and errors t
 their input; native autocomplete, readonly values, and validation constraints are
 preserved. Invalid submissions focus the first invalid control.
 
-Organization rows and overview destinations use one divided content surface rather
-than stacked floating cards. The overview exposes only implemented workflows and
-preserves role-aware visibility. Account deletion retains password validation and
-an explicit modal confirmation with solid danger styling only at final
-confirmation.
+Organization selection uses one divided content surface, while the workspace
+overview groups destinations into responsive rounded bordered section cards. The
+overview exposes only implemented workflows and preserves role-aware visibility.
+Account deletion retains password validation and an explicit modal confirmation
+with solid danger styling only at final confirmation.
 No backend, tenancy, API, or session behavior changes are introduced.
 
 Resting button/input borders use light stone outlines while keyboard focus remains

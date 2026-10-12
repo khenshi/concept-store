@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { Icon, type IconName } from '@/shared/components/ui/icon';
 import {
@@ -11,6 +12,16 @@ import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
 import { organizationNavigationIcons } from './organization-navigation';
+
+function OrganizationOverviewFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="-mx-4 -mb-10 min-h-[calc(100dvh-4.25rem)] flow-root bg-canvas px-4 pb-10 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
+      <OperationalPage>
+        <div className="mx-auto w-full max-w-5xl">{children}</div>
+      </OperationalPage>
+    </div>
+  );
+}
 
 export function OrganizationWorkspace({
   organizationId,
@@ -23,10 +34,15 @@ export function OrganizationWorkspace({
     organizationError,
     refreshOrganization,
   } = useOrganizationWorkspaceContext();
-  if (organizationStatus === 'loading') return <OrganizationOverviewSkeleton />;
+  if (organizationStatus === 'loading')
+    return (
+      <OrganizationOverviewFrame>
+        <OrganizationOverviewSkeleton />
+      </OrganizationOverviewFrame>
+    );
   if (organizationStatus === 'error' || !organization)
     return (
-      <OperationalPage>
+      <OrganizationOverviewFrame>
         <PageHeader
           eyebrow="Organization unavailable"
           title="We could not open this workspace."
@@ -46,7 +62,7 @@ export function OrganizationWorkspace({
             Choose another organization
           </Link>
         </div>
-      </OperationalPage>
+      </OrganizationOverviewFrame>
     );
 
   const canManage =
@@ -183,7 +199,7 @@ export function OrganizationWorkspace({
   );
 
   return (
-    <OperationalPage>
+    <OrganizationOverviewFrame>
       <PageHeader
         className=""
         eyebrow={organization.name}
@@ -203,12 +219,11 @@ export function OrganizationWorkspace({
       />
       <div className="grid gap-5">
         <OperationalPanel
-          variant="open"
-          className="data-surface mt-0"
+          className="mt-0"
           title="Branch operations"
           description="The tools used to run day-to-day work in your branches."
         >
-          <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="m-0 grid list-none gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
             {visibleDestinations
               .filter((destination) => destination.group === 'operations')
               .map(destinationCard)}
@@ -216,24 +231,22 @@ export function OrganizationWorkspace({
         </OperationalPanel>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.6fr)]">
           <OperationalPanel
-            variant="open"
-            className="data-surface mt-0"
+            className="mt-0"
             title="Organization"
             description="Manage the people, products, and places that make up this workspace."
           >
-            <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2">
+            <ul className="m-0 grid list-none gap-3 p-4 sm:grid-cols-2 sm:p-5">
               {visibleDestinations
                 .filter((destination) => destination.group === 'organization')
                 .map(destinationCard)}
             </ul>
           </OperationalPanel>
           <OperationalPanel
-            variant="open"
-            className="data-surface mt-0"
+            className="mt-0"
             title="Personal"
             description="Keep your profile and account access up to date."
           >
-            <ul className="m-0 list-none p-0">
+            <ul className="m-0 list-none p-4 sm:p-5">
               {visibleDestinations
                 .filter((destination) => destination.group === 'personal')
                 .map(destinationCard)}
@@ -241,60 +254,58 @@ export function OrganizationWorkspace({
           </OperationalPanel>
         </div>
       </div>
-    </OperationalPage>
+    </OrganizationOverviewFrame>
   );
 }
 
 function OrganizationOverviewSkeleton() {
   return (
-    <OperationalPage>
-      <div
-        className="animate-pulse"
-        role="status"
-        aria-label="Loading organization workspace"
-        aria-busy="true"
-      >
-        <div aria-hidden="true">
-          <div className="flex items-start justify-between gap-6 max-sm:flex-col">
-            <div className="min-w-0 flex-1">
-              <div className="h-3 w-32 rounded bg-selected" />
-              <div className="mt-4 h-9 w-72 max-w-full rounded bg-selected" />
-              <div className="mt-4 h-5 w-full max-w-xl rounded bg-selected" />
-            </div>
-            <div className="h-8 w-28 rounded-full bg-selected" />
+    <div
+      className="animate-pulse"
+      role="status"
+      aria-label="Loading organization workspace"
+      aria-busy="true"
+    >
+      <div aria-hidden="true">
+        <div className="flex items-start justify-between gap-6 max-sm:flex-col">
+          <div className="min-w-0 flex-1">
+            <div className="h-3 w-32 rounded bg-selected" />
+            <div className="mt-4 h-9 w-72 max-w-full rounded bg-selected" />
+            <div className="mt-4 h-5 w-full max-w-xl rounded bg-selected" />
           </div>
-          <div className="mt-4 grid gap-5">
-            <div>
-              <div className="h-5 w-40 rounded bg-selected" />
+          <div className="h-8 w-28 rounded-full bg-selected" />
+        </div>
+        <div className="mt-4 grid gap-5">
+          <div className="rounded-panel border border-hairline bg-surface p-4 sm:p-5">
+            <div className="h-5 w-40 rounded bg-selected" />
+            <div className="mt-2 h-4 w-80 max-w-full rounded bg-selected" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="h-24 rounded-panel border border-hairline bg-subtle" />
+              <div className="h-24 rounded-panel border border-hairline bg-subtle" />
+              <div className="h-24 rounded-panel border border-hairline bg-subtle" />
+              <div className="h-24 rounded-panel border border-hairline bg-subtle" />
+            </div>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]">
+            <div className="rounded-panel border border-hairline bg-surface p-4 sm:p-5">
+              <div className="h-5 w-32 rounded bg-selected" />
               <div className="mt-2 h-4 w-80 max-w-full rounded bg-selected" />
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="h-24 rounded-panel border border-hairline bg-subtle" />
                 <div className="h-24 rounded-panel border border-hairline bg-subtle" />
                 <div className="h-24 rounded-panel border border-hairline bg-subtle" />
                 <div className="h-24 rounded-panel border border-hairline bg-subtle" />
               </div>
             </div>
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]">
-              <div>
-                <div className="h-5 w-32 rounded bg-selected" />
-                <div className="mt-2 h-4 w-80 max-w-full rounded bg-selected" />
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-                  <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-                  <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-                  <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-                </div>
-              </div>
-              <div>
-                <div className="h-5 w-24 rounded bg-selected" />
-                <div className="mt-2 h-4 w-full rounded bg-selected" />
-                <div className="mt-4 h-24 rounded-panel border border-hairline bg-subtle" />
-              </div>
+            <div className="rounded-panel border border-hairline bg-surface p-4 sm:p-5">
+              <div className="h-5 w-24 rounded bg-selected" />
+              <div className="mt-2 h-4 w-full rounded bg-selected" />
+              <div className="mt-4 h-24 rounded-panel border border-hairline bg-subtle" />
             </div>
           </div>
         </div>
-        <span className="sr-only">Loading organization…</span>
       </div>
-    </OperationalPage>
+      <span className="sr-only">Loading organization…</span>
+    </div>
   );
 }
