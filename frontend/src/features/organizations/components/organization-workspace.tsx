@@ -162,7 +162,7 @@ export function OrganizationWorkspace({
   const destinationCard = (destination: (typeof destinations)[number]) => (
     <li key={destination.key} className="h-full">
       <Link
-        className="group flex h-full min-h-24 items-start gap-3 rounded-panel border border-hairline bg-surface p-3 text-ink no-underline transition-colors hover:border-selected-border hover:bg-subtle focus-visible:outline-offset-[-2px]"
+        className="group flex h-full min-h-18 items-start gap-3 rounded-panel border border-hairline bg-surface p-3 text-ink no-underline transition-colors hover:border-selected-border hover:bg-subtle focus-visible:outline-offset-[-2px]"
         href={destination.href}
       >
         <span className="grid size-9 shrink-0 place-items-center rounded-control border border-hairline bg-subtle text-ink transition-colors group-hover:border-selected-border">
