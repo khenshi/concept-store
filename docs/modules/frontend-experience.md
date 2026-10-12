@@ -431,6 +431,9 @@ waivers. Automated checks do not certify rendered behavior or actual printing.
 
 Product directory/profile screens use the neutral operational panels, controls,
 responsive divided rows, filters, status feedback, and owner/manager navigation.
+Directory pages use the shared warm-neutral canvas with centered content and flat
+rounded collection cards; wide inventory tables use the wider content track while
+product, merchant, member, and branch directories keep the tighter track.
 Product creation and identity editing use the shared native `FormDialog`: a
 focused, scroll-contained surface with browser focus containment, heading focus,
 safe pending dismissal, scroll locking, and focus restoration. The default dialog
@@ -504,7 +507,8 @@ responsive field grouping and action divider. Placement behavior and validation
 remain unchanged; rendered browser QA remains pending.
 
 Member management and owner invitation controls use the neutral operational
-system. Invitation creation uses a native modal with focus restoration and
+system on the shared centered canvas and rounded collection surfaces. Invitation
+creation uses a native modal with focus restoration and
 pending dismissal protection; historical invitation status remains explicit.
 Owner access dialogs provide branch grants, confirmed revocations and merchant
 relinking, with bounded choices, safe pending dismissal, and request feedback.
@@ -519,8 +523,8 @@ focus for context without a visible outline; control focus rings are unchanged.
 Submit and action groups in every modal align to the lower right, including
 single primary actions and multi-action cancel/submit groups. Existing labels,
 pending states, focus behavior, and dismissal safeguards are unchanged.
-Merchant workflows now use full-width responsive linked directory rows, neutral
-profile panels and shared form controls. Creation uses a wide native dialog with
+Merchant workflows now use the shared centered canvas, full-width responsive linked
+directory rows, neutral profile panels and shared form controls. Creation uses a wide native dialog with
 focus restoration, scroll containment, and pending dismissal protection. Existing
 debounced search and validation, role restrictions, and confirmed lifecycle
 changes are preserved.
@@ -704,8 +708,9 @@ their hover surface extends to both edges of the content panel.
 ## Branch workflow
 
 Branch directory/detail/create/edit use the neutral shared controls and panels.
-The directory uses full-width responsive rows instead of a wide fixed-minimum
-table. The create/edit form lives in a focused feature-owned component and uses
+The directory uses the shared warm-neutral canvas, a centered rounded collection
+card, and full-width responsive rows instead of a wide fixed-minimum table. The
+create/edit form lives in a focused feature-owned component and uses
 a native modal with scroll containment, pending-write protection, focus
 restoration, and safe dismissal. Shared fields support opt-in hints above inputs
 to preserve the branch form's established field layout; other fields retain hints

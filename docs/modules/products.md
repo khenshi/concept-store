@@ -105,6 +105,10 @@ each write. No application database is migrated, reset or seeded for verificatio
 
 ## Listing and placements
 
+The product directory uses the shared warm-neutral canvas, centered content frame,
+and flat rounded collection surface around filters and responsive rows. Product
+creation, role visibility, and scoped reads remain unchanged.
+
 Product directory search matches name/SKU case-insensitively and barcode
 case-sensitively. Merchant and product status filters are optional. Results order
 by name then ID and return the complete filtered list without pagination.

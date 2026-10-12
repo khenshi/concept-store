@@ -1,17 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { listBranchDirectory } from '../api/branch-api';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { BranchForm } from './branch-form';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
@@ -19,7 +13,6 @@ import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   FilterField,
-  OperationalPage,
   OperationalPanel,
   OperationalToolbar,
   StatusNotice,
@@ -47,16 +40,6 @@ function addressFor(branch: BranchView): string {
   return [branch.addressLine1, branch.addressLine2, branch.postalCode]
     .filter(Boolean)
     .join(', ');
-}
-
-function BranchPageFrame({ children }: { children: ReactNode }) {
-  return (
-    <div className="-mx-4 -mb-10 min-h-[calc(100dvh-4.25rem)] flow-root bg-canvas px-4 pb-10 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
-      <OperationalPage>
-        <div className="mx-auto w-full max-w-5xl">{children}</div>
-      </OperationalPage>
-    </div>
-  );
 }
 
 export function BranchManagement(props: { organizationId: string }) {
@@ -149,13 +132,13 @@ function ScopedBranchManagement({
 
   if (organizationStatus === 'loading')
     return (
-      <BranchPageFrame>
+      <OrganizationPageFrame>
         <ListSkeleton label="Loading organization" />
-      </BranchPageFrame>
+      </OrganizationPageFrame>
     );
   if (organizationStatus === 'error' || !organization)
     return (
-      <BranchPageFrame>
+      <OrganizationPageFrame>
         <PageHeader
           title="We could not load the organization."
           description="Try again to open this workspace."
@@ -165,7 +148,7 @@ function ScopedBranchManagement({
           message={organizationError ?? 'The organization could not be loaded.'}
           onRetry={() => void refreshOrganization()}
         />
-      </BranchPageFrame>
+      </OrganizationPageFrame>
     );
 
   const canManage = organization.role === 'OWNER';
@@ -173,7 +156,7 @@ function ScopedBranchManagement({
     organization.role === 'OWNER' || organization.role === 'MANAGER';
 
   return (
-    <BranchPageFrame>
+    <OrganizationPageFrame>
       <PageHeader
         title="Branches"
         description={
@@ -244,7 +227,7 @@ function ScopedBranchManagement({
           onCancel={() => setShowBranchForm(false)}
         />
       ) : null}
-    </BranchPageFrame>
+    </OrganizationPageFrame>
   );
 }
 

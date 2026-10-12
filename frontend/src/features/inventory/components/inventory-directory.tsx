@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import type { ProductStatus } from '@/features/products/model/product.types';
@@ -12,7 +13,6 @@ import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import {
-  OperationalPage,
   OperationalPanel,
   OperationalToolbar,
   StatusNotice,
@@ -204,22 +204,26 @@ function ScopedInventoryDirectory({
   }
   if (organizationStatus === 'loading')
     return (
-      <InventoryTableSkeleton
-        variant="stock"
-        label="Loading branch inventory"
-      />
+      <OrganizationPageFrame wide>
+        <InventoryTableSkeleton
+          variant="stock"
+          label="Loading branch inventory"
+        />
+      </OrganizationPageFrame>
     );
   if (!allowed)
     return (
-      <p role="alert" className="mt-8">
-        Your organization role cannot view or manage branch inventory.
-      </p>
+      <OrganizationPageFrame wide>
+        <p role="alert" className="mt-8">
+          Your organization role cannot view or manage branch inventory.
+        </p>
+      </OrganizationPageFrame>
     );
   const inventoryGrid = canWrite
     ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(6.5rem,0.75fr)_minmax(7rem,0.75fr)_minmax(7rem,0.6fr)_minmax(12rem,1fr)]'
     : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(6.5rem,0.8fr)_minmax(7rem,0.8fr)_minmax(7rem,0.7fr)_minmax(7rem,0.7fr)]';
   return (
-    <OperationalPage>
+    <OrganizationPageFrame wide>
       <PageHeader
         title="Inventory"
         description={
@@ -322,8 +326,7 @@ function ScopedInventoryDirectory({
       {activeTab === 'stock' ? (
         <OperationalPanel
           id="inventory-stock-panel"
-          variant="open"
-          className="inventory-stock-surface"
+          className="mt-0"
           title="Inventory stock"
           description={
             loading
@@ -347,10 +350,7 @@ function ScopedInventoryDirectory({
             ) : undefined
           }
         >
-          <OperationalToolbar
-            variant="open"
-            className="inventory-stock-toolbar grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
-          >
+          <OperationalToolbar className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
             <div className="min-w-0 sm:col-span-2 lg:col-span-1">
               <label className="sr-only" htmlFor="inventory-search">
                 Search
@@ -719,6 +719,6 @@ function ScopedInventoryDirectory({
           </FormDialog>
         </div>
       ) : null}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import {
-  OperationalPage,
   OperationalPanel,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
@@ -15,6 +14,7 @@ import { SelectControl } from '@/shared/components/ui/select-control';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import {
@@ -236,29 +236,33 @@ export function OrganizationMemberManagement({
 
   if (organizationStatus === 'loading') {
     return (
-      <p className="p-6 text-sm text-muted" role="status">
-        Loading organization…
-      </p>
+      <OrganizationPageFrame>
+        <p className="mt-8 text-sm text-muted" role="status">
+          Loading organization…
+        </p>
+      </OrganizationPageFrame>
     );
   }
 
   if (organizationStatus === 'error' || !organization) {
     return (
-      <section className="mx-auto w-full max-w-3xl p-6" role="alert">
-        <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
-          We could not load the organization.
-        </h1>
-        <p className="mt-4 leading-7 text-muted">
-          {organizationError ?? 'The organization could not be loaded.'}
-        </p>
-        <button
-          className={buttonStyles({ variant: 'secondary' })}
-          type="button"
-          onClick={() => void refreshOrganization()}
-        >
-          Try again
-        </button>
-      </section>
+      <OrganizationPageFrame>
+        <section className="mt-8" role="alert">
+          <h1 className="max-w-none text-[clamp(2rem,6vw,3rem)] leading-tight font-bold tracking-[-0.04em]">
+            We could not load the organization.
+          </h1>
+          <p className="mt-4 leading-7 text-muted">
+            {organizationError ?? 'The organization could not be loaded.'}
+          </p>
+          <button
+            className={buttonStyles({ variant: 'secondary' })}
+            type="button"
+            onClick={() => void refreshOrganization()}
+          >
+            Try again
+          </button>
+        </section>
+      </OrganizationPageFrame>
     );
   }
 
@@ -266,7 +270,7 @@ export function OrganizationMemberManagement({
   const canManageMembers = organization.role === 'OWNER';
 
   return (
-    <OperationalPage>
+    <OrganizationPageFrame>
       <OrganizationPageHeader
         organization={organization}
         title="Organization members"
@@ -274,7 +278,7 @@ export function OrganizationMemberManagement({
       />
 
       {!canViewMembers ? (
-        <section className="mt-8 bg-surface py-6">
+        <section className="mt-6 rounded-panel border border-hairline bg-surface p-6">
           <h2 className="m-0 text-base font-bold">Member access is limited</h2>
           <p className="mt-3 leading-7 text-muted">
             Only organization owners can view the member list.
@@ -305,8 +309,7 @@ export function OrganizationMemberManagement({
           {!loadError ? (
             <div className="mt-6">
               <OperationalPanel
-                variant="open"
-                className="data-surface"
+                className="mt-0"
                 title="People with access"
                 description={`${members.length} organization members · Branch assignments restrict access; owners have all-branch access`}
                 action={
@@ -482,7 +485,7 @@ export function OrganizationMemberManagement({
           }}
         />
       )}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }
 
@@ -499,7 +502,7 @@ function InvitationList({
 }) {
   return (
     <OperationalPanel
-      variant="open"
+      className="mt-5"
       title="Invitations"
       description="Pending and historical organization invitations"
     >
@@ -510,7 +513,7 @@ function InvitationList({
           description="Invite a teammate when you are ready to share access."
         />
       ) : (
-        <ul className="list-none border-t border-hairline p-0">
+        <ul className="list-none p-0">
           {invitations.map((invitation) => {
             const pending =
               !invitation.acceptedAt &&

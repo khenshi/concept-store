@@ -52,6 +52,11 @@ Staff receipts and merchant own-item sales are available in separate sales histo
 screens, never through the private sale-item link in inventory movement responses.
 Cashier POS access does not grant inventory history or stock mutation access.
 
+The branch inventory directory uses the shared warm-neutral canvas, a centered
+wide content track, and a flat rounded collection surface around its filters,
+stock rows, movement records, and integrity checks. Branch selection, role-aware
+visibility, loading/error/empty states, and table behavior remain unchanged.
+
 ## API and authorization
 
 ```text

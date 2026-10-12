@@ -8,12 +8,12 @@ import { Icon } from '@/shared/components/ui/icon';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { InputControl } from '@/shared/components/ui/input-control';
 import {
   FilterField,
-  OperationalPage,
   OperationalPanel,
   OperationalToolbar,
   StatusNotice,
@@ -114,10 +114,9 @@ function ScopedMerchantDirectory({
 
   if (organizationStatus === 'loading') {
     return (
-      <ListSkeleton
-        className="mx-auto mt-6 max-w-7xl"
-        label="Loading merchant directory"
-      />
+      <OrganizationPageFrame>
+        <ListSkeleton label="Loading merchant directory" />
+      </OrganizationPageFrame>
     );
   }
   if (
@@ -125,17 +124,19 @@ function ScopedMerchantDirectory({
     !['OWNER', 'MANAGER', 'MERCHANT'].includes(organization.role)
   ) {
     return (
-      <section className="mx-auto mt-8 max-w-3xl" role="alert">
-        <h1 className="text-3xl font-bold">Merchant directory unavailable</h1>
-        <p className="mt-3 text-muted">
-          Your organization role cannot manage merchant profiles.
-        </p>
-      </section>
+      <OrganizationPageFrame>
+        <section className="mt-8" role="alert">
+          <h1 className="text-3xl font-bold">Merchant directory unavailable</h1>
+          <p className="mt-3 text-muted">
+            Your organization role cannot manage merchant profiles.
+          </p>
+        </section>
+      </OrganizationPageFrame>
     );
   }
 
   return (
-    <OperationalPage>
+    <OrganizationPageFrame>
       <OrganizationPageHeader
         organization={organization}
         title="Merchants"
@@ -149,8 +150,7 @@ function ScopedMerchantDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
-        variant="open"
-        className="data-surface"
+        className="mt-0"
         title="Merchant directory"
         description={`${merchants.length} matching merchant${merchants.length === 1 ? '' : 's'}`}
         action={
@@ -168,10 +168,7 @@ function ScopedMerchantDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar
-          variant="open"
-          className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]"
-        >
+        <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]">
           <FilterField id="merchant-search" label="Search">
             <InputControl
               id="merchant-search"
@@ -289,7 +286,7 @@ function ScopedMerchantDirectory({
           }}
         />
       ) : null}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }
 

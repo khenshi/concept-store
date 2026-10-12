@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { buttonStyles } from '@/shared/components/ui/button';
@@ -15,7 +16,6 @@ import { InputControl } from '@/shared/components/ui/input-control';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   FilterField,
-  OperationalPage,
   OperationalPanel,
   OperationalToolbar,
   StatusNotice,
@@ -113,15 +113,21 @@ function ScopedProductDirectory({
     revision,
   ]);
   if (organizationStatus === 'loading')
-    return <ListSkeleton label="Loading product directory" />;
+    return (
+      <OrganizationPageFrame>
+        <ListSkeleton label="Loading product directory" />
+      </OrganizationPageFrame>
+    );
   if (!allowed || !organization)
     return (
-      <p className="mt-8" role="alert">
-        Your organization role cannot view or manage products.
-      </p>
+      <OrganizationPageFrame>
+        <p className="mt-8" role="alert">
+          Your organization role cannot view or manage products.
+        </p>
+      </OrganizationPageFrame>
     );
   return (
-    <OperationalPage>
+    <OrganizationPageFrame>
       <OrganizationPageHeader
         organization={organization}
         title="Products"
@@ -133,8 +139,7 @@ function ScopedProductDirectory({
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
       <OperationalPanel
-        variant="open"
-        className="data-surface"
+        className="mt-0"
         title="Product directory"
         description={
           loading ? 'Loading products…' : `${products.length} matching products`
@@ -155,10 +160,7 @@ function ScopedProductDirectory({
           ) : undefined
         }
       >
-        <OperationalToolbar
-          variant="open"
-          className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]"
-        >
+        <OperationalToolbar className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]">
           <FilterField id="product-search" label="Search">
             <InputControl
               id="product-search"
@@ -285,6 +287,6 @@ function ScopedProductDirectory({
           />
         </FormDialog>
       ) : null}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

@@ -73,8 +73,7 @@ export function InventoryReconciliation({
   return (
     <OperationalPanel
       id={id}
-      variant="open"
-      className="data-surface"
+      className="mt-0"
       title="Stock integrity"
       description="Compare saved stock with the movement ledger for this branch. This check never changes stock."
       action={

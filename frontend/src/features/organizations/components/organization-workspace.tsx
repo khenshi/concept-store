@@ -1,27 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { Icon, type IconName } from '@/shared/components/ui/icon';
-import {
-  OperationalPage,
-  OperationalPanel,
-} from '@/shared/components/ui/operational-page';
+import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { OrganizationPageFrame } from './organization-page-frame';
 import { useOrganizationWorkspaceContext } from './organization-workspace-context';
 import { organizationNavigationIcons } from './organization-navigation';
-
-function OrganizationOverviewFrame({ children }: { children: ReactNode }) {
-  return (
-    <div className="-mx-4 -mb-10 min-h-[calc(100dvh-4.25rem)] flow-root bg-canvas px-4 pb-10 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
-      <OperationalPage>
-        <div className="mx-auto w-full max-w-5xl">{children}</div>
-      </OperationalPage>
-    </div>
-  );
-}
 
 export function OrganizationWorkspace({
   organizationId,
@@ -36,13 +23,13 @@ export function OrganizationWorkspace({
   } = useOrganizationWorkspaceContext();
   if (organizationStatus === 'loading')
     return (
-      <OrganizationOverviewFrame>
+      <OrganizationPageFrame>
         <OrganizationOverviewSkeleton />
-      </OrganizationOverviewFrame>
+      </OrganizationPageFrame>
     );
   if (organizationStatus === 'error' || !organization)
     return (
-      <OrganizationOverviewFrame>
+      <OrganizationPageFrame>
         <PageHeader
           eyebrow="Organization unavailable"
           title="We could not open this workspace."
@@ -62,7 +49,7 @@ export function OrganizationWorkspace({
             Choose another organization
           </Link>
         </div>
-      </OrganizationOverviewFrame>
+      </OrganizationPageFrame>
     );
 
   const canManage =
@@ -199,7 +186,7 @@ export function OrganizationWorkspace({
   );
 
   return (
-    <OrganizationOverviewFrame>
+    <OrganizationPageFrame>
       <PageHeader
         className=""
         eyebrow={organization.name}
@@ -254,7 +241,7 @@ export function OrganizationWorkspace({
           </OperationalPanel>
         </div>
       </div>
-    </OrganizationOverviewFrame>
+    </OrganizationPageFrame>
   );
 }
 

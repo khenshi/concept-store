@@ -229,15 +229,11 @@ export function InventoryMovementRecords({
     <>
       <OperationalPanel
         id="inventory-movement-records-panel"
-        variant="open"
-        className="data-surface"
+        className="mt-0"
         title="Movement records"
         description="Search and review stock activity recorded in this branch."
       >
-        <OperationalToolbar
-          variant="open"
-          className="grid gap-3 px-0 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(14rem,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(19rem,1.2fr)_auto]"
-        >
+        <OperationalToolbar className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(14rem,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(19rem,1.2fr)_auto]">
           <div className="min-w-0">
             <label
               className="block text-xs font-medium text-muted"

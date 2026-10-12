@@ -1,8 +1,8 @@
 'use client';
 
 import { useAuth } from '@/features/auth/model/auth-context';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { OperationalPage } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -20,7 +20,7 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
   } = useOrganizationWorkspaceContext();
   if (!organization || organization.id !== organizationId)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame>
         {organizationStatus === 'error' ? (
           <RequestError
             message={
@@ -31,18 +31,18 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
         ) : (
           <ListSkeleton label="Loading inventory access" />
         )}
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (organization.role === 'CASHIER')
     return (
-      <OperationalPage>
+      <OrganizationPageFrame>
         <p role="alert">
           Your organization role cannot view or manage inventory.
         </p>
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   return (
-    <OperationalPage>
+    <OrganizationPageFrame>
       <PageHeader
         title="Inventory"
         description={
@@ -61,6 +61,6 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
           />
         }
       />
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

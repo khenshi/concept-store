@@ -95,7 +95,8 @@ without changing product ownership or history. Pending writes prevent duplicate
 actions and dismissal; loading, retryable failures, and success are explicit.
 API responses are runtime validated. Dialog choices and lists are scroll-bounded.
 
-The member directory uses neutral operational panels and responsive divided rows.
+The member directory uses the shared warm-neutral canvas, a centered rounded
+collection panel, and responsive divided rows.
 Role menus are not enclosed in clipping table scrollers. Member removal controls
 have account-specific accessible names; join dates and contact information remain
 visible at narrow widths.
