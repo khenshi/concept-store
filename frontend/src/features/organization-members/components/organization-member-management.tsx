@@ -10,6 +10,7 @@ import {
 } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -503,7 +504,11 @@ function InvitationList({
       description="Pending and historical organization invitations"
     >
       {invitations.length === 0 ? (
-        <p className="p-6 text-sm text-muted">No invitations created yet.</p>
+        <EmptyState
+          className="m-6"
+          title="No invitations created yet."
+          description="Invite a teammate when you are ready to share access."
+        />
       ) : (
         <ul className="list-none border-t border-hairline p-0">
           {invitations.map((invitation) => {

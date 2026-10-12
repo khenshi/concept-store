@@ -13,6 +13,7 @@ import {
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { Button } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { Notice } from '@/shared/components/ui/notice';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -221,33 +222,22 @@ export function OrganizationEntry() {
               onRetry={() => void loadOrganizations()}
             />
           ) : organizations.length === 0 ? (
-            <div className="py-16 text-center">
-              <Icon
-                name="building"
-                className="mx-auto mb-4 size-6 text-muted"
-              />
-              <h3 className="font-semibold text-ink">
-                Your first workspace starts here
-              </h3>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
-                You do not belong to an organization yet. Create your first one
-                to continue.
-              </p>
-              <Button
-                variant="secondary"
-                className="mt-5"
-                onClick={openCreateDialog}
-              >
-                Create your first organization
-              </Button>
-            </div>
+            <EmptyState
+              className="my-6"
+              title="Your first workspace starts here"
+              description="You do not belong to an organization yet. Create your first one to continue."
+              action={
+                <Button variant="secondary" onClick={openCreateDialog}>
+                  Create your first organization
+                </Button>
+              }
+            />
           ) : filteredOrganizations.length === 0 ? (
-            <div className="py-16 text-center">
-              <h3 className="font-semibold text-ink">No organizations found</h3>
-              <p className="mt-3 text-sm text-muted">
-                Try a different organization name.
-              </p>
-            </div>
+            <EmptyState
+              className="my-6"
+              title="No organizations found"
+              description="Try a different organization name."
+            />
           ) : (
             <ul className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
               {filteredOrganizations.map((organization) => (

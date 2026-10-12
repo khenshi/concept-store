@@ -7,6 +7,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { TextField } from '@/shared/components/ui/text-field';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
@@ -15,6 +16,7 @@ import {
   OperationalPanel,
 } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
@@ -386,20 +388,21 @@ function StaffBranchSales({
         ) : !result ? (
           <ListSkeleton className="p-6" label="Loading sales history" />
         ) : !page?.items.length ? (
-          <div className="py-10 text-center sm:py-12">
-            <h3 className="font-semibold">
-              {hasFilters
+          <EmptyState
+            className="mx-5 my-6 sm:mx-6"
+            title={
+              hasFilters
                 ? 'No sales match these filters'
-                : 'No completed sales yet'}
-            </h3>
-            <p className="mt-2 text-sm text-muted">
-              {hasFilters
+                : 'No completed sales yet'
+            }
+            description={
+              hasFilters
                 ? 'Try another receipt code or filter.'
                 : role === 'CASHIER'
                   ? 'Your completed sales will appear here.'
-                  : 'Completed sales in this branch will appear here.'}
-            </p>
-          </div>
+                  : 'Completed sales in this branch will appear here.'
+            }
+          />
         ) : (
           <ul aria-label="Sales history" className="m-0 list-none p-0">
             <li
@@ -462,46 +465,29 @@ function StaffBranchSales({
           </ul>
         )}
         {result ? (
-          <nav
-            className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline p-5 sm:p-6"
-            aria-label="Sales pagination"
-          >
-            <p className="text-sm text-muted">
-              {page?.total ?? 0} permitted sales · Page {page?.page ?? 1} of{' '}
-              {Math.max(1, page?.totalPages ?? 0)}
-            </p>
-            <div className="flex gap-3">
-              <Button
-                variant="secondary"
-                className="rounded-full"
-                disabled={query.page <= 1}
-                onClick={() =>
-                  setQuery((current) => ({
-                    ...current,
-                    page: current.page - 1,
-                  }))
-                }
-              >
-                Previous page
-              </Button>
-              <Button
-                variant="secondary"
-                className="rounded-full"
-                disabled={
-                  query.page >= (page?.totalPages ?? 0) ||
-                  query.page >= 21474836
-                }
-                onClick={() =>
-                  setQuery((current) => ({
-                    ...current,
-                    page: current.page + 1,
-                  }))
-                }
-              >
-                Next page
-              </Button>
-            </div>
-          </nav>
+          <PaginationControls
+            ariaLabel="Sales pagination"
+            currentPage={page?.page ?? 1}
+            totalPages={page?.totalPages ?? 1}
+            hasNext={
+              query.page < (page?.totalPages ?? 0) && query.page < 21474836
+            }
+            previousLabel="Previous page"
+            nextLabel="Next page"
+            summary={`${page?.total ?? 0} permitted sales · Page ${page?.page ?? 1} of ${Math.max(1, page?.totalPages ?? 0)}`}
+            onPrevious={() =>
+              setQuery((current) => ({
+                ...current,
+                page: current.page - 1,
+              }))
+            }
+            onNext={() =>
+              setQuery((current) => ({
+                ...current,
+                page: current.page + 1,
+              }))
+            }
+          />
         ) : null}
       </OperationalPanel>
     </OperationalPage>
@@ -656,11 +642,14 @@ function MerchantBranchSales({
         ) : !result ? (
           <ListSkeleton className="p-6" label="Loading branch sales" />
         ) : result.kind !== 'merchant' || !result.page.items.length ? (
-          <p className="p-6 text-sm text-muted">
-            {query.from || query.until
-              ? 'No permitted sales in this UTC range.'
-              : 'No sales involving your currently linked business in this branch.'}
-          </p>
+          <EmptyState
+            className="mx-5 my-6 sm:mx-6"
+            title={
+              query.from || query.until
+                ? 'No permitted sales in this UTC range.'
+                : 'No sales involving your currently linked business in this branch.'
+            }
+          />
         ) : (
           <ul className="m-0 list-none p-0">
             <li className="data-column-header hidden grid-cols-[minmax(0,1.4fr)_minmax(12rem,0.8fr)_minmax(10rem,auto)] gap-x-6 gap-y-3 sm:grid">
@@ -699,43 +688,29 @@ function MerchantBranchSales({
           </ul>
         )}
         {result?.kind === 'merchant' ? (
-          <nav
-            className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline p-5 sm:p-6"
-            aria-label="Sales pagination"
-          >
-            <p className="text-sm text-muted">
-              {result.page.total} permitted sales · Page {result.page.page} of{' '}
-              {Math.max(1, result.page.totalPages)}
-            </p>
-            <div className="flex gap-3">
-              <Button
-                variant="secondary"
-                disabled={query.page <= 1}
-                onClick={() =>
-                  setQuery((current) => ({
-                    ...current,
-                    page: current.page - 1,
-                  }))
-                }
-              >
-                Previous page
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={
-                  query.page >= result.page.totalPages || query.page >= 21474836
-                }
-                onClick={() =>
-                  setQuery((current) => ({
-                    ...current,
-                    page: current.page + 1,
-                  }))
-                }
-              >
-                Next page
-              </Button>
-            </div>
-          </nav>
+          <PaginationControls
+            ariaLabel="Sales pagination"
+            currentPage={result.page.page}
+            totalPages={result.page.totalPages}
+            hasNext={
+              result.page.page < result.page.totalPages && query.page < 21474836
+            }
+            previousLabel="Previous page"
+            nextLabel="Next page"
+            summary={`${result.page.total} permitted sales · Page ${result.page.page} of ${Math.max(1, result.page.totalPages)}`}
+            onPrevious={() =>
+              setQuery((current) => ({
+                ...current,
+                page: current.page - 1,
+              }))
+            }
+            onNext={() =>
+              setQuery((current) => ({
+                ...current,
+                page: current.page + 1,
+              }))
+            }
+          />
         ) : null}
       </OperationalPanel>
     </OperationalPage>

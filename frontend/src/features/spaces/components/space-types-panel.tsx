@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useSpaceTypes } from '../model/use-space-types';
 import { SpaceTypeCreator } from './space-type-creator';
@@ -110,11 +111,14 @@ export function SpaceTypesPanel({
               Loading space types…
             </p>
           ) : !filtered?.length ? (
-            <p role="status" className="mt-5">
-              {types.length
-                ? 'No types match your search.'
-                : 'No space types yet.'}
-            </p>
+            <EmptyState
+              className="mt-5"
+              title={
+                types.length
+                  ? 'No types match your search.'
+                  : 'No space types yet.'
+              }
+            />
           ) : (
             <ul className="mt-5 divide-y divide-hairline border-y border-hairline">
               <li className="data-column-header grid grid-cols-[minmax(0,1fr)_auto] gap-4">

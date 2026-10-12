@@ -9,6 +9,7 @@ import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { InputControl } from '@/shared/components/ui/input-control';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
@@ -208,20 +209,21 @@ function ScopedProductDirectory({
             onRetry={() => setRevision((value) => value + 1)}
           />
         ) : !products.length ? (
-          <div className="px-6 py-12 text-center">
-            <h3 className="font-semibold">
-              {search || merchantId || status
+          <EmptyState
+            className="mx-6 my-6"
+            title={
+              search || merchantId || status
                 ? 'No products match these filters'
-                : 'No products yet'}
-            </h3>
-            <p className="mt-2 text-sm text-muted">
-              {search || merchantId || status
+                : 'No products yet'
+            }
+            description={
+              search || merchantId || status
                 ? 'Try another search or filter.'
                 : canEdit
                   ? 'Add an active merchant’s first product to get started.'
-                  : 'No products are available to your access. Ask an owner to configure your merchant link or branch placements.'}
-            </p>
-          </div>
+                  : 'No products are available to your access. Ask an owner to configure your merchant link or branch placements.'
+            }
+          />
         ) : (
           <ul aria-label="Product directory" className="m-0 list-none p-0">
             <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(8rem,0.7fr)] gap-x-6 gap-y-3 sm:grid">

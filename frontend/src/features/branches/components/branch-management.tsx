@@ -7,6 +7,7 @@ import { listBranchDirectory } from '../api/branch-api';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BranchForm } from './branch-form';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
@@ -17,6 +18,7 @@ import {
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { TextField } from '@/shared/components/ui/text-field';
@@ -330,26 +332,28 @@ function StaffBranchDirectory({
             onRetry={onRetry}
           />
         ) : directory && directory.items.length === 0 ? (
-          <div className="px-5 py-12 text-center sm:px-6">
-            <Icon name="building" className="mx-auto mb-4 size-6 text-muted" />
-            <h3 className="font-semibold text-ink">
-              {hasFilters
+          <EmptyState
+            className="mx-5 my-6 sm:mx-6"
+            title={
+              hasFilters
                 ? 'No branches match these filters.'
-                : 'No branches yet'}
-            </h3>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
-              {hasFilters
+                : 'No branches yet'
+            }
+            description={
+              hasFilters
                 ? 'Try a different search or clear the filters to see every accessible branch.'
                 : canManage
                   ? 'Add the first physical store location for this organization.'
-                  : 'No branches are available to your access.'}
-            </p>
-            {hasFilters ? (
-              <Button className="mt-5" variant="secondary" onClick={onClear}>
-                Clear filters
-              </Button>
-            ) : null}
-          </div>
+                  : 'No branches are available to your access.'
+            }
+            action={
+              hasFilters ? (
+                <Button variant="secondary" onClick={onClear}>
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          />
         ) : directory ? (
           <>
             <div className="overflow-x-auto">
@@ -416,33 +420,15 @@ function StaffBranchDirectory({
                 ))}
               </ul>
             </div>
-            <nav
-              className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline p-5 sm:p-6"
-              aria-label="Branches pagination"
-            >
-              <p className="text-sm text-muted" aria-live="polite">
-                Showing {start}–{end} of {total}
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-sm text-muted">
-                  Page {currentPage} of {Math.max(1, totalPages)}
-                </span>
-                <Button
-                  variant="secondary"
-                  disabled={currentPage <= 1}
-                  onClick={() => onPageChange(currentPage - 1)}
-                >
-                  Previous page
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={!directory.hasNext}
-                  onClick={() => onPageChange(currentPage + 1)}
-                >
-                  Next page
-                </Button>
-              </div>
-            </nav>
+            <PaginationControls
+              ariaLabel="Branches pagination"
+              currentPage={currentPage}
+              totalPages={totalPages}
+              hasNext={directory.hasNext}
+              summary={`Showing ${start}–${end} of ${total}`}
+              onPrevious={() => onPageChange(currentPage - 1)}
+              onNext={() => onPageChange(currentPage + 1)}
+            />
           </>
         ) : null}
       </OperationalPanel>
@@ -512,11 +498,14 @@ function MerchantBranchDirectory({
           onRetry={onRetry}
         />
       ) : branches.length === 0 ? (
-        <p className="px-5 py-12 text-center text-sm text-muted sm:px-6">
-          {hasSearch
-            ? 'No branches match this search.'
-            : 'No branches are available to your access.'}
-        </p>
+        <EmptyState
+          className="mx-5 my-6 sm:mx-6"
+          title={
+            hasSearch
+              ? 'No branches match this search.'
+              : 'No branches are available to your access.'
+          }
+        />
       ) : (
         <ul className="m-0 list-none p-0" aria-label="Branches">
           {branches.map((branch) => (

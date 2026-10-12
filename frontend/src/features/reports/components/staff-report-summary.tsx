@@ -1,13 +1,15 @@
 import { OperationalPanel } from '@/shared/components/ui/operational-page';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import type { StaffSalesReport } from '../model/report.schemas';
 
 export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
   return (
     <>
       {report.transactionCount === '0' && report.refundCount === '0' ? (
-        <p role="status" className="mt-5 text-sm text-muted">
-          No completed sales in this branch for the applied period.
-        </p>
+        <EmptyState
+          className="mt-5"
+          title="No completed sales in this branch for the applied period."
+        />
       ) : null}
       <dl
         aria-label="Sales summary"

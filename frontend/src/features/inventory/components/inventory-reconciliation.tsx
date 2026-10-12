@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { getInventoryReconciliation } from '../api/inventory-api';
@@ -107,9 +108,11 @@ export function InventoryReconciliation({
           }
         />
       ) : !page.items.length ? (
-        <p className="p-6 text-sm text-muted" role="status">
-          No stock/ledger mismatch was found in this branch.
-        </p>
+        <EmptyState
+          className="m-6"
+          title="No stock/ledger mismatch was found in this branch."
+          description="The recorded stock matches the movement ledger."
+        />
       ) : (
         <div className="p-6">
           <p className="text-sm text-muted" role="status">

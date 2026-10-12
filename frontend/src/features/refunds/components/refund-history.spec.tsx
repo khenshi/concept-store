@@ -187,15 +187,34 @@ describe('saved refund history and role privacy', () => {
         onDenied={denied}
       />,
     );
-    await screen.findByText('11 refunds · Page 1 of 2');
+    await screen.findByText('11 refunds');
+    expect(screen.getByText('1/2')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next refunds' }));
     await screen.findByText(/Retry this read; no refund will be sent again/);
     expect(screen.queryByText('REFUND-0')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    await screen.findByText('11 refunds · Page 2 of 2');
+    await screen.findByText('2/2');
     expectReturnedQuantities();
     expect(request.mock.calls[2][0]).toContain('?page=2&limit=10');
     expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
+  });
+  it('shows a centered empty state when no refunds are recorded', async () => {
+    request.mockResolvedValue(emptyPage);
+    render(
+      <RefundHistory
+        scope={refundScope}
+        sale={completedSale}
+        role="OWNER"
+        onDenied={denied}
+      />,
+    );
+    const emptyHeading = await screen.findByText('No refunds recorded yet.');
+    const emptyState = emptyHeading.parentElement!;
+    expect(emptyState).toHaveTextContent('No refunds recorded yet.');
+    expect(emptyState).toHaveTextContent(
+      'Completed refunds for this sale will appear here.',
+    );
+    expect(emptyState).toHaveClass('border', 'text-center');
   });
   it('confirmed write closes dialog; failed history refresh can only retry GET, not resend POST', async () => {
     let written = false;
@@ -279,14 +298,14 @@ describe('saved refund history and role privacy', () => {
     );
     await screen.findByRole('button', { name: 'Return items' });
     expect(
-      screen.getByRole('button', { name: 'Print internal receipt' }),
+      screen.getByRole('button', { name: 'Print' }),
     ).toBeInTheDocument();
     rejected = true;
     fireEvent.click(screen.getByRole('button', { name: 'Refresh refunds' }));
     await screen.findByText('Refund access revoked');
     expect(screen.queryByText('Saved Store')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Print internal receipt' }),
+      screen.queryByRole('button', { name: 'Print' }),
     ).not.toBeInTheDocument();
     act(() =>
       setRefundAttempt(key, { scope: refundScope, command, state: 'unknown' }),

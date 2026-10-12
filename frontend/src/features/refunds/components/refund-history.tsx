@@ -11,6 +11,8 @@ import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { EmptyState } from '@/shared/components/ui/empty-state';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { getRefund, listRefunds, type RefundScope } from '../api/refund-api';
 import {
   getRefundAttempt,
@@ -168,10 +170,8 @@ export function RefundHistory({
     <>
       <OperationalPanel
         variant="open"
-        className="data-surface"
-        title={
-          role === 'MERCHANT' ? 'Own returned items' : 'Returns and refunds'
-        }
+        className="data-surface border-t border-hairline pt-5"
+        title={role === 'MERCHANT' ? 'Own returned items' : 'Return refunds'}
         description="Original sales stay unchanged. Remaining quantities include every completed return, not just this page."
         action={
           <Button
@@ -314,7 +314,7 @@ export function RefundHistory({
               className="mt-8 border-t border-hairline pt-6"
               aria-labelledby="recorded-refunds-title"
             >
-              <div>
+              <div className="min-w-0">
                 <h3 id="recorded-refunds-title" className="font-semibold">
                   Recorded refunds
                 </h3>
@@ -323,11 +323,23 @@ export function RefundHistory({
                 </p>
               </div>
               {!result.items.length ? (
-                <p className="mt-4 text-sm text-muted">
-                  {role === 'MERCHANT'
-                    ? 'No matching own returns on this page.'
-                    : 'No refunds on this page.'}
-                </p>
+                <EmptyState
+                  className="mt-4"
+                  title={
+                    result.total === 0
+                      ? role === 'MERCHANT'
+                        ? 'No own refunds recorded yet.'
+                        : 'No refunds recorded yet.'
+                      : 'No refunds on this page.'
+                  }
+                  description={
+                    result.total === 0
+                      ? role === 'MERCHANT'
+                        ? 'Refunds containing your items will appear here after a return is completed.'
+                        : 'Completed refunds for this sale will appear here.'
+                      : 'Try the previous page to continue reviewing the refund history.'
+                  }
+                />
               ) : (
                 <ul className="mt-4 list-none p-0">
                   <li className="data-column-header hidden grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] gap-x-6 gap-y-3 sm:grid">
@@ -368,35 +380,25 @@ export function RefundHistory({
                   ))}
                 </ul>
               )}
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <p className="text-xs text-muted">
-                  {result.total}{' '}
-                  {role === 'MERCHANT'
-                    ? 'refunds containing own items'
-                    : 'refunds'}{' '}
-                  · Page {result.page} of {Math.max(1, result.totalPages)}
-                </p>
-                <Button
-                  variant="secondary"
-                  disabled={unresolved || page <= 1}
-                  onClick={() => {
-                    setResult(null);
-                    setPage((n) => n - 1);
-                  }}
-                >
-                  Previous refunds
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={unresolved || page >= result.totalPages}
-                  onClick={() => {
-                    setResult(null);
-                    setPage((n) => n + 1);
-                  }}
-                >
-                  Next refunds
-                </Button>
-              </div>
+              <PaginationControls
+                className="mt-4 border-t-0 px-0 py-0"
+                ariaLabel="Refund history pagination"
+                currentPage={result.page}
+                totalPages={result.totalPages}
+                pending={unresolved}
+                summary={`${result.total} ${role === 'MERCHANT' ? 'refunds containing own items' : 'refunds'}`}
+                hasNext={page < result.totalPages}
+                previousLabel="Previous refunds"
+                nextLabel="Next refunds"
+                onPrevious={() => {
+                  setResult(null);
+                  setPage((n) => n - 1);
+                }}
+                onNext={() => {
+                  setResult(null);
+                  setPage((n) => n + 1);
+                }}
+              />
             </section>
           </div>
         )}

@@ -7,10 +7,12 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import { listBranches } from '@/features/branches/api/branch-api';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import { Icon } from '@/shared/components/ui/icon';
 import { InputControl } from '@/shared/components/ui/input-control';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import {
   listAssociations,
   saveAssociation,
@@ -335,38 +337,28 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
               </li>
             ))}
           </ul>
-          {!data.items.length && (
-            <p className="mt-5 text-sm text-muted">
-              No {q || status ? 'matching ' : ''}associations.{' '}
-              {owner
-                ? 'Assign a merchant to a branch to begin.'
-                : 'Ask an owner to configure branch participation.'}
-            </p>
-          )}
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted">
-              {data.total} associations · Page {data.page} of{' '}
-              {Math.max(1, data.totalPages)}
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'quiet' })}
-                disabled={page === 1 || pending}
-                onClick={() => setPage((value) => value - 1)}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'quiet' })}
-                disabled={!data.hasNext || pending}
-                onClick={() => setPage((value) => value + 1)}
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          {!data.items.length ? (
+            <EmptyState
+              className="mt-5"
+              title={`No ${q || status ? 'matching ' : ''}associations.`}
+              description={
+                owner
+                  ? 'Assign a merchant to a branch to begin.'
+                  : 'Ask an owner to configure branch participation.'
+              }
+            />
+          ) : null}
+          <PaginationControls
+            className="mt-5 border-t-0 px-0 py-0"
+            ariaLabel="Merchant branch associations pagination"
+            currentPage={data.page}
+            totalPages={data.totalPages}
+            pending={pending}
+            hasNext={data.hasNext}
+            summary={`${data.total} associations`}
+            onPrevious={() => setPage((value) => value - 1)}
+            onNext={() => setPage((value) => value + 1)}
+          />
         </>
       )}
       {assigning && (

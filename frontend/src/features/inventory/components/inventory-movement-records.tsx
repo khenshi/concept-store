@@ -7,12 +7,14 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import {
   OperationalPanel,
   OperationalToolbar,
 } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { listMovementRecords } from '../api/inventory-api';
@@ -383,11 +385,14 @@ export function InventoryMovementRecords({
             onRetry={() => setRetryRevision((value) => value + 1)}
           />
         ) : !items.length ? (
-          <p className="px-4 py-10 text-sm text-muted sm:px-6">
-            {hasFilters(filters)
-              ? 'No movement records match these filters.'
-              : 'No movement records have been recorded for this branch yet.'}
-          </p>
+          <EmptyState
+            className="mx-4 my-6 sm:mx-6"
+            title={
+              hasFilters(filters)
+                ? 'No movement records match these filters.'
+                : 'No movement records have been recorded for this branch yet.'
+            }
+          />
         ) : (
           <>
             <ol
@@ -464,37 +469,24 @@ export function InventoryMovementRecords({
                 onRetry={() => void loadPage(pageRetry)}
               />
             ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
-              <p className="text-sm text-muted">Page {pageIndex + 1}</p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className={buttonStyles({ variant: 'quiet' })}
-                  disabled={pageLoading || pageIndex === 0}
-                  onClick={() =>
-                    void loadPage({
-                      index: pageIndex - 1,
-                      cursor: pageCursors[pageIndex - 1],
-                    })
-                  }
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  className={buttonStyles({ variant: 'secondary' })}
-                  disabled={pageLoading || !nextCursor}
-                  onClick={() =>
-                    void loadPage({
-                      index: pageIndex + 1,
-                      cursor: nextCursor ?? undefined,
-                    })
-                  }
-                >
-                  {pageLoading ? 'Loading…' : 'Next'}
-                </button>
-              </div>
-            </div>
+            <PaginationControls
+              ariaLabel="Inventory movement pagination"
+              currentPage={pageIndex + 1}
+              hasNext={Boolean(nextCursor)}
+              pending={pageLoading}
+              onPrevious={() =>
+                void loadPage({
+                  index: pageIndex - 1,
+                  cursor: pageCursors[pageIndex - 1],
+                })
+              }
+              onNext={() =>
+                void loadPage({
+                  index: pageIndex + 1,
+                  cursor: nextCursor ?? undefined,
+                })
+              }
+            />
           </>
         )}
       </OperationalPanel>

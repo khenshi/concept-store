@@ -9,6 +9,7 @@ import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import type { ProductStatus } from '@/features/products/model/product.types';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import {
   OperationalPage,
@@ -440,20 +441,21 @@ function ScopedInventoryDirectory({
               onRetry={() => setRevision((value) => value + 1)}
             />
           ) : !items.length ? (
-            <div className="py-10 text-center sm:py-12">
-              <h3 className="font-semibold">
-                {search || merchantId || status || stockStatus
+            <EmptyState
+              className="my-6"
+              title={
+                search || merchantId || status || stockStatus
                   ? 'No placements match these filters'
-                  : 'No product placements yet'}
-              </h3>
-              <p className="mt-2 text-sm text-muted">
-                {search || merchantId || status || stockStatus
+                  : 'No product placements yet'
+              }
+              description={
+                search || merchantId || status || stockStatus
                   ? 'Try another search or filter.'
                   : canWrite
                     ? 'Place an active product here with a branch-specific price, then receive stock separately.'
-                    : 'Your merchant has no placements here. A branch assignment never grants access to another merchant’s stock. Ask an owner if access needs configuring.'}
-              </p>
-            </div>
+                    : 'Your merchant has no placements here. A branch assignment never grants access to another merchant’s stock. Ask an owner if access needs configuring.'
+              }
+            />
           ) : (
             <ul aria-label="Branch inventory" className="m-0 list-none p-0">
               <li

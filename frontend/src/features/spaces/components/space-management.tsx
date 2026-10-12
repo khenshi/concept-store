@@ -7,6 +7,8 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import type { AssociationScope } from '@/features/merchant-branches/api/merchant-branch-api';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
+import { EmptyState } from '@/shared/components/ui/empty-state';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { Icon } from '@/shared/components/ui/icon';
 import { listOccupancies, listSpaces, setSpaceStatus } from '../api/space-api';
@@ -43,42 +45,6 @@ function date(value: string) {
   return new Date(value).toLocaleString(undefined, {
     dateStyle: 'medium',
   });
-}
-function Pagination({
-  data,
-  pending,
-  onPage,
-}: {
-  data: { page: number; total: number; totalPages: number; hasNext: boolean };
-  pending: boolean;
-  onPage(page: number): void;
-}) {
-  return (
-    <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-muted">
-        {data.total} records · Page {data.page} of{' '}
-        {Math.max(1, data.totalPages)}
-      </p>
-      <div className="flex gap-2">
-        <button
-          className={quiet}
-          type="button"
-          disabled={pending || data.page <= 1}
-          onClick={() => onPage(data.page - 1)}
-        >
-          Previous spaces
-        </button>
-        <button
-          className={quiet}
-          type="button"
-          disabled={pending || !data.hasNext}
-          onClick={() => onPage(data.page + 1)}
-        >
-          Next spaces
-        </button>
-      </div>
-    </div>
-  );
 }
 function OccupancyRows({
   rows,
@@ -576,20 +542,42 @@ function ScopedSpaces(
           />
         </div>
       )}
-      {data && !data.items.length && (
-        <p className="mt-5 text-sm text-muted">
-          {scope.kind === 'merchant'
-            ? view === 'CURRENT'
-              ? 'This merchant has no current space assignments.'
-              : 'This merchant has no past occupancy records.'
-            : q || type || status || occupancy
-              ? 'No spaces match these filters.'
+      {data && !data.items.length ? (
+        <EmptyState
+          className="mt-5"
+          title={
+            scope.kind === 'merchant'
+              ? view === 'CURRENT'
+                ? 'This merchant has no current space assignments.'
+                : 'This merchant has no past occupancy records.'
+              : q || type || status || occupancy
+                ? 'No spaces match these filters.'
+                : own
+                  ? 'You have no space assignments in this branch.'
+                  : 'No spaces are configured in this branch.'
+          }
+          description={
+            scope.kind === 'merchant' || q || type || status || occupancy
+              ? undefined
               : own
-                ? 'You have no space assignments in this branch.'
-                : 'No spaces are configured in this branch. Add spaces when you want to track occupancy.'}
-        </p>
-      )}
-      {data && <Pagination data={data} pending={pending} onPage={setPage} />}
+                ? undefined
+                : 'Add spaces when you want to track occupancy.'
+          }
+        />
+      ) : null}
+      {data ? (
+        <PaginationControls
+          className="mt-5 border-t-0 px-0 py-0"
+          ariaLabel="Spaces pagination"
+          currentPage={data.page}
+          totalPages={data.totalPages}
+          pending={pending}
+          hasNext={data.hasNext}
+          summary={`${data.total} records`}
+          onPrevious={() => setPage(data.page - 1)}
+          onNext={() => setPage(data.page + 1)}
+        />
+      ) : null}
       {edit && owner && (
         <SpaceForm
           onStateChange={setFormState}

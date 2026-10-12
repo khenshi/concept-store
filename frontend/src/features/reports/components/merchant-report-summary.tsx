@@ -1,4 +1,5 @@
 import type { MerchantSalesReport } from '../model/report.schemas';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 
 export function MerchantReportSummary({
   report,
@@ -8,11 +9,11 @@ export function MerchantReportSummary({
   return (
     <>
       {report.ownTransactionCount === '0' && report.ownRefundCount === '0' ? (
-        <p role="status" className="mt-5 text-sm text-muted">
-          No recorded own-item sales in this branch for the applied period. This
-          can also occur without a linked merchant profile; ask an owner to
-          check your link.
-        </p>
+        <EmptyState
+          className="mt-5"
+          title="No recorded own-item sales in this branch for the applied period."
+          description="This can also occur without a linked merchant profile; ask an owner to check your link."
+        />
       ) : null}
       <dl
         aria-label="Own-sales summary"

@@ -6,6 +6,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { BackLink } from '@/shared/components/ui/back-link';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   OperationalPage,
@@ -106,11 +107,11 @@ function ScopedMerchantSalesBranches({
         ) : branches === null ? (
           <ListSkeleton className="p-6" label="Loading your selling branches" />
         ) : !branches.length ? (
-          <p className="p-6 text-sm text-muted">
-            No sales involving your linked business yet. If you are not linked
-            to a merchant profile, ask an owner to configure your merchant
-            access.
-          </p>
+          <EmptyState
+            className="m-6"
+            title="No sales involving your linked business yet."
+            description="If you are not linked to a merchant profile, ask an owner to configure your merchant access."
+          />
         ) : (
           <ul className="m-0 list-none p-0">
             <li className="data-column-header hidden grid-cols-[minmax(0,1.4fr)_minmax(10rem,auto)] gap-x-6 gap-y-3 sm:grid">

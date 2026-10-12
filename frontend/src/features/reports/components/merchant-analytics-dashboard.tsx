@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import type {
   ReportRankingControls,
@@ -27,6 +28,7 @@ function MerchantDailyData({
   const page = pageState.rows === rows ? pageState.page : 1;
   const pageRows = rows.slice((page - 1) * 10, page * 10);
   const hasNext = page * 10 < rows.length;
+  const totalPages = Math.max(1, Math.ceil(rows.length / 10));
   return (
     <section
       className="data-surface"
@@ -41,74 +43,72 @@ function MerchantDailyData({
           Exact own daily sales analytics in Asia/Manila.
         </p>
       </header>
-      <div className="overflow-x-auto">
-        <table className="data-table w-full min-w-[50rem] border-collapse text-left text-sm">
-          <caption className="sr-only">
-            Daily own-sales data in Asia/Manila
-          </caption>
-          <thead className="text-xs uppercase tracking-[0.08em] text-muted">
-            <tr>
-              {[
-                'Date',
-                'Own gross',
-                'Transactions with own items',
-                'Own units sold',
-                'Own refunded',
-                'Matching refunds',
-                'Own returned units',
-                'Own net recorded',
-              ].map((value) => (
-                <th key={value} scope="col">
-                  {value}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {pageRows.map((row) => (
-              <tr key={row.date}>
-                <th scope="row" className="px-4 py-3 font-medium">
-                  {row.date}
-                </th>
+      {pageRows.length ? (
+        <div className="overflow-x-auto">
+          <table className="data-table w-full min-w-[50rem] border-collapse text-left text-sm">
+            <caption className="sr-only">
+              Daily own-sales data in Asia/Manila
+            </caption>
+            <thead className="text-xs uppercase tracking-[0.08em] text-muted">
+              <tr>
                 {[
-                  money(row.ownGrossSales),
-                  row.ownTransactionCount,
-                  row.ownUnitsSold,
-                  money(row.ownRefundedAmount),
-                  row.ownRefundCount,
-                  row.ownReturnedUnits,
-                  money(row.ownNetRecordedSales),
-                ].map((value, index) => (
-                  <td key={index} className="px-4 py-3 tabular-nums">
+                  'Date',
+                  'Own gross',
+                  'Transactions with own items',
+                  'Own units sold',
+                  'Own refunded',
+                  'Matching refunds',
+                  'Own returned units',
+                  'Own net recorded',
+                ].map((value) => (
+                  <th key={value} scope="col">
                     {value}
-                  </td>
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
-        <p className="text-sm text-muted">Page {page}</p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'quiet' })}
-            disabled={page === 1}
-            onClick={() => setPageState({ rows, page: Math.max(1, page - 1) })}
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'secondary' })}
-            disabled={!hasNext}
-            onClick={() => setPageState({ rows, page: page + 1 })}
-          >
-            Next
-          </button>
+            </thead>
+            <tbody>
+              {pageRows.map((row) => (
+                <tr key={row.date}>
+                  <th scope="row" className="px-4 py-3 font-medium">
+                    {row.date}
+                  </th>
+                  {[
+                    money(row.ownGrossSales),
+                    row.ownTransactionCount,
+                    row.ownUnitsSold,
+                    money(row.ownRefundedAmount),
+                    row.ownRefundCount,
+                    row.ownReturnedUnits,
+                    money(row.ownNetRecordedSales),
+                  ].map((value, index) => (
+                    <td key={index} className="px-4 py-3 tabular-nums">
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      ) : (
+        <EmptyState
+          className="mx-5 my-6 sm:mx-6"
+          title="No daily sales data for this period."
+          description="Try a different report date range."
+        />
+      )}
+      {rows.length ? (
+        <PaginationControls
+          ariaLabel="Daily sales pagination"
+          currentPage={page}
+          totalPages={totalPages}
+          hasNext={hasNext}
+          summary={`${rows.length} days`}
+          onPrevious={() => setPageState({ rows, page: Math.max(1, page - 1) })}
+          onNext={() => setPageState({ rows, page: page + 1 })}
+        />
+      ) : null}
     </section>
   );
 }
@@ -277,36 +277,22 @@ function MerchantRankings({
           </table>
         </div>
       ) : (
-        <p role="status" className="px-5 py-6 text-sm text-muted sm:px-6">
-          No own products contributed sales or refunds in this period. In an
-          assigned branch, a missing merchant-profile link can also result in
-          zeros.
-        </p>
+        <EmptyState
+          className="mx-5 my-6 sm:mx-6"
+          title="No own products contributed sales or refunds in this period."
+          description="In an assigned branch, a missing merchant-profile link can also result in zeros."
+        />
       )}
       {page && page.totalProducts !== '0' ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
-          <p className="text-sm text-muted">
-            Page {page.page} · {page.totalProducts} total products
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'quiet' })}
-              disabled={loading || page.page === 1}
-              onClick={() => onPageChange(page.page - 1)}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'secondary' })}
-              disabled={loading || !page.hasNext}
-              onClick={() => onPageChange(page.page + 1)}
-            >
-              {loading ? 'Loading…' : 'Next'}
-            </button>
-          </div>
-        </div>
+        <PaginationControls
+          ariaLabel="Product rankings pagination"
+          currentPage={page.page}
+          hasNext={page.hasNext}
+          pending={loading}
+          summary={`${page.totalProducts} total products`}
+          onPrevious={() => onPageChange(page.page - 1)}
+          onNext={() => onPageChange(page.page + 1)}
+        />
       ) : null}
     </section>
   );

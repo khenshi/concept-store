@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { BackLink } from '@/shared/components/ui/back-link';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   OperationalPage,
@@ -12,6 +13,7 @@ import {
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import { TextField } from '@/shared/components/ui/text-field';
@@ -113,7 +115,11 @@ function HistoryList({ data }: { data: OccupancyPage }) {
           ))}
         </ol>
       ) : (
-        <p className="py-4 text-sm text-muted">No occupancy history yet.</p>
+        <EmptyState
+          className="my-4"
+          title="No occupancy history yet."
+          description="Completed occupancy periods will appear here."
+        />
       )}
     </div>
   );
@@ -544,30 +550,17 @@ function ScopedSpaceDetail({
               </p>
             </div>
             <HistoryList data={history} />
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 pt-4 pb-1 sm:px-5">
-              <p className="text-sm text-muted">
-                {history.total} records · Page {history.page} of{' '}
-                {Math.max(1, history.totalPages)}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={quiet}
-                  disabled={historyPage <= 1 || pending}
-                  onClick={() => setHistoryPage((value) => value - 1)}
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  className={quiet}
-                  disabled={!history.hasNext || pending}
-                  onClick={() => setHistoryPage((value) => value + 1)}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <PaginationControls
+              className="border-t-0 px-4 pt-4 pb-1 sm:px-5"
+              ariaLabel="Occupancy history pagination"
+              currentPage={history.page}
+              totalPages={history.totalPages}
+              pending={pending}
+              hasNext={history.hasNext}
+              summary={`${history.total} records`}
+              onPrevious={() => setHistoryPage((value) => value - 1)}
+              onNext={() => setHistoryPage((value) => value + 1)}
+            />
           </div>
         </OperationalPanel>
       </div>

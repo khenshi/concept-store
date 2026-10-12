@@ -2,6 +2,7 @@
 
 import type { FormEvent, RefObject } from 'react';
 import { Button } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -135,11 +136,17 @@ export function PosProductBrowser({
             onRetry={onCatalogRetry}
           />
         ) : !products.length ? (
-          <p className="py-5 text-sm text-muted">
-            {search.trim()
-              ? 'No matching products. Try another search or scan a code.'
-              : 'No active products are placed in this branch.'}
-          </p>
+          <EmptyState
+            className="my-4"
+            title={
+              search.trim()
+                ? 'No matching products.'
+                : 'No active products are placed in this branch.'
+            }
+            description={
+              search.trim() ? 'Try another search or scan a code.' : undefined
+            }
+          />
         ) : (
           <ul aria-label="Product results" className="divide-y divide-hairline">
             {products.map((product) => (

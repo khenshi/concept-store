@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import type {
@@ -139,15 +140,16 @@ function TrendChart({
       : `${own ? 'Own net recorded sales' : 'Net recorded sales'}`;
   if (!hasValues) {
     return (
-      <section className="bg-surface px-5 py-4 sm:px-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-semibold">{title}</h2>
-          <p role="status" className="text-sm text-muted">
-            {kind === 'activity'
+      <section className="bg-surface">
+        <EmptyState
+          className="m-4"
+          title={title}
+          description={
+            kind === 'activity'
               ? 'No sales or refunds in this period.'
-              : 'No net sales in this period.'}
-          </p>
-        </div>
+              : 'No net sales in this period.'
+          }
+        />
       </section>
     );
   }
@@ -409,12 +411,11 @@ function SelectableStaffTrendChart({
           </div>
         </div>
       ) : (
-        <p
-          role="status"
-          className="border-t border-hairline px-5 py-4 text-sm text-muted sm:px-6"
-        >
-          {selectedMetric.emptyMessage}
-        </p>
+        <EmptyState
+          className="m-5"
+          title={`No ${selectedMetric.label.toLocaleLowerCase()} data.`}
+          description={selectedMetric.emptyMessage}
+        />
       )}
       <ol
         aria-label={`${selectedMetric.label} exact ${isHourly ? 'hourly' : 'daily'} values`}
@@ -516,12 +517,11 @@ function AverageWeekdayChart({ rows }: { rows: AnalyticsTrendRow[] }) {
           </ol>
         </>
       ) : (
-        <div className="flex flex-col items-baseline justify-between gap-2 px-5 py-4 sm:px-6">
-          <h2 className="font-semibold">Average sales by weekday</h2>
-          <p role="status" className="text-sm text-muted">
-            No weekday sales to compare in this period.
-          </p>
-        </div>
+        <EmptyState
+          className="m-5"
+          title="Average sales by weekday"
+          description="No weekday sales to compare in this period."
+        />
       )}
     </section>
   );
@@ -593,12 +593,7 @@ function HorizontalSalesBars({
           </ol>
         </>
       ) : (
-        <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4 sm:px-6">
-          <h2 className="font-semibold">{title}</h2>
-          <p role="status" className="text-sm text-muted">
-            {emptyMessage}
-          </p>
-        </div>
+        <EmptyState className="m-5" title={title} description={emptyMessage} />
       )}
     </section>
   );
@@ -654,12 +649,7 @@ function PaymentMethodDonut({
   return (
     <section className="data-surface min-w-0">
       {total === BigInt(0) ? (
-        <div className="flex flex-wrap items-baseline justify-between gap-2 px-5 py-4 sm:px-6">
-          <h2 className="font-semibold">{title}</h2>
-          <p role="status" className="text-sm text-muted">
-            {emptyMessage}
-          </p>
-        </div>
+        <EmptyState className="m-5" title={title} description={emptyMessage} />
       ) : (
         <>
           <header className="border-b border-hairline px-5 py-5 sm:px-6">
@@ -736,6 +726,7 @@ function StaffDailyData({
   const page = pageState.rows === rows ? pageState.page : 1;
   const pageRows = rows.slice((page - 1) * 10, page * 10);
   const hasNext = page * 10 < rows.length;
+  const totalPages = Math.max(1, Math.ceil(rows.length / 10));
   return (
     <section
       className="data-surface"
@@ -750,72 +741,72 @@ function StaffDailyData({
           Exact daily sales analytics in Asia/Manila.
         </p>
       </header>
-      <div className="overflow-x-auto">
-        <table className="data-table w-full min-w-[50rem] border-collapse text-left text-sm">
-          <caption className="sr-only">Daily sales data in Asia/Manila</caption>
-          <thead className="text-xs uppercase tracking-[0.08em] text-muted">
-            <tr>
-              {[
-                'Date',
-                'Gross sales',
-                'Transactions',
-                'Units sold',
-                'Refunded',
-                'Refunds',
-                'Returned units',
-                'Net recorded sales',
-              ].map((value) => (
-                <th key={value} scope="col">
-                  {value}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {pageRows.map((row) => (
-              <tr key={row.date}>
-                <th scope="row" className="px-4 py-3 font-medium">
-                  {row.date}
-                </th>
+      {pageRows.length ? (
+        <div className="overflow-x-auto">
+          <table className="data-table w-full min-w-[50rem] border-collapse text-left text-sm">
+            <caption className="sr-only">
+              Daily sales data in Asia/Manila
+            </caption>
+            <thead className="text-xs uppercase tracking-[0.08em] text-muted">
+              <tr>
                 {[
-                  money(row.grossSales),
-                  row.transactionCount,
-                  row.unitsSold,
-                  money(row.refundedAmount),
-                  row.refundCount,
-                  row.returnedUnits,
-                  money(row.netRecordedSales),
-                ].map((value, index) => (
-                  <td key={index} className="px-4 py-3 tabular-nums">
+                  'Date',
+                  'Gross sales',
+                  'Transactions',
+                  'Units sold',
+                  'Refunded',
+                  'Refunds',
+                  'Returned units',
+                  'Net recorded sales',
+                ].map((value) => (
+                  <th key={value} scope="col">
                     {value}
-                  </td>
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
-        <p className="text-sm text-muted">Page {page}</p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'quiet' })}
-            disabled={page === 1}
-            onClick={() => setPageState({ rows, page: Math.max(1, page - 1) })}
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'secondary' })}
-            disabled={!hasNext}
-            onClick={() => setPageState({ rows, page: page + 1 })}
-          >
-            Next
-          </button>
+            </thead>
+            <tbody>
+              {pageRows.map((row) => (
+                <tr key={row.date}>
+                  <th scope="row" className="px-4 py-3 font-medium">
+                    {row.date}
+                  </th>
+                  {[
+                    money(row.grossSales),
+                    row.transactionCount,
+                    row.unitsSold,
+                    money(row.refundedAmount),
+                    row.refundCount,
+                    row.returnedUnits,
+                    money(row.netRecordedSales),
+                  ].map((value, index) => (
+                    <td key={index} className="px-4 py-3 tabular-nums">
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      ) : (
+        <EmptyState
+          className="mx-5 my-6 sm:mx-6"
+          title="No daily sales data for this period."
+          description="Try a different report date range."
+        />
+      )}
+      {rows.length ? (
+        <PaginationControls
+          ariaLabel="Daily sales pagination"
+          currentPage={page}
+          totalPages={totalPages}
+          hasNext={hasNext}
+          summary={`${rows.length} days`}
+          onPrevious={() => setPageState({ rows, page: Math.max(1, page - 1) })}
+          onNext={() => setPageState({ rows, page: page + 1 })}
+        />
+      ) : null}
     </section>
   );
 }
@@ -874,6 +865,10 @@ export function RankingControls({
           ))}
         </SelectControl>
       </label>
+      <span className="sr-only">
+        Sorted by{' '}
+        {sortOptions.find((option) => option.value === controls.sortBy)?.label}
+      </span>
       {showMerchantFilter ? (
         <div className="w-48 text-xs font-medium text-muted">
           <label className="block" htmlFor="sales-report-ranking-merchant">
@@ -1109,34 +1104,21 @@ function StaffRankings({
           </table>
         </div>
       ) : (
-        <p role="status" className="px-5 py-6 text-sm text-muted sm:px-6">
-          No products contributed sales or refunds in this period.
-        </p>
+        <EmptyState
+          className="mx-5 my-6 sm:mx-6"
+          title="No products contributed sales or refunds in this period."
+        />
       )}
       {page && page.totalProducts !== '0' ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
-          <p className="text-sm text-muted">
-            Page {page.page} · {page.totalProducts} total products
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'quiet' })}
-              disabled={loading || page.page === 1}
-              onClick={() => onPageChange(page.page - 1)}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'secondary' })}
-              disabled={loading || !page.hasNext}
-              onClick={() => onPageChange(page.page + 1)}
-            >
-              {loading ? 'Loading…' : 'Next'}
-            </button>
-          </div>
-        </div>
+        <PaginationControls
+          ariaLabel="Product rankings pagination"
+          currentPage={page.page}
+          hasNext={page.hasNext}
+          pending={loading}
+          summary={`${page.totalProducts} total products`}
+          onPrevious={() => onPageChange(page.page - 1)}
+          onNext={() => onPageChange(page.page + 1)}
+        />
       ) : null}
     </section>
   );

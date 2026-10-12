@@ -12,7 +12,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BackLink } from '@/shared/components/ui/back-link';
-import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
@@ -21,6 +21,7 @@ import {
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import {
   getInventory,
@@ -643,10 +644,11 @@ function ScopedInventoryDetail({
         }
       >
         {!movements.length ? (
-          <p className="p-6 text-sm text-muted">
-            No stock movements yet. New placements start at zero without an
-            opening movement.
-          </p>
+          <EmptyState
+            className="m-6"
+            title="No stock movements yet."
+            description="New placements start at zero without an opening movement."
+          />
         ) : (
           <>
             <ol
@@ -716,37 +718,24 @@ function ScopedInventoryDetail({
                 onRetry={() => void loadMovementPage(movementPageRetry)}
               />
             ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-4 py-4 sm:px-6">
-              <p className="text-sm text-muted">Page {movementPageIndex + 1}</p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className={buttonStyles({ variant: 'quiet' })}
-                  disabled={movementPageLoading || movementPageIndex === 0}
-                  onClick={() =>
-                    void loadMovementPage({
-                      index: movementPageIndex - 1,
-                      cursor: movementPageCursors[movementPageIndex - 1],
-                    })
-                  }
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  className={buttonStyles({ variant: 'secondary' })}
-                  disabled={movementPageLoading || !nextMovementCursor}
-                  onClick={() =>
-                    void loadMovementPage({
-                      index: movementPageIndex + 1,
-                      cursor: nextMovementCursor ?? undefined,
-                    })
-                  }
-                >
-                  {movementPageLoading ? 'Loading…' : 'Next'}
-                </button>
-              </div>
-            </div>
+            <PaginationControls
+              ariaLabel="Inventory movement pagination"
+              currentPage={movementPageIndex + 1}
+              hasNext={Boolean(nextMovementCursor)}
+              pending={movementPageLoading}
+              onPrevious={() =>
+                void loadMovementPage({
+                  index: movementPageIndex - 1,
+                  cursor: movementPageCursors[movementPageIndex - 1],
+                })
+              }
+              onNext={() =>
+                void loadMovementPage({
+                  index: movementPageIndex + 1,
+                  cursor: nextMovementCursor ?? undefined,
+                })
+              }
+            />
           </>
         )}
       </OperationalPanel>

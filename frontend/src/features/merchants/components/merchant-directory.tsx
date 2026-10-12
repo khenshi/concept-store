@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -212,20 +213,21 @@ function ScopedMerchantDirectory({
             title="Merchants unavailable"
           />
         ) : merchants.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <h3 className="font-bold">
-              {search || status
+          <EmptyState
+            className="mx-6 my-6"
+            title={
+              search || status
                 ? 'No merchants match these filters'
-                : 'No merchants yet'}
-            </h3>
-            <p className="mx-auto mt-2 max-w-md text-muted">
-              {search || status
+                : 'No merchants yet'
+            }
+            description={
+              search || status
                 ? 'Try a different search or lifecycle status.'
                 : canEdit
                   ? 'Add the first merchant business profile for this organization.'
-                  : 'No merchant profiles are available to your access. Ask an owner to configure your merchant link or branch placements.'}
-            </p>
-          </div>
+                  : 'No merchant profiles are available to your access. Ask an owner to configure your merchant link or branch placements.'
+            }
+          />
         ) : (
           <ul aria-label="Merchant directory" className="m-0 list-none p-0">
             <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)] gap-x-6 gap-y-3 sm:grid">

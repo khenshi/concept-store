@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { InputControl } from '@/shared/components/ui/input-control';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import type {
@@ -86,7 +88,7 @@ export function TransactionsTab({
       aria-labelledby="sales-report-tab-transactions"
       tabIndex={0}
     >
-      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <header className="grid gap-4 border-b border-hairline py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div>
           <h2 className="font-semibold">
             {merchant ? 'Your transaction history' : 'Transaction history'}
@@ -198,44 +200,31 @@ export function TransactionsTab({
               </tbody>
             </table>
           </div>
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-5 py-4 sm:px-6">
-            <p className="text-sm text-muted">
-              Page {page.page} of {Math.max(1, page.totalPages)} · {page.total}{' '}
-              {page.total === 1 ? 'transaction' : 'transactions'}
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'quiet' })}
-                disabled={loading || page.page <= 1}
-                onClick={() => onPageChange(page.page - 1)}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'secondary' })}
-                disabled={loading || page.page >= page.totalPages}
-                onClick={() => onPageChange(page.page + 1)}
-              >
-                {loading ? 'Loading…' : 'Next'}
-              </button>
-            </div>
-          </footer>
+          <PaginationControls
+            ariaLabel="Transactions pagination"
+            currentPage={page.page}
+            totalPages={page.totalPages}
+            pending={loading}
+            hasNext={page.page < page.totalPages}
+            summary={`${page.total} ${page.total === 1 ? 'transaction' : 'transactions'}`}
+            onPrevious={() => onPageChange(page.page - 1)}
+            onNext={() => onPageChange(page.page + 1)}
+          />
         </>
       ) : (
-        <div className="px-5 py-12 text-center sm:px-6">
-          <h3 className="font-semibold text-ink">
-            {search || filterType !== 'ALL'
+        <EmptyState
+          className="mx-5 my-6 sm:mx-6"
+          title={
+            search || filterType !== 'ALL'
               ? 'No transactions match these filters.'
-              : 'No completed transactions yet.'}
-          </h3>
-          <p className="mt-2 text-sm text-muted">
-            {search || filterType !== 'ALL'
+              : 'No completed transactions yet.'
+          }
+          description={
+            search || filterType !== 'ALL'
               ? 'Try another code or show all transaction types.'
-              : 'Completed sales and refunds will appear here for the selected period.'}
-          </p>
-        </div>
+              : 'Completed sales and refunds will appear here for the selected period.'
+          }
+        />
       )}
     </section>
   );
