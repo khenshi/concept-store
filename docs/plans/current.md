@@ -247,3 +247,24 @@ This slice does not add account capabilities, change backend contracts, change
 theme palettes, alter the global workspace shell, or redesign unrelated pages.
 Stop after the Account Settings components, focused tests, frontend validation,
 module documentation and bounded rendered desktop/mobile review are complete.
+
+## Branches table status and action alignment
+
+**Status:** Implemented locally October 12, 2026; focused validation is complete.
+
+### Goal
+
+Improve scanability and visual grouping in the existing staff Branches directory
+without changing branch data, actions, authorization, or responsive behavior.
+
+### Scope and stop condition
+
+- Render the existing Active/Inactive status as a compact pill.
+- Align the existing View action beneath the Actions column label.
+- Use the Settings page's warm gray canvas and flat bordered white card treatment
+  for the Branches page frame, summary and directory surfaces.
+- Preserve all routes, requests, permissions, table columns, and narrow-screen
+  stacking behavior.
+
+Stop after the focused Branches workflow tests, frontend validation and module
+documentation are updated.

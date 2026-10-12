@@ -105,13 +105,14 @@ assigned managers may change branch status; cashiers may read it but cannot
 change it. The original branch list and merchant identity-only projection
 remain available to branch selectors and merchant workflows.
 
-The staff directory keeps the page header, then presents a compact horizontal
-summary row, search/status controls with clear filters, and one flat, open data
-surface. Its rows use the Inventory directory's shared column-header and
-data-row geometry: quiet hairline dividers, the same wide-screen column rhythm,
-stacked narrow-screen content, and compact quiet View actions. Rows show branch
-name/code, city and short address, merchant count, semantic Active/Inactive text,
-and a View action. The footer reports the current range such as
+The staff directory keeps the page header on a warm gray canvas, then presents a
+compact summary card and a separate flat white Store locations card. Search/status
+controls, loading states and table rows remain inside the Store locations card.
+Its rows use the Inventory directory's shared column-header and data-row geometry:
+quiet hairline dividers, the same wide-screen column rhythm, stacked narrow-screen
+content, and compact quiet View actions. Rows show branch name/code, city and
+short address, merchant count, semantic Active/Inactive pill statuses, and a View
+action aligned beneath the Actions column label. The footer reports the current range such as
 `Showing 1–10 of 24` with previous/next pagination. Search and status changes
 reset to page one. Empty, filtered-empty, loading, and request-error states
 remain distinct. Owners alone can add branches; managers can edit assigned
