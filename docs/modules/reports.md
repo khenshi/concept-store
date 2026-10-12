@@ -260,6 +260,12 @@ points, while the accessible list retains every hour. The Payment Method donut s
 with exact amounts and transaction counts. Manual GCash/card remain unverified.
 Merchants use their separate own-only analytics response and view described below.
 
+Reports now use the shared warm-neutral page frame with a wide centered layout.
+Report-period controls, summaries, charts, rankings, and transaction tables use
+rounded bordered white surfaces while the sticky context bar remains the
+navigation anchor. Report calculations, role-aware projections, filters, and
+read-only access behavior are unchanged.
+
 BigInt performs unlimited accounting arithmetic; SVG coordinates use only bounded
 integer ratios, never direct unlimited-money Number conversion. The Daily Data
 tab retains all exact daily values in a paginated semantic table.

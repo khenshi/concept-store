@@ -45,6 +45,12 @@ Branch details contain an optional Spaces section with search, catalog type/stat
 
 Managers and merchants receive read-only lists/history, and cashiers receive no section or requests. Lists use flat responsive operational rows and existing native dialogs, with responsive loading skeletons that mirror the filters and row geometry, local loading/error/empty/success feedback, repeat-submit protection, retry controls, and obsolete-read protection. Participation and lifecycle confirmation dialogs load an advisory current occupancy count and explain automatic release before confirmation; failed count reads prevent the status command. The backend rechecks actual occupancy transactionally. Successful status/participation changes refresh the Spaces section.
 
+Spaces workspace and detail routes now use the shared gray canvas with wide
+centered content. Space lists, type management, overview, actions, and occupancy
+history are grouped into rounded white panels with responsive stacking; branch
+selection, dirty-form guards, status controls, and role-aware data behavior are
+unchanged.
+
 ## Migration and deployment
 
 `20261009010000_add_space_occupancy` adds empty tables, enums, scoped foreign keys, indexes, and constraints. `20261011010000_remove_space_occupancy_recording_timestamps` removes the occupancy-only record-creation/update columns; it preserves occupancy interval dates and release metadata. These migrations create no spaces and backfill no occupancy from inventory or sales. Apply them before deploying the matching API/frontend. Earlier pending branch/merchant-affiliation migrations retain their documented rollout requirements; these migrations do not replace them. Production migration/deployment has not been performed.

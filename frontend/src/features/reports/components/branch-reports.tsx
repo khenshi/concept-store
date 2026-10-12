@@ -7,9 +7,9 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import { listMerchants } from '@/features/merchants/api/merchant-api';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import { OperationalPage } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import {
   getStaffSalesAnalytics,
   getMerchantSalesAnalytics,
@@ -455,7 +455,7 @@ function ScopedBranchReports({
   }
   const validDraft = reportDateRangeSchema.safeParse(draft).success;
   return (
-    <OperationalPage>
+    <OrganizationPageFrame wide>
       <PageHeader
         title={merchant ? 'Own-sales reports' : 'Sales reports'}
         description={
@@ -493,9 +493,9 @@ function ScopedBranchReports({
       {merchant ? <MerchantReportGuidance /> : null}
       <section
         aria-labelledby="report-period-heading"
-        className="my-3 bg-surface text-ink"
+        className="mt-5 rounded-panel border border-hairline bg-surface px-5 py-5 text-ink sm:px-6"
       >
-        <div className="grid gap-5 py-5 sm:py-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           <div className="min-w-0">
             <h2
               id="report-period-heading"
@@ -646,6 +646,6 @@ function ScopedBranchReports({
           Refresh access
         </button>
       ) : null}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

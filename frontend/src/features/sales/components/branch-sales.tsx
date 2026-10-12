@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
@@ -11,10 +11,7 @@ import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { TextField } from '@/shared/components/ui/text-field';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import {
-  OperationalPage,
-  OperationalPanel,
-} from '@/shared/components/ui/operational-page';
+import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -30,6 +27,21 @@ import {
 import { salesDateRangeSchema, salesUtcRange } from '../model/sales-date-range';
 import { SalesAccess } from './sales-access';
 import { SalesBranchSelector } from './sales-branch-selector';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
+
+function SalesPageFrame({
+  embedded,
+  children,
+}: {
+  embedded: boolean;
+  children: ReactNode;
+}) {
+  return embedded ? (
+    children
+  ) : (
+    <OrganizationPageFrame wide>{children}</OrganizationPageFrame>
+  );
+}
 
 export function BranchSales(
   props: PosScope & { embedded?: boolean; active?: boolean },
@@ -202,7 +214,7 @@ function StaffBranchSales({
     'lg:grid-cols-[minmax(0,1.1fr)_minmax(9rem,0.9fr)_minmax(10rem,1fr)_minmax(9rem,0.8fr)_minmax(8rem,0.7fr)_minmax(9rem,auto)]';
 
   return (
-    <OperationalPage>
+    <SalesPageFrame embedded={embedded}>
       {!embedded ? (
         <>
           <BackLink
@@ -221,8 +233,7 @@ function StaffBranchSales({
         </>
       ) : null}
       <OperationalPanel
-        variant="open"
-        className="data-surface"
+        className="mt-0"
         title="Sales history"
         description={`${role === 'CASHIER' ? 'Your completed sales in this assigned branch. ' : ''}Newest completion first. Amounts and names are saved transaction snapshots.`}
         action={
@@ -267,6 +278,7 @@ function StaffBranchSales({
                     );
                   }}
                   placeholder="Search receipt code"
+                  aria-label="Search receipt code"
                   className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:border-focus"
                 />
               </div>
@@ -490,7 +502,7 @@ function StaffBranchSales({
           />
         ) : null}
       </OperationalPanel>
-    </OperationalPage>
+    </SalesPageFrame>
   );
 }
 
@@ -557,7 +569,7 @@ function MerchantBranchSales({
   const branchName =
     result?.kind === 'merchant' ? result.page.items[0]?.branchName : undefined;
   return (
-    <OperationalPage>
+    <SalesPageFrame embedded={embedded}>
       {!embedded ? (
         <>
           <BackLink href={`/app/organizations/${organizationId}/sales`}>
@@ -576,8 +588,7 @@ function MerchantBranchSales({
         </>
       ) : null}
       <OperationalPanel
-        variant="open"
-        className="data-surface"
+        className="mt-0"
         title={branchName ?? 'Own sales'}
         description="Newest completion first. Amounts and names are saved transaction snapshots."
         action={
@@ -713,7 +724,7 @@ function MerchantBranchSales({
           />
         ) : null}
       </OperationalPanel>
-    </OperationalPage>
+    </SalesPageFrame>
   );
 }
 

@@ -8,14 +8,12 @@ import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import {
-  OperationalPage,
-  OperationalPanel,
-} from '@/shared/components/ui/operational-page';
+import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { listSellingBranches } from '../api/sales-api';
 import { SalesAccess } from './sales-access';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 
 export function MerchantSalesBranches({
   organizationId,
@@ -31,14 +29,14 @@ export function MerchantSalesBranches({
             organizationId={organizationId}
           />
         ) : (
-          <OperationalPage>
+          <OrganizationPageFrame>
             <p>
               Open an accessible branch to view sales permitted by your role.
             </p>
             <BackLink href={`/app/organizations/${organizationId}/branches`}>
               Choose a branch
             </BackLink>
-          </OperationalPage>
+          </OrganizationPageFrame>
         )
       }
     </SalesAccess>
@@ -79,14 +77,13 @@ function ScopedMerchantSalesBranches({
     };
   }, [request, organizationId, revision]);
   return (
-    <OperationalPage>
+    <OrganizationPageFrame>
       <PageHeader
         title="Your sales"
         description="Read only sales involving your linked merchant business. Historical selling branches remain available even if products are no longer placed there."
       />
       <OperationalPanel
-        variant="open"
-        className="data-surface"
+        className="mt-0"
         title="Selling branches"
         description="Only branches with your own historical sale items. No other-merchant sales or branch addresses."
         action={
@@ -149,6 +146,6 @@ function ScopedMerchantSalesBranches({
       >
         Refresh access
       </Button>
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

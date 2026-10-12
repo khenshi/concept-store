@@ -8,10 +8,10 @@ import { BackLink } from '@/shared/components/ui/back-link';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
-  OperationalPage,
   OperationalPanel,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -318,17 +318,17 @@ function ScopedSpaceDetail({
 
   if (organizationStatus === 'loading')
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <ListSkeleton label="Loading space" />
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (!allowed)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <p role="alert" className="mt-8">
           Your organization role cannot view this space.
         </p>
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
 
   const back = (
@@ -364,7 +364,7 @@ function ScopedSpaceDetail({
   );
   if (loading)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <div className="mb-4">{back}</div>
         <PageHeader
           title="Loading space"
@@ -372,11 +372,11 @@ function ScopedSpaceDetail({
           action={branchSelector}
         />
         <SpaceDetailSkeleton />
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (error || !space || !history)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <div className="mb-4">{back}</div>
         <PageHeader
           title={space?.name ?? 'Space unavailable'}
@@ -387,12 +387,12 @@ function ScopedSpaceDetail({
           message={error ?? 'Space unavailable.'}
           onRetry={reload}
         />
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
 
   const spaceItem: SpaceListItem = { ...space, currentOccupancy: current };
   return (
-    <OperationalPage>
+    <OrganizationPageFrame wide>
       <div className="mb-4">{back}</div>
       <PageHeader
         eyebrow={branchName ? `Spaces / ${branchName}` : 'Space detail'}
@@ -404,7 +404,6 @@ function ScopedSpaceDetail({
       <div className="mt-7 grid min-w-0 gap-7">
         <div className="grid min-w-0 gap-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
           <OperationalPanel
-            variant="open"
             className="!mt-0"
             title="Space overview"
             description="Current identity and availability for this branch space."
@@ -500,7 +499,6 @@ function ScopedSpaceDetail({
           </aside>
         </div>
         <OperationalPanel
-          variant="open"
           className="!mt-0"
           title="Occupancy history"
           description="Current and completed assignments recorded for this space."
@@ -600,6 +598,6 @@ function ScopedSpaceDetail({
         />
       ) : null}
       {confirmationDialog}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

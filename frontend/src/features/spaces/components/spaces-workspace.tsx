@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { OperationalPage } from '@/shared/components/ui/operational-page';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -25,7 +25,7 @@ export function SpacesWorkspace(props: {
   } = useOrganizationWorkspaceContext();
   if (!organization || organization.id !== props.organizationId)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         {organizationStatus === 'error' ? (
           <RequestError
             message={organizationError ?? 'Spaces access could not be loaded.'}
@@ -34,13 +34,13 @@ export function SpacesWorkspace(props: {
         ) : (
           <ListSkeleton label="Loading spaces access" />
         )}
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (organization.role === 'CASHIER')
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <p role="alert">Your organization role cannot view or manage spaces.</p>
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   return (
     <ScopedSpacesWorkspace
@@ -85,7 +85,7 @@ function ScopedSpacesWorkspace({
     return true;
   }
   return (
-    <OperationalPage>
+    <OrganizationPageFrame wide>
       <PageHeader
         className="pb-4"
         title="Spaces"
@@ -206,6 +206,6 @@ function ScopedSpacesWorkspace({
           />
         ) : null}
       </div>
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

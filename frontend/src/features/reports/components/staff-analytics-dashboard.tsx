@@ -45,7 +45,7 @@ export function ReportSummary({
   return (
     <section
       aria-labelledby="sales-summary-heading"
-      className="mt-1 px-4 border-b border-hairline pb-6"
+      className="data-surface mt-1 px-4 pb-6"
     >
       <dl
         aria-label={ariaLabel}
@@ -140,7 +140,7 @@ function TrendChart({
       : `${own ? 'Own net recorded sales' : 'Net recorded sales'}`;
   if (!hasValues) {
     return (
-      <section className="bg-surface">
+      <section className="data-surface">
         <EmptyState
           className="m-4"
           title={title}
@@ -169,7 +169,7 @@ function TrendChart({
       rows.findIndex((candidate) => candidate?.date === row.date) === index,
   );
   return (
-    <section className="bg-surface py-5 sm:py-6">
+    <section className="data-surface py-5 sm:py-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-semibold">{title}</h2>

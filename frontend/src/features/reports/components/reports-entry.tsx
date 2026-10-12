@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { OperationalPage } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { listReportBranches } from '../api/report-api';
 import type { ReportBranch } from '../model/report.schemas';
 import { ReportAccess } from './report-access';
@@ -98,7 +98,7 @@ function ScopedReportsEntry({
       navigate(selectedBranchId);
   });
   return (
-    <OperationalPage>
+    <OrganizationPageFrame>
       <PageHeader
         title="Reports"
         description={
@@ -152,6 +152,6 @@ function ScopedReportsEntry({
           Refresh access
         </button>
       ) : null}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

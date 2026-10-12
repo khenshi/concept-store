@@ -790,6 +790,11 @@ state; loading/error/empty states and read-only access refresh preserve isolatio
 The new September 13, 2026 waiver covers these POS/sales screens; automated checks
 do not certify rendered accessibility or printing.
 
+Sales history, receipt detail, and own-selling-branch pages now share the same
+warm-neutral canvas and centered wide frame used by inventory. Their collection
+and receipt surfaces are rounded and bordered, while embedded POS history remains
+inside the existing POS shell.
+
 Saved receipt detail uses a clear identity header, structured purchased-item rows,
 and a payment summary with the completed total visually separated from supporting
 payment metadata. Staff refund controls separate returnable quantities from
@@ -845,6 +850,11 @@ semantics.
 The Spaces section header keeps its title and description in one left-aligned
 block with the owner action button in the same horizontal row; it wraps the
 button below the copy on narrow screens.
+
+Spaces workspace and detail routes use the shared gray canvas, centered wide
+content, and rounded white panels for lists, types, overview, actions, and
+occupancy history. Existing branch selection, dirty-state protection, and role
+visibility are preserved.
 
 ### Spaces and Types tabs
 

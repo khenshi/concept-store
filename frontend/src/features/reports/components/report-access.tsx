@@ -2,8 +2,8 @@
 import type { ReactNode } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import { OperationalPage } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
 
 export function ReportAccess({
@@ -26,7 +26,7 @@ export function ReportAccess({
     organization.id !== organizationId
   )
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         {organizationStatus === 'error' ? (
           <RequestError
             message={organizationError ?? 'Reports access could not be loaded.'}
@@ -35,7 +35,7 @@ export function ReportAccess({
         ) : (
           <ListSkeleton label="Loading reports access" />
         )}
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (
     organization.role !== 'OWNER' &&
@@ -43,9 +43,9 @@ export function ReportAccess({
     organization.role !== 'MERCHANT'
   )
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         <p role="alert">Your organization role cannot access Reports.</p>
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   return children(
     `${organizationId}:${organization.role}:${user?.id}`,

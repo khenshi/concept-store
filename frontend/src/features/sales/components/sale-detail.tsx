@@ -1,15 +1,12 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { Button } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import {
-  OperationalPage,
-  OperationalPanel,
-} from '@/shared/components/ui/operational-page';
+import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import type { PosScope } from '@/features/pos/model/pos.types';
@@ -24,6 +21,21 @@ import {
   refundAttemptKey,
   useRefundAttempt,
 } from '@/features/refunds/model/refund-attempt';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
+
+function SalePageFrame({
+  embedded,
+  children,
+}: {
+  embedded: boolean;
+  children: ReactNode;
+}) {
+  return embedded ? (
+    children
+  ) : (
+    <OrganizationPageFrame wide>{children}</OrganizationPageFrame>
+  );
+}
 
 export function SaleDetail(
   props: PosScope & { saleId: string; embedded?: boolean },
@@ -136,7 +148,7 @@ function ScopedSaleDetail({
     };
   }, [request, organizationId, branchId, saleId, role, revision]);
   return (
-    <OperationalPage>
+    <SalePageFrame embedded={embedded}>
       <BackLink
         href={`/app/organizations/${organizationId}/branches/${branchId}/${embedded && role !== 'MERCHANT' ? 'pos/sales' : 'sales'}`}
       >
@@ -163,8 +175,7 @@ function ScopedSaleDetail({
         />
       ) : null}
       <OperationalPanel
-        variant="open"
-        className="data-surface"
+        className="mt-0"
         title={role === 'MERCHANT' ? 'Own items' : 'Saved receipt'}
         description="Refreshing retries only the authorized sale read."
         action={
@@ -206,6 +217,6 @@ function ScopedSaleDetail({
           }}
         />
       ) : null}
-    </OperationalPage>
+    </SalePageFrame>
   );
 }

@@ -143,7 +143,7 @@
   }
 
   .data-surface {
-    @apply overflow-hidden bg-surface;
+    @apply overflow-hidden rounded-panel border border-hairline bg-surface;
   }
 
   .data-column-header {

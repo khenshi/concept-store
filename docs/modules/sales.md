@@ -268,6 +268,12 @@ retry. User/organization/role/branch/sale changes reset screen
 state; obsolete reads cannot restore old staff receipts or merchant data. Refresh
 clears stale data and print controls before making another authorized read.
 
+Sales history, own-selling-branch lists, and sale details now use the shared
+warm-neutral page frame. Wide sales collections and receipt views use rounded
+white surfaces on the gray canvas, while embedded POS history keeps its existing
+POS shell. Filters, pagination, access checks, refunds, and receipt behavior are
+unchanged.
+
 The user explicitly waived rendered responsive, keyboard/dialog, zoom and print
 QA for this POS/sales milestone on September 13, 2026. Automated tests do not
 certify rendered layout, modal focus containment, contrast or actual printing.

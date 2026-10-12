@@ -38,7 +38,10 @@ export function SpaceTypesPanel({
     type.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
   );
   return (
-    <section className="mt-4 min-w-0 bg-surface py-4" aria-label="Space types">
+    <section
+      className="mt-5 min-w-0 rounded-panel border border-hairline bg-surface p-5 sm:p-6"
+      aria-label="Space types"
+    >
       <div className="border-b border-hairline pb-4">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold tracking-tight">Space types</h2>

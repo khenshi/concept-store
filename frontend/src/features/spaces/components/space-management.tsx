@@ -267,7 +267,7 @@ function ScopedSpaces(
   const data = scope.kind === 'branch' ? spaces : occupancies;
   return (
     <section
-      className="mt-4 min-w-0 bg-surface py-4"
+      className="mt-5 min-w-0 rounded-panel border border-hairline bg-surface p-5 sm:p-6"
       aria-label="Space occupancy"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
