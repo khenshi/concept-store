@@ -1,5 +1,35 @@
 # Current plan
 
+## System-wide collection states and pagination
+
+**Status:** Implemented locally October 12, 2026; automated validation is complete and rendered browser QA remains.
+
+### Goal
+
+Make table and collection presentation consistent across the workspace by reusing
+one centered no-data warning treatment and one pagination navigation treatment.
+
+### Scope
+
+- Add shared frontend `EmptyState` and `PaginationControls` components.
+- Apply the centered warning box to empty table/list states that currently use
+  plain text or unboxed messages.
+- Apply icon-based previous/next pagination with the page indicator between the
+  controls to existing numbered and cursor-backed table/list pagination.
+- Keep current page sizes, query parameters, cursor behavior, loading states,
+  errors, filters, authorization, and data semantics unchanged.
+- Keep cursor-backed load-more interactions as load-more interactions when there
+  is no previous-page cursor or total-page contract; only align their visual
+  treatment where practical.
+
+### Explicit exclusions and stop condition
+
+This pass does not add backend pagination, change API response contracts, add a
+new data source, alter table columns, or redesign non-collection form states.
+Stop after the shared presentation primitives are applied to the existing
+paginated tables/lists and their relevant empty states, with focused frontend
+tests, typecheck, lint, formatting and diff validation complete.
+
 ## Reports Transactions tab
 
 **Status:** Approved by the user October 11, 2026; implementation is in progress.

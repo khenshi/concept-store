@@ -153,6 +153,23 @@ Inventory and Sales list rows. Related identity metadata remains grouped in its
 identity column while prices, quantities, statuses and actions use bounded
 comparison columns.
 
+## Shared collection warnings and pagination (October 12, 2026)
+
+Tables and data collections now reuse the shared `EmptyState` warning box for
+no-data and filtered-empty states. The box centers a concise title and optional
+supporting explanation inside a lightly bordered subtle surface, with actions
+kept below the message when a recovery or create action exists. This treatment
+is used across directory, sales, inventory, spaces, refunds and Reports data
+presentations; loading, request-error and authorization states remain separate.
+
+Existing numbered and cursor-backed previous/next collections now reuse
+`PaginationControls`: compact arrow buttons flank a centered page indicator,
+while the existing count summary remains available at the start of the row.
+Cursor-backed movement history keeps its existing page cursor behavior and
+load-more collections keep their existing load-more semantics. Page sizes,
+filters, query contracts, data ordering, role visibility and tenant isolation
+are unchanged.
+
 ## Dense record-list/table final verification
 
 Parts 1–3 are committed as `a8dddea`, `db1bce9` and `827a3f6`. The final
@@ -710,7 +727,11 @@ Saved receipt detail uses a clear identity header, structured purchased-item row
 and a payment summary with the completed total visually separated from supporting
 payment metadata. Staff refund controls separate returnable quantities from
 recorded refund history, with the return action and estimated refund amount placed
-near the context they affect. These are presentation and workflow-clarity changes;
+near the context they affect. The Return refunds section follows the saved receipt
+with a subtle divider, and its total count remains quiet left-aligned metadata in
+the same row as pagination. The saved receipt's
+internal print action is kept at the end of the receipt content as a colored primary
+action. These are presentation and workflow-clarity changes;
 receipt snapshots, refund APIs, authorization, pending-attempt recovery and
 printing behavior remain unchanged.
 
