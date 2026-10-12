@@ -129,24 +129,25 @@ export function SaleReceipt({ sale }: { sale: CompletedSale }) {
   return (
     <>
       <ReceiptContent sale={sale} />
-      <Button
-        className="mt-5"
-        variant="secondary"
-        onClick={() => {
-          try {
-            window.print();
-            setFeedback(
-              'Print dialog requested. If cancelled or unsuccessful, print this saved receipt again; checkout will not repeat.',
-            );
-          } catch {
-            setFeedback(
-              'Printing could not be opened. Try printing this saved receipt again; the sale is already completed.',
-            );
-          }
-        }}
-      >
-        Print internal receipt
-      </Button>
+      <div className="mt-5 flex justify-end">
+        <Button
+          variant="primary"
+          onClick={() => {
+            try {
+              window.print();
+              setFeedback(
+                'Print dialog requested. If cancelled or unsuccessful, print this saved receipt again; checkout will not repeat.',
+              );
+            } catch {
+              setFeedback(
+                'Printing could not be opened. Try printing this saved receipt again; the sale is already completed.',
+              );
+            }
+          }}
+        >
+          Print
+        </Button>
+      </div>
       {feedback ? (
         <p role="status" className="mt-3 text-sm text-muted">
           {feedback}

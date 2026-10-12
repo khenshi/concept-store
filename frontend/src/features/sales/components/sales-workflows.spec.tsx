@@ -312,11 +312,11 @@ describe('read-only scoped sales workflows', () => {
       const print = vi.spyOn(window, 'print').mockImplementation(() => {});
       render(<SaleDetail {...scope} saleId={completedSale.id} />);
       const button = await screen.findByRole('button', {
-        name: 'Print internal receipt',
+        name: 'Print',
       });
       fireEvent.click(button);
       fireEvent.click(screen.getByRole('button', { name: 'Refresh sale' }));
-      await screen.findByRole('button', { name: 'Print internal receipt' });
+      await screen.findByRole('button', { name: 'Print' });
       expect(print).toHaveBeenCalledTimes(1);
       await waitFor(() =>
         expect(
@@ -333,7 +333,7 @@ describe('read-only scoped sales workflows', () => {
     render(<SaleDetail {...scope} saleId={completedSale.id} />);
     await screen.findByRole('alert');
     expect(
-      screen.queryByRole('button', { name: 'Print internal receipt' }),
+      screen.queryByRole('button', { name: 'Print' }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText('Saved Store')).not.toBeInTheDocument();
   });
@@ -357,7 +357,7 @@ describe('read-only scoped sales workflows', () => {
     });
     expect(screen.queryByText('Saved Store')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Print internal receipt' }),
+      screen.queryByRole('button', { name: 'Print' }),
     ).not.toBeInTheDocument();
   });
   it('clears previous detail on a guessed/foreign/revoked read failure', async () => {
@@ -366,11 +366,11 @@ describe('read-only scoped sales workflows', () => {
       .mockResolvedValueOnce(completedSale)
       .mockRejectedValueOnce(new ApiError(404, 'Sale not found'));
     render(<SaleDetail {...scope} saleId={completedSale.id} />);
-    await screen.findByRole('button', { name: 'Print internal receipt' });
+    await screen.findByRole('button', { name: 'Print' });
     fireEvent.click(screen.getByRole('button', { name: 'Refresh sale' }));
     await screen.findByText('Sale not found');
     expect(
-      screen.queryByRole('button', { name: 'Print internal receipt' }),
+      screen.queryByRole('button', { name: 'Print' }),
     ).not.toBeInTheDocument();
     expect(document.getElementById('pos-receipt-print-root')).toBeNull();
   });

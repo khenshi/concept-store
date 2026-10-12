@@ -169,7 +169,7 @@ describe('Persistent route-backed POS workspace', () => {
         <SaleDetail {...scope} saleId={completedSale.id} embedded />
       </PosWorkspace>,
     );
-    await screen.findByRole('button', { name: 'Print internal receipt' });
+    await screen.findByRole('button', { name: 'Print' });
     expect(document.querySelectorAll('#pos-receipt-print-root')).toHaveLength(
       1,
     );
@@ -367,7 +367,7 @@ describe('Persistent route-backed POS workspace', () => {
         <SaleDetail {...scope} saleId={completedSale.id} embedded />
       </PosWorkspace>,
     );
-    await screen.findByRole('button', { name: 'Print internal receipt' });
+    await screen.findByRole('button', { name: 'Print' });
     expect(document.querySelectorAll('#pos-receipt-print-root')).toHaveLength(
       1,
     );

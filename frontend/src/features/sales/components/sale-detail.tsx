@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
-import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { Button } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
@@ -102,9 +101,8 @@ function ScopedSaleDetail({
   const refundAttempt = useRefundAttempt(
     refundAttemptKey(organizationId, user?.id ?? ''),
   );
-  const refundPending = refundAttempt?.state === 'pending';
-  const refundUnresolved = refundPending || refundAttempt?.state === 'unknown';
-  const { refreshOrganization } = useOrganizationWorkspaceContext();
+  const refundUnresolved =
+    refundAttempt?.state === 'pending' || refundAttempt?.state === 'unknown';
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof getSale>
   > | null>(null);
@@ -208,14 +206,6 @@ function ScopedSaleDetail({
           }}
         />
       ) : null}
-      <Button
-        variant="quiet"
-        className="mt-4"
-        disabled={refundPending}
-        onClick={() => void refreshOrganization()}
-      >
-        Refresh access
-      </Button>
     </OperationalPage>
   );
 }
