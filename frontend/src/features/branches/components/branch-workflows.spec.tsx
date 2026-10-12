@@ -129,6 +129,9 @@ it('places Add branch in the directory panel and omits the title eyebrow', () =>
   expect(
     within(panelHeader!).getByRole('button', { name: 'Add branch' }),
   ).toBeVisible();
+  expect(
+    screen.getByRole('heading', { name: 'Store locations' }).closest('section'),
+  ).toHaveClass('rounded-panel', 'bg-surface');
   expect(screen.getByRole('heading', { name: 'Branches' })).toBeVisible();
   expect(screen.queryByText('North & Pine')).not.toBeInTheDocument();
 });
@@ -265,6 +268,21 @@ describe('BranchManagement', () => {
       ),
     );
     expect(screen.getAllByText('Inactive').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('uses pill status badges and aligns view actions under the Actions label', async () => {
+    render(<BranchManagement organizationId="org" />);
+    const row = (
+      await screen.findByRole('link', { name: /Makati Main/ })
+    ).closest('li');
+
+    expect(row).not.toBeNull();
+    expect(within(row!).getByText('Active', { exact: true })).toHaveClass(
+      'rounded-full',
+    );
+    expect(within(row!).getByLabelText('Makati Main actions')).toHaveClass(
+      'lg:justify-start',
+    );
   });
 
   it('creates a branch through the modal, updates the workspace cache, and announces success', async () => {

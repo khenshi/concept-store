@@ -198,26 +198,6 @@
     @apply px-0 py-4;
   }
 
-  .branch-directory-surface {
-    @apply mt-10 bg-surface;
-  }
-
-  .branch-directory-surface > header {
-    @apply items-baseline gap-4 border-b-0 px-0 pb-5;
-  }
-
-  .branch-directory-surface > header h2 {
-    @apply text-xl tracking-tight;
-  }
-
-  .branch-directory-surface > header p {
-    @apply mt-0;
-  }
-
-  .branch-directory-toolbar {
-    @apply px-0 py-4;
-  }
-
   .inventory-column-header {
     @apply border-0 border-b border-hairline bg-transparent px-3 py-3 font-medium tracking-[0.06em] sm:px-4;
   }

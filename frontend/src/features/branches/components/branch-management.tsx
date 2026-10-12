@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { listBranchDirectory } from '../api/branch-api';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -40,6 +47,16 @@ function addressFor(branch: BranchView): string {
   return [branch.addressLine1, branch.addressLine2, branch.postalCode]
     .filter(Boolean)
     .join(', ');
+}
+
+function BranchPageFrame({ children }: { children: ReactNode }) {
+  return (
+    <div className="-mx-4 -mb-10 min-h-[calc(100dvh-4.25rem)] flow-root bg-canvas px-4 pb-10 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10">
+      <OperationalPage>
+        <div className="mx-auto w-full max-w-5xl">{children}</div>
+      </OperationalPage>
+    </div>
+  );
 }
 
 export function BranchManagement(props: { organizationId: string }) {
@@ -132,13 +149,13 @@ function ScopedBranchManagement({
 
   if (organizationStatus === 'loading')
     return (
-      <OperationalPage>
+      <BranchPageFrame>
         <ListSkeleton label="Loading organization" />
-      </OperationalPage>
+      </BranchPageFrame>
     );
   if (organizationStatus === 'error' || !organization)
     return (
-      <OperationalPage>
+      <BranchPageFrame>
         <PageHeader
           title="We could not load the organization."
           description="Try again to open this workspace."
@@ -148,7 +165,7 @@ function ScopedBranchManagement({
           message={organizationError ?? 'The organization could not be loaded.'}
           onRetry={() => void refreshOrganization()}
         />
-      </OperationalPage>
+      </BranchPageFrame>
     );
 
   const canManage = organization.role === 'OWNER';
@@ -156,7 +173,7 @@ function ScopedBranchManagement({
     organization.role === 'OWNER' || organization.role === 'MANAGER';
 
   return (
-    <OperationalPage>
+    <BranchPageFrame>
       <PageHeader
         title="Branches"
         description={
@@ -227,7 +244,7 @@ function ScopedBranchManagement({
           onCancel={() => setShowBranchForm(false)}
         />
       ) : null}
-    </OperationalPage>
+    </BranchPageFrame>
   );
 }
 
@@ -275,8 +292,7 @@ function StaffBranchDirectory({
     <>
       <BranchSummaryMetrics summary={summary} />
       <OperationalPanel
-        variant="open"
-        className="branch-directory-surface"
+        variant="card"
         title="Store locations"
         description="Review accessible branches, their location, and merchant coverage."
         action={
@@ -288,8 +304,8 @@ function StaffBranchDirectory({
         }
       >
         <OperationalToolbar
-          variant="open"
-          className="branch-directory-toolbar grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto]"
+          variant="card"
+          className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto]"
         >
           <TextField
             id="branch-search"
@@ -366,7 +382,7 @@ function StaffBranchDirectory({
                 >
                   <span>Branch</span>
                   <span>Location</span>
-                  <span>Active merchants</span>
+                  <span>Merchants</span>
                   <span>Status</span>
                   <span>Actions</span>
                 </li>
@@ -398,7 +414,7 @@ function StaffBranchDirectory({
                       <StatusBadge status={branch.status} />
                     </div>
                     <div
-                      className="flex flex-wrap gap-x-3 gap-y-2 md:flex-nowrap md:whitespace-nowrap lg:justify-end"
+                      className="flex flex-wrap gap-x-3 gap-y-2 md:flex-nowrap md:whitespace-nowrap lg:justify-start"
                       aria-label={`${branch.name} actions`}
                     >
                       <Link
@@ -547,7 +563,7 @@ function BranchSummaryMetrics({
   ] as const;
   return (
     <dl
-      className="mt-7 grid grid-cols-3 divide-x divide-hairline border-y border-hairline bg-surface"
+      className="mt-7 grid grid-cols-3 divide-x divide-hairline overflow-hidden rounded-panel border border-hairline bg-surface"
       aria-label="Branch summary"
     >
       {metrics.map(([label, value]) => (
@@ -566,7 +582,7 @@ function StatusBadge({ status }: { status: BranchStatus }) {
   const active = status === 'ACTIVE';
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-compact border px-2.5 py-1 text-xs font-semibold ${active ? 'border-success/30 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
+      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold ${active ? 'border-success/30 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
     >
       <span
         aria-hidden="true"
