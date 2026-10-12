@@ -535,13 +535,13 @@ keyboard navigation scrolls the list rather than moving the surrounding modal.
 
 ## Guest experiences
 
-Login, registration, and invitation acceptance share a paper form surface on the
-warm canvas, neutral branding and actions, home navigation, and a wide-screen
-editorial context panel. Small screens keep the form first and omit the optional
-context panel. Shared fields and notices retain validation, autocomplete, pending
-feedback, and first-invalid-field focus. Session loading/failure states also use
-the neutral system. Authentication redirects and invitation acceptance contracts
-are unchanged.
+Login, registration, and invitation acceptance share a rounded white form
+surface on the warm canvas, neutral branding and actions, home navigation, and a
+wide-screen editorial context panel. Small screens keep the form first and omit
+the optional context panel. Shared fields and notices retain validation,
+autocomplete, pending feedback, and first-invalid-field focus. Session
+loading/failure states use the same canvas treatment. Authentication redirects
+and invitation acceptance contracts are unchanged.
 
 ## Public landing page
 

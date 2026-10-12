@@ -19,7 +19,7 @@ export function GuestShell({
   contextDescription?: string;
 }) {
   return (
-    <main className="min-h-dvh bg-surface px-4 py-5 text-ink sm:px-8 sm:py-8">
+    <main className="min-h-dvh bg-canvas px-4 py-5 text-ink sm:px-8 sm:py-8">
       <div className="mx-auto flex min-h-[calc(100dvh-2.5rem)] max-w-7xl flex-col sm:min-h-[calc(100dvh-4rem)]">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline pb-5">
           <BrandWordmark />
@@ -34,7 +34,7 @@ export function GuestShell({
         <div className="grid flex-1 items-center gap-8 py-8 sm:py-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
           <section
             aria-labelledby="guest-title"
-            className="mx-auto w-full min-w-0 max-w-xl bg-surface py-8"
+            className="mx-auto w-full min-w-0 max-w-xl rounded-panel border border-hairline bg-surface p-6 sm:p-8 lg:p-10"
           >
             <p className="mb-4 text-xs font-medium text-muted">{eyebrow}</p>
             <h1
