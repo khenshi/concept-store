@@ -1,5 +1,32 @@
 import { z } from 'zod';
 
+const philippinePhonePattern = /^(?:\+63|0)(?:9\d{9}|[2-8]\d{8})$/;
+
+function isPhilippinePhone(value: string) {
+  return philippinePhonePattern.test(value.replace(/[\s()-]/g, ''));
+}
+
+export function sanitizePhilippinePhoneInput(value: string) {
+  const allowedCharacters = value.trimStart().replace(/[^\d\s()+-]/g, '');
+  const leadingPlus = allowedCharacters.startsWith('+') ? '+' : '';
+  const withoutPlus = allowedCharacters
+    .slice(leadingPlus ? 1 : 0)
+    .replace(/\+/g, '');
+  const maxDigits = leadingPlus ? 12 : 11;
+  let digitCount = 0;
+  let sanitized = '';
+
+  for (const character of withoutPlus) {
+    if (/\d/.test(character)) {
+      if (digitCount >= maxDigits) continue;
+      digitCount += 1;
+    }
+    sanitized += character;
+  }
+
+  return `${leadingPlus}${sanitized}`;
+}
+
 export const updateProfileSchema = z.object({
   firstName: z
     .string()
@@ -15,6 +42,10 @@ export const updateProfileSchema = z.object({
     .string()
     .trim()
     .max(25, 'Phone number must be 25 characters or fewer.')
+    .refine(
+      (value) => !value || isPhilippinePhone(value),
+      'Enter a valid Philippine phone number.',
+    )
     .optional()
     .transform((value) => value || undefined),
 });

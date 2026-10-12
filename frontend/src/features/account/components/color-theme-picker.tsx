@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import type { ColorTheme } from '@/features/auth/model/auth.types';
+import { Icon } from '@/shared/components/ui/icon';
 import { Notice } from '@/shared/components/ui/notice';
 import { OperationalPanel } from '@/shared/components/ui/operational-page';
 
@@ -33,7 +34,7 @@ function getPickerTheme(theme: ColorTheme): ColorTheme {
   return theme;
 }
 
-export function ColorThemePicker() {
+export function ColorThemePicker({ className = '' }: { className?: string }) {
   const { user, colorTheme, updateColorTheme } = useAuth();
   const selectedTheme = getPickerTheme(colorTheme);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,23 +65,23 @@ export function ColorThemePicker() {
   return (
     <OperationalPanel
       variant="open"
+      className={className}
       title="Appearance"
       description="Choose a color theme for your signed-in workspace. Your choice follows your account across devices."
     >
-      <fieldset className="py-5 sm:py-6" aria-busy={isSaving}>
-        <legend className="text-label mb-4 font-semibold text-ink">
-          Color theme
-        </legend>
+      <fieldset className="py-4 sm:py-5" aria-busy={isSaving}>
+        <legend className="sr-only">Color theme</legend>
         {(['Light', 'Dark'] as const).map((mode) => (
-          <div key={mode} className="mb-5">
-            <h3 className="mb-3 text-sm font-semibold text-muted">{mode}</h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div key={mode} className={mode === 'Dark' ? 'mt-5' : ''}>
+            <h3 className="mb-2.5 text-xs font-semibold text-muted">{mode}</h3>
+            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {themes
                 .filter((theme) => theme.mode === mode)
                 .map((theme) => (
                   <label
                     key={theme.value}
-                    className={`flex min-h-20 cursor-pointer items-center gap-3 rounded-control border p-3 text-sm font-medium transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus ${selectedTheme === theme.value ? 'border-selected-border bg-selected text-ink' : 'border-control-border bg-surface text-ink hover:border-selected-border hover:bg-hover'}`}
+                    data-selected={selectedTheme === theme.value || undefined}
+                    className={`flex min-h-16 cursor-pointer items-center gap-2.5 rounded-control border p-2.5 text-xs font-semibold transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-focus ${selectedTheme === theme.value ? 'border-selected-border bg-selected text-ink' : 'border-control-border bg-surface text-ink hover:border-selected-border hover:bg-hover'}`}
                   >
                     <input
                       type="radio"
@@ -95,22 +96,20 @@ export function ColorThemePicker() {
                     <span
                       data-color-theme={theme.value}
                       aria-hidden="true"
-                      className="flex h-12 w-16 shrink-0 items-center rounded-compact bg-canvas p-1.5"
+                      className="flex h-9 w-12 shrink-0 items-center rounded-compact bg-canvas p-1"
                     >
                       <span className="flex h-full w-full flex-col justify-between rounded-[0.25rem] bg-surface p-1">
-                        <span className="h-1 w-2/3 rounded-full bg-ink" />
-                        <span className="h-2 w-1/2 rounded-full bg-action" />
+                        <span className="h-0.5 w-2/3 rounded-full bg-ink" />
+                        <span className="h-1.5 w-1/2 rounded-full bg-action" />
                       </span>
                     </span>
-                    <span>
-                      {theme.label}
-                      <span className="block text-xs text-muted">
-                        {theme.mode}
-                      </span>
-                    </span>
+                    <span className="min-w-0 truncate">{theme.label}</span>
                     {selectedTheme === theme.value ? (
-                      <span className="ml-auto text-accent" aria-hidden="true">
-                        ✓
+                      <span
+                        className="ml-auto grid size-5 shrink-0 place-items-center rounded-full bg-action text-action-foreground"
+                        aria-hidden="true"
+                      >
+                        <Icon name="check" className="size-3" />
                       </span>
                     ) : null}
                   </label>

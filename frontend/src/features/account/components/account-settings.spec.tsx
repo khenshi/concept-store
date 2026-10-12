@@ -36,9 +36,43 @@ describe('AccountSettings', () => {
     } as unknown as ReturnType<typeof useAuth>);
   });
 
+  it('provides compact navigation for the account sections', () => {
+    render(<AccountSettings />);
+    const navigation = screen.getByRole('navigation', {
+      name: 'Account settings sections',
+    });
+    expect(
+      within(navigation).getByRole('link', { name: 'Profile' }),
+    ).toHaveAttribute('href', '#profile');
+    expect(
+      within(navigation).getByRole('link', { name: 'Appearance' }),
+    ).toHaveAttribute('href', '#appearance');
+    expect(
+      within(navigation).getByRole('link', { name: 'Security' }),
+    ).toHaveAttribute('href', '#security');
+    expect(
+      within(navigation).getByRole('link', { name: 'Profile' }),
+    ).toHaveAttribute('aria-current', 'location');
+    expect(
+      within(navigation).getByRole('link', { name: 'Appearance' }),
+    ).not.toHaveAttribute('aria-current');
+    expect(document.getElementById('profile')).toHaveClass(
+      'rounded-panel',
+      'border',
+    );
+    expect(document.getElementById('appearance')).toHaveClass(
+      'rounded-panel',
+      'border',
+    );
+    expect(document.getElementById('security')).toHaveClass(
+      'rounded-panel',
+      'border',
+    );
+  });
+
   it('preserves profile values and saves normalized data with success feedback', async () => {
     render(<AccountSettings />);
-    expect(screen.getByLabelText('Email address')).toHaveAttribute('readonly');
+    expect(screen.getByLabelText(/Email address/)).toHaveAttribute('readonly');
     const form = screen.getByRole('form', { name: 'Personal information' });
     fireEvent.change(within(form).getByLabelText('First name'), {
       target: { value: ' Arianna ' },
@@ -67,6 +101,23 @@ describe('AccountSettings', () => {
     expect(updateProfile).not.toHaveBeenCalled();
   });
 
+  it('rejects invalid Philippine phone numbers before submitting', async () => {
+    render(<AccountSettings />);
+    const form = screen.getByRole('form', { name: 'Personal information' });
+    const phone = within(form).getByLabelText('Phone number');
+    fireEvent.change(phone, { target: { value: '09AB 123 4567' } });
+    expect(phone).toHaveValue('09 123 4567');
+    fireEvent.change(phone, { target: { value: '091712345678999' } });
+    expect(phone).toHaveValue('09171234567');
+    fireEvent.change(phone, { target: { value: '1234567890' } });
+    fireEvent.submit(form);
+    expect(phone).toHaveAccessibleDescription(
+      /Enter a valid Philippine phone number\./,
+    );
+    await waitFor(() => expect(phone).toHaveFocus());
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
   it('blocks repeated saves while pending and recovers from server errors', async () => {
     let fail!: (error: Error) => void;
     updateProfile.mockReturnValueOnce(
@@ -92,9 +143,17 @@ describe('AccountSettings', () => {
   it('validates password confirmation and sends only the password contract', async () => {
     render(<AccountSettings />);
     const form = screen.getByRole('form', { name: 'Password' });
-    fireEvent.change(within(form).getByLabelText('Current password'), {
+    const currentPassword = within(form).getByLabelText('Current password');
+    fireEvent.change(currentPassword, {
       target: { value: 'current-password' },
     });
+    expect(currentPassword).toHaveAttribute('type', 'password');
+    fireEvent.click(
+      within(currentPassword.parentElement!).getByRole('button', {
+        name: 'Show password',
+      }),
+    );
+    expect(currentPassword).toHaveAttribute('type', 'text');
     fireEvent.change(within(form).getByLabelText('New password'), {
       target: { value: 'new-secure-password' },
     });
@@ -114,35 +173,78 @@ describe('AccountSettings', () => {
         newPassword: 'new-secure-password',
       }),
     );
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Password changed. Signing you out on every device…',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Change password' }),
+    ).not.toBeDisabled();
+  });
+
+  it('only shows password success after the change request resolves', async () => {
+    let resolve!: () => void;
+    changePassword.mockReturnValueOnce(
+      new Promise<void>((complete) => {
+        resolve = complete;
+      }),
+    );
+    render(<AccountSettings />);
+    const form = screen.getByRole('form', { name: 'Password' });
+    fireEvent.change(within(form).getByLabelText('Current password'), {
+      target: { value: 'current-password' },
+    });
+    fireEvent.change(within(form).getByLabelText('New password'), {
+      target: { value: 'new-secure-password' },
+    });
+    fireEvent.change(within(form).getByLabelText('Confirm new password'), {
+      target: { value: 'new-secure-password' },
+    });
+    fireEvent.submit(form);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Changing password…' }),
     ).toBeDisabled();
+    await act(async () => resolve());
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Password changed. Signing you out on every device…',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Change password' }),
+    ).not.toBeDisabled();
   });
 
   it('requires a password and explicit confirmation before deleting an account', async () => {
     render(<AccountSettings />);
-    const form = screen.getByRole('form', { name: 'Delete account' });
-    const password = within(form).getByLabelText('Confirm your password');
+    expect(
+      screen.queryByRole('form', { name: 'Confirm account deletion' }),
+    ).not.toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: 'Delete account' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole('alertdialog', {
+      name: 'Permanently delete your account?',
+    });
+    const form = within(dialog).getByRole('form', {
+      name: 'Confirm account deletion',
+    });
+    const password = within(form).getByLabelText('Password');
     fireEvent.submit(form);
     await waitFor(() => expect(password).toHaveFocus());
     expect(deleteAccount).not.toHaveBeenCalled();
     fireEvent.change(password, { target: { value: 'current-password' } });
-    const trigger = within(form).getByRole('button', {
-      name: 'Delete account',
-    });
-    trigger.focus();
-    fireEvent.submit(form);
-    let dialog = screen.getByRole('alertdialog', {
-      name: 'Permanently delete your account?',
-    });
-    expect(deleteAccount).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(trigger).toHaveFocus());
     expect(deleteAccount).not.toHaveBeenCalled();
-    fireEvent.submit(form);
-    dialog = screen.getByRole('alertdialog');
+    fireEvent.click(trigger);
+    const confirmedDialog = screen.getByRole('alertdialog');
+    const confirmedForm = within(confirmedDialog).getByRole('form', {
+      name: 'Confirm account deletion',
+    });
+    fireEvent.change(within(confirmedForm).getByLabelText('Password'), {
+      target: { value: 'current-password' },
+    });
     fireEvent.click(
-      within(dialog).getByRole('button', { name: 'Delete account' }),
+      within(confirmedForm).getByRole('button', { name: 'Delete account' }),
     );
     await waitFor(() =>
       expect(deleteAccount).toHaveBeenCalledWith({
@@ -183,21 +285,24 @@ describe('AccountSettings', () => {
       ),
     );
     render(<AccountSettings />);
-    const form = screen.getByRole('form', { name: 'Delete account' });
-    fireEvent.change(within(form).getByLabelText('Confirm your password'), {
+    fireEvent.click(screen.getByRole('button', { name: 'Delete account' }));
+    const dialog = screen.getByRole('alertdialog');
+    const form = within(dialog).getByRole('form', {
+      name: 'Confirm account deletion',
+    });
+    fireEvent.change(within(form).getByLabelText('Password'), {
       target: { value: 'current-password' },
     });
-    fireEvent.submit(form);
     fireEvent.click(
-      within(screen.getByRole('alertdialog')).getByRole('button', {
-        name: 'Delete account',
-      }),
+      within(form).getByRole('button', { name: 'Delete account' }),
     );
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'A sole organization owner cannot delete their account.',
     );
     expect(
-      within(form).getByRole('button', { name: 'Delete account' }),
+      within(screen.getByRole('alertdialog')).getByRole('button', {
+        name: 'Delete account',
+      }),
     ).not.toBeDisabled();
     expect(deleteAccount).toHaveBeenCalledOnce();
   });

@@ -16,10 +16,11 @@ type FieldErrors = Partial<
   Record<'currentPassword' | 'newPassword' | 'confirmPassword', string>
 >;
 
-export function ChangePasswordForm() {
+export function ChangePasswordForm({ className = '' }: { className?: string }) {
   const { changePassword } = useAuth();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -28,6 +29,7 @@ export function ChangePasswordForm() {
     const form = event.currentTarget;
     const formData = new FormData(form);
     setError(null);
+    setSuccess(null);
     const result = changePasswordSchema.safeParse({
       currentPassword: formData.get('currentPassword'),
       newPassword: formData.get('newPassword'),
@@ -50,12 +52,15 @@ export function ChangePasswordForm() {
         currentPassword: result.data.currentPassword,
         newPassword: result.data.newPassword,
       });
+      setSuccess('Password changed. Signing you out on every device…');
     } catch (cause: unknown) {
       setError(
         cause instanceof ApiError
           ? cause.message
           : 'Your password could not be changed. Please try again.',
       );
+      setSuccess(null);
+    } finally {
       setIsSaving(false);
     }
   }
@@ -63,6 +68,7 @@ export function ChangePasswordForm() {
   return (
     <OperationalPanel
       variant="open"
+      className={className}
       title="Password"
       description="Changing your password signs you out on every device."
     >
@@ -73,6 +79,7 @@ export function ChangePasswordForm() {
         noValidate
       >
         {error ? <Notice tone="error">{error}</Notice> : null}
+        {success ? <Notice>{success}</Notice> : null}
         <TextField
           id="currentPassword"
           name="currentPassword"
@@ -81,8 +88,11 @@ export function ChangePasswordForm() {
           autoComplete="current-password"
           maxLength={128}
           error={fieldErrors.currentPassword}
+          errorPosition="after"
+          showPasswordToggle
+          disabled={isSaving}
         />
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid items-start gap-5 sm:grid-cols-2">
           <TextField
             id="newPassword"
             name="newPassword"
@@ -90,8 +100,15 @@ export function ChangePasswordForm() {
             type="password"
             autoComplete="new-password"
             maxLength={128}
-            hint="Use at least 12 characters."
+            hint={
+              fieldErrors.newPassword
+                ? undefined
+                : 'Use at least 12 characters.'
+            }
             error={fieldErrors.newPassword}
+            errorPosition="after"
+            showPasswordToggle
+            disabled={isSaving}
           />
           <TextField
             id="confirmPassword"
@@ -101,6 +118,9 @@ export function ChangePasswordForm() {
             autoComplete="new-password"
             maxLength={128}
             error={fieldErrors.confirmPassword}
+            errorPosition="after"
+            showPasswordToggle
+            disabled={isSaving}
           />
         </div>
         <div className="flex justify-end border-t border-hairline pt-5">

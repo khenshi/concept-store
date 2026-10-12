@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react';
+import { forwardRef, type ComponentProps } from 'react';
 
 type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'quiet' | 'danger';
 
@@ -12,23 +12,30 @@ export function buttonStyles({
   return `ui-button ui-button-${variant} ${className}`;
 }
 
-export function Button({
-  variant = 'primary',
-  pending = false,
-  pendingLabel,
-  children,
-  className = '',
-  disabled,
-  type = 'button',
-  ...props
-}: ComponentProps<'button'> & {
-  variant?: ButtonVariant;
-  pending?: boolean;
-  pendingLabel?: string;
-}) {
+export const Button = forwardRef<
+  HTMLButtonElement,
+  ComponentProps<'button'> & {
+    variant?: ButtonVariant;
+    pending?: boolean;
+    pendingLabel?: string;
+  }
+>(function Button(
+  {
+    variant = 'primary',
+    pending = false,
+    pendingLabel,
+    children,
+    className = '',
+    disabled,
+    type = 'button',
+    ...props
+  },
+  ref,
+) {
   return (
     <button
       {...props}
+      ref={ref}
       type={type}
       className={buttonStyles({ variant, className })}
       disabled={disabled || pending}
@@ -37,4 +44,4 @@ export function Button({
       {pending && pendingLabel ? pendingLabel : children}
     </button>
   );
-}
+});

@@ -1,6 +1,7 @@
 import {
   changePasswordSchema,
   deleteAccountSchema,
+  sanitizePhilippinePhoneInput,
   updateProfileSchema,
 } from './account.schemas';
 
@@ -14,6 +15,45 @@ describe('update profile schema', () => {
       }),
     ).toEqual({ firstName: 'Maria', lastName: 'Santos', phone: undefined });
   });
+
+  it('sanitizes phone input without changing its allowed formatting', () => {
+    expect(sanitizePhilippinePhoneInput('+63 917 ABC 1234 ext. 5')).toBe(
+      '+63 917  1234  5',
+    );
+    expect(sanitizePhilippinePhoneInput('09+17-123-4567')).toBe(
+      '0917-123-4567',
+    );
+    expect(sanitizePhilippinePhoneInput('091712345678999')).toBe('09171234567');
+    expect(sanitizePhilippinePhoneInput('+6391712345678999')).toBe(
+      '+639171234567',
+    );
+  });
+
+  it.each(['0917 123 4567', '+63 917 123 4567', '(02) 8123-4567'])(
+    'accepts valid Philippine phone number format: %s',
+    (phone) => {
+      expect(
+        updateProfileSchema.safeParse({
+          firstName: 'Maria',
+          lastName: 'Santos',
+          phone,
+        }).success,
+      ).toBe(true);
+    },
+  );
+
+  it.each(['1234567890', '+1 917 123 4567', '0917 ABC 4567'])(
+    'rejects invalid Philippine phone number format: %s',
+    (phone) => {
+      expect(
+        updateProfileSchema.safeParse({
+          firstName: 'Maria',
+          lastName: 'Santos',
+          phone,
+        }).success,
+      ).toBe(false);
+    },
+  );
 
   it('requires both names', () => {
     expect(
