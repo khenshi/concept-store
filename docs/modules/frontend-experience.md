@@ -666,6 +666,26 @@ is archived with that limitation recorded.
 
 Organization selection/creation, workspace overview, and account profile/password/
 deletion use shared neutral page headers, panels, fields, actions, and feedback.
+The Account Settings route uses a centered compact `OperationalPage` composition
+with anchored Profile, Appearance and Security navigation. Each top-level section
+uses one rounded bordered surface, and the navigation exposes a live selected
+indicator with a dark bottom rule as the page scrolls between sections. Personal information
+uses a responsive two-column form where the sign-in email is visibly read-only;
+the save action and feedback remain attached to that form. Appearance choices are
+grouped into compact Light and Dark preview tiles with a visible selected state.
+The optional phone field accepts common Philippine mobile and telephone formats,
+including local and `+63` forms, and blocks invalid values before the profile
+request is sent.
+Password fields use shared pill inputs with opt-in show/hide controls and retain
+their existing client validation, loading, success and error feedback; the
+visibility controls use accessible icon-only actions. Security
+contains the password form and a separate Danger zone; account deletion collects
+the existing password contract inside an accessible confirmation modal, keeping
+the password field out of the resting page.
+Password validation feedback sits below the affected control so paired password
+inputs remain aligned while errors are visible. Password success feedback only
+appears after the change request resolves; the existing sign-out behavior is
+preserved.
 Shared fields connect labels, hints, existing described-by content, and errors to
 their input; native autocomplete, readonly values, and validation constraints are
 preserved. Invalid submissions focus the first invalid control.
@@ -673,7 +693,8 @@ preserved. Invalid submissions focus the first invalid control.
 Organization rows and overview destinations use one divided content surface rather
 than stacked floating cards. The overview exposes only implemented workflows and
 preserves role-aware visibility. Account deletion retains password validation and
-an explicit confirmation with solid danger styling only at final confirmation.
+an explicit modal confirmation with solid danger styling only at final
+confirmation.
 No backend, tenancy, API, or session behavior changes are introduced.
 
 Resting button/input borders use light stone outlines while keyboard focus remains

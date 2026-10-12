@@ -210,3 +210,40 @@ settlements, add exports, add analytics, or combine space/occupancy events. Stop
 after the read-only sale/refund tab meets the role, filter, pagination, snapshot,
 source-link and responsive acceptance checks. Inventory movement unification is a
 separate scope decision.
+
+## Account Settings responsive refinement
+
+**Status:** Implemented locally October 12, 2026; focused validation and rendered
+desktop/mobile review are complete. The full frontend suite retains seven
+unrelated failures outside this slice.
+
+### Goal
+
+Make the existing Account Settings route easier to scan and use across desktop,
+tablet and mobile while preserving Kapwesto's operational design system and all
+existing account API behavior.
+
+### Scope
+
+- Use a centered, compact page layout with in-page Profile, Appearance and
+  Security navigation. Give each top-level section one rounded bordered surface
+  and keep the selected navigation item live as the page scrolls.
+- Keep the personal information form responsive, visually distinguish the
+  read-only email field, and keep profile feedback and Save changes attached to
+  the form.
+- Make the existing theme choices compact, grouped by Light/Dark, and visibly
+  selected without changing theme values or persistence.
+- Add password visibility controls and clearer validation, pending, success and
+  error feedback while preserving the existing password schema and sign-out
+  behavior.
+- Move account deletion into a separate Danger zone section and collect the
+  existing password contract inside an accessible confirmation modal.
+- Preserve routes, API requests, authentication, authorization, validation,
+  tenant behavior and all existing account functionality.
+
+### Exclusions and stop condition
+
+This slice does not add account capabilities, change backend contracts, change
+theme palettes, alter the global workspace shell, or redesign unrelated pages.
+Stop after the Account Settings components, focused tests, frontend validation,
+module documentation and bounded rendered desktop/mobile review are complete.
