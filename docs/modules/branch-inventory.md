@@ -372,6 +372,11 @@ responses as well as full owner/manager responses.
   summary spacing, start-aligned metric cells, and a full-width divider before
   movement history keep this hierarchy dense and consistent. These are
   presentation changes only.
+- Placement details use the shared warm-neutral page frame. The placement
+  summary, movement history, and active stock action form are presented as
+  rounded white panels on the gray canvas, with the wide movement table retaining
+  its responsive overflow behavior. Inventory reads, writes, pagination, and
+  pending/dirty-state protection are unchanged.
 - Placement creation uses the shared scroll-contained native dialog, with focus
   restoration and pending dismissal protection. One searchable product combobox
   performs both filtering and selection. It now reads bounded branch-scoped

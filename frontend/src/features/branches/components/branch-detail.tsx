@@ -8,13 +8,11 @@ import { BackLink } from '@/shared/components/ui/back-link';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { Notice } from '@/shared/components/ui/notice';
-import {
-  OperationalPage,
-  OperationalPanel,
-} from '@/shared/components/ui/operational-page';
+import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useAuth } from '@/features/auth/model/auth-context';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { getBranch, updateBranchStatus } from '../api/branch-api';
 import { BranchForm } from './branch-form';
@@ -133,7 +131,7 @@ function ScopedBranchDetail({
 
   if (!organization)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame>
         {organizationStatus === 'error' ? (
           <RequestError
             message={
@@ -144,11 +142,11 @@ function ScopedBranchDetail({
         ) : (
           <ListSkeleton label="Loading branch" />
         )}
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   if (!branch)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame>
         <BackLink href={`/app/organizations/${organizationId}/branches`}>
           Back to branches
         </BackLink>
@@ -165,7 +163,7 @@ function ScopedBranchDetail({
             rows={5}
           />
         )}
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
 
   const canManage =
@@ -197,7 +195,7 @@ function ScopedBranchDetail({
     }
   }
   return (
-    <OperationalPage>
+    <OrganizationPageFrame>
       <div className="mb-6">
         <BackLink href={`/app/organizations/${organizationId}/branches`}>
           Back to branches
@@ -253,7 +251,7 @@ function ScopedBranchDetail({
           <Notice>{success}</Notice>
         </div>
       ) : null}
-      <OperationalPanel variant="open" title="Branch information">
+      <OperationalPanel className="mt-0" title="Branch information">
         <dl className="grid gap-6 py-5 sm:grid-cols-2 sm:py-6">
           <div>
             <dt className="text-xs font-medium text-muted">Code</dt>
@@ -282,7 +280,7 @@ function ScopedBranchDetail({
       <div className="grid min-w-0 gap-x-5 xl:grid-cols-3">
         {canManage || organization.role === 'MERCHANT' ? (
           <OperationalPanel
-            variant="open"
+            className="mt-0"
             title="Branch inventory"
             description={
               canManage
@@ -343,7 +341,7 @@ function ScopedBranchDetail({
         ) : null}
         {organization.role !== 'MERCHANT' ? (
           <OperationalPanel
-            variant="open"
+            className="mt-0"
             title="Point of sale"
             description="Build a branch cart using SKU/barcode input or product search, then record cash or manual GCash/card payment."
           >
@@ -358,7 +356,7 @@ function ScopedBranchDetail({
           </OperationalPanel>
         ) : null}
         <OperationalPanel
-          variant="open"
+          className="mt-0"
           title={
             organization.role === 'MERCHANT' ? 'Your sales' : 'Sales history'
           }
@@ -407,7 +405,7 @@ function ScopedBranchDetail({
           }}
         />
       ) : null}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }
 

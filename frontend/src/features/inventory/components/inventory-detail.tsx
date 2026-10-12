@@ -11,12 +11,12 @@ import {
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
+import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
-  OperationalPage,
   OperationalPanel,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
@@ -55,7 +55,7 @@ function InventoryDetailLoadingSkeleton({
   canWrite: boolean;
 }) {
   return (
-    <OperationalPage>
+    <OrganizationPageFrame wide>
       <div className="mb-4">{back}</div>
       <div
         role="status"
@@ -102,8 +102,7 @@ function InventoryDetailLoadingSkeleton({
         </section>
       </div>
       <OperationalPanel
-        variant="open"
-        className="data-surface"
+        className="data-surface mt-0"
         title="Movement history"
         description="Loading recent stock activity."
       >
@@ -113,7 +112,7 @@ function InventoryDetailLoadingSkeleton({
           label="Loading movement history"
         />
       </OperationalPanel>
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }
 
@@ -313,7 +312,7 @@ function ScopedInventoryDetail({
   // A successful command followed by a failed refresh must not leave stale stock actionable.
   if (error || !inventory || !branch)
     return (
-      <OperationalPage>
+      <OrganizationPageFrame wide>
         {back}
         {branchSelector}
         {success ? <StatusNotice>{success}</StatusNotice> : null}
@@ -321,7 +320,7 @@ function ScopedInventoryDetail({
           message={error ?? 'Inventory unavailable.'}
           onRetry={() => setRevision((value) => value + 1)}
         />
-      </OperationalPage>
+      </OrganizationPageFrame>
     );
   const scope = { organizationId, branchId, inventoryId };
   const movementGrid = canWrite
@@ -448,7 +447,7 @@ function ScopedInventoryDetail({
         )}
         {activeAction === 'receipt' ? (
           <OperationalPanel
-            variant="open"
+            className="mt-5"
             title="Receive stock"
             description="Record positive whole units entering this branch."
           >
@@ -479,7 +478,7 @@ function ScopedInventoryDetail({
         ) : null}
         {activeAction === 'adjustment' ? (
           <OperationalPanel
-            variant="open"
+            className="mt-5"
             title="Adjust stock"
             description="Review a signed correction before applying it."
           >
@@ -509,7 +508,7 @@ function ScopedInventoryDetail({
         ) : null}
         {activeAction === 'threshold' ? (
           <OperationalPanel
-            variant="open"
+            className="mt-5"
             title="Set low-stock threshold"
             description="Warn at or below this stock level."
           >
@@ -537,7 +536,7 @@ function ScopedInventoryDetail({
         ) : null}
         {activeAction === 'price' ? (
           <OperationalPanel
-            variant="open"
+            className="mt-5"
             title="Edit branch price"
             description="Change this branch’s selling price without changing stock or other branches."
           >
@@ -563,7 +562,7 @@ function ScopedInventoryDetail({
     </div>
   ) : null;
   return (
-    <OperationalPage>
+    <OrganizationPageFrame wide>
       <div className="mb-4">{back}</div>
       <PageHeader
         title={inventory.product.name}
@@ -571,7 +570,7 @@ function ScopedInventoryDetail({
         action={branchSelector}
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      <section className="inventory-placement-panel mt-3 mb-1 pb-3 border-b border-hairline bg-surface text-ink">
+      <section className="inventory-placement-panel mt-0 rounded-panel border border-hairline bg-surface text-ink">
         <dl className="inventory-placement-summary grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
           <div className="inventory-placement-stat flex items-center justify-start gap-3 px-4 py-5 lg:py-6">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-subtle">
@@ -634,8 +633,7 @@ function ScopedInventoryDetail({
         </dl>
       </section>
       <OperationalPanel
-        variant="open"
-        className="data-surface"
+        className="data-surface mt-5"
         title="Movement history"
         description={
           canWrite
@@ -746,6 +744,6 @@ function ScopedInventoryDetail({
           onClose={() => setSelectedMovementReason(null)}
         />
       ) : null}
-    </OperationalPage>
+    </OrganizationPageFrame>
   );
 }

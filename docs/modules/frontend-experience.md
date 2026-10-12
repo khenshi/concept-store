@@ -717,6 +717,11 @@ to preserve the branch form's established field layout; other fields retain hint
 below by default. Branch search/filter behavior, API requests, normalization,
 authorization, tenant scoping, and optional-field clearing are unchanged.
 
+Branch detail now shares the same full-page canvas and centered frame as the
+directory. Branch information, inventory, POS, and sales actions use separate
+rounded white panels with responsive stacking; status, edit, inventory-health,
+and role-aware action behavior are unchanged.
+
 ## Branch POS cart delivery
 
 Branch POS uses the existing warm-stone operational panels, consistent text fields

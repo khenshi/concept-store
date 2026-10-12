@@ -209,6 +209,10 @@ include products owned by affiliated merchants in assigned branches, including p
 - API response schemas reject malformed identities, status, dates, quantity bounds,
   and non-decimal-string prices before rendering.
 
+The product profile uses the shared warm-neutral page frame and centered rounded
+panels for identity, lifecycle status, and branch placements. Loading, retry,
+status-confirmation, and edit-dialog behavior remain unchanged.
+
 ## Merchant branch participation
 
 See [Merchant–branch relationships](merchant-branches.md) for profile-inherited access,
