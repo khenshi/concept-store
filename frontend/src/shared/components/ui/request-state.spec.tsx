@@ -28,7 +28,8 @@ describe('shared request states', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Organizations unavailable',
     );
-    expect(screen.getByRole('alert')).toHaveClass('border-l-2');
+    expect(screen.getByRole('alert')).toHaveClass('rounded-panel', 'border');
+    expect(screen.getByRole('alert')).not.toHaveClass('border-l-2');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetry).toHaveBeenCalledOnce();
   });

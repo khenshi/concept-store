@@ -36,7 +36,10 @@ const paths = {
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5l3 2',
   bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 10h18c0-3-3-3-3-10ZM10 21h4',
   info: 'M12 11v6m0-10h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z',
+  alert:
+    'M12 8v4m0 4h.01M10.3 3.6 2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z',
   download: 'M12 3v12m0 0 4-4m-4 4-4-4M4 19v2h16v-2',
+  chart: 'M4 19V5m0 14h16M8 16v-4m4 4V8m4 8v-7',
 } as const;
 
 export type IconName = keyof typeof paths;

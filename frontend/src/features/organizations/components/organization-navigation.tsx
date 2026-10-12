@@ -4,17 +4,17 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon, type IconName } from '@/shared/components/ui/icon';
 
-const navigationIcons: Record<string, IconName> = {
+export const organizationNavigationIcons: Record<string, IconName> = {
   overview: 'home',
   branches: 'building',
   merchants: 'store',
-  products: 'store',
+  products: 'tag',
   members: 'users',
-  sales: 'store',
-  pos: 'store',
-  inventory: 'store',
-  spaces: 'building',
-  reports: 'store',
+  sales: 'currency',
+  pos: 'card',
+  inventory: 'box',
+  spaces: 'layers',
+  reports: 'chart',
 };
 
 export function OrganizationNavigation({
@@ -182,7 +182,7 @@ export function OrganizationNavigation({
         onClick={onNavigate}
         title={collapsed ? destination.label : undefined}
       >
-        <Icon name={navigationIcons[destination.key]} />
+        <Icon name={organizationNavigationIcons[destination.key]} />
         <span className={collapsed ? 'sr-only' : ''}>{destination.label}</span>
       </Link>
     ) : null;

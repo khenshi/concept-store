@@ -287,6 +287,20 @@ describe('AuthClient', () => {
     );
   });
 
+  it('hides generic internal server errors behind the safe service message', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ message: 'Internal Server Error' }, 500),
+    );
+    const client = new AuthClient('http://localhost:3000');
+
+    await expect(client.request('/organizations')).rejects.toEqual(
+      new ApiError(
+        500,
+        'The service is temporarily unavailable. Please try again.',
+      ),
+    );
+  });
+
   it('preserves concise business messages returned by the backend', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       jsonResponse({ message: 'Space already has a current assignment' }, 409),

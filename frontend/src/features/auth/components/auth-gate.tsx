@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 import { GuestShell } from '@/shared/components/ui/guest-shell';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { Notice } from '@/shared/components/ui/notice';
 import { useAuth } from '../model/auth-context';
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -22,11 +23,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
         eyebrow="Session unavailable"
         title="We could not confirm your session."
       >
-        <div role="alert">
-          <p className="text-sm leading-7 text-muted">
-            {error ?? 'Check that the backend is available, then try again.'}
-          </p>
-        </div>
+        <Notice tone="error">
+          {error ?? 'Check that the backend is available, then try again.'}
+        </Notice>
         <a className={buttonStyles({ className: 'mt-5' })} href="/login">
           Return to login
         </a>

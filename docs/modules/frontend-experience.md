@@ -45,6 +45,27 @@ title. Existing debounced, blur and submit validation behavior is unchanged.
 This is a presentation refinement only; no validation rules or API behavior
 changed.
 
+## Shared error and status feedback
+
+Shared `Notice`, `StatusNotice` and `RequestError` surfaces use one responsive
+feedback treatment: a one-pixel semantic border, a solid tinted background, a
+meaningful outline icon, readable text hierarchy and a full-width retry control
+on narrow screens. Request errors default to a clear `Something went wrong`
+heading when no feature-specific title is supplied. Success, warning and error
+announcements retain their existing status, note and alert semantics. The
+compact field-validation treatment remains unchanged.
+
+Branch-selector request errors mounted in a `PageHeader` occupy a full-width
+row beneath the title and action area so the recovery surface is not confined
+to the selector column. Standalone branch selectors continue to render their
+request error beneath the selector.
+
+Generic internal, unexpected-server and unhandled-exception messages from API
+responses are normalized to the existing safe service-unavailable copy instead
+of exposing implementation details. The authenticated session failure surface
+now uses the shared error notice. Request callbacks, authentication behavior,
+API contracts, authorization and tenant isolation are unchanged.
+
 ## Placement opening stock and numeric fields (Part 4, uncommitted)
 
 The add-placement modal now requires a nonnegative whole-number Initial stock value.
@@ -169,6 +190,21 @@ Cursor-backed movement history keeps its existing page cursor behavior and
 load-more collections keep their existing load-more semantics. Page sizes,
 filters, query contracts, data ordering, role visibility and tenant isolation
 are unchanged.
+
+## Sidebar navigation icon semantics (October 12, 2026)
+
+Organization workspace navigation uses distinct existing icon treatments for each
+destination: Reports uses a chart, Inventory a box, Spaces stacked layers, POS a
+payment card, Sales currency, Products a tag, Branches a building, Merchants a
+store, Members users and Overview a home. Routes, labels, active states, role
+visibility, collapsed navigation and mobile navigation remain unchanged.
+
+The organization workspace overview now mirrors that navigation as a responsive
+flat-card launchpad grouped into Branch operations, Organization and Personal.
+It includes every role-allowed sidebar destination plus Account settings, keeps
+the role badge in the page header, uses concise card descriptions with compact
+spacing, equal-height grid tracks, and a balanced Organization/Personal split,
+and preserves the same role visibility and route contracts as the sidebar.
 
 ## Dense record-list/table final verification
 

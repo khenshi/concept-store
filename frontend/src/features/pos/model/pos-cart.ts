@@ -54,7 +54,7 @@ export function addPosProduct(
       );
     if (existing.quantity >= product.quantity)
       throw new Error(
-        `Only ${product.quantity} units of ${product.name} are currently available.`,
+        `max quantity for ${product.name}`,
       );
     return lines.map((line) =>
       line === existing

@@ -47,8 +47,30 @@ describe('OrganizationWorkspace', () => {
         ),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('heading', { name: 'Work areas' }),
+        screen.getByRole('heading', { name: 'Branch operations' }),
       ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Reports/ })).toHaveAttribute(
+        'href',
+        '/app/organizations/org/reports',
+      );
+      expect(screen.getByRole('link', { name: /Inventory/ })).toHaveAttribute(
+        'href',
+        '/app/organizations/org/inventory',
+      );
+      expect(screen.getByRole('link', { name: /Spaces/ })).toHaveAttribute(
+        'href',
+        '/app/organizations/org/spaces',
+      );
+      if (role === 'MERCHANT') {
+        expect(
+          screen.queryByRole('link', { name: /^POS/ }),
+        ).not.toBeInTheDocument();
+      } else {
+        expect(screen.getByRole('link', { name: /^POS/ })).toHaveAttribute(
+          'href',
+          '/app/organizations/org/pos',
+        );
+      }
       expect(screen.getByRole('link', { name: /Merchants/ })).toHaveAttribute(
         'href',
         '/app/organizations/org/merchants',
@@ -65,13 +87,13 @@ describe('OrganizationWorkspace', () => {
         screen.getByRole('link', { name: /Products/ }),
       ).toBeInTheDocument();
       if (role === 'MERCHANT')
-        expect(screen.getByRole('link', { name: /Sales/ })).toHaveAttribute(
+        expect(screen.getByRole('link', { name: /^Sales/ })).toHaveAttribute(
           'href',
           '/app/organizations/org/sales',
         );
       else
         expect(
-          screen.queryByRole('link', { name: /Sales/ }),
+          screen.queryByRole('link', { name: /^Sales/ }),
         ).not.toBeInTheDocument();
     },
   );
@@ -93,6 +115,19 @@ describe('OrganizationWorkspace', () => {
       expect(
         screen.getByRole('link', { name: /Account settings/ }),
       ).toHaveAttribute('href', '/app/account');
+      expect(screen.getByRole('link', { name: /^POS/ })).toHaveAttribute(
+        'href',
+        '/app/organizations/org/pos',
+      );
+      expect(
+        screen.queryByRole('link', { name: /Reports/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /Inventory/ }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /Spaces/ }),
+      ).not.toBeInTheDocument();
     },
   );
   it('announces loading and provides unavailable-workspace recovery', () => {

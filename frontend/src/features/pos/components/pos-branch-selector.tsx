@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { usePageHeaderRequestError } from '@/shared/components/ui/page-header';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { listPosBranches } from '../api/pos-api';
 import { allowPosNavigation } from '../model/pos-navigation';
@@ -112,6 +113,12 @@ export function PosBranchSelector({
     )
       resumed.current = preferredBranchId;
   });
+  const retry = useCallback(() => {
+    setError(null);
+    setBranches(null);
+    setRevision((value) => value + 1);
+  }, []);
+  const pageHeaderError = usePageHeaderRequestError(error, retry);
   return (
     <div className={compact ? 'w-full min-w-0 max-w-56' : 'my-6 max-w-xl'}>
       <label
@@ -166,15 +173,8 @@ export function PosBranchSelector({
           branch.
         </p>
       ) : null}
-      {error ? (
-        <RequestError
-          message={error}
-          onRetry={() => {
-            setError(null);
-            setBranches(null);
-            setRevision((value) => value + 1);
-          }}
-        />
+      {error && !pageHeaderError ? (
+        <RequestError message={error} onRetry={retry} />
       ) : null}
     </div>
   );

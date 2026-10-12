@@ -21,6 +21,8 @@ interface ApiErrorBody {
 
 const TECHNICAL_MESSAGE_PATTERN =
   /(?:\bCannot\s+(?:GET|POST|PUT|PATCH|DELETE)\s+\/|https?:\/\/|(?:^|\s|["'])\/[a-z][^\s"']*|\b(?:API route|endpoint)\b)/i;
+const GENERIC_SERVER_ERROR_PATTERN =
+  /\b(?:internal(?:\s+server)?\s+error|unexpected\s+server\s+error|unhandled\s+(?:error|exception))\b/i;
 
 function friendlyRequestMessage(status: number): string {
   if (status === 400) return 'Please review the information and try again.';
@@ -45,7 +47,11 @@ function userFacingMessage(
   const normalized = Array.isArray(message)
     ? message.filter(Boolean).join(', ')
     : message?.trim();
-  if (!normalized || TECHNICAL_MESSAGE_PATTERN.test(normalized))
+  if (
+    !normalized ||
+    TECHNICAL_MESSAGE_PATTERN.test(normalized) ||
+    GENERIC_SERVER_ERROR_PATTERN.test(normalized)
+  )
     return friendlyRequestMessage(status);
   return normalized;
 }

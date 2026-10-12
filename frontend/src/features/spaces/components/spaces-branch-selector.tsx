@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
@@ -8,6 +8,7 @@ import { listBranches } from '@/features/branches/api/branch-api';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { usePageHeaderRequestError } from '@/shared/components/ui/page-header';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
 import {
   getCheckoutAttempt,
@@ -139,6 +140,12 @@ export function SpacesBranchSelector({
     )
       resumed.current = preferredBranchId;
   });
+  const retry = useCallback(() => {
+    setError(null);
+    setBranches(null);
+    setRevision((value) => value + 1);
+  }, []);
+  const pageHeaderError = usePageHeaderRequestError(error, retry);
   return (
     <div className={compact ? 'w-full min-w-56 max-w-sm' : 'my-6 max-w-xl'}>
       <label htmlFor={id} className="mb-2 block text-sm font-medium">
@@ -189,15 +196,8 @@ export function SpacesBranchSelector({
           branch.
         </p>
       ) : null}
-      {error ? (
-        <RequestError
-          message={error}
-          onRetry={() => {
-            setError(null);
-            setBranches(null);
-            setRevision((value) => value + 1);
-          }}
-        />
+      {error && !pageHeaderError ? (
+        <RequestError message={error} onRetry={retry} />
       ) : null}
     </div>
   );

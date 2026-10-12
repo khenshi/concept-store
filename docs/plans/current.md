@@ -1,5 +1,79 @@
 # Current plan
 
+## Shared error feedback presentation
+
+**Status:** Implemented locally October 12, 2026; focused automated validation
+is complete, while the full-suite baseline and rendered browser QA remain.
+
+### Goal
+
+Make request, session and form-level feedback easier to scan and recover from
+without exposing generic internal server errors as user-facing copy.
+
+### Scope and exclusions
+
+- Refresh shared `Notice`, `RequestError` and `StatusNotice` treatments with a
+  consistent bordered surface, semantic icon, readable message hierarchy and
+  responsive retry action.
+- Normalize generic internal/unhandled server messages to the existing safe
+  service-unavailable message in the frontend API client.
+- Use the shared error treatment for the authenticated session failure state.
+- When a branch selector is placed in a `PageHeader`, render its request error
+  as a full-width row below the title and action row; keep standalone selector
+  errors inline.
+- Preserve field-level compact validation, request behavior, role visibility,
+  authorization, API contracts and all existing recovery callbacks.
+- Do not redesign every feature-owned inline validation or access message in
+  this pass.
+
+Stop after the shared feedback primitives, session failure surface, focused
+tests and frontend validation are complete.
+
+## Sidebar navigation icon semantics
+
+**Status:** Implemented locally October 12, 2026; automated validation and
+rendered browser QA remain.
+
+### Goal
+
+Give each organization workspace sidebar destination a distinct, recognizable
+icon that matches its page semantics.
+
+### Scope and exclusions
+
+- Reuse the existing shared icon component and add only the missing chart glyph
+  required by Reports.
+- Update destination icon mapping for Overview, Branches, Merchants, Products,
+  Members, Sales, POS, Inventory, Spaces and Reports.
+- Preserve routes, labels, role visibility, active states, collapsed behavior and
+  mobile navigation.
+- Do not change navigation grouping, permissions, page content or API behavior.
+
+Stop after the semantic icon map and its frontend module documentation are
+updated and the focused navigation checks pass.
+
+## Workspace overview navigation and layout
+
+**Status:** Implemented locally October 12, 2026; automated validation and
+rendered browser QA remain.
+
+### Goal
+
+Make the organization workspace overview a clear, theme-consistent launchpad for
+the same role-allowed destinations available in sidebar navigation.
+
+### Scope and exclusions
+
+- Group overview links into Branch operations, Organization and Personal.
+- Include Reports, Inventory, Spaces and POS alongside existing organization and
+  Account settings links, using the same role visibility and routes as the sidebar.
+- Use flat bordered cards, existing typography, rounded controls and the shared
+  icon map; keep the role badge in the page header.
+- Preserve navigation behavior, permissions, route contracts and page content.
+
+Stop after the responsive overview layout, role visibility coverage, focused
+frontend tests and module documentation are updated.
+
 ## System-wide collection states and pagination
 
 **Status:** Implemented locally October 12, 2026; automated validation is complete and rendered browser QA remains.

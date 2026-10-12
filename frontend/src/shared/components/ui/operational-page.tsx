@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Notice } from './notice';
 
 export function OperationalPage({ children }: { children: ReactNode }) {
   return (
@@ -92,11 +93,8 @@ export function StatusNotice({
   tone?: 'success' | 'warning';
 }) {
   return (
-    <p
-      className={`mt-5 border-l-2 bg-subtle px-4 py-3 text-sm text-ink ${tone === 'success' ? 'border-success-ink' : 'border-warning'}`}
-      role={tone === 'success' ? 'status' : 'note'}
-    >
+    <Notice className="mt-5" tone={tone === 'success' ? 'success' : 'warning'}>
       {children}
-    </p>
+    </Notice>
   );
 }
