@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
+import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { Notice } from '@/shared/components/ui/notice';
 import { OperationalPanel } from '@/shared/components/ui/operational-page';
@@ -35,6 +36,18 @@ function addressFor(branch: BranchView): string {
     .join(', ');
 }
 
+type BranchDetailTab =
+  'overview' | 'inventory' | 'pos' | 'sales' | 'participation' | 'spaces';
+
+const branchDetailTabs: { value: BranchDetailTab; label: string }[] = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'inventory', label: 'Inventory' },
+  { value: 'pos', label: 'POS' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'participation', label: 'Participation' },
+  { value: 'spaces', label: 'Spaces' },
+];
+
 export function BranchDetail(props: {
   organizationId: string;
   branchId: string;
@@ -56,6 +69,7 @@ function ScopedBranchDetail({
   branchId: string;
 }) {
   const { request } = useAuth();
+  const { confirm, confirmationDialog } = useConfirmationDialog();
   const {
     organization,
     organizationStatus,
@@ -73,6 +87,7 @@ function ScopedBranchDetail({
     useState<InventoryHealthSummary | null>(null);
   const [inventoryHealthError, setInventoryHealthError] = useState(false);
   const [spaceRevision, setSpaceRevision] = useState(0);
+  const [activeTab, setActiveTab] = useState<BranchDetailTab>('overview');
   const [revision, setRevision] = useState(0);
   const readGeneration = useRef(0);
   const canViewInventory =
@@ -131,7 +146,7 @@ function ScopedBranchDetail({
 
   if (!organization)
     return (
-      <OrganizationPageFrame>
+      <OrganizationPageFrame wide>
         {organizationStatus === 'error' ? (
           <RequestError
             message={
@@ -146,7 +161,7 @@ function ScopedBranchDetail({
     );
   if (!branch)
     return (
-      <OrganizationPageFrame>
+      <OrganizationPageFrame wide>
         <BackLink href={`/app/organizations/${organizationId}/branches`}>
           Back to branches
         </BackLink>
@@ -169,14 +184,28 @@ function ScopedBranchDetail({
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
   const canChangeStatus = canManage && 'status' in branch;
+  const availableTabs = branchDetailTabs.filter(({ value }) => {
+    if (value === 'inventory') return canViewInventory;
+    if (value === 'pos') return organization.role !== 'MERCHANT';
+    if (value === 'participation' || value === 'spaces')
+      return canManage || organization.role === 'MERCHANT';
+    return true;
+  });
 
   async function changeStatus() {
-    if (!canChangeStatus || !('status' in branch)) return;
+    if (!canChangeStatus || !('status' in branch) || statusPending) return;
     const nextStatus: BranchStatus =
       branch.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     setStatusPending(true);
     setStatusError(null);
     try {
+      const accepted = await confirm({
+        title: `Mark ${branch.name} ${nextStatus === 'ACTIVE' ? 'active' : 'inactive'}?`,
+        description: `This will change the branch status from ${branch.status === 'ACTIVE' ? 'Active' : 'Inactive'} to ${nextStatus === 'ACTIVE' ? 'Active' : 'Inactive'}.`,
+        confirmLabel: `Mark ${nextStatus === 'ACTIVE' ? 'active' : 'inactive'}`,
+        tone: nextStatus === 'INACTIVE' ? 'danger' : 'primary',
+      });
+      if (!accepted) return;
       const saved = await updateBranchStatus(
         request,
         organizationId,
@@ -195,7 +224,7 @@ function ScopedBranchDetail({
     }
   }
   return (
-    <OrganizationPageFrame>
+    <OrganizationPageFrame wide>
       <div className="mb-6">
         <BackLink href={`/app/organizations/${organizationId}/branches`}>
           Back to branches
@@ -241,6 +270,63 @@ function ScopedBranchDetail({
           ) : undefined
         }
       />
+      <nav
+        aria-label="Branch detail views"
+        className="sticky top-17 z-20 -mx-4 mt-4 overflow-x-auto border-b border-hairline bg-canvas px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
+      >
+        <div
+          className="flex min-w-max gap-1"
+          role="tablist"
+          aria-label="Branch detail views"
+        >
+          {availableTabs.map((tab, index) => (
+            <button
+              key={tab.value}
+              id={`branch-detail-tab-${tab.value}`}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.value}
+              aria-controls={`branch-detail-panel-${tab.value}`}
+              tabIndex={activeTab === tab.value ? 0 : -1}
+              className={`min-h-11 shrink-0 rounded-none border-b-2 px-3 text-sm font-semibold transition-colors ${
+                activeTab === tab.value
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-muted hover:text-ink'
+              }`}
+              onClick={() => setActiveTab(tab.value)}
+              onKeyDown={(event) => {
+                if (
+                  !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(
+                    event.key,
+                  )
+                )
+                  return;
+                event.preventDefault();
+                const nextIndex =
+                  event.key === 'Home'
+                    ? 0
+                    : event.key === 'End'
+                      ? availableTabs.length - 1
+                      : (index +
+                          (event.key === 'ArrowRight' ? 1 : -1) +
+                          availableTabs.length) %
+                        availableTabs.length;
+                const nextTab = availableTabs[nextIndex];
+                const nextButton =
+                  event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+                    '[role="tab"]',
+                  )[nextIndex];
+                if (nextTab && nextButton) {
+                  setActiveTab(nextTab.value);
+                  nextButton.focus();
+                }
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </nav>
       {statusError ? (
         <div className="mt-6">
           <Notice tone="error">{statusError}</Notice>
@@ -251,34 +337,50 @@ function ScopedBranchDetail({
           <Notice>{success}</Notice>
         </div>
       ) : null}
-      <OperationalPanel className="mt-0" title="Branch information">
-        <dl className="grid gap-6 py-5 sm:grid-cols-2 sm:py-6">
-          <div>
-            <dt className="text-xs font-medium text-muted">Code</dt>
-            <dd className="mt-2 text-sm text-ink">
-              {branch.code ?? 'Not set'}
-            </dd>
-          </div>
-          {organization.role !== 'MERCHANT' && 'countryCode' in branch ? (
-            <>
+      {activeTab === 'overview' ? (
+        <div
+          id="branch-detail-panel-overview"
+          role="tabpanel"
+          aria-labelledby="branch-detail-tab-overview"
+          className="mt-6"
+        >
+          <OperationalPanel className="mt-0" title="Branch information">
+            <dl className="grid gap-6 px-5 py-5 sm:grid-cols-2 sm:px-6 sm:py-6">
               <div>
-                <dt className="text-xs font-medium text-muted">Country</dt>
-                <dd className="mt-2 text-sm text-ink">{branch.countryCode}</dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-xs font-medium text-muted">Address</dt>
-                <dd className="mt-2">
-                  <address className="break-words text-sm leading-6 not-italic text-ink">
-                    {addressFor(branch)}
-                  </address>
+                <dt className="text-xs font-medium text-muted">Code</dt>
+                <dd className="mt-2 text-sm text-ink">
+                  {branch.code ?? 'Not set'}
                 </dd>
               </div>
-            </>
-          ) : null}
-        </dl>
-      </OperationalPanel>
-      <div className="grid min-w-0 gap-x-5 xl:grid-cols-3">
-        {canManage || organization.role === 'MERCHANT' ? (
+              {organization.role !== 'MERCHANT' && 'countryCode' in branch ? (
+                <>
+                  <div>
+                    <dt className="text-xs font-medium text-muted">Country</dt>
+                    <dd className="mt-2 text-sm text-ink">
+                      {branch.countryCode}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs font-medium text-muted">Address</dt>
+                    <dd className="mt-2">
+                      <address className="break-words text-sm leading-6 not-italic text-ink">
+                        {addressFor(branch)}
+                      </address>
+                    </dd>
+                  </div>
+                </>
+              ) : null}
+            </dl>
+          </OperationalPanel>
+        </div>
+      ) : null}
+      {activeTab === 'inventory' && canViewInventory ? (
+        <div
+          id="branch-detail-panel-inventory"
+          role="tabpanel"
+          aria-labelledby="branch-detail-tab-inventory"
+          className="mt-6"
+        >
           <OperationalPanel
             className="mt-0"
             title="Branch inventory"
@@ -288,7 +390,7 @@ function ScopedBranchDetail({
                 : 'Read only your merchant’s placements, prices, quantities, and movement history.'
             }
           >
-            <div className="grid gap-5 py-6">
+            <div className="flex min-h-56 flex-col gap-5 py-6">
               {inventoryHealthError ? (
                 <RequestError
                   message="Inventory health could not be loaded."
@@ -331,67 +433,112 @@ function ScopedBranchDetail({
                   : 'Counts reflect all placements visible in this branch.'}
               </p>
               <Link
-                className={buttonStyles({ variant: 'secondary' })}
+                className={buttonStyles({
+                  variant: 'secondary',
+                  className: 'mt-auto w-fit',
+                })}
                 href={`/app/organizations/${organizationId}/branches/${branchId}/inventory`}
               >
                 {canManage ? 'Manage inventory' : 'View own inventory'}
               </Link>
             </div>
           </OperationalPanel>
-        ) : null}
-        {organization.role !== 'MERCHANT' ? (
+        </div>
+      ) : null}
+      {activeTab === 'pos' && organization.role !== 'MERCHANT' ? (
+        <div
+          id="branch-detail-panel-pos"
+          role="tabpanel"
+          aria-labelledby="branch-detail-tab-pos"
+          className="mt-6"
+        >
           <OperationalPanel
             className="mt-0"
             title="Point of sale"
             description="Build a branch cart using SKU/barcode input or product search, then record cash or manual GCash/card payment."
           >
-            <div className="py-6">
+            <div className="flex min-h-56 flex-col py-6">
               <Link
-                className={buttonStyles({ variant: 'primary' })}
+                className={buttonStyles({
+                  variant: 'primary',
+                  className: 'mt-auto w-fit',
+                })}
                 href={`/app/organizations/${organizationId}/branches/${branchId}/pos`}
               >
                 Open POS cart
               </Link>
             </div>
           </OperationalPanel>
-        ) : null}
-        <OperationalPanel
-          className="mt-0"
-          title={
-            organization.role === 'MERCHANT' ? 'Your sales' : 'Sales history'
-          }
-          description={
-            organization.role === 'MERCHANT'
-              ? 'Read only sales involving your linked business in this branch.'
-              : organization.role === 'CASHIER'
-                ? 'Review your own completed sales and internal receipts in this assigned branch.'
-                : 'Review completed branch sales and internal receipts.'
-          }
+        </div>
+      ) : null}
+      {activeTab === 'sales' ? (
+        <div
+          id="branch-detail-panel-sales"
+          role="tabpanel"
+          aria-labelledby="branch-detail-tab-sales"
+          className="mt-6"
         >
-          <div className="py-6">
-            <Link
-              className={buttonStyles({ variant: 'secondary' })}
-              href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}
-            >
-              {organization.role === 'MERCHANT'
-                ? 'View own sales'
-                : 'View sales history'}
-            </Link>
-          </div>
-        </OperationalPanel>
-      </div>
-      <MerchantBranchManagement
-        organizationId={organizationId}
-        kind="branch"
-        id={branchId}
-        onChanged={() => setSpaceRevision((value) => value + 1)}
-      />
-      <SpaceManagement
-        organizationId={organizationId}
-        kind="branch"
-        id={branchId}
-        revision={spaceRevision}
-      />
+          <OperationalPanel
+            className="mt-0"
+            title={
+              organization.role === 'MERCHANT' ? 'Your sales' : 'Sales history'
+            }
+            description={
+              organization.role === 'MERCHANT'
+                ? 'Read only sales involving your linked business in this branch.'
+                : organization.role === 'CASHIER'
+                  ? 'Review your own completed sales and internal receipts in this assigned branch.'
+                  : 'Review completed branch sales and internal receipts.'
+            }
+          >
+            <div className="flex min-h-56 flex-col py-6">
+              <Link
+                className={buttonStyles({
+                  variant: 'secondary',
+                  className: 'mt-auto w-fit',
+                })}
+                href={`/app/organizations/${organizationId}/branches/${branchId}/sales`}
+              >
+                {organization.role === 'MERCHANT'
+                  ? 'View own sales'
+                  : 'View sales history'}
+              </Link>
+            </div>
+          </OperationalPanel>
+        </div>
+      ) : null}
+      {activeTab === 'participation' &&
+      (canManage || organization.role === 'MERCHANT') ? (
+        <div
+          id="branch-detail-panel-participation"
+          role="tabpanel"
+          aria-labelledby="branch-detail-tab-participation"
+          className="mt-6"
+        >
+          <MerchantBranchManagement
+            organizationId={organizationId}
+            kind="branch"
+            id={branchId}
+            onChanged={() => setSpaceRevision((value) => value + 1)}
+          />
+        </div>
+      ) : null}
+      {activeTab === 'spaces' &&
+      (canManage || organization.role === 'MERCHANT') ? (
+        <div
+          id="branch-detail-panel-spaces"
+          role="tabpanel"
+          aria-labelledby="branch-detail-tab-spaces"
+          className="mt-6"
+        >
+          <SpaceManagement
+            organizationId={organizationId}
+            kind="branch"
+            id={branchId}
+            revision={spaceRevision}
+          />
+        </div>
+      ) : null}
       {editing && canManage && 'addressLine1' in branch ? (
         <BranchForm
           branch={branch}
@@ -405,6 +552,7 @@ function ScopedBranchDetail({
           }}
         />
       ) : null}
+      {confirmationDialog}
     </OrganizationPageFrame>
   );
 }

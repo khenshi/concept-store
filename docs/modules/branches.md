@@ -100,12 +100,12 @@ The directory is limited to ten rows per page, searches branch name, code, city,
 province, and address, and returns the filtered total, page metadata, an
 unfiltered accessible summary of total/active/inactive counts, and each row's
 active merchant count. The count includes all active merchant–branch associations,
-including merchants without placements. Owners and
-assigned managers may change branch status; cashiers may read it but cannot
+including merchants without placements. Owners and assigned managers may change
+branch status after confirming the transition; cashiers may read it but cannot
 change it. The original branch list and merchant identity-only projection
 remain available to branch selectors and merchant workflows.
 
-The staff directory keeps the page header on a warm gray canvas, then presents a
+The staff directory keeps the page header on the neutral `#F2F2F2` canvas, then presents a
 compact summary card and a separate flat white Store locations card. Search/status
 controls, loading states and table rows remain inside the Store locations card.
 Its rows use the Inventory directory's shared column-header and data-row geometry:
@@ -125,12 +125,22 @@ heading, blocks background interaction, restores focus/scrolling on close, and
 supports safe Escape/backdrop dismissal. Dismissal and repeat submission are
 blocked while a write is pending. Field hints remain above inputs, and validation
 connects messages and focuses the first invalid field.
+The modal groups identity, address, and location fields into a compact responsive
+form with a normal-flow action footer that remains safe for long mobile forms.
+Editable fields provide debounced live validation while typing and immediate
+feedback on blur and submit, while preserving the existing schema normalization.
+The compact form-level error notice appears only after a submit attempt and sits
+at the start of the action row beside the buttons.
 
-The detail view uses the shared page header, information panel, and owner/manager
-edit action. Successful create/edit operations update the workspace cache and
-announce the affected branch. Edit requests still explicitly send `null` when
-clearing optional code, second address line, or postal code. API scoping,
-authorization, schema validation, and normalization are unchanged.
+The detail view uses the shared wide page frame, page header, accessible tabbed
+workspace navigation, information panel, and owner/manager edit action. Overview,
+inventory, POS, sales, participation, and spaces render as separate role-aware
+tabs so branch work is not presented as one long page. The tab strip keeps its
+dark active underline, supports horizontal scrolling on narrow screens, and
+supports keyboard tab movement. Successful create/edit operations update the
+workspace cache and announce the affected branch. Edit requests still explicitly
+send `null` when clearing optional code, second address line, or postal code. API
+scoping, authorization, schema validation, and normalization are unchanged.
 
 Rendered branch inventory-health card layout, filtered-link behavior, keyboard/
 focus behavior, non-color communication and 200% zoom QA were explicitly waived

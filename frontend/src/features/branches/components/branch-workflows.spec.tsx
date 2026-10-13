@@ -131,7 +131,7 @@ it('places Add branch in the directory panel and omits the title eyebrow', () =>
   ).toBeVisible();
   expect(
     screen.getByRole('heading', { name: 'Store locations' }).closest('section'),
-  ).toHaveClass('rounded-panel', 'bg-surface');
+  ).toHaveClass('card-surface');
   expect(screen.getByRole('heading', { name: 'Branches' })).toBeVisible();
   expect(screen.queryByText('North & Pine')).not.toBeInTheDocument();
 });
@@ -340,6 +340,33 @@ describe('BranchManagement', () => {
 });
 
 describe('BranchForm', () => {
+  it('shows debounced live validation and clears field feedback when valid', async () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <BranchForm
+          organizationId="org"
+          branch={null}
+          onSaved={vi.fn()}
+          onCancel={vi.fn()}
+        />,
+      );
+      const name = screen.getByLabelText('Branch name');
+      fireEvent.change(name, { target: { value: 'A' } });
+      expect(name).not.toHaveAttribute('aria-invalid', 'true');
+      await act(() => vi.advanceTimersByTimeAsync(300));
+      expect(name).toHaveAttribute('aria-invalid', 'true');
+      expect(
+        screen.queryByText('Review the highlighted fields and try again.'),
+      ).not.toBeInTheDocument();
+      fireEvent.change(name, { target: { value: 'AB' } });
+      await act(() => vi.advanceTimersByTimeAsync(300));
+      expect(name).not.toHaveAttribute('aria-invalid', 'true');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('dismisses on Escape/backdrop without treating modal padding as outside', () => {
     const onCancel = vi.fn();
     render(
@@ -369,7 +396,7 @@ describe('BranchForm', () => {
     fireEvent(dialog, new Event('cancel', { cancelable: true }));
     expect(onCancel).toHaveBeenCalledTimes(2);
   });
-  it('preserves hint-before-input placement and focuses invalid fields', async () => {
+  it('focuses invalid fields', async () => {
     render(
       <BranchForm
         organizationId="org"
@@ -378,13 +405,12 @@ describe('BranchForm', () => {
         onCancel={vi.fn()}
       />,
     );
-    const code = screen.getByLabelText(/^Code/);
-    const hint = screen.getByText('Optional, for example MKT-01');
-    expect(hint.nextElementSibling).toBe(code);
-    expect(code).toHaveAccessibleDescription('Optional, for example MKT-01');
     fireEvent.submit(screen.getByRole('form', { name: 'Add branch' }));
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Review the highlighted fields',
+    const validationNotice = screen.getByRole('alert');
+    expect(validationNotice).toHaveTextContent('Review the highlighted fields');
+    expect(validationNotice).toHaveClass('sm:max-w-sm');
+    expect(validationNotice.parentElement).toContainElement(
+      screen.getByRole('button', { name: 'Add' }),
     );
     await waitFor(() =>
       expect(screen.getByLabelText('Branch name')).toHaveFocus(),
@@ -411,9 +437,7 @@ describe('BranchForm', () => {
       'Code is already in use.',
     );
     expect(screen.getByLabelText(/^Code/)).toHaveValue('mkt-01');
-    expect(
-      screen.getByRole('button', { name: 'Add branch' }),
-    ).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Add' })).not.toBeDisabled();
   });
 
   it('prevents repeated writes and dismissal during submission', async () => {
@@ -454,12 +478,44 @@ describe('BranchForm', () => {
 });
 
 describe('BranchDetail', () => {
+  it('switches between branch workspace tabs and exposes one panel at a time', async () => {
+    render(<BranchDetail organizationId="org" branchId="branch-id" />);
+    await screen.findByRole('heading', { name: 'Makati Main' });
+
+    const inventoryTab = screen.getByRole('tab', { name: 'Inventory' });
+    fireEvent.click(inventoryTab);
+    expect(inventoryTab).toHaveAttribute('aria-selected', 'true');
+    expect(
+      screen.getByRole('tabpanel', { name: 'Inventory' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('tabpanel', { name: 'Overview' }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.keyDown(inventoryTab, { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'POS' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByRole('tabpanel', { name: 'POS' })).toBeInTheDocument();
+  });
+
   it('changes branch status and updates the workspace cache', async () => {
     const saved = { ...branch, status: 'INACTIVE' as const };
     vi.mocked(updateBranchStatus).mockResolvedValueOnce(saved);
     render(<BranchDetail organizationId="org" branchId="branch-id" />);
     await screen.findByRole('heading', { name: 'Makati Main' });
     fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    expect(updateBranchStatus).not.toHaveBeenCalled();
+    const confirmation = await screen.findByRole('alertdialog', {
+      name: 'Mark Makati Main inactive?',
+    });
+    expect(confirmation).toHaveAccessibleDescription(
+      'This will change the branch status from Active to Inactive.',
+    );
+    fireEvent.click(
+      within(confirmation).getByRole('button', { name: 'Mark inactive' }),
+    );
     await waitFor(() =>
       expect(updateBranchStatus).toHaveBeenCalledWith(
         request,
@@ -486,18 +542,12 @@ describe('BranchDetail', () => {
     vi.mocked(updateBranch).mockResolvedValueOnce(saved);
     render(<BranchDetail organizationId="org" branchId="branch-id" />);
     await screen.findByRole('heading', { name: 'Makati Main' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Inventory' }));
     expect(
       screen.getByRole('link', { name: 'Manage inventory' }),
     ).toHaveAttribute(
       'href',
       '/app/organizations/org/branches/branch-id/inventory',
-    );
-    const actionGrid = screen
-      .getByRole('link', { name: 'Open POS cart' })
-      .closest('.grid');
-    expect(actionGrid).toHaveClass('xl:grid-cols-3');
-    expect(actionGrid).toContainElement(
-      screen.getByRole('link', { name: 'Open POS cart' }),
     );
     expect(screen.getByRole('link', { name: 'Low stock: 2' })).toHaveAttribute(
       'href',
@@ -509,9 +559,12 @@ describe('BranchDetail', () => {
       'href',
       '/app/organizations/org/branches/branch-id/inventory?stockStatus=OUT_OF_STOCK',
     );
-    expect(actionGrid).toContainElement(
+    fireEvent.click(screen.getByRole('tab', { name: 'POS' }));
+    expect(screen.getByRole('link', { name: 'Open POS cart' })).toBeVisible();
+    fireEvent.click(screen.getByRole('tab', { name: 'Sales' }));
+    expect(
       screen.getByRole('link', { name: 'View sales history' }),
-    );
+    ).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Edit branch' }));
     const form = screen.getByRole('form', { name: 'Edit branch' });
     fireEvent.change(within(form).getByLabelText('Branch name'), {
@@ -560,6 +613,7 @@ describe('BranchDetail', () => {
       if (role === 'MERCHANT') {
         expect(screen.queryByText('Country')).not.toBeInTheDocument();
         expect(screen.queryByText('Address')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('tab', { name: 'Inventory' }));
         expect(
           screen.getByRole('link', { name: 'View own inventory' }),
         ).toHaveAttribute(
@@ -602,6 +656,7 @@ describe('BranchDetail', () => {
       .mockResolvedValueOnce({ inStock: 0, lowStock: 0, outOfStock: 0 });
     render(<BranchDetail organizationId="org" branchId="branch-id" />);
     await screen.findByRole('heading', { name: 'Makati Main' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Inventory' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Inventory health could not be loaded.',
     );

@@ -1,9 +1,17 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEventHandler,
+  type FocusEventHandler,
+  type FormEvent,
+} from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { Button } from '@/shared/components/ui/button';
+import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { Notice } from '@/shared/components/ui/notice';
 import {
   TextField,
@@ -14,6 +22,28 @@ import { branchSchema } from '../model/branch.schemas';
 import type { Branch, BranchInput } from '../model/branch.types';
 
 type FieldErrors = Partial<Record<keyof BranchInput, string>>;
+const liveValidationDelay = 300;
+
+function readBranchForm(form: HTMLFormElement) {
+  const data = new FormData(form);
+  return {
+    name: data.get('name'),
+    code: data.get('code'),
+    addressLine1: data.get('addressLine1'),
+    addressLine2: data.get('addressLine2'),
+    city: data.get('city'),
+    province: data.get('province'),
+    postalCode: data.get('postalCode'),
+    countryCode: data.get('countryCode'),
+  };
+}
+
+function fieldErrorFor(form: HTMLFormElement, field: keyof BranchInput) {
+  const result = branchSchema.safeParse(readBranchForm(form));
+  return result.success
+    ? undefined
+    : result.error.flatten().fieldErrors[field]?.[0];
+}
 
 export function BranchForm({
   organizationId,
@@ -28,43 +58,49 @@ export function BranchForm({
 }) {
   const { request } = useAuth();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const dialogId = useId();
+  const validationTimer = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    dialog?.showModal();
-    headingRef.current?.focus();
-    document.body.style.overflow = 'hidden';
-    return () => {
-      dialog?.close();
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
-        previousFocus.focus();
-    };
-  }, []);
+  useEffect(() => () => window.clearTimeout(validationTimer.current), []);
+
+  function updateFieldError(form: HTMLFormElement, field: keyof BranchInput) {
+    const error = fieldErrorFor(form, field);
+    setFieldErrors((current) => {
+      if (current[field] === error) return current;
+      const next = { ...current };
+      if (error) next[field] = error;
+      else delete next[field];
+      return next;
+    });
+  }
+
+  function validateField(
+    field: keyof BranchInput,
+    form: HTMLFormElement | null,
+    immediate = false,
+  ) {
+    window.clearTimeout(validationTimer.current);
+    if (!form) return;
+    if (immediate) {
+      updateFieldError(form, field);
+      return;
+    }
+    validationTimer.current = window.setTimeout(
+      () => updateFieldError(form, field),
+      liveValidationDelay,
+    );
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
     setSubmissionError(null);
+    setHasSubmitted(true);
     const form = event.currentTarget;
-    const data = new FormData(form);
-    const result = branchSchema.safeParse({
-      name: data.get('name'),
-      code: data.get('code'),
-      addressLine1: data.get('addressLine1'),
-      addressLine2: data.get('addressLine2'),
-      city: data.get('city'),
-      province: data.get('province'),
-      postalCode: data.get('postalCode'),
-      countryCode: data.get('countryCode'),
-    });
+    window.clearTimeout(validationTimer.current);
+    const result = branchSchema.safeParse(readBranchForm(form));
     if (!result.success) {
       setFieldErrors(
         Object.fromEntries(
@@ -100,145 +136,191 @@ export function BranchForm({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={`${dialogId}-title`}
-      aria-describedby={`${dialogId}-description`}
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!isSubmitting) onCancel();
-      }}
-      onMouseDown={(event) => {
-        if (event.target !== event.currentTarget || isSubmitting) return;
-        const bounds = event.currentTarget.getBoundingClientRect();
-        if (
-          event.clientX < bounds.left ||
-          event.clientX > bounds.right ||
-          event.clientY < bounds.top ||
-          event.clientY > bounds.bottom
-        )
-          onCancel();
-      }}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-5xl overflow-y-auto rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-scrim sm:p-8"
-    >
-      <h2
-        ref={headingRef}
-        tabIndex={-1}
-        id={`${dialogId}-title`}
-        className="text-xl font-semibold tracking-tight"
-      >
-        {branch ? 'Edit branch' : 'Add a branch'}
-      </h2>
-      <p
-        id={`${dialogId}-description`}
-        className="mt-3 text-sm leading-6 text-muted"
-      >
-        {branch
+    <FormDialog
+      title={branch ? 'Edit branch' : 'Add a branch'}
+      description={
+        branch
           ? 'Update this physical store location.'
-          : 'Record a physical store location for this organization.'}
-      </p>
+          : 'Record a physical store location for this organization.'
+      }
+      size="form"
+      pending={isSubmitting}
+      onClose={onCancel}
+    >
       <form
         aria-label={branch ? 'Edit branch' : 'Add branch'}
-        className="mt-6 grid gap-5"
+        className="mt-6 grid gap-6"
         onSubmit={handleSubmit}
         noValidate
       >
-        {submissionError ? (
-          <Notice tone="error">{submissionError}</Notice>
-        ) : null}
-        {Object.keys(fieldErrors).length > 0 ? (
-          <Notice tone="error">
-            Review the highlighted fields and try again.
-          </Notice>
-        ) : null}
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1.5fr)_minmax(8rem,0.5fr)]">
+        <fieldset className="grid min-w-0 gap-4">
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1.5fr)_minmax(8rem,0.5fr)]">
+            <BranchField
+              name="name"
+              label="Branch name"
+              defaultValue={branch?.name}
+              error={fieldErrors.name}
+              maxLength={120}
+              required
+              onChange={(event) => {
+                setSubmissionError(null);
+                validateField('name', event.currentTarget.form);
+              }}
+              onBlur={(event) =>
+                validateField('name', event.currentTarget.form, true)
+              }
+            />
+            <BranchField
+              name="code"
+              label="Code"
+              hint=""
+              defaultValue={branch?.code ?? undefined}
+              error={fieldErrors.code}
+              maxLength={32}
+              onChange={(event) => {
+                setSubmissionError(null);
+                validateField('code', event.currentTarget.form);
+              }}
+              onBlur={(event) =>
+                validateField('code', event.currentTarget.form, true)
+              }
+            />
+          </div>
+        </fieldset>
+        <fieldset className="grid min-w-0 gap-4 border-t border-hairline pt-5">
+          <legend className="text-sm font-semibold text-ink">Address</legend>
           <BranchField
-            name="name"
-            label="Branch name"
-            defaultValue={branch?.name}
-            error={fieldErrors.name}
-            maxLength={120}
+            name="addressLine1"
+            label="Address line 1"
+            defaultValue={branch?.addressLine1}
+            error={fieldErrors.addressLine1}
+            maxLength={200}
             required
+            onChange={(event) => {
+              setSubmissionError(null);
+              validateField('addressLine1', event.currentTarget.form);
+            }}
+            onBlur={(event) =>
+              validateField('addressLine1', event.currentTarget.form, true)
+            }
           />
           <BranchField
-            name="code"
-            label="Code"
-            hint="Optional, for example MKT-01"
-            defaultValue={branch?.code ?? undefined}
-            error={fieldErrors.code}
-            maxLength={32}
+            name="addressLine2"
+            label="Address line 2"
+            hint=""
+            defaultValue={branch?.addressLine2 ?? undefined}
+            error={fieldErrors.addressLine2}
+            maxLength={200}
+            onChange={(event) => {
+              setSubmissionError(null);
+              validateField('addressLine2', event.currentTarget.form);
+            }}
+            onBlur={(event) =>
+              validateField('addressLine2', event.currentTarget.form, true)
+            }
           />
-        </div>
-        <BranchField
-          name="addressLine1"
-          label="Address line 1"
-          defaultValue={branch?.addressLine1}
-          error={fieldErrors.addressLine1}
-          maxLength={200}
-          required
-        />
-        <BranchField
-          name="addressLine2"
-          label="Address line 2"
-          hint="Optional unit, floor, or building"
-          defaultValue={branch?.addressLine2 ?? undefined}
-          error={fieldErrors.addressLine2}
-          maxLength={200}
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <BranchField
-            name="city"
-            label="City"
-            defaultValue={branch?.city}
-            error={fieldErrors.city}
-            maxLength={100}
-            required
-          />
-          <BranchField
-            name="province"
-            label="Province or region"
-            defaultValue={branch?.province}
-            error={fieldErrors.province}
-            maxLength={100}
-            required
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)]">
-          <BranchField
-            name="postalCode"
-            label="Postal code"
-            defaultValue={branch?.postalCode ?? undefined}
-            error={fieldErrors.postalCode}
-            maxLength={20}
-          />
-          <BranchField
-            name="countryCode"
-            label="Country code"
-            hint="ISO two-letter code"
-            defaultValue={branch?.countryCode ?? 'PH'}
-            error={fieldErrors.countryCode}
-            maxLength={2}
-            required
-          />
-        </div>
-        <div className="flex flex-wrap justify-end gap-3 border-t border-hairline pt-5">
-          <Button
-            variant="secondary"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            pending={isSubmitting}
-            pendingLabel={branch ? 'Saving changes…' : 'Adding branch…'}
-          >
-            {branch ? 'Save changes' : 'Add branch'}
-          </Button>
+        </fieldset>
+        <fieldset className="grid min-w-0 gap-4 border-t border-hairline pt-5">
+          <legend className="text-sm font-semibold text-ink">
+            Location details
+          </legend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <BranchField
+              name="city"
+              label="City"
+              defaultValue={branch?.city}
+              error={fieldErrors.city}
+              maxLength={100}
+              required
+              onChange={(event) => {
+                setSubmissionError(null);
+                validateField('city', event.currentTarget.form);
+              }}
+              onBlur={(event) =>
+                validateField('city', event.currentTarget.form, true)
+              }
+            />
+            <BranchField
+              name="province"
+              label="Province or region"
+              defaultValue={branch?.province}
+              error={fieldErrors.province}
+              maxLength={100}
+              required
+              onChange={(event) => {
+                setSubmissionError(null);
+                validateField('province', event.currentTarget.form);
+              }}
+              onBlur={(event) =>
+                validateField('province', event.currentTarget.form, true)
+              }
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(8rem,0.45fr)]">
+            <BranchField
+              name="postalCode"
+              label="Postal code"
+              defaultValue={branch?.postalCode ?? undefined}
+              error={fieldErrors.postalCode}
+              maxLength={20}
+              onChange={(event) => {
+                setSubmissionError(null);
+                validateField('postalCode', event.currentTarget.form);
+              }}
+              onBlur={(event) =>
+                validateField('postalCode', event.currentTarget.form, true)
+              }
+            />
+            <BranchField
+              name="countryCode"
+              label="Country code"
+              hint=""
+              defaultValue={branch?.countryCode ?? 'PH'}
+              error={fieldErrors.countryCode}
+              maxLength={2}
+              required
+              onChange={(event) => {
+                setSubmissionError(null);
+                validateField('countryCode', event.currentTarget.form);
+              }}
+              onBlur={(event) =>
+                validateField('countryCode', event.currentTarget.form, true)
+              }
+            />
+          </div>
+        </fieldset>
+        <div className="flex flex-col gap-3 border-t border-hairline pt-5 sm:flex-row sm:items-center sm:justify-between">
+          {submissionError ||
+          (hasSubmitted && Object.keys(fieldErrors).length > 0) ? (
+            <Notice
+              tone="error"
+              className="max-w-full px-3 py-2 text-xs leading-5 sm:max-w-sm"
+            >
+              {submissionError ??
+                'Review the highlighted fields and try again.'}
+            </Notice>
+          ) : null}
+          <div className="flex flex-col-reverse gap-3 sm:ml-auto sm:flex-row">
+            <Button
+              className="w-full sm:w-auto"
+              variant="secondary"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="w-full sm:w-auto"
+              type="submit"
+              pending={isSubmitting}
+              pendingLabel={branch ? 'Saving changes…' : 'Adding branch…'}
+            >
+              {branch ? 'Save' : 'Add'}
+            </Button>
+          </div>
         </div>
       </form>
-    </dialog>
+    </FormDialog>
   );
 }
 
@@ -250,6 +332,8 @@ function BranchField({
   defaultValue,
   maxLength,
   required = false,
+  onChange,
+  onBlur,
 }: {
   name: keyof BranchInput;
   label: string;
@@ -258,6 +342,8 @@ function BranchField({
   defaultValue?: string;
   maxLength?: number;
   required?: boolean;
+  onChange?: ChangeEventHandler<HTMLInputElement>;
+  onBlur?: FocusEventHandler<HTMLInputElement>;
 }) {
   return (
     <TextField
@@ -278,6 +364,8 @@ function BranchField({
       defaultValue={defaultValue}
       maxLength={maxLength}
       required={required}
+      onChange={onChange}
+      onBlur={onBlur}
     />
   );
 }
