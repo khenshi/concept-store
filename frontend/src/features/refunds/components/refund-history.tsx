@@ -170,7 +170,7 @@ export function RefundHistory({
     <>
       <OperationalPanel
         variant="open"
-        className="data-surface border-t border-hairline pt-5"
+        className="data-surface pt-5"
         title={role === 'MERCHANT' ? 'Own returned items' : 'Return refunds'}
         description="Original sales stay unchanged. Remaining quantities include every completed return, not just this page."
         action={

@@ -1,14 +1,41 @@
 # Frontend Experience
 
-## Poppins typography
+## System typography
 
-The application now loads Poppins as its global web font through the root layout,
-covering public, authentication and authenticated workspace routes. Existing type
-sizes, weights, line heights, tracking, color semantics and responsive layouts are
-unchanged; the fallback stack remains available when the web font cannot load.
+The application uses the platform system sans stack globally through the root
+layout and shared base styles, covering public, authentication and authenticated
+workspace routes. Apple devices resolve the stack to San Francisco; Windows and
+Android use their native system alternatives. Existing type sizes, weights, line
+heights, tracking, color semantics and responsive layouts remain unchanged. The
+default Graphite canvas is `#F2F2F2`; white surfaces and alternate account theme
+canvases remain unchanged.
 
 This is a presentation-only change. No API, database, authorization, tenant,
 branch or business behavior changed.
+
+## Shared card surfaces (October 13, 2026)
+
+Card-like surfaces across the public landing page, guest flows, organization
+workspace, account settings, branch/inventory/space workflows, POS, reports and
+collection views use the shared `card-surface` treatment. The default light
+theme uses the white Paper surface with a 20px (`1.25rem`) radius, no outer
+border and no shadow. The theme-aware surface token adapts the fill for dark
+themes while preserving the same geometry. `data-surface` uses the same
+borderless geometry for structural collections; internal row and section
+dividers remain available where they improve scanning. Pills, inputs, tabs,
+semantic notices, popovers and dialogs retain their own interaction or feedback
+geometry. This presentation change does not alter routes, data, authorization,
+tenant isolation or business behavior.
+
+## Shared modal backdrop blur (October 13, 2026)
+
+Every modal path softens the page beneath it with the shared scrim and a 12px
+backdrop blur while keeping the modal content crisp. Native `<dialog>` surfaces
+use the global `dialog::backdrop` rule, including form dialogs, organization and
+merchant modals, invitation flows, the mobile workspace drawer and the POS cart
+sheet. Custom alert dialogs for confirmations and account deletion use the
+shared `.modal-backdrop` class. Focus restoration, scroll locking, Escape and
+pending-dismissal behavior remain unchanged.
 
 ## Inventory workflow refinement (Part 1, committed `3e34a8f`)
 
@@ -669,10 +696,11 @@ is archived with that limitation recorded.
 ## Organization and account workflows
 
 Organization selection/creation, workspace overview, and account profile/password/
-deletion use shared neutral page headers, panels, fields, actions, and feedback.
+deletion use shared neutral page headers, borderless card surfaces, fields,
+actions, and feedback.
 The Account Settings route uses a centered compact `OperationalPage` composition
 with anchored Profile, Appearance and Security navigation. Each top-level section
-uses one rounded bordered surface, and the navigation exposes a live selected
+uses one rounded borderless card surface, and the navigation exposes a live selected
 indicator with a dark bottom rule as the page scrolls between sections. Personal information
 uses a responsive two-column form where the sign-in email is visibly read-only;
 the save action and feedback remain attached to that form. Appearance choices are
@@ -695,7 +723,7 @@ their input; native autocomplete, readonly values, and validation constraints ar
 preserved. Invalid submissions focus the first invalid control.
 
 Organization selection uses one divided content surface, while the workspace
-overview groups destinations into responsive rounded bordered section cards. The
+overview groups destinations into responsive rounded borderless section cards. The
 overview exposes only implemented workflows and preserves role-aware visibility.
 Account deletion retains password validation and an explicit modal confirmation
 with solid danger styling only at final confirmation.
@@ -708,19 +736,30 @@ their hover surface extends to both edges of the content panel.
 ## Branch workflow
 
 Branch directory/detail/create/edit use the neutral shared controls and panels.
-The directory uses the shared warm-neutral canvas, a centered rounded collection
-card, and full-width responsive rows instead of a wide fixed-minimum table. The
+The directory uses the shared warm-neutral canvas, a centered rounded borderless
+collection card, and full-width responsive rows instead of a wide fixed-minimum table. The
 create/edit form lives in a focused feature-owned component and uses
 a native modal with scroll containment, pending-write protection, focus
 restoration, and safe dismissal. Shared fields support opt-in hints above inputs
 to preserve the branch form's established field layout; other fields retain hints
 below by default. Branch search/filter behavior, API requests, normalization,
 authorization, tenant scoping, and optional-field clearing are unchanged.
+Branch create/edit dialogs use the shared form-dialog shell with grouped identity,
+address, and location sections, responsive two-column fields, and a normal-flow
+action footer that never obscures long-form fields.
+Field feedback updates after a short typing debounce and is rechecked immediately
+on blur and submit through the existing branch schema.
+The form-level error notice stays hidden during editing and appears compactly
+beside the action buttons only after a submit attempt.
 
-Branch detail now shares the same full-page canvas and centered frame as the
-directory. Branch information, inventory, POS, and sales actions use separate
-rounded white panels with responsive stacking; status, edit, inventory-health,
-and role-aware action behavior are unchanged.
+Branch detail now shares the same full-page canvas and centered wide frame as the
+directory. A sticky accessible tab strip separates the branch overview,
+authorized inventory, POS, sales, participation, and spaces workspaces. Only the
+selected panel renders, while the tab underline, horizontal narrow-screen
+overflow, keyboard movement, padded branch information, status/edit actions,
+inventory-health feedback, and role-aware behavior remain consistent with the
+existing design system. Status changes use the shared accessible confirmation
+dialog before the existing status request runs.
 
 ## Branch POS cart delivery
 
@@ -797,8 +836,8 @@ do not certify rendered accessibility or printing.
 
 Sales history, receipt detail, and own-selling-branch pages now share the same
 warm-neutral canvas and centered wide frame used by inventory. Their collection
-and receipt surfaces are rounded and bordered, while embedded POS history remains
-inside the existing POS shell.
+and receipt surfaces use the shared rounded borderless treatment, while embedded
+POS history remains inside the existing POS shell.
 
 Saved receipt detail uses a clear identity header, structured purchased-item rows,
 and a payment summary with the completed total visually separated from supporting

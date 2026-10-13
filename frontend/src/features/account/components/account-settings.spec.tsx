@@ -56,18 +56,9 @@ describe('AccountSettings', () => {
     expect(
       within(navigation).getByRole('link', { name: 'Appearance' }),
     ).not.toHaveAttribute('aria-current');
-    expect(document.getElementById('profile')).toHaveClass(
-      'rounded-panel',
-      'border',
-    );
-    expect(document.getElementById('appearance')).toHaveClass(
-      'rounded-panel',
-      'border',
-    );
-    expect(document.getElementById('security')).toHaveClass(
-      'rounded-panel',
-      'border',
-    );
+    expect(document.getElementById('profile')).toHaveClass('card-surface');
+    expect(document.getElementById('appearance')).toHaveClass('card-surface');
+    expect(document.getElementById('security')).toHaveClass('card-surface');
   });
 
   it('preserves profile values and saves normalized data with success feedback', async () => {

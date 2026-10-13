@@ -39,7 +39,7 @@ export function SpaceTypesPanel({
   );
   return (
     <section
-      className="mt-5 min-w-0 rounded-panel border border-hairline bg-surface p-5 sm:p-6"
+      className="mt-5 min-w-0 card-surface p-5 sm:p-6"
       aria-label="Space types"
     >
       <div className="border-b border-hairline pb-4">

@@ -42,7 +42,7 @@ export function PosCartPanel({
 
   return (
     <section
-      className={`flex h-full min-h-0 w-full flex-col overflow-hidden bg-surface ${onClose ? 'rounded-none border-0' : 'rounded-panel border border-hairline'} lg:landscape:max-h-[calc(100dvh-18rem)] ${fullscreen ? 'lg:landscape:max-h-none' : ''}`}
+      className={`flex h-full min-h-0 w-full flex-col overflow-hidden bg-surface ${onClose ? 'rounded-none border-0' : 'card-surface'} lg:landscape:max-h-[calc(100dvh-18rem)] ${fullscreen ? 'lg:landscape:max-h-none' : ''}`}
       aria-label="Cart"
     >
       <header className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-hairline bg-subtle px-5 py-4">

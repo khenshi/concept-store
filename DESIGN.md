@@ -3,7 +3,7 @@ name: Kapwesto
 description: Editorial calm for the public story; compact clarity for daily store operations.
 direction: Editorial Operational Minimalism
 colors:
-  warm-canvas: "#F4F4F1"
+  warm-canvas: "#F2F2F2"
   paper: "#FFFFFF"
   soft-surface: "#F8F8F6"
   ink: "#171717"
@@ -25,7 +25,7 @@ colors:
   warning: "#8A4B10"
   danger: "#C53B37"
 typography:
-  family: "Poppins, ui-sans-serif, system-ui, sans-serif"
+  family: "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
   display:
     {
       fontSize: "clamp(3rem, 7.5vw, 6.75rem)",
@@ -54,8 +54,8 @@ rounded:
   {
     compact: "0.5rem",
     control: "0.625rem",
-    surface: "0.875rem",
-    feature: "1.5rem",
+    surface: "1.25rem",
+    feature: "1.25rem",
     pill: "999px",
   }
 shadow:
@@ -78,7 +78,8 @@ dividers, calm data surfaces, and tonal contrast that clarifies action and state
 Both modes share type, neutral palette, geometry, borders, and voice. They differ
 in density, not identity.
 
-The application-page redesign keeps the public landing page unchanged. Other
+The application-page redesign keeps public landing-page content and structure
+stable while applying the shared card geometry to its interface previews. Other
 pages use open, well-aligned compositions inspired by the supplied references:
 paper planes, whitespace and typographic hierarchy replace most repeated card
 frames. Dividers mark major transitions, not every section and row. Focused
@@ -89,7 +90,7 @@ inheriting the workspace sidebar.
 
 ### Warm neutrality
 
-The default Graphite theme uses Warm Canvas around Paper and Soft Surface layers.
+The default Graphite theme uses a neutral iOS-style canvas around Paper and Soft Surface layers.
 The other ten light choices use softly tinted canvas and surfaces; three dark choices use distinct canvas, surface, and raised levels.
 Surfaces remain lighter than the page canvas. Quiet text is secondary but must
 retain accessible contrast in every palette.
@@ -134,7 +135,7 @@ use brighter status text and accent companions; danger buttons use an explicit f
 Sypher, Crextio, SBB, and Wellness Teal use green, warm yellow, orange, and teal
 actions with readable theme-specific foregrounds.
 
-- **Warm Canvas** (`#F4F4F1`): outer page and application canvas.
+- **Neutral Canvas** (`#F2F2F2`): outer page and application canvas.
 - **Paper** (`#FFFFFF`): content, controls, sidebar, and dialogs.
 - **Soft Surface** (`#F8F8F6`): inset zones and alternating sections.
 - **Ink** (`#171717`): headings, copy, and dark public actions.
@@ -154,7 +155,7 @@ actions with readable theme-specific foregrounds.
 - **Selected Surface** (`#ECECE7`) and **Selected Border** (`#85857E`): active
   navigation, selected rows, filters, and low-emphasis state.
 - **Focus Ring** (`#575752`): keyboard focus paired with a separating Paper or
-  Warm Canvas outer ring.
+  Neutral Canvas outer ring.
 - **Success** (`#168A52`), **Warning** (`#8A4B10`), and **Danger** (`#B52E2C`):
   named outcomes that also use text, icons, or structure. Use the darker
   **Success Ink** (`#117447`) for normal-size success text on Paper.
@@ -164,10 +165,11 @@ tints rather than glass effects.
 
 ## Typography
 
-Use Poppins everywhere, including the public landing page and authenticated
-application. Editorial character comes from scale, medium weight, tight tracking,
-and measured line length—not a separate display font. Keep the fallback stack for
-environments where the web font cannot load.
+Use the platform system sans everywhere, including the public landing page and
+authenticated application. Apple devices resolve the first stack entry to San
+Francisco, while Windows and Android use their native system alternatives.
+Editorial character comes from scale, medium weight, tight tracking, and measured
+line length—not a separate display font.
 
 - **Display:** 500, `clamp(3rem, 7.5vw, 6.75rem)`, 0.94 line height,
   `-0.065em` tracking; public hero only.
@@ -215,13 +217,19 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 ## Shape, borders, and elevation
 
 - Compact statuses/icons: `0.5rem`; inputs/buttons: `0.625rem`; focused dialogs
-  and functional inset surfaces may use `0.875rem`; public feature surfaces:
-  up to `1.5rem`. Rounded corners are welcome on purposeful interactive or
-  contained surfaces; ordinary sections need not be boxed at all.
+  and functional inset surfaces may use `0.875rem`; cards and public feature
+  surfaces use `1.25rem` (20px). Rounded corners are welcome on purposeful
+  interactive or contained surfaces; ordinary sections need not be boxed at all.
 - Application action buttons and dropdown triggers use the pill radius shared by
   the inventory filters. Statuses, tags, menu options, and structural tabs may
   retain their compact or role-specific geometry.
-- Resting surfaces use a one-pixel Hairline border and no shadow.
+- Card surfaces use Paper (`#FFFFFF` in light themes), a `1.25rem` radius, no
+  border and no shadow. Theme-aware `surface` tokens may adapt this fill in dark
+  themes while preserving the same geometry.
+- Structural data surfaces use the same borderless card treatment; internal
+  dividers remain available when they improve scanning.
+- Other resting surfaces may use a one-pixel Hairline border and no shadow when
+  the border communicates structure rather than card elevation.
 - Menus/popovers may use the floating shadow; dialogs may use overlay shadow.
 - Form dialogs use nearly the full viewport width on phones and a generous
   56–64rem maximum width on larger screens, with contained vertical scrolling.
@@ -240,7 +248,7 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
   a 44-pixel minimum touch target. Do not color every button.
 - Secondary: Paper, Ink, Control Border. Quiet actions use transparent or
   Soft Surface. Destructive actions become solid Danger only in final confirmation.
-- Hover shifts tone modestly. Focus must remain visible on Paper and Warm Canvas.
+- Hover shifts tone modestly. Focus must remain visible on Paper and Neutral Canvas.
   Disabled and pending states explain why the action cannot proceed.
 - Use clear verbs. Underline inline links; button-shaped actions need no underline.
 
@@ -253,13 +261,15 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
 
 ### Panels and public features
 
-- Ordinary operational sections use open Paper, spacing and type hierarchy with
-  no resting shadow. A top or bottom Hairline is reserved for a real structural
-  change, not applied automatically to every section.
+- Card-like operational sections use the shared borderless Paper card treatment
+  with 20px corners. Ordinary sections still use open Paper, spacing and type
+  hierarchy when a containing card would add noise.
+- A top or bottom Hairline is reserved for a real structural change, not applied
+  automatically to every section or card boundary.
 - Headers use concise titles, quiet descriptions, and one aligned action area.
 - Toolbars use Paper or a restrained Soft Surface; let control grouping and
   placement do most of the work before adding a divider.
-- Public feature cards may use `1.5rem` and broad whitespace; previews stay quieter
+- Public feature cards use `1.25rem` and broad whitespace; previews stay quieter
   than their headline.
 
 ### Navigation
@@ -308,13 +318,16 @@ Narrow layouts collapse in DOM/task order; meaning never relies on position.
   contained cards when each item is a meaningful destination. Keep the page
   background and card surfaces unified; use whitespace, a compact search/action
   row and consistent card geometry for rhythm.
-- A chooser card may be gently rounded and bordered for click affordance. Keep
-  its content limited to verified identity, role/access context and navigation;
-  do not add decorative metrics or fictional activity data.
+- A chooser card uses the shared 20px borderless card treatment for click
+  affordance. Keep its content limited to verified identity, role/access context
+  and navigation; do not add decorative metrics or fictional activity data.
 
 ### Dialogs, menus, and feedback
 
 - Floating UI is the main place shadows are allowed.
+- Modal backdrops use the shared scrim plus a 12px backdrop blur so the page
+  beneath loses focus while the modal content remains crisp. Native dialogs use
+  `dialog::backdrop`; custom alert dialogs use the shared `.modal-backdrop`.
 - Dialogs require title/description, predictable actions, scroll containment,
   initial focus, focus trapping, safe Escape dismissal, and focus restoration.
 - Menus align with triggers and work equally with keyboard and pointer.

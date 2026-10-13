@@ -1,7 +1,7 @@
 /* Complete semantic palettes for the account theme selector. */
 :root,
 [data-color-theme='GRAPHITE'] {
-  --color-canvas: #f4f4f1;
+  --color-canvas: #f2f2f2;
   --color-surface: #ffffff;
   --color-subtle: #f8f8f6;
   --color-hover: #efefeb;

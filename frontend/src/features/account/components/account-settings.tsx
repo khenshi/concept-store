@@ -148,7 +148,7 @@ export function AccountSettings() {
           <div className="grid gap-6 pt-6">
             <section
               id="profile"
-              className="scroll-mt-32 rounded-panel border border-hairline bg-surface p-4 sm:p-5"
+              className="scroll-mt-32 card-surface p-4 sm:p-5"
             >
               <OperationalPanel
                 variant="open"
@@ -240,13 +240,13 @@ export function AccountSettings() {
             </section>
             <section
               id="appearance"
-              className="scroll-mt-32 rounded-panel border border-hairline bg-surface p-4 sm:p-5"
+              className="scroll-mt-32 card-surface p-4 sm:p-5"
             >
               <ColorThemePicker className="!mt-0 !bg-transparent" />
             </section>
             <section
               id="security"
-              className="scroll-mt-32 rounded-panel border border-hairline bg-surface p-4 sm:p-5"
+              className="scroll-mt-32 card-surface p-4 sm:p-5"
             >
               <div>
                 <h2 className="text-base font-semibold text-ink">Security</h2>

@@ -13,7 +13,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
       ) : null}
       <dl
         aria-label="Sales summary"
-        className="mt-5 grid min-w-0 divide-y divide-hairline rounded-panel border border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
+        className="mt-5 grid min-w-0 divide-y divide-hairline card-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
         {[
           ['Gross recorded sales', `PHP ${report.grossSales}`],
@@ -33,7 +33,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
       </dl>
       <dl
         aria-label="Refund and net summary"
-        className="mt-5 grid min-w-0 rounded-panel bg-subtle sm:grid-cols-3"
+        className="mt-5 grid min-w-0 card-surface sm:grid-cols-3"
       >
         {[
           ['Refunded amount', report.refundedAmount],

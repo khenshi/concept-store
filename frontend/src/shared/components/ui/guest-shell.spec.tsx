@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { GuestShell } from './guest-shell';
 
 describe('GuestShell', () => {
-  it('keeps the entry form narrow and separate from optional context without a card frame', () => {
+  it('keeps the entry form narrow and separate from optional context in a card', () => {
     render(
       <GuestShell eyebrow="Welcome" title="Sign in">
         <form aria-label="Sign in form" />
@@ -12,7 +12,8 @@ describe('GuestShell', () => {
     const section = screen
       .getByRole('heading', { name: 'Sign in' })
       .closest('section');
-    expect(section).toHaveClass('max-w-xl', 'bg-surface');
+    expect(section).toHaveClass('max-w-xl', 'card-surface');
+    expect(section).not.toHaveClass('border');
     expect(section).not.toHaveClass('border-y');
     expect(section).not.toHaveClass('rounded-feature');
     expect(

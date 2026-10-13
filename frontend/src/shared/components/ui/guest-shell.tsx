@@ -34,7 +34,7 @@ export function GuestShell({
         <div className="grid flex-1 items-center gap-8 py-8 sm:py-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
           <section
             aria-labelledby="guest-title"
-            className="mx-auto w-full min-w-0 max-w-xl rounded-panel border border-hairline bg-surface p-6 sm:p-8 lg:p-10"
+            className="mx-auto w-full min-w-0 max-w-xl card-surface p-6 sm:p-8 lg:p-10"
           >
             <p className="mb-4 text-xs font-medium text-muted">{eyebrow}</p>
             <h1

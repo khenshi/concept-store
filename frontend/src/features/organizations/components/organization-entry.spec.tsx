@@ -71,15 +71,10 @@ describe('OrganizationEntry', () => {
     expect(screen.queryByText('North & Pine')).not.toBeInTheDocument();
   });
 
-  it('renders accessible organizations as lightly contained chooser cards', async () => {
+  it('renders accessible organizations as borderless chooser cards', async () => {
     render(<OrganizationEntry />);
     const row = await screen.findByRole('link', { name: /North & Pine/ });
-    expect(row).toHaveClass(
-      'min-h-40',
-      'rounded-panel',
-      'border-hairline',
-      'bg-surface',
-    );
+    expect(row).toHaveClass('min-h-40', 'card-surface');
     expect(row.closest('ul')).toHaveClass('grid', 'gap-4', 'lg:grid-cols-3');
     expect(screen.getByText('NP')).toBeInTheDocument();
     expect(screen.queryByText('Available to you')).not.toBeInTheDocument();

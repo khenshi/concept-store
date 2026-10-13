@@ -546,7 +546,7 @@ function BranchSummaryMetrics({
   ] as const;
   return (
     <dl
-      className="mt-7 grid grid-cols-3 divide-x divide-hairline overflow-hidden rounded-panel border border-hairline bg-surface"
+      className="mt-7 grid grid-cols-3 divide-x divide-hairline overflow-hidden card-surface"
       aria-label="Branch summary"
     >
       {metrics.map(([label, value]) => (

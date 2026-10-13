@@ -53,7 +53,7 @@ describe('OrganizationWorkspace', () => {
         screen
           .getByRole('heading', { name: 'Branch operations' })
           .closest('section'),
-      ).toHaveClass('rounded-panel', 'border-hairline', 'bg-surface');
+      ).toHaveClass('card-surface');
       expect(screen.getByRole('link', { name: /Reports/ })).toHaveAttribute(
         'href',
         '/app/organizations/org/reports',

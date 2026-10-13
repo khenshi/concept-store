@@ -93,7 +93,7 @@ export function SpaceContentSkeleton({
 }: SpaceContentSkeletonProps) {
   return (
     <section
-      className="mt-5 min-w-0 rounded-panel border border-hairline bg-surface p-5 sm:p-6"
+      className="mt-5 min-w-0 card-surface p-5 sm:p-6"
       role="status"
       aria-label={label}
       aria-busy="true"

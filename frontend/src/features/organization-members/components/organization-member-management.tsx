@@ -278,7 +278,7 @@ export function OrganizationMemberManagement({
       />
 
       {!canViewMembers ? (
-        <section className="mt-6 rounded-panel border border-hairline bg-surface p-6">
+        <section className="mt-6 card-surface p-6">
           <h2 className="m-0 text-base font-bold">Member access is limited</h2>
           <p className="mt-3 leading-7 text-muted">
             Only organization owners can view the member list.

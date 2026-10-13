@@ -101,7 +101,7 @@ export default function Home() {
           <div className="mt-20 grid gap-6 lg:mt-28 lg:gap-8" id="how-it-works">
             {features.map((feature, index) => (
               <article
-                className="grid min-h-[30rem] overflow-hidden rounded-feature border border-hairline bg-subtle lg:grid-cols-2"
+                className="grid min-h-[30rem] overflow-hidden card-surface lg:grid-cols-2"
                 key={feature.title}
               >
                 <div
@@ -167,7 +167,7 @@ function WorkspacePreview() {
   return (
     <div className="relative mx-auto w-full max-w-2xl" aria-hidden="true">
       <div className="absolute -inset-8 rounded-full bg-hairline/65 blur-3xl" />
-      <div className="relative overflow-hidden rounded-feature border border-border-strong bg-surface shadow-[0_24px_70px_rgb(23_23_23/0.12)]">
+      <div className="relative overflow-hidden card-surface">
         <div className="flex h-11 items-center gap-2 border-b border-hairline px-4">
           <i className="size-2 rounded-full bg-border-strong" />
           <i className="size-2 rounded-full bg-border-strong" />
@@ -212,10 +212,7 @@ function WorkspacePreview() {
                 ['Team members', '8'],
                 ['Merchants', '24'],
               ].map(([label, value]) => (
-                <div
-                  className="rounded-xl border border-hairline bg-surface p-3"
-                  key={label}
-                >
+                <div className="card-surface p-3" key={label}>
                   <p className="text-[0.55rem] text-faint">{label}</p>
                   <p className="mt-2 text-xl font-semibold tracking-[-0.04em]">
                     {value}
@@ -223,7 +220,7 @@ function WorkspacePreview() {
                 </div>
               ))}
             </div>
-            <div className="mt-3 rounded-xl border border-hairline bg-surface p-4">
+            <div className="mt-3 card-surface p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold">Recent branches</p>
                 <span className="text-[0.55rem] text-faint">View all</span>
@@ -302,7 +299,7 @@ function PreviewFrame({
   children: ReactNode;
 }) {
   return (
-    <div className="w-full max-w-lg rounded-2xl border border-border-strong bg-surface p-5 shadow-[0_10px_30px_rgb(23_23_23/0.07)] sm:p-7">
+    <div className="w-full max-w-lg card-surface p-5 sm:p-7">
       <div className="mb-5 flex items-center justify-between gap-4">
         <p className="font-semibold tracking-[-0.02em]">{title}</p>
         <span className="rounded-lg bg-action px-3 py-2 text-[0.65rem] font-semibold text-surface">

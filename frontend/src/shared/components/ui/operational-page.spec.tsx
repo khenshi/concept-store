@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { OperationalPanel, OperationalToolbar } from './operational-page';
 
 describe('OperationalPanel', () => {
-  it('supports an unboxed section without changing the legacy card default', () => {
+  it('supports an open section while keeping the shared card default', () => {
     const { rerender } = render(
       <OperationalPanel title="Work areas" variant="open">
         <p>Content</p>
@@ -22,7 +22,7 @@ describe('OperationalPanel', () => {
       screen
         .getByRole('heading', { name: 'Existing panel' })
         .closest('section'),
-    ).toHaveClass('rounded-panel');
+    ).toHaveClass('card-surface');
   });
 });
 

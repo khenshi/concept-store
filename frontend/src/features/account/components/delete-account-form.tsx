@@ -149,7 +149,7 @@ export function DeleteAccountForm({ className = '' }: { className?: string }) {
       </OperationalPanel>
       {isOpen ? (
         <div className="fixed inset-0 z-[70] grid place-items-center p-4 sm:p-6">
-          <div className="absolute inset-0 bg-scrim" aria-hidden="true" />
+          <div className="modal-backdrop" aria-hidden="true" />
           <section
             ref={dialogRef}
             className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-panel border border-hairline bg-surface p-5 text-ink shadow-overlay sm:p-6"

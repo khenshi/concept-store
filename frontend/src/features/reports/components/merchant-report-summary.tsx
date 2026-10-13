@@ -17,7 +17,7 @@ export function MerchantReportSummary({
       ) : null}
       <dl
         aria-label="Own-sales summary"
-        className="mt-5 grid min-w-0 divide-y divide-hairline rounded-panel border border-hairline bg-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
+        className="mt-5 grid min-w-0 divide-y divide-hairline card-surface sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
         {[
           ['Own gross recorded sales', `PHP ${report.ownGrossSales}`],
@@ -37,7 +37,7 @@ export function MerchantReportSummary({
       </dl>
       <dl
         aria-label="Own refund and net summary"
-        className="mt-5 grid min-w-0 rounded-panel bg-subtle sm:grid-cols-3"
+        className="mt-5 grid min-w-0 card-surface sm:grid-cols-3"
       >
         {[
           ['Own refunded amount', report.ownRefundedAmount],

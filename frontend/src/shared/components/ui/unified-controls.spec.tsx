@@ -194,6 +194,7 @@ describe('useConfirmationDialog', () => {
     expect(
       screen.getByRole('alertdialog', { name: 'Remove member?' }),
     ).toHaveAccessibleDescription('Access will be removed.');
+    expect(document.querySelector('.modal-backdrop')).toBeInTheDocument();
     const cancel = screen.getByRole('button', { name: 'Cancel' });
     const remove = screen.getByRole('button', { name: 'Remove' });
     expect(cancel).toHaveFocus();

@@ -1,5 +1,50 @@
 # Current plan
 
+## System-wide modal backdrop blur
+
+**Status:** Implemented locally October 13, 2026; automated validation and
+rendered browser QA remain.
+
+### Goal
+
+Keep the page below every modal visually present but de-emphasized with a shared
+Apple-inspired scrim and backdrop blur.
+
+### Scope and exclusions
+
+- Apply a 12px blur and existing scrim to every native `<dialog>` backdrop.
+- Apply the same treatment to custom confirmation and account-deletion overlays.
+- Preserve modal content, focus restoration, scroll locking, Escape handling,
+  pending-dismissal protection, responsive layout and accessibility semantics.
+- Do not change modal timing, dismissal rules, or business behavior.
+
+Stop after the shared backdrop styles, affected frontend module documentation,
+focused tests, typecheck, lint, formatting and diff validation are complete.
+
+## System-wide card surface treatment
+
+**Status:** Implemented locally October 13, 2026; automated validation and
+rendered browser QA remain.
+
+### Goal
+
+Give card-like surfaces a single Apple-inspired treatment: white theme surface,
+20px corners and no outer border or shadow.
+
+### Scope and exclusions
+
+- Add the shared borderless `card-surface` treatment and apply it to true cards,
+  panels, collection surfaces, dashboards, chooser cards, guest forms and
+  public interface previews.
+- Set structural `data-surface` collections to the same 20px borderless geometry.
+- Preserve internal row dividers, status/input/tab/pill geometry, semantic notice
+  borders, popover/dialog elevation, content, responsive behavior and all
+  existing backend contracts.
+- Keep theme-aware surface tokens so dark themes retain readable contrast.
+
+Stop after the shared card treatment, affected frontend module documentation,
+focused tests, typecheck, lint, formatting and diff validation are complete.
+
 ## Shared error feedback presentation
 
 **Status:** Implemented locally October 12, 2026; focused automated validation

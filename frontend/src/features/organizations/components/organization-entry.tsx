@@ -55,7 +55,7 @@ function OrganizationGridSkeleton() {
     >
       {Array.from({ length: 6 }, (_, index) => (
         <div
-          className="min-h-40 animate-pulse rounded-panel border border-hairline bg-surface p-4"
+          className="min-h-40 animate-pulse card-surface p-4"
           key={index}
           aria-hidden="true"
         >
@@ -243,7 +243,7 @@ export function OrganizationEntry() {
               {filteredOrganizations.map((organization) => (
                 <li key={organization.id} className="min-w-0">
                   <Link
-                    className="group flex min-h-40 w-full flex-col rounded-panel border border-hairline bg-surface p-4 text-ink no-underline transition-[border-color,box-shadow] duration-150 hover:border-selected-border hover:shadow-floating"
+                    className="group flex min-h-40 w-full flex-col card-surface p-4 text-ink no-underline transition-colors duration-150 hover:bg-subtle"
                     href={`/app/organizations/${organization.id}`}
                   >
                     <span className="flex items-start justify-between gap-4">

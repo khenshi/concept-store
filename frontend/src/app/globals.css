@@ -2,7 +2,7 @@
 @import './themes.css';
 
 @theme {
-  --color-canvas: #f4f4f1;
+  --color-canvas: #f2f2f2;
   --color-surface: #ffffff;
   --color-subtle: #f8f8f6;
   --color-hover: #efefeb;
@@ -30,8 +30,8 @@
   --color-scrim: rgb(14 17 22 / 0.55);
   --radius-compact: 0.5rem;
   --radius-control: 0.625rem;
-  --radius-panel: 0.875rem;
-  --radius-feature: 1.5rem;
+  --radius-panel: 1.25rem;
+  --radius-feature: 1.25rem;
   --shadow-floating: 0 10px 30px rgb(23 23 23 / 0.08);
   --shadow-overlay: 0 24px 70px rgb(23 23 23 / 0.14);
   --text-page: clamp(1.65rem, 3vw, 2.25rem);
@@ -63,6 +63,9 @@
 
   body {
     @apply m-0 bg-canvas text-ink;
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+      Arial, sans-serif;
   }
 
   button,
@@ -91,6 +94,12 @@
 
   dialog h2[tabindex='-1']:focus-visible {
     outline: none;
+  }
+
+  dialog::backdrop {
+    background: var(--color-scrim);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
   }
 
   :where(a, button, input, select, textarea, [tabindex]):focus-visible {
@@ -142,8 +151,18 @@
     @apply cursor-not-allowed opacity-50;
   }
 
+  .card-surface {
+    @apply rounded-panel border-0 bg-surface shadow-none;
+  }
+
+  .modal-backdrop {
+    @apply absolute inset-0 bg-scrim;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
   .data-surface {
-    @apply overflow-hidden rounded-panel border border-hairline bg-surface;
+    @apply overflow-hidden rounded-panel border-0 bg-surface shadow-none;
   }
 
   .data-column-header {

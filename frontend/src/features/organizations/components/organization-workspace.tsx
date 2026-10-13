@@ -165,7 +165,7 @@ export function OrganizationWorkspace({
   const destinationCard = (destination: (typeof destinations)[number]) => (
     <li key={destination.key} className="h-full">
       <Link
-        className="group flex h-full min-h-18 items-start gap-3 rounded-panel border border-hairline bg-surface p-3 text-ink no-underline transition-colors hover:border-selected-border hover:bg-subtle focus-visible:outline-offset-[-2px]"
+        className="group flex h-full min-h-18 items-start gap-3 card-surface p-3 text-ink no-underline transition-colors hover:bg-subtle focus-visible:outline-offset-[-2px]"
         href={destination.href}
       >
         <span className="grid size-9 shrink-0 place-items-center rounded-control border border-hairline bg-subtle text-ink transition-colors group-hover:border-selected-border">
@@ -263,31 +263,31 @@ function OrganizationOverviewSkeleton() {
           <div className="h-8 w-28 rounded-full bg-selected" />
         </div>
         <div className="mt-4 grid gap-5">
-          <div className="rounded-panel border border-hairline bg-surface p-4 sm:p-5">
+          <div className="card-surface p-4 sm:p-5">
             <div className="h-5 w-40 rounded bg-selected" />
             <div className="mt-2 h-4 w-80 max-w-full rounded bg-selected" />
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-              <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-              <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-              <div className="h-24 rounded-panel border border-hairline bg-subtle" />
+              <div className="h-24 rounded-panel bg-subtle" />
+              <div className="h-24 rounded-panel bg-subtle" />
+              <div className="h-24 rounded-panel bg-subtle" />
+              <div className="h-24 rounded-panel bg-subtle" />
             </div>
           </div>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.6fr)]">
-            <div className="rounded-panel border border-hairline bg-surface p-4 sm:p-5">
+            <div className="card-surface p-4 sm:p-5">
               <div className="h-5 w-32 rounded bg-selected" />
               <div className="mt-2 h-4 w-80 max-w-full rounded bg-selected" />
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-                <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-                <div className="h-24 rounded-panel border border-hairline bg-subtle" />
-                <div className="h-24 rounded-panel border border-hairline bg-subtle" />
+                <div className="h-24 rounded-panel bg-subtle" />
+                <div className="h-24 rounded-panel bg-subtle" />
+                <div className="h-24 rounded-panel bg-subtle" />
+                <div className="h-24 rounded-panel bg-subtle" />
               </div>
             </div>
-            <div className="rounded-panel border border-hairline bg-surface p-4 sm:p-5">
+            <div className="card-surface p-4 sm:p-5">
               <div className="h-5 w-24 rounded bg-selected" />
               <div className="mt-2 h-4 w-full rounded bg-selected" />
-              <div className="mt-4 h-24 rounded-panel border border-hairline bg-subtle" />
+              <div className="mt-4 h-24 rounded-panel bg-subtle" />
             </div>
           </div>
         </div>

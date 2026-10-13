@@ -570,7 +570,7 @@ function ScopedInventoryDetail({
         action={branchSelector}
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      <section className="inventory-placement-panel mt-0 rounded-panel border border-hairline bg-surface text-ink">
+      <section className="inventory-placement-panel mt-0 card-surface text-ink">
         <dl className="inventory-placement-summary grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
           <div className="inventory-placement-stat flex items-center justify-start gap-3 px-4 py-5 lg:py-6">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-subtle">
