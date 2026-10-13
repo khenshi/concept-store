@@ -36,7 +36,7 @@ export function Notice({
   return (
     <div
       role={styles.role}
-      className={`flex min-w-0 items-start gap-3 rounded-control border px-4 py-3 text-sm leading-6 text-ink ${styles.surfaceClassName} ${className}`}
+      className={`flex min-w-0 items-center gap-3 rounded-control border px-4 py-2 text-sm leading-6 text-ink ${styles.surfaceClassName} ${className}`}
     >
       <span
         aria-hidden="true"
