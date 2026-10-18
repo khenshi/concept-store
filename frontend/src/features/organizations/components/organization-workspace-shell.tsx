@@ -97,7 +97,7 @@ export function OrganizationWorkspaceShell({
     >
       {posFullscreen ? null : (
         <aside
-          className={`hidden min-w-0 border-r border-hairline bg-surface print:hidden lg:sticky lg:top-17 lg:flex lg:h-[calc(100dvh-4.25rem)] lg:flex-col lg:self-start ${isSidebarCollapsed ? 'px-2' : 'px-4'}`}
+          className={`hidden min-w-0 bg-surface print:hidden lg:sticky lg:top-17 lg:flex lg:h-[calc(100dvh-4.25rem)] lg:flex-col lg:self-start ${isSidebarCollapsed ? 'px-2' : 'px-4'}`}
           aria-label="Workspace sidebar"
         >
           <div className="shrink-0 pt-5">
@@ -110,7 +110,7 @@ export function OrganizationWorkspaceShell({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-5">
             {navigation(isSidebarCollapsed)}
           </div>
-          <div className="grid shrink-0 gap-2 border-t border-hairline py-3">
+          <div className="grid shrink-0 gap-2 py-3">
             <Link
               href="/app"
               className={buttonStyles({
@@ -153,7 +153,7 @@ export function OrganizationWorkspaceShell({
         }
       >
         {posFullscreen ? null : (
-          <div className="flex items-center gap-3 border-b border-hairline bg-surface px-4 py-3 print:hidden sm:px-6 lg:hidden">
+          <div className="flex items-center gap-3 bg-surface px-4 py-3 print:hidden sm:px-6 lg:hidden">
             <div className="min-w-0 flex-1">
               <OrganizationSwitcher
                 organizationId={organizationId}

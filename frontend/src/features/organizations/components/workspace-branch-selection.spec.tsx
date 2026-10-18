@@ -192,6 +192,20 @@ describe('shared organization workspace branch selection', () => {
       );
     },
   );
+  it.each(['inventory', 'reports'] as const)(
+    'keeps the %s entry header on the wide workspace track',
+    async (page) => {
+      render(tree(page));
+      await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
+      expect(
+        screen
+          .getByRole('heading', {
+            name: page === 'inventory' ? 'Inventory' : 'Reports',
+          })
+          .closest('.max-w-7xl'),
+      ).toBeInTheDocument();
+    },
+  );
   it('updates the common choice after explicit Reports selection, without a duplicate redirect', async () => {
     const view = render(tree('reports'));
     await choose('South (SOUTH)');

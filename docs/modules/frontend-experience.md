@@ -315,10 +315,12 @@ Merchant-option loading is announced beside its reserved filter width without
 blocking the Rank by control.
 
 The applied branch is also shown in a compact sticky Report context bar below
-the global workspace header. Report tabs stay at the left, the branch name is
-centered, and Refresh Report stays at the right while long chart and table views
-scroll. On narrow screens the navigation, branch name and refresh action stack
-in reading order; the full date editor remains above the bar and is the only
+the global workspace header. The tab navigation uses a compact row with modest
+top breathing room and a fine active underline, flowing directly into the
+content without an extra divider. Report tabs stay at the left and Refresh
+Report stays at the right while long chart and table views scroll. On narrow
+screens the navigation and refresh action stack in
+reading order; the full date editor remains above the bar and is the only
 period-editing control.
 
 The Reports context bar also provides a `Transactions` tab. It lazy-loads the
@@ -658,14 +660,17 @@ contrast, and rendered reduced-motion checks were not performed for these screen
 
 Protected routes use a warm neutral canvas and a compact sticky utility header.
 The workspace sidebar remains 15.5rem expanded or 4.5rem collapsed and offers
-organization switching in both modes. Navigation uses neutral selected surfaces,
-borders, visible labels, and a shared internal outline SVG icon set. Existing
+organization switching in both modes. The workspace chrome uses open, borderless
+sidebar and top-bar surfaces; navigation uses neutral selected surfaces, borders,
+visible labels, and a shared internal outline SVG icon set. Existing
 role checks, destination paths, and the skip-to-content link are preserved.
 Visible destinations are grouped into Branch operations (POS, Inventory, Sales
 and Reports) and Organization (Overview, Branches, Merchants, Products and
 Members). Collapsed navigation retains accessible group and destination names.
 Branch-scoped operational selectors occupy the PageHeader action area on wider
-screens and stack below the title block on narrow screens.
+screens and stack below the title block on narrow screens. Branch-selection
+entry routes and their selected-branch workspaces share the same centered wide
+content track, so the header does not shift when a branch is chosen.
 
 The mobile navigation drawer uses a native modal dialog for top-layer display,
 background interaction blocking, and browser focus containment. It focuses Close

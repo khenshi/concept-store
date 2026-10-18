@@ -251,10 +251,22 @@ describe('OrganizationWorkspaceShell', () => {
 
   it('opens and dismisses the mobile dialog with safe focus and scroll restoration', () => {
     renderShell();
+    expect(
+      screen.getByRole('complementary', { name: 'Workspace sidebar' }),
+    ).not.toHaveClass('border-r');
+    expect(
+      screen.getByRole('button', { name: 'Menu' }).parentElement,
+    ).not.toHaveClass('border-b');
     const trigger = screen.getByRole('button', { name: 'Menu' });
     trigger.focus();
     fireEvent.click(trigger);
     const dialog = screen.getByRole('dialog', { name: 'Workspace navigation' });
+    expect(dialog).not.toHaveClass('border-r');
+    expect(
+      screen
+        .getByRole('heading', { name: 'Workspace navigation' })
+        .closest('header'),
+    ).not.toHaveClass('border-b');
     expect(trigger).toHaveAttribute('aria-controls', dialog.id);
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
     expect(

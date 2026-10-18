@@ -23,7 +23,7 @@ export function AuthenticatedHeader() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-hairline bg-surface text-ink print:hidden">
+    <header className="sticky top-0 z-40 bg-surface text-ink print:hidden">
       <div className="flex h-17 w-full items-center justify-between gap-3 px-4 sm:gap-6 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-5">
           <BrandWordmark
@@ -33,7 +33,7 @@ export function AuthenticatedHeader() {
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-4">
           <time
-            className="mr-auto hidden border-l border-hairline pl-6 text-xs font-medium text-muted lg:block"
+            className="mr-auto hidden text-xs font-medium text-muted lg:block"
             dateTime={now?.toISOString()}
             title="Philippine Standard Time"
           >

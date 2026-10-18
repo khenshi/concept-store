@@ -67,14 +67,12 @@ const salesReportTabs: { value: SalesReportTab; label: string }[] = [
 }));
 
 function ReportContextBar({
-  branchName,
   activeTab,
   loading,
   validDraft,
   onTabChange,
   onRefresh,
 }: {
-  branchName?: string;
   activeTab: SalesReportTab;
   loading: boolean;
   validDraft: boolean;
@@ -85,20 +83,16 @@ function ReportContextBar({
     <div
       role="region"
       aria-label="Report context"
-      className="sticky top-17 z-30 -mx-4 border-y border-hairline bg-surface px-4 py-2.5 sm:-mx-6 sm:px-6 sm:py-0 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
+      className="sticky top-17 z-30 -mx-4 px-4 mb-4 mt-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
     >
-      <div className="grid gap-y-2 sm:min-h-16 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-x-4">
+      <div className="grid gap-y-2 sm:min-h-12 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-x-4">
         <div
           className="order-2 min-w-0 text-center sm:order-2 sm:justify-self-center"
           aria-live="polite"
           aria-label="Applied report scope"
-        >
-          <p className="truncate text-sm font-semibold text-ink">
-            {branchName ?? 'Report branch'}
-          </p>
-        </div>
+        ></div>
         <div
-          className="order-1 flex min-w-0 items-center gap-1 overflow-x-auto sm:order-1 sm:self-stretch sm:justify-self-start"
+          className="order-1 flex min-w-0 items-center gap-2 overflow-x-auto pt-2 sm:order-1 sm:self-stretch sm:justify-self-start"
           role="tablist"
           aria-label="Report views"
         >
@@ -110,7 +104,7 @@ function ReportContextBar({
               role="tab"
               aria-selected={activeTab === value}
               aria-controls={`sales-${value}-panel`}
-              className={`relative min-h-11 shrink-0 rounded-none border-b-2 px-3 text-sm font-semibold transition-colors sm:flex sm:h-full sm:items-center ${
+              className={`relative min-h-10 shrink-0 rounded-none border-b px-2 text-sm font-semibold transition-colors sm:flex sm:h-full sm:items-center ${
                 activeTab === value
                   ? 'border-ink text-ink'
                   : 'border-transparent text-muted hover:text-ink'
@@ -124,8 +118,9 @@ function ReportContextBar({
         <button
           type="button"
           className={buttonStyles({
-            variant: 'secondary',
-            className: 'order-3 w-fit border-0 sm:justify-self-end',
+            variant: 'quiet',
+            className:
+              'order-3 w-fit border-0 sm:min-h-10 sm:self-end sm:justify-self-end',
           })}
           disabled={loading || !validDraft}
           onClick={onRefresh}
@@ -519,10 +514,6 @@ function ScopedBranchReports({
         </div>
       </section>
       <ReportContextBar
-        branchName={
-          report?.branch.name ??
-          branches?.find((branch) => branch.id === branchId)?.name
-        }
         activeTab={activeTab}
         loading={loading}
         validDraft={validDraft}

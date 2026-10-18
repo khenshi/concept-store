@@ -30,6 +30,7 @@ describe('AuthenticatedHeader', () => {
       logout,
     } as unknown as ReturnType<typeof useAuth>);
     render(<AuthenticatedHeader />);
+    expect(screen.getByRole('banner')).not.toHaveClass('border-b');
     expect(screen.getByRole('link', { name: 'Kapwesto home' })).toHaveAttribute(
       'href',
       '/app',
@@ -37,11 +38,11 @@ describe('AuthenticatedHeader', () => {
     expect(
       screen.getByRole('link', { name: 'Open account settings' }),
     ).toHaveAttribute('href', '/app/account');
-    await waitFor(() =>
-      expect(screen.getByTitle('Philippine Standard Time')).toHaveAttribute(
-        'datetime',
-      ),
-    );
+    await waitFor(() => {
+      const time = screen.getByTitle('Philippine Standard Time');
+      expect(time).toHaveAttribute('datetime');
+      expect(time).not.toHaveClass('border-l');
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled();
     expect(

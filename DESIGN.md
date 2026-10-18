@@ -200,7 +200,7 @@ characters per line; operational prose near 65–75.
 - Sidebar is approximately 15–16rem expanded and 4.5rem collapsed.
 - Content may grow to approximately 90rem with 1.25–2.5rem responsive gutters.
 - Headers, toolbars, and panels align to one grid; filters and rows remain compact.
-- Application content rests on an open theme surface beside the divided sidebar.
+- Application content rests on an open theme surface beside the borderless sidebar.
   Ordinary sections use vertical rhythm, alignment and type rather than a
   repeated frame or top-and-bottom rule. Use a few hairlines for structural
   transitions, such as shell edges, a table header or a summary strip.

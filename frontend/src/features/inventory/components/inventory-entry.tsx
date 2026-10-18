@@ -20,7 +20,7 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
   } = useOrganizationWorkspaceContext();
   if (!organization || organization.id !== organizationId)
     return (
-      <OrganizationPageFrame>
+      <OrganizationPageFrame wide>
         {organizationStatus === 'error' ? (
           <RequestError
             message={
@@ -35,14 +35,14 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
     );
   if (organization.role === 'CASHIER')
     return (
-      <OrganizationPageFrame>
+      <OrganizationPageFrame wide>
         <p role="alert">
           Your organization role cannot view or manage inventory.
         </p>
       </OrganizationPageFrame>
     );
   return (
-    <OrganizationPageFrame>
+    <OrganizationPageFrame wide>
       <PageHeader
         title="Inventory"
         description={

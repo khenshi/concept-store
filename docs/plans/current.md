@@ -1,5 +1,46 @@
 # Current plan
 
+## Borderless workspace chrome
+
+**Status:** Implemented locally October 14, 2026; focused validation remains.
+
+### Goal
+
+Remove decorative boundaries from the authenticated workspace sidebar and top
+bar so the shell reads as one continuous surface.
+
+### Scope and exclusions
+
+- Remove outer and internal shell borders from desktop/mobile sidebar and top-bar
+  surfaces.
+- Preserve selected navigation borders, content/table dividers, focus rings,
+  modal boundaries and all workspace behavior.
+- Keep responsive layout, navigation, organization switching and mobile drawer
+  focus behavior unchanged.
+
+Stop after focused shell tests, frontend validation and module documentation
+updates are complete.
+
+## Branch selector header width alignment
+
+**Status:** Implemented locally October 13, 2026; focused validation remains.
+
+### Goal
+
+Keep branch-selection entry headers aligned with their selected-branch
+workspaces by using the same centered wide content track.
+
+### Scope and exclusions
+
+- Use the wide organization page frame for Inventory and Reports entry states.
+- Preserve the shared `PageHeader`, selector behavior, route transitions,
+  loading/error states and all branch authorization behavior.
+- Leave POS and Spaces unchanged because their entry and selected states already
+  use the wide frame.
+
+Stop after the focused branch-selection test, frontend validation and module
+documentation update are complete.
+
 ## System-wide modal backdrop blur
 
 **Status:** Implemented locally October 13, 2026; automated validation and

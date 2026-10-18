@@ -98,7 +98,7 @@ function ScopedReportsEntry({
       navigate(selectedBranchId);
   });
   return (
-    <OrganizationPageFrame>
+    <OrganizationPageFrame wide>
       <PageHeader
         title="Reports"
         description={

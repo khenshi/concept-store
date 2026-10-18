@@ -313,8 +313,23 @@ describe('staff Reports workspace', () => {
     await screen.findAllByText('PHP 60.00');
     const contextBar = screen.getByRole('region', { name: 'Report context' });
     expect(contextBar).toHaveClass('sticky', 'top-17');
-    expect(contextBar).toHaveTextContent('Main');
+    expect(contextBar).not.toHaveClass('border-y', 'border-b');
     expect(contextBar).not.toHaveTextContent('Sep 14, 2026');
+    const tablist = screen.getByRole('tablist', { name: 'Report views' });
+    expect(tablist).toHaveClass('pt-2');
+    expect(tablist).not.toHaveClass('pb-2');
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveClass(
+      'min-h-10',
+      'border-b',
+      'px-2',
+    );
+    expect(screen.getByRole('tab', { name: 'Overview' })).not.toHaveClass(
+      'border-b-2',
+    );
+    expect(screen.getByRole('button', { name: 'Refresh Report' })).toHaveClass(
+      'sm:min-h-10',
+      'sm:self-end',
+    );
     expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
       'aria-selected',
       'true',
