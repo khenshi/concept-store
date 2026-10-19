@@ -391,6 +391,13 @@ describe('staff Reports workspace', () => {
         cell.classList.contains('align-middle'),
       ),
     ).toBe(true);
+    const transactionType = transactionRow.querySelectorAll('td, th')[1];
+    expect(transactionType?.querySelector('span')).toHaveClass(
+      'text-success-ink',
+    );
+    expect(transactionType?.querySelector('span')).not.toHaveClass(
+      'rounded-full',
+    );
     expect(
       screen.getByRole('columnheader', { name: 'Action' }),
     ).toBeInTheDocument();

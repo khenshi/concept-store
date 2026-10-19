@@ -31,9 +31,7 @@ function typeLabel(type: ReportTransactionType) {
 }
 
 function typeClass(type: ReportTransactionType) {
-  return type === 'SALE'
-    ? 'border-success/40 bg-success/10 text-success-ink'
-    : 'border-danger/40 bg-danger/10 text-danger';
+  return type === 'SALE' ? 'text-success-ink' : 'text-danger';
 }
 
 function TransactionsSkeleton() {
@@ -46,7 +44,7 @@ function TransactionsSkeleton() {
             className="grid h-14 animate-pulse grid-cols-[1.1fr_0.65fr_1.2fr_1.25fr_0.8fr_0.5fr] items-center gap-4 border-b border-hairline last:border-0"
           >
             <span className="h-3 w-28 rounded bg-selected" />
-            <span className="h-6 w-16 rounded-full bg-selected" />
+            <span className="h-3 w-12 rounded bg-selected" />
             <span className="h-3 w-24 rounded bg-selected" />
             <span className="h-3 w-32 rounded bg-selected" />
             <span className="h-3 w-20 rounded bg-selected" />
@@ -204,9 +202,7 @@ export function TransactionsTab({
                     {completedDate(item.completedAt)}
                   </td>
                   <td className="px-4 py-4 align-middle">
-                    <span
-                      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeClass(item.type)}`}
-                    >
+                    <span className={`font-semibold ${typeClass(item.type)}`}>
                       {typeLabel(item.type)}
                     </span>
                   </td>
