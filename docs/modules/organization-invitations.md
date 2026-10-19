@@ -8,6 +8,9 @@
 - Preview an invitation through its token.
 - Accept an invitation into the authenticated user's matching account.
 - Revoke a pending invitation.
+- Remove any invitation: active invitations are revoked, while expired,
+  accepted, and previously revoked invitations are permanently deleted with
+  their access grants.
 
 ## API
 
@@ -15,13 +18,14 @@
 POST  /organizations/:organizationId/invitations
 GET   /organizations/:organizationId/invitations
 PATCH /organizations/:organizationId/invitations/:invitationId/revoke
+DELETE /organizations/:organizationId/invitations/:invitationId
 GET   /organization-invitations/:token
 POST  /organization-invitations/:token/accept
 ```
 
 ## Authorization
 
-- Only organization owners can create, list, or revoke invitations.
+- Only organization owners can create, list, revoke, or remove invitations.
 - Preview is token-based and rate limited.
 - Acceptance requires authentication and an account email matching the invite.
 
@@ -30,6 +34,9 @@ POST  /organization-invitations/:token/accept
 - Invitation tokens are random and stored only as hashes.
 - Invitations expire and are single use.
 - Revoked, expired, or accepted invitations cannot be accepted again.
+- Removing an active invitation marks it revoked, invalidating its link.
+- Expired, accepted, and revoked invitations can be permanently deleted; their
+  branch access grants are deleted with them.
 - An email already belonging to the organization cannot be invited again.
 - Acceptance creates the membership and marks the invitation accepted in one
   transaction.
@@ -41,14 +48,14 @@ Invitations now support nullable tenant-safe merchant links and unique branch
 grant records. Composite foreign keys prevent cross-tenant merchant/branch grants.
 Only MERCHANT invitations may carry merchant links; legacy invitations may remain
 unlinked. Grant records cascade if their invitation is deleted; branch/merchant
-references remain restrictive. Existing invitation retention is unchanged.
+references remain restrictive. Invitation removal now preserves no backend
+record for expired, accepted, or revoked invitations.
 
 ## Invitation access grants (Part 3)
 
 Staff invitation creation accepts optional distinct UUID v4 branchIds (maximum 100). MERCHANT
 invitations require one merchantId and reject nonempty branchIds; other roles reject merchantId. Branches and merchant
-must belong to the trusted organization; foreign/absent related records return
-404. Empty branch selections are allowed. Existing supported invitation roles
+must belong to the trusted organization; foreign/absent related records return 404. Empty branch selections are allowed. Existing supported invitation roles
 remain MANAGER, CASHIER, and MERCHANT; OWNER invitations remain unsupported.
 
 Invitation and grants are created atomically after validation. Owner create/list/
@@ -90,8 +97,10 @@ Owners manage invitations from the organization member workflow. A separate
 token route previews and accepts invitations.
 
 The owner invitation modal loads tenant-local branches and merchant profiles.
-Staff branch checkboxes allow zero to 100 distinct assignments; MERCHANT requires a
-profile selection and shows inherited-access guidance instead of branch checkboxes. Switching away from MERCHANT clears the link selection.
+Staff branch access uses a searchable custom picker with zero to 100 distinct
+assignments, selected-count feedback, and a clear action; MERCHANT requires a
+profile selection and shows inherited-access guidance instead of branch access.
+Switching away from MERCHANT clears the link selection.
 Validation runs 300 ms after input changes, immediately on blur, and again on
 submit. Loading/choice failures have retry feedback; pending creation disables
 fields and repeat submission. Create/list/revoke responses are runtime validated.
@@ -99,7 +108,8 @@ Invitation rows show configured branch and merchant identities. Public preview
 and acceptance do not expose these additional owner-management details.
 
 Owner invitation management uses neutral controls and explicit pending, accepted,
-revoked, and expired labels. Revocation disables invitation actions while pending.
+revoked, and expired labels. Removing a pending invitation invalidates its link;
+removing any other invitation permanently deletes its invitation record.
 Creation opens a native modal dialog with focus restoration, scroll containment,
 and pending dismissal protection. The created link shows the actual expiry date
 and supports clipboard copying with a manual-copy fallback.

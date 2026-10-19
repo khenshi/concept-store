@@ -77,6 +77,22 @@ it('validates email after input debounce and immediately on blur', async () => {
   );
 });
 
+it('shows a branch skeleton while access choices are loading', () => {
+  vi.mocked(loadMemberAccessOptions).mockReturnValueOnce(
+    new Promise(() => undefined),
+  );
+  render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(
+    screen.getByRole('status', { name: 'Loading branches' }),
+  ).toHaveAttribute('aria-busy', 'true');
+});
+
 it('merchant invitations inherit profile branches without individual grants', async () => {
   const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   vi.mocked(loadMemberAccessOptions).mockResolvedValue({
@@ -103,7 +119,7 @@ it('merchant invitations inherit profile branches without individual grants', as
       onClose={vi.fn()}
     />,
   );
-  await screen.findByLabelText('Makati');
+  await screen.findByRole('button', { name: /Makati/ });
   fireEvent.change(screen.getByLabelText('Email address'), {
     target: { value: 'merchant@example.test' },
   });
@@ -111,7 +127,9 @@ it('merchant invitations inherit profile branches without individual grants', as
   fireEvent.click(screen.getByRole('option', { name: 'Merchant' }));
   fireEvent.click(screen.getByRole('combobox', { name: 'Merchant profile' }));
   fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
-  expect(screen.queryByLabelText('Makati')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: /Makati/ }),
+  ).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Create invitation' }));
   await screen.findByRole('heading', { name: 'Invitation ready' });
   expect(createOrganizationInvitation).toHaveBeenCalledWith(request, 'org', {
@@ -119,6 +137,40 @@ it('merchant invitations inherit profile branches without individual grants', as
     role: 'MERCHANT',
     merchantId: id,
   });
+});
+
+it('uses a searchable custom branch picker for staff invitations', async () => {
+  const branches = [
+    { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Makati', code: 'MKT' },
+    { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'BGC', code: 'BGC' },
+  ];
+  vi.mocked(loadMemberAccessOptions).mockResolvedValue({
+    branches,
+    merchants: [],
+  });
+  render(
+    <OrganizationInvitationModal
+      organizationId="org"
+      onCreated={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  const makati = await screen.findByRole('button', { name: /Makati/ });
+  expect(makati).toHaveAttribute('aria-pressed', 'false');
+  fireEvent.click(makati);
+  expect(makati).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByText('1/100 selected')).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Filter branches' }), {
+    target: { value: 'BGC' },
+  });
+  expect(
+    screen.queryByRole('button', { name: /Makati/ }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /BGC/ })).toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Clear branch selection' }),
+  );
+  expect(screen.getByText('No branches selected')).toBeInTheDocument();
 });
 
 it('requires a merchant link before submitting a merchant invitation', async () => {

@@ -14,6 +14,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { createOrganizationInvitation } from '../api/organization-invitation-api';
 import { createOrganizationInvitationSchema } from '../model/organization-invitation.schemas';
 import { loadMemberAccessOptions } from '@/features/organization-members/api/organization-member-api';
+import { BranchAccessPicker } from './branch-access-picker';
 import type {
   AccessBranch,
   AccessMerchant,
@@ -199,7 +200,7 @@ export function OrganizationInvitationModal({
   return (
     <dialog
       ref={dialogRef}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-4xl overflow-y-auto rounded-panel border border-hairline bg-surface p-0 text-ink shadow-overlay backdrop:bg-scrim"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-panel border border-hairline bg-surface p-0 text-ink shadow-overlay backdrop:bg-scrim"
       aria-labelledby="invitation-modal-title"
       onCancel={(event) => {
         event.preventDefault();
@@ -400,43 +401,18 @@ export function OrganizationInvitationModal({
                 <p className="mt-2 text-sm text-muted">
                   Optional. Staff without assignments cannot access branches.
                 </p>
-                <div className="mt-3 grid max-h-60 gap-3 overflow-y-auto">
-                  {options?.branches.map((branch) => (
-                    <label
-                      key={branch.id}
-                      className="flex min-w-0 items-start gap-3 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={branchIds.includes(branch.id)}
-                        disabled={
-                          !branchIds.includes(branch.id) &&
-                          branchIds.length >= 100
-                        }
-                        onChange={(event) => {
-                          dirty.current = true;
-                          setBranchIds((ids) =>
-                            event.target.checked
-                              ? [...ids, branch.id]
-                              : ids.filter((id) => id !== branch.id),
-                          );
-                        }}
-                      />
-                      <span className="min-w-0 break-words">
-                        {branch.name}
-                        {branch.code ? ` · ${branch.code}` : ''}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                {options?.branches.length === 0 && (
-                  <p className="mt-3 text-sm text-muted">
-                    No branches available. Access can be assigned later.
-                  </p>
-                )}
-                <p className="mt-2 text-xs text-muted">
-                  {branchIds.length}/100 selected
-                </p>
+                {!optionsError ? (
+                  <BranchAccessPicker
+                    branches={options?.branches ?? []}
+                    selectedIds={branchIds}
+                    disabled={isSubmitting}
+                    loading={!options}
+                    onChange={(nextIds) => {
+                      dirty.current = true;
+                      setBranchIds(nextIds);
+                    }}
+                  />
+                ) : null}
               </fieldset>
             )}
             <ModalActionRow

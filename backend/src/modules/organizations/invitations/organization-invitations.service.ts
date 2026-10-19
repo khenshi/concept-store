@@ -151,6 +151,48 @@ export class OrganizationInvitationsService {
     });
   }
 
+  async remove(organizationId: string, invitationId: string): Promise<void> {
+    await this.prisma.$transaction(async (transaction) => {
+      const invitation = await transaction.organizationInvitation.findFirst({
+        where: { id: invitationId, organizationId },
+        select: { acceptedAt: true, revokedAt: true, expiresAt: true },
+      });
+      if (!invitation) {
+        throw new ConflictException('Invitation is no longer removable');
+      }
+
+      const now = new Date();
+      const pending =
+        !invitation.acceptedAt &&
+        !invitation.revokedAt &&
+        invitation.expiresAt > now;
+
+      if (pending) {
+        const result = await transaction.organizationInvitation.updateMany({
+          where: {
+            id: invitationId,
+            organizationId,
+            acceptedAt: null,
+            revokedAt: null,
+            expiresAt: { gt: now },
+          },
+          data: { revokedAt: now },
+        });
+        if (result.count !== 1) {
+          throw new ConflictException('Invitation is no longer removable');
+        }
+        return;
+      }
+
+      const result = await transaction.organizationInvitation.deleteMany({
+        where: { id: invitationId, organizationId },
+      });
+      if (result.count !== 1) {
+        throw new ConflictException('Invitation is no longer removable');
+      }
+    });
+  }
+
   async preview(token: string): Promise<OrganizationInvitationPreview> {
     const invitation = await this.findUsableInvitation(token);
     return {

@@ -3,6 +3,7 @@ import {
   acceptOrganizationInvitation,
   createOrganizationInvitation,
   listOrganizationInvitations,
+  removeOrganizationInvitation,
   previewOrganizationInvitation,
   revokeOrganizationInvitation,
 } from './organization-invitation-api';
@@ -61,6 +62,21 @@ describe('organization invitation API', () => {
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%2Fid/invitations/invitation%2Fid/revoke',
       { method: 'PATCH' },
+    );
+  });
+
+  it('removes an invitation through the organization-scoped path', async () => {
+    vi.mocked(request).mockResolvedValue(undefined);
+
+    await removeOrganizationInvitation(
+      request,
+      'organization/id',
+      'invitation/id',
+    );
+
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%2Fid/invitations/invitation%2Fid',
+      { method: 'DELETE' },
     );
   });
 

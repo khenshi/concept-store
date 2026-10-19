@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -13,6 +16,7 @@ import {
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -86,6 +90,24 @@ export class OrganizationInvitationsController {
     invitationId: string,
   ): Promise<OrganizationInvitationView> {
     return this.invitationsService.revoke(
+      organization.organizationId,
+      invitationId,
+    );
+  }
+
+  @Delete(':invitationId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove an organization invitation' })
+  @ApiNoContentResponse()
+  @ApiConflictResponse({
+    description: 'The invitation is no longer removable',
+  })
+  remove(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('invitationId', new ParseUUIDPipe({ version: '4' }))
+    invitationId: string,
+  ): Promise<void> {
+    return this.invitationsService.remove(
       organization.organizationId,
       invitationId,
     );

@@ -38,6 +38,7 @@ describe('OrganizationInvitationsService', () => {
       updateMany: jest.fn(),
       create: jest.fn(),
       findFirst: jest.fn(),
+      deleteMany: jest.fn(),
     },
   };
   const prisma = {
@@ -114,6 +115,71 @@ describe('OrganizationInvitationsService', () => {
       ),
     );
     expect(transaction.organizationInvitation.create).not.toHaveBeenCalled();
+  });
+
+  it('revokes a pending invitation and invalidates its link', async () => {
+    transaction.organizationInvitation.findFirst.mockResolvedValue(invitation);
+    transaction.organizationInvitation.updateMany.mockResolvedValue({
+      count: 1,
+    });
+
+    await expect(
+      service.remove(organizationId, invitation.id),
+    ).resolves.toBeUndefined();
+
+    expect(transaction.organizationInvitation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: invitation.id,
+          organizationId,
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: new Date('2026-08-27T00:00:00.000Z') },
+        }) as unknown,
+        data: { revokedAt: new Date('2026-08-27T00:00:00.000Z') },
+      }),
+    );
+    expect(
+      transaction.organizationInvitation.deleteMany,
+    ).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['expired', { expiresAt: new Date('2026-08-26T00:00:00.000Z') }],
+    ['accepted', { acceptedAt: new Date('2026-08-26T00:00:00.000Z') }],
+    ['revoked', { revokedAt: new Date('2026-08-26T00:00:00.000Z') }],
+  ])(
+    'permanently removes a %s invitation within the organization',
+    async (_, state) => {
+      transaction.organizationInvitation.findFirst.mockResolvedValue({
+        ...invitation,
+        ...state,
+      });
+      transaction.organizationInvitation.deleteMany.mockResolvedValue({
+        count: 1,
+      });
+
+      await expect(
+        service.remove(organizationId, invitation.id),
+      ).resolves.toBeUndefined();
+
+      expect(
+        transaction.organizationInvitation.deleteMany,
+      ).toHaveBeenCalledWith({
+        where: { id: invitation.id, organizationId },
+      });
+      expect(
+        transaction.organizationInvitation.updateMany,
+      ).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects removal when the invitation no longer exists', async () => {
+    transaction.organizationInvitation.findFirst.mockResolvedValue(null);
+
+    await expect(service.remove(organizationId, invitation.id)).rejects.toThrow(
+      new ConflictException('Invitation is no longer removable'),
+    );
   });
 
   it('validates merchant and branch grants before persisting invitations', async () => {

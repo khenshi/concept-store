@@ -52,6 +52,17 @@ export async function revokeOrganizationInvitation(
   );
 }
 
+export async function removeOrganizationInvitation(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  invitationId: string,
+): Promise<void> {
+  await request<void>(
+    `${organizationPath(organizationId)}/${encodeURIComponent(invitationId)}`,
+    { method: 'DELETE' },
+  );
+}
+
 export function previewOrganizationInvitation(
   request: AuthenticatedRequest,
   token: string,
