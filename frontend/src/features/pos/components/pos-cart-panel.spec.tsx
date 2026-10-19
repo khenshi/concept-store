@@ -70,12 +70,18 @@ describe('POS cart panel', () => {
       screen.getByRole('button', {
         name: `Increase ${product.name} quantity`,
       }),
-    ).toHaveClass('!min-h-9', '!min-w-9', 'border-success', 'text-success-ink');
+    ).toHaveClass(
+      '!min-h-9',
+      '!min-w-9',
+      'border-0',
+      'hover:border-0',
+      'text-success-ink',
+    );
     expect(
       screen.getByRole('button', {
         name: `Decrease ${product.name} quantity`,
       }),
-    ).toHaveClass('border-danger', 'text-danger');
+    ).toHaveClass('border-0', 'hover:border-0', 'text-danger');
     const quantity = screen.getByRole('textbox', {
       name: `Quantity for ${product.name}`,
     });

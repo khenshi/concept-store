@@ -130,7 +130,7 @@ export function PosCartPanel({
                           locked || !quantityIsValid || line.quantity <= 1
                         }
                         onClick={() => onAdjustQuantity(line, -1)}
-                        className="size-9 !min-h-9 !min-w-9 shrink-0 border-danger px-0 py-0 text-danger hover:border-danger hover:bg-subtle hover:text-danger"
+                        className="size-9 !min-h-9 !min-w-9 shrink-0 border-0 px-0 py-0 text-danger hover:border-0 hover:bg-subtle hover:text-danger"
                       >
                         <Icon name="minus" className="size-3.5" />
                       </Button>
@@ -161,7 +161,7 @@ export function PosCartPanel({
                           line.quantity >= available
                         }
                         onClick={() => onAdjustQuantity(line, 1)}
-                        className="size-9 !min-h-9 !min-w-9 shrink-0 border-success px-0 py-0 text-success-ink hover:border-success hover:bg-subtle hover:text-success-ink"
+                        className="size-9 !min-h-9 !min-w-9 shrink-0 border-0 px-0 py-0 text-success-ink hover:border-0 hover:bg-subtle hover:text-success-ink"
                       >
                         <Icon name="plus" className="size-3.5" />
                       </Button>

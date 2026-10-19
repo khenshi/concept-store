@@ -148,7 +148,7 @@ export function OrganizationWorkspaceShell({
       <div
         className={
           posFullscreen
-            ? 'h-full min-h-0 min-w-0 overflow-hidden bg-surface'
+            ? 'h-full min-h-0 min-w-0 overflow-hidden bg-canvas'
             : 'min-h-[calc(100dvh-4.25rem)] min-w-0 bg-surface'
         }
       >

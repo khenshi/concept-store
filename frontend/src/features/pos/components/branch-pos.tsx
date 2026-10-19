@@ -824,35 +824,21 @@ function ScopedBranchPos({
       <section
         className={
           posFullscreen
-            ? 'flex h-full min-w-0 min-h-0 w-full max-w-none flex-col overflow-hidden bg-surface'
+            ? 'flex h-full min-w-0 min-h-0 w-full max-w-none flex-col overflow-hidden bg-canvas'
             : 'w-full'
         }
       >
         {posFullscreen ? (
-          <header className="grid min-h-16 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-b border-hairline bg-surface px-4 py-2 max-lg:flex max-lg:flex-wrap max-lg:gap-x-4 max-lg:gap-y-2 sm:px-6">
+          <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-4 bg-surface px-4 py-2 sm:px-6">
             <div className="flex min-w-0 items-center gap-3">
               <h1 className="min-w-0 text-base font-semibold tracking-[-0.02em]">
                 POS
               </h1>
+              <span className="min-w-0 truncate text-sm text-muted">
+                {branch?.name ?? 'Loading branch'}
+              </span>
             </div>
-            <nav
-              aria-label="POS views"
-              className="flex min-w-0 items-center gap-1 max-lg:order-2 max-lg:w-full"
-            >
-              {tabs.map((tab) => (
-                <Link
-                  key={tab.label}
-                  href={tab.href}
-                  aria-current={tab.active ? 'page' : undefined}
-                  aria-disabled={!tab.active && recovering ? true : undefined}
-                  className="inline-flex min-h-10 items-center rounded-compact border border-transparent px-3 text-sm font-medium text-muted no-underline hover:bg-subtle hover:text-ink aria-[current=page]:border-selected-border aria-[current=page]:bg-selected aria-[current=page]:font-semibold aria-[current=page]:text-ink"
-                >
-                  {tab.label}
-                </Link>
-              ))}
-            </nav>
-            <div className="flex min-w-0 items-end justify-end gap-2 max-lg:order-3 max-lg:ml-auto max-lg:w-full max-lg:flex-wrap">
-              {branchSelector}
+            <div className="flex min-w-0 flex-wrap items-end justify-end gap-2">
               <Button
                 variant="quiet"
                 onClick={() => {

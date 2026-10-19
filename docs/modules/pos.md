@@ -125,10 +125,19 @@ for price, stock, payment values and authorization.
 
 The Cart tab presents a compact scanner/SKU field, debounced product search and
 product rows containing product name, merchant, SKU, price, available stock and
-an Add action. Scanner Enter still performs the existing exact-code lookup;
+an Add action. The SKU/barcode entry uses a white borderless control, while the
+product search and results share a white borderless card with a small row inset.
+Cart quantity controls are borderless. Scanner Enter still performs the existing
+exact-code lookup;
 repeated scans increment the existing cart line and restore scanner focus. Cart
 lines use compact quantity controls while keeping the validated quantity input
 and accessible action labels. No catalog or checkout rules changed.
+
+When POS full-screen mode is active, its header shows the selected branch name
+beside POS and keeps only the exit action; the branch selector and Cart/Sales
+History navigation buttons are hidden. The full-screen canvas uses the gray
+page canvas, while the borderless header and product and cart surfaces use the
+white theme surface.
 
 Landscape tablet/desktop layouts use a roughly 62/38 product-browser/cart split.
 The cart stays within the viewport: its heading and checkout footer remain fixed

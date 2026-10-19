@@ -62,7 +62,7 @@ export function PosProductBrowser({
     >
       <form
         noValidate
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-control border border-selected-border bg-subtle p-3 sm:p-4"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-control bg-surface p-3 sm:p-4"
         onSubmit={submit}
       >
         <TextField
@@ -95,26 +95,30 @@ export function PosProductBrowser({
         </Button>
       </form>
 
-      <div className="border-b border-hairline py-4">
-        <TextField
-          label="Search products"
-          type="search"
-          value={search}
-          placeholder="Name, SKU or barcode"
-          onChange={(event) => onSearchChange(event.target.value)}
-          containerClassName="gap-1.5"
-        />
-      </div>
-
-      {notice ? (
-        <p role="status" aria-live="polite" className="py-2 text-sm text-muted">
-          {notice}
-        </p>
-      ) : null}
-
       <div
-        className={`min-w-0 pr-2 lg:landscape:min-h-0 lg:landscape:flex-1 lg:landscape:overflow-y-auto lg:landscape:overscroll-contain ${fullscreen ? 'max-lg:min-h-0 max-lg:flex-1 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:pb-28' : ''}`}
+        className={`mt-4 min-w-0 overflow-hidden card-surface p-4 sm:p-5 lg:landscape:min-h-0 lg:landscape:flex lg:landscape:flex-1 lg:landscape:flex-col ${fullscreen ? 'max-lg:min-h-0 max-lg:flex max-lg:flex-1 max-lg:flex-col' : ''}`}
       >
+        <div className="shrink-0 pb-4">
+          <TextField
+            label="Search products"
+            type="search"
+            value={search}
+            placeholder="Name, SKU or barcode"
+            onChange={(event) => onSearchChange(event.target.value)}
+            containerClassName="gap-1.5"
+          />
+        </div>
+
+        {notice ? (
+          <p
+            role="status"
+            aria-live="polite"
+            className="pb-2 text-sm text-muted"
+          >
+            {notice}
+          </p>
+        ) : null}
+
         <div className="flex min-h-12 items-center justify-between gap-3 border-b border-hairline py-3">
           <h2 className="text-base font-semibold">Products</h2>
           {!catalogLoading && settled && !catalogError ? (
@@ -123,69 +127,76 @@ export function PosProductBrowser({
             </span>
           ) : null}
         </div>
-        {!settled || catalogLoading ? (
-          <ListSkeleton
-            className="py-3"
-            label="Searching branch products"
-            rows={3}
-          />
-        ) : catalogError ? (
-          <RequestError
-            className="py-4"
-            message={catalogError}
-            onRetry={onCatalogRetry}
-          />
-        ) : !products.length ? (
-          <EmptyState
-            className="my-4"
-            title={
-              search.trim()
-                ? 'No matching products.'
-                : 'No active products are placed in this branch.'
-            }
-            description={
-              search.trim() ? 'Try another search or scan a code.' : undefined
-            }
-          />
-        ) : (
-          <ul aria-label="Product results" className="divide-y divide-hairline">
-            {products.map((product) => (
-              <li
-                key={product.branchInventoryId}
-                className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-4 transition-colors hover:bg-subtle"
-              >
-                <div className="min-w-0">
-                  <h3 className="break-words text-sm font-semibold">
-                    {product.name}
-                  </h3>
-                  <p className="mt-0.5 break-words text-xs text-muted">
-                    {product.merchantName} · SKU {product.sku ?? 'not set'}
-                  </p>
-                  <p className="mt-1 text-sm font-medium tabular-nums">
-                    PHP {product.sellingPrice}
-                    <span className="ml-2 text-xs text-muted">
-                      {product.eligible
-                        ? `${product.quantity} available`
-                        : product.participationStatus === 'INACTIVE'
-                          ? 'Branch participation inactive'
-                          : 'Out of stock'}
-                    </span>
-                  </p>
-                </div>
-                <Button
-                  variant="secondary"
-                  aria-label={`Add ${product.name}`}
-                  disabled={!product.eligible || entryLocked}
-                  onClick={() => onAdd(product)}
-                  className="min-w-11 border-success px-4 text-success-ink hover:border-success hover:bg-subtle hover:text-success-ink"
+        <div
+          className={`min-w-0 pr-2 lg:landscape:min-h-0 lg:landscape:flex-1 lg:landscape:overflow-y-auto lg:landscape:overscroll-contain ${fullscreen ? 'max-lg:min-h-0 max-lg:flex-1 max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:pb-28' : ''}`}
+        >
+          {!settled || catalogLoading ? (
+            <ListSkeleton
+              className="py-3"
+              label="Searching branch products"
+              rows={3}
+            />
+          ) : catalogError ? (
+            <RequestError
+              className="py-4"
+              message={catalogError}
+              onRetry={onCatalogRetry}
+            />
+          ) : !products.length ? (
+            <EmptyState
+              className="my-4"
+              title={
+                search.trim()
+                  ? 'No matching products.'
+                  : 'No active products are placed in this branch.'
+              }
+              description={
+                search.trim() ? 'Try another search or scan a code.' : undefined
+              }
+            />
+          ) : (
+            <ul
+              aria-label="Product results"
+              className="divide-y divide-hairline"
+            >
+              {products.map((product) => (
+                <li
+                  key={product.branchInventoryId}
+                  className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-2 py-4"
                 >
-                  <Icon name="plus" className="size-4" />
-                  Add
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
+                  <div className="min-w-0">
+                    <h3 className="break-words text-sm font-semibold">
+                      {product.name}
+                    </h3>
+                    <p className="mt-0.5 break-words text-xs text-muted">
+                      {product.merchantName} · SKU {product.sku ?? 'not set'}
+                    </p>
+                    <p className="mt-1 text-sm font-medium tabular-nums">
+                      PHP {product.sellingPrice}
+                      <span className="ml-2 text-xs text-muted">
+                        {product.eligible
+                          ? `${product.quantity} available`
+                          : product.participationStatus === 'INACTIVE'
+                            ? 'Branch participation inactive'
+                            : 'Out of stock'}
+                      </span>
+                    </p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    aria-label={`Add ${product.name}`}
+                    disabled={!product.eligible || entryLocked}
+                    onClick={() => onAdd(product)}
+                    className="min-w-11 border-success px-4 text-success-ink hover:border-success hover:bg-subtle hover:text-success-ink"
+                  >
+                    <Icon name="plus" className="size-4" />
+                    Add
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   );

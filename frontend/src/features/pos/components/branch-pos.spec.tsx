@@ -114,6 +114,22 @@ describe('Branch POS cart workflows', () => {
       workspace(role);
       render(<BranchPos {...scope} />);
       await screen.findByRole('button', { name: `Add ${product.name}` });
+      expect(codeInput().closest('form')).toHaveClass('bg-surface');
+      expect(
+        screen
+          .getByRole('searchbox', { name: 'Search products' })
+          .closest('.card-surface'),
+      ).toHaveClass('card-surface');
+      expect(
+        screen
+          .getByRole('list', { name: 'Product results' })
+          .closest('.card-surface'),
+      ).toHaveClass('card-surface');
+      expect(
+        within(screen.getByRole('list', { name: 'Product results' })).getByRole(
+          'listitem',
+        ),
+      ).toHaveClass('px-2');
       expect(getPosBranch).toHaveBeenCalledWith(request, scope, role);
       expect(searchPosProducts).toHaveBeenCalledWith(request, scope, '');
       expect(

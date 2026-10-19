@@ -64,13 +64,16 @@ describe('Persistent route-backed POS workspace', () => {
     expect(
       screen.getByRole('button', { name: 'Exit full screen' }),
     ).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'POS views' })).toBeNull();
     expect(
-      screen.getByRole('navigation', { name: 'POS views' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Cart' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+      screen.queryByRole('combobox', { name: 'POS branch' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Makati', { exact: true })).toBeInTheDocument();
+    const fullscreenHeader = screen
+      .getByRole('heading', { name: 'POS' })
+      .closest('header');
+    expect(fullscreenHeader).toHaveClass('bg-surface');
+    expect(fullscreenHeader).not.toHaveClass('border-b');
 
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     view.rerender(
