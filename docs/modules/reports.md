@@ -63,6 +63,9 @@ summary and accepts `page`/`limit` (default 1/15), optional `type=SALE|REFUND`,
 and an optional case-insensitive `q` search over saved receipt and refund codes.
 The transaction-type control is visibly labelled `Filter by`, matching the
 labelled ranking controls.
+Transactions and Rankings use the shared inline collection header so their
+title and sort/filter controls remain vertically aligned in the same card row;
+daily report tables use the same shared collection shell without controls.
 The server combines both streams before sorting newest completion first with a
 stable descending source ID tie-breaker, then applies pagination and returns
 `branch`, the applied range, `items`, `page`, `limit`, `total`, and `totalPages`.
@@ -71,7 +74,7 @@ Owner and Manager rows expose the saved reference, amount, payment method, actor
 display name and saved merchant-name context. Merchant rows contain only the
 currently linked profile's own sale/refund amount and source identifiers; they
 omit payment, actor and other-merchant fields. Every row includes the source sale
-ID so View opens the existing authorized sale detail and its refund workflow.
+ID so Action opens the existing authorized sale detail and its refund workflow.
 All authorization, filters, counts and rows are read inside one REPEATABLE READ
 transaction. The endpoint is read-only and adds no schema, index or migration.
 

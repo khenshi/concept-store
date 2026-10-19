@@ -382,6 +382,21 @@ describe('staff Reports workspace', () => {
         path.includes('/reports/transactions'),
       ),
     ).toBe(true);
+    const transactionTable = screen.getByRole('table', {
+      name: 'Transaction history',
+    });
+    const transactionRow = within(transactionTable).getAllByRole('row')[1];
+    expect(
+      Array.from(transactionRow.querySelectorAll('td, th')).every((cell) =>
+        cell.classList.contains('align-middle'),
+      ),
+    ).toBe(true);
+    expect(
+      screen.getByRole('columnheader', { name: 'Action' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View' })).not.toHaveClass(
+      'underline',
+    );
     expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute(
       'href',
       `/app/organizations/org/branches/${branch.id}/sales/33333333-3333-4333-8333-333333333333`,

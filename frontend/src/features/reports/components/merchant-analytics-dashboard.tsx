@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { EmptyState } from '@/shared/components/ui/empty-state';
+import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import {
   OperationalTable,
   OperationalTableFrame,
@@ -34,19 +35,15 @@ function MerchantDailyData({
   const hasNext = page * 15 < rows.length;
   const totalPages = Math.max(1, Math.ceil(rows.length / 15));
   return (
-    <section
-      className="data-surface"
+    <OperationalCollection
+      surface="data"
       role="tabpanel"
       id="sales-daily-panel"
       aria-labelledby="sales-report-tab-daily"
       tabIndex={0}
+      title="Daily own-sales data"
+      description="Exact own daily sales analytics in Asia/Manila."
     >
-      <header className="border-b border-hairline px-5 py-5 sm:px-6">
-        <h2 className="font-semibold">Daily own-sales data</h2>
-        <p className="mt-1 text-sm text-muted">
-          Exact own daily sales analytics in Asia/Manila.
-        </p>
-      </header>
       <OperationalTableFrame
         empty={
           !pageRows.length ? (
@@ -119,7 +116,7 @@ function MerchantDailyData({
           </OperationalTable>
         ) : undefined}
       </OperationalTableFrame>
-    </section>
+    </OperationalCollection>
   );
 }
 
@@ -147,26 +144,23 @@ function MerchantRankings({
   const sortLabel =
     controls.sortBy === 'UNITS_SOLD' ? 'Units sold' : 'Gross sales';
   return (
-    <section
-      className="data-surface"
+    <OperationalCollection
+      surface="data"
       role="tabpanel"
       id="sales-rankings-panel"
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
-    >
-      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div>
-          <h2 className="font-semibold">{title}</h2>
-          <p className="mt-1 text-sm text-muted">
-            Product rankings by {sortLabel}.
-          </p>
-        </div>
+      title={title}
+      description={`Product rankings by ${sortLabel}.`}
+      controlsPlacement="inline"
+      controls={
         <RankingControls
           controls={controls}
           showMerchantFilter={false}
           onChange={onControlsChange}
         />
-      </header>
+      }
+    >
       <OperationalTableFrame
         empty={
           page && !loading && !error && !page.items.length ? (
@@ -314,7 +308,7 @@ function MerchantRankings({
           </OperationalTable>
         ) : null}
       </OperationalTableFrame>
-    </section>
+    </OperationalCollection>
   );
 }
 

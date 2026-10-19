@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { EmptyState } from '@/shared/components/ui/empty-state';
+import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import {
   OperationalTable,
   OperationalTableFrame,
@@ -732,19 +733,15 @@ function StaffDailyData({
   const hasNext = page * 15 < rows.length;
   const totalPages = Math.max(1, Math.ceil(rows.length / 15));
   return (
-    <section
-      className="data-surface"
+    <OperationalCollection
+      surface="data"
       role="tabpanel"
       id="sales-daily-panel"
       aria-labelledby="sales-report-tab-daily"
       tabIndex={0}
+      title="Daily sales data"
+      description="Exact daily sales analytics in Asia/Manila."
     >
-      <header className="border-b border-hairline px-5 py-5 sm:px-6">
-        <h2 className="font-semibold">Daily sales data</h2>
-        <p className="mt-1 text-sm text-muted">
-          Exact daily sales analytics in Asia/Manila.
-        </p>
-      </header>
       <OperationalTableFrame
         empty={
           !pageRows.length ? (
@@ -817,7 +814,7 @@ function StaffDailyData({
           </OperationalTable>
         ) : null}
       </OperationalTableFrame>
-    </section>
+    </OperationalCollection>
   );
 }
 
@@ -970,20 +967,16 @@ function StaffRankings({
         ?.name ?? 'Selected merchant')
     : 'All merchants';
   return (
-    <section
-      className="data-surface"
+    <OperationalCollection
+      surface="data"
       role="tabpanel"
       id="sales-rankings-panel"
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
-    >
-      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div>
-          <h2 className="font-semibold">{title}</h2>
-          <p className="mt-1 text-sm text-muted">
-            Product rankings by {sortLabel} for {merchantLabel}.
-          </p>
-        </div>
+      title={title}
+      description={`Product rankings by ${sortLabel} for ${merchantLabel}.`}
+      controlsPlacement="inline"
+      controls={
         <RankingControls
           controls={controls}
           merchantOptions={merchantOptions}
@@ -993,7 +986,8 @@ function StaffRankings({
           onMerchantOptionsRetry={onMerchantOptionsRetry}
           onChange={onControlsChange}
         />
-      </header>
+      }
+    >
       <OperationalTableFrame
         empty={
           page && !loading && !error && !page.items.length ? (
@@ -1140,7 +1134,7 @@ function StaffRankings({
           </OperationalTable>
         ) : null}
       </OperationalTableFrame>
-    </section>
+    </OperationalCollection>
   );
 }
 

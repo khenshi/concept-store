@@ -183,6 +183,9 @@ one centered no-data warning treatment and one pagination navigation treatment.
 - Use a consistent default page size of 15 across the existing table/list
   pagination while preserving query parameters, cursor behavior, loading states,
   errors, filters, authorization, and data semantics unchanged.
+- Use the shared collection shell with stacked controls for operational
+  directories and inline controls for report tables, while keeping columns,
+  filters, actions and data ownership in their feature components.
 - Keep cursor-backed load-more interactions only where previous-page navigation
   cannot be reconstructed safely; align their visual treatment where practical.
 
@@ -249,7 +252,7 @@ Use the existing Reports tab treatment and operational table conventions:
 - Tabs: `Overview`, `Transactions`, `Daily Data`, `Rankings`.
 - Filters: report period, transaction type and receipt/refund-code search.
 - Columns: Date, Type, Reference, Branch/merchant context where permitted, Amount
-  or own subtotal, and View.
+  or own subtotal, and Action. Row actions remain labeled View.
 - Loading skeleton, empty state, filtered-empty state, request error/retry,
   pagination and stale-read protection must match the existing Reports workspace.
 - Amounts and dates remain saved transaction snapshots. No edit, delete, refund,

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { InputControl } from '@/shared/components/ui/input-control';
+import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import {
   OperationalTable,
   OperationalTableFrame,
@@ -85,24 +86,20 @@ export function TransactionsTab({
   onPageChange(page: number): void;
 }) {
   return (
-    <section
-      className="data-surface"
+    <OperationalCollection
+      surface="data"
       role="tabpanel"
       id="sales-transactions-panel"
       aria-labelledby="sales-report-tab-transactions"
       tabIndex={0}
-    >
-      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div>
-          <h2 className="font-semibold">
-            {merchant ? 'Your transaction history' : 'Transaction history'}
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            {merchant
-              ? 'Your own completed sales and refunds in this branch.'
-              : 'Completed sales and refunds, newest first.'}
-          </p>
-        </div>
+      title={merchant ? 'Your transaction history' : 'Transaction history'}
+      description={
+        merchant
+          ? 'Your own completed sales and refunds in this branch.'
+          : 'Completed sales and refunds, newest first.'
+      }
+      controlsPlacement="inline"
+      controls={
         <div className="grid gap-3 sm:grid-cols-[11rem_minmax(16rem,22rem)]">
           <label
             className="min-w-0 text-xs font-medium text-muted"
@@ -127,10 +124,11 @@ export function TransactionsTab({
           </label>
           <label
             className="min-w-0 text-xs font-medium text-muted"
-            htmlFor="sales-report-transaction-type"
+            htmlFor="sales-report-transaction-search"
           >
             <span className="block">Search</span>
             <InputControl
+              id="sales-report-transaction-search"
               type="search"
               aria-label="Search transactions"
               placeholder="Search receipt or refund code"
@@ -141,7 +139,8 @@ export function TransactionsTab({
             />
           </label>
         </div>
-      </header>
+      }
+    >
       <OperationalTableFrame
         empty={
           page && !loading && !error && !page.items.length ? (
@@ -195,16 +194,16 @@ export function TransactionsTab({
                 <th scope="col">Reference</th>
                 <th scope="col">{merchant ? 'Context' : 'Merchant'}</th>
                 <th scope="col">Amount</th>
-                <th scope="col">View</th>
+                <th scope="col">Action</th>
               </tr>
             </thead>
             <tbody>
               {page.items.map((item) => (
                 <tr key={`${item.type}-${item.id}`}>
-                  <td className="whitespace-nowrap px-4 py-4 align-top tabular-nums">
+                  <td className="whitespace-nowrap px-4 py-4 align-middle tabular-nums">
                     {completedDate(item.completedAt)}
                   </td>
-                  <td className="px-4 py-4 align-top">
+                  <td className="px-4 py-4 align-middle">
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeClass(item.type)}`}
                     >
@@ -213,7 +212,7 @@ export function TransactionsTab({
                   </td>
                   <th
                     scope="row"
-                    className="px-4 py-4 align-top font-semibold text-ink"
+                    className="px-4 py-4 align-middle font-semibold text-ink"
                   >
                     {item.reference}
                     {'actorName' in item ? (
@@ -222,22 +221,22 @@ export function TransactionsTab({
                       </span>
                     ) : null}
                   </th>
-                  <td className="max-w-64 px-4 py-4 align-top text-muted">
+                  <td className="max-w-64 px-4 py-4 align-middle text-muted">
                     {'merchantNames' in item
                       ? item.merchantNames.join(', ') || 'No merchant recorded'
                       : 'Your items'}
                   </td>
                   <td
-                    className={`whitespace-nowrap px-4 py-4 align-top font-semibold tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-ink'}`}
+                    className={`whitespace-nowrap px-4 py-4 align-middle font-semibold tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-ink'}`}
                   >
                     {item.type === 'REFUND' ? '− ' : ''}PHP {item.amount}
                   </td>
-                  <td className="px-4 py-4 align-top">
+                  <td className="px-4 py-4 align-middle">
                     <Link
                       href={`/app/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/sales/${encodeURIComponent(item.saleId)}`}
                       className={buttonStyles({
                         variant: 'quiet',
-                        className: 'min-h-0 px-0 underline underline-offset-4',
+                        className: 'min-h-0 px-0',
                       })}
                     >
                       View
@@ -249,6 +248,6 @@ export function TransactionsTab({
           </OperationalTable>
         ) : null}
       </OperationalTableFrame>
-    </section>
+    </OperationalCollection>
   );
 }
