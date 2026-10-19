@@ -29,6 +29,9 @@ import type {
 import { MerchantForm } from './merchant-form';
 import { MerchantStatusBadge } from './merchant-status-badge';
 
+const merchantDirectoryGrid =
+  'sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)_6rem]';
+
 function errorMessage(cause: unknown): string {
   return cause instanceof ApiError
     ? cause.message
@@ -229,15 +232,18 @@ function ScopedMerchantDirectory({
           />
         ) : (
           <ul aria-label="Merchant directory" className="m-0 list-none p-0">
-            <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)] gap-x-6 gap-y-3 sm:grid">
+            <li
+              className={`data-column-header hidden justify-items-start text-left gap-x-6 gap-y-3 sm:grid ${merchantDirectoryGrid}`}
+            >
               <span>Merchant</span>
               <span>Contact</span>
               <span>Status</span>
+              <span>Action</span>
             </li>
             {merchants.map((merchant) => (
               <li className="data-row" key={merchant.id}>
                 <Link
-                  className="grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)] sm:items-center"
+                  className={`grid min-w-0 justify-items-start gap-x-6 gap-y-3 px-4 py-4 text-left text-ink no-underline sm:items-center ${merchantDirectoryGrid}`}
                   href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
                   aria-label={`View ${merchant.name}`}
                 >
@@ -262,15 +268,15 @@ function ScopedMerchantDirectory({
                       Contact details restricted
                     </span>
                   )}
-                  <div className="flex items-center justify-between gap-4 lg:justify-end">
+                  <div className="flex items-center gap-4">
                     <MerchantStatusBadge status={merchant.status} />
-                    <span
-                      className="flex items-center gap-2 text-xs font-medium text-muted"
-                      aria-hidden="true"
-                    >
-                      View profile <Icon name="arrow" className="size-4" />
-                    </span>
                   </div>
+                  <span
+                    className="flex w-fit items-center justify-start gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-subtle"
+                    aria-hidden="true"
+                  >
+                    View <Icon name="arrow" className="size-4" />
+                  </span>
                 </Link>
               </li>
             ))}

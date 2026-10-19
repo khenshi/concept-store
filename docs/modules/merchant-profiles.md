@@ -97,13 +97,19 @@ actionable profiles.
 
 Owners, managers, and merchants receive a `Merchants` organization-navigation destination.
 The directory provides debounced server-side search, lifecycle filtering,
-loading and error feedback, empty states, status badges, and profile links.
+loading and error feedback, empty states, status badges, and profile links. Its
+responsive rows keep status aligned beneath the Status column, expose the row
+navigation under an Action column labeled `Action`, render the link as `View`,
+and keep column labels and row contents left-aligned. The View action uses a
+left-aligned pill with a subtle hover surface. Suspended merchants use a red
+status treatment.
 
 Creation opens in an accessible, scroll-contained modal. The shared create/edit
 form provides 300 ms debounced validation after input, immediate validation on
 blur, and final validation on submit. The profile page displays business and
 contact information, supports profile editing, and keeps lifecycle changes in a
 separate confirmed action.
+Field icons remain centered within their corresponding input boxes.
 
 Cashiers are not shown merchant navigation and direct screens do not request data.
 

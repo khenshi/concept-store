@@ -195,4 +195,41 @@ describe('MerchantDirectory', () => {
       'Business or code',
     );
   });
+
+  it('aligns status and action columns and marks suspended merchants red', async () => {
+    vi.mocked(listMerchants).mockResolvedValue([
+      merchant,
+      {
+        ...merchant,
+        id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        status: 'SUSPENDED',
+      },
+    ]);
+    render(<MerchantDirectory organizationId={organizationId} />);
+
+    const actionHeader = await screen.findByText('Action');
+    expect(actionHeader.closest('li')).toHaveClass(
+      'justify-items-start',
+      'text-left',
+      'sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)_6rem]',
+    );
+    expect(
+      screen.getAllByRole('link', { name: `View ${merchant.name}` })[0],
+    ).toHaveClass(
+      'justify-items-start',
+      'text-left',
+      'sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)_6rem]',
+    );
+    const viewActions = screen.getAllByText('View', { exact: true });
+    expect(viewActions).toHaveLength(2);
+    expect(viewActions[0]).toHaveClass(
+      'rounded-full',
+      'justify-start',
+      'hover:bg-subtle',
+    );
+    expect(screen.queryByText('View profile')).not.toBeInTheDocument();
+    expect(screen.getByText('Suspended', { exact: true })).toHaveClass(
+      'text-danger',
+    );
+  });
 });

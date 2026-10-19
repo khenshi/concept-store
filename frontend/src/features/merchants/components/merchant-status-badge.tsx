@@ -3,7 +3,7 @@ import type { MerchantStatus } from '../model/merchant.types';
 const styles: Record<MerchantStatus, string> = {
   ACTIVE: 'border-success/20 bg-success/5 text-success-ink',
   INACTIVE: 'border-hairline bg-subtle text-muted',
-  SUSPENDED: 'border-warning/20 bg-warning/5 text-warning',
+  SUSPENDED: 'border-danger/20 bg-danger/5 text-danger',
   ENDED: 'border-hairline bg-subtle text-muted',
 };
 
