@@ -16,7 +16,7 @@ export function PaginationControls({
 }: {
   ariaLabel: string;
   currentPage: number;
-  totalPages?: number;
+  totalPages: number;
   hasNext?: boolean;
   pending?: boolean;
   summary?: string;
@@ -26,9 +26,8 @@ export function PaginationControls({
   nextLabel?: string;
   className?: string;
 }) {
-  const pageText = totalPages
-    ? `${currentPage}/${Math.max(1, totalPages)}`
-    : `${currentPage}`;
+  const availablePages = Math.max(1, totalPages);
+  const pageText = `${currentPage}/${availablePages}`;
 
   return (
     <nav
@@ -38,11 +37,9 @@ export function PaginationControls({
       {summary ? (
         <p className="text-sm text-muted">
           {summary}
-          {totalPages ? (
-            <span className="sr-only">
-              {' · '}Page {currentPage} of {Math.max(1, totalPages)}
-            </span>
-          ) : null}
+          <span className="sr-only">
+            {' · '}Page {currentPage} of {availablePages}
+          </span>
         </p>
       ) : (
         <span />
@@ -52,7 +49,7 @@ export function PaginationControls({
           type="button"
           className={buttonStyles({
             variant: 'quiet',
-            className: 'size-11 min-h-11 !px-0',
+            className: 'size-11 min-h-11 !border-0 !px-0',
           })}
           aria-label={previousLabel}
           title={previousLabel}
@@ -72,8 +69,8 @@ export function PaginationControls({
         <button
           type="button"
           className={buttonStyles({
-            variant: 'secondary',
-            className: 'size-11 min-h-11 !px-0',
+            variant: 'quiet',
+            className: 'size-11 min-h-11 !border-0 !px-0',
           })}
           aria-label={nextLabel}
           title={nextLabel}

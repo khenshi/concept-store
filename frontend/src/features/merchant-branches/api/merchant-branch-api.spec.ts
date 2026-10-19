@@ -20,7 +20,7 @@ export const association = {
 const page = {
   items: [association],
   page: 1,
-  limit: 10,
+  limit: 15,
   total: 1,
   totalPages: 1,
   hasNext: false,
@@ -87,14 +87,14 @@ describe('Merchant branch API contracts', () => {
       .fn()
       .mockResolvedValueOnce({
         ...page,
-        total: 11,
+        total: 16,
         totalPages: 2,
         hasNext: true,
       })
       .mockResolvedValueOnce({
         ...page,
         page: 2,
-        total: 11,
+        total: 16,
         totalPages: 2,
         hasNext: false,
         items: [],

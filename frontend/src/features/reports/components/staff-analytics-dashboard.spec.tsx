@@ -221,7 +221,7 @@ describe('staff analytics dashboard', () => {
     expect(within(daily).getByText('2026-09-15')).toBeInTheDocument();
     expect(within(daily).getByText('PHP -10.00')).toBeInTheDocument();
   });
-  it('paginates daily rows at ten and requests the next ranking page', () => {
+  it('paginates daily rows at fifteen and requests the next ranking page', () => {
     const dates = Array.from({ length: 21 }, (_, index) =>
       new Date(Date.UTC(2026, 8, 1 + index)).toISOString().slice(0, 10),
     );
@@ -237,9 +237,9 @@ describe('staff analytics dashboard', () => {
     const daily = screen.getByRole('table', {
       name: 'Daily sales data in Asia/Manila',
     });
-    expect(within(daily).getAllByRole('row')).toHaveLength(11);
+    expect(within(daily).getAllByRole('row')).toHaveLength(16);
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(within(daily).getAllByRole('row')).toHaveLength(11);
+    expect(within(daily).getAllByRole('row')).toHaveLength(7);
     expect(within(daily).queryByText('2026-09-01')).not.toBeInTheDocument();
     const onRankingPageChange = vi.fn();
     rerender(
@@ -254,7 +254,7 @@ describe('staff analytics dashboard', () => {
           sortBy: 'GROSS_SALES',
           merchantId: null,
           page: 1,
-          limit: 10,
+          limit: 15,
           totalProducts: '11',
           hasNext: true,
           items: [report.topProducts[0]],

@@ -25,17 +25,17 @@ export const merchantBranchSchema = z
   );
 export const merchantBranchPageSchema = z
   .object({
-    items: z.array(merchantBranchSchema).max(10),
+    items: z.array(merchantBranchSchema).max(15),
     page: z.number().int().min(1),
-    limit: z.literal(10),
+    limit: z.literal(15),
     total: z.number().int().min(0),
     totalPages: z.number().int().min(0),
     hasNext: z.boolean(),
   })
   .refine(
     (page) =>
-      page.totalPages === Math.ceil(page.total / 10) &&
-      page.hasNext === page.page * 10 < page.total &&
+      page.totalPages === Math.ceil(page.total / 15) &&
+      page.hasNext === page.page * 15 < page.total &&
       new Set(page.items.map((row) => row.id)).size === page.items.length,
     'Invalid association pagination',
   );

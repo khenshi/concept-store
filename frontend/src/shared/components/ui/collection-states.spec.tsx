@@ -36,6 +36,17 @@ describe('collection state controls', () => {
     );
 
     expect(screen.getByLabelText('Page 2/5')).toHaveTextContent('2/5');
+    expect(
+      screen.getByRole('navigation', { name: 'Records pagination' }),
+    ).toHaveClass('border-t', 'border-hairline');
+    expect(screen.getByRole('button', { name: 'Previous' })).toHaveClass(
+      'ui-button-quiet',
+      '!border-0',
+    );
+    expect(screen.getByRole('button', { name: 'Next' })).toHaveClass(
+      'ui-button-quiet',
+      '!border-0',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(onPrevious).toHaveBeenCalledOnce();

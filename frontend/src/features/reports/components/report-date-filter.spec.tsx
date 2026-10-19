@@ -1,10 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { ReportDateFilter } from './report-date-filter';
 import type { ReportDateRange } from '../model/report-dates';
@@ -18,57 +12,73 @@ function Form({ onApply }: { onApply(value: ReportDateRange): void }) {
     <ReportDateFilter value={value} onChange={onChange} onApply={onApply} />
   );
 }
-describe('live report date validation', () => {
-  afterEach(() => vi.useRealTimers());
-  it('debounces each input by 300ms and clears feedback after a valid change', () => {
-    vi.useFakeTimers();
+
+function chooseDates(...days: string[]) {
+  fireEvent.click(screen.getByRole('button', { name: 'Report date filter' }));
+  for (const day of days) {
+    const date = new Date(`${day}T00:00:00.000Z`);
+    const label = new Intl.DateTimeFormat('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(date);
+    fireEvent.click(screen.getByRole('gridcell', { name: label }));
+  }
+}
+
+describe('ReportDateFilter', () => {
+  it('applies one selected Philippine date without reading before Apply', () => {
     const onApply = vi.fn();
     render(<Form onApply={onApply} />);
-    const through = screen.getByLabelText('Through (PH, inclusive)');
-    fireEvent.change(through, { target: { value: '2026-09-13' } });
-    act(() => vi.advanceTimersByTime(299));
-    expect(through).not.toHaveAttribute('aria-invalid', 'true');
-    act(() => vi.advanceTimersByTime(1));
-    expect(through).toHaveAttribute('aria-invalid', 'true');
+    chooseDates('2026-09-20');
     expect(
-      screen.getByText('Through date must be on or after From date.'),
-    ).toBeInTheDocument();
-    fireEvent.change(through, { target: { value: '2026-09-14' } });
-    act(() => vi.advanceTimersByTime(300));
-    expect(through).not.toHaveAttribute('aria-invalid', 'true');
+      screen.getByRole('dialog', { name: 'Choose report dates' }),
+    ).toHaveClass('right-0');
     expect(onApply).not.toHaveBeenCalled();
-  });
-  it('validates immediately on blur without reading', () => {
-    const onApply = vi.fn();
-    render(<Form onApply={onApply} />);
-    const from = screen.getByLabelText('From (PH, inclusive)');
-    fireEvent.change(from, { target: { value: '' } });
-    fireEvent.blur(from);
-    expect(from).toHaveAttribute('aria-invalid', 'true');
-    expect(onApply).not.toHaveBeenCalled();
-  });
-  it('blocks invalid Apply, focuses the first invalid field, then applies a valid range', async () => {
-    const onApply = vi.fn();
-    render(<Form onApply={onApply} />);
-    const from = screen.getByLabelText('From (PH, inclusive)');
-    fireEvent.change(from, { target: { value: '' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
-    await waitFor(() => expect(from).toHaveFocus());
-    expect(onApply).not.toHaveBeenCalled();
-    fireEvent.change(from, { target: { value: '2026-09-14' } });
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
     expect(onApply).toHaveBeenCalledWith({
-      fromDay: '2026-09-14',
-      throughDay: '2026-09-14',
+      fromDay: '2026-09-20',
+      throughDay: '2026-09-20',
     });
   });
-  it('cancels pending validation when unmounted', () => {
-    vi.useFakeTimers();
-    const view = render(<Form onApply={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
-      target: { value: '' },
+
+  it('applies an inclusive two-date period from one calendar', () => {
+    const onApply = vi.fn();
+    render(<Form onApply={onApply} />);
+    chooseDates('2026-09-01', '2026-09-20');
+    fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+    expect(onApply).toHaveBeenCalledWith({
+      fromDay: '2026-09-01',
+      throughDay: '2026-09-20',
     });
-    view.unmount();
-    expect(() => act(() => vi.advanceTimersByTime(300))).not.toThrow();
+  });
+
+  it('keeps the existing maximum report period guard', () => {
+    const onApply = vi.fn();
+    render(<Form onApply={onApply} />);
+    chooseDates('2026-09-01');
+    for (let month = 0; month < 12; month += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+    }
+    fireEvent.click(
+      screen.getByRole('gridcell', { name: 'September 2, 2027' }),
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Choose a period of 366 days or fewer.',
+    );
+    expect(screen.getByRole('button', { name: 'Apply period' })).toBeDisabled();
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  it('clears the pending report dates without applying a new period', () => {
+    const onApply = vi.fn();
+    render(<Form onApply={onApply} />);
+    chooseDates('2026-09-20');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear dates' }));
+    expect(
+      screen.getByRole('button', { name: 'Report date filter' }),
+    ).toHaveTextContent('All dates');
+    expect(onApply).not.toHaveBeenCalled();
   });
 });

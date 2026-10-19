@@ -2,6 +2,10 @@ import Link from 'next/link';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { InputControl } from '@/shared/components/ui/input-control';
+import {
+  OperationalTable,
+  OperationalTableFrame,
+} from '@/shared/components/ui/operational-table';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
@@ -88,7 +92,7 @@ export function TransactionsTab({
       aria-labelledby="sales-report-tab-transactions"
       tabIndex={0}
     >
-      <header className="grid gap-4 border-b border-hairline py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div>
           <h2 className="font-semibold">
             {merchant ? 'Your transaction history' : 'Transaction history'}
@@ -100,132 +104,151 @@ export function TransactionsTab({
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-[11rem_minmax(16rem,22rem)]">
-          <SelectControl
-            aria-label="Transaction type"
-            value={filterType}
-            onValueChange={(value) => {
-              if (value === 'ALL' || value === 'SALE' || value === 'REFUND')
-                onTypeChange(value);
-            }}
-            icon="filter"
+          <label
+            className="min-w-0 text-xs font-medium text-muted"
+            htmlFor="sales-report-transaction-type"
           >
-            <option value="ALL">All types</option>
-            <option value="SALE">Sales</option>
-            <option value="REFUND">Refunds</option>
-          </SelectControl>
-          <InputControl
-            type="search"
-            aria-label="Search transactions"
-            placeholder="Search receipt or refund code"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            icon="search"
-          />
+            <span className="block">Filter by</span>
+            <SelectControl
+              id="sales-report-transaction-type"
+              aria-label="Transaction type"
+              value={filterType}
+              onValueChange={(value) => {
+                if (value === 'ALL' || value === 'SALE' || value === 'REFUND')
+                  onTypeChange(value);
+              }}
+              className="mt-1 bg-subtle px-4 text-sm font-medium"
+              icon="filter"
+            >
+              <option value="ALL">All types</option>
+              <option value="SALE">Sales</option>
+              <option value="REFUND">Refunds</option>
+            </SelectControl>
+          </label>
+          <label
+            className="min-w-0 text-xs font-medium text-muted"
+            htmlFor="sales-report-transaction-type"
+          >
+            <span className="block">Search</span>
+            <InputControl
+              type="search"
+              aria-label="Search transactions"
+              placeholder="Search receipt or refund code"
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+              icon="search"
+              className="mt-1 bg-subtle px-4 text-sm font-medium"
+            />
+          </label>
         </div>
       </header>
-      {error ? (
-        <RequestError
-          className="p-5 sm:p-6"
-          message={error}
-          onRetry={onRetry}
-        />
-      ) : loading && !page ? (
-        <TransactionsSkeleton />
-      ) : page?.items.length ? (
-        <>
-          <div className="overflow-x-auto">
-            <table className="data-table w-full min-w-[62rem] border-collapse text-left text-sm">
-              <caption className="sr-only">
-                {merchant ? 'Own transaction history' : 'Transaction history'}
-              </caption>
-              <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
-                <tr>
-                  <th scope="col">Date</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Reference</th>
-                  <th scope="col">{merchant ? 'Context' : 'Merchant'}</th>
-                  <th scope="col">Amount</th>
-                  <th scope="col">View</th>
-                </tr>
-              </thead>
-              <tbody>
-                {page.items.map((item) => (
-                  <tr key={`${item.type}-${item.id}`}>
-                    <td className="whitespace-nowrap px-4 py-4 align-top tabular-nums">
-                      {completedDate(item.completedAt)}
-                    </td>
-                    <td className="px-4 py-4 align-top">
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeClass(item.type)}`}
-                      >
-                        {typeLabel(item.type)}
-                      </span>
-                    </td>
-                    <th
-                      scope="row"
-                      className="px-4 py-4 align-top font-semibold text-ink"
-                    >
-                      {item.reference}
-                      {'actorName' in item ? (
-                        <span className="mt-1 block text-xs font-normal text-muted">
-                          {item.actorName}
-                        </span>
-                      ) : null}
-                    </th>
-                    <td className="max-w-64 px-4 py-4 align-top text-muted">
-                      {'merchantNames' in item
-                        ? item.merchantNames.join(', ') ||
-                          'No merchant recorded'
-                        : 'Your items'}
-                    </td>
-                    <td
-                      className={`whitespace-nowrap px-4 py-4 align-top font-semibold tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-ink'}`}
-                    >
-                      {item.type === 'REFUND' ? '− ' : ''}PHP {item.amount}
-                    </td>
-                    <td className="px-4 py-4 align-top">
-                      <Link
-                        href={`/app/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/sales/${encodeURIComponent(item.saleId)}`}
-                        className={buttonStyles({
-                          variant: 'quiet',
-                          className:
-                            'min-h-0 px-0 underline underline-offset-4',
-                        })}
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <PaginationControls
-            ariaLabel="Transactions pagination"
-            currentPage={page.page}
-            totalPages={page.totalPages}
-            pending={loading}
-            hasNext={page.page < page.totalPages}
-            summary={`${page.total} ${page.total === 1 ? 'transaction' : 'transactions'}`}
-            onPrevious={() => onPageChange(page.page - 1)}
-            onNext={() => onPageChange(page.page + 1)}
+      <OperationalTableFrame
+        empty={
+          page && !loading && !error && !page.items.length ? (
+            <EmptyState
+              className="mt-6"
+              title={
+                search || filterType !== 'ALL'
+                  ? 'No transactions match these filters.'
+                  : 'No completed transactions yet.'
+              }
+              description={
+                search || filterType !== 'ALL'
+                  ? 'Try another code or show all transaction types.'
+                  : 'Completed sales and refunds will appear here for the selected period.'
+              }
+            />
+          ) : undefined
+        }
+        footer={
+          page ? (
+            <PaginationControls
+              ariaLabel="Transactions pagination"
+              currentPage={page.page}
+              totalPages={page.totalPages}
+              pending={loading}
+              hasNext={page.page < page.totalPages}
+              summary={`${page.total} ${page.total === 1 ? 'transaction' : 'transactions'}`}
+              onPrevious={() => onPageChange(page.page - 1)}
+              onNext={() => onPageChange(page.page + 1)}
+            />
+          ) : undefined
+        }
+      >
+        {error ? (
+          <RequestError
+            className="p-5 sm:p-6"
+            message={error}
+            onRetry={onRetry}
           />
-        </>
-      ) : (
-        <EmptyState
-          className="mx-5 my-6 sm:mx-6"
-          title={
-            search || filterType !== 'ALL'
-              ? 'No transactions match these filters.'
-              : 'No completed transactions yet.'
-          }
-          description={
-            search || filterType !== 'ALL'
-              ? 'Try another code or show all transaction types.'
-              : 'Completed sales and refunds will appear here for the selected period.'
-          }
-        />
-      )}
+        ) : loading && !page ? (
+          <TransactionsSkeleton />
+        ) : page?.items.length ? (
+          <OperationalTable className="min-w-[62rem]">
+            <caption className="sr-only">
+              {merchant ? 'Own transaction history' : 'Transaction history'}
+            </caption>
+            <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Type</th>
+                <th scope="col">Reference</th>
+                <th scope="col">{merchant ? 'Context' : 'Merchant'}</th>
+                <th scope="col">Amount</th>
+                <th scope="col">View</th>
+              </tr>
+            </thead>
+            <tbody>
+              {page.items.map((item) => (
+                <tr key={`${item.type}-${item.id}`}>
+                  <td className="whitespace-nowrap px-4 py-4 align-top tabular-nums">
+                    {completedDate(item.completedAt)}
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <span
+                      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${typeClass(item.type)}`}
+                    >
+                      {typeLabel(item.type)}
+                    </span>
+                  </td>
+                  <th
+                    scope="row"
+                    className="px-4 py-4 align-top font-semibold text-ink"
+                  >
+                    {item.reference}
+                    {'actorName' in item ? (
+                      <span className="mt-1 block text-xs font-normal text-muted">
+                        {item.actorName}
+                      </span>
+                    ) : null}
+                  </th>
+                  <td className="max-w-64 px-4 py-4 align-top text-muted">
+                    {'merchantNames' in item
+                      ? item.merchantNames.join(', ') || 'No merchant recorded'
+                      : 'Your items'}
+                  </td>
+                  <td
+                    className={`whitespace-nowrap px-4 py-4 align-top font-semibold tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-ink'}`}
+                  >
+                    {item.type === 'REFUND' ? '− ' : ''}PHP {item.amount}
+                  </td>
+                  <td className="px-4 py-4 align-top">
+                    <Link
+                      href={`/app/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/sales/${encodeURIComponent(item.saleId)}`}
+                      className={buttonStyles({
+                        variant: 'quiet',
+                        className: 'min-h-0 px-0 underline underline-offset-4',
+                      })}
+                    >
+                      View
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </OperationalTable>
+        ) : null}
+      </OperationalTableFrame>
     </section>
   );
 }

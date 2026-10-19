@@ -32,7 +32,7 @@ export const space: SpaceListItem = {
 export const page = <T>(items: T[]) => ({
   items,
   page: 1,
-  limit: 10 as const,
+  limit: 15 as const,
   total: items.length,
   totalPages: items.length ? 1 : 0,
   hasNext: false,

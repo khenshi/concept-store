@@ -17,10 +17,12 @@ import {
   OperationalToolbar,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
+import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { Icon } from '@/shared/components/ui/icon';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { getInventoryBranch, listInventory } from '../api/inventory-api';
 import type {
@@ -36,6 +38,8 @@ import { inventoryStockQuantityClass } from './inventory-stock-status';
 import { InventoryReconciliation } from './inventory-reconciliation';
 import { InventoryMovementRecords } from './inventory-movement-records';
 import { InventoryTableSkeleton } from './inventory-table-skeleton';
+
+type InventoryPageTarget = { index: number; cursor?: string };
 
 export function InventoryDirectory(
   props: InventoryScope & { initialStockStatus?: InventoryStockStatus },
@@ -67,8 +71,14 @@ function ScopedInventoryDirectory({
   const [branch, setBranch] = useState<InventoryBranch | null>(null);
   const [items, setItems] = useState<BranchInventory[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [moreError, setMoreError] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageCursors, setPageCursors] = useState<Array<string | undefined>>([
+    undefined,
+  ]);
+  const [pageLoading, setPageLoading] = useState(false);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [pageRetry, setPageRetry] = useState<InventoryPageTarget | null>(null);
   const [merchants, setMerchants] = useState<MerchantView[]>([]);
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
@@ -98,8 +108,12 @@ function ScopedInventoryDirectory({
     setStockAction(null);
     setItems([]);
     setNextCursor(null);
-    setLoadingMore(false);
-    setMoreError(null);
+    setTotalPages(0);
+    setPageIndex(0);
+    setPageCursors([undefined]);
+    setPageLoading(false);
+    setPageError(null);
+    setPageRetry(null);
     setBranch(null);
     setMerchants([]);
     setActiveTab('stock');
@@ -122,8 +136,12 @@ function ScopedInventoryDirectory({
       setBranch(null);
       setItems([]);
       setNextCursor(null);
-      setLoadingMore(false);
-      setMoreError(null);
+      setTotalPages(0);
+      setPageIndex(0);
+      setPageCursors([undefined]);
+      setPageLoading(false);
+      setPageError(null);
+      setPageRetry(null);
       setMerchants([]);
       try {
         const scope = { organizationId, branchId };
@@ -141,6 +159,9 @@ function ScopedInventoryDirectory({
           setBranch(location);
           setItems(inventory.items);
           setNextCursor(inventory.nextCursor);
+          setTotalPages(inventory.totalPages ?? 0);
+          setPageIndex(0);
+          setPageCursors([undefined]);
           setMerchants(profiles);
         }
       } catch (cause) {
@@ -170,12 +191,12 @@ function ScopedInventoryDirectory({
     stockStatus,
     revision,
   ]);
-  async function loadMore() {
-    if (!nextCursor || loading || loadingMore || error) return;
+  async function loadPage(target: InventoryPageTarget) {
+    if (pageLoading || target.index < 0 || loading || error) return;
     const generation = readGeneration.current;
-    const cursor = nextCursor;
-    setLoadingMore(true);
-    setMoreError(null);
+    setPageLoading(true);
+    setPageError(null);
+    setPageRetry(target);
     try {
       const page = await listInventory(
         request,
@@ -186,20 +207,32 @@ function ScopedInventoryDirectory({
           status: status || undefined,
           stockStatus: stockStatus || undefined,
         },
-        cursor,
+        target.cursor,
       );
       if (generation !== readGeneration.current) return;
-      setItems((current) => [...current, ...page.items]);
+      setItems(page.items);
       setNextCursor(page.nextCursor);
+      setTotalPages(page.totalPages ?? 0);
+      setPageIndex(target.index);
+      setPageCursors((previous) => {
+        const next = [...previous];
+        next[target.index] = target.cursor;
+        return next;
+      });
+      setPageRetry(null);
     } catch (cause) {
-      if (generation === readGeneration.current)
-        setMoreError(
-          cause instanceof ApiError
-            ? cause.message
-            : 'More placements could not be loaded.',
-        );
+      if (generation !== readGeneration.current) return;
+      if (cause instanceof ApiError && [401, 403, 404].includes(cause.status)) {
+        accessLost();
+        return;
+      }
+      setPageError(
+        cause instanceof ApiError
+          ? cause.message
+          : 'This inventory page could not be loaded.',
+      );
     } finally {
-      if (generation === readGeneration.current) setLoadingMore(false);
+      if (generation === readGeneration.current) setPageLoading(false);
     }
   }
   if (organizationStatus === 'loading')
@@ -222,6 +255,7 @@ function ScopedInventoryDirectory({
   const inventoryGrid = canWrite
     ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(6.5rem,0.75fr)_minmax(7rem,0.75fr)_minmax(7rem,0.6fr)_minmax(12rem,1fr)]'
     : 'lg:grid-cols-[minmax(0,1.5fr)_minmax(6.5rem,0.8fr)_minmax(7rem,0.8fr)_minmax(7rem,0.7fr)_minmax(7rem,0.7fr)]';
+  const placementLabel = `${items.length} ${canWrite ? '' : 'own '}${items.length === 1 ? 'placement' : 'placements'}`;
   return (
     <OrganizationPageFrame wide>
       <PageHeader
@@ -254,8 +288,11 @@ function ScopedInventoryDirectory({
               readGeneration.current++;
               setItems([]);
               setNextCursor(null);
-              setLoadingMore(false);
-              setMoreError(null);
+              setPageIndex(0);
+              setPageCursors([undefined]);
+              setPageLoading(false);
+              setPageError(null);
+              setPageRetry(null);
               setBranch(null);
               setSearch('');
               setMerchantId('');
@@ -331,7 +368,7 @@ function ScopedInventoryDirectory({
           description={
             loading
               ? 'Loading inventory…'
-              : `${items.length} ${nextCursor ? 'displayed' : 'matching'} ${canWrite ? '' : 'own '}placements${nextCursor ? ' · more available' : ''}`
+              : `${placementLabel}`
           }
           action={
             canWrite ? (
@@ -352,10 +389,13 @@ function ScopedInventoryDirectory({
         >
           <OperationalToolbar className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
             <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-              <label className="sr-only" htmlFor="inventory-search">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="inventory-search"
+              >
                 Search
               </label>
-              <div className="relative">
+              <div className="relative mt-1">
                 <Icon
                   name="search"
                   className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
@@ -372,13 +412,16 @@ function ScopedInventoryDirectory({
               </div>
             </div>
             <div className="min-w-0">
-              <label className="sr-only" htmlFor="inventory-stock-status">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="inventory-stock-status"
+              >
                 Stock status
               </label>
               <SelectControl
                 id="inventory-stock-status"
                 aria-label="Stock status"
-                className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10.5rem]"
+                className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10.5rem]"
                 value={stockStatus}
                 onValueChange={(value) =>
                   setStockStatus(value as InventoryStockStatus | '')
@@ -391,13 +434,16 @@ function ScopedInventoryDirectory({
               </SelectControl>
             </div>
             <div className="min-w-0">
-              <label className="sr-only" htmlFor="inventory-merchant">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="inventory-merchant"
+              >
                 Merchant
               </label>
               <SelectControl
                 id="inventory-merchant"
                 aria-label="Merchant"
-                className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
+                className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
                 value={merchantId}
                 onValueChange={setMerchantId}
               >
@@ -410,13 +456,16 @@ function ScopedInventoryDirectory({
               </SelectControl>
             </div>
             <div className="min-w-0">
-              <label className="sr-only" htmlFor="inventory-status">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="inventory-status"
+              >
                 Product status
               </label>
               <SelectControl
                 id="inventory-status"
                 aria-label="Product status"
-                className="rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[9.5rem]"
+                className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[9.5rem]"
                 value={status}
                 onValueChange={(value) =>
                   setStatus(value as ProductStatus | '')
@@ -428,163 +477,184 @@ function ScopedInventoryDirectory({
               </SelectControl>
             </div>
           </OperationalToolbar>
-          {loading ? (
-            <InventoryTableSkeleton
-              variant="stock"
-              canWrite={canWrite}
-              label="Loading inventory placements"
-            />
-          ) : error ? (
-            <RequestError
-              className="p-6"
-              message={error}
-              onRetry={() => setRevision((value) => value + 1)}
-            />
-          ) : !items.length ? (
-            <EmptyState
-              className="my-6"
-              title={
-                search || merchantId || status || stockStatus
-                  ? 'No placements match these filters'
-                  : 'No product placements yet'
-              }
-              description={
-                search || merchantId || status || stockStatus
-                  ? 'Try another search or filter.'
-                  : canWrite
-                    ? 'Place an active product here with a branch-specific price, then receive stock separately.'
-                    : 'Your merchant has no placements here. A branch assignment never grants access to another merchant’s stock. Ask an owner if access needs configuring.'
-              }
-            />
-          ) : (
-            <ul aria-label="Branch inventory" className="m-0 list-none p-0">
-              <li
-                className={`data-column-header inventory-column-header hidden gap-x-6 gap-y-3 lg:grid ${inventoryGrid}`}
-              >
-                <span>Product</span>
-                <span>SKU</span>
-                <span>Price</span>
-                <span>Quantity</span>
-                <span>Actions</span>
-              </li>
-              {items.map((item) => (
+          <OperationalTableFrame
+            empty={
+              !loading && !error && !items.length ? (
+                <EmptyState
+                  className="mt-6"
+                  title={
+                    search || merchantId || status || stockStatus
+                      ? 'No placements match these filters'
+                      : 'No product placements yet'
+                  }
+                  description={
+                    search || merchantId || status || stockStatus
+                      ? 'Try another search or filter.'
+                      : canWrite
+                        ? 'Place an active product here with a branch-specific price, then receive stock separately.'
+                        : 'Your merchant has no placements here. A branch assignment never grants access to another merchant’s stock. Ask an owner if access needs configuring.'
+                  }
+                />
+              ) : undefined
+            }
+            footer={
+              !loading && !error ? (
+                <>
+                  {pageError && pageRetry ? (
+                    <RequestError
+                      className="p-6"
+                      message={pageError}
+                      onRetry={() => void loadPage(pageRetry)}
+                    />
+                  ) : null}
+                  <PaginationControls
+                    ariaLabel="Inventory stock pagination"
+                    currentPage={pageIndex + 1}
+                    totalPages={totalPages}
+                    hasNext={Boolean(nextCursor)}
+                    pending={pageLoading}
+                    onPrevious={() =>
+                      void loadPage({
+                        index: pageIndex - 1,
+                        cursor: pageCursors[pageIndex - 1],
+                      })
+                    }
+                    onNext={() =>
+                      void loadPage({
+                        index: pageIndex + 1,
+                        cursor: nextCursor ?? undefined,
+                      })
+                    }
+                  />
+                </>
+              ) : undefined
+            }
+          >
+            {loading ? (
+              <InventoryTableSkeleton
+                variant="stock"
+                canWrite={canWrite}
+                label="Loading inventory placements"
+              />
+            ) : error ? (
+              <RequestError
+                className="p-6"
+                message={error}
+                onRetry={() => setRevision((value) => value + 1)}
+              />
+            ) : items.length ? (
+              <ul aria-label="Branch inventory" className="m-0 list-none p-0">
                 <li
-                  key={item.id}
-                  className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 lg:items-center ${inventoryGrid}`}
+                  className={`data-column-header inventory-column-header hidden gap-x-6 gap-y-3 lg:grid ${inventoryGrid}`}
                 >
-                  <div className="min-w-0 break-words">
-                    <strong className="block text-sm font-semibold">
-                      {item.product.name}
-                    </strong>
-                    <span className="mt-1 block text-xs text-muted">
-                      {item.product.merchant.name} ·{' '}
-                      {item.product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                  <span className="min-w-0 break-words text-sm text-muted">
-                    {item.product.sku ?? 'Not set'}
-                    {item.participationStatus === 'INACTIVE'
-                      ? ' · Branch participation inactive'
-                      : ''}
-                  </span>
-                  <span className="text-sm tabular-nums">
-                    PHP {item.sellingPrice}
-                  </span>
-                  <span className="text-sm tabular-nums">
-                    <strong
-                      className={`block font-semibold ${inventoryStockQuantityClass(item.stockStatus)}`}
-                    >
-                      {item.quantity.toLocaleString()} units
-                    </strong>
-                    <span className="mt-1 block text-xs text-muted">
-                      Threshold {item.lowStockThreshold.toLocaleString()}
-                    </span>
-                  </span>
-                  <div
-                    className="flex flex-wrap gap-x-3 gap-y-2 md:flex-nowrap md:whitespace-nowrap"
-                    aria-label={`${item.product.name} stock actions`}
-                  >
-                    {canWrite ? (
-                      <button
-                        type="button"
-                        className={buttonStyles({
-                          variant: 'quiet',
-                          className: 'min-h-9 px-2 py-1 text-xs',
-                        })}
-                        disabled={
-                          pending || item.participationStatus === 'INACTIVE'
-                        }
-                        title={
-                          item.participationStatus === 'INACTIVE'
-                            ? 'Receiving is disabled while branch participation is inactive'
-                            : undefined
-                        }
-                        onClick={() => {
-                          dirty.current = false;
-                          setSuccess(null);
-                          setStockAction({ inventory: item, mode: 'receipt' });
-                        }}
-                      >
-                        Stock in
-                      </button>
-                    ) : null}
-                    {canWrite ? (
-                      <button
-                        type="button"
-                        className={buttonStyles({
-                          variant: 'quiet',
-                          className: 'min-h-9 px-2 py-1 text-xs',
-                        })}
-                        disabled={pending}
-                        onClick={() => {
-                          dirty.current = false;
-                          setSuccess(null);
-                          setStockAction({
-                            inventory: item,
-                            mode: 'adjustment',
-                          });
-                        }}
-                      >
-                        Adjust
-                      </button>
-                    ) : null}
-                    <Link
-                      href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
-                      aria-label={`View ${item.product.name} inventory`}
-                      className={buttonStyles({
-                        variant: 'quiet',
-                        className: 'min-h-9 px-2 py-1 text-xs no-underline',
-                      })}
-                    >
-                      View
-                    </Link>
-                  </div>
+                  <span>Product</span>
+                  <span>SKU</span>
+                  <span>Price</span>
+                  <span>Quantity</span>
+                  <span>Actions</span>
                 </li>
-              ))}
-            </ul>
-          )}
-          {!loading && !error && nextCursor ? (
-            <div className="border-t border-hairline px-0 py-5">
-              {moreError ? (
-                <p role="alert" className="mb-3 text-sm text-danger">
-                  {moreError}
-                </p>
-              ) : null}
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'secondary' })}
-                disabled={loadingMore}
-                aria-busy={loadingMore}
-                onClick={() => void loadMore()}
-              >
-                {loadingMore
-                  ? 'Loading more…'
-                  : moreError
-                    ? 'Retry loading more'
-                    : 'Load more placements'}
-              </button>
-            </div>
-          ) : null}
+                {items.map((item) => (
+                  <li
+                    key={item.id}
+                    className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 lg:items-center ${inventoryGrid}`}
+                  >
+                    <div className="min-w-0 break-words">
+                      <strong className="block text-sm font-semibold">
+                        {item.product.name}
+                      </strong>
+                      <span className="mt-1 block text-xs text-muted">
+                        {item.product.merchant.name} ·{' '}
+                        {item.product.status === 'ACTIVE'
+                          ? 'Active'
+                          : 'Inactive'}
+                      </span>
+                    </div>
+                    <span className="min-w-0 break-words text-sm text-muted">
+                      {item.product.sku ?? 'Not set'}
+                      {item.participationStatus === 'INACTIVE'
+                        ? ' · Branch participation inactive'
+                        : ''}
+                    </span>
+                    <span className="text-sm tabular-nums">
+                      PHP {item.sellingPrice}
+                    </span>
+                    <span className="text-sm tabular-nums">
+                      <strong
+                        className={`block font-semibold ${inventoryStockQuantityClass(item.stockStatus)}`}
+                      >
+                        {item.quantity.toLocaleString()} units
+                      </strong>
+                      <span className="mt-1 block text-xs text-muted">
+                        Threshold {item.lowStockThreshold.toLocaleString()}
+                      </span>
+                    </span>
+                    <div
+                      className="flex flex-wrap gap-x-3 gap-y-2 md:flex-nowrap md:whitespace-nowrap"
+                      aria-label={`${item.product.name} stock actions`}
+                    >
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          className={buttonStyles({
+                            variant: 'quiet',
+                            className: 'min-h-9 px-2 py-1 text-xs',
+                          })}
+                          disabled={
+                            pending || item.participationStatus === 'INACTIVE'
+                          }
+                          title={
+                            item.participationStatus === 'INACTIVE'
+                              ? 'Receiving is disabled while branch participation is inactive'
+                              : undefined
+                          }
+                          onClick={() => {
+                            dirty.current = false;
+                            setSuccess(null);
+                            setStockAction({
+                              inventory: item,
+                              mode: 'receipt',
+                            });
+                          }}
+                        >
+                          Stock in
+                        </button>
+                      ) : null}
+                      {canWrite ? (
+                        <button
+                          type="button"
+                          className={buttonStyles({
+                            variant: 'quiet',
+                            className: 'min-h-9 px-2 py-1 text-xs',
+                          })}
+                          disabled={pending}
+                          onClick={() => {
+                            dirty.current = false;
+                            setSuccess(null);
+                            setStockAction({
+                              inventory: item,
+                              mode: 'adjustment',
+                            });
+                          }}
+                        >
+                          Adjust
+                        </button>
+                      ) : null}
+                      <Link
+                        href={`/app/organizations/${organizationId}/branches/${branchId}/inventory/${item.id}`}
+                        aria-label={`View ${item.product.name} inventory`}
+                        className={buttonStyles({
+                          variant: 'quiet',
+                          className: 'min-h-9 px-2 py-1 text-xs no-underline',
+                        })}
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </OperationalTableFrame>
         </OperationalPanel>
       ) : null}
       {activeTab === 'movements' && branch && !loading && !error ? (

@@ -141,7 +141,7 @@ function rankingFor(path: string) {
       'GROSS_SALES' | 'UNITS_SOLD',
     merchantId: query.get('merchantId'),
     page,
-    limit: 10 as const,
+    limit: 15 as const,
     totalProducts: analyticsReport.totalProducts,
     hasNext: false,
     items: analyticsReport.topProducts,
@@ -194,6 +194,20 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
+
+function chooseReportDates(...days: string[]) {
+  fireEvent.click(screen.getByRole('button', { name: 'Report date filter' }));
+  for (const day of days) {
+    const label = new Intl.DateTimeFormat('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${day}T00:00:00.000Z`));
+    fireEvent.click(screen.getByRole('gridcell', { name: label }));
+  }
+}
+
 describe('staff Reports workspace', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -302,9 +316,9 @@ describe('staff Reports workspace', () => {
     expect(request.mock.calls[1][0]).toContain(
       new URLSearchParams(range).toString(),
     );
-    expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
-      '2026-09-14',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Report date filter' }),
+    ).toHaveTextContent('Sep 14, 2026');
     expect(screen.getAllByText('GCash')).toHaveLength(1);
     expect(screen.getAllByText('Card')).toHaveLength(1);
   });
@@ -341,16 +355,16 @@ describe('staff Reports workspace', () => {
     expect(
       screen.getByRole('table', { name: 'Daily sales data in Asia/Manila' }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
-      '2026-09-14',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Report date filter' }),
+    ).toHaveTextContent('Sep 14, 2026');
     fireEvent.click(screen.getByRole('tab', { name: 'Rankings' }));
     expect(
       await screen.findByRole('table', { name: 'Top products by gross sales' }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
-      '2026-09-14',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Report date filter' }),
+    ).toHaveTextContent('Sep 14, 2026');
     fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
     expect(
       screen.getByRole('heading', { name: 'Daily sales trend' }),
@@ -372,6 +386,7 @@ describe('staff Reports workspace', () => {
       'href',
       `/app/organizations/org/branches/${branch.id}/sales/33333333-3333-4333-8333-333333333333`,
     );
+    expect(screen.getByText('Filter by')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('combobox', { name: 'Transaction type' }));
     fireEvent.click(screen.getByRole('option', { name: 'Refunds' }));
     await waitFor(() =>
@@ -442,17 +457,13 @@ describe('staff Reports workspace', () => {
     expect(request).toHaveBeenCalledTimes(1);
     expect(push).not.toHaveBeenCalled();
   });
-  it('blocks invalid dates, does not read while typing, and reads only on valid Apply', async () => {
+  it('does not read while selecting and reads only on Apply', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await screen.findAllByText('PHP 60.00');
-    const from = screen.getByLabelText('From (PH, inclusive)');
-    fireEvent.change(from, { target: { value: '' } });
+    chooseReportDates('2026-09-13');
     expect(
       screen.getByRole('button', { name: 'Refresh Report' }),
-    ).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
-    expect(request).toHaveBeenCalledTimes(2);
-    fireEvent.change(from, { target: { value: '2026-09-13' } });
+    ).toBeEnabled();
     expect(request).toHaveBeenCalledTimes(2);
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
@@ -484,9 +495,7 @@ describe('staff Reports workspace', () => {
     request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
-    fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
-      target: { value: '2026-09-13' },
-    });
+    chooseReportDates('2026-09-13');
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
     await screen.findAllByText('PHP 60.00');
     await act(async () =>
@@ -524,16 +533,14 @@ describe('staff Reports workspace', () => {
       <BranchReports organizationId="org" branchId={branch.id} />,
     );
     await screen.findAllByText('PHP 60.00');
-    fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
-      target: { value: '2026-09-13' },
-    });
+    chooseReportDates('2026-09-13');
     fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
     await screen.findAllByText('PHP 60.00');
     view.rerender(<BranchReports organizationId="org" branchId={second.id} />);
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('From (PH, inclusive)')).toHaveValue(
-      '2026-09-14',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Report date filter' }),
+    ).toHaveTextContent('Sep 14, 2026');
     await screen.findAllByText('PHP 60.00');
     expect(request.mock.calls.at(-1)?.[0]).toContain(
       `/branches/${second.id}/reports/sales/analytics?${new URLSearchParams(range)}`,
@@ -793,9 +800,7 @@ describe('staff Reports workspace', () => {
       );
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await screen.findByText(/If your profile is not linked/);
-      fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
-        target: { value: '2026-09-13' },
-      });
+      chooseReportDates('2026-09-13');
       fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
       await screen.findAllByText('PHP 0.00');
       fireEvent.click(screen.getByRole('combobox'));
@@ -885,9 +890,7 @@ describe('staff Reports workspace', () => {
       request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
-      fireEvent.change(screen.getByLabelText('From (PH, inclusive)'), {
-        target: { value: '2026-09-13' },
-      });
+      chooseReportDates('2026-09-13');
       fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
       await screen.findAllByText('PHP 25.00');
       await act(async () =>

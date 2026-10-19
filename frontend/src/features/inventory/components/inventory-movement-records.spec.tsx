@@ -15,6 +15,30 @@ const branchScope = {
   organizationId: scope.organizationId,
   branchId: scope.branchId,
 };
+
+function showMonth(target: string) {
+  const targetDate = new Date(`${target} 1`);
+
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const grid = screen.getByRole('grid');
+    const current = (grid.getAttribute('aria-label') ?? '').replace(
+      ' calendar',
+      '',
+    );
+
+    if (current === target) return;
+
+    const currentDate = new Date(`${current} 1`);
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: targetDate < currentDate ? 'Previous month' : 'Next month',
+      }),
+    );
+  }
+
+  throw new Error(`Could not show ${target}`);
+}
+
 const record = {
   id: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
   branchId: scope.branchId,
@@ -67,6 +91,33 @@ describe('InventoryMovementRecords', () => {
     expect(skeleton.querySelectorAll('.data-row')).toHaveLength(5);
   });
 
+  it('keeps the pagination footer visible for an empty result', async () => {
+    vi.mocked(listMovementRecords).mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    render(
+      <InventoryMovementRecords
+        {...scope}
+        role="MANAGER"
+        merchants={[]}
+        onAccessLost={onAccessLost}
+      />,
+    );
+    expect(
+      await screen.findByText(
+        'No movement records have been recorded for this branch yet.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', {
+        name: 'Inventory movement pagination',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
+
   it('loads branch records, renders actor and placement links, and debounces search', async () => {
     render(
       <InventoryMovementRecords
@@ -101,12 +152,16 @@ describe('InventoryMovementRecords', () => {
       'placeholder',
       'e.g. Amihan Vase or AMI-001',
     );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Movement date filter' }),
+    );
     expect(
-      screen.getByLabelText('From (PH)').closest('label')?.querySelector('svg'),
-    ).not.toBeNull();
+      screen.getByRole('dialog', { name: 'Choose movement record dates' }),
+    ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Apply dates' }).closest('form'),
-    ).toHaveClass('md:w-fit', 'md:justify-self-start');
+      screen.getByRole('button', { name: 'Apply dates' }),
+    ).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
     fireEvent.change(search, { target: { value: 'opening' } });
     expect(listMovementRecords).toHaveBeenCalledOnce();
     await waitFor(() => expect(listMovementRecords).toHaveBeenCalledTimes(2));
@@ -137,12 +192,16 @@ describe('InventoryMovementRecords', () => {
       />,
     );
     await screen.findByRole('button', { name: 'View' });
-    fireEvent.change(screen.getByLabelText('From (PH)'), {
-      target: { value: '2026-09-01' },
-    });
-    fireEvent.change(screen.getByLabelText('Through (PH)'), {
-      target: { value: '2026-09-20' },
-    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Movement date filter' }),
+    );
+    showMonth('September 2026');
+    fireEvent.click(
+      screen.getByRole('gridcell', { name: 'September 1, 2026' }),
+    );
+    fireEvent.click(
+      screen.getByRole('gridcell', { name: 'September 20, 2026' }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Apply dates' }));
     await waitFor(() => expect(listMovementRecords).toHaveBeenCalledTimes(2));
     expect(listMovementRecords).toHaveBeenLastCalledWith(
@@ -170,6 +229,36 @@ describe('InventoryMovementRecords', () => {
         until: '2026-09-20T16:00:00.000Z',
       }),
       'cursor-1',
+    );
+  });
+
+  it('filters one selected Philippine date as a single calendar day', async () => {
+    render(
+      <InventoryMovementRecords
+        {...scope}
+        role="OWNER"
+        merchants={[]}
+        onAccessLost={onAccessLost}
+      />,
+    );
+    await screen.findByRole('button', { name: 'View' });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Movement date filter' }),
+    );
+    showMonth('September 2026');
+    fireEvent.click(
+      screen.getByRole('gridcell', { name: 'September 20, 2026' }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Apply dates' }));
+    await waitFor(() => expect(listMovementRecords).toHaveBeenCalledTimes(2));
+    expect(listMovementRecords).toHaveBeenLastCalledWith(
+      request,
+      branchScope,
+      'OWNER',
+      expect.objectContaining({
+        from: '2026-09-19T16:00:00.000Z',
+        until: '2026-09-20T16:00:00.000Z',
+      }),
     );
   });
 

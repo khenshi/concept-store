@@ -48,7 +48,7 @@ export async function getInventoryReconciliation(
   scope: InventoryScope,
   cursor?: string,
 ) {
-  const query = new URLSearchParams({ limit: '25' });
+  const query = new URLSearchParams({ limit: '15' });
   if (cursor) query.set('cursor', cursor);
   return inventoryReconciliationPageSchema.parse(
     await request<unknown>(`${path(scope)}/reconciliation?${query}`),
@@ -60,7 +60,7 @@ export async function listInventory(
   filters: InventoryFilters = {},
   cursor?: string,
 ) {
-  const query = new URLSearchParams({ limit: '5' });
+  const query = new URLSearchParams({ limit: '15' });
   for (const [key, value] of Object.entries(filters))
     if (value) query.set(key, value);
   if (cursor) query.set('cursor', cursor);
@@ -74,7 +74,7 @@ export async function listEligibleProducts(
   q?: string,
   cursor?: string,
 ) {
-  const query = new URLSearchParams({ limit: '5' });
+  const query = new URLSearchParams({ limit: '15' });
   if (q) query.set('q', q);
   if (cursor) query.set('cursor', cursor);
   return eligibleProductsPageSchema.parse(
@@ -131,7 +131,7 @@ export async function listMovements(
   role?: string,
   cursor?: string,
 ) {
-  const query = new URLSearchParams({ limit: '5' });
+  const query = new URLSearchParams({ limit: '15' });
   if (cursor) query.set('cursor', cursor);
   const result = await request<unknown>(`${detail(scope)}/movements?${query}`);
   return role === 'MERCHANT'
@@ -145,7 +145,7 @@ export async function listMovementRecords(
   filters: InventoryMovementRecordFilters = {},
   cursor?: string,
 ) {
-  const query = new URLSearchParams({ limit: '10' });
+  const query = new URLSearchParams({ limit: '15' });
   for (const [key, value] of Object.entries(filters))
     if (value) query.set(key, value);
   if (cursor) query.set('cursor', cursor);

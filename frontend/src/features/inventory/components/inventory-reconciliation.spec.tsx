@@ -75,8 +75,13 @@ describe('InventoryReconciliation', () => {
       .mockResolvedValueOnce({
         items: [mismatch],
         nextCursor: mismatch.inventoryId,
+        totalPages: 2,
       })
-      .mockResolvedValueOnce({ items: [second], nextCursor: null });
+      .mockResolvedValueOnce({
+        items: [second],
+        nextCursor: null,
+        totalPages: 2,
+      });
     render(<InventoryReconciliation {...scope} />);
     fireEvent.click(
       screen.getByRole('button', { name: 'Check stock integrity' }),
@@ -84,6 +89,7 @@ describe('InventoryReconciliation', () => {
     const link = await screen.findByRole('link', {
       name: mismatch.productName,
     });
+    expect(screen.getByLabelText('Page 1/2')).toBeInTheDocument();
     expect(link).toHaveAttribute(
       'href',
       `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/inventory/${scope.inventoryId}`,
@@ -91,12 +97,11 @@ describe('InventoryReconciliation', () => {
     expect(
       screen.getByText(/Saved 10 · Ledger 9 · Difference 1/),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Load more mismatches' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(
       await screen.findByRole('link', { name: 'Second' }),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText('Page 2/2')).toBeInTheDocument();
     expect(getInventoryReconciliation).toHaveBeenLastCalledWith(
       request,
       {
@@ -105,9 +110,7 @@ describe('InventoryReconciliation', () => {
       },
       mismatch.inventoryId,
     );
-    expect(
-      screen.queryByRole('button', { name: 'Load more mismatches' }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   });
 
   it('clears unauthorized results and supports retry after a failed read', async () => {

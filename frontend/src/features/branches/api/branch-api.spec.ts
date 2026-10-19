@@ -101,8 +101,8 @@ describe('branch API', () => {
         },
       ],
       page: 2,
-      limit: 10,
-      total: 11,
+      limit: 15,
+      total: 16,
       totalPages: 2,
       hasNext: false,
       summary: { total: 24, active: 20, inactive: 4 },
@@ -114,7 +114,7 @@ describe('branch API', () => {
         status: 'ACTIVE',
         page: 2,
       }),
-    ).resolves.toMatchObject({ total: 11, summary: { inactive: 4 } });
+    ).resolves.toMatchObject({ total: 16, summary: { inactive: 4 } });
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%2Fid/branches/directory?page=2&q=Metro+Manila&status=ACTIVE',
     );

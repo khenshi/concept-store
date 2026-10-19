@@ -268,8 +268,8 @@ function StaffBranchDirectory({
   const totalPages = directory?.totalPages ?? 0;
   const currentPage = directory?.page ?? 1;
   const total = directory?.total ?? 0;
-  const start = total === 0 ? 0 : (currentPage - 1) * 10 + 1;
-  const end = total === 0 ? 0 : Math.min(currentPage * 10, total);
+  const start = total === 0 ? 0 : (currentPage - 1) * 15 + 1;
+  const end = total === 0 ? 0 : Math.min(currentPage * 15, total);
 
   return (
     <>

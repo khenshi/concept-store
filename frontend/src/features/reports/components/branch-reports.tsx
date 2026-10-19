@@ -83,7 +83,7 @@ function ReportContextBar({
     <div
       role="region"
       aria-label="Report context"
-      className="sticky top-17 z-30 -mx-4 px-4 mb-4 mt-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
+      className="top-17 z-30 -mx-4 px-4 mb-4 mt-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
     >
       <div className="grid gap-y-2 sm:min-h-12 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-x-4">
         <div
@@ -292,7 +292,7 @@ function ScopedBranchReports({
     const query = {
       ...reportUtcRange(applied),
       page: transactionPage,
-      limit: 25,
+      limit: 15,
       ...(transactionType !== 'ALL' ? { type: transactionType } : {}),
       ...(debouncedTransactionSearch ? { q: debouncedTransactionSearch } : {}),
     };
@@ -490,7 +490,7 @@ function ScopedBranchReports({
         aria-labelledby="report-period-heading"
         className="mt-5 card-surface px-5 py-5 text-ink sm:px-6"
       >
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
             <h2
               id="report-period-heading"
@@ -498,7 +498,7 @@ function ScopedBranchReports({
             >
               Report period
             </h2>
-            <p className="mt-1.5 text-sm leading-6 text-muted">
+            <p className="mt text-sm leading-6 text-muted">
               Dates use Philippine time. Both the start and end dates are
               included.
             </p>

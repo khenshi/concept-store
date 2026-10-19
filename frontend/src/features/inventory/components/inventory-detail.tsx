@@ -20,6 +20,7 @@ import {
   OperationalPanel,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
+import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -147,6 +148,7 @@ function ScopedInventoryDetail({
   const [nextMovementCursor, setNextMovementCursor] = useState<string | null>(
     null,
   );
+  const [movementTotalPages, setMovementTotalPages] = useState(0);
   const [movementPageIndex, setMovementPageIndex] = useState(0);
   const [movementPageCursors, setMovementPageCursors] = useState<
     Array<string | undefined>
@@ -177,6 +179,7 @@ function ScopedInventoryDetail({
     setBranch(null);
     setMovements([]);
     setNextMovementCursor(null);
+    setMovementTotalPages(0);
     setMovementPageIndex(0);
     setMovementPageCursors([undefined]);
     setMovementPageError(null);
@@ -202,6 +205,7 @@ function ScopedInventoryDetail({
       setBranch(null);
       setMovements([]);
       setNextMovementCursor(null);
+      setMovementTotalPages(0);
       setMovementPageIndex(0);
       setMovementPageCursors([undefined]);
       setMovementPageError(null);
@@ -219,6 +223,7 @@ function ScopedInventoryDetail({
           setBranch(location);
           setMovements(history.items);
           setNextMovementCursor(history.nextCursor);
+          setMovementTotalPages(history.totalPages ?? 0);
         }
       } catch (cause) {
         if (active && generation === readGeneration.current)
@@ -289,6 +294,7 @@ function ScopedInventoryDetail({
         setBranch(null);
         setMovements([]);
         setNextMovementCursor(null);
+        setMovementTotalPages(0);
         setMovementPageIndex(0);
         setMovementPageCursors([undefined]);
         setMovementPageError(null);
@@ -361,6 +367,7 @@ function ScopedInventoryDetail({
       if (generation !== readGeneration.current) return;
       setMovements(history.items);
       setNextMovementCursor(history.nextCursor);
+      setMovementTotalPages(history.totalPages ?? 0);
       setMovementPageIndex(index);
       setMovementPageCursors((current) => {
         const pages = [...current];
@@ -641,14 +648,52 @@ function ScopedInventoryDetail({
             : 'Your permanent record of stock receipts and adjustments, with the latest activity shown first. Member details remain private.'
         }
       >
-        {!movements.length ? (
-          <EmptyState
-            className="m-6"
-            title="No stock movements yet."
-            description="New placements start at zero without an opening movement."
-          />
-        ) : (
-          <>
+        <OperationalTableFrame
+          empty={
+            !loading && !error && !movements.length ? (
+              <EmptyState
+                className="mt-6"
+                title="No stock movements yet."
+                description="New placements start at zero without an opening movement."
+              />
+            ) : undefined
+          }
+          footer={
+            !loading && !error ? (
+              <>
+                {movements.length > 0 &&
+                movementPageError &&
+                movementPageRetry ? (
+                  <RequestError
+                    className="p-6"
+                    message={movementPageError}
+                    onRetry={() => void loadMovementPage(movementPageRetry)}
+                  />
+                ) : null}
+                <PaginationControls
+                  ariaLabel="Inventory movement pagination"
+                  currentPage={movementPageIndex + 1}
+                  totalPages={movementTotalPages}
+                  hasNext={Boolean(nextMovementCursor)}
+                  pending={movementPageLoading}
+                  onPrevious={() =>
+                    void loadMovementPage({
+                      index: movementPageIndex - 1,
+                      cursor: movementPageCursors[movementPageIndex - 1],
+                    })
+                  }
+                  onNext={() =>
+                    void loadMovementPage({
+                      index: movementPageIndex + 1,
+                      cursor: nextMovementCursor ?? undefined,
+                    })
+                  }
+                />
+              </>
+            ) : undefined
+          }
+        >
+          {movements.length ? (
             <ol
               aria-label="Inventory movement history"
               className="inventory-movement-list m-0 list-none overflow-x-auto p-0"
@@ -709,33 +754,8 @@ function ScopedInventoryDetail({
                 </li>
               ))}
             </ol>
-            {movementPageError && movementPageRetry ? (
-              <RequestError
-                className="p-6"
-                message={movementPageError}
-                onRetry={() => void loadMovementPage(movementPageRetry)}
-              />
-            ) : null}
-            <PaginationControls
-              ariaLabel="Inventory movement pagination"
-              currentPage={movementPageIndex + 1}
-              hasNext={Boolean(nextMovementCursor)}
-              pending={movementPageLoading}
-              onPrevious={() =>
-                void loadMovementPage({
-                  index: movementPageIndex - 1,
-                  cursor: movementPageCursors[movementPageIndex - 1],
-                })
-              }
-              onNext={() =>
-                void loadMovementPage({
-                  index: movementPageIndex + 1,
-                  cursor: nextMovementCursor ?? undefined,
-                })
-              }
-            />
-          </>
-        )}
+          ) : null}
+        </OperationalTableFrame>
       </OperationalPanel>
       {stockActions}
       {selectedMovementReason !== null ? (

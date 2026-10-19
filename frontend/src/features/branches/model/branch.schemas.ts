@@ -32,7 +32,7 @@ export const branchDirectoryPageSchema = z
   .object({
     items: branchDirectoryItemSchema.array(),
     page: z.number().int().positive(),
-    limit: z.literal(10),
+    limit: z.literal(15),
     total: z.number().int().nonnegative(),
     totalPages: z.number().int().nonnegative(),
     hasNext: z.boolean(),

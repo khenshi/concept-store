@@ -28,7 +28,7 @@ describe('scoped role-specific sales read API', () => {
     await expect(
       listSales(request, scope, 'OWNER', {
         page: 1,
-        limit: 10,
+        limit: 15,
         q: 'SALE-001',
         cashierId,
         paymentMethod: 'CARD',
@@ -37,7 +37,7 @@ describe('scoped role-specific sales read API', () => {
       }),
     ).resolves.toEqual({ kind: 'staff', page: staffPage });
     expect(request.mock.calls[0][0]).toBe(
-      `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=10&q=SALE-001&cashierId=${cashierId}&paymentMethod=CARD&from=2026-09-12T16%3A00%3A00.000Z&until=2026-09-13T16%3A00%3A00.000Z`,
+      `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=15&q=SALE-001&cashierId=${cashierId}&paymentMethod=CARD&from=2026-09-12T16%3A00%3A00.000Z&until=2026-09-13T16%3A00%3A00.000Z`,
     );
     await expect(listCashiers(request, scope)).resolves.toEqual([
       { id: cashierId, name: 'A Cashier' },
@@ -71,13 +71,13 @@ describe('scoped role-specific sales read API', () => {
       expect(
         await listSales(request, scope, role, {
           page: 1,
-          limit: 10,
+          limit: 15,
           from: '2026-09-13T00:00:00Z',
           until: '2026-09-14T00:00:00Z',
         }),
       ).toEqual({ kind: 'staff', page: staffPage });
       expect(request.mock.calls[0][0]).toBe(
-        `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=10&from=2026-09-13T00%3A00%3A00Z&until=2026-09-14T00%3A00%3A00Z`,
+        `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=15&from=2026-09-13T00%3A00%3A00Z&until=2026-09-14T00%3A00%3A00Z`,
       );
       expect(await getSale(request, scope, role, completedSale.id)).toEqual({
         kind: 'staff',
@@ -96,7 +96,7 @@ describe('scoped role-specific sales read API', () => {
       .mockResolvedValueOnce(ownSale)
       .mockResolvedValueOnce(sellingBranches);
     expect(
-      await listSales(request, scope, 'MERCHANT', { page: 1, limit: 50 }),
+      await listSales(request, scope, 'MERCHANT', { page: 1, limit: 15 }),
     ).toEqual({ kind: 'merchant', page: ownPage });
     expect(await getSale(request, scope, 'MERCHANT', ownSale.id)).toEqual({
       kind: 'merchant',
@@ -132,7 +132,7 @@ describe('scoped role-specific sales read API', () => {
       items: [{ ...ownSale, [field]: 'private' }],
     });
     await expect(
-      listSales(request, scope, 'MERCHANT', { page: 1, limit: 50 }),
+      listSales(request, scope, 'MERCHANT', { page: 1, limit: 15 }),
     ).rejects.toThrow();
   });
   it('never falls back between role contracts after a role change', async () => {
@@ -170,7 +170,7 @@ describe('scoped role-specific sales read API', () => {
         }),
         scope,
         'OWNER',
-        { page: 1, limit: 10 },
+        { page: 1, limit: 15 },
       ),
     ).rejects.toThrow();
     await expect(
@@ -181,7 +181,7 @@ describe('scoped role-specific sales read API', () => {
         }),
         scope,
         'MERCHANT',
-        { page: 1, limit: 50 },
+        { page: 1, limit: 15 },
       ),
     ).rejects.toThrow();
   });

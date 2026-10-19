@@ -77,7 +77,7 @@ export function RefundHistory({
           sale,
           {
             page,
-            limit: 10,
+            limit: 15,
           },
         );
         if (active) {
@@ -381,7 +381,7 @@ export function RefundHistory({
                 </ul>
               )}
               <PaginationControls
-                className="mt-4 border-t-0 px-0 py-0"
+                className="px-0 py-4"
                 ariaLabel="Refund history pagination"
                 currentPage={result.page}
                 totalPages={result.totalPages}

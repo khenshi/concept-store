@@ -84,7 +84,7 @@ function directoryPage(
       merchantCount: index + 1,
     })),
     page: 1,
-    limit: 10,
+    limit: 15,
     total: items.length,
     totalPages: items.length ? 1 : 0,
     hasNext: false,

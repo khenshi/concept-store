@@ -223,7 +223,7 @@ describe('strict staff analytics contract', () => {
       }).success,
     ).toBe(false);
   });
-  it('requires exact gross, units and product-ID ranking with ten of N semantics', () => {
+  it('requires exact gross, units and product-ID ranking with fifteen of N semantics', () => {
     const rows = Array.from({ length: 10 }, (_, index) => ({
       ...base.topProducts[0],
       productId: `22222222-2222-4222-8222-${String(index + 1).padStart(12, '0')}`,

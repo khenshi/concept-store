@@ -165,18 +165,18 @@ describe('saved refund history and role privacy', () => {
     expect(request).not.toHaveBeenCalled();
   });
   it('paginates independently of cumulative remaining and retries reads only', async () => {
-    const items = Array.from({ length: 10 }, (_, index) => ({
+    const items = Array.from({ length: 15 }, (_, index) => ({
       ...staffRefund,
       id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
       refundCode: `REFUND-${index}`,
     }));
     request
-      .mockResolvedValueOnce({ ...refundPage, items, total: 11, totalPages: 2 })
+      .mockResolvedValueOnce({ ...refundPage, items, total: 16, totalPages: 2 })
       .mockRejectedValueOnce(new Error('Network'))
       .mockResolvedValueOnce({
         ...refundPage,
         page: 2,
-        total: 11,
+        total: 16,
         totalPages: 2,
       });
     render(
@@ -187,7 +187,7 @@ describe('saved refund history and role privacy', () => {
         onDenied={denied}
       />,
     );
-    await screen.findByText('11 refunds');
+    await screen.findByText('16 refunds');
     expect(screen.getByText('1/2')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next refunds' }));
     await screen.findByText(/Retry this read; no refund will be sent again/);
@@ -195,7 +195,7 @@ describe('saved refund history and role privacy', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await screen.findByText('2/2');
     expectReturnedQuantities();
-    expect(request.mock.calls[2][0]).toContain('?page=2&limit=10');
+    expect(request.mock.calls[2][0]).toContain('?page=2&limit=15');
     expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
   });
   it('shows a centered empty state when no refunds are recorded', async () => {
@@ -297,9 +297,7 @@ describe('saved refund history and role privacy', () => {
       />,
     );
     await screen.findByRole('button', { name: 'Return items' });
-    expect(
-      screen.getByRole('button', { name: 'Print' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print' })).toBeInTheDocument();
     rejected = true;
     fireEvent.click(screen.getByRole('button', { name: 'Refresh refunds' }));
     await screen.findByText('Refund access revoked');

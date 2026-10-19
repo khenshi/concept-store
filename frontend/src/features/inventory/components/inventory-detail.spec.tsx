@@ -142,6 +142,23 @@ describe('InventoryDetail workflows', () => {
     expect(skeleton).toHaveAttribute('aria-busy', 'true');
     expect(skeleton.querySelectorAll('.data-row')).toHaveLength(5);
   });
+  it('keeps movement pagination visible when history is empty', async () => {
+    vi.mocked(listMovements).mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    render(<InventoryDetail {...scope} />);
+    expect(
+      await screen.findByText('No stock movements yet.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', {
+        name: 'Inventory movement pagination',
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+  });
   it('shows immutable ledger fields without actor personal data or mutation actions', async () => {
     render(<InventoryDetail {...scope} />);
     const viewReason = await screen.findByRole('button', { name: 'View' });

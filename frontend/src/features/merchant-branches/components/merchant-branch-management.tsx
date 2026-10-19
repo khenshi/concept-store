@@ -349,7 +349,7 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
             />
           ) : null}
           <PaginationControls
-            className="mt-5 border-t-0 px-0 py-0"
+            className="px-0 py-4"
             ariaLabel="Merchant branch associations pagination"
             currentPage={data.page}
             totalPages={data.totalPages}

@@ -656,7 +656,7 @@ export const staffSalesAnalyticsSchema = z
     netRecordedSales: signedAmount,
     refundMethods: refundMethodSchema.array().length(3),
     dailyTrends: staffDailyTrend.array().min(1).max(367),
-    topProducts: staffTopProduct.array().max(10),
+    topProducts: staffTopProduct.array().max(15),
     totalProducts: integer,
     topMerchants: staffTopMerchant.array().max(10),
     netByPaymentMethod: staffNetPaymentMethod.array().length(3),
@@ -715,21 +715,22 @@ const rankingPageBase = z
     sortBy: reportRankingSortSchema,
     merchantId: z.uuidv4().nullable(),
     page: z.number().int().min(1),
-    limit: z.literal(10),
+    limit: z.literal(15),
     totalProducts: integer,
+    totalPages: z.number().int().nonnegative().optional(),
     hasNext: z.boolean(),
   })
   .strict();
 export const staffSalesRankingPageSchema = rankingPageBase
   .extend({
     scope: z.literal('STAFF'),
-    items: staffTopProduct.array().max(10),
+    items: staffTopProduct.array().max(15),
   })
   .strict();
 export const merchantSalesRankingPageSchema = rankingPageBase
   .extend({
     scope: z.literal('MERCHANT'),
-    items: merchantTopProduct.array().max(10),
+    items: merchantTopProduct.array().max(15),
   })
   .strict();
 export type StaffSalesRankingPage = z.infer<typeof staffSalesRankingPageSchema>;
@@ -750,7 +751,7 @@ export const merchantSalesAnalyticsSchema = z
     ownReturnedUnits: integer,
     ownNetRecordedSales: signedAmount,
     dailyTrends: merchantDailyTrend.array().min(1).max(367),
-    topProducts: merchantTopProduct.array().max(10),
+    topProducts: merchantTopProduct.array().max(15),
     totalProducts: integer,
   })
   .strict()

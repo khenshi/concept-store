@@ -6,13 +6,17 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
-import { buttonStyles } from '@/shared/components/ui/button';
+import {
+  DateRangePicker,
+  type DateRangePickerValue,
+} from '@/shared/components/ui/date-range-picker';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import {
   OperationalPanel,
   OperationalToolbar,
 } from '@/shared/components/ui/operational-page';
+import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { SelectControl } from '@/shared/components/ui/select-control';
@@ -69,6 +73,7 @@ export function InventoryMovementRecords({
   const canWrite = role === 'OWNER' || role === 'MANAGER';
   const [items, setItems] = useState<InventoryMovementRecordView[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState(0);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageCursors, setPageCursors] = useState<Array<string | undefined>>([
     undefined,
@@ -88,7 +93,6 @@ export function InventoryMovementRecords({
     from?: string;
     until?: string;
   }>({});
-  const [dateError, setDateError] = useState<string | null>(null);
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [retryRevision, setRetryRevision] = useState(0);
   const generation = useRef(0);
@@ -114,11 +118,13 @@ export function InventoryMovementRecords({
       setPageCursors([undefined]);
       setItems([]);
       setNextCursor(null);
+      setTotalPages(0);
       try {
         const page = await listMovementRecords(request, scope, role, filters);
         if (!active || current !== generation.current) return;
         setItems(page.items);
         setNextCursor(page.nextCursor);
+        setTotalPages(page.totalPages ?? 0);
       } catch (cause: unknown) {
         if (!active || current !== generation.current) return;
         if (
@@ -172,6 +178,7 @@ export function InventoryMovementRecords({
       if (current !== generation.current) return;
       setItems(page.items);
       setNextCursor(page.nextCursor);
+      setTotalPages(page.totalPages ?? 0);
       setPageIndex(target.index);
       setPageCursors((previous) => {
         const next = [...previous];
@@ -195,29 +202,15 @@ export function InventoryMovementRecords({
     }
   }
 
-  function applyDateFilter(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!fromDay && !throughDay) {
-      setDateError(null);
-      setAppliedDates({});
-      return;
-    }
-    if (!fromDay || !throughDay) {
-      setDateError('Choose both a From and Through date.');
-      return;
-    }
-    if (fromDay > throughDay) {
-      setDateError('Through date must be on or after From date.');
-      return;
-    }
-    setDateError(null);
-    setAppliedDates(dateRange(fromDay, throughDay));
+  function applyDateFilter(value: DateRangePickerValue) {
+    setFromDay(value.fromDay);
+    setThroughDay(value.throughDay);
+    setAppliedDates(dateRange(value.fromDay, value.throughDay));
   }
 
   function clearDateFilter() {
     setFromDay('');
     setThroughDay('');
-    setDateError(null);
     setAppliedDates({});
   }
 
@@ -233,7 +226,7 @@ export function InventoryMovementRecords({
         title="Movement records"
         description="Search and review stock activity recorded in this branch."
       >
-        <OperationalToolbar className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(14rem,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(19rem,1.2fr)_auto]">
+        <OperationalToolbar className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(18rem,1.35fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(18rem,0.95fr)_auto]">
           <div className="min-w-0">
             <label
               className="block text-xs font-medium text-muted"
@@ -302,95 +295,83 @@ export function InventoryMovementRecords({
               </SelectControl>
             </div>
           ) : null}
-          <form
-            className="grid min-w-0 grid-cols-2 gap-2 md:col-span-3 md:w-fit md:justify-self-start md:grid-cols-[minmax(9rem,12rem)_minmax(9rem,12rem)_auto] md:items-end md:gap-3 xl:col-span-1"
-            onSubmit={applyDateFilter}
-          >
-            <label className="min-w-0 text-xs font-medium text-muted">
-              <span className="block">From</span>
-              <span className="relative mt-1 block">
-                <Icon
-                  name="calendar"
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-                />
-                <input
-                  type="date"
-                  value={fromDay}
-                  onChange={(event) => setFromDay(event.target.value)}
-                  aria-invalid={Boolean(dateError)}
-                  className="min-h-11 w-full min-w-0 appearance-none rounded-full border border-control-border bg-surface py-2 pr-3 pl-10 text-sm text-muted"
-                />
-              </span>
-            </label>
-            <label className="min-w-0 text-xs font-medium text-muted">
-              <span className="block">Through</span>
-              <span className="relative mt-1 block">
-                <Icon
-                  name="calendar"
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-                />
-                <input
-                  type="date"
-                  value={throughDay}
-                  onChange={(event) => setThroughDay(event.target.value)}
-                  aria-invalid={Boolean(dateError)}
-                  className="min-h-11 w-full min-w-0 appearance-none rounded-full border border-control-border bg-surface py-2 pr-3 pl-10 text-sm text-muted"
-                />
-              </span>
-            </label>
-            {dateError ? (
-              <p
-                className="col-span-2 text-xs text-danger md:col-span-3"
-                role="alert"
-              >
-                {dateError}
-              </p>
-            ) : null}
-            <div className="col-span-2 flex items-center gap-2 md:col-span-1">
-              <button
-                type="submit"
-                className={buttonStyles({
-                  variant: 'secondary',
-                  className: 'shrink-0',
-                })}
-              >
-                Apply dates
-              </button>
-              <button
-                type="button"
-                className={buttonStyles({
-                  variant: 'quiet',
-                  className: 'shrink-0',
-                })}
-                onClick={clearDateFilter}
-              >
-                Clear dates
-              </button>
-            </div>
-          </form>
+          <div className="min-w-0 md:col-span-3 md:w-[18rem] md:justify-self-start xl:col-span-1">
+            <DateRangePicker
+              id="movement-record-date-filter"
+              value={{ fromDay, throughDay }}
+              onChange={({
+                fromDay: nextFromDay,
+                throughDay: nextThroughDay,
+              }) => {
+                setFromDay(nextFromDay);
+                setThroughDay(nextThroughDay);
+              }}
+              onApply={applyDateFilter}
+              onClear={clearDateFilter}
+              filterLabel="Movement date filter"
+              dialogLabel="Choose movement record dates"
+              className="w-full"
+            />
+          </div>
         </OperationalToolbar>
-        {loading ? (
-          <InventoryMovementTableSkeleton
-            variant="records"
-            canWrite={canWrite}
-            label="Loading movement records"
-          />
-        ) : error ? (
-          <RequestError
-            message={error}
-            onRetry={() => setRetryRevision((value) => value + 1)}
-          />
-        ) : !items.length ? (
-          <EmptyState
-            className="mx-4 my-6 sm:mx-6"
-            title={
-              hasFilters(filters)
-                ? 'No movement records match these filters.'
-                : 'No movement records have been recorded for this branch yet.'
-            }
-          />
-        ) : (
-          <>
+        <OperationalTableFrame
+          empty={
+            !loading && !error && !items.length ? (
+              <EmptyState
+                className="mt-6"
+                title={
+                  hasFilters(filters)
+                    ? 'No movement records match these filters.'
+                    : 'No movement records have been recorded for this branch yet.'
+                }
+              />
+            ) : undefined
+          }
+          footer={
+            !loading && !error ? (
+              <>
+                {items.length > 0 && pageError && pageRetry ? (
+                  <RequestError
+                    className="p-6"
+                    message={pageError}
+                    onRetry={() => void loadPage(pageRetry)}
+                  />
+                ) : null}
+                <PaginationControls
+                  ariaLabel="Inventory movement pagination"
+                  currentPage={pageIndex + 1}
+                  totalPages={totalPages}
+                  hasNext={Boolean(nextCursor)}
+                  pending={pageLoading}
+                  onPrevious={() =>
+                    void loadPage({
+                      index: pageIndex - 1,
+                      cursor: pageCursors[pageIndex - 1],
+                    })
+                  }
+                  onNext={() =>
+                    void loadPage({
+                      index: pageIndex + 1,
+                      cursor: nextCursor ?? undefined,
+                    })
+                  }
+                />
+              </>
+            ) : undefined
+          }
+        >
+          {loading ? (
+            <InventoryMovementTableSkeleton
+              variant="records"
+              canWrite={canWrite}
+              label="Loading movement records"
+            />
+          ) : error ? (
+            <RequestError
+              message={error}
+              onRetry={() => setRetryRevision((value) => value + 1)}
+            />
+          ) : items.length ? (
             <ol
               aria-label="Branch movement records"
               className="m-0 list-none overflow-x-auto p-0"
@@ -458,33 +439,8 @@ export function InventoryMovementRecords({
                 </li>
               ))}
             </ol>
-            {pageError && pageRetry ? (
-              <RequestError
-                className="p-6"
-                message={pageError}
-                onRetry={() => void loadPage(pageRetry)}
-              />
-            ) : null}
-            <PaginationControls
-              ariaLabel="Inventory movement pagination"
-              currentPage={pageIndex + 1}
-              hasNext={Boolean(nextCursor)}
-              pending={pageLoading}
-              onPrevious={() =>
-                void loadPage({
-                  index: pageIndex - 1,
-                  cursor: pageCursors[pageIndex - 1],
-                })
-              }
-              onNext={() =>
-                void loadPage({
-                  index: pageIndex + 1,
-                  cursor: nextCursor ?? undefined,
-                })
-              }
-            />
-          </>
-        )}
+          ) : null}
+        </OperationalTableFrame>
       </OperationalPanel>
       {selectedReason !== null ? (
         <InventoryMovementReasonDialog

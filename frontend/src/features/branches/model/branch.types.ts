@@ -37,7 +37,7 @@ export interface BranchDirectoryItem extends Branch {
 export interface BranchDirectoryPage {
   items: BranchDirectoryItem[];
   page: number;
-  limit: 10;
+  limit: 15;
   total: number;
   totalPages: number;
   hasNext: boolean;

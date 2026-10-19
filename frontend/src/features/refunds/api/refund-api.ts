@@ -59,7 +59,7 @@ export async function listRefunds(
   scope: RefundScope,
   role: OrganizationRole,
   sale: CompletedSale | MerchantSale,
-  input = { page: 1, limit: 10 },
+  input = { page: 1, limit: 15 },
 ) {
   if (role === 'CASHIER') throw new Error('Cashiers cannot access refunds.');
   const query = refundQuerySchema.parse(input);

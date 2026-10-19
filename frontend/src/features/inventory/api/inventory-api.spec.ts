@@ -40,7 +40,7 @@ describe('Branch inventory API contracts', () => {
       stockStatus: 'LOW_STOCK',
     });
     expect(request).toHaveBeenLastCalledWith(
-      `${base}?limit=5&q=001Ab&status=ACTIVE&stockStatus=LOW_STOCK`,
+      `${base}?limit=15&q=001Ab&status=ACTIVE&stockStatus=LOW_STOCK`,
     );
     await expect(getInventory(request, scope)).resolves.toEqual(inventory);
     await expect(getInventoryBranch(request, scope)).resolves.toEqual(branch);
@@ -49,7 +49,7 @@ describe('Branch inventory API contracts', () => {
       nextCursor: null,
     });
     expect(request).toHaveBeenLastCalledWith(
-      `${base}/${scope.inventoryId}/movements?limit=5`,
+      `${base}/${scope.inventoryId}/movements?limit=15`,
     );
   });
   it('parses bounded inventory and eligible-product pages with cursors', async () => {
@@ -61,7 +61,7 @@ describe('Branch inventory API contracts', () => {
     request.mockResolvedValueOnce({ items: [], nextCursor: null });
     await listInventory(request, scope, { q: 'cup' }, cursor);
     expect(request).toHaveBeenLastCalledWith(
-      `${base}?limit=5&q=cup&cursor=${encodeURIComponent(cursor)}`,
+      `${base}?limit=15&q=cup&cursor=${encodeURIComponent(cursor)}`,
     );
     request.mockResolvedValueOnce({ items: [product], nextCursor: null });
     await expect(listEligibleProducts(request, scope, 'cup')).resolves.toEqual({
@@ -69,7 +69,7 @@ describe('Branch inventory API contracts', () => {
       nextCursor: null,
     });
     expect(request).toHaveBeenLastCalledWith(
-      `${base}/eligible-products?limit=5&q=cup`,
+      `${base}/eligible-products?limit=15&q=cup`,
     );
     request.mockResolvedValueOnce({ items: [], nextCursor: 'bad' });
     await expect(listInventory(request, scope)).rejects.toThrow();
@@ -86,7 +86,7 @@ describe('Branch inventory API contracts', () => {
     request.mockResolvedValue({ items: [], nextCursor: null });
     await listMovements(request, scope, 'MANAGER', movement.id);
     expect(request).toHaveBeenCalledWith(
-      `${base}/${scope.inventoryId}/movements?limit=5&cursor=${movement.id}`,
+      `${base}/${scope.inventoryId}/movements?limit=15&cursor=${movement.id}`,
     );
   });
   it('serializes branch movement-record filters and validates the page contract', async () => {
@@ -129,7 +129,7 @@ describe('Branch inventory API contracts', () => {
       ),
     ).resolves.toEqual({ items: [record], nextCursor: 'opaque.cursor' });
     expect(request).toHaveBeenCalledWith(
-      `${base}/movements?limit=10&q=cup&type=RECEIPT&merchantId=${inventory.product.merchant.id}&from=2026-09-01T00%3A00%3A00.000Z&until=2026-10-01T00%3A00%3A00.000Z&cursor=previous.cursor`,
+      `${base}/movements?limit=15&q=cup&type=RECEIPT&merchantId=${inventory.product.merchant.id}&from=2026-09-01T00%3A00%3A00.000Z&until=2026-10-01T00%3A00%3A00.000Z&cursor=previous.cursor`,
     );
     const { actorName, ...merchantRecord } = record;
     request.mockResolvedValue({
@@ -156,10 +156,10 @@ describe('Branch inventory API contracts', () => {
     await expect(getInventoryReconciliation(request, scope)).resolves.toEqual(
       page,
     );
-    expect(request).toHaveBeenLastCalledWith(`${base}/reconciliation?limit=25`);
+    expect(request).toHaveBeenLastCalledWith(`${base}/reconciliation?limit=15`);
     await getInventoryReconciliation(request, scope, scope.inventoryId);
     expect(request).toHaveBeenLastCalledWith(
-      `${base}/reconciliation?limit=25&cursor=${scope.inventoryId}`,
+      `${base}/reconciliation?limit=15&cursor=${scope.inventoryId}`,
     );
     request.mockResolvedValue({
       items: [{ ...mismatch, ledgerQuantity: 9 }],

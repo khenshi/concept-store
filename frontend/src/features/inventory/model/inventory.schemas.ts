@@ -146,6 +146,7 @@ const inventoryPageCursorSchema = z
 export const inventoryPageSchema = z.object({
   items: z.array(inventoryResponseSchema),
   nextCursor: inventoryPageCursorSchema.nullable(),
+  totalPages: z.number().int().nonnegative().optional(),
 });
 export const eligibleProductsPageSchema = z.object({
   items: z.array(productResponseSchema),
@@ -169,6 +170,7 @@ export const inventoryReconciliationPageSchema = z.object({
     }),
   ),
   nextCursor: z.uuidv4().nullable(),
+  totalPages: z.number().int().nonnegative().optional(),
 });
 const movementObjectSchema = z.object({
   id: z.uuidv4(),
@@ -219,18 +221,22 @@ export const movementListSchema = z.array(movementResponseSchema);
 export const movementPageSchema = z.object({
   items: movementListSchema,
   nextCursor: z.uuidv4().nullable(),
+  totalPages: z.number().int().nonnegative().optional(),
 });
 export const merchantMovementPageSchema = z.object({
   items: z.array(merchantMovementSchema),
   nextCursor: z.uuidv4().nullable(),
+  totalPages: z.number().int().nonnegative().optional(),
 });
 export const movementHistoryPageSchema = z.object({
   items: z.array(movementHistoryResponseSchema),
   nextCursor: z.uuidv4().nullable(),
+  totalPages: z.number().int().nonnegative().optional(),
 });
 export const merchantMovementHistoryPageSchema = z.object({
   items: z.array(merchantMovementHistorySchema),
   nextCursor: z.uuidv4().nullable(),
+  totalPages: z.number().int().nonnegative().optional(),
 });
 const movementRecordProductSchema = z.object({
   id: z.uuidv4(),
@@ -261,10 +267,12 @@ export const merchantMovementRecordSchema = movementRecordBaseSchema;
 export const movementRecordsPageSchema = z.object({
   items: z.array(movementRecordHistorySchema),
   nextCursor: z.string().nullable(),
+  totalPages: z.number().int().nonnegative().optional(),
 });
 export const merchantMovementRecordsPageSchema = z.object({
   items: z.array(merchantMovementRecordSchema),
   nextCursor: z.string().nullable(),
+  totalPages: z.number().int().nonnegative().optional(),
 });
 export const inventoryBranchSchema = z.object({
   id: z.uuidv4(),

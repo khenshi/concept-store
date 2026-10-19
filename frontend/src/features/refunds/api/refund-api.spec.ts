@@ -19,7 +19,7 @@ describe('scoped refund API', () => {
       await listRefunds(request, refundScope, 'MANAGER', completedSale),
     ).toEqual(refundPage);
     expect(request).toHaveBeenCalledExactlyOnceWith(
-      `/organizations/${refundScope.organizationId}/branches/${refundScope.branchId}/sales/${refundScope.saleId}/refunds?page=1&limit=10`,
+      `/organizations/${refundScope.organizationId}/branches/${refundScope.branchId}/sales/${refundScope.saleId}/refunds?page=1&limit=15`,
     );
   });
   it('decodes only merchant reduced records with no staff fallback', async () => {

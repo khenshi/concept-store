@@ -77,7 +77,7 @@ export const remaining = [
 export const emptyPage = {
   scope: 'STAFF',
   page: 1,
-  limit: 10,
+  limit: 15,
   items: [],
   total: 0,
   totalPages: 0,

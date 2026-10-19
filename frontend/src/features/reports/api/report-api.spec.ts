@@ -70,7 +70,7 @@ const staffRanking = {
   sortBy: 'GROSS_SALES',
   merchantId: null,
   page: 2,
-  limit: 10,
+  limit: 15,
   totalProducts: '11',
   hasNext: false,
   items: [
@@ -95,7 +95,7 @@ const merchantRanking = {
   sortBy: 'GROSS_SALES',
   merchantId: null,
   page: 1,
-  limit: 10,
+  limit: 15,
   totalProducts: '1',
   hasNext: false,
   items: [
@@ -118,7 +118,7 @@ const staffTransactions = {
   branch,
   ...range,
   page: 1,
-  limit: 25,
+  limit: 15,
   total: 2,
   totalPages: 1,
   items: [
@@ -153,7 +153,7 @@ const merchantTransactions = {
   branch,
   ...range,
   page: 1,
-  limit: 25,
+  limit: 15,
   total: 1,
   totalPages: 1,
   items: [
@@ -201,13 +201,13 @@ describe('report reads', () => {
       await getStaffTransactions(request, 'org/path', branch.id, {
         ...range,
         page: 1,
-        limit: 25,
+        limit: 15,
         type: 'REFUND',
         q: 'REF-001',
       }),
     ).toEqual(staffTransactions);
     expect(request).toHaveBeenCalledWith(
-      `/organizations/org%2Fpath/branches/${branch.id}/reports/transactions?${new URLSearchParams({ ...range, page: '1', limit: '25', type: 'REFUND', q: 'REF-001' })}`,
+      `/organizations/org%2Fpath/branches/${branch.id}/reports/transactions?${new URLSearchParams({ ...range, page: '1', limit: '15', type: 'REFUND', q: 'REF-001' })}`,
     );
   });
   it('keeps merchant transaction responses reduced to own snapshots', async () => {
@@ -216,11 +216,11 @@ describe('report reads', () => {
       getMerchantTransactions(request, 'org', branch.id, {
         ...range,
         page: 1,
-        limit: 25,
+        limit: 15,
       }),
     ).resolves.toEqual(merchantTransactions);
     expect(request).toHaveBeenCalledWith(
-      `/organizations/org/branches/${branch.id}/reports/transactions?${new URLSearchParams({ ...range, page: '1', limit: '25' })}`,
+      `/organizations/org/branches/${branch.id}/reports/transactions?${new URLSearchParams({ ...range, page: '1', limit: '15' })}`,
     );
   });
   it.each([

@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { EmptyState } from '@/shared/components/ui/empty-state';
+import {
+  OperationalTable,
+  OperationalTableFrame,
+} from '@/shared/components/ui/operational-table';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import type {
@@ -26,9 +30,9 @@ function MerchantDailyData({
     page: number;
   }>({ rows, page: 1 });
   const page = pageState.rows === rows ? pageState.page : 1;
-  const pageRows = rows.slice((page - 1) * 10, page * 10);
-  const hasNext = page * 10 < rows.length;
-  const totalPages = Math.max(1, Math.ceil(rows.length / 10));
+  const pageRows = rows.slice((page - 1) * 15, page * 15);
+  const hasNext = page * 15 < rows.length;
+  const totalPages = Math.max(1, Math.ceil(rows.length / 15));
   return (
     <section
       className="data-surface"
@@ -43,9 +47,32 @@ function MerchantDailyData({
           Exact own daily sales analytics in Asia/Manila.
         </p>
       </header>
-      {pageRows.length ? (
-        <div className="overflow-x-auto">
-          <table className="data-table w-full min-w-[50rem] border-collapse text-left text-sm">
+      <OperationalTableFrame
+        empty={
+          !pageRows.length ? (
+            <EmptyState
+              className="mt-6"
+              title="No daily sales data for this period."
+              description="Try a different report date range."
+            />
+          ) : undefined
+        }
+        footer={
+          <PaginationControls
+            ariaLabel="Daily sales pagination"
+            currentPage={page}
+            totalPages={totalPages}
+            hasNext={hasNext}
+            summary={`${rows.length} days`}
+            onPrevious={() =>
+              setPageState({ rows, page: Math.max(1, page - 1) })
+            }
+            onNext={() => setPageState({ rows, page: page + 1 })}
+          />
+        }
+      >
+        {pageRows.length ? (
+          <OperationalTable className="min-w-[50rem]">
             <caption className="sr-only">
               Daily own-sales data in Asia/Manila
             </caption>
@@ -89,26 +116,9 @@ function MerchantDailyData({
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      ) : (
-        <EmptyState
-          className="mx-5 my-6 sm:mx-6"
-          title="No daily sales data for this period."
-          description="Try a different report date range."
-        />
-      )}
-      {rows.length ? (
-        <PaginationControls
-          ariaLabel="Daily sales pagination"
-          currentPage={page}
-          totalPages={totalPages}
-          hasNext={hasNext}
-          summary={`${rows.length} days`}
-          onPrevious={() => setPageState({ rows, page: Math.max(1, page - 1) })}
-          onNext={() => setPageState({ rows, page: page + 1 })}
-        />
-      ) : null}
+          </OperationalTable>
+        ) : undefined}
+      </OperationalTableFrame>
     </section>
   );
 }
@@ -144,7 +154,7 @@ function MerchantRankings({
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
     >
-      <header className="grid gap-4 border-b border-hairline py-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <header className="grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div>
           <h2 className="font-semibold">{title}</h2>
           <p className="mt-1 text-sm text-muted">
@@ -157,21 +167,48 @@ function MerchantRankings({
           onChange={onControlsChange}
         />
       </header>
-      {error && errorPage !== null ? (
-        <RequestError
-          className="p-5 sm:p-6"
-          message={error}
-          onRetry={() => onPageChange(errorPage)}
-        />
-      ) : loading && !page ? (
-        <p role="status" className="px-5 py-6 text-sm text-muted sm:px-6">
-          Loading product rankings…
-        </p>
-      ) : page?.items.length ? (
-        <div className="overflow-x-auto">
-          <table
-            aria-label={title}
-            className="data-table w-full min-w-[44rem] border-collapse text-left text-sm xl:min-w-[60rem]"
+      <OperationalTableFrame
+        empty={
+          page && !loading && !error && !page.items.length ? (
+            <EmptyState
+              className="mt-6"
+              title="No own products contributed sales or refunds in this period."
+              description="In an assigned branch, a missing merchant-profile link can also result in zeros."
+            />
+          ) : undefined
+        }
+        footer={
+          page ? (
+            <PaginationControls
+              ariaLabel="Product rankings pagination"
+              currentPage={page.page}
+              totalPages={
+                page.totalPages ??
+                Math.max(1, Math.ceil(Number(page.totalProducts) / 15))
+              }
+              hasNext={page.hasNext}
+              pending={loading}
+              summary={`${page.totalProducts} total products`}
+              onPrevious={() => onPageChange(page.page - 1)}
+              onNext={() => onPageChange(page.page + 1)}
+            />
+          ) : undefined
+        }
+      >
+        {error && errorPage !== null ? (
+          <RequestError
+            className="p-5 sm:p-6"
+            message={error}
+            onRetry={() => onPageChange(errorPage)}
+          />
+        ) : loading && !page ? (
+          <p role="status" className="px-5 py-6 text-sm text-muted sm:px-6">
+            Loading product rankings…
+          </p>
+        ) : page?.items.length ? (
+          <OperationalTable
+            className="min-w-[44rem] xl:min-w-[60rem]"
+            tableProps={{ 'aria-label': title }}
           >
             <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
               <tr>
@@ -274,26 +311,9 @@ function MerchantRankings({
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      ) : (
-        <EmptyState
-          className="mx-5 my-6 sm:mx-6"
-          title="No own products contributed sales or refunds in this period."
-          description="In an assigned branch, a missing merchant-profile link can also result in zeros."
-        />
-      )}
-      {page && page.totalProducts !== '0' ? (
-        <PaginationControls
-          ariaLabel="Product rankings pagination"
-          currentPage={page.page}
-          hasNext={page.hasNext}
-          pending={loading}
-          summary={`${page.totalProducts} total products`}
-          onPrevious={() => onPageChange(page.page - 1)}
-          onNext={() => onPageChange(page.page + 1)}
-        />
-      ) : null}
+          </OperationalTable>
+        ) : null}
+      </OperationalTableFrame>
     </section>
   );
 }
@@ -327,9 +347,9 @@ export function MerchantAnalyticsDashboard({
     sortBy: 'GROSS_SALES',
     merchantId: null,
     page: 1,
-    limit: 10,
+    limit: 15,
     totalProducts: report.totalProducts,
-    hasNext: BigInt(10) < BigInt(report.totalProducts),
+    hasNext: BigInt(15) < BigInt(report.totalProducts),
     items: report.topProducts,
   };
   const isDefaultRanking =

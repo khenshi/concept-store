@@ -37,11 +37,11 @@ export const ownSale: MerchantSale = {
 export const ownPage = {
   items: [ownSale],
   page: 1,
-  limit: 50,
+  limit: 15,
   total: 1,
   totalPages: 1,
 };
-export const staffPage = { ...ownPage, limit: 10, items: [completedSale] };
+export const staffPage = { ...ownPage, limit: 15, items: [completedSale] };
 export const sellingBranches = [
   { id: branchId, name: 'Current Makati', code: 'MKT' },
 ];

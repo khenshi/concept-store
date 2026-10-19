@@ -11,6 +11,7 @@ import {
   OperationalPanel,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
+import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
@@ -76,6 +77,8 @@ function SpaceDetailSkeleton() {
 }
 
 function HistoryList({ data }: { data: OccupancyPage }) {
+  if (!data.items.length) return null;
+
   return (
     <div>
       <div className={`data-column-header ${historyGrid}`} role="row">
@@ -84,43 +87,35 @@ function HistoryList({ data }: { data: OccupancyPage }) {
         <span>Until date</span>
         <span>Released by</span>
       </div>
-      {data.items.length ? (
-        <ol className="m-0 list-none p-0">
-          {data.items.map((row) => (
-            <li
-              key={row.id}
-              className={`data-row ${historyGrid} px-4 py-4 sm:items-center`}
-            >
-              <div className="min-w-0 break-words sm:justify-self-start">
-                <p className="font-semibold">{row.merchant.name}</p>
-                {row.merchant.code ? (
-                  <p className="mt-1 text-sm text-muted">{row.merchant.code}</p>
-                ) : null}
-              </div>
-              <div className="text-sm sm:justify-self-start">
-                <p>{date(row.startedAt)}</p>
-              </div>
-              <div className="text-sm sm:justify-self-start">
-                <p>{row.endedAt ? date(row.endedAt) : '—'}</p>
-              </div>
-              <div className="text-sm sm:justify-self-start">
-                <p>{row.releasedBy?.name ?? '—'}</p>
-                <p className="mt-1 text-muted">
-                  {row.releaseReason
-                    ? releaseLabels[row.releaseReason]
-                    : 'Not released'}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <EmptyState
-          className="my-4"
-          title="No occupancy history yet."
-          description="Completed occupancy periods will appear here."
-        />
-      )}
+      <ol className="m-0 list-none p-0">
+        {data.items.map((row) => (
+          <li
+            key={row.id}
+            className={`data-row ${historyGrid} px-4 py-4 sm:items-center`}
+          >
+            <div className="min-w-0 break-words sm:justify-self-start">
+              <p className="font-semibold">{row.merchant.name}</p>
+              {row.merchant.code ? (
+                <p className="mt-1 text-sm text-muted">{row.merchant.code}</p>
+              ) : null}
+            </div>
+            <div className="text-sm sm:justify-self-start">
+              <p>{date(row.startedAt)}</p>
+            </div>
+            <div className="text-sm sm:justify-self-start">
+              <p>{row.endedAt ? date(row.endedAt) : '—'}</p>
+            </div>
+            <div className="text-sm sm:justify-self-start">
+              <p>{row.releasedBy?.name ?? '—'}</p>
+              <p className="mt-1 text-muted">
+                {row.releaseReason
+                  ? releaseLabels[row.releaseReason]
+                  : 'Not released'}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
@@ -547,18 +542,32 @@ function ScopedSpaceDetail({
                 periods that overlap the selected range.
               </p>
             </div>
-            <HistoryList data={history} />
-            <PaginationControls
-              className="border-t-0 px-4 pt-4 pb-1 sm:px-5"
-              ariaLabel="Occupancy history pagination"
-              currentPage={history.page}
-              totalPages={history.totalPages}
-              pending={pending}
-              hasNext={history.hasNext}
-              summary={`${history.total} records`}
-              onPrevious={() => setHistoryPage((value) => value - 1)}
-              onNext={() => setHistoryPage((value) => value + 1)}
-            />
+            <OperationalTableFrame
+              empty={
+                !history.items.length ? (
+                  <EmptyState
+                    className="mt-6"
+                    title="No occupancy history yet."
+                    description="Completed occupancy periods will appear here."
+                  />
+                ) : undefined
+              }
+              footer={
+                <PaginationControls
+                  className="px-4 pt-4 pb-1 sm:px-5"
+                  ariaLabel="Occupancy history pagination"
+                  currentPage={history.page}
+                  totalPages={history.totalPages}
+                  pending={pending}
+                  hasNext={history.hasNext}
+                  summary={`${history.total} records`}
+                  onPrevious={() => setHistoryPage((value) => value - 1)}
+                  onNext={() => setHistoryPage((value) => value + 1)}
+                />
+              }
+            >
+              <HistoryList data={history} />
+            </OperationalTableFrame>
           </div>
         </OperationalPanel>
       </div>

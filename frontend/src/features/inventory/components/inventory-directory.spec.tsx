@@ -143,6 +143,13 @@ describe('InventoryDirectory workflows', () => {
     expect(screen.getByText('10 units')).toBeInTheDocument();
     expect(screen.getByText('10 units')).toHaveClass('text-success-ink');
     expect(screen.getByText('Threshold 5')).toBeInTheDocument();
+    expect(screen.getByText('Search')).toBeInTheDocument();
+    expect(screen.getByText('Stock status')).toBeInTheDocument();
+    expect(screen.getByText('Merchant')).toBeInTheDocument();
+    expect(screen.getByText('Product status')).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', { name: 'Inventory stock pagination' }),
+    ).toHaveTextContent('1');
     expect(
       screen.getByRole('list', { name: 'Branch inventory' }),
     ).not.toHaveTextContent('Stock status');
@@ -160,7 +167,7 @@ describe('InventoryDirectory workflows', () => {
       }),
     ).toHaveTextContent('View');
   });
-  it('loads another bounded page and labels the count as displayed rows', async () => {
+  it('loads numbered cursor-backed pages and supports returning to the first page', async () => {
     const cursor = `${inventory.id}.${'a'.repeat(64)}`;
     const nextItem = {
       ...inventory,
@@ -172,17 +179,21 @@ describe('InventoryDirectory workflows', () => {
       .mockResolvedValueOnce({ items: [nextItem], nextCursor: null });
     render(<InventoryDirectory {...scope} />);
     expect(
-      await screen.findByText(/1 displayed placements/),
-    ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Load more placements' }),
-    );
+      await screen.findByRole('navigation', {
+        name: 'Inventory stock pagination',
+      }),
+    ).toHaveTextContent('1');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(
       await screen.findByRole('link', {
         name: 'View Another product inventory',
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/2 matching placements/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', {
+        name: 'Inventory stock pagination',
+      }),
+    ).toHaveTextContent('2');
     expect(listInventory).toHaveBeenLastCalledWith(
       request,
       { organizationId: scope.organizationId, branchId: scope.branchId },
@@ -194,6 +205,23 @@ describe('InventoryDirectory workflows', () => {
       },
       cursor,
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(
+      await screen.findByRole('link', {
+        name: `View ${inventory.product.name} inventory`,
+      }),
+    ).toBeInTheDocument();
+    expect(listInventory).toHaveBeenLastCalledWith(
+      request,
+      { organizationId: scope.organizationId, branchId: scope.branchId },
+      {
+        q: undefined,
+        merchantId: undefined,
+        status: undefined,
+        stockStatus: undefined,
+      },
+      undefined,
+    );
   });
   it('keeps loaded rows and retries a failed later page', async () => {
     const cursor = `${inventory.id}.${'a'.repeat(64)}`;
@@ -202,17 +230,15 @@ describe('InventoryDirectory workflows', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({ items: [], nextCursor: null });
     render(<InventoryDirectory {...scope} />);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Load more placements' }),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'More placements could not be loaded',
+      'This inventory page could not be loaded',
     );
     expect(screen.getByText('PHP 850.00')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Retry loading more' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await waitFor(() =>
       expect(
-        screen.queryByRole('button', { name: 'Retry loading more' }),
+        screen.queryByText('This inventory page could not be loaded.'),
       ).not.toBeInTheDocument(),
     );
   });
@@ -236,9 +262,7 @@ describe('InventoryDirectory workflows', () => {
       )
       .mockResolvedValueOnce({ items: [], nextCursor: null });
     render(<InventoryDirectory {...scope} />);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Load more placements' }),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), {
       target: { value: 'new' },
     });
@@ -473,7 +497,10 @@ describe('InventoryDirectory workflows', () => {
     expect(
       screen.queryByRole('button', { name: 'Adjust' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/matching own placements/)).toBeInTheDocument();
+    expect(screen.getByText('1 own placement')).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', { name: 'Inventory stock pagination' }),
+    ).toHaveTextContent('1/1');
     expect(
       screen.queryByRole('button', { name: 'Check stock integrity' }),
     ).not.toBeInTheDocument();

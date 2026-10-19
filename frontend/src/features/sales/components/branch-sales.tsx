@@ -109,7 +109,7 @@ function StaffBranchSales({
   const [cashiers, setCashiers] = useState<CashierOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const [query, setQuery] = useState<SalesQuery>({ page: 1, limit: 10 });
+  const [query, setQuery] = useState<SalesQuery>({ page: 1, limit: 15 });
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [cashierId, setCashierId] = useState('');
@@ -518,7 +518,7 @@ function MerchantBranchSales({
   > | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const [query, setQuery] = useState<SalesQuery>({ page: 1, limit: 50 });
+  const [query, setQuery] = useState<SalesQuery>({ page: 1, limit: 15 });
   const [from, setFrom] = useState('');
   const [until, setUntil] = useState('');
   const [filterError, setFilterError] = useState<string>();

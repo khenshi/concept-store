@@ -137,7 +137,7 @@ describe('read-only scoped sales workflows', () => {
       ).toBeInTheDocument();
     },
   );
-  it('automatically filters the ten-row staff history with Manila date-only controls', async () => {
+  it('automatically filters the fifteen-row staff history with Manila date-only controls', async () => {
     const cashierId = '44444444-4444-4444-8444-444444444444';
     workspace('OWNER');
     request.mockImplementation(async (path: string) =>
@@ -151,7 +151,7 @@ describe('read-only scoped sales workflows', () => {
       name: `View receipt ${completedSale.receiptCode}`,
     });
     expect(
-      request.mock.calls.some(([path]) => path.endsWith('page=1&limit=10')),
+      request.mock.calls.some(([path]) => path.endsWith('page=1&limit=15')),
     ).toBe(true);
     expect(screen.getByText('Payment Method')).toBeInTheDocument();
     expect(
@@ -237,25 +237,31 @@ describe('read-only scoped sales workflows', () => {
     expect(request.mock.calls[1][0]).toContain('from=2026-09-13T00%3A00%3A00Z');
     fireEvent.click(screen.getByRole('button', { name: 'Clear dates' }));
     await waitFor(() => expect(request).toHaveBeenCalledTimes(3));
-    expect(request.mock.calls[2][0]).toMatch(/page=1&limit=50$/);
+    expect(request.mock.calls[2][0]).toMatch(/page=1&limit=15$/);
   });
   it('pages within bounded scoped reads and preserves active date filters', async () => {
-    const items = Array.from({ length: 50 }, (_, index) => ({
+    const items = Array.from({ length: 15 }, (_, index) => ({
       ...ownSale,
       id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
       receiptCode: `SALE-${index}`,
     }));
     request
-      .mockResolvedValueOnce({ ...ownPage, items, total: 51, totalPages: 2 })
-      .mockResolvedValueOnce({ ...ownPage, page: 2, total: 51, totalPages: 2 });
+      .mockResolvedValueOnce({ ...ownPage, items, total: 30, totalPages: 2 })
+      .mockResolvedValueOnce({
+        ...ownPage,
+        items,
+        page: 2,
+        total: 30,
+        totalPages: 2,
+      });
     render(<BranchSales {...scope} />);
     await screen.findByRole('link', { name: 'View own items SALE-0' });
     expect(
       screen.getByRole('button', { name: 'Previous page' }),
     ).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
-    await screen.findByText('51 permitted sales · Page 2 of 2');
-    expect(request.mock.calls[1][0]).toMatch(/page=2&limit=50$/);
+    await screen.findByText('30 permitted sales · Page 2 of 2');
+    expect(request.mock.calls[1][0]).toMatch(/page=2&limit=15$/);
     expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
     expect(
       screen.getByRole('button', { name: 'Previous page' }),

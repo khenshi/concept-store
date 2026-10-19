@@ -67,7 +67,7 @@ export const spaceListItemSchema = spaceSchema
   );
 const pageShape = {
   page: z.number().int().min(1),
-  limit: z.literal(10),
+  limit: z.literal(15),
   total: z.number().int().min(0),
   totalPages: z.number().int().min(0),
   hasNext: z.boolean(),
@@ -80,16 +80,16 @@ function validPage(page: {
   items: { id: string }[];
 }) {
   return (
-    page.totalPages === Math.ceil(page.total / 10) &&
-    page.hasNext === page.page * 10 < page.total &&
+    page.totalPages === Math.ceil(page.total / 15) &&
+    page.hasNext === page.page * 15 < page.total &&
     new Set(page.items.map((row) => row.id)).size === page.items.length
   );
 }
 export const spacePageSchema = z
-  .object({ ...pageShape, items: z.array(spaceListItemSchema).max(10) })
+  .object({ ...pageShape, items: z.array(spaceListItemSchema).max(15) })
   .refine(validPage, 'Invalid space pagination');
 export const occupancyPageSchema = z
-  .object({ ...pageShape, items: z.array(occupancySchema).max(10) })
+  .object({ ...pageShape, items: z.array(occupancySchema).max(15) })
   .refine(validPage, 'Invalid occupancy pagination');
 export const spaceFormSchema = z.object({
   name: z.string().trim().min(1, 'Enter a space name.').max(120),

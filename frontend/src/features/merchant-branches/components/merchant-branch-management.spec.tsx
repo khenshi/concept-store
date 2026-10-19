@@ -52,7 +52,7 @@ const row = {
 const page = {
   items: [row],
   page: 1,
-  limit: 10 as const,
+  limit: 15 as const,
   total: 1,
   totalPages: 1,
   hasNext: false,

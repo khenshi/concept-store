@@ -45,19 +45,19 @@ describe('branch schema', () => {
       branchDirectoryPageSchema.parse({
         items: [],
         page: 1,
-        limit: 10,
+        limit: 15,
         total: 0,
         totalPages: 0,
         hasNext: false,
         summary: { total: 4, active: 3, inactive: 1 },
       }),
-    ).toMatchObject({ limit: 10 });
+    ).toMatchObject({ limit: 15 });
     expect(() =>
       branchDirectoryPageSchema.parse({
         items: [],
         page: 1,
-        limit: 10,
-        total: 11,
+        limit: 15,
+        total: 16,
         totalPages: 1,
         hasNext: false,
         summary: { total: 4, active: 3, inactive: 1 },
