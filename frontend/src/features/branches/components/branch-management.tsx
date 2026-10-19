@@ -267,8 +267,6 @@ function StaffBranchDirectory({
   const totalPages = directory?.totalPages ?? 0;
   const currentPage = directory?.page ?? 1;
   const total = directory?.total ?? 0;
-  const start = total === 0 ? 0 : (currentPage - 1) * 15 + 1;
-  const end = total === 0 ? 0 : Math.min(currentPage * 15, total);
 
   return (
     <>
@@ -369,7 +367,7 @@ function StaffBranchDirectory({
                 </li>
                 {directory.items.map((branch) => (
                   <li
-                    className={`data-row grid min-w-0 gap-x-6 gap-y-3 px-3 py-5 sm:px-4 lg:items-center ${branchDirectoryGrid}`}
+                    className={`data-row grid min-w-0 gap-x-6 gap-y-3 px-3 py-5 text-sm sm:px-4 lg:items-center ${branchDirectoryGrid}`}
                     key={branch.id}
                   >
                     <div className="min-w-0 break-words">
@@ -422,7 +420,7 @@ function StaffBranchDirectory({
               currentPage={currentPage}
               totalPages={totalPages}
               hasNext={directory.hasNext}
-              summary={`Showing ${start}–${end} of ${total}`}
+              summary={`${total} ${total === 1 ? 'branch' : 'branches'}`}
               onPrevious={() => onPageChange(currentPage - 1)}
               onNext={() => onPageChange(currentPage + 1)}
             />

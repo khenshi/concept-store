@@ -112,9 +112,10 @@ Its rows use the Inventory directory's shared column-header and data-row geometr
 quiet hairline dividers, the same wide-screen column rhythm, stacked narrow-screen
 content, and compact quiet View actions. Rows show branch name/code, city and
 short address, merchant count, semantic Active/Inactive pill statuses, and a View
-action aligned beneath the Actions column label. The footer reports the current range such as
-`Showing 1–10 of 24` with previous/next pagination. Search and status changes
-reset to page one. Empty, filtered-empty, loading, and request-error states
+action aligned beneath the Actions column label. The footer shows the total
+branch count at left while the current/available page indicator remains
+between the previous and next controls. Search and status changes reset to page
+one. Empty, filtered-empty, loading, and request-error states
 remain distinct. Owners alone can add branches; managers can edit assigned
 branches and change their status, while cashiers remain read-only.
 Add branch appears in the Store locations panel header, consistent with other

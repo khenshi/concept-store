@@ -280,6 +280,8 @@ describe('BranchManagement', () => {
     expect(within(row!).getByText('Active', { exact: true })).toHaveClass(
       'rounded-full',
     );
+    expect(row).toHaveClass('text-sm');
+    expect(await screen.findByText('2 branches')).toBeInTheDocument();
     expect(within(row!).getByLabelText('Makati Main actions')).toHaveClass(
       'lg:justify-start',
     );
