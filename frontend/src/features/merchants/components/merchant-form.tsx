@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ZodError } from 'zod';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { TextField } from '@/shared/components/ui/text-field';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -142,22 +143,6 @@ export function MerchantForm({
       onChange={(event) => validateChangedField(event)}
       onSubmit={handleSubmit}
     >
-      {submissionError ? (
-        <p
-          className="rounded-lg border border-danger p-3 text-sm text-danger"
-          role="alert"
-        >
-          {submissionError}
-        </p>
-      ) : null}
-      {Object.keys(fieldErrors).length ? (
-        <p
-          className="rounded-lg border border-danger p-3 text-sm text-danger"
-          role="alert"
-        >
-          Review the highlighted fields and try again.
-        </p>
-      ) : null}
       <div className="grid min-w-0 gap-5 sm:grid-cols-[minmax(0,1.5fr)_minmax(10rem,0.5fr)]">
         <MerchantFieldInput
           name="name"
@@ -170,7 +155,7 @@ export function MerchantForm({
         <MerchantFieldInput
           name="code"
           label="Code"
-          hint="Optional; letters, numbers, and hyphens"
+          hint=""
           defaultValue={merchant?.code ?? undefined}
           error={fieldErrors.code}
           maxLength={32}
@@ -196,7 +181,7 @@ export function MerchantForm({
         <MerchantFieldInput
           name="phone"
           label="Phone"
-          hint="Philippine mobile or landline, for example +63 917 555 0101 or (02) 8555 0102"
+          hint=""
           defaultValue={merchant?.phone}
           error={fieldErrors.phone}
           maxLength={30}
@@ -204,7 +189,16 @@ export function MerchantForm({
           required
         />
       </div>
-      <div className="flex flex-wrap justify-end gap-3">
+      <ModalActionRow
+        feedback={
+          submissionError || Object.keys(fieldErrors).length ? (
+            <p className="text-sm text-danger" role="alert">
+              {submissionError ??
+                'Review the highlighted fields and try again.'}
+            </p>
+          ) : null
+        }
+      >
         <button
           className={buttonStyles({ variant: 'primary' })}
           disabled={isSubmitting}
@@ -227,7 +221,7 @@ export function MerchantForm({
             Cancel
           </button>
         ) : null}
-      </div>
+      </ModalActionRow>
     </form>
   );
 }

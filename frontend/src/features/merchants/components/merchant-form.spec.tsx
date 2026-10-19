@@ -108,6 +108,23 @@ describe('MerchantForm', () => {
     expect(onSaved).toHaveBeenCalledWith(merchant);
   });
 
+  it('places submit validation feedback beside the form actions', () => {
+    render(
+      <MerchantForm
+        organizationId={merchant.organizationId}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create merchant' }));
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Review the highlighted fields');
+    expect(alert.parentElement).toContainElement(
+      screen.getByRole('button', { name: 'Create merchant' }),
+    );
+  });
+
   it('reports an edit request failure without closing the form', async () => {
     vi.mocked(updateMerchant).mockRejectedValue(
       new ApiError(409, 'Merchant code already exists in this organization'),
@@ -127,5 +144,9 @@ describe('MerchantForm', () => {
         'Merchant code already exists in this organization',
       ),
     ).toBeInTheDocument();
+    const alert = screen.getByRole('alert');
+    expect(alert.parentElement).toContainElement(
+      screen.getByRole('button', { name: 'Save changes' }),
+    );
   });
 });

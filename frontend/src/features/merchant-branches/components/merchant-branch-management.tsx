@@ -7,6 +7,7 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import { listBranches } from '@/features/branches/api/branch-api';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
@@ -426,12 +427,15 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
                 be reactivated.
               </p>
             )}
-            {error && (
-              <p role="alert" className="text-danger">
-                {error}
-              </p>
-            )}
-            <div className="flex justify-end gap-3">
+            <ModalActionRow
+              feedback={
+                error ? (
+                  <p role="alert" className="text-sm text-danger">
+                    {error}
+                  </p>
+                ) : null
+              }
+            >
               <button
                 type="button"
                 disabled={pending}
@@ -447,7 +451,7 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
               >
                 {pending ? 'Assigning…' : 'Assign'}
               </button>
-            </div>
+            </ModalActionRow>
           </form>
         </FormDialog>
       )}

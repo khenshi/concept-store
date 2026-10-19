@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { Button } from '@/shared/components/ui/button';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { Notice } from '@/shared/components/ui/notice';
 import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import {
@@ -179,7 +180,6 @@ export function DeleteAccountForm({ className = '' }: { className?: string }) {
               onSubmit={submit}
               noValidate
             >
-              {error ? <Notice tone="error">{error}</Notice> : null}
               <TextField
                 id="deletePassword"
                 name="deletePassword"
@@ -193,7 +193,15 @@ export function DeleteAccountForm({ className = '' }: { className?: string }) {
                 showPasswordToggle
                 disabled={isDeleting}
               />
-              <div className="flex flex-col-reverse gap-3 border-t border-hairline pt-5 sm:flex-row sm:justify-end">
+              <ModalActionRow
+                feedback={
+                  error ? (
+                    <p role="alert" className="text-sm text-danger">
+                      {error}
+                    </p>
+                  ) : null
+                }
+              >
                 <Button
                   variant="secondary"
                   type="button"
@@ -210,7 +218,7 @@ export function DeleteAccountForm({ className = '' }: { className?: string }) {
                 >
                   Delete account
                 </Button>
-              </div>
+              </ModalActionRow>
             </form>
           </section>
         </div>

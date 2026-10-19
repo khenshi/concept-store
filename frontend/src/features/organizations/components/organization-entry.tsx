@@ -15,7 +15,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { Button } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
-import { Notice } from '@/shared/components/ui/notice';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { RequestError } from '@/shared/components/ui/request-error';
 import {
   TextField,
@@ -308,9 +308,6 @@ export function OrganizationEntry() {
             onSubmit={handleCreate}
             noValidate
           >
-            {submissionError ? (
-              <Notice tone="error">{submissionError}</Notice>
-            ) : null}
             <TextField
               ref={nameRef}
               id="organization-name"
@@ -321,7 +318,16 @@ export function OrganizationEntry() {
               maxLength={120}
               error={nameError}
             />
-            <div className="mt-1 flex flex-wrap justify-end gap-3 border-t border-hairline pt-5">
+            <ModalActionRow
+              className="mt-1"
+              feedback={
+                submissionError ? (
+                  <p role="alert" className="text-sm text-danger">
+                    {submissionError}
+                  </p>
+                ) : null
+              }
+            >
               <Button
                 variant="secondary"
                 onClick={() => {
@@ -339,7 +345,7 @@ export function OrganizationEntry() {
               >
                 Create organization
               </Button>
-            </div>
+            </ModalActionRow>
           </form>
         </section>
       </dialog>

@@ -6,6 +6,7 @@ import type { AuthenticatedRequest } from '@/features/organizations/model/organi
 import { Button } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { Icon } from '@/shared/components/ui/icon';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { TextField } from '@/shared/components/ui/text-field';
 import { completeCheckout } from '../api/checkout-api';
 import {
@@ -355,12 +356,15 @@ export function PaymentConfirmation({
               {draft.method !== 'CASH' ? ' outside this system' : ''}.
             </span>
           </label>
-          {message ? (
-            <p role="alert" className="break-words text-sm text-danger">
-              {message}
-            </p>
-          ) : null}
-          <div className="flex flex-wrap justify-end gap-3">
+          <ModalActionRow
+            feedback={
+              message ? (
+                <p role="alert" className="break-words text-sm text-danger">
+                  {message}
+                </p>
+              ) : null
+            }
+          >
             <Button variant="secondary" disabled={locked} onClick={close}>
               Return to cart
             </Button>
@@ -371,7 +375,7 @@ export function PaymentConfirmation({
             >
               {unknown ? 'Retry same checkout' : 'Complete sale'}
             </Button>
-          </div>
+          </ModalActionRow>
         </form>
       </div>
     </FormDialog>

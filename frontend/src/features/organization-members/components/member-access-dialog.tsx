@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { buttonStyles } from '@/shared/components/ui/button';
 import {
@@ -125,11 +126,6 @@ export function MemberAccessDialog({
       pending={pending}
       onClose={onClose}
     >
-      {error && (
-        <p role="alert" className="mt-4 text-sm text-danger">
-          {error}
-        </p>
-      )}
       {notice && (
         <p role="status" className="mt-4 text-sm text-muted">
           {notice}
@@ -137,6 +133,11 @@ export function MemberAccessDialog({
       )}
       {!options ? (
         <div className="mt-4">
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
           <p role="status">Loading access settings…</p>
           {error && (
             <button
@@ -158,7 +159,15 @@ export function MemberAccessDialog({
               ? ' Existing branch assignments will be cleared.'
               : ''}
           </p>
-          <div className="flex flex-wrap justify-end gap-3">
+          <ModalActionRow
+            feedback={
+              error ? (
+                <p role="alert" className="text-sm text-danger">
+                  {error}
+                </p>
+              ) : null
+            }
+          >
             <button
               ref={safeFocus}
               type="button"
@@ -179,7 +188,7 @@ export function MemberAccessDialog({
             >
               {pending ? 'Updating…' : 'Confirm change'}
             </button>
-          </div>
+          </ModalActionRow>
         </section>
       ) : (
         <div className="mt-5 grid gap-6">
@@ -301,7 +310,16 @@ export function MemberAccessDialog({
           )}
         </div>
       )}
-      <div className="mt-6 flex justify-end">
+      <ModalActionRow
+        className="mt-6"
+        feedback={
+          options && !confirmation && error ? (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          ) : null
+        }
+      >
         <button
           type="button"
           disabled={pending}
@@ -310,7 +328,7 @@ export function MemberAccessDialog({
         >
           Done
         </button>
-      </div>
+      </ModalActionRow>
     </FormDialog>
   );
 }

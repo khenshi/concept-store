@@ -5,6 +5,7 @@ import type { CompletedSale } from '@/features/pos/model/checkout';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { Button } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import {
   TextField,
   focusFirstInvalidField,
@@ -376,17 +377,25 @@ export function RefundDialog({
           />
           <span>I confirm this money was refunded outside this system.</span>
         </label>
-        {errors.confirmed ? (
-          <p id="refund-confirmation-error" className="text-sm text-danger">
-            {errors.confirmed}
-          </p>
-        ) : null}
-        {message ? (
-          <p role="alert" className="break-words text-sm text-danger">
-            {message}
-          </p>
-        ) : null}
-        <div className="flex flex-wrap justify-end gap-3">
+        <ModalActionRow
+          feedback={
+            <div className="grid gap-2">
+              {errors.confirmed ? (
+                <p
+                  id="refund-confirmation-error"
+                  className="text-sm text-danger"
+                >
+                  {errors.confirmed}
+                </p>
+              ) : null}
+              {message ? (
+                <p role="alert" className="break-words text-sm text-danger">
+                  {message}
+                </p>
+              ) : null}
+            </div>
+          }
+        >
           <Button variant="secondary" disabled={locked} onClick={onClose}>
             Cancel return
           </Button>
@@ -397,7 +406,7 @@ export function RefundDialog({
           >
             {unknown ? 'Retry same refund' : 'Record refund'}
           </Button>
-        </div>
+        </ModalActionRow>
       </form>
     </FormDialog>
   );

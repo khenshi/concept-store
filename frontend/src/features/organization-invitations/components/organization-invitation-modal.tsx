@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { InputControl } from '@/shared/components/ui/input-control';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import {
@@ -271,14 +272,6 @@ export function OrganizationInvitationModal({
               The recipient will sign in or create their own account before
               accepting access.
             </p>
-            {submissionError ? (
-              <p
-                className="rounded-lg border border-danger p-3 text-sm text-danger"
-                role="alert"
-              >
-                {submissionError}
-              </p>
-            ) : null}
             {optionsError && (
               <p role="alert" className="text-sm text-danger">
                 {optionsError}{' '}
@@ -446,7 +439,16 @@ export function OrganizationInvitationModal({
                 </p>
               </fieldset>
             )}
-            <div className="mt-2 flex justify-end gap-3">
+            <ModalActionRow
+              className="mt-2"
+              feedback={
+                submissionError ? (
+                  <p className="text-sm text-danger" role="alert">
+                    {submissionError}
+                  </p>
+                ) : null
+              }
+            >
               <button
                 className={buttonStyles({ variant: 'secondary' })}
                 type="button"
@@ -462,7 +464,7 @@ export function OrganizationInvitationModal({
               >
                 {isSubmitting ? 'Creating invitation…' : 'Create invitation'}
               </button>
-            </div>
+            </ModalActionRow>
           </form>
         )}
       </section>

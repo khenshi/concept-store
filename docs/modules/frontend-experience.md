@@ -93,6 +93,19 @@ of exposing implementation details. The authenticated session failure surface
 now uses the shared error notice. Request callbacks, authentication behavior,
 API contracts, authorization and tenant isolation are unchanged.
 
+## Modal form action feedback
+
+Form-level submission and validation feedback in modal forms appears at the
+bottom-left of the modal action row, with the form actions kept on the right.
+The shared `ModalActionRow` preserves the responsive wrapping and separator used
+by the branch form across merchant, product, inventory, space, invitation,
+organization, member-access, POS, refund and account-deletion forms. Field-level
+validation remains beside its field, and loading or retry feedback remains near
+the control whose data could not be loaded. Footer errors use compact red text
+without a bordered notice, while the buttons stay aligned to the bottom-right.
+This is a presentation-only change; form validation, request behavior,
+authorization and tenant isolation are unchanged.
+
 ## Placement opening stock and numeric fields (Part 4, uncommitted)
 
 The add-placement modal now requires a nonnegative whole-number Initial stock value.

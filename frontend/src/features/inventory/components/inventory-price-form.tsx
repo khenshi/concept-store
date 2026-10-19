@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import {
   TextField,
   focusFirstInvalidField,
@@ -80,11 +81,6 @@ export function InventoryPriceForm({
   }
   return (
     <form className="grid gap-4 p-6" noValidate onSubmit={submit}>
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
       <TextField
         label="Selling price (PHP)"
         name="sellingPrice"
@@ -100,7 +96,15 @@ export function InventoryPriceForm({
         onBlur={() => validate(price, true)}
         hint="This changes only this branch’s price, not stock or other branches."
       />
-      <div className="flex flex-wrap justify-end gap-3">
+      <ModalActionRow
+        feedback={
+          error ? (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          ) : null
+        }
+      >
         {onCancel ? (
           <button
             className={buttonStyles({ variant: 'secondary' })}
@@ -119,7 +123,7 @@ export function InventoryPriceForm({
         >
           {pending ? 'Saving…' : 'Save branch price'}
         </button>
-      </div>
+      </ModalActionRow>
     </form>
   );
 }

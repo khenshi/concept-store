@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import {
   TextField,
   focusFirstInvalidField,
@@ -317,12 +318,6 @@ export function InventoryStockForm({
             adjustments remain available.
           </p>
         ) : null}
-        {error ? (
-          <p role="alert" className="text-sm text-danger">
-            {error} Retry unchanged to reuse the request ID; changing the form
-            starts a new command.
-          </p>
-        ) : null}
         {mode === 'receipt' ? (
           inlineReceiptAction ? (
             <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -446,7 +441,16 @@ export function InventoryStockForm({
           </>
         ) : null}
         {mode !== 'receipt' || !inlineReceiptAction ? (
-          <div className="flex flex-wrap justify-end gap-3">
+          <ModalActionRow
+            feedback={
+              error ? (
+                <p role="alert" className="text-sm text-danger">
+                  {error} Retry unchanged to reuse the request ID; changing the
+                  form starts a new command.
+                </p>
+              ) : null
+            }
+          >
             {onCancel ? (
               <button
                 type="button"
@@ -458,7 +462,7 @@ export function InventoryStockForm({
               </button>
             ) : null}
             {submitButton}
-          </div>
+          </ModalActionRow>
         ) : null}
       </form>
       {confirmationDialog}

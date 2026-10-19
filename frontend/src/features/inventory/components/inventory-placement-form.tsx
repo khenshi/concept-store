@@ -15,6 +15,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import type { Product } from '@/features/products/model/product.types';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { InputControl } from '@/shared/components/ui/input-control';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import {
   TextField,
   focusFirstInvalidField,
@@ -249,11 +250,6 @@ export function InventoryPlacementForm({
         onLoadMore={() => void loadMore()}
         inputRef={productInputRef}
       />
-      {error ? (
-        <p className="text-sm text-danger" role="alert">
-          {error}
-        </p>
-      ) : null}
       <fieldset className="grid gap-5 border-t border-hairline pt-6">
         <legend className="text-label font-semibold text-ink">
           Branch settings
@@ -348,7 +344,16 @@ export function InventoryPlacementForm({
           />
         </div>
       </fieldset>
-      <div className="flex flex-wrap justify-end gap-3 border-t border-hairline pt-6">
+      <ModalActionRow
+        className="pt-6"
+        feedback={
+          error ? (
+            <p className="text-sm text-danger" role="alert">
+              {error}
+            </p>
+          ) : null
+        }
+      >
         <button
           className={buttonStyles({ variant: 'primary' })}
           type="submit"
@@ -365,7 +370,7 @@ export function InventoryPlacementForm({
         >
           Cancel
         </button>
-      </div>
+      </ModalActionRow>
     </form>
   );
 }

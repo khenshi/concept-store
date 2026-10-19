@@ -12,7 +12,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { Button } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
-import { Notice } from '@/shared/components/ui/notice';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import {
   TextField,
   focusFirstInvalidField,
@@ -289,36 +289,37 @@ export function BranchForm({
             />
           </div>
         </fieldset>
-        <div className="flex flex-col gap-3 border-t border-hairline pt-5 sm:flex-row sm:items-center sm:justify-between">
-          {submissionError ||
-          (hasSubmitted && Object.keys(fieldErrors).length > 0) ? (
-            <Notice
-              tone="error"
-              className="max-w-full px-3 py-2 text-xs leading-5 sm:max-w-sm"
-            >
-              {submissionError ??
-                'Review the highlighted fields and try again.'}
-            </Notice>
-          ) : null}
-          <div className="flex flex-col-reverse gap-3 sm:ml-auto sm:flex-row">
-            <Button
-              className="w-full sm:w-auto"
-              variant="secondary"
-              onClick={onCancel}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="w-full sm:w-auto"
-              type="submit"
-              pending={isSubmitting}
-              pendingLabel={branch ? 'Saving changes…' : 'Adding branch…'}
-            >
-              {branch ? 'Save' : 'Add'}
-            </Button>
-          </div>
-        </div>
+        <ModalActionRow
+          feedback={
+            submissionError ||
+            (hasSubmitted && Object.keys(fieldErrors).length > 0) ? (
+              <p
+                role="alert"
+                className="max-w-full text-sm text-danger sm:max-w-sm"
+              >
+                {submissionError ??
+                  'Review the highlighted fields and try again.'}
+              </p>
+            ) : null
+          }
+        >
+          <Button
+            className="w-full sm:w-auto"
+            variant="secondary"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="w-full sm:w-auto"
+            type="submit"
+            pending={isSubmitting}
+            pendingLabel={branch ? 'Saving changes…' : 'Adding branch…'}
+          >
+            {branch ? 'Save' : 'Add'}
+          </Button>
+        </ModalActionRow>
       </form>
     </FormDialog>
   );

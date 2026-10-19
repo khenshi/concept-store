@@ -12,6 +12,7 @@ import { TextField } from '@/shared/components/ui/text-field';
 import { useSpaceTypes } from '../model/use-space-types';
 import { SpaceTypeCreator } from './space-type-creator';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import {
   assignSpace,
   listSpaces,
@@ -33,19 +34,29 @@ function Actions({
   onClose,
   label,
   disabled = false,
+  feedback,
 }: {
   pending: boolean;
   disabled?: boolean;
   onClose(): void;
   label: string;
+  feedback?: string | null;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-t border-hairline pt-5 sm:flex-row sm:justify-end">
+    <ModalActionRow
+      feedback={
+        feedback ? (
+          <p role="alert" className="text-sm text-danger">
+            {feedback}
+          </p>
+        ) : null
+      }
+    >
       <button
         type="button"
         className={buttonStyles({
           variant: 'quiet',
-          className: 'order-2 w-full sm:order-1 sm:w-auto',
+          className: 'w-full sm:w-auto',
         })}
         disabled={pending}
         onClick={onClose}
@@ -60,7 +71,7 @@ function Actions({
       >
         {pending ? 'Saving…' : label}
       </button>
-    </div>
+    </ModalActionRow>
   );
 }
 export function SpaceForm({
@@ -174,11 +185,6 @@ export function SpaceForm({
             });
         }}
       >
-        {error && (
-          <p id={errorId} role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
         <div className="grid gap-5 md:grid-cols-2 md:items-start">
           <TextField
             label="Space name"
@@ -319,6 +325,7 @@ export function SpaceForm({
           pending={pending || typePending}
           onClose={close}
           disabled={!types || !!typesError || !type || typePending}
+          feedback={error}
           label={space ? 'Save space' : 'Add space'}
         />
       </form>
@@ -478,11 +485,6 @@ export function AssignmentForm({
           }
         }}
       >
-        {(error || readError) && (
-          <p className="text-sm text-danger" role="alert">
-            {error ?? readError}
-          </p>
-        )}
         {readError && (
           <button
             className={buttonStyles({ variant: 'quiet' })}
@@ -633,6 +635,7 @@ export function AssignmentForm({
             (!space && !spaces)
           }
           onClose={onClose}
+          feedback={error}
           label={historical ? 'Record occupancy' : 'Assign space'}
         />
       </form>
@@ -698,11 +701,6 @@ export function ReleaseForm({
           }
         }}
       >
-        {error && (
-          <p className="text-sm text-danger" role="alert">
-            {error}
-          </p>
-        )}
         <label className="grid gap-2 text-sm font-semibold">
           End date
           <InputControl
@@ -714,7 +712,12 @@ export function ReleaseForm({
             onChange={(e) => setEnd(e.target.value)}
           />
         </label>
-        <Actions pending={pending} onClose={onClose} label="Release space" />
+        <Actions
+          pending={pending}
+          onClose={onClose}
+          feedback={error}
+          label="Release space"
+        />
       </form>
     </FormDialog>
   );
