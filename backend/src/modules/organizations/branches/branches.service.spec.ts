@@ -156,7 +156,7 @@ describe('BranchesService', () => {
     expect(result).toEqual({
       items: [{ ...branch, merchantCount: 2 }],
       page: 1,
-      limit: 10,
+      limit: 15,
       total: 1,
       totalPages: 1,
       hasNext: false,
@@ -166,7 +166,7 @@ describe('BranchesService', () => {
       expect.objectContaining({
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
         skip: 0,
-        take: 10,
+        take: 15,
       }),
     );
   });
@@ -203,7 +203,7 @@ describe('BranchesService', () => {
         (entry) => 'OR' in entry && Array.isArray(entry.OR),
       ),
     ).toBe(true);
-    expect(findManyArgs.skip).toBe(10);
+    expect(findManyArgs.skip).toBe(15);
   });
 
   it('changes status only inside the authorized branch scope', async () => {

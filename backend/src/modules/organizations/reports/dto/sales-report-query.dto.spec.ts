@@ -114,7 +114,7 @@ describe('Report query validation', () => {
       type: 'REFUND',
       q: 'REF-12',
       page: 1,
-      limit: 50,
+      limit: 15,
     });
     for (const input of [
       { ...valid, type: 'ALL' },

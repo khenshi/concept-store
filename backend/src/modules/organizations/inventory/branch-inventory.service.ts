@@ -123,9 +123,13 @@ export class BranchInventoryService {
     branchId: string,
     query: ListBranchInventoryQueryDto,
     context?: OrganizationContext,
-  ): Promise<{ items: BranchInventoryRecord[]; nextCursor: string | null }> {
+  ): Promise<{
+    items: BranchInventoryRecord[];
+    nextCursor: string | null;
+    totalPages: number;
+  }> {
     await this.resolveBranch(organizationId, branchId);
-    const limit = query.limit ?? 50;
+    const limit = query.limit ?? 15;
     if (query.merchantId) {
       const merchant = await this.prisma.merchant.findUnique({
         where: { id: query.merchantId, organizationId },
@@ -175,16 +179,19 @@ export class BranchInventoryService {
       });
       if (!existing) throw new NotFoundException('Page cursor not found');
     }
-    const inventory = await this.prisma.branchInventory.findMany({
-      where,
-      include: {
-        product: { select: inventoryProductSelect },
-        merchantBranch: { select: { status: true } },
-      },
-      orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
-      take: limit + 1,
-      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-    });
+    const [inventory, total] = await Promise.all([
+      this.prisma.branchInventory.findMany({
+        where,
+        include: {
+          product: { select: inventoryProductSelect },
+          merchantBranch: { select: { status: true } },
+        },
+        orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
+        take: limit + 1,
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      }),
+      this.prisma.branchInventory.count({ where }),
+    ]);
     const page = inventory.slice(0, limit);
     return {
       items: page.map((item) => this.toRecord(item)),
@@ -192,6 +199,7 @@ export class BranchInventoryService {
         inventory.length > limit
           ? encodeInventoryCursor(page[page.length - 1].id, scope)
           : null,
+      totalPages: Math.ceil((total ?? 0) / limit),
     };
   }
 
@@ -202,7 +210,7 @@ export class BranchInventoryService {
     context: OrganizationContext,
   ): Promise<{ items: ProductRecord[]; nextCursor: string | null }> {
     await this.resolveBranch(organizationId, branchId);
-    const limit = query.limit ?? 50;
+    const limit = query.limit ?? 15;
     const where: Prisma.ProductWhereInput = {
       organizationId,
       status: ProductStatus.ACTIVE,
@@ -267,6 +275,7 @@ export class BranchInventoryService {
   ): Promise<{
     items: InventoryMovementRecordView[];
     nextCursor: string | null;
+    totalPages: number;
   }> {
     await this.resolveBranch(organizationId, branchId);
     if (context.role === 'MERCHANT' && query.merchantId)
@@ -352,17 +361,16 @@ export class BranchInventoryService {
       });
       if (!cursor) throw new NotFoundException('Movement cursor not found');
     }
-    type MovementRow = Prisma.InventoryMovementGetPayload<{
-      select: typeof inventoryMovementRecordsSelect;
-    }>;
-    const movements: MovementRow[] =
-      await this.prisma.inventoryMovement.findMany({
+    const [movements, total] = await Promise.all([
+      this.prisma.inventoryMovement.findMany({
         select: inventoryMovementRecordsSelect,
         where,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: query.limit + 1,
         ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
-      });
+      }),
+      this.prisma.inventoryMovement.count({ where }),
+    ]);
     const page = movements.slice(0, query.limit);
     return {
       items: page.map(({ inventory, createdBy, ...movement }) => ({
@@ -380,6 +388,7 @@ export class BranchInventoryService {
         movements.length > query.limit
           ? encodeInventoryCursor(page.at(-1)!.id, scope)
           : null,
+      totalPages: Math.ceil((total ?? 0) / query.limit),
     };
   }
 
@@ -507,7 +516,7 @@ export class BranchInventoryService {
     branchId: string,
     inventoryId: string,
     context?: OrganizationContext,
-    query: MovementHistoryQueryDto = { limit: 50 },
+    query: MovementHistoryQueryDto = { limit: 15 },
   ): Promise<
     InventoryMovementPage<
       InventoryMovementHistoryRecord | MerchantMovementHistoryRecord
@@ -526,17 +535,17 @@ export class BranchInventoryService {
       });
       if (!cursor) throw new NotFoundException('Movement cursor not found');
     }
-    type HistoryRow = Prisma.InventoryMovementGetPayload<{
-      select: typeof inventoryMovementHistorySelect;
-    }>;
-    const movements: HistoryRow[] =
-      await this.prisma.inventoryMovement.findMany({
+    const where = { organizationId, branchId, branchInventoryId: inventoryId };
+    const [movements, total] = await Promise.all([
+      this.prisma.inventoryMovement.findMany({
         select: inventoryMovementHistorySelect,
-        where: { organizationId, branchId, branchInventoryId: inventoryId },
+        where,
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: query.limit + 1,
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-      });
+      }),
+      this.prisma.inventoryMovement.count({ where }),
+    ]);
     const page = movements.slice(0, query.limit);
     const historyPage: InventoryMovementHistoryRecord[] = page.map(
       ({ createdBy, ...movement }) => ({
@@ -555,6 +564,7 @@ export class BranchInventoryService {
             })
           : historyPage,
       nextCursor: movements.length > query.limit ? page.at(-1)!.id : null,
+      totalPages: Math.ceil((total ?? 0) / query.limit),
     };
   }
 

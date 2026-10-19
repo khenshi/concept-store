@@ -397,6 +397,8 @@ export class BranchInventoryPageResponseDto {
   items!: BranchInventoryResponseDto[];
   @ApiProperty({ type: String, nullable: true })
   nextCursor!: string | null;
+  @ApiProperty({ type: 'integer', minimum: 0 })
+  totalPages!: number;
 }
 
 export class EligibleProductsPageResponseDto {
@@ -438,6 +440,8 @@ export class InventoryReconciliationPageResponseDto {
   items!: InventoryReconciliationMismatchResponseDto[];
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   nextCursor!: string | null;
+  @ApiProperty({ type: 'integer', minimum: 0 })
+  totalPages!: number;
 }
 
 export class InventoryMovementResponseDto {
@@ -538,6 +542,8 @@ export class InventoryMovementRecordsPageResponseDto {
   items!: InventoryMovementRecordResponseDto[];
   @ApiProperty({ type: String, nullable: true })
   nextCursor!: string | null;
+  @ApiProperty({ type: 'integer', minimum: 0 })
+  totalPages!: number;
 }
 
 export class MerchantMovementRecordsPageResponseDto {
@@ -545,4 +551,6 @@ export class MerchantMovementRecordsPageResponseDto {
   items!: MerchantMovementRecordResponseDto[];
   @ApiProperty({ type: String, nullable: true })
   nextCursor!: string | null;
+  @ApiProperty({ type: 'integer', minimum: 0 })
+  totalPages!: number;
 }

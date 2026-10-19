@@ -1079,10 +1079,18 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     const context = { organizationId, userId, role: 'OWNER' as const };
     const scan = (limit = 25, cursor?: string) =>
       reconciliation.reconcile(context, branchId, { limit, cursor });
-    expect(await scan()).toEqual({ items: [], nextCursor: null });
+    expect(await scan()).toEqual({
+      items: [],
+      nextCursor: null,
+      totalPages: 0,
+    });
     await receive(7);
     await adjust(-2);
-    expect(await scan()).toEqual({ items: [], nextCursor: null });
+    expect(await scan()).toEqual({
+      items: [],
+      nextCursor: null,
+      totalPages: 0,
+    });
     await prisma.branchInventory.update({
       where: { id: inventoryId },
       data: { quantity: 6 },
@@ -1100,6 +1108,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
         },
       ],
       nextCursor: null,
+      totalPages: 1,
     });
     expect(
       await prisma.inventoryMovement.count({
@@ -1160,12 +1169,14 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
     });
     expect(first.items).toHaveLength(1);
     expect(first.nextCursor).toBe(first.items[0].inventoryId);
+    expect(first.totalPages).toBe(2);
     const second = await reconciliation.reconcile(context, branchId, {
       limit: 1,
       cursor: first.nextCursor!,
     });
     expect(second.items).toHaveLength(1);
     expect(second.nextCursor).toBeNull();
+    expect(second.totalPages).toBe(2);
     expect(
       new Set(
         [...first.items, ...second.items].map((item) => item.inventoryId),

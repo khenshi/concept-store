@@ -69,14 +69,14 @@ export class ListMovementRecordsQueryDto {
     type: 'integer',
     minimum: 1,
     maximum: 100,
-    default: 10,
+    default: 15,
   })
   @Transform(queryInteger)
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(100)
-  limit = 10;
+  limit = 15;
 
   @ApiPropertyOptional({
     description: 'Opaque cursor returned by the preceding page',

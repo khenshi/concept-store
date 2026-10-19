@@ -27,7 +27,7 @@ type Product = Metrics & {
   merchantName: string;
   totalProducts: string;
 };
-export const PRODUCT_RANKING_PAGE_SIZE = 10;
+export const PRODUCT_RANKING_PAGE_SIZE = 15;
 type MerchantSales = {
   merchantId: string;
   merchantName: string;

@@ -9,7 +9,7 @@ const validate = (query: unknown) =>
   pipe.transform(query, { type: 'query', metatype: ListSalesQueryDto });
 describe('Sales directory query validation', () => {
   it('defaults pagination and accepts expanded staff filters', async () => {
-    await expect(validate({})).resolves.toMatchObject({ page: 1, limit: 50 });
+    await expect(validate({})).resolves.toMatchObject({ page: 1, limit: 15 });
     await expect(
       validate({
         q: '  SALE-001  ',

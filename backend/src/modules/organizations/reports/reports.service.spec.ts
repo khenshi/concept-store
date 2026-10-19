@@ -317,7 +317,7 @@ describe('ReportsService', () => {
     expect(refundSql.values).toContain('branch');
     expect(refundSql.sql).not.toContain('JOIN "Sale"');
   });
-  it('returns ten-row staff ranking pages with stable global ranks and tenant scope', async () => {
+  it('returns fifteen-row staff ranking pages with stable global ranks and tenant scope', async () => {
     tx.$queryRaw.mockReset().mockResolvedValueOnce([
       {
         productId: 'product-11',
@@ -343,9 +343,10 @@ describe('ReportsService', () => {
       merchantId: null,
       scope: 'STAFF',
       page: 2,
-      limit: 10,
+      limit: 15,
       totalProducts: '21',
-      hasNext: true,
+      totalPages: 2,
+      hasNext: false,
       items: [
         {
           productId: 'product-11',
@@ -364,7 +365,7 @@ describe('ReportsService', () => {
     expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
     const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
     expect(sql.values).toEqual(
-      expect.arrayContaining(['org', 'branch', 10, 10]),
+      expect.arrayContaining(['org', 'branch', 15, 15]),
     );
   });
   it('supports units ordering and a tenant-scoped merchant filter', async () => {
@@ -438,7 +439,7 @@ describe('ReportsService', () => {
     ).resolves.toMatchObject({
       scope: 'MERCHANT',
       page: 1,
-      limit: 10,
+      limit: 15,
       totalProducts: '0',
       hasNext: false,
       items: [],

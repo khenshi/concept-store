@@ -10,14 +10,14 @@ export class MovementHistoryQueryDto {
     type: 'integer',
     minimum: 1,
     maximum: 100,
-    default: 50,
+    default: 15,
   })
   @Transform(queryInteger)
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(100)
-  limit = 50;
+  limit = 15;
 
   @ApiPropertyOptional({
     format: 'uuid',

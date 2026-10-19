@@ -26,6 +26,8 @@ export const merchantBranchSelect = {
   merchant: { select: { id: true, name: true, code: true, status: true } },
 } satisfies Prisma.MerchantBranchSelect;
 
+const MERCHANT_BRANCH_PAGE_SIZE = 15;
+
 @Injectable()
 export class MerchantBranchesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -111,16 +113,16 @@ export class MerchantBranchesService {
             kind === 'merchant'
               ? [{ branch: { name: 'asc' } }, { id: 'asc' }]
               : [{ merchant: { name: 'asc' } }, { id: 'asc' }],
-          skip: (query.page - 1) * 10,
-          take: 10,
+          skip: (query.page - 1) * MERCHANT_BRANCH_PAGE_SIZE,
+          take: MERCHANT_BRANCH_PAGE_SIZE,
         });
         return {
           items,
           page: query.page,
-          limit: 10,
+          limit: MERCHANT_BRANCH_PAGE_SIZE,
           total,
-          totalPages: Math.ceil(total / 10),
-          hasNext: query.page * 10 < total,
+          totalPages: Math.ceil(total / MERCHANT_BRANCH_PAGE_SIZE),
+          hasNext: query.page * MERCHANT_BRANCH_PAGE_SIZE < total,
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },

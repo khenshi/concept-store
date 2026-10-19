@@ -15,7 +15,7 @@ import type { OrganizationContext } from '../authorization/organization-authoriz
 import { branchScope } from '../authorization/resource-access';
 import { BranchStatus } from '../../../generated/prisma/client';
 
-const BRANCH_DIRECTORY_PAGE_SIZE = 10;
+const BRANCH_DIRECTORY_PAGE_SIZE = 15;
 
 @Injectable()
 export class BranchesService {

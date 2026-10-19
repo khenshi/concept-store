@@ -331,7 +331,7 @@ export class BranchInventoryController {
   @ApiOkResponse({
     schema: {
       type: 'object',
-      required: ['items', 'nextCursor'],
+      required: ['items', 'nextCursor', 'totalPages'],
       properties: {
         items: {
           type: 'array',
@@ -343,6 +343,7 @@ export class BranchInventoryController {
           },
         },
         nextCursor: { type: 'string', format: 'uuid', nullable: true },
+        totalPages: { type: 'integer', minimum: 0 },
       },
     },
   })

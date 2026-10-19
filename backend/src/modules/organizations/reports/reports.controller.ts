@@ -93,7 +93,7 @@ export class ReportsController {
   @Get('branches/:branchId/reports/sales/analytics')
   @ApiOperation({
     summary:
-      'Read one authorized snapshot of summary, Manila trends and top ten saved products and merchants',
+      'Read one authorized snapshot of summary, Manila trends and top fifteen saved products and top ten saved merchants',
   })
   @ApiOkResponse({
     schema: {

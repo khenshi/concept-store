@@ -439,6 +439,12 @@ export class ReportsService {
           page,
           limit: PRODUCT_RANKING_PAGE_SIZE,
           totalProducts: ranking.totalProducts,
+          totalPages: Number(
+            (BigInt(ranking.totalProducts) +
+              BigInt(PRODUCT_RANKING_PAGE_SIZE) -
+              1n) /
+              BigInt(PRODUCT_RANKING_PAGE_SIZE),
+          ),
           hasNext:
             BigInt(page * PRODUCT_RANKING_PAGE_SIZE) <
             BigInt(ranking.totalProducts),

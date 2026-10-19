@@ -80,6 +80,7 @@ export type MerchantMovementHistoryRecord = Omit<
 export interface InventoryMovementPage<T = InventoryMovementRecord> {
   items: T[];
   nextCursor: string | null;
+  totalPages: number;
 }
 
 // Internal checkout relationships are not part of the inventory history contract.

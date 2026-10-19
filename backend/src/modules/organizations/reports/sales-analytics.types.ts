@@ -117,14 +117,14 @@ export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto 
   hourlyTrends?: StaffHourlyTrendDto[];
   @ApiProperty({
     type: [StaffTopProductDto],
-    maxItems: 10,
+    maxItems: 15,
     description:
       'Gross descending, units descending, product ID ascending; includes refund-only products',
   })
   topProducts!: StaffTopProductDto[];
   @ApiProperty({
     ...integer,
-    description: 'All distinct contributing products, not just the top ten',
+    description: 'All distinct contributing products, not just the top fifteen',
   })
   totalProducts!: string;
   @ApiProperty({
@@ -146,7 +146,7 @@ export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto 
 export class MerchantSalesAnalyticsResponseDto extends MerchantSalesReportResponseDto {
   @ApiProperty({ type: [MerchantDailyTrendDto], minItems: 1, maxItems: 367 })
   dailyTrends!: MerchantDailyTrendDto[];
-  @ApiProperty({ type: [MerchantTopProductDto], maxItems: 10 })
+  @ApiProperty({ type: [MerchantTopProductDto], maxItems: 15 })
   topProducts!: MerchantTopProductDto[];
   @ApiProperty(integer) totalProducts!: string;
 }
@@ -160,24 +160,26 @@ class SalesRankingPageResponseDto {
   @ApiProperty({ type: String, format: 'uuid', nullable: true })
   merchantId!: string | null;
   @ApiProperty({ type: 'integer', minimum: 1 }) page!: number;
-  @ApiProperty({ type: 'integer', minimum: 1, maximum: 10, example: 10 })
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 15, example: 15 })
   limit!: number;
   @ApiProperty({
     ...integer,
     description: 'All distinct contributing products in the applied period',
   })
   totalProducts!: string;
+  @ApiProperty({ type: 'integer', minimum: 0 })
+  totalPages!: number;
   @ApiProperty({ description: 'Whether another page follows this page' })
   hasNext!: boolean;
 }
 export class StaffSalesRankingPageResponseDto extends SalesRankingPageResponseDto {
   @ApiProperty({ enum: ['STAFF'] }) scope!: 'STAFF';
-  @ApiProperty({ type: [StaffTopProductDto], maxItems: 10 })
+  @ApiProperty({ type: [StaffTopProductDto], maxItems: 15 })
   items!: StaffTopProductDto[];
 }
 export class MerchantSalesRankingPageResponseDto extends SalesRankingPageResponseDto {
   @ApiProperty({ enum: ['MERCHANT'] }) scope!: 'MERCHANT';
-  @ApiProperty({ type: [MerchantTopProductDto], maxItems: 10 })
+  @ApiProperty({ type: [MerchantTopProductDto], maxItems: 15 })
   items!: MerchantTopProductDto[];
 }
 export type SalesAnalytics =

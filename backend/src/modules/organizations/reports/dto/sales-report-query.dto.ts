@@ -86,14 +86,14 @@ export class TransactionsQueryDto extends SalesReportQueryDto {
     type: 'integer',
     minimum: 1,
     maximum: 100,
-    default: 50,
+    default: 15,
     description: 'Transaction rows per page',
   })
   @Transform(queryInteger)
   @IsInt()
   @Min(1)
   @Max(100)
-  limit = 50;
+  limit = 15;
 }
 
 export enum SalesRankingSortBy {
@@ -107,7 +107,8 @@ export class SalesRankingQueryDto extends SalesReportQueryDto {
     minimum: 1,
     maximum: 21474836,
     default: 1,
-    description: 'One-based product ranking page; each page contains ten rows',
+    description:
+      'One-based product ranking page; each page contains fifteen rows',
   })
   @Transform(queryInteger)
   @IsInt()

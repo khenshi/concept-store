@@ -21,6 +21,8 @@ import type {
 } from './dto/space.dto';
 import { lockSpaceMerchant, rethrowSpaceConflict } from './space-occupancy';
 
+const SPACE_PAGE_SIZE = 15;
+
 export const occupancySelect = {
   id: true,
   organizationId: true,
@@ -61,9 +63,9 @@ function pageResult<T>(items: T[], total: number, page: number) {
     items,
     total,
     page,
-    limit: 10,
-    totalPages: Math.ceil(total / 10),
-    hasNext: page * 10 < total,
+    limit: SPACE_PAGE_SIZE,
+    totalPages: Math.ceil(total / SPACE_PAGE_SIZE),
+    hasNext: page * SPACE_PAGE_SIZE < total,
   };
 }
 
@@ -263,8 +265,8 @@ export class SpacesService {
       const rows = await tx.space.findMany({
         where,
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        skip: (query.page - 1) * 10,
-        take: 10,
+        skip: (query.page - 1) * SPACE_PAGE_SIZE,
+        take: SPACE_PAGE_SIZE,
         include: {
           occupancies: {
             where: {
@@ -351,8 +353,8 @@ export class SpacesService {
         where,
         select: occupancySelect,
         orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
-        skip: (query.page - 1) * 10,
-        take: 10,
+        skip: (query.page - 1) * SPACE_PAGE_SIZE,
+        take: SPACE_PAGE_SIZE,
       });
       return pageResult(rows.map(projectOccupancy), total, query.page);
     });

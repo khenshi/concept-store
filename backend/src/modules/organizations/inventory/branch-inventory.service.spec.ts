@@ -31,6 +31,7 @@ describe('BranchInventoryService', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
+      count: jest.fn(),
     },
     $queryRaw: jest.fn(),
     $transaction: jest.fn(),
@@ -75,6 +76,7 @@ describe('BranchInventoryService', () => {
       lowStockThreshold: 5,
     });
     prisma.inventoryMovement.findMany.mockResolvedValue([]);
+    prisma.inventoryMovement.count.mockResolvedValue(0);
     prisma.inventoryMovement.findFirst.mockResolvedValue({ id: 'cursor' });
     prisma.branchInventory.findFirst.mockResolvedValue({ id: 'cursor' });
     prisma.product.findFirst.mockResolvedValue({ id: 'cursor' });
@@ -302,6 +304,7 @@ describe('BranchInventoryService', () => {
   );
 
   it('filters using the same derived stock status returned by the API', async () => {
+    prisma.branchInventory.count.mockResolvedValue(1);
     prisma.branchInventory.findMany.mockResolvedValue([
       {
         id: 'low',
@@ -317,6 +320,7 @@ describe('BranchInventoryService', () => {
     ).resolves.toEqual({
       items: [expect.objectContaining({ id: 'low', stockStatus: 'LOW_STOCK' })],
       nextCursor: null,
+      totalPages: 1,
     });
     expect(prisma.branchInventory.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -346,6 +350,7 @@ describe('BranchInventoryService', () => {
       quantity: 1,
       lowStockThreshold: 5,
     });
+    prisma.branchInventory.count.mockResolvedValue(2);
     prisma.branchInventory.findMany.mockResolvedValueOnce([
       row(firstId),
       row(secondId),
@@ -358,6 +363,7 @@ describe('BranchInventoryService', () => {
     );
     expect(first.items).toHaveLength(1);
     expect(first.nextCursor).toMatch(new RegExp(`^${firstId}\\.[0-9a-f]{64}$`));
+    expect(first.totalPages).toBe(2);
     expect(prisma.branchInventory.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         take: 2,
@@ -401,6 +407,7 @@ describe('BranchInventoryService', () => {
       owner,
     );
     expect(next).toMatchObject({ nextCursor: null, items: [{ id: secondId }] });
+    expect(next.totalPages).toBe(2);
     expect(prisma.branchInventory.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         // Jest's nested matcher is intentionally untyped.
@@ -547,7 +554,7 @@ describe('BranchInventoryService', () => {
         branchInventoryId: 'inventory',
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: 51,
+      take: 16,
     });
     prisma.branchInventory.findUnique.mockResolvedValue(null);
     prisma.inventoryMovement.findMany.mockClear();
@@ -558,6 +565,7 @@ describe('BranchInventoryService', () => {
   });
 
   it('bounds history and rejects a foreign movement cursor', async () => {
+    prisma.inventoryMovement.count.mockResolvedValue(3);
     prisma.inventoryMovement.findMany.mockResolvedValue(
       Array.from({ length: 3 }, (_, index) => ({
         id: `movement-${index}`,
@@ -573,6 +581,7 @@ describe('BranchInventoryService', () => {
     );
     expect(page.items).toHaveLength(2);
     expect(page.nextCursor).toBe('movement-1');
+    expect(page.totalPages).toBe(2);
     prisma.inventoryMovement.findFirst.mockResolvedValue(null);
     prisma.inventoryMovement.findMany.mockClear();
     await expect(
@@ -670,6 +679,7 @@ describe('BranchInventoryService', () => {
       userId: 'manager',
       role: OrganizationRole.MANAGER,
     } as const;
+    prisma.inventoryMovement.count.mockResolvedValue(2);
     const page = await service.findMovementRecords('org', 'branch', manager, {
       limit: 1,
       q: 'stock',
@@ -688,6 +698,7 @@ describe('BranchInventoryService', () => {
       }),
     ]);
     expect(page.nextCursor).toEqual(expect.stringContaining('movement'));
+    expect(page.totalPages).toBe(2);
     expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],

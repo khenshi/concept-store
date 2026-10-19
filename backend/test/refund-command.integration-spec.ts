@@ -1072,6 +1072,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
       Array.from({ length: snapshots.length }, () => ({
         items: [],
         nextCursor: null,
+        totalPages: 0,
       })),
     );
     expect(await balance()).toBe(91);
@@ -1083,7 +1084,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
     });
     expect(
       await reconciliation.reconcile(owner(), branchId, { limit: 25 }),
-    ).toEqual({ items: [], nextCursor: null });
+    ).toEqual({ items: [], nextCursor: null, totalPages: 0 });
     expect(
       new Set(
         (

@@ -11,4 +11,5 @@ export interface InventoryReconciliationMismatch {
 export interface InventoryReconciliationPage {
   items: InventoryReconciliationMismatch[];
   nextCursor: string | null;
+  totalPages: number;
 }
