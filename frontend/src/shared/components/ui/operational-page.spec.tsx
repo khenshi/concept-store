@@ -1,5 +1,52 @@
 import { render, screen } from '@testing-library/react';
-import { OperationalPanel, OperationalToolbar } from './operational-page';
+import {
+  OperationalCollection,
+  OperationalPanel,
+  OperationalToolbar,
+} from './operational-page';
+
+describe('OperationalCollection', () => {
+  it('places collection controls below the header by default', () => {
+    render(
+      <OperationalCollection
+        title="Inventory stock"
+        controls={<div data-testid="collection-controls">Filters</div>}
+      >
+        <p>Content</p>
+      </OperationalCollection>,
+    );
+
+    const controls = screen.getByTestId('collection-controls');
+    expect(controls.parentElement).toHaveClass('bg-subtle', 'border-b');
+    expect(
+      screen
+        .getByRole('heading', { name: 'Inventory stock' })
+        .closest('section'),
+    ).toHaveClass('card-surface');
+  });
+
+  it('keeps inline collection controls in the header', () => {
+    render(
+      <OperationalCollection
+        surface="data"
+        controlsPlacement="inline"
+        title="Transaction history"
+        controls={<div data-testid="collection-controls">Filters</div>}
+      >
+        <p>Content</p>
+      </OperationalCollection>,
+    );
+
+    const section = screen
+      .getByRole('heading', { name: 'Transaction history' })
+      .closest('section');
+    expect(section).toHaveClass('data-surface');
+    expect(screen.getByTestId('collection-controls').parentElement).toHaveClass(
+      'min-w-0',
+    );
+    expect(section?.querySelector('header')).toHaveClass('lg:items-center');
+  });
+});
 
 describe('OperationalPanel', () => {
   it('supports an open section while keeping the shared card default', () => {

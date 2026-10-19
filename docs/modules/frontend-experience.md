@@ -224,15 +224,20 @@ remain unchanged.
 
 ## Shared operational table shell (October 19, 2026)
 
-Reports' semantic tables use the shared `OperationalTable` viewport and base
-table treatment. Inventory and Spaces responsive list collections use the shared
-`OperationalTableFrame` for the common empty-state inset and footer slot. Feature
+All table and record-list surfaces use the shared `OperationalCollection` shell
+for their title, description, action and control placement. Its `stacked`
+variant keeps filters below the title and action, matching Inventory stock;
+its `inline` variant keeps sorting and filtering beside the title, matching
+Reports Transactions and Rankings. The compatibility `OperationalPanel`
+wrapper preserves the same shell for existing non-collection panels. Feature
 components continue to own their columns, rows, loading/error states, filters,
-actions, numbered pagination and cursor-backed behavior. Inventory stock and
-integrity expose numbered controls backed by cached cursors. Paginated
-collection footers use the shared separator and borderless arrow treatment.
-Responsive list collections remain semantic lists rather than being forced into
-native HTML tables.
+actions, numbered pagination and cursor-backed behavior. Reports' semantic
+tables use the shared `OperationalTable` viewport and base table treatment;
+Inventory and Spaces responsive list collections use the shared
+`OperationalTableFrame` for the common empty-state inset and footer slot.
+Paginated collection footers use the shared separator and borderless arrow
+treatment. Responsive list collections remain semantic lists rather than being
+forced into native HTML tables.
 
 ## Sidebar navigation icon semantics (October 12, 2026)
 

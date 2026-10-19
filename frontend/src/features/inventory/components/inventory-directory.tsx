@@ -13,8 +13,7 @@ import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import {
-  OperationalPanel,
-  OperationalToolbar,
+  OperationalCollection,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
@@ -361,15 +360,11 @@ function ScopedInventoryDirectory({
         </div>
       ) : null}
       {activeTab === 'stock' ? (
-        <OperationalPanel
+        <OperationalCollection
           id="inventory-stock-panel"
           className="mt-0"
           title="Inventory stock"
-          description={
-            loading
-              ? 'Loading inventory…'
-              : `${placementLabel}`
-          }
+          description={loading ? 'Loading inventory…' : `${placementLabel}`}
           action={
             canWrite ? (
               <button
@@ -386,97 +381,99 @@ function ScopedInventoryDirectory({
               </button>
             ) : undefined
           }
-        >
-          <OperationalToolbar className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-            <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-              <label
-                className="block text-xs font-medium text-muted"
-                htmlFor="inventory-search"
-              >
-                Search
-              </label>
-              <div className="relative mt-1">
-                <Icon
-                  name="search"
-                  className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
-                />
-                <input
-                  id="inventory-search"
-                  type="search"
-                  maxLength={254}
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Product, SKU, or barcode"
-                  className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted"
-                />
+          controls={
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+              <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                <label
+                  className="block text-xs font-medium text-muted"
+                  htmlFor="inventory-search"
+                >
+                  Search
+                </label>
+                <div className="relative mt-1">
+                  <Icon
+                    name="search"
+                    className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
+                  />
+                  <input
+                    id="inventory-search"
+                    type="search"
+                    maxLength={254}
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Product, SKU, or barcode"
+                    className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted"
+                  />
+                </div>
+              </div>
+              <div className="min-w-0">
+                <label
+                  className="block text-xs font-medium text-muted"
+                  htmlFor="inventory-stock-status"
+                >
+                  Stock status
+                </label>
+                <SelectControl
+                  id="inventory-stock-status"
+                  aria-label="Stock status"
+                  className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10.5rem]"
+                  value={stockStatus}
+                  onValueChange={(value) =>
+                    setStockStatus(value as InventoryStockStatus | '')
+                  }
+                >
+                  <option value="">All stock statuses</option>
+                  <option value="IN_STOCK">In stock</option>
+                  <option value="LOW_STOCK">Low stock</option>
+                  <option value="OUT_OF_STOCK">Out of stock</option>
+                </SelectControl>
+              </div>
+              <div className="min-w-0">
+                <label
+                  className="block text-xs font-medium text-muted"
+                  htmlFor="inventory-merchant"
+                >
+                  Merchant
+                </label>
+                <SelectControl
+                  id="inventory-merchant"
+                  aria-label="Merchant"
+                  className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
+                  value={merchantId}
+                  onValueChange={setMerchantId}
+                >
+                  <option value="">All merchants</option>
+                  {merchants.map((merchant) => (
+                    <option key={merchant.id} value={merchant.id}>
+                      {merchant.name}
+                    </option>
+                  ))}
+                </SelectControl>
+              </div>
+              <div className="min-w-0">
+                <label
+                  className="block text-xs font-medium text-muted"
+                  htmlFor="inventory-status"
+                >
+                  Product status
+                </label>
+                <SelectControl
+                  id="inventory-status"
+                  aria-label="Product status"
+                  className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[9.5rem]"
+                  value={status}
+                  onValueChange={(value) =>
+                    setStatus(value as ProductStatus | '')
+                  }
+                >
+                  <option value="">All statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </SelectControl>
               </div>
             </div>
-            <div className="min-w-0">
-              <label
-                className="block text-xs font-medium text-muted"
-                htmlFor="inventory-stock-status"
-              >
-                Stock status
-              </label>
-              <SelectControl
-                id="inventory-stock-status"
-                aria-label="Stock status"
-                className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10.5rem]"
-                value={stockStatus}
-                onValueChange={(value) =>
-                  setStockStatus(value as InventoryStockStatus | '')
-                }
-              >
-                <option value="">All stock statuses</option>
-                <option value="IN_STOCK">In stock</option>
-                <option value="LOW_STOCK">Low stock</option>
-                <option value="OUT_OF_STOCK">Out of stock</option>
-              </SelectControl>
-            </div>
-            <div className="min-w-0">
-              <label
-                className="block text-xs font-medium text-muted"
-                htmlFor="inventory-merchant"
-              >
-                Merchant
-              </label>
-              <SelectControl
-                id="inventory-merchant"
-                aria-label="Merchant"
-                className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
-                value={merchantId}
-                onValueChange={setMerchantId}
-              >
-                <option value="">All merchants</option>
-                {merchants.map((merchant) => (
-                  <option key={merchant.id} value={merchant.id}>
-                    {merchant.name}
-                  </option>
-                ))}
-              </SelectControl>
-            </div>
-            <div className="min-w-0">
-              <label
-                className="block text-xs font-medium text-muted"
-                htmlFor="inventory-status"
-              >
-                Product status
-              </label>
-              <SelectControl
-                id="inventory-status"
-                aria-label="Product status"
-                className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[9.5rem]"
-                value={status}
-                onValueChange={(value) =>
-                  setStatus(value as ProductStatus | '')
-                }
-              >
-                <option value="">All statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </SelectControl>
-            </div>
-          </OperationalToolbar>
+          }
+        >
           <OperationalTableFrame
             empty={
               !loading && !error && !items.length ? (
@@ -655,7 +652,7 @@ function ScopedInventoryDirectory({
               </ul>
             ) : null}
           </OperationalTableFrame>
-        </OperationalPanel>
+        </OperationalCollection>
       ) : null}
       {activeTab === 'movements' && branch && !loading && !error ? (
         <InventoryMovementRecords

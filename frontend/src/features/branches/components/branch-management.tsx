@@ -13,8 +13,7 @@ import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   FilterField,
-  OperationalPanel,
-  OperationalToolbar,
+  OperationalCollection,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
@@ -274,8 +273,8 @@ function StaffBranchDirectory({
   return (
     <>
       <BranchSummaryMetrics summary={summary} />
-      <OperationalPanel
-        variant="card"
+      <OperationalCollection
+        surface="card"
         title="Store locations"
         description="Review accessible branches, their location, and merchant coverage."
         action={
@@ -285,42 +284,41 @@ function StaffBranchDirectory({
             </Button>
           ) : undefined
         }
-      >
-        <OperationalToolbar
-          variant="card"
-          className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto]"
-        >
-          <TextField
-            id="branch-search"
-            label="Search branches"
-            type="search"
-            value={search}
-            placeholder="Name, code, or location"
-            className="rounded-full px-4"
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-          <FilterField id="branch-status" label="Status">
-            <SelectControl
-              id="branch-status"
-              value={statusFilter}
-              onValueChange={(value) =>
-                onStatusChange(value as BranchStatus | '')
-              }
+        controls={
+          <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
+            <TextField
+              id="branch-search"
+              label="Search branches"
+              type="search"
+              value={search}
+              placeholder="Name, code, or location"
+              className="rounded-full px-4"
+              onChange={(event) => onSearchChange(event.target.value)}
+            />
+            <FilterField id="branch-status" label="Status">
+              <SelectControl
+                id="branch-status"
+                value={statusFilter}
+                onValueChange={(value) =>
+                  onStatusChange(value as BranchStatus | '')
+                }
+              >
+                <option value="">All statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </SelectControl>
+            </FilterField>
+            <Button
+              variant="quiet"
+              className="justify-self-start px-3 sm:mb-0.5"
+              disabled={!hasFilters}
+              onClick={onClear}
             >
-              <option value="">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </SelectControl>
-          </FilterField>
-          <Button
-            variant="quiet"
-            className="justify-self-start px-3 sm:mb-0.5"
-            disabled={!hasFilters}
-            onClick={onClear}
-          >
-            Clear filters
-          </Button>
-        </OperationalToolbar>
+              Clear filters
+            </Button>
+          </div>
+        }
+      >
         {directoryStatus === 'loading' || directoryStatus === 'idle' ? (
           <BranchTableSkeleton label="Loading branches" />
         ) : directoryError ? (
@@ -430,7 +428,7 @@ function StaffBranchDirectory({
             />
           </>
         ) : null}
-      </OperationalPanel>
+      </OperationalCollection>
     </>
   );
 }
@@ -457,34 +455,33 @@ function MerchantBranchDirectory({
   search: string;
 }) {
   return (
-    <OperationalPanel
-      variant="card"
+    <OperationalCollection
+      surface="card"
       className="data-surface mt-7"
       title="Store locations"
       description="Open a branch to review its identity and your own inventory."
+      controls={
+        <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <TextField
+            id="branch-search"
+            label="Search branches"
+            type="search"
+            value={search}
+            placeholder="Name or code"
+            className="rounded-full px-4"
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+          <Button
+            variant="quiet"
+            className="justify-self-start px-3 sm:mb-0.5"
+            disabled={!hasSearch}
+            onClick={onClear}
+          >
+            Clear filters
+          </Button>
+        </div>
+      }
     >
-      <OperationalToolbar
-        variant="card"
-        className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_auto]"
-      >
-        <TextField
-          id="branch-search"
-          label="Search branches"
-          type="search"
-          value={search}
-          placeholder="Name or code"
-          className="rounded-full px-4"
-          onChange={(event) => onSearchChange(event.target.value)}
-        />
-        <Button
-          variant="quiet"
-          className="justify-self-start px-3 sm:mb-0.5"
-          disabled={!hasSearch}
-          onClick={onClear}
-        >
-          Clear filters
-        </Button>
-      </OperationalToolbar>
       {branchesStatus === 'loading' || branchesStatus === 'idle' ? (
         <div className="px-5 py-8 sm:px-6">
           <ListSkeleton label="Loading branches" />
@@ -530,7 +527,7 @@ function MerchantBranchDirectory({
           ))}
         </ul>
       )}
-    </OperationalPanel>
+    </OperationalCollection>
   );
 }
 

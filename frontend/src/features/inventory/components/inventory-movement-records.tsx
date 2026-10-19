@@ -12,10 +12,7 @@ import {
 } from '@/shared/components/ui/date-range-picker';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
-import {
-  OperationalPanel,
-  OperationalToolbar,
-} from '@/shared/components/ui/operational-page';
+import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
@@ -220,100 +217,102 @@ export function InventoryMovementRecords({
 
   return (
     <>
-      <OperationalPanel
+      <OperationalCollection
         id="inventory-movement-records-panel"
         className="mt-0"
         title="Movement records"
         description="Search and review stock activity recorded in this branch."
-      >
-        <OperationalToolbar className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(18rem,1.35fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(18rem,0.95fr)_auto]">
-          <div className="min-w-0">
-            <label
-              className="block text-xs font-medium text-muted"
-              htmlFor="movement-record-search"
-            >
-              Search
-            </label>
-            <div className="relative mt-1">
-              <Icon
-                name="search"
-                className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
-              />
-              <input
-                id="movement-record-search"
-                type="search"
-                value={search}
-                maxLength={254}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="e.g. Amihan Vase or AMI-001"
-                className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:outline-offset-[-2px]"
-              />
-            </div>
-          </div>
-          <div className="min-w-0">
-            <label
-              className="block text-xs font-medium text-muted"
-              htmlFor="movement-record-type"
-            >
-              Movement type
-            </label>
-            <SelectControl
-              id="movement-record-type"
-              aria-label="Movement type"
-              value={type}
-              className="bg-subtle px-4 text-sm font-medium mt-1"
-              onValueChange={(value) => setType(value as MovementType | '')}
-            >
-              <option value="">All movement types</option>
-              <option value="RECEIPT">Receipts</option>
-              <option value="ADJUSTMENT">Adjustments</option>
-              <option value="SALE">Sales</option>
-              <option value="RETURN">Returns</option>
-            </SelectControl>
-          </div>
-          {canWrite ? (
+        controls={
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(18rem,1.35fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(18rem,0.95fr)_auto]">
             <div className="min-w-0">
               <label
                 className="block text-xs font-medium text-muted"
-                htmlFor="movement-record-merchant"
+                htmlFor="movement-record-search"
               >
-                Merchant
+                Search
+              </label>
+              <div className="relative mt-1">
+                <Icon
+                  name="search"
+                  className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
+                />
+                <input
+                  id="movement-record-search"
+                  type="search"
+                  value={search}
+                  maxLength={254}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="e.g. Amihan Vase or AMI-001"
+                  className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted focus-visible:outline-offset-[-2px]"
+                />
+              </div>
+            </div>
+            <div className="min-w-0">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="movement-record-type"
+              >
+                Movement type
               </label>
               <SelectControl
-                id="movement-record-merchant"
-                aria-label="Merchant"
-                value={merchantId}
+                id="movement-record-type"
+                aria-label="Movement type"
+                value={type}
                 className="bg-subtle px-4 text-sm font-medium mt-1"
-                onValueChange={setMerchantId}
+                onValueChange={(value) => setType(value as MovementType | '')}
               >
-                <option value="">All merchants</option>
-                {merchants.map((merchant) => (
-                  <option key={merchant.id} value={merchant.id}>
-                    {merchant.name}
-                  </option>
-                ))}
+                <option value="">All movement types</option>
+                <option value="RECEIPT">Receipts</option>
+                <option value="ADJUSTMENT">Adjustments</option>
+                <option value="SALE">Sales</option>
+                <option value="RETURN">Returns</option>
               </SelectControl>
             </div>
-          ) : null}
-          <div className="min-w-0 md:col-span-3 md:w-[18rem] md:justify-self-start xl:col-span-1">
-            <DateRangePicker
-              id="movement-record-date-filter"
-              value={{ fromDay, throughDay }}
-              onChange={({
-                fromDay: nextFromDay,
-                throughDay: nextThroughDay,
-              }) => {
-                setFromDay(nextFromDay);
-                setThroughDay(nextThroughDay);
-              }}
-              onApply={applyDateFilter}
-              onClear={clearDateFilter}
-              filterLabel="Movement date filter"
-              dialogLabel="Choose movement record dates"
-              className="w-full"
-            />
+            {canWrite ? (
+              <div className="min-w-0">
+                <label
+                  className="block text-xs font-medium text-muted"
+                  htmlFor="movement-record-merchant"
+                >
+                  Merchant
+                </label>
+                <SelectControl
+                  id="movement-record-merchant"
+                  aria-label="Merchant"
+                  value={merchantId}
+                  className="bg-subtle px-4 text-sm font-medium mt-1"
+                  onValueChange={setMerchantId}
+                >
+                  <option value="">All merchants</option>
+                  {merchants.map((merchant) => (
+                    <option key={merchant.id} value={merchant.id}>
+                      {merchant.name}
+                    </option>
+                  ))}
+                </SelectControl>
+              </div>
+            ) : null}
+            <div className="min-w-0 md:col-span-3 md:w-[18rem] md:justify-self-start xl:col-span-1">
+              <DateRangePicker
+                id="movement-record-date-filter"
+                value={{ fromDay, throughDay }}
+                onChange={({
+                  fromDay: nextFromDay,
+                  throughDay: nextThroughDay,
+                }) => {
+                  setFromDay(nextFromDay);
+                  setThroughDay(nextThroughDay);
+                }}
+                onApply={applyDateFilter}
+                onClear={clearDateFilter}
+                filterLabel="Movement date filter"
+                dialogLabel="Choose movement record dates"
+                className="w-full"
+              />
+            </div>
           </div>
-        </OperationalToolbar>
+        }
+      >
         <OperationalTableFrame
           empty={
             !loading && !error && !items.length ? (
@@ -441,7 +440,7 @@ export function InventoryMovementRecords({
             </ol>
           ) : null}
         </OperationalTableFrame>
-      </OperationalPanel>
+      </OperationalCollection>
       {selectedReason !== null ? (
         <InventoryMovementReasonDialog
           reason={selectedReason}

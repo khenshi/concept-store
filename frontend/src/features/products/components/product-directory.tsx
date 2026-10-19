@@ -16,8 +16,7 @@ import { InputControl } from '@/shared/components/ui/input-control';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   FilterField,
-  OperationalPanel,
-  OperationalToolbar,
+  OperationalCollection,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -138,7 +137,7 @@ function ScopedProductDirectory({
         }
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      <OperationalPanel
+      <OperationalCollection
         className="mt-0"
         title="Product directory"
         description={
@@ -159,49 +158,53 @@ function ScopedProductDirectory({
             </button>
           ) : undefined
         }
+        controls={
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]">
+            <FilterField id="product-search" label="Search">
+              <InputControl
+                id="product-search"
+                icon="search"
+                type="search"
+                value={search}
+                maxLength={254}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Product name, SKU, or barcode"
+                className="text-sm"
+                disabled={creating}
+              />
+            </FilterField>
+            <FilterField id="product-filter-merchant" label="Merchant">
+              <SelectControl
+                id="product-filter-merchant"
+                value={merchantId}
+                disabled={creating}
+                onValueChange={setMerchantId}
+              >
+                <option value="">All merchants</option>
+                {merchants.map((merchant) => (
+                  <option key={merchant.id} value={merchant.id}>
+                    {merchant.name}
+                  </option>
+                ))}
+              </SelectControl>
+            </FilterField>
+            <FilterField id="product-filter-status" label="Status">
+              <SelectControl
+                id="product-filter-status"
+                value={status}
+                disabled={creating}
+                onValueChange={(value) =>
+                  setStatus(value as ProductStatus | '')
+                }
+              >
+                <option value="">All statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </SelectControl>
+            </FilterField>
+          </div>
+        }
       >
-        <OperationalToolbar className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.5fr)]">
-          <FilterField id="product-search" label="Search">
-            <InputControl
-              id="product-search"
-              icon="search"
-              type="search"
-              value={search}
-              maxLength={254}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Product name, SKU, or barcode"
-              className="text-sm"
-              disabled={creating}
-            />
-          </FilterField>
-          <FilterField id="product-filter-merchant" label="Merchant">
-            <SelectControl
-              id="product-filter-merchant"
-              value={merchantId}
-              disabled={creating}
-              onValueChange={setMerchantId}
-            >
-              <option value="">All merchants</option>
-              {merchants.map((merchant) => (
-                <option key={merchant.id} value={merchant.id}>
-                  {merchant.name}
-                </option>
-              ))}
-            </SelectControl>
-          </FilterField>
-          <FilterField id="product-filter-status" label="Status">
-            <SelectControl
-              id="product-filter-status"
-              value={status}
-              disabled={creating}
-              onValueChange={(value) => setStatus(value as ProductStatus | '')}
-            >
-              <option value="">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </SelectControl>
-          </FilterField>
-        </OperationalToolbar>
         {loading ? (
           <ListSkeleton className="p-6" label="Loading products" />
         ) : error ? (
@@ -264,7 +267,7 @@ function ScopedProductDirectory({
             ))}
           </ul>
         )}
-      </OperationalPanel>
+      </OperationalCollection>
       {creating && canEdit ? (
         <FormDialog
           title="Add a product"

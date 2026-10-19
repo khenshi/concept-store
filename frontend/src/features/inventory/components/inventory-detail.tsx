@@ -17,6 +17,7 @@ import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
+  OperationalCollection,
   OperationalPanel,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
@@ -639,7 +640,7 @@ function ScopedInventoryDetail({
           </div>
         </dl>
       </section>
-      <OperationalPanel
+      <OperationalCollection
         className="data-surface mt-5"
         title="Movement history"
         description={
@@ -756,7 +757,7 @@ function ScopedInventoryDetail({
             </ol>
           ) : null}
         </OperationalTableFrame>
-      </OperationalPanel>
+      </OperationalCollection>
       {stockActions}
       {selectedMovementReason !== null ? (
         <InventoryMovementReasonDialog

@@ -14,8 +14,7 @@ import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { InputControl } from '@/shared/components/ui/input-control';
 import {
   FilterField,
-  OperationalPanel,
-  OperationalToolbar,
+  OperationalCollection,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -149,7 +148,7 @@ function ScopedMerchantDirectory({
         }
       />
       {success ? <StatusNotice>{success}</StatusNotice> : null}
-      <OperationalPanel
+      <OperationalCollection
         className="mt-0"
         title="Merchant directory"
         description={`${merchants.length} matching merchant${merchants.length === 1 ? '' : 's'}`}
@@ -167,37 +166,40 @@ function ScopedMerchantDirectory({
             </button>
           ) : undefined
         }
+        controls={
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]">
+            <FilterField id="merchant-search" label="Search">
+              <InputControl
+                id="merchant-search"
+                icon="search"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={
+                  organization.role === 'MANAGER'
+                    ? 'Business or code'
+                    : 'Business, code, contact, email, or phone'
+                }
+                type="search"
+                value={search}
+              />
+            </FilterField>
+            <FilterField id="merchant-status" label="Status">
+              <SelectControl
+                id="merchant-status"
+                onValueChange={(value) =>
+                  setStatus(value as MerchantStatus | '')
+                }
+                value={status}
+              >
+                <option value="">All statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="SUSPENDED">Suspended</option>
+                <option value="ENDED">Ended</option>
+              </SelectControl>
+            </FilterField>
+          </div>
+        }
       >
-        <OperationalToolbar className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.35fr)]">
-          <FilterField id="merchant-search" label="Search">
-            <InputControl
-              id="merchant-search"
-              icon="search"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={
-                organization.role === 'MANAGER'
-                  ? 'Business or code'
-                  : 'Business, code, contact, email, or phone'
-              }
-              type="search"
-              value={search}
-            />
-          </FilterField>
-          <FilterField id="merchant-status" label="Status">
-            <SelectControl
-              id="merchant-status"
-              onValueChange={(value) => setStatus(value as MerchantStatus | '')}
-              value={status}
-            >
-              <option value="">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-              <option value="SUSPENDED">Suspended</option>
-              <option value="ENDED">Ended</option>
-            </SelectControl>
-          </FilterField>
-        </OperationalToolbar>
-
         {loading ? (
           <div className="px-5 py-6 sm:px-6">
             <ListSkeleton label="Loading merchants" />
@@ -274,7 +276,7 @@ function ScopedMerchantDirectory({
             ))}
           </ul>
         )}
-      </OperationalPanel>
+      </OperationalCollection>
       {showCreate && canEdit ? (
         <CreateMerchantModal
           organizationId={organizationId}

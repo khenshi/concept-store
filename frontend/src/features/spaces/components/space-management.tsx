@@ -9,7 +9,7 @@ import { buttonStyles } from '@/shared/components/ui/button';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
-import { OperationalToolbar } from '@/shared/components/ui/operational-page';
+import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { Icon } from '@/shared/components/ui/icon';
@@ -266,22 +266,17 @@ function ScopedSpaces(
   }
   const data = scope.kind === 'branch' ? spaces : occupancies;
   return (
-    <section
-      className="mt-5 min-w-0 card-surface text-ink"
+    <OperationalCollection
+      className="mt-5 min-w-0"
+      title={own ? 'Your spaces' : 'Spaces'}
+      description={
+        own
+          ? 'Your current spaces and past occupancy records.'
+          : 'Track physical space occupancy. Space assignments are optional.'
+      }
       aria-label="Space occupancy"
-    >
-      <header className="flex items-start justify-between gap-5 border-b border-hairline px-5 py-5 max-sm:grid sm:px-6">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold">
-            {own ? 'Your spaces' : 'Spaces'}
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            {own
-              ? 'Your current spaces and past occupancy records.'
-              : 'Track physical space occupancy. Space assignments are optional.'}
-          </p>
-        </div>
-        {owner && (
+      action={
+        owner ? (
           <button
             type="button"
             className={`${buttonStyles({ variant: 'primary' })} shrink-0`}
@@ -292,126 +287,126 @@ function ScopedSpaces(
           >
             {scope.kind === 'branch' ? 'Add space' : 'Assign space'}
           </button>
-        )}
-      </header>
-      {scope.kind === 'branch' ? (
-        <OperationalToolbar className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-            <label
-              className="block text-xs font-medium text-muted"
-              htmlFor="space-search"
-            >
-              Search spaces
-            </label>
-            <div className="relative mt-1">
-              <Icon
-                name="search"
-                className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
-              />
-              <input
-                id="space-search"
-                className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted"
-                maxLength={120}
-                value={q}
-                disabled={pending}
-                onChange={(e) => {
-                  setQ(e.target.value);
-                  setPage(1);
-                }}
-              />
+        ) : undefined
+      }
+      controls={
+        scope.kind === 'branch' ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+            <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="space-search"
+              >
+                Search spaces
+              </label>
+              <div className="relative mt-1">
+                <Icon
+                  name="search"
+                  className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted"
+                />
+                <input
+                  id="space-search"
+                  className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted"
+                  maxLength={120}
+                  value={q}
+                  disabled={pending}
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
             </div>
-          </div>
-          <div className="min-w-0">
-            <label
-              className="block text-xs font-medium text-muted"
-              htmlFor="space-type"
-            >
-              Type
-            </label>
-            <SelectControl
-              id="space-type"
-              aria-label="Type"
-              className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
-              value={type}
-              disabled={pending || !types || !!typesError}
-              onValueChange={(value) => {
-                setType(value);
-                setPage(1);
-              }}
-            >
-              <option value="">All types</option>
-              {types?.map((row) => (
-                <option key={row.id} value={row.name}>
-                  {row.name}
-                </option>
-              ))}
-            </SelectControl>
-            {typesError && (
-              <>
-                <p role="alert" className="text-danger">
-                  {typesError}
-                </p>
-                <button
-                  type="button"
-                  className={buttonStyles({ variant: 'quiet' })}
-                  onClick={reloadTypes}
-                >
-                  Retry types
-                </button>
-              </>
-            )}
-          </div>
-          <div className="min-w-0">
-            <label
-              className="block text-xs font-medium text-muted"
-              htmlFor="space-status"
-            >
-              Space status
-            </label>
-            <SelectControl
-              id="space-status"
-              aria-label="Space status"
-              className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
-              value={status}
-              disabled={pending}
-              onValueChange={(value) => {
-                setStatus(value);
-                setPage(1);
-              }}
-            >
-              <option value="">All spaces</option>
-              <option value="ACTIVE">Active</option>
-              <option value="ARCHIVED">Archived</option>
-            </SelectControl>
-          </div>
-          {!own && (
             <div className="min-w-0">
               <label
                 className="block text-xs font-medium text-muted"
-                htmlFor="space-occupancy"
+                htmlFor="space-type"
               >
-                Occupancy
+                Type
               </label>
               <SelectControl
-                id="space-occupancy"
-                aria-label="Occupancy"
+                id="space-type"
+                aria-label="Type"
                 className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
-                value={occupancy}
-                disabled={pending}
+                value={type}
+                disabled={pending || !types || !!typesError}
                 onValueChange={(value) => {
-                  setOccupancy(value as typeof occupancy);
+                  setType(value);
                   setPage(1);
                 }}
               >
-                <option value="">All</option>
-                <option value="OCCUPIED">Occupied</option>
-                <option value="VACANT">Vacant</option>
+                <option value="">All types</option>
+                {types?.map((row) => (
+                  <option key={row.id} value={row.name}>
+                    {row.name}
+                  </option>
+                ))}
+              </SelectControl>
+              {typesError && (
+                <>
+                  <p role="alert" className="text-danger">
+                    {typesError}
+                  </p>
+                  <button
+                    type="button"
+                    className={buttonStyles({ variant: 'quiet' })}
+                    onClick={reloadTypes}
+                  >
+                    Retry types
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="min-w-0">
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="space-status"
+              >
+                Space status
+              </label>
+              <SelectControl
+                id="space-status"
+                aria-label="Space status"
+                className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
+                value={status}
+                disabled={pending}
+                onValueChange={(value) => {
+                  setStatus(value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All spaces</option>
+                <option value="ACTIVE">Active</option>
+                <option value="ARCHIVED">Archived</option>
               </SelectControl>
             </div>
-          )}
-        </OperationalToolbar>
-      ) : (
-        <OperationalToolbar>
+            {!own && (
+              <div className="min-w-0">
+                <label
+                  className="block text-xs font-medium text-muted"
+                  htmlFor="space-occupancy"
+                >
+                  Occupancy
+                </label>
+                <SelectControl
+                  id="space-occupancy"
+                  aria-label="Occupancy"
+                  className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
+                  value={occupancy}
+                  disabled={pending}
+                  onValueChange={(value) => {
+                    setOccupancy(value as typeof occupancy);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">All</option>
+                  <option value="OCCUPIED">Occupied</option>
+                  <option value="VACANT">Vacant</option>
+                </SelectControl>
+              </div>
+            )}
+          </div>
+        ) : (
           <div
             className="flex flex-wrap gap-2"
             role="group"
@@ -434,8 +429,9 @@ function ScopedSpaces(
               </button>
             ))}
           </div>
-        </OperationalToolbar>
-      )}
+        )
+      }
+    >
       {success && (
         <p className="mt-4 px-5 text-sm text-success-ink sm:px-6" role="status">
           {success}
@@ -641,6 +637,6 @@ function ScopedSpaces(
         />
       )}
       {confirmationDialog}
-    </section>
+    </OperationalCollection>
   );
 }

@@ -6,7 +6,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
-import { OperationalPanel } from '@/shared/components/ui/operational-page';
+import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
@@ -126,7 +126,7 @@ export function InventoryReconciliation({
   );
 
   return (
-    <OperationalPanel
+    <OperationalCollection
       id={id}
       className="mt-0"
       title="Stock integrity"
@@ -239,6 +239,6 @@ export function InventoryReconciliation({
           </div>
         ) : null}
       </OperationalTableFrame>
-    </OperationalPanel>
+    </OperationalCollection>
   );
 }

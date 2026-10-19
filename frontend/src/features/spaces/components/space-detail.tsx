@@ -8,6 +8,7 @@ import { BackLink } from '@/shared/components/ui/back-link';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
+  OperationalCollection,
   OperationalPanel,
   StatusNotice,
 } from '@/shared/components/ui/operational-page';
@@ -493,7 +494,7 @@ function ScopedSpaceDetail({
             </OperationalPanel>
           </aside>
         </div>
-        <OperationalPanel
+        <OperationalCollection
           className="!mt-0"
           title="Occupancy history"
           description="Current and completed assignments recorded for this space."
@@ -569,7 +570,7 @@ function ScopedSpaceDetail({
               <HistoryList data={history} />
             </OperationalTableFrame>
           </div>
-        </OperationalPanel>
+        </OperationalCollection>
       </div>
       {edit && owner ? (
         <SpaceForm
