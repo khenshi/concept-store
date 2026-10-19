@@ -47,6 +47,11 @@ describe('OrganizationWorkspace', () => {
         ),
       ).toBeInTheDocument();
       expect(
+        screen.getByText(
+          `${role.charAt(0) + role.slice(1).toLowerCase()} access`,
+        ).parentElement,
+      ).toHaveClass('flex', 'justify-end');
+      expect(
         screen.getByRole('heading', { name: 'Branch operations' }),
       ).toBeInTheDocument();
       expect(

@@ -193,15 +193,17 @@ export function OrganizationWorkspace({
         title="Workspace overview"
         description="Move between daily operations, organization management, and your account from one clear starting point."
         action={
-          <span className="inline-flex items-center gap-2 rounded-full border border-hairline bg-subtle px-3 py-1.5 text-xs font-semibold text-muted">
-            <span
-              aria-hidden="true"
-              className="size-1.5 rounded-full bg-accent"
-            />
-            {organization.role.charAt(0) +
-              organization.role.slice(1).toLowerCase()}{' '}
-            access
-          </span>
+          <div className="flex justify-end">
+            <span className="inline-flex items-center gap-2 rounded-full border border-hairline bg-subtle px-3 py-1.5 text-xs font-semibold text-muted">
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full bg-accent"
+              />
+              {organization.role.charAt(0) +
+                organization.role.slice(1).toLowerCase()}{' '}
+              access
+            </span>
+          </div>
         }
       />
       <div className="grid gap-5">
