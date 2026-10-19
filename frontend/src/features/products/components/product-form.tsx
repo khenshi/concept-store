@@ -8,6 +8,7 @@ import { listActiveMerchantBranches } from '@/features/merchant-branches/api/mer
 import Link from 'next/link';
 import type { BranchView } from '@/features/branches/model/branch.types';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import {
   TextField,
   focusFirstInvalidField,
@@ -36,6 +37,7 @@ export function ProductForm({
   onSaved,
   onCancel,
   onPendingChange,
+  onOpeningStockChange,
 }: {
   organizationId: string;
   merchants: MerchantView[];
@@ -43,12 +45,16 @@ export function ProductForm({
   onSaved(product: Product, withOpeningStock?: boolean): void;
   onCancel(): void;
   onPendingChange?(pending: boolean): void;
+  onOpeningStockChange?(expanded: boolean): void;
 }) {
   const { request } = useAuth();
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [openingEnabled, setOpeningEnabled] = useState(false);
+  const [openingPrice, setOpeningPrice] = useState('');
+  const [openingQuantity, setOpeningQuantity] = useState('');
+  const [openingThreshold, setOpeningThreshold] = useState('5');
   const [selectedMerchantId, setSelectedMerchantId] = useState(
     product?.merchantId ?? '',
   );
@@ -278,11 +284,6 @@ export function ProductForm({
           validate('branchId', true);
       }}
     >
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
       {recovery ? (
         <p role="status" className="text-sm text-muted">
           The opening-stock outcome needs confirmation. Your submitted fields
@@ -290,218 +291,268 @@ export function ProductForm({
           keep this form open rather than creating another product.
         </p>
       ) : null}
-      {!product ? (
-        <div className="grid gap-2">
-          <label
-            htmlFor="product-merchant"
-            className="text-label font-semibold"
-          >
-            Merchant
-          </label>
-          <SelectControl
-            id="product-merchant"
-            name="merchantId"
+      <div
+        className={`grid min-w-0 gap-5 ${!product && openingEnabled ? 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start' : ''}`}
+      >
+        <div className="grid min-w-0 gap-5">
+          {!product ? (
+            <div className="grid gap-2">
+              <label
+                htmlFor="product-merchant"
+                className="text-label font-semibold"
+              >
+                Merchant
+              </label>
+              <SelectControl
+                id="product-merchant"
+                name="merchantId"
+                required
+                disabled={disabled}
+                aria-invalid={Boolean(errors.merchantId)}
+                aria-describedby="product-merchant-hint"
+                onValueChange={(value) => {
+                  setSelectedMerchantId(value);
+                  const field = formRef.current?.elements.namedItem('branchId');
+                  if (field instanceof HTMLSelectElement) field.value = '';
+                  validate('merchantId');
+                }}
+              >
+                <option value="">Choose an active merchant</option>
+                {activeMerchants.map((merchant) => (
+                  <option key={merchant.id} value={merchant.id}>
+                    {merchant.name}
+                  </option>
+                ))}
+              </SelectControl>
+              <p
+                id="product-merchant-hint"
+                className={`text-xs ${errors.merchantId ? 'text-danger' : 'text-muted'}`}
+              >
+                {errors.merchantId ??
+                  (activeMerchants.length
+                    ? 'Merchant ownership cannot be changed after creation.'
+                    : 'Add or activate a merchant before creating a product.')}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">
+              Merchant ownership is fixed. Profile edits do not change branch
+              prices or stock.
+            </p>
+          )}
+          <TextField
+            name="name"
+            label="Product name"
             required
+            maxLength={120}
+            defaultValue={product?.name}
+            error={errors.name}
             disabled={disabled}
-            aria-invalid={Boolean(errors.merchantId)}
-            aria-describedby="product-merchant-hint"
-            onValueChange={(value) => {
-              setSelectedMerchantId(value);
-              const field = formRef.current?.elements.namedItem('branchId');
-              if (field instanceof HTMLSelectElement) field.value = '';
-              validate('merchantId');
-            }}
-          >
-            <option value="">Choose an active merchant</option>
-            {activeMerchants.map((merchant) => (
-              <option key={merchant.id} value={merchant.id}>
-                {merchant.name}
-              </option>
-            ))}
-          </SelectControl>
-          <p
-            id="product-merchant-hint"
-            className={`text-xs ${errors.merchantId ? 'text-danger' : 'text-muted'}`}
-          >
-            {errors.merchantId ??
-              (activeMerchants.length
-                ? 'Merchant ownership cannot be changed after creation.'
-                : 'Add or activate a merchant before creating a product.')}
-          </p>
-        </div>
-      ) : (
-        <p className="text-sm text-muted">
-          Merchant ownership is fixed. Profile edits do not change branch prices
-          or stock.
-        </p>
-      )}
-      <TextField
-        name="name"
-        label="Product name"
-        required
-        maxLength={120}
-        defaultValue={product?.name}
-        error={errors.name}
-        disabled={disabled}
-      />
-      <div className="grid min-w-0 items-start gap-5 sm:grid-cols-2">
-        <TextField
-          name="sku"
-          label="SKU (optional)"
-          maxLength={32}
-          defaultValue={product?.sku ?? ''}
-          error={errors.sku}
-          hint="Letters, numbers, and internal hyphens; saved in uppercase."
-          disabled={disabled}
-          containerClassName="content-start"
-        />
-        <TextField
-          name="barcode"
-          label="Barcode (optional)"
-          maxLength={64}
-          defaultValue={product?.barcode ?? ''}
-          error={errors.barcode}
-          hint="Letters, numbers, and hyphens; case and leading zeroes are preserved."
-          disabled={disabled}
-          containerClassName="content-start"
-        />
-      </div>
-      {!product ? (
-        <section
-          className="grid min-w-0 gap-5 rounded-control border border-hairline bg-subtle p-5"
-          aria-label="Optional initial stock"
-        >
-          <label className="flex items-center gap-3 text-sm font-semibold">
-            <input
-              type="checkbox"
-              checked={openingEnabled}
+          />
+          <div className="grid min-w-0 items-start gap-5 sm:grid-cols-2">
+            <TextField
+              name="sku"
+              label="SKU (optional)"
+              maxLength={32}
+              defaultValue={product?.sku ?? ''}
+              error={errors.sku}
+              hint=""
               disabled={disabled}
-              onChange={(event) => {
-                setOpeningEnabled(event.target.checked);
-                setBranches([]);
-                setBranchState('loading');
-                setErrors((current) => ({
-                  ...current,
-                  branchId: undefined,
-                  sellingPrice: undefined,
-                  quantity: undefined,
-                  lowStockThreshold: undefined,
-                }));
-              }}
+              containerClassName="content-start"
             />
-            Add initial stock
-          </label>
-          <p className="text-sm text-muted">
-            Optional. Choose one branch for its opening stock and PHP price.
-            Other branches are unchanged. Leave this off to create only the
-            product.
-          </p>
-          {openingEnabled ? (
-            <>
-              <div className="grid gap-2">
-                <label
-                  htmlFor="product-opening-branch"
-                  className="text-label font-semibold"
-                >
-                  Initial stock branch
-                </label>
-                <SelectControl
-                  id="product-opening-branch"
-                  name="branchId"
-                  required
-                  disabled={disabled || branchState !== 'ready'}
-                  aria-invalid={Boolean(errors.branchId)}
-                  aria-describedby="product-opening-branch-hint"
-                  onValueChange={() => validate('branchId')}
-                >
-                  <option value="">Choose a branch</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                      {branch.code ? ` · ${branch.code}` : ''}
-                    </option>
-                  ))}
-                </SelectControl>
-                {selectedMerchantId &&
-                  branchState === 'ready' &&
-                  branches.length === 0 && (
-                    <p className="text-sm text-muted">
-                      No active branch participation.{' '}
-                      <Link
-                        href={`/app/organizations/${organizationId}/merchants/${selectedMerchantId}`}
-                      >
-                        Assign a branch on the merchant profile
-                      </Link>
-                      .
-                    </p>
-                  )}
-
-                <p
-                  id="product-opening-branch-hint"
-                  className={`text-xs ${errors.branchId || branchState === 'error' ? 'text-danger' : 'text-muted'}`}
-                  role={branchState === 'error' ? 'alert' : undefined}
-                >
-                  {errors.branchId ??
-                    (branchState === 'loading'
-                      ? 'Loading available branches…'
-                      : branchState === 'error'
-                        ? 'Branches could not be loaded. Retry before adding initial stock.'
-                        : !branches.length
-                          ? 'Assign an active branch to this merchant before adding initial stock.'
-                          : 'Explicitly choose where this product will be stocked.')}
-                </p>
-                {branchState === 'error' ? (
-                  <button
-                    type="button"
-                    className={buttonStyles({ variant: 'secondary' })}
-                    disabled={disabled}
-                    onClick={() => {
-                      setBranchState('loading');
-                      setBranchRevision((value) => value + 1);
-                    }}
+            <TextField
+              name="barcode"
+              label="Barcode (optional)"
+              maxLength={64}
+              defaultValue={product?.barcode ?? ''}
+              error={errors.barcode}
+              hint=""
+              disabled={disabled}
+              containerClassName="content-start"
+            />
+          </div>
+        </div>
+        {!product ? (
+          <section
+            className="grid min-w-0 gap-5 rounded-control border border-hairline bg-subtle p-5"
+            aria-label="Optional initial stock"
+          >
+            <label className="flex items-center gap-3 text-sm font-semibold">
+              <input
+                type="checkbox"
+                checked={openingEnabled}
+                disabled={disabled}
+                onChange={(event) => {
+                  const expanded = event.target.checked;
+                  setOpeningEnabled(expanded);
+                  onOpeningStockChange?.(expanded);
+                  setBranches([]);
+                  setBranchState('loading');
+                  setOpeningPrice('');
+                  setOpeningQuantity('');
+                  setOpeningThreshold('5');
+                  setErrors((current) => ({
+                    ...current,
+                    branchId: undefined,
+                    sellingPrice: undefined,
+                    quantity: undefined,
+                    lowStockThreshold: undefined,
+                  }));
+                }}
+              />
+              Add initial stock
+            </label>
+            <p className="text-sm text-muted">
+              Optional. Choose one branch for its opening stock and price. Other
+              branches are unchanged. Leave this off to create only the product.
+            </p>
+            {openingEnabled ? (
+              <>
+                <div className="grid gap-2">
+                  <label
+                    htmlFor="product-opening-branch"
+                    className="text-label font-semibold"
                   >
-                    Retry branches
-                  </button>
-                ) : null}
-              </div>
-              <div className="grid min-w-0 items-start gap-5 sm:grid-cols-3">
-                <TextField
-                  name="sellingPrice"
-                  label="Branch selling price (PHP)"
-                  required
-                  inputMode="decimal"
-                  error={errors.sellingPrice}
-                  disabled={disabled}
-                  hint="Positive price, up to two decimal places."
-                  containerClassName="content-start"
-                />
-                <TextField
-                  name="quantity"
-                  label="Initial stock quantity"
-                  required
-                  inputMode="numeric"
-                  error={errors.quantity}
-                  disabled={disabled}
-                  hint="Whole units, from 1 to 2147483647."
-                  containerClassName="content-start"
-                />
-                <TextField
-                  name="lowStockThreshold"
-                  label="Low-stock threshold"
-                  required
-                  inputMode="numeric"
-                  defaultValue="5"
-                  error={errors.lowStockThreshold}
-                  disabled={disabled}
-                  hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
-                  containerClassName="content-start"
-                />
-              </div>
-            </>
-          ) : null}
-        </section>
-      ) : null}
-      <div className="flex flex-wrap justify-end gap-3">
+                    Initial stock branch
+                  </label>
+                  <SelectControl
+                    id="product-opening-branch"
+                    name="branchId"
+                    required
+                    disabled={disabled || branchState !== 'ready'}
+                    aria-invalid={Boolean(errors.branchId)}
+                    aria-describedby="product-opening-branch-hint"
+                    onValueChange={() => validate('branchId')}
+                  >
+                    <option value="">Choose a branch</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                        {branch.code ? ` · ${branch.code}` : ''}
+                      </option>
+                    ))}
+                  </SelectControl>
+                  {selectedMerchantId &&
+                    branchState === 'ready' &&
+                    branches.length === 0 && (
+                      <p className="text-sm text-muted">
+                        No active branch participation.{' '}
+                        <Link
+                          href={`/app/organizations/${organizationId}/merchants/${selectedMerchantId}`}
+                        >
+                          Assign a branch on the merchant profile
+                        </Link>
+                        .
+                      </p>
+                    )}
+
+                  <p
+                    id="product-opening-branch-hint"
+                    className={`text-xs ${errors.branchId || branchState === 'error' ? 'text-danger' : 'text-muted'}`}
+                    role={branchState === 'error' ? 'alert' : undefined}
+                  >
+                    {errors.branchId ??
+                      (branchState === 'loading'
+                        ? 'Loading available branches…'
+                        : branchState === 'error'
+                          ? 'Branches could not be loaded. Retry before adding initial stock.'
+                          : !branches.length
+                            ? 'Assign an active branch to this merchant before adding initial stock.'
+                            : 'Explicitly choose where this product will be stocked.')}
+                  </p>
+                  {branchState === 'error' ? (
+                    <button
+                      type="button"
+                      className={buttonStyles({ variant: 'secondary' })}
+                      disabled={disabled}
+                      onClick={() => {
+                        setBranchState('loading');
+                        setBranchRevision((value) => value + 1);
+                      }}
+                    >
+                      Retry branches
+                    </button>
+                  ) : null}
+                </div>
+                <div className="grid min-w-0 items-start gap-5 sm:grid-cols-3">
+                  <TextField
+                    name="sellingPrice"
+                    label="Branch selling price (PHP)"
+                    required
+                    inputMode="decimal"
+                    value={openingPrice}
+                    error={errors.sellingPrice}
+                    disabled={disabled}
+                    maxLength={13}
+                    onChange={(event) => {
+                      const next = acceptPriceInput(
+                        event.currentTarget.value,
+                        openingPrice,
+                      );
+                      event.currentTarget.value = next;
+                      setOpeningPrice(next);
+                      validate('sellingPrice', true);
+                    }}
+                    hint="Up to two decimal places."
+                    containerClassName="content-start"
+                  />
+                  <TextField
+                    name="quantity"
+                    label="Initial stock quantity"
+                    required
+                    inputMode="numeric"
+                    value={openingQuantity}
+                    error={errors.quantity}
+                    disabled={disabled}
+                    maxLength={10}
+                    onChange={(event) => {
+                      const next = acceptWholeNumberInput(
+                        event.currentTarget.value,
+                        openingQuantity,
+                      );
+                      event.currentTarget.value = next;
+                      setOpeningQuantity(next);
+                      validate('quantity', true);
+                    }}
+                    hint="Whole units"
+                    containerClassName="content-start"
+                  />
+                  <TextField
+                    name="lowStockThreshold"
+                    label="Low-stock threshold"
+                    required
+                    inputMode="numeric"
+                    value={openingThreshold}
+                    error={errors.lowStockThreshold}
+                    disabled={disabled}
+                    maxLength={10}
+                    onChange={(event) => {
+                      const next = acceptWholeNumberInput(
+                        event.currentTarget.value,
+                        openingThreshold,
+                      );
+                      event.currentTarget.value = next;
+                      setOpeningThreshold(next);
+                      validate('lowStockThreshold', true);
+                    }}
+                    hint="Warn at or below this stock level. Use 0 to disable low-stock warnings."
+                    containerClassName="content-start"
+                  />
+                </div>
+              </>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
+      <ModalActionRow
+        feedback={
+          error ? (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          ) : null
+        }
+      >
         <button
           type="submit"
           className={buttonStyles({ variant: 'primary' })}
@@ -531,7 +582,22 @@ export function ProductForm({
         >
           Cancel
         </button>
-      </div>
+      </ModalActionRow>
     </form>
   );
+}
+
+function acceptWholeNumberInput(value: string, previous: string) {
+  if (value === '') return '';
+  if (!/^\d+$/.test(value)) return previous;
+  if (value.length > 10 || Number(value) > 2147483647) return previous;
+  return value;
+}
+
+function acceptPriceInput(value: string, previous: string) {
+  if (value === '') return '';
+  if (!/^\d+(?:\.\d{0,2})?$/.test(value)) return previous;
+  const [whole] = value.split('.');
+  if (whole.length > 10 || Number(value) > 9999999999.99) return previous;
+  return value;
 }

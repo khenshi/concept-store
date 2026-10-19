@@ -17,7 +17,7 @@ export const productProfileSchema = z.object({
         (value.length >= 2 &&
           value.length <= 32 &&
           /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(value)),
-      'SKU must contain 2–32 letters, numbers, or internal hyphens.',
+      'SKU must contain 2–32 letters',
     )
     .transform((value) => value || null),
   barcode: z

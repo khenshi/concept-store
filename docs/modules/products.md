@@ -61,8 +61,9 @@ The threshold is an optional integer `0..2147483647` and defaults to `5`.
 Requests omitting both preserve product-only creation without any stock record.
 The owner new-product form exposes this option, off by default. Product editing
 does not offer opening stock.
-The opening-stock form starts the threshold at `5`, validates every edit after a
-short debounce, and explains that `0` disables only the low-stock warning.
+The opening-stock form starts the threshold at `5`, rejects malformed or
+out-of-range numeric input as it is entered, validates semantic values
+immediately, and explains that `0` disables only the low-stock warning.
 
 For a new opening-stock command, current owner membership, non-deleted actor,
 tenant branch and active tenant merchant are checked inside a serializable
@@ -106,8 +107,10 @@ each write. No application database is migrated, reset or seeded for verificatio
 ## Listing and placements
 
 The product directory uses the shared warm-neutral canvas, centered content frame,
-and flat rounded collection surface around filters and responsive rows. Product
-creation, role visibility, and scoped reads remain unchanged.
+and flat rounded collection surface around filters and responsive rows. Its rows
+use aligned Product, Merchant, Status and Action columns, with compact semibold
+View actions and lifecycle statuses rendered as pills matching the merchant
+directory. Product creation, role visibility, and scoped reads remain unchanged.
 
 Product directory search matches name/SKU case-insensitively and barcode
 case-sensitively. Merchant and product status filters are optional. Results order

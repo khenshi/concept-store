@@ -12,6 +12,7 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
+import { Icon } from '@/shared/components/ui/icon';
 import { InputControl } from '@/shared/components/ui/input-control';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
@@ -25,6 +26,9 @@ import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { listProducts } from '../api/product-api';
 import type { Product, ProductStatus } from '../model/product.types';
 import { ProductForm } from './product-form';
+
+const productDirectoryGrid =
+  'sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(10rem,0.8fr)_6rem]';
 
 export function ProductDirectory(props: { organizationId: string }) {
   const { organization } = useOrganizationWorkspaceContext();
@@ -59,6 +63,7 @@ function ScopedProductDirectory({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [openingStockExpanded, setOpeningStockExpanded] = useState(false);
   const [pending, setPending] = useState(false);
   const [revision, setRevision] = useState(0);
   const q = useDebouncedValue(search);
@@ -151,6 +156,7 @@ function ScopedProductDirectory({
               disabled={loading || Boolean(error)}
               onClick={() => {
                 setCreating(true);
+                setOpeningStockExpanded(false);
                 setSuccess(null);
               }}
             >
@@ -231,17 +237,20 @@ function ScopedProductDirectory({
           />
         ) : (
           <ul aria-label="Product directory" className="m-0 list-none p-0">
-            <li className="data-column-header hidden grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(8rem,0.7fr)] gap-x-6 gap-y-3 sm:grid">
+            <li
+              className={`data-column-header hidden justify-items-start text-left gap-x-6 gap-y-3 sm:grid ${productDirectoryGrid}`}
+            >
               <span>Product</span>
               <span>Merchant</span>
               <span>Status</span>
+              <span>Action</span>
             </li>
             {products.map((product) => (
               <li className="data-row" key={product.id}>
                 <Link
                   href={`/app/organizations/${organizationId}/products/${product.id}`}
                   aria-label={`View ${product.name}`}
-                  className="grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 text-ink no-underline sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(8rem,0.7fr)] sm:items-center"
+                  className={`grid min-w-0 justify-items-start gap-x-6 gap-y-3 px-4 py-4 text-left text-ink no-underline sm:items-center ${productDirectoryGrid}`}
                 >
                   <div className="min-w-0 break-words">
                     <strong className="block text-sm font-semibold">
@@ -258,9 +267,15 @@ function ScopedProductDirectory({
                     )?.name ?? 'Merchant unavailable'}
                   </span>
                   <span
-                    className={`w-fit rounded-compact border px-2 py-1 text-xs ${product.status === 'ACTIVE' ? 'border-success/20 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
+                    className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-bold tracking-wide ${product.status === 'ACTIVE' ? 'border-success/20 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
                   >
                     {product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                  </span>
+                  <span
+                    className="flex w-fit items-center justify-start gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-subtle"
+                    aria-hidden="true"
+                  >
+                    View <Icon name="arrow" className="size-4" />
                   </span>
                 </Link>
               </li>
@@ -272,16 +287,25 @@ function ScopedProductDirectory({
         <FormDialog
           title="Add a product"
           description="Choose its merchant and record its identity. Optionally add initial stock to one explicitly selected branch with its own selling price."
+          size={openingStockExpanded ? 'wide' : 'default'}
           pending={pending}
-          onClose={() => setCreating(false)}
+          onClose={() => {
+            setCreating(false);
+            setOpeningStockExpanded(false);
+          }}
         >
           <ProductForm
             organizationId={organizationId}
             merchants={merchants}
-            onCancel={() => setCreating(false)}
+            onCancel={() => {
+              setCreating(false);
+              setOpeningStockExpanded(false);
+            }}
             onPendingChange={setPending}
+            onOpeningStockChange={setOpeningStockExpanded}
             onSaved={(saved, withOpeningStock) => {
               setCreating(false);
+              setOpeningStockExpanded(false);
               setSuccess(
                 `${saved.name} was created successfully.${withOpeningStock ? ' Initial stock is recorded in the selected branch.' : ''}`,
               );

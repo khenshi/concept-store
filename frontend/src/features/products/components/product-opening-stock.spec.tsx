@@ -69,7 +69,7 @@ describe('Optional new-product opening stock', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Makati · MKT' }));
     fireEvent.change(
       screen.getByRole('textbox', { name: 'Branch selling price (PHP)' }),
-      { target: { value: ' 12.50 ' } },
+      { target: { value: '12.50' } },
     );
     fireEvent.change(
       screen.getByRole('textbox', { name: 'Initial stock quantity' }),
@@ -89,6 +89,19 @@ describe('Optional new-product opening stock', () => {
       barcode: null,
     });
     expect(listActiveMerchantBranches).not.toHaveBeenCalled();
+  });
+  it('opens initial stock controls in a right-side column', () => {
+    setup();
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Add initial stock' }),
+    );
+
+    const stockSection = screen.getByRole('region', {
+      name: 'Optional initial stock',
+    });
+    expect(stockSection.parentElement).toHaveClass(
+      'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
+    );
   });
   it('requires explicit selection even with one branch and focuses the invalid branch', async () => {
     setup();
@@ -130,32 +143,40 @@ describe('Optional new-product opening stock', () => {
       merchant.id,
     );
   });
-  it('validates quantity and price on input after 300ms and immediately on blur', async () => {
+  it('blocks malformed numeric input and validates semantic values immediately', async () => {
     setup();
     identity();
     await opening();
-    vi.useFakeTimers();
     const quantity = screen.getByRole('textbox', {
       name: 'Initial stock quantity',
     });
     const price = screen.getByRole('textbox', {
       name: 'Branch selling price (PHP)',
     });
+    fireEvent.change(quantity, { target: { value: '' } });
+    expect(quantity).toHaveAttribute('aria-invalid', 'true');
     fireEvent.change(quantity, { target: { value: '1.5' } });
-    expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
-    await act(() => vi.advanceTimersByTimeAsync(299));
-    expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
-    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(quantity).toHaveValue('');
     expect(quantity).toHaveAttribute('aria-invalid', 'true');
     fireEvent.change(quantity, { target: { value: '5' } });
-    fireEvent.blur(quantity);
+    expect(quantity).toHaveValue('5');
     expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
     fireEvent.change(price, { target: { value: '0' } });
-    fireEvent.blur(price);
+    expect(price).toHaveValue('0');
     expect(price).toHaveAttribute('aria-invalid', 'true');
     fireEvent.change(price, { target: { value: '0.01' } });
-    await act(() => vi.advanceTimersByTimeAsync(300));
+    expect(price).toHaveValue('0.01');
     expect(price).not.toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(price, { target: { value: '0.011' } });
+    expect(price).toHaveValue('0.01');
+    const threshold = screen.getByRole('textbox', {
+      name: 'Low-stock threshold',
+    });
+    fireEvent.change(threshold, { target: { value: '-1' } });
+    expect(threshold).toHaveValue('5');
+    fireEvent.change(threshold, { target: { value: '0' } });
+    expect(threshold).toHaveValue('0');
+    expect(threshold).not.toHaveAttribute('aria-invalid', 'true');
   });
   it('disabling the section clears stock controls and validation without sending stock', async () => {
     setup();

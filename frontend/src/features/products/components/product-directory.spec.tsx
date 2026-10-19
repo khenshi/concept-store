@@ -66,12 +66,21 @@ describe('ProductDirectory workflows', () => {
   );
   it('shows a linked product and applies debounced search and filters', async () => {
     render(<ProductDirectory organizationId={organizationId} />);
-    expect(
-      await screen.findByRole('link', { name: `View ${product.name}` }),
-    ).toHaveAttribute(
+    const productLink = await screen.findByRole('link', {
+      name: `View ${product.name}`,
+    });
+    expect(productLink).toHaveAttribute(
       'href',
       `/app/organizations/${organizationId}/products/${product.id}`,
     );
+    expect(screen.getByText('Action')).toBeInTheDocument();
+    expect(within(productLink).getByText('View', { exact: true })).toHaveClass(
+      'text-sm',
+      'font-semibold',
+    );
+    expect(
+      within(productLink).getByText('Active', { exact: true }),
+    ).toHaveClass('rounded-full', 'font-bold');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), {
       target: { value: '001Ab' },
     });
@@ -93,6 +102,27 @@ describe('ProductDirectory workflows', () => {
         status: 'INACTIVE',
       }),
     );
+  });
+  it('widens the add-product dialog while opening stock is enabled', async () => {
+    render(<ProductDirectory organizationId={organizationId} />);
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Add product' })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    const dialog = screen.getByRole('dialog', { name: 'Add a product' });
+    expect(dialog).toHaveClass('max-w-3xl');
+    fireEvent.click(within(dialog).getByRole('combobox', { name: 'Merchant' }));
+    fireEvent.click(
+      within(dialog).getByRole('option', { name: merchant.name }),
+    );
+    fireEvent.click(
+      within(dialog).getByRole('checkbox', { name: 'Add initial stock' }),
+    );
+    expect(dialog).toHaveClass('max-w-7xl');
+    fireEvent.click(
+      within(dialog).getByRole('checkbox', { name: 'Add initial stock' }),
+    );
+    expect(dialog).toHaveClass('max-w-3xl');
   });
   it.each(['MANAGER', 'MERCHANT'])(
     'shows filtered read-only products for %s',

@@ -16,7 +16,7 @@ export function FormDialog({
   description: string;
   headerAside?: ReactNode;
   initialFocusRef?: { current: HTMLElement | null };
-  size?: 'default' | 'form';
+  size?: 'default' | 'form' | 'wide';
   pending?: boolean;
   onClose(): void;
   children: ReactNode;
@@ -43,7 +43,7 @@ export function FormDialog({
       ref={dialogRef}
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-description`}
-      className={`m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] overflow-y-auto overscroll-contain rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-scrim sm:p-8 ${size === 'form' ? 'max-w-2xl' : 'max-w-3xl'}`}
+      className={`m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] overflow-y-auto overscroll-contain rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-scrim sm:p-8 ${size === 'form' ? 'max-w-2xl' : size === 'wide' ? 'max-w-7xl' : 'max-w-3xl'}`}
       onCancel={(event) => {
         event.preventDefault();
         if (!pending) onClose();
