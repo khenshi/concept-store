@@ -67,42 +67,44 @@ export function TextField({
           </span>
         ) : null}
       </div>
-      <div className="relative block min-w-0">
-        {fieldIcon ? (
-          <Icon
-            name={fieldIcon}
-            className={`pointer-events-none absolute left-3.5 size-4 -translate-y-1/2 text-muted ${hintBefore ? 'bottom-3.5' : 'top-1/2'}`}
-          />
-        ) : null}
+      <div className="min-w-0">
         {hintBefore ? (
           <p className="text-xs leading-5 text-muted" id={`${fieldId}-hint`}>
             {hint}
           </p>
         ) : null}
-        <input
-          {...props}
-          id={fieldId}
-          type={canTogglePassword && isPasswordVisible ? 'text' : type}
-          aria-invalid={Boolean(error) || props['aria-invalid']}
-          aria-describedby={describedBy}
-          className={`min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 py-2.5 ${fieldIcon ? '!pl-10' : ''} ${canTogglePassword ? 'pr-12' : ''} text-body text-ink placeholder:text-faint focus-visible:border-focus read-only:bg-subtle read-only:text-muted disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger ${className}`}
-        />
-        {canTogglePassword ? (
-          <button
-            type="button"
-            className="absolute top-1/2 right-1 grid size-9 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-selected hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
-            aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
-            aria-pressed={isPasswordVisible}
-            aria-controls={fieldId}
-            disabled={props.disabled}
-            onClick={() => setIsPasswordVisible((visible) => !visible)}
-          >
+        <div className="relative block min-w-0">
+          {fieldIcon ? (
             <Icon
-              name={isPasswordVisible ? 'eyeOff' : 'eye'}
-              className="size-4"
+              name={fieldIcon}
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
             />
-          </button>
-        ) : null}
+          ) : null}
+          <input
+            {...props}
+            id={fieldId}
+            type={canTogglePassword && isPasswordVisible ? 'text' : type}
+            aria-invalid={Boolean(error) || props['aria-invalid']}
+            aria-describedby={describedBy}
+            className={`min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface px-3 py-2.5 ${fieldIcon ? '!pl-10' : ''} ${canTogglePassword ? 'pr-12' : ''} text-body text-ink placeholder:text-faint focus-visible:border-focus read-only:bg-subtle read-only:text-muted disabled:cursor-not-allowed disabled:bg-subtle disabled:opacity-60 aria-invalid:border-danger ${className}`}
+          />
+          {canTogglePassword ? (
+            <button
+              type="button"
+              className="absolute top-1/2 right-1 grid size-9 -translate-y-1/2 place-items-center rounded-full text-muted hover:bg-selected hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+              aria-pressed={isPasswordVisible}
+              aria-controls={fieldId}
+              disabled={props.disabled}
+              onClick={() => setIsPasswordVisible((visible) => !visible)}
+            >
+              <Icon
+                name={isPasswordVisible ? 'eyeOff' : 'eye'}
+                className="size-4"
+              />
+            </button>
+          ) : null}
+        </div>
       </div>
       {error && compactError !== error ? (
         <span id={fullErrorId} className="sr-only">
@@ -130,7 +132,7 @@ export function TextField({
 
 function compactFieldError(message: string) {
   if (/positive PHP price/i.test(message))
-    return 'Enter a valid PHP price (up to 2 decimals).';
+    return 'Enter a valid price.';
   if (/positive whole number/i.test(message)) return 'Enter a whole number.';
   if (/must contain at least (\d+) characters?/i.test(message))
     return `Use at least ${message.match(/at least (\d+) characters?/i)?.[1]} characters.`;

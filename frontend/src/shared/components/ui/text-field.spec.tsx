@@ -25,6 +25,19 @@ describe('shared field and page primitives', () => {
     expect(onChange).toHaveBeenCalledOnce();
   });
 
+  it('centers field icons against the input when hints appear before the field', () => {
+    render(
+      <TextField
+        label="Phone"
+        hint="Use a Philippine phone number"
+        hintPosition="before"
+        icon="phone"
+      />,
+    );
+    const input = screen.getByRole('textbox', { name: 'Phone' });
+    expect(input.parentElement?.querySelector('svg')).toHaveClass('top-1/2');
+  });
+
   it('generates unique field IDs and keeps read-only inputs readable', () => {
     render(
       <>
