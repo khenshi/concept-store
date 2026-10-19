@@ -31,6 +31,38 @@ vi.mock(
 vi.mock('./sales-branch-selector', () => ({
   SalesBranchSelector: () => <div>Sales branch selector</div>,
 }));
+
+function chooseSalesDate(day: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Sales date filter' }));
+  const [targetYear, targetMonth] = day.split('-').map(Number);
+  const todayParts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      month: 'numeric',
+      year: 'numeric',
+      timeZone: 'Asia/Manila',
+    })
+      .formatToParts(new Date())
+      .filter(({ type }) => type !== 'literal')
+      .map(({ type, value }) => [type, value]),
+  );
+  const monthDelta =
+    (targetYear - Number(todayParts.year)) * 12 +
+    (targetMonth - Number(todayParts.month));
+  const navigationLabel = monthDelta < 0 ? 'Previous month' : 'Next month';
+  for (let index = 0; index < Math.abs(monthDelta); index += 1)
+    fireEvent.click(screen.getByRole('button', { name: navigationLabel }));
+  fireEvent.click(
+    screen.getByRole('gridcell', {
+      name: new Intl.DateTimeFormat('en-US', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(new Date(`${day}T00:00:00.000Z`)),
+    }),
+  );
+}
+
 describe('read-only scoped sales workflows', () => {
   const request = vi.fn();
   const refreshOrganization = vi.fn();
@@ -167,10 +199,10 @@ describe('read-only scoped sales workflows', () => {
     const filterForm = screen
       .getByRole('searchbox', { name: 'Search receipt code' })
       .closest('form');
-    expect(filterForm).not.toHaveClass('bg-subtle');
-    expect(screen.getByRole('button', { name: 'Apply Dates' })).toHaveClass(
-      'rounded-full',
-    );
+    expect(filterForm).toHaveClass('bg-subtle');
+    expect(
+      screen.getByRole('button', { name: 'Sales date filter' }),
+    ).toHaveClass('rounded-full');
 
     fireEvent.change(
       screen.getByRole('searchbox', { name: 'Search receipt code' }),
@@ -196,13 +228,8 @@ describe('read-only scoped sales workflows', () => {
       ).toBe(true),
     );
 
-    fireEvent.change(screen.getByLabelText('From Date'), {
-      target: { value: '2026-09-13' },
-    });
-    fireEvent.change(screen.getByLabelText('Through Date'), {
-      target: { value: '2026-09-13' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Apply Dates' }));
+    chooseSalesDate('2026-09-13');
+    fireEvent.click(screen.getByRole('button', { name: 'Apply dates' }));
     await waitFor(() =>
       expect(
         request.mock.calls.some(

@@ -254,11 +254,11 @@ Lists default to 15 per page for the general Sales screens, with previous/next
 bounded pagination and optional strict UTC From-inclusive/Until-exclusive filters.
 The staff POS Sales History screen uses 15 rows per page. Its receipt search and
 cashier/payment selects reload automatically; its optional From Date and Through
-Date inputs are Asia/Manila calendar dates, with From inclusive and Through
-inclusive converted to the next Manila midnight for the exclusive API boundary.
-The staff search control includes a leading search icon; date controls use leading
-calendar icons with compact muted labels and input text. Pagination remains a
-plain surface without a gray background.
+Date inputs are replaced by a custom picker that selects one or two Asia/Manila
+calendar dates, with From inclusive and Through inclusive converted to the next
+Manila midnight for the exclusive API boundary. The staff search control and
+date picker share the same light gray filter row, while the controls remain white.
+Pagination remains a plain surface without a gray background.
 Applying/clearing filters resets page to one. Counts are labeled permitted sales,
 never aggregate monetary reports;
 merchant counts include only own matching sales. Responses validate IDs/scope,

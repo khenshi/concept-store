@@ -7,6 +7,10 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import { BackLink } from '@/shared/components/ui/back-link';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
+import {
+  DateRangePicker,
+  type DateRangePickerValue,
+} from '@/shared/components/ui/date-range-picker';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
 import { TextField } from '@/shared/components/ui/text-field';
@@ -179,8 +183,8 @@ function StaffBranchSales({
     setQuery((current) => ({ ...current, ...patch, page: 1 }));
   }
 
-  function applyDates() {
-    const parsed = salesDateRangeSchema.safeParse({ fromDay, throughDay });
+  function applyDates(value: DateRangePickerValue = { fromDay, throughDay }) {
+    const parsed = salesDateRangeSchema.safeParse(value);
     if (!parsed.success) {
       setFilterError(parsed.error.issues[0]?.message);
       return;
@@ -247,13 +251,13 @@ function StaffBranchSales({
       >
         <form
           noValidate
-          className="grid min-w-0 gap-3 border-b border-hairline px-4 py-4 sm:px-6 sm:py-5"
+          className="grid min-w-0 gap-3 border-b border-hairline bg-subtle px-4 py-4 sm:px-6 sm:py-5"
           onSubmit={(event) => {
             event.preventDefault();
             applyDates();
           }}
         >
-          <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,0.7fr)_minmax(10rem,0.65fr)]">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)_minmax(10rem,0.65fr)_minmax(10rem,0.7fr)]">
             <div className="relative min-w-0">
               <label
                 className="block text-xs font-medium text-muted"
@@ -283,6 +287,32 @@ function StaffBranchSales({
                 />
               </div>
             </div>
+            <DateRangePicker
+              id="sales-date-filter"
+              value={{ fromDay, throughDay }}
+              onChange={({
+                fromDay: nextFromDay,
+                throughDay: nextThroughDay,
+              }) => {
+                setFromDay(nextFromDay);
+                setThroughDay(nextThroughDay);
+              }}
+              onApply={applyDates}
+              onClear={clearDates}
+              label="Sales dates (PH)"
+              filterLabel="Sales date filter"
+              dialogLabel="Choose sales dates"
+              applyLabel="Apply dates"
+              clearLabel="Clear dates"
+              align="end"
+              validate={(next: DateRangePickerValue) => {
+                const result = salesDateRangeSchema.safeParse(next);
+                return result.success
+                  ? undefined
+                  : result.error.issues[0]?.message;
+              }}
+              className="w-full"
+            />
             <div className="min-w-0">
               <label
                 className="block text-xs font-medium text-muted"
@@ -332,57 +362,6 @@ function StaffBranchSales({
                 <option value="GCASH">GCash</option>
                 <option value="CARD">Card</option>
               </SelectControl>
-            </div>
-          </div>
-          <div className="grid min-w-0 items-end gap-3 sm:grid-cols-[minmax(9rem,12rem)_minmax(9rem,12rem)_auto]">
-            <label className="min-w-0 text-xs font-medium text-muted">
-              <span className="block">From</span>
-              <span className="relative mt-1 block">
-                <Icon
-                  name="calendar"
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-                />
-                <input
-                  type="date"
-                  value={fromDay}
-                  onChange={(event) => setFromDay(event.target.value)}
-                  aria-label="From Date"
-                  className="min-h-11 w-full min-w-0 appearance-none rounded-full border border-control-border bg-surface py-2 pr-3 pl-10 text-sm text-muted focus-visible:border-focus"
-                />
-              </span>
-            </label>
-            <label className="min-w-0 text-xs font-medium text-muted">
-              <span className="block">Through</span>
-              <span className="relative mt-1 block">
-                <Icon
-                  name="calendar"
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-                />
-                <input
-                  type="date"
-                  value={throughDay}
-                  onChange={(event) => setThroughDay(event.target.value)}
-                  aria-label="Through Date"
-                  className="min-h-11 w-full min-w-0 appearance-none rounded-full border border-control-border bg-surface py-2 pr-3 pl-10 text-sm text-muted focus-visible:border-focus"
-                />
-              </span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="submit"
-                variant="secondary"
-                className="rounded-full"
-              >
-                Apply Dates
-              </Button>
-              <Button
-                type="button"
-                variant="quiet"
-                className="rounded-full text-danger hover:bg-subtle hover:text-danger"
-                onClick={clearDates}
-              >
-                Clear Dates
-              </Button>
             </div>
           </div>
           {filterError ? (
@@ -486,7 +465,7 @@ function StaffBranchSales({
             }
             previousLabel="Previous page"
             nextLabel="Next page"
-            summary={`${page?.total ?? 0} permitted sales · Page ${page?.page ?? 1} of ${Math.max(1, page?.totalPages ?? 0)}`}
+            summary={`${page?.total ?? 0} permitted sales`}
             onPrevious={() =>
               setQuery((current) => ({
                 ...current,
