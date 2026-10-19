@@ -128,6 +128,7 @@ describe('InventoryMovementRecords', () => {
       />,
     );
     const viewReason = await screen.findByRole('button', { name: 'View' });
+    expect(viewReason).toHaveClass('text-sm', 'font-semibold');
     expect(screen.getByText('9/20/2026')).toBeInTheDocument();
     expect(screen.getByText('8:00:00 AM (PH)')).toBeInTheDocument();
     expect(

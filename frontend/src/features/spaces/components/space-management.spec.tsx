@@ -159,6 +159,20 @@ describe('Space management', () => {
       expect.objectContaining({ page: 1, status: 'ACTIVE' }),
     );
     expect(screen.getByText('Status')).toBeInTheDocument();
+    const spaces = screen.getByRole('list', { name: 'Branch spaces' });
+    expect(within(spaces).getByText('Rack A1').closest('li')).toHaveClass(
+      'text-sm',
+    );
+    expect(within(spaces).getByText('Active')).toHaveClass(
+      'text-sm',
+      'font-semibold',
+      'text-success-ink',
+    );
+    expect(within(spaces).getByText('Vacant')).toHaveClass(
+      'text-sm',
+      'font-semibold',
+      'text-success-ink',
+    );
     expect(screen.getByRole('button', { name: 'Assign' })).toBeInTheDocument();
     const archive = screen.getByRole('button', { name: 'Archive' });
     expect(archive).toHaveClass('text-danger');
@@ -290,6 +304,11 @@ describe('Space management', () => {
     expect(
       await screen.findByRole('button', { name: 'Archive' }),
     ).toBeDisabled();
+    expect(
+      within(screen.getByRole('list', { name: 'Branch spaces' })).getByText(
+        'Occupied',
+      ),
+    ).toHaveClass('text-sm', 'font-semibold', 'text-success-ink');
     view.unmount();
     vi.mocked(listSpaces).mockResolvedValue(page([space]));
     setup();

@@ -30,14 +30,12 @@ const message = (cause: unknown) =>
     : 'Spaces could not be loaded. Try again.';
 const action = buttonStyles({
   variant: 'quiet',
-  className: 'min-h-9 shrink-0 px-2 py-1 text-xs',
+  className: 'min-h-9 shrink-0 px-2 py-1 text-sm',
 });
 const archiveAction = buttonStyles({
   variant: 'quiet',
-  className: 'min-h-9 shrink-0 px-2 py-1 text-xs text-danger hover:text-danger',
+  className: 'min-h-9 shrink-0 px-2 py-1 text-sm text-danger hover:text-danger',
 });
-const statusPill =
-  'inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-semibold';
 const spaceTableGrid =
   'lg:grid-cols-[minmax(15rem,2fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_minmax(12rem,1.2fr)_11rem]';
 const spaceTableCell = 'min-w-0 break-words lg:justify-self-start';
@@ -509,7 +507,7 @@ function ScopedSpaces(
               </li>
               {spaces.items.map((row) => (
                 <li
-                  className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 sm:grid-cols-2 lg:items-center lg:justify-items-start ${spaceTableGrid}`}
+                  className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:items-center lg:justify-items-start ${spaceTableGrid}`}
                   key={row.id}
                 >
                   <div className={spaceTableCell}>
@@ -520,17 +518,15 @@ function ScopedSpaces(
                   </div>
                   <div className={spaceTableCell}>
                     <span
-                      className={`${statusPill} ${row.status === 'ACTIVE' ? 'border-success/20 bg-success/5 text-success-ink' : 'border-danger/20 bg-danger/5 text-danger'}`}
+                      className={`text-sm font-semibold ${row.status === 'ACTIVE' ? 'text-success-ink' : 'text-danger'}`}
                     >
                       {row.status === 'ACTIVE' ? 'Active' : 'Archived'}
                     </span>
                   </div>
-                  <div className={`${spaceTableCell} text-sm`}>
+                  <div className={spaceTableCell}>
                     {row.currentOccupancy ? (
                       <>
-                        <span
-                          className={`${statusPill} border-success/20 bg-success/5 text-success-ink`}
-                        >
+                        <span className="text-sm font-semibold text-success-ink">
                           Occupied
                         </span>
                         <p className="mt-2">
@@ -542,9 +538,7 @@ function ScopedSpaces(
                       </>
                     ) : (
                       <>
-                        <span
-                          className={`${statusPill} border-danger/20 bg-danger/5 text-danger`}
-                        >
+                        <span className="text-sm font-semibold text-success-ink">
                           {own ? 'No assignment' : 'Vacant'}
                         </span>
                         {own && (

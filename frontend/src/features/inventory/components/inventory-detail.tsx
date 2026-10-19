@@ -746,7 +746,7 @@ function ScopedInventoryDetail({
                   ) : null}
                   <button
                     type="button"
-                    className="w-fit rounded-full px-3 py-1.5 text-sm text-ink transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    className="w-fit rounded-full px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
                     aria-haspopup="dialog"
                     onClick={() => setSelectedMovementReason(movement.reason)}
                   >

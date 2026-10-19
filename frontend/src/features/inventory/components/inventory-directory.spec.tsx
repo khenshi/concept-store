@@ -166,6 +166,11 @@ describe('InventoryDirectory workflows', () => {
         name: `View ${inventory.product.name} inventory`,
       }),
     ).toHaveTextContent('View');
+    expect(
+      screen.getByRole('link', {
+        name: `View ${inventory.product.name} inventory`,
+      }),
+    ).toHaveClass('text-sm', 'font-semibold');
   });
   it('loads numbered cursor-backed pages and supports returning to the first page', async () => {
     const cursor = `${inventory.id}.${'a'.repeat(64)}`;

@@ -144,6 +144,15 @@ it('lets owners add organization types and shows managers a read-only catalog', 
   const view = render(<SpacesWorkspace organizationId="org" />);
   fireEvent.click(screen.getByRole('tab', { name: 'Types' }));
   await screen.findByText('Shelf');
+  const typeInput = screen.getByLabelText('New type name');
+  expect(screen.getByRole('button', { name: 'Save type' })).toHaveClass(
+    'ui-button-primary',
+  );
+  fireEvent.blur(typeInput);
+  const validationError = await screen.findByText('Enter a type name.');
+  expect(validationError.previousElementSibling).toBe(
+    typeInput.closest('label'),
+  );
   vi.mocked(createSpaceType).mockResolvedValue({
     id: space.id,
     organizationId: org,
@@ -152,7 +161,7 @@ it('lets owners add organization types and shows managers a read-only catalog', 
   vi.mocked(listSpaceTypes).mockResolvedValue([
     { id: space.id, organizationId: org, name: 'Display' },
   ]);
-  fireEvent.change(screen.getByLabelText('New type name'), {
+  fireEvent.change(typeInput, {
     target: { value: ' Display ' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save type' }));

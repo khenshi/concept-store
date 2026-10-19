@@ -227,7 +227,8 @@ describe('InventoryDetail workflows', () => {
       nextCursor: null,
     });
     render(<InventoryDetail {...scope} />);
-    await screen.findAllByRole('button', { name: 'View' });
+    const viewReasons = await screen.findAllByRole('button', { name: 'View' });
+    expect(viewReasons[0]).toHaveClass('text-sm', 'font-semibold');
     expect(screen.getByText('+10 units')).toHaveClass('text-success-ink');
     expect(screen.getByText('-3 units')).toHaveClass('text-danger');
   });

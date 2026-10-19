@@ -74,7 +74,7 @@ export function SpaceTypeCreator({
       aria-invalid={Boolean(error)}
       aria-describedby={
         [
-          compact && error ? `${fieldId}-error` : undefined,
+          error ? `${fieldId}-error` : undefined,
           compact ? `${fieldId}-hint` : undefined,
         ]
           .filter(Boolean)
@@ -101,7 +101,7 @@ export function SpaceTypeCreator({
     <button
       type="button"
       className={buttonStyles({
-        variant: 'secondary',
+        variant: compact ? 'secondary' : 'primary',
         className: compact ? 'w-full md:w-fit' : '',
       })}
       disabled={pending}
@@ -160,14 +160,14 @@ export function SpaceTypeCreator({
         New type name
         {input}
       </label>
-      <p className="text-sm text-muted">
-        Available across all branches in this organization.
-      </p>
       {error ? (
-        <p role="alert" className="text-sm text-danger">
+        <p id={`${fieldId}-error`} role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}
+      <p className="text-sm text-muted">
+        Available across all branches in this organization.
+      </p>
       {saveButton}
     </div>
   );

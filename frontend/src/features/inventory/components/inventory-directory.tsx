@@ -594,7 +594,8 @@ function ScopedInventoryDirectory({
                           type="button"
                           className={buttonStyles({
                             variant: 'quiet',
-                            className: 'min-h-9 px-2 py-1 text-xs',
+                            className:
+                              'min-h-9 px-2 py-1 text-sm font-semibold',
                           })}
                           disabled={
                             pending || item.participationStatus === 'INACTIVE'
@@ -621,7 +622,8 @@ function ScopedInventoryDirectory({
                           type="button"
                           className={buttonStyles({
                             variant: 'quiet',
-                            className: 'min-h-9 px-2 py-1 text-xs',
+                            className:
+                              'min-h-9 px-2 py-1 text-sm font-semibold',
                           })}
                           disabled={pending}
                           onClick={() => {
@@ -641,7 +643,8 @@ function ScopedInventoryDirectory({
                         aria-label={`View ${item.product.name} inventory`}
                         className={buttonStyles({
                           variant: 'quiet',
-                          className: 'min-h-9 px-2 py-1 text-xs no-underline',
+                          className:
+                            'min-h-9 px-2 py-1 text-sm font-semibold no-underline',
                         })}
                       >
                         View

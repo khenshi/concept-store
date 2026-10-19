@@ -83,10 +83,12 @@ own occupancy projections, including historical spaces; a missing own current
 projection does not imply that the space is vacant.
 
 The branch list defaults to Active spaces and presents Space, Type, Status,
-Occupancy, and Actions columns. Status and occupancy values use compact pills;
-active/occupied values use the success treatment and archived/vacant values use
-the danger treatment. The Space column remains flexible, while a fixed Actions
-column keeps the header and row values aligned when role-specific actions differ.
+Occupancy, and Actions columns. Each item row uses the small body-text scale.
+Status and occupancy values use semibold colored text without pill backgrounds or
+borders; active/occupied/vacant values use the success treatment and archived
+values use the danger treatment. The Space column remains flexible, while a
+fixed Actions column keeps the header and row values aligned when role-specific
+actions differ.
 The branch list uses the shared Inventory operational surface: a bordered card
 header, soft-gray filter toolbar, muted field labels, white search input,
 rounded select controls, and matching header/row spacing. Existing filters,
@@ -143,8 +145,10 @@ type dropdown and Create a new type action share the second row. Choosing Create
 a new type replaces the dropdown with a new-type input, Save type, and Discard
 controls aligned with that input; a short organization-wide description sits
 below the input. Blank new-type names show the same compact inline validation.
-There is no expanded section below it. The primary action stays last in the
-keyboard order and becomes the first full-width action on phones. Closing a
+In the Types tab, new-type validation appears below the input and Save type uses
+the primary colored action. There is no expanded section below it. The primary
+action stays last in the keyboard order and becomes the first full-width action
+on phones. Closing a
 dirty form asks before discarding the space draft. Creating a type retains the
 space draft and selects/reloads the created type;
 failed creation preserves input for retry. A successfully created type remains
