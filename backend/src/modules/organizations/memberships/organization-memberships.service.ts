@@ -107,6 +107,7 @@ export class OrganizationMembershipsService {
         role: true,
         merchantId: true,
         createdAt: true,
+        _count: { select: { branches: true } },
         user: {
           select: {
             id: true,
@@ -120,10 +121,11 @@ export class OrganizationMembershipsService {
       orderBy: { createdAt: 'asc' },
     });
 
-    return memberships.map(({ user, role, merchantId, createdAt }) => ({
+    return memberships.map(({ user, role, merchantId, createdAt, _count }) => ({
       ...user,
       role,
       merchantId,
+      branchAccessCount: _count.branches,
       joinedAt: createdAt,
     }));
   }
@@ -169,13 +171,19 @@ export class OrganizationMembershipsService {
           merchantId:
             dto.role === OrganizationRole.MERCHANT ? dto.merchantId : null,
         },
-        select: { role: true, merchantId: true, createdAt: true },
+        select: {
+          role: true,
+          merchantId: true,
+          createdAt: true,
+          _count: { select: { branches: true } },
+        },
       });
 
       return {
         ...membership.user,
         role: updated.role,
         merchantId: updated.merchantId,
+        branchAccessCount: updated._count.branches,
         joinedAt: updated.createdAt,
       };
     });

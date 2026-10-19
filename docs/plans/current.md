@@ -1,5 +1,33 @@
 # Current plan
 
+## Organization member and invitation directory columns
+
+**Status:** Implemented locally October 19, 2026; focused validation complete.
+
+### Goal
+
+Separate member and invitation identity, contact/access details, lifecycle
+dates, status and actions so the owner-facing organization directories are
+easier to scan.
+
+### Scope and exclusions
+
+- Split the responsive member directory into Member, Contact, Role, Access,
+  Joined and Actions columns.
+- Split the responsive invitation directory into Recipient, Role, Access,
+  Status, Expires and Actions columns.
+- Add a confirmed Remove action to every invitation row. Active invitations
+  are revoked so their links become invalid; expired, accepted and previously
+  revoked invitations are permanently deleted with their access grants.
+- Add the tenant-scoped explicit branch-assignment count to the existing member
+  list response so staff access summaries are accurate without per-row requests.
+- Keep role changes, branch editing, merchant linking, authorization and
+  responsive row behavior unchanged.
+- Do not add sorting, filtering, other member data, or a database migration.
+
+Stop after focused frontend/backend tests, typecheck, lint, formatting, module
+documentation and diff validation are complete.
+
 ## Borderless workspace chrome
 
 **Status:** Implemented locally October 14, 2026; focused validation remains.

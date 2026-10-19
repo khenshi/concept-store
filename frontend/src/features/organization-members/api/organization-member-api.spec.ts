@@ -31,6 +31,7 @@ describe('organization member API', () => {
       lastName: 'Member',
       phone: null,
       role: 'CASHIER',
+      branchAccessCount: 0,
       merchantId: null,
       joinedAt: '2026-09-13T00:00:00Z',
     });

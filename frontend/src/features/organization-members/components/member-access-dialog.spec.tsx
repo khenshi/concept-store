@@ -26,6 +26,7 @@ const member = {
   lastName: 'Member',
   phone: null,
   role: 'MANAGER' as const,
+  branchAccessCount: 1,
   merchantId: null,
   joinedAt: '2026-09-13T00:00:00Z',
 };
@@ -101,11 +102,14 @@ it('requires merchant selection and submits a confirmed merchant role change', a
     <MemberAccessDialog
       organizationId="org"
       member={member}
-      changeToMerchant
       onClose={vi.fn()}
       onMemberChanged={onMemberChanged}
     />,
   );
+  fireEvent.click(
+    await screen.findByRole('combobox', { name: 'Organization role' }),
+  );
+  fireEvent.click(screen.getByRole('option', { name: 'Merchant' }));
   expect(
     await screen.findByRole('button', { name: 'Review role change' }),
   ).toBeDisabled();
@@ -113,7 +117,9 @@ it('requires merchant selection and submits a confirmed merchant role change', a
   fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
   fireEvent.click(screen.getByRole('button', { name: 'Review role change' }));
   expect(
-    screen.getByText(/Existing branch assignments will be cleared/),
+    screen.getByText(
+      /Existing branch assignments and merchant links will be cleared/,
+    ),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Confirm change' }));
   await waitFor(() => expect(onMemberChanged).toHaveBeenCalled());

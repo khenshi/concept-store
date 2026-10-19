@@ -60,7 +60,8 @@ commands require a UUID v4 merchantId and a MERCHANT target membership.
 Role changes require merchantId for MERCHANT and reject it for other roles. An
 actual role change clears explicit assignments and sets/clears the link atomically;
 same-role requests preserve assignments. Member list/role responses include nullable
-merchantId. No product ownership or historical actor attribution changes.
+merchantId and the tenant-scoped `branchAccessCount` for explicit staff
+assignments. No product ownership or historical actor attribution changes.
 
 Access mutations and membership removal lock the same tenant-local membership in
 serializable transactions. Serialization conflicts return 409 with retry guidance.
@@ -82,10 +83,17 @@ behavior changes are included in this verification part.
 ## Owner access frontend (Part 6)
 
 Member management loads members and invitations only for owners; other roles see
-an owner-only notice without those requests. Owner controls change roles and
-remove members with confirmation. Role changes explain that assignments and the
-previous merchant link are cleared. Changing to MERCHANT opens a native access
-dialog requiring a merchant profile in the same role command.
+an owner-only notice without those requests. The member directory separates
+Member, Contact, Role, Access, Joined and Actions columns. Access summarizes
+implicit owner access, explicit staff branch assignments, or inherited merchant
+access. The invitation directory separates Recipient, Role, Access, Status,
+Expires and Actions columns. Every invitation row has a confirmed Remove
+action. Removing an active invitation revokes it and invalidates its link;
+expired, accepted, and revoked invitations are permanently deleted. Edit opens
+a shared access dialog where owners can change the role, branch access, or
+merchant profile.
+Role changes explain that assignments and the previous merchant link are
+cleared and require confirmation.
 
 The access dialog loads tenant-local branch/profile choices and current assignments.
 Owners have an implicit all-branches explanation instead of grant controls.
@@ -96,8 +104,7 @@ actions and dismissal; loading, retryable failures, and success are explicit.
 API responses are runtime validated. Dialog choices and lists are scroll-bounded.
 
 The member directory uses the shared warm-neutral canvas, a centered rounded
-collection panel, and responsive divided rows.
-Role menus are not enclosed in clipping table scrollers. Member removal controls
+collection panel, and responsive divided rows. Member removal and edit controls
 have account-specific accessible names; join dates and contact information remain
 visible at narrow widths.
 Role changes and removal disable member controls while pending; request failures

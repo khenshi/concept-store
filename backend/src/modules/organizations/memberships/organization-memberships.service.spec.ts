@@ -51,11 +51,23 @@ describe('OrganizationMembershipsService', () => {
 
   it('lists organization members without password data', async () => {
     prisma.organizationMembership.findMany.mockResolvedValue([
-      { user, role: OrganizationRole.MANAGER, createdAt: joinedAt },
+      {
+        user,
+        role: OrganizationRole.MANAGER,
+        merchantId: null,
+        createdAt: joinedAt,
+        _count: { branches: 2 },
+      },
     ]);
 
     await expect(service.findAll(organizationId)).resolves.toEqual([
-      { ...user, role: OrganizationRole.MANAGER, joinedAt },
+      {
+        ...user,
+        role: OrganizationRole.MANAGER,
+        merchantId: null,
+        branchAccessCount: 2,
+        joinedAt,
+      },
     ]);
     expect(prisma.organizationMembership.findMany).toHaveBeenCalledWith({
       where: { organizationId },
@@ -63,6 +75,7 @@ describe('OrganizationMembershipsService', () => {
         role: true,
         merchantId: true,
         createdAt: true,
+        _count: { select: { branches: true } },
         user: {
           select: {
             id: true,
@@ -85,7 +98,9 @@ describe('OrganizationMembershipsService', () => {
     });
     transaction.organizationMembership.update.mockResolvedValue({
       role: OrganizationRole.CASHIER,
+      merchantId: null,
       createdAt: joinedAt,
+      _count: { branches: 0 },
     });
 
     await expect(
@@ -95,6 +110,8 @@ describe('OrganizationMembershipsService', () => {
     ).resolves.toEqual({
       ...user,
       role: OrganizationRole.CASHIER,
+      merchantId: null,
+      branchAccessCount: 0,
       joinedAt,
     });
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
@@ -199,6 +216,7 @@ describe('OrganizationMembershipsService', () => {
       role: 'MERCHANT',
       merchantId: user.id,
       createdAt: joinedAt,
+      _count: { branches: 0 },
     });
     await expect(
       service.updateRole(organizationId, user.id, { role: 'MERCHANT' }),

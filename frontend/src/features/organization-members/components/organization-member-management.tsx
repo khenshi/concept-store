@@ -10,7 +10,6 @@ import {
 import { RequestError } from '@/shared/components/ui/request-error';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
-import { SelectControl } from '@/shared/components/ui/select-control';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
@@ -19,19 +18,16 @@ import type { OrganizationRole } from '@/features/organizations/model/organizati
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import {
   listOrganizationInvitations,
-  revokeOrganizationInvitation,
+  removeOrganizationInvitation,
 } from '@/features/organization-invitations/api/organization-invitation-api';
 import { OrganizationInvitationModal } from '@/features/organization-invitations/components/organization-invitation-modal';
 import type { OrganizationInvitation } from '@/features/organization-invitations/model/organization-invitation.types';
 import {
   listOrganizationMembers,
   removeOrganizationMember,
-  updateOrganizationMemberRole,
 } from '../api/organization-member-api';
 import type { OrganizationMember } from '../model/organization-member.types';
 import { MemberAccessDialog } from './member-access-dialog';
-
-const roles: OrganizationRole[] = ['OWNER', 'MANAGER', 'CASHIER', 'MERCHANT'];
 
 const roleLabels: Record<OrganizationRole, string> = {
   OWNER: 'Owner',
@@ -50,6 +46,29 @@ function joinedDate(value: string): string {
   return new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium' }).format(
     new Date(value),
   );
+}
+
+const mobileColumnLabelClass =
+  'mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden';
+
+function accessSummary(member: OrganizationMember): {
+  label: string;
+  description: string;
+} {
+  if (member.role === 'OWNER') {
+    return { label: 'All branches', description: 'Implicit access' };
+  }
+  if (member.role === 'MERCHANT') {
+    return member.merchantId
+      ? { label: 'Merchant profile', description: 'Inherited branch access' }
+      : { label: 'Not linked', description: 'Merchant profile required' };
+  }
+  return member.branchAccessCount === 0
+    ? { label: 'No branches assigned', description: 'Explicit access' }
+    : {
+        label: `${member.branchAccessCount} branch${member.branchAccessCount === 1 ? '' : 'es'}`,
+        description: 'Explicit access',
+      };
 }
 
 export function OrganizationMemberManagement({
@@ -76,10 +95,9 @@ export function OrganizationMemberManagement({
     null,
   );
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
-  const [accessMember, setAccessMember] = useState<{
-    member: OrganizationMember;
-    changeToMerchant?: boolean;
-  } | null>(null);
+  const [accessMember, setAccessMember] = useState<OrganizationMember | null>(
+    null,
+  );
   const { confirm, confirmationDialog } = useConfirmationDialog();
   const organizationRole = organization?.role;
 
@@ -140,43 +158,6 @@ export function OrganizationMemberManagement({
     );
   }
 
-  async function handleRoleChange(
-    member: OrganizationMember,
-    role: OrganizationRole,
-  ) {
-    if (role === member.role) return;
-    if (pendingMemberId || accessMember) return;
-    if (role === 'MERCHANT') {
-      setAccessMember({ member, changeToMerchant: true });
-      return;
-    }
-    const confirmed = await confirm({
-      title: `Change ${member.email}'s role?`,
-      description: `Change this member from ${roleLabels[member.role]} to ${roleLabels[role]}. Existing branch assignments and merchant links will be cleared. Their access will follow the new role.`,
-      confirmLabel: 'Change role',
-      tone: role === 'OWNER' ? 'danger' : 'primary',
-    });
-    if (!confirmed) return;
-
-    setActionError(null);
-    setSuccessMessage(null);
-    setPendingMemberId(member.id);
-    try {
-      const updated = await updateOrganizationMemberRole(
-        request,
-        organizationId,
-        member.id,
-        role,
-      );
-      replaceMember(updated);
-      setSuccessMessage(`${updated.email} is now ${roleLabels[updated.role]}.`);
-    } catch (cause: unknown) {
-      setActionError(errorMessage(cause));
-    } finally {
-      setPendingMemberId(null);
-    }
-  }
-
   async function handleRemove(member: OrganizationMember) {
     const confirmed = await confirm({
       title: 'Remove this member?',
@@ -202,13 +183,16 @@ export function OrganizationMemberManagement({
     }
   }
 
-  async function handleRevoke(invitation: OrganizationInvitation) {
+  async function handleRemoveInvitation(invitation: OrganizationInvitation) {
     if (pendingInvitationId) return;
+    const pending = isPendingInvitation(invitation, Date.now());
     if (
       !(await confirm({
-        title: 'Revoke this invitation?',
-        description: `${invitation.email} will no longer be able to use its invitation link.`,
-        confirmLabel: 'Revoke invitation',
+        title: 'Remove this invitation?',
+        description: pending
+          ? `${invitation.email} will be cancelled and its invitation link will become invalid.`
+          : `${invitation.email} will be permanently deleted from the invitation records.`,
+        confirmLabel: 'Remove invitation',
         tone: 'danger',
       }))
     )
@@ -218,17 +202,26 @@ export function OrganizationMemberManagement({
     setSuccessMessage(null);
     setPendingInvitationId(invitation.id);
     try {
-      const revoked = await revokeOrganizationInvitation(
+      setInvitations((current) =>
+        current.filter((item) => item.id !== invitation.id),
+      );
+      await removeOrganizationInvitation(
         request,
         organizationId,
         invitation.id,
       );
-      setInvitations((current) =>
-        current.map((item) => (item.id === revoked.id ? revoked : item)),
-      );
-      setSuccessMessage(`The invitation for ${revoked.email} was revoked.`);
+      if (pending) {
+        setSuccessMessage(
+          `The invitation for ${invitation.email} was cancelled and invalidated.`,
+        );
+      } else {
+        setSuccessMessage(
+          `The invitation for ${invitation.email} was permanently deleted.`,
+        );
+      }
     } catch (cause: unknown) {
       setActionError(errorMessage(cause));
+      setInvitations((current) => [invitation, ...current]);
     } finally {
       setPendingInvitationId(null);
     }
@@ -342,82 +335,90 @@ export function OrganizationMemberManagement({
                     aria-label="Organization members"
                     className="m-0 list-none p-0"
                   >
-                    <li className="data-column-header hidden grid-cols-[minmax(0,1.25fr)_minmax(9rem,0.65fr)_minmax(14rem,auto)] gap-x-6 gap-y-3 sm:grid">
+                    <li className="data-column-header hidden grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] gap-x-5 gap-y-3 sm:grid">
                       <span>Member</span>
+                      <span>Contact</span>
                       <span>Role</span>
+                      <span>Access</span>
+                      <span>Joined</span>
                       <span>Actions</span>
                     </li>
                     {members.map((member) => (
                       <li
-                        className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.25fr)_minmax(9rem,0.65fr)_minmax(14rem,auto)] sm:items-center"
+                        className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] sm:items-start"
                         key={member.id}
                       >
                         <div className="min-w-0 break-words">
+                          <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                            Member
+                          </span>
                           <strong className="block text-sm font-semibold">
-                            {member.firstName} {member.lastName}
+                            <span className="block">{member.firstName}</span>
+                            <span className="block">{member.lastName}</span>
                           </strong>
-                          <p className="mt-1 text-xs leading-5 text-muted">
+                        </div>
+                        <div className="min-w-0 break-words">
+                          <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                            Contact
+                          </span>
+                          <p className="m-0 break-words text-sm text-ink">
                             {member.email}
-                            {member.phone ? ` · ${member.phone}` : ''}
                           </p>
                           <p className="mt-1 text-xs text-muted">
-                            Joined {joinedDate(member.joinedAt)}
+                            {member.phone ?? 'No phone added'}
                           </p>
-                          {member.role === 'OWNER' && (
-                            <p className="mt-1 text-xs text-muted">
-                              All branches
-                            </p>
-                          )}
-                          {member.role === 'MERCHANT' && (
-                            <p className="mt-1 break-words text-xs text-muted">
-                              {member.merchantId
-                                ? `Merchant profile: ${member.merchantId}`
-                                : 'Merchant profile not linked'}
-                            </p>
-                          )}
                         </div>
                         {canManageMembers ? (
                           <>
-                            <div className="min-w-0 sm:w-40">
-                              <label
-                                className="sr-only"
-                                htmlFor={`role-${member.id}`}
-                              >
-                                Role for {member.email}
-                              </label>
-                              <SelectControl
-                                id={`role-${member.id}`}
-                                value={member.role}
-                                disabled={Boolean(pendingMemberId)}
-                                onValueChange={(value) =>
-                                  void handleRoleChange(
-                                    member,
-                                    value as OrganizationRole,
-                                  )
-                                }
-                              >
-                                {roles.map((role) => (
-                                  <option key={role} value={role}>
-                                    {roleLabels[role]}
-                                  </option>
-                                ))}
-                              </SelectControl>
+                            <div className="min-w-0">
+                              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                Role
+                              </span>
+                              <span className="text-sm font-semibold text-ink">
+                                {roleLabels[member.role]}
+                              </span>
                             </div>
-                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <div className="min-w-0">
+                              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                Access
+                              </span>
+                              <strong className="block text-sm font-semibold text-ink">
+                                {accessSummary(member).label}
+                              </strong>
+                              <p className="mt-1 text-xs text-muted">
+                                {accessSummary(member).description}
+                              </p>
+                            </div>
+                            <div className="min-w-0">
+                              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                Joined
+                              </span>
+                              <span className="text-sm text-ink">
+                                {joinedDate(member.joinedAt)}
+                              </span>
+                            </div>
+                            <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
+                              <span className="mb-1 block basis-full text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                Actions
+                              </span>
                               <button
                                 className={buttonStyles({
-                                  variant: 'secondary',
+                                  variant: 'quiet',
+                                  className:
+                                    'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm',
                                 })}
                                 type="button"
                                 disabled={Boolean(pendingMemberId)}
-                                aria-label={`Manage access for ${member.email}`}
-                                onClick={() => setAccessMember({ member })}
+                                aria-label={`Edit ${member.email}`}
+                                onClick={() => setAccessMember(member)}
                               >
-                                Manage access
+                                Edit
                               </button>
                               <button
                                 className={buttonStyles({
-                                  variant: 'secondary',
+                                  variant: 'quiet',
+                                  className:
+                                    'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
                                 })}
                                 type="button"
                                 disabled={Boolean(pendingMemberId)}
@@ -429,9 +430,14 @@ export function OrganizationMemberManagement({
                             </div>
                           </>
                         ) : (
-                          <span className="w-fit rounded-full bg-selected px-3 py-1.5 text-xs font-medium text-ink">
-                            {roleLabels[member.role]}
-                          </span>
+                          <div className="min-w-0">
+                            <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                              Role
+                            </span>
+                            <span className="text-sm font-semibold text-ink">
+                              {roleLabels[member.role]}
+                            </span>
+                          </div>
                         )}
                       </li>
                     ))}
@@ -444,7 +450,7 @@ export function OrganizationMemberManagement({
                   invitations={invitations}
                   statusTime={invitationStatusTime}
                   pendingId={pendingInvitationId}
-                  onRevoke={handleRevoke}
+                  onRemove={handleRemoveInvitation}
                 />
               ) : null}
 
@@ -471,16 +477,13 @@ export function OrganizationMemberManagement({
       {confirmationDialog}
       {canManageMembers && accessMember && (
         <MemberAccessDialog
-          key={`${organizationId}-${accessMember.member.id}-${accessMember.changeToMerchant ? 'role' : 'access'}`}
+          key={`${organizationId}-${accessMember.id}`}
           organizationId={organizationId}
-          member={accessMember.member}
-          changeToMerchant={accessMember.changeToMerchant}
+          member={accessMember}
           onClose={() => setAccessMember(null)}
           onMemberChanged={(updated) => {
             replaceMember(updated);
-            setAccessMember((current) =>
-              current ? { ...current, member: updated } : null,
-            );
+            setAccessMember((current) => (current ? updated : null));
             setSuccessMessage(`Access updated for ${updated.email}.`);
           }}
         />
@@ -493,12 +496,12 @@ function InvitationList({
   invitations,
   statusTime,
   pendingId,
-  onRevoke,
+  onRemove,
 }: {
   invitations: OrganizationInvitation[];
   statusTime: number;
   pendingId: string | null;
-  onRevoke(invitation: OrganizationInvitation): Promise<void>;
+  onRemove(invitation: OrganizationInvitation): Promise<void>;
 }) {
   return (
     <OperationalPanel
@@ -507,18 +510,24 @@ function InvitationList({
       description="Pending and historical organization invitations"
     >
       {invitations.length === 0 ? (
-        <EmptyState
-          className="m-6"
-          title="No invitations created yet."
-          description="Invite a teammate when you are ready to share access."
-        />
+        <div className="p-6">
+          <EmptyState
+            title="No invitations created yet."
+            description="Invite a teammate when you are ready to share access."
+          />
+        </div>
       ) : (
         <ul className="list-none p-0">
+          <li className="data-column-header hidden grid-cols-[minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(8rem,0.75fr)_minmax(8rem,auto)] gap-x-5 gap-y-3 sm:grid">
+            <span>Recipient</span>
+            <span>Role</span>
+            <span>Access</span>
+            <span>Status</span>
+            <span>Expires</span>
+            <span>Actions</span>
+          </li>
           {invitations.map((invitation) => {
-            const pending =
-              !invitation.acceptedAt &&
-              !invitation.revokedAt &&
-              new Date(invitation.expiresAt).getTime() > statusTime;
+            const pending = isPendingInvitation(invitation, statusTime);
             const status = invitation.acceptedAt
               ? 'Accepted'
               : invitation.revokedAt
@@ -528,40 +537,81 @@ function InvitationList({
                   : 'Expired';
             return (
               <li
-                className="flex items-center justify-between gap-4 px-6 py-4 max-sm:grid"
+                className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(8rem,0.75fr)_minmax(8rem,auto)] sm:items-start"
                 key={invitation.id}
               >
                 <div className="min-w-0 break-words">
-                  <strong>{invitation.email}</strong>
-                  <p className="mt-1 text-sm text-muted">
-                    {roleLabels[invitation.role]} · {status}
-                  </p>
-                  <p className="mt-1 text-sm text-muted">
-                    Branches:{' '}
-                    {invitation.branches
-                      ?.map(({ branch }) => branch.name)
-                      .join(', ') || 'None assigned'}
-                    {invitation.merchant
-                      ? ` · Merchant: ${invitation.merchant.name}`
-                      : ''}
-                  </p>
+                  <span className={mobileColumnLabelClass}>Recipient</span>
+                  <strong className="text-sm font-semibold">
+                    {invitation.email}
+                  </strong>
                 </div>
-                {pending ? (
+                <div className="min-w-0">
+                  <span className={mobileColumnLabelClass}>Role</span>
+                  <span className="text-sm font-semibold text-ink">
+                    {roleLabels[invitation.role]}
+                  </span>
+                </div>
+                <div className="min-w-0 break-words">
+                  <span className={mobileColumnLabelClass}>Access</span>
+                  <span className="text-sm text-ink">
+                    {invitation.role === 'MERCHANT'
+                      ? invitation.merchant
+                        ? `Merchant profile · ${invitation.merchant.name}`
+                        : 'Merchant profile required'
+                      : invitation.branches
+                          ?.map(({ branch }) => branch.name)
+                          .join(', ') || 'No branches assigned'}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <span className={mobileColumnLabelClass}>Status</span>
+                  <span
+                    className={`text-sm font-semibold ${status === 'Pending' ? 'text-success-ink' : status === 'Revoked' ? 'text-danger' : 'text-muted'}`}
+                  >
+                    {status}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <span className={mobileColumnLabelClass}>Expires</span>
+                  <span className="text-sm text-ink">
+                    {joinedDate(invitation.expiresAt)}
+                  </span>
+                </div>
+                <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
+                  <span className={`${mobileColumnLabelClass} basis-full`}>
+                    Actions
+                  </span>
                   <button
-                    className={buttonStyles({ variant: 'secondary' })}
+                    className={buttonStyles({
+                      variant: 'quiet',
+                      className:
+                        'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
+                    })}
                     type="button"
                     disabled={Boolean(pendingId)}
                     aria-busy={pendingId === invitation.id}
-                    onClick={() => void onRevoke(invitation)}
+                    onClick={() => void onRemove(invitation)}
                   >
-                    {pendingId === invitation.id ? 'Revoking…' : 'Revoke'}
+                    {pendingId === invitation.id ? 'Removing…' : 'Remove'}
                   </button>
-                ) : null}
+                </div>
               </li>
             );
           })}
         </ul>
       )}
     </OperationalPanel>
+  );
+}
+
+function isPendingInvitation(
+  invitation: OrganizationInvitation,
+  statusTime: number,
+): boolean {
+  return (
+    !invitation.acceptedAt &&
+    !invitation.revokedAt &&
+    new Date(invitation.expiresAt).getTime() > statusTime
   );
 }

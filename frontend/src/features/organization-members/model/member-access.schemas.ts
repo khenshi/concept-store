@@ -15,6 +15,7 @@ export const memberResponseSchema = z.object({
   lastName: z.string(),
   phone: z.string().nullable(),
   role: z.enum(['OWNER', 'MANAGER', 'CASHIER', 'MERCHANT']),
+  branchAccessCount: z.number().int().nonnegative(),
   joinedAt: z.iso.datetime({ offset: true }),
   merchantId: z.uuidv4().nullable(),
 });

@@ -10,6 +10,7 @@ export interface OrganizationMember {
   lastName: string;
   phone: string | null;
   role: OrganizationRole;
+  branchAccessCount: number;
   joinedAt: string;
   merchantId?: string | null;
 }
