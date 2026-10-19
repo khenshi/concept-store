@@ -108,8 +108,9 @@ whitelisting reject malformed IDs and unexpected fields.
 - Search matches product name/SKU case-insensitively and barcode case-sensitively.
   Merchant/product-status/derived-stock-status filters are optional and compose
   without widening the role-aware placement scope. Lists order by product name
-  then inventory ID. The directory now returns `{ items, nextCursor }`, with
-  default page size 50 and maximum 100. Each database read asks for at most
+  then inventory ID. The directory now returns
+  `{ items, nextCursor, totalPages }`, with
+  default page size 15 and maximum 100. Each database read asks for at most
   `limit + 1` placements. Stock-status filtering is applied in PostgreSQL
   using the same zero/threshold rules as the displayed status. A cursor is
   valid only for the same organization, branch, member/role, and active filters;
@@ -146,8 +147,9 @@ does not change stock rules.
 
 The read-only reconciliation route is limited to owners and managers (only
 assigned branches for managers). It returns only mismatched placements, ordered
-by placement ID with a default page size of 25 and maximum of 100. The optional
-UUID cursor is the last returned placement ID. Each result contains product ID,
+by placement ID with a default page size of 15 and maximum of 100. The optional
+UUID cursor is the last returned placement ID, and the response includes
+`totalPages` for the full mismatch set. Each result contains product ID,
 name and SKU, saved quantity, exact decimal-string sum of all signed RECEIPT,
 ADJUSTMENT, SALE and RETURN deltas, and saved-minus-ledger difference. A missing
 ledger counts as zero; an empty page with no next cursor means no mismatches
@@ -194,10 +196,10 @@ list uses a five-row skeleton that preserves its responsive two-column structure
   attribution. Owner/manager history returns the actor's display name; merchant
   history omits actor information.
 - History is ordered by timestamp descending then movement ID descending. The
-  endpoint returns `{ items, nextCursor }`, defaulting to 50 movements with a
-  maximum of 100 per page. A next cursor is the last returned movement ID and
+  endpoint returns `{ items, nextCursor, totalPages }`, defaulting to 15
+  movements with a maximum of 100 per page. A next cursor is the last returned movement ID and
   must belong to the same tenant, branch, and placement. Invalid/foreign cursors
-  do not disclose movement data. The detail view requests five movements and
+  do not disclose movement data. The detail view requests 15 movements and
   exposes Previous and Next navigation, replacing the visible page while
   retaining the current-stock summary; refreshes return to page one. There is no
   movement mutation or deletion endpoint.
@@ -219,8 +221,9 @@ Merchants see only movements for their own merchant products and never receive
 actor fields. Cashiers cannot call the route or see the tab.
 
 `GET /organizations/:organizationId/branches/:branchId/inventory/movements`
-returns `{ items, nextCursor }`, ordered newest first by `createdAt` and movement
-ID. The default and frontend page size is 10 (the API accepts `1..100`). `q`
+returns `{ items, nextCursor, totalPages }`, ordered newest first by `createdAt`
+and movement ID. The default and frontend page size is 15 (the API accepts
+`1..100`). `q`
 matches product name, SKU, barcode, or reason; `type` accepts `RECEIPT`,
 `ADJUSTMENT`, `SALE`, or `RETURN`; and staff may additionally filter by
 merchant. `from` and `until` are optional UTC timestamps representing the
@@ -230,9 +233,11 @@ bound to the organization, branch, role/member visibility, and every active
 filter; malformed, foreign, or stale cursors return not-found behavior.
 
 The Movement records filter toolbar uses a compact Search label with an example
-placeholder, a leading search icon, and leading calendar icons on the Philippine
-date inputs. At tablet widths the date and action group is start-aligned and
-shrink-wrapped rather than filling the entire second row.
+placeholder, a leading search icon, and one Philippine-local calendar control.
+The calendar applies one selected day or an inclusive two-date range; Apply
+commits the selection and Clear removes the date filter. At tablet widths the
+date and action group is start-aligned and shrink-wrapped rather than filling
+the entire second row.
 
 Each item contains movement and placement IDs, product name/SKU/barcode,
 merchant identity, movement type/reason, signed quantity change, resulting
@@ -347,12 +352,22 @@ responses as well as full owner/manager responses.
   matching counts explicitly describe own placements, never branch-wide totals;
   empty assigned branches explain that assignments cannot expose others' stock.
 - The directory includes debounced product search, merchant/product-status filters,
-  responsive divided rows, exact PHP prices, and whole-unit balances. It loads
-  50 placements initially and offers a Load more control while a next page is
-  available. Counts say displayed rows when more pages remain. Filter, branch,
-  role, access and successful-write changes discard prior pages and cursors;
-  late responses cannot restore stale rows. Empty, filtered-empty, loading,
-  and retryable first/later-page errors have distinct feedback.
+  visible labels matching the Movement records toolbar, responsive divided rows,
+  exact PHP prices, and whole-unit balances. It loads 15 placements initially
+  and uses numbered Previous/Next controls while a next page is available.
+  The frontend caches the cursors needed to revisit earlier pages; the API
+  remains cursor-based. Filter, branch, role, access and successful-write
+  changes discard prior pages and cursors; late responses cannot restore stale
+  rows. Empty, filtered-empty, loading, and retryable first/later-page errors
+  have distinct feedback. Empty states use the same panel inset and vertical
+  spacing across the stock, movement, detail, and integrity surfaces.
+  Movement-record and inventory-detail table pagination remains present at the
+  bottom of an empty result, disabled on the first page; stock and movement
+  controls use the shared borderless arrow treatment. Cursor-backed integrity
+  collections retain their existing Load more behavior. These responsive
+  collections use the shared frontend `OperationalTableFrame` for empty-state
+  inset and footer placement while their row grids and feature actions remain
+  inventory-owned.
 - Owner/manager rows expose Receive stock and Correct stock quick actions in
   focused dialogs; their headers show the branch and current-unit context as
   compact tags, while the product identity still links to full placement
@@ -425,7 +440,7 @@ responses as well as full owner/manager responses.
   delta, resulting balance, and (for owners/managers) the authenticated actor's
   display name in a structured divided list. Merchant runtime schemas accept
   actor-free responses and strip actor fields defensively.
-- History requests five records per page and uses the existing scoped cursor
+- History requests 15 records per page and uses the existing scoped cursor
   contract for Previous and Next navigation. A page-load error leaves the current
   page visible and can be retried without repeating an inventory write.
 - Runtime schemas validate branch identity, inventory/product/merchant summaries,

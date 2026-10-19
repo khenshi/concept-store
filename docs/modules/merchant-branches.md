@@ -28,7 +28,7 @@ Existing global merchant/product eligibility checks still apply.
 | `PATCH /merchants/:merchantId/branches/:branchId/status` | Set `ACTIVE` or `INACTIVE` |
 
 Lists accept `page` (default 1), optional `q` (identity name/code, maximum 120
-characters), and optional `status`. Page size is fixed at 10. Responses contain
+characters), and optional `status`. Page size is fixed at 15. Responses contain
 `items`, `page`, `limit`, `total`, `totalPages`, and `hasNext`. Each item contains
 association IDs/status/timestamps, branch ID/name/code, and merchant ID/name/code/
 global status. Contact fields are excluded. Ordering uses related name then

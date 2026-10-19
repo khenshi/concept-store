@@ -213,10 +213,26 @@ presentations; loading, request-error and authorization states remain separate.
 Existing numbered and cursor-backed previous/next collections now reuse
 `PaginationControls`: compact arrow buttons flank a centered page indicator,
 while the existing count summary remains available at the start of the row.
-Cursor-backed movement history keeps its existing page cursor behavior and
-load-more collections keep their existing load-more semantics. Page sizes,
+The pagination footer sits directly below collection content with a shared
+hairline separator; its previous/next controls are borderless arrow buttons
+with preserved keyboard focus treatment. Empty page-based results keep the
+disabled footer visible. Cursor-backed movement history keeps its existing page
+cursor behavior and load-more collections keep their existing load-more
+semantics. Existing paginated tables and lists use a consistent 15-row default;
 filters, query contracts, data ordering, role visibility and tenant isolation
-are unchanged.
+remain unchanged.
+
+## Shared operational table shell (October 19, 2026)
+
+Reports' semantic tables use the shared `OperationalTable` viewport and base
+table treatment. Inventory and Spaces responsive list collections use the shared
+`OperationalTableFrame` for the common empty-state inset and footer slot. Feature
+components continue to own their columns, rows, loading/error states, filters,
+actions, numbered pagination and cursor-backed behavior. Inventory stock and
+integrity expose numbered controls backed by cached cursors. Paginated
+collection footers use the shared separator and borderless arrow treatment.
+Responsive list collections remain semantic lists rather than being forced into
+native HTML tables.
 
 ## Sidebar navigation icon semantics (October 12, 2026)
 
@@ -411,10 +427,10 @@ Rows link the product identity to the selected branch placement detail and show
 date/time, type, reason, signed change, balance after and merchant identity.
 Owner/manager rows also show the actor name; merchant rows do not render or
 accept actor data. Previous/Next controls use opaque filter-bound cursors with
-10 records per page. Loading skeletons, unfiltered and filtered empty states,
+15 records per page. Loading skeletons, unfiltered and filtered empty states,
 retryable errors, page-preserving failures, stale-response protection and
 responsive/keyboard-accessible controls are included. The existing detail-page
-five-row movement history remains unchanged.
+15-row movement history remains unchanged.
 
 The movement filter toolbar uses the surrounding surface rather than a gray
 inset. It has no horizontal side padding; at tablet widths the search, movement
@@ -506,7 +522,7 @@ Receive, Adjust, Threshold, and Edit price tab strip; Receive is shown by
 default, only the selected form is shown at a time, and extra horizontal insets
 keep it visually attached to the action row. There is no separate close control;
 switching still protects unsaved input.
-Movement history requests five records at a time and presents Previous and Next
+Movement history requests 15 records at a time and presents Previous and Next
 page controls. Changing pages replaces only the movement rows, preserves the
 current placement summary, and keeps the current page available when a request
 fails so the navigation request can be retried safely. The history list reserves

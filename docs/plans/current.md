@@ -175,20 +175,26 @@ one centered no-data warning treatment and one pagination navigation treatment.
 - Apply the centered warning box to empty table/list states that currently use
   plain text or unboxed messages.
 - Apply icon-based previous/next pagination with the page indicator between the
-  controls to existing numbered and cursor-backed table/list pagination.
-- Keep current page sizes, query parameters, cursor behavior, loading states,
+  controls to existing numbered and cursor-backed table/list pagination. The
+  Inventory stock directory uses numbered controls backed by cached cursors
+  while preserving its cursor-based API contract. Every table page indicator
+  shows the current page and available page count; cursor-backed inventory
+  reads and Reports rankings expose the count from the backend.
+- Use a consistent default page size of 15 across the existing table/list
+  pagination while preserving query parameters, cursor behavior, loading states,
   errors, filters, authorization, and data semantics unchanged.
-- Keep cursor-backed load-more interactions as load-more interactions when there
-  is no previous-page cursor or total-page contract; only align their visual
-  treatment where practical.
+- Keep cursor-backed load-more interactions only where previous-page navigation
+  cannot be reconstructed safely; align their visual treatment where practical.
 
 ### Explicit exclusions and stop condition
 
-This pass does not add backend pagination, change API response contracts, add a
-new data source, alter table columns, or redesign non-collection form states.
-Stop after the shared presentation primitives are applied to the existing
+This pass does not add a new data source, alter table columns, or redesign
+non-collection form states. Backend changes are limited to total-page metadata
+and the count queries required by existing cursor-backed collection reads; no
+database schema change or new pagination model is introduced. Stop after the
+shared presentation primitives and metadata are applied to the existing
 paginated tables/lists and their relevant empty states, with focused frontend
-tests, typecheck, lint, formatting and diff validation complete.
+and backend tests, typecheck, lint, formatting and diff validation complete.
 
 ## Reports Transactions tab
 
@@ -354,3 +360,48 @@ without changing branch data, actions, authorization, or responsive behavior.
 
 Stop after the focused Branches workflow tests, frontend validation and module
 documentation are updated.
+
+## Inventory movement date range picker
+
+**Status:** Implemented locally October 18, 2026; focused validation is complete.
+
+### Goal
+
+Replace the Movement records toolbar's paired native date inputs with one
+accessible calendar that supports filtering one selected Philippine date or an
+inclusive two-date range.
+
+### Scope and exclusions
+
+- Let the user choose one day or a second day to form a date range in one custom
+  calendar surface.
+- Preserve the existing `from`/`until` UTC API contract, Apply/Clear behavior,
+  branch scope, loading states, pagination, authorization and movement data.
+- Keep the calendar dependency-free and responsive; do not add recurring dates,
+  time selection, multi-range selection, or backend changes.
+
+Stop after focused Inventory movement tests, frontend validation, module
+documentation and layout/diff checks are complete.
+
+## Shared Philippine date range picker
+
+**Status:** Implemented locally October 18, 2026; focused validation is complete.
+
+### Goal
+
+Reuse the Inventory Movement Records one-calendar date selection pattern on the
+Reports period control through a shared UI component.
+
+### Scope and exclusions
+
+- Extract the dependency-free calendar into `frontend/src/shared/components/ui`
+  with one-day and inclusive two-date selection.
+- Migrate Inventory movement records and Reports to the shared picker without
+  changing their existing UTC request contracts, authorization, loading states,
+  pagination, or report period limits.
+- Preserve the Reports Apply-period workflow and the Inventory Apply/Clear
+  workflow; do not add backend changes, dependencies, time selection, or other
+  calendar modes.
+
+Stop after focused Inventory/Reports tests, frontend validation, module
+documentation and layout/diff checks are complete.

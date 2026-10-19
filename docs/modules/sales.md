@@ -162,7 +162,7 @@ there is no alternate full-receipt endpoint for merchants.
 Lists return `{ items, page, limit, total, totalPages }`, newest completion first
 then descending sale ID. `total` counts only permitted matching sales. Default
 page/limit are 1/50 at the API boundary; the staff POS history requests a fixed
-ten-row page. Limit is 1–100 and page is bounded to 21474836 to keep database
+15-row page. Limit is 1–100 and page is bounded to 21474836 to keep database
 offsets within integer bounds. `from` is inclusive and `until` exclusive; optional
 strict UTC timestamps end in Z, with up to millisecond precision. Both supplied
 requires from < until. Unknown fields, malformed dates/pagination and non-v4 UUIDs
@@ -250,9 +250,9 @@ navigates to the chosen branch's own-sales list and updates shared branch memory
 only after existing checkout/refund navigation guards allow it. Staff sales remain
 inside POS and therefore use the POS header selector.
 
-Lists default to 50 per page for the general Sales screens, with previous/next
+Lists default to 15 per page for the general Sales screens, with previous/next
 bounded pagination and optional strict UTC From-inclusive/Until-exclusive filters.
-The staff POS Sales History screen uses ten rows per page. Its receipt search and
+The staff POS Sales History screen uses 15 rows per page. Its receipt search and
 cashier/payment selects reload automatically; its optional From Date and Through
 Date inputs are Asia/Manila calendar dates, with From inclusive and Through
 inclusive converted to the next Manila midnight for the exclusive API boundary.

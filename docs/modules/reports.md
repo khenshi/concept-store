@@ -44,7 +44,11 @@ the range cannot exceed 366 days. Applied ranges return normalized UTC timestamp
 Branch lookup accepts no query parameters. The backend does not infer a local
 calendar day for summary reads. Analytics labels dates in Asia/Manila after exact
 UTC filtering. The frontend converts inclusive Philippines calendar
-dates into the required half-open UTC range.
+dates into the required half-open UTC range. The Reports period control uses
+the shared one-calendar date picker: the first selection is one Philippine day,
+the second selection extends it into an inclusive range, Apply period commits
+the selection without reading while the calendar is open, and Clear dates
+removes the pending selection.
 
 ## Transactions history
 
@@ -55,8 +59,10 @@ refund, restock, export or print actions. Sales use their completion date and
 refunds use their own completion date.
 
 The transactions query requires the same strict UTC `from`/`until` range as the
-summary and accepts `page`/`limit` (default 1/50), optional `type=SALE|REFUND`,
+summary and accepts `page`/`limit` (default 1/15), optional `type=SALE|REFUND`,
 and an optional case-insensitive `q` search over saved receipt and refund codes.
+The transaction-type control is visibly labelled `Filter by`, matching the
+labelled ranking controls.
 The server combines both streams before sorting newest completion first with a
 stable descending source ID tie-breaker, then applies pagination and returns
 `branch`, the applied range, `items`, `page`, `limit`, `total`, and `totalPages`.
@@ -185,10 +191,10 @@ Products group by historical `productId`, include either sales or refunds in the
 period, and rank by the requested `sortBy`: `GROSS_SALES` orders exact gross
 descending, units descending, product ID ascending; `UNITS_SOLD` orders units
 descending, gross descending, product ID ascending. The default is
-`GROSS_SALES`. Analytics includes the first ten rows using the default
+`GROSS_SALES`. Analytics includes the first 15 rows using the default
 unfiltered ordering and `totalProducts`; the rankings route uses the same
-snapshot and returns one server-paginated page of ten rows with `page`, `limit`,
-`sortBy`, nullable `merchantId`, `totalProducts` and `hasNext`. An optional
+snapshot and returns one server-paginated page of 15 rows with `page`, `limit`,
+`sortBy`, nullable `merchantId`, `totalProducts`, `totalPages` and `hasNext`. An optional
 `merchantId` filter is available to Owner and Manager users after tenant and
 role-scope validation and applies to both sale and refund item streams. A valid
 merchant with no matching history returns an empty page. A truncated ranking
@@ -215,7 +221,7 @@ latest contributing saved SaleItem name, ordered by Sale completion time
 descending and SaleItem ID descending. Rows rank by gross sales descending, then
 merchant ID ascending. The merchant response does not include these rankings or
 other merchant identities. The merchant rankings route returns the same
-ten-row page shape with own-prefixed product metrics and never exposes another
+15-row page shape with own-prefixed product metrics and never exposes another
 merchant's product data.
 
 Money/counts/units retain exact unlimited canonical strings; BigInt cents compute
@@ -227,7 +233,7 @@ Part 1 verification passes Prisma validation, backend formatting/lint/build,
 372 unit tests across 34 suites, 199 HTTP tests across six suites and 238
 PostgreSQL tests across six suites. Added analytics tests cover Manila zero-fill/
 partial-day boundaries, mixed distinct counts, independent older-sale refunds,
-deterministic ten-of-N ranking and saved identity ties, exact large money/units,
+deterministic 15-of-N ranking and saved identity ties, exact large money/units,
 fresh access/relinking, reduced private-key projections and unchanged persisted
 sales/refunds/stock/ledger. Paused concurrent checkout and staff/merchant refund
 reads verify summary, daily rows and product rankings share one snapshot. The
@@ -264,7 +270,9 @@ Reports now use the shared warm-neutral page frame with a wide centered layout.
 Report-period controls, summaries, charts, rankings, and transaction tables use
 rounded bordered white surfaces while the sticky context bar remains the
 navigation anchor. Report calculations, role-aware projections, filters, and
-read-only access behavior are unchanged.
+read-only access behavior are unchanged. Report panel title rows keep the same
+horizontal inset as their content; paired title and control rows center the
+title block, while standalone Daily Data titles remain vertically balanced.
 
 BigInt performs unlimited accounting arithmetic; SVG coordinates use only bounded
 integer ratios, never direct unlimited-money Number conversion. The Daily Data
@@ -274,9 +282,9 @@ The Sales Reports workspace has Inventory-style `Overview`, `Daily Data` and
 `Rankings` tabs beside the title-cased `Refresh Report` action. Switching tabs
 keeps the selected Philippines date range and branch filters in place. Overview
 contains the cards and charts. Daily Data moves the exact Asia/Manila daily table
-into a semantic Inventory-style table with ten rows per page and local pagination.
+into a semantic Inventory-style table with 15 rows per page and local pagination.
 Rankings moves the saved product table into a semantic Inventory-style table with
-ten rows per server page; next/previous requests the scoped rankings endpoint.
+15 rows per server page; next/previous requests the scoped rankings endpoint.
 Owner and Manager users can rank by gross sales or units sold and filter by any
 role-visible merchant, with those controls preserved across pagination.
 Merchant users can choose either ranking metric but always receive their own
@@ -289,6 +297,12 @@ large screens. The selected sort metric and merchant scope remain visible above
 the table, and the rank/product identity columns stay fixed while supporting
 metrics scroll horizontally. The table never claims bounded rows reconcile to
 report totals. Empty/refund-only periods remain explicit.
+The Transactions, Daily Data and Rankings tables use the shared frontend
+`OperationalTable` viewport and `OperationalTableFrame` collection shell; their
+feature-owned columns, responsive metadata and empty states remain unchanged.
+Their page footers sit below the table content with a hairline separator, and
+previous/next actions use borderless arrow controls, including when a valid page
+contains no rows.
 
 The refreshed owner/manager Overview layout puts the period summary first, then a
 full-width selectable daily trend as the primary reading surface. An `Explore the
@@ -330,8 +344,8 @@ horizontal overflow. The viewport review used an empty report period.
 The strict staff runtime contract rejects unexpected/private fields and own-prefixed
 merchant-only aggregates. It validates the complete summary, exact branch/range,
 1–367 contiguous Manila dates, daily reconciliation, canonical signed nets,
-unique product and merchant IDs, at most ten rows per ranking, exact product
-gross/units/ID and merchant gross/ID ordering, and the ten-of-N product count.
+unique product and merchant IDs, at most 15 rows per ranking, exact product
+gross/units/ID and merchant gross/ID ordering, and the 15-of-N product count.
 Tests cover API paths, stale scope,
 date/ranking/reconciliation failures, unlimited exact values, accessible tables,
 negative/refund-only rendering, Apply/branch/role/user resets and late reads. Part 2
@@ -404,18 +418,18 @@ tests do not certify rendered behavior. Both parts were reviewed and approved;
 the [completed shared branch-selection plan](../plans/archive/shared-branch-selection-2026-09-14.md)
 is archived.
 
-From/Through inputs are visibly labeled Philippines, inclusive (`Asia/Manila`).
-Today is computed in that timezone independently of browser timezone. Fields
-validate on each input after 300 ms, immediately on blur and on Apply; invalid
-submission focuses the first invalid field. Same-day periods are valid, with a
-maximum of 366 inclusive days. Typing does not fetch; Apply sets a new period.
+The report date picker is visibly labeled Philippines, inclusive (`Asia/Manila`).
+Today is computed in that timezone independently of browser timezone. The first
+calendar selection is a same-day period and a second selection creates an
+inclusive range. Same-day periods are valid, with a maximum of 366 inclusive
+days. Calendar selection does not fetch; Apply period sets a new period, while
+Clear dates removes the pending period selection.
 Refresh/retry read the visibly labeled applied period, never write, and are blocked
 while the draft dates are invalid. Branch changes reset the period to Philippines
 today. There are no persistent report drafts.
-The branch report period heading, date inputs and Apply period action share a row
-at desktop widths and wrap responsively on narrower screens. Date inputs are
-10rem wide, their labels align with the Report period heading, and the date
-fields and Apply action form a compact group at the row's right edge. The applied
+The branch report period heading, calendar trigger and Apply period action share
+a row at desktop widths and wrap responsively on narrower screens. The calendar
+control and actions form a compact group at the row's right edge. The applied
 branch is repeated in a compact sticky Report context bar below the date editor.
 The bar keeps Overview/Daily Data/Rankings at the left, centers the branch name,
 and keeps Refresh Report at the right while the report scrolls. It stacks the
@@ -464,7 +478,7 @@ money and integer strings and must have consistent empty/count/unit invariants.
 Merchants request the reduced analytics route directly, never a staff response
 that is later hidden. Own-prefixed daily trends use Asia/Manila dates. The shared
 Sales Reports tabs keep Overview charts, move the exact daily table to Daily Data
-with ten local rows per page, and move the own product table to Rankings with ten
+with 15 local rows per page, and move the own product table to Rankings with 15
 server-paginated rows per page. The Rankings table shows only saved historical
 identity and own gross/units/refund/net fields. It has no live price, inventory
 status or other merchants' products. The shared SVG renderer receives an explicit
@@ -488,7 +502,7 @@ profile reads or widening the approved Reports response. Access/links may be
 checked with an owner, then refreshed; no alternate branch is silently selected.
 Strict own analytics checks independently enforce contiguous/reconciled days,
 canonical unlimited values and signed net, unique deterministic bounded product
-ranking and ten-of-N count. Staff, unprefixed, method, actor, contact and private
+ranking and 15-of-N count. Staff, unprefixed, method, actor, contact and private
 metadata cause response rejection rather than fallback. Assigned unlinked profiles
 receive zero-filled own trends and no products; refund-only historical items remain
 visible with negative own net. Part 3 is uncommitted pending review. Rendered QA is

@@ -33,7 +33,7 @@ All paths below are under `/organizations/:organizationId`. Object path IDs requ
 | PATCH       | `/branches/:branchId/spaces/:spaceId/occupancies/:occupancyId/release` | Release current occupancy                            |
 | GET         | `/merchants/:merchantId/spaces`                                        | Current/history occupancy across accessible branches |
 
-Space lists accept `page`, `q` (name search), `type` (case-insensitive exact label), `status`, and optional `merchantId` (current occupant for staff; own spaces for merchants). Occupancy lists accept `page`, `view=CURRENT|HISTORY`, and optional `branchId`. All lists use ten rows with `items`, `page`, `limit`, `total`, `totalPages`, and `hasNext`. Spaces sort by name then ID; occupancy sorts by start descending then ID descending. The space list includes `currentOccupancy`; occupancy includes space identity/type/status, branch identity/code, merchant identity/code, occupancy dates, release reason, and released-by ID/name, without contact details or record-creation/update timestamps.
+Space lists accept `page`, `q` (name search), `type` (case-insensitive exact label), `status`, and optional `merchantId` (current occupant for staff; own spaces for merchants). Occupancy lists accept `page`, `view=CURRENT|HISTORY`, and optional `branchId`. All lists use 15 rows with `items`, `page`, `limit`, `total`, `totalPages`, and `hasNext`. Spaces sort by name then ID; occupancy sorts by start descending then ID descending. The space list includes `currentOccupancy`; occupancy includes space identity/type/status, branch identity/code, merchant identity/code, occupancy dates, release reason, and released-by ID/name, without contact details or record-creation/update timestamps.
 
 ## Authorization
 
@@ -43,7 +43,12 @@ Every request requires authentication and current organization membership. Owner
 
 Branch details contain an optional Spaces section with search, catalog type/status filters, current occupancy, history, and owner-only create/edit/assign/release/archive controls. Merchant profiles contain Current spaces and Past occupancy views across authorized branches, with owner assignment/release controls. Assignment choices use active affiliations and active profiles. Historical recording requires both start and end dates. A currently occupied space still permits an owner to record a non-overlapping past interval.
 
-Managers and merchants receive read-only lists/history, and cashiers receive no section or requests. Lists use flat responsive operational rows and existing native dialogs, with responsive loading skeletons that mirror the filters and row geometry, local loading/error/empty/success feedback, repeat-submit protection, retry controls, and obsolete-read protection. Participation and lifecycle confirmation dialogs load an advisory current occupancy count and explain automatic release before confirmation; failed count reads prevent the status command. The backend rechecks actual occupancy transactionally. Successful status/participation changes refresh the Spaces section.
+Managers and merchants receive read-only lists/history, and cashiers receive no section or requests. Lists use flat responsive operational rows and existing native dialogs, with responsive loading skeletons that mirror the filters and row geometry, local loading/error/empty/success feedback, repeat-submit protection, retry controls, and obsolete-read protection. Participation and lifecycle confirmation dialogs load an advisory current occupancy count and explain automatic release before confirmation; failed count reads prevent the status command. The backend rechecks actual occupancy transactionally. Successful status/participation changes refresh the Spaces section. Empty table states use the same panel inset and vertical spacing across the Spaces list and detail history surfaces.
+The branch list and occupancy history use the shared frontend
+`OperationalTableFrame` for that empty-state inset and pagination footer; their
+responsive row grids, filters and actions remain Spaces-owned. Their pagination
+footers sit below the rows with a hairline separator and borderless arrow
+controls, including for empty page results.
 
 Spaces workspace and detail routes now use the shared gray canvas with wide
 centered content. Space lists, type management, overview, actions, and occupancy
@@ -82,6 +87,10 @@ Occupancy, and Actions columns. Status and occupancy values use compact pills;
 active/occupied values use the success treatment and archived/vacant values use
 the danger treatment. The Space column remains flexible, while a fixed Actions
 column keeps the header and row values aligned when role-specific actions differ.
+The branch list uses the shared Inventory operational surface: a bordered card
+header, soft-gray filter toolbar, muted field labels, white search input,
+rounded select controls, and matching header/row spacing. Existing filters,
+status semantics, pagination, and actions are unchanged.
 Owner row actions are limited to Assign, Archive, and View; Archive is disabled
 for occupied spaces and uses the danger treatment.
 View opens `/app/organizations/[organizationId]/branches/[branchId]/spaces/[spaceId]`,

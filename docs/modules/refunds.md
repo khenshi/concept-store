@@ -19,7 +19,7 @@ in existing POS Sales History; merchants use their existing own-sale detail.
 
 ## Sale-detail frontend workflow
 
-Owner/manager detail loads saved refund history with ten rows per page and
+Owner/manager detail loads saved refund history with 15 rows per page and
 all-page remaining/returned/restocked quantities. Return items opens the shared
 native scroll-contained form dialog. Each original line shows saved identity,
 unit price, remaining units and distinct whole-unit return/restock inputs.
@@ -216,7 +216,7 @@ Current membership, non-deleted-user state, role, branch grants and profile link
 are reloaded inside each read transaction. Wrong tenant/branch/sale/refund or
 refunds without matching own items use the same not-found behavior as absent IDs.
 
-List accepts integer page 1..21474836 (default 1) and limit 1..100 (default 50).
+List accepts integer page 1..21474836 (default 1) and limit 1..100 (default 15).
 No date/merchant/payment filter is accepted. Unknown, malformed and repeated-array
 queries are rejected; detail accepts no query fields. Path IDs require UUID v4
 and normalize to lowercase. Records order by completedAt descending then ID

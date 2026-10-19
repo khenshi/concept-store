@@ -96,7 +96,7 @@ GET   /organizations/:organizationId/branches/directory?q=&status=&page=
 PATCH /organizations/:organizationId/branches/:branchId/status
 ```
 
-The directory is limited to ten rows per page, searches branch name, code, city,
+The directory is limited to 15 rows per page, searches branch name, code, city,
 province, and address, and returns the filtered total, page metadata, an
 unfiltered accessible summary of total/active/inactive counts, and each row's
 active merchant count. The count includes all active merchant–branch associations,
