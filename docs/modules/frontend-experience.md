@@ -204,6 +204,22 @@ committed as `db1bce9`.
 
 ## Dense Reports surfaces (Part 3, committed `827a3f6`)
 
+The shared calendar Apply action uses a filled primary background; Reports labels
+that action simply `Apply`.
+Period and Report dates labels share muted extra-small, medium-weight typography
+and matching label-to-control spacing.
+
+Reports period controls provide Today, This month, Last 30 days, This year,
+Last 12 months, Last 2 years, All time and Custom dates, with Today initially
+selected. The shared custom preset dropdown and date selector share one row.
+Presets apply immediately; calendar edits wait for Apply. The calendar selector displays
+inclusive Philippine dates; the separate applied-period summary is removed.
+Branch changes retain the chosen period, resolving
+All time again for the authorized branch. Monthly charts replace daily charts
+beyond 366 days, and yearly charts are used beyond five years. Grouped reports
+keep exact daily detail through server pagination with 15 rows per page. Empty
+All time explicitly states zero activity without an invented first date.
+
 Exact daily analytics, top-product tables, payment breakdowns and refund-method
 collections now use the same lightly contained table language. True tables keep
 their horizontal scroller and numeric alignment; headers, consistent 1.5rem

@@ -40,7 +40,9 @@ whitelisting reject malformed identifiers and unknown query fields.
 
 Summary requires both strict UTC `from` (inclusive) and `until` (exclusive)
 timestamps ending in Z with at most millisecond precision. `from < until` and
-the range cannot exceed 366 days. Applied ranges return normalized UTC timestamps.
+the supported range is Manila dates 1900-01-01 through 9999-12-30. Applied
+ranges return normalized UTC timestamps. Long periods use bounded grouped
+analytics rather than unbounded daily arrays.
 Branch lookup accepts no query parameters. The backend does not infer a local
 calendar day for summary reads. Analytics labels dates in Asia/Manila after exact
 UTC filtering. The frontend converts inclusive Philippines calendar
@@ -49,6 +51,50 @@ the shared one-calendar date picker: the first selection is one Philippine day,
 the second selection extends it into an inclusive range, Apply period commits
 the selection without reading while the calendar is open, and Clear dates
 removes the pending selection.
+
+## Period presets and long history
+
+The period editor offers Today (initial default), This month, Last 30 days, This
+year, Last 12 months, Last 2 years, All time and Custom dates. Calendar periods
+use Asia/Manila; Last 30 days includes today and 29 preceding dates. Rolling
+12/24-month periods subtract calendar months from tomorrow, clamp month ends,
+and include through today. Month/year-to-date presets start on the first day.
+Custom dates may exceed 366 days. The preset selector uses the shared custom
+dropdown beside the calendar in one row. Presets apply immediately without an
+adjacent Apply button; calendar edits require Apply and display actual inclusive dates. Refresh retains applied
+concrete bounds. Every tab uses the same range; changing branch preserves the
+selected period and clears old results before loading.
+
+```text
+GET /organizations/:organizationId/branches/:branchId/reports/sales/period?mode=ALL_TIME&until=
+GET /organizations/:organizationId/branches/:branchId/reports/sales/daily?from=&until=&page=&limit=
+```
+
+The explicit All time resolver accepts only mode and a frozen exclusive upper
+bound. It rechecks current membership, branch access and merchant linkage and
+finds the first accessible completed sale or refund in one repeatable-read
+snapshot. Its response contains `scope`, `branch`, `from`, `until` and
+`hasActivity`. A merchant's bounds reveal only their own item activity. No
+activity returns `from: null` and `hasActivity: false`; the UI shows an explicit
+zero/empty state without inventing an earliest date. Once resolved, subsequent
+tab reads use the concrete bounds; Apply resolves again, while staff refresh keeps
+the applied bounds. Merchant refresh revalidates the earliest accessible activity
+to account for a changed merchant link, retaining the frozen upper bound. An
+empty All time can be refreshed to discover new activity.
+
+Long-period charts label monthly or yearly buckets. The weekday-average chart
+is hidden for grouped periods because grouped totals cannot establish daily
+weekday averages. The Daily Data tab retains exact daily rows via server
+pagination for grouped periods, defaulting to 15 rows with a maximum of 100 per
+request. The daily page includes scope, branch, applied bounds, items, page,
+limit, total intersecting calendar dates and totalPages. It zero-fills only the
+requested dates and aggregates only the page's intersection with the applied
+period. Short periods retain the compatible analytics response and local daily
+table pagination. Transactions and rankings remain server-paginated for the
+entire period. Existing bounded request consumers remain supported; missing
+dates never imply All time.
+
+No schema migration, dependency or new reporting infrastructure is required.
 
 ## Transactions history
 
@@ -175,7 +221,13 @@ Fresh membership/user/role/link/grants, branch identity, summary,
 methods, daily aggregates, product count, ranking and saved labels share one
 REPEATABLE READ transaction. No client profile, role, ranking or limit overrides.
 
-Daily rows cover every intersecting Asia/Manila date, ascending and zero-filled.
+For periods of at most 366 days, daily rows cover every intersecting Asia/Manila
+date, ascending and zero-filled. Longer analytics use monthly buckets through
+five years and yearly buckets beyond five years, identified by optional
+`granularity: DAY | MONTH | YEAR` (omitted means DAY). The existing `dailyTrends`
+property retains its row shape; grouped row dates identify the first calendar
+day of each bucket. First/last buckets include only events inside the exact
+applied bounds. Totals and counts still reconcile across all returned buckets.
 The UTC interval is filtered before bucketing; exclusive midnight contributes no
 extra date. Maximum 366-day duration may intersect 367 dates for partial-day API
 ranges. Sales use original completion dates and refunds independently use refund
@@ -424,12 +476,14 @@ is archived.
 The report date picker is visibly labeled Philippines, inclusive (`Asia/Manila`).
 Today is computed in that timezone independently of browser timezone. The first
 calendar selection is a same-day period and a second selection creates an
-inclusive range. Same-day periods are valid, with a maximum of 366 inclusive
-days. Calendar selection does not fetch; Apply period sets a new period, while
+inclusive range. Same-day periods are valid. Periods up to 366 days use daily
+charts; longer periods use grouped charts. Calendar selection does not fetch;
+Apply period sets a new period, while
 Clear dates removes the pending period selection.
 Refresh/retry read the visibly labeled applied period, never write, and are blocked
-while the draft dates are invalid. Branch changes reset the period to Philippines
-today. There are no persistent report drafts.
+while the draft dates are invalid. Branch changes retain the selected preset or
+custom period; All time resolves again within the new authorized branch. There
+are no persistent report drafts.
 The branch report period heading, calendar trigger and Apply period action share
 a row at desktop widths and wrap responsively on narrower screens. The calendar
 control and actions form a compact group at the row's right edge. The applied
