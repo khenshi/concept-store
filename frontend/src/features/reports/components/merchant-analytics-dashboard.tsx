@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import {
@@ -17,21 +17,27 @@ import {
   ReportSummary,
   RankingControls,
 } from './staff-analytics-dashboard';
-import type { SalesReportTab } from './staff-analytics-dashboard';
+import type {
+  ChartGranularity,
+  SalesReportTab,
+} from './staff-analytics-dashboard';
 
 const money = (value: string) => `PHP ${value}`;
 
-function MerchantDailyData({
+export function MerchantDailyData({
   rows,
+  pagination,
 }: {
   rows: MerchantSalesAnalytics['dailyTrends'];
+  pagination?: ReactNode;
 }) {
   const [pageState, setPageState] = useState<{
     rows: MerchantSalesAnalytics['dailyTrends'];
     page: number;
   }>({ rows, page: 1 });
   const page = pageState.rows === rows ? pageState.page : 1;
-  const pageRows = rows.slice((page - 1) * 15, page * 15);
+  const pageRows =
+    pagination !== undefined ? rows : rows.slice((page - 1) * 15, page * 15);
   const hasNext = page * 15 < rows.length;
   const totalPages = Math.max(1, Math.ceil(rows.length / 15));
   return (
@@ -55,17 +61,21 @@ function MerchantDailyData({
           ) : undefined
         }
         footer={
-          <PaginationControls
-            ariaLabel="Daily sales pagination"
-            currentPage={page}
-            totalPages={totalPages}
-            hasNext={hasNext}
-            summary={`${rows.length} days`}
-            onPrevious={() =>
-              setPageState({ rows, page: Math.max(1, page - 1) })
-            }
-            onNext={() => setPageState({ rows, page: page + 1 })}
-          />
+          pagination !== undefined ? (
+            pagination
+          ) : (
+            <PaginationControls
+              ariaLabel="Daily sales pagination"
+              currentPage={page}
+              totalPages={totalPages}
+              hasNext={hasNext}
+              summary={`${rows.length} days`}
+              onPrevious={() =>
+                setPageState({ rows, page: Math.max(1, page - 1) })
+              }
+              onNext={() => setPageState({ rows, page: page + 1 })}
+            />
+          )
         }
       >
         {pageRows.length ? (
@@ -314,6 +324,7 @@ function MerchantRankings({
 
 export function MerchantAnalyticsDashboard({
   report,
+  granularity = report.granularity ?? 'DAY',
   activeTab = 'overview',
   ranking,
   rankingControls = { sortBy: 'GROSS_SALES', merchantId: null },
@@ -324,6 +335,7 @@ export function MerchantAnalyticsDashboard({
   onRankingPageChange = () => undefined,
 }: {
   report: MerchantSalesAnalytics;
+  granularity?: ChartGranularity;
   activeTab?: SalesReportTab;
   ranking?: MerchantSalesRankingPage;
   rankingControls?: ReportRankingControls;
@@ -421,6 +433,7 @@ export function MerchantAnalyticsDashboard({
         </div>
         <AnalyticsTrendCharts
           rows={trends}
+          granularity={granularity}
           own
           className="mt-5 grid gap-6 xl:grid-cols-2"
         />

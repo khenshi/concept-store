@@ -154,6 +154,8 @@ beforeEach(() => {
     },
     organizationStatus: 'ready',
     organizationError: null,
+    reportPeriod: null,
+    setReportPeriod: vi.fn(),
     refreshOrganization,
     selectedBranchId: null,
     setSelectedBranchId: vi.fn(),

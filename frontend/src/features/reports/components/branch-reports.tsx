@@ -18,11 +18,16 @@ import {
   getStaffTransactions,
   getMerchantTransactions,
   listReportBranches,
+  resolveReportPeriod,
 } from '../api/report-api';
 import {
   reportDateRangeSchema,
   reportUtcRange,
   todayInPhilippines,
+  reportPresetDates,
+  reportPresets,
+  reportCalendarRange,
+  type ReportPreset,
   type ReportDateRange,
 } from '../model/report-dates';
 import type {
@@ -45,6 +50,8 @@ import type { SalesReportTab } from './staff-analytics-dashboard';
 import { MerchantAnalyticsDashboard } from './merchant-analytics-dashboard';
 import { MerchantReportGuidance } from './merchant-report-guidance';
 import { TransactionsTab } from './transactions-tab';
+import { DailyDataTab } from './daily-data-tab';
+import { EmptyState } from '@/shared/components/ui/empty-state';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
 import {
@@ -139,8 +146,8 @@ export function BranchReports(props: {
   return (
     <ReportAccess organizationId={props.organizationId}>
       {(scope, role) => (
-        <ScopedBranchReports
-          key={`${scope}:${props.branchId}`}
+        <PeriodBranchReports
+          key={scope}
           {...props}
           role={role}
           merchant={role === 'MERCHANT'}
@@ -149,22 +156,60 @@ export function BranchReports(props: {
     </ReportAccess>
   );
 }
-function ScopedBranchReports({
-  organizationId,
-  branchId,
-  merchant,
-  role,
-}: {
+type PeriodSelection = { dates: ReportDateRange; preset: ReportPreset };
+function PeriodBranchReports(props: {
   organizationId: string;
   branchId: string;
   merchant: boolean;
   role: 'OWNER' | 'MANAGER' | 'MERCHANT';
 }) {
+  const { reportPeriod, setReportPeriod } = useOrganizationWorkspaceContext();
+  const [selection, setSelection] = useState<PeriodSelection>(() => ({
+    dates: todayInPhilippines(),
+    preset: 'TODAY',
+  }));
+  return (
+    <ScopedBranchReports
+      key={props.branchId}
+      {...props}
+      selection={reportPeriod ?? selection}
+      onSelectionChange={(next) => {
+        setSelection(next);
+        setReportPeriod?.(next);
+      }}
+    />
+  );
+}
+function ScopedBranchReports({
+  organizationId,
+  branchId,
+  merchant,
+  role,
+  selection,
+  onSelectionChange,
+}: {
+  organizationId: string;
+  branchId: string;
+  merchant: boolean;
+  role: 'OWNER' | 'MANAGER' | 'MERCHANT';
+  selection: PeriodSelection;
+  onSelectionChange(value: PeriodSelection): void;
+}) {
   const { request, user } = useAuth();
   const { refreshOrganization, setSelectedBranchId } =
     useOrganizationWorkspaceContext();
   const router = useRouter();
-  const [draft, setDraft] = useState(todayInPhilippines);
+  const [draft, setDraft] = useState(selection.dates);
+  const [preset, setPreset] = useState<ReportPreset>(selection.preset);
+  const [appliedPreset, setAppliedPreset] = useState<ReportPreset>(
+    selection.preset,
+  );
+  const allTimeRange = useRef<{ from: string; until: string } | null>(null);
+  const [resolvedRange, setResolvedRange] = useState<{
+    from: string;
+    until: string;
+  } | null>(null);
+  const [emptyAllTime, setEmptyAllTime] = useState(false);
   const [applied, setApplied] = useState<ReportDateRange>(draft);
   const [branches, setBranches] = useState<ReportBranch[] | null>(null);
   const [report, setReport] = useState<
@@ -215,6 +260,7 @@ function ScopedBranchReports({
     transactionRequest.current++;
     setTransactionRevision((value) => value + 1);
     setReport(null);
+    setEmptyAllTime(false);
     setBranches(null);
     setError(null);
     setDenied(false);
@@ -245,9 +291,31 @@ function ScopedBranchReports({
             404,
             'This branch is no longer available to your Reports access.',
           );
+        let query = reportUtcRange(applied);
+        if (appliedPreset === 'ALL_TIME') {
+          if (!allTimeRange.current || merchant) {
+            const period = await resolveReportPeriod(
+              request,
+              organizationId,
+              branchId,
+              query.until,
+              merchant,
+            );
+            if (!active || current !== generation.current) return;
+            if (period.from === null) {
+              setBranches(items);
+              setEmptyAllTime(true);
+              setSelectedBranchId(branchId);
+              return;
+            }
+            allTimeRange.current = { from: period.from, until: period.until };
+            setResolvedRange(allTimeRange.current);
+          }
+          query = allTimeRange.current;
+        }
         const result = await (
           merchant ? getMerchantSalesAnalytics : getStaffSalesAnalytics
-        )(request, organizationId, branchId, reportUtcRange(applied));
+        )(request, organizationId, branchId, query);
         if (!active || current !== generation.current) return;
         setBranches(items);
         setReport(result);
@@ -280,6 +348,7 @@ function ScopedBranchReports({
     organizationId,
     branchId,
     applied,
+    appliedPreset,
     revision,
     merchant,
     setSelectedBranchId,
@@ -290,7 +359,8 @@ function ScopedBranchReports({
     const current = generation.current;
     const currentRequest = ++transactionRequest.current;
     const query = {
-      ...reportUtcRange(applied),
+      from: report.from,
+      until: report.until,
       page: transactionPage,
       limit: 15,
       ...(transactionType !== 'ALL' ? { type: transactionType } : {}),
@@ -401,7 +471,9 @@ function ScopedBranchReports({
     setRankingErrorPage(null);
     try {
       const query = {
-        ...reportUtcRange(applied),
+        ...(report
+          ? { from: report.from, until: report.until }
+          : reportUtcRange(applied)),
         page,
         sortBy: controls.sortBy,
         ...(controls.merchantId ? { merchantId: controls.merchantId } : {}),
@@ -448,7 +520,8 @@ function ScopedBranchReports({
     setRankingErrorPage(null);
     void loadRankingPage(1, next, true);
   }
-  const validDraft = reportDateRangeSchema.safeParse(draft).success;
+  const validDraft =
+    preset === 'ALL_TIME' || reportDateRangeSchema.safeParse(draft).success;
   return (
     <OrganizationPageFrame wide>
       <PageHeader
@@ -504,11 +577,38 @@ function ScopedBranchReports({
             </p>
           </div>
           <ReportDateFilter
-            value={draft}
+            value={
+              preset === 'ALL_TIME' && resolvedRange
+                ? reportCalendarRange(resolvedRange.from, resolvedRange.until)
+                : draft
+            }
+            preset={preset}
+            onPresetChange={(next) => {
+              setPreset(next);
+              if (next === 'CUSTOM') return;
+              const dates =
+                next === 'ALL_TIME'
+                  ? todayInPhilippines()
+                  : reportPresetDates(next);
+              setDraft(dates);
+              invalidate();
+              allTimeRange.current = null;
+              setResolvedRange(null);
+              setRevision((value) => value + 1);
+              setApplied(dates);
+              setAppliedPreset(next);
+              onSelectionChange({ dates, preset: next });
+            }}
             onChange={setDraft}
             onApply={(next) => {
               invalidate();
-              setApplied(next);
+              allTimeRange.current = null;
+              setResolvedRange(null);
+              setRevision((value) => value + 1);
+              const dates = preset === 'ALL_TIME' ? todayInPhilippines() : next;
+              setApplied(dates);
+              setAppliedPreset(preset);
+              onSelectionChange({ dates, preset });
             }}
           />
         </div>
@@ -553,6 +653,13 @@ function ScopedBranchReports({
             </button>
           ) : null}
         </>
+      ) : emptyAllTime ? (
+        <div className="card-surface p-6">
+          <EmptyState
+            title="No completed sales or refunds yet."
+            description="All-time sales, refunds and net recorded sales are PHP 0.00. Transactions and units are 0 for this branch and your current access."
+          />
+        </div>
       ) : report ? (
         activeTab === 'transactions' ? (
           <TransactionsTab
@@ -593,6 +700,17 @@ function ScopedBranchReports({
               setTransactionError(null);
               setTransactionPage(next);
             }}
+          />
+        ) : activeTab === 'daily' &&
+          report.granularity &&
+          report.granularity !== 'DAY' ? (
+          <DailyDataTab
+            key={`${report.scope}:${branchId}:${report.from}:${report.until}:${revision}`}
+            organizationId={organizationId}
+            branchId={branchId}
+            from={report.from}
+            until={report.until}
+            merchant={merchant}
           />
         ) : report.scope === 'MERCHANT' ? (
           <MerchantAnalyticsDashboard

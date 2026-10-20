@@ -36,7 +36,7 @@ describe('ReportDateFilter', () => {
       screen.getByRole('dialog', { name: 'Choose report dates' }),
     ).toHaveClass('right-0');
     expect(onApply).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(onApply).toHaveBeenCalledWith({
       fromDay: '2026-09-20',
       throughDay: '2026-09-20',
@@ -47,14 +47,14 @@ describe('ReportDateFilter', () => {
     const onApply = vi.fn();
     render(<Form onApply={onApply} />);
     chooseDates('2026-09-01', '2026-09-20');
-    fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(onApply).toHaveBeenCalledWith({
       fromDay: '2026-09-01',
       throughDay: '2026-09-20',
     });
   });
 
-  it('keeps the existing maximum report period guard', () => {
+  it('allows a custom period longer than one year', () => {
     const onApply = vi.fn();
     render(<Form onApply={onApply} />);
     chooseDates('2026-09-01');
@@ -64,11 +64,12 @@ describe('ReportDateFilter', () => {
     fireEvent.click(
       screen.getByRole('gridcell', { name: 'September 2, 2027' }),
     );
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Choose a period of 366 days or fewer.',
-    );
-    expect(screen.getByRole('button', { name: 'Apply period' })).toBeDisabled();
-    expect(onApply).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(onApply).toHaveBeenCalledWith({
+      fromDay: '2026-09-01',
+      throughDay: '2027-09-02',
+    });
   });
 
   it('clears the pending report dates without applying a new period', () => {

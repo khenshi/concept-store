@@ -42,8 +42,12 @@ export const reportQuerySchema = z
   .strict()
   .refine((range) => {
     const length = Date.parse(range.until) - Date.parse(range.from);
-    return length > 0 && length <= 366 * 86400000;
-  }, 'Choose a valid UTC report period of no more than 366 days.');
+    return (
+      length > 0 &&
+      Date.parse(range.from) >= Date.parse('1899-12-31T16:00:00.000Z') &&
+      Date.parse(range.until) <= Date.parse('9999-12-30T16:00:00.000Z')
+    );
+  }, 'Choose a valid UTC report period within the supported historical range.');
 export const reportRankingSortSchema = z.enum(['GROSS_SALES', 'UNITS_SOLD']);
 export const reportRankingQuerySchema = reportQuerySchema.extend({
   page: z.number().int().min(1).max(21474836),
@@ -408,19 +412,65 @@ function manilaDay(date: Date) {
     parts.find((part) => part.type === type)!.value;
   return `${value('year').padStart(4, '0')}-${value('month')}-${value('day')}`;
 }
-function expectedTrendDays(from: string, until: string) {
+const reportGranularitySchema = z.enum(['DAY', 'MONTH', 'YEAR']);
+type ReportGranularity = z.infer<typeof reportGranularitySchema>;
+
+function expectedGranularity(from: string, until: string): ReportGranularity {
+  if (Date.parse(until) - Date.parse(from) <= 366 * 86400000) return 'DAY';
+  const start = new Date(from);
+  const anniversary = new Date(from);
+  anniversary.setUTCFullYear(start.getUTCFullYear() + 5);
+  if (anniversary.getUTCMonth() !== start.getUTCMonth())
+    anniversary.setUTCDate(0);
+  return Date.parse(until) > anniversary.getTime() ? 'YEAR' : 'MONTH';
+}
+
+function expectedTrendDays(
+  from: string,
+  until: string,
+  granularity: ReportGranularity = 'DAY',
+  offset = 0,
+  limit = 367,
+) {
   const first = Date.parse(`${manilaDay(new Date(from))}T00:00:00Z`);
   const last = Date.parse(
     `${manilaDay(new Date(Date.parse(until) - 1))}T00:00:00Z`,
   );
-  return Array.from({ length: (last - first) / 86400000 + 1 }, (_, index) =>
-    new Date(first + index * 86400000).toISOString().slice(0, 10),
+  if (granularity === 'DAY')
+    return Array.from(
+      {
+        length: Math.max(
+          0,
+          Math.min((last - first) / 86400000 + 1 - offset, limit),
+        ),
+      },
+      (_, index) =>
+        new Date(first + (offset + index) * 86400000)
+          .toISOString()
+          .slice(0, 10),
+    );
+  const start = new Date(first);
+  const end = new Date(last);
+  const firstYear = start.getUTCFullYear();
+  const lastYear = end.getUTCFullYear();
+  if (granularity === 'YEAR')
+    return Array.from(
+      { length: lastYear - firstYear + 1 },
+      (_, index) => `${String(firstYear + index).padStart(4, '0')}-01-01`,
+    );
+  const firstMonth = firstYear * 12 + start.getUTCMonth();
+  const lastMonth = lastYear * 12 + end.getUTCMonth();
+  return Array.from(
+    { length: lastMonth - firstMonth + 1 },
+    (_, index) =>
+      `${String(Math.floor((firstMonth + index) / 12)).padStart(4, '0')}-${String(((firstMonth + index) % 12) + 1).padStart(2, '0')}-01`,
   );
 }
 function analyticsValid(
   report: {
     from: string;
     until: string;
+    granularity?: ReportGranularity;
     grossSales: string;
     netRecordedSales?: string;
     transactionCount: string;
@@ -437,7 +487,15 @@ function analyticsValid(
   },
   context: z.RefinementCtx,
 ) {
-  const days = expectedTrendDays(report.from, report.until);
+  if (
+    !reportQuerySchema.safeParse({ from: report.from, until: report.until })
+      .success
+  ) {
+    context.addIssue({ code: 'custom', message: 'Invalid analytics range.' });
+    return;
+  }
+  const granularity = expectedGranularity(report.from, report.until);
+  const days = expectedTrendDays(report.from, report.until, granularity);
   const sumMoney = (field: 'grossSales' | 'refundedAmount') =>
     report.dailyTrends.reduce(
       (sum, row) => sum + moneyCents(row[field]),
@@ -585,7 +643,8 @@ function analyticsValid(
     );
   });
   if (
-    days.length > 367 ||
+    (report.granularity ?? 'DAY') !== granularity ||
+    (granularity !== 'DAY' && report.hourlyTrends !== undefined) ||
     report.dailyTrends.length !== days.length ||
     report.dailyTrends.some(
       (row, index) =>
@@ -655,7 +714,8 @@ export const staffSalesAnalyticsSchema = z
     returnedUnits: integer,
     netRecordedSales: signedAmount,
     refundMethods: refundMethodSchema.array().length(3),
-    dailyTrends: staffDailyTrend.array().min(1).max(367),
+    granularity: reportGranularitySchema.optional(),
+    dailyTrends: staffDailyTrend.array().min(1).max(8100),
     topProducts: staffTopProduct.array().max(15),
     totalProducts: integer,
     topMerchants: staffTopMerchant.array().max(10),
@@ -750,7 +810,8 @@ export const merchantSalesAnalyticsSchema = z
     ownRefundCount: integer,
     ownReturnedUnits: integer,
     ownNetRecordedSales: signedAmount,
-    dailyTrends: merchantDailyTrend.array().min(1).max(367),
+    granularity: reportGranularitySchema.optional(),
+    dailyTrends: merchantDailyTrend.array().min(1).max(8100),
     topProducts: merchantTopProduct.array().max(15),
     totalProducts: integer,
   })
@@ -780,6 +841,7 @@ export const merchantSalesAnalyticsSchema = z
         from: report.from,
         until: report.until,
         grossSales: report.ownGrossSales,
+        granularity: report.granularity,
         transactionCount: report.ownTransactionCount,
         unitsSold: report.ownUnitsSold,
         refundedAmount: report.ownRefundedAmount,
@@ -814,4 +876,102 @@ export const merchantSalesAnalyticsSchema = z
   });
 export type MerchantSalesAnalytics = z.infer<
   typeof merchantSalesAnalyticsSchema
+>;
+
+export const reportDailyQuerySchema = reportQuerySchema.extend({
+  page: z.number().int().min(1).max(21474836).default(1),
+  limit: z.number().int().min(1).max(100).default(15),
+});
+export type ReportDailyQuery = z.input<typeof reportDailyQuerySchema>;
+
+function dailyPageValid(
+  page: z.infer<typeof transactionPageBase> & {
+    items: z.infer<typeof staffDailyTrend>[];
+  },
+  context: z.RefinementCtx,
+) {
+  if (
+    !reportQuerySchema.safeParse({ from: page.from, until: page.until }).success
+  ) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Invalid daily report range.',
+    });
+    return;
+  }
+  const first = Date.parse(`${manilaDay(new Date(page.from))}T00:00:00Z`);
+  const last = Date.parse(
+    `${manilaDay(new Date(Date.parse(page.until) - 1))}T00:00:00Z`,
+  );
+  const total = (last - first) / 86400000 + 1;
+  const dates = expectedTrendDays(
+    page.from,
+    page.until,
+    'DAY',
+    (page.page - 1) * page.limit,
+    page.limit,
+  );
+  if (
+    page.total !== total ||
+    page.totalPages !== Math.ceil(total / page.limit) ||
+    page.items.length !== dates.length ||
+    page.items.some(
+      (row, index) =>
+        row.date !== dates[index] ||
+        !staffDailyTrend.safeParse(row).success ||
+        !validRefunds(
+          row.grossSales,
+          row.refundedAmount,
+          row.refundCount,
+          row.returnedUnits,
+          row.netRecordedSales,
+        ) ||
+        (row.transactionCount === '0'
+          ? row.grossSales !== '0.00' || row.unitsSold !== '0'
+          : moneyCents(row.grossSales) <= BigInt(0) ||
+            BigInt(row.unitsSold) < BigInt(row.transactionCount)),
+    )
+  )
+    context.addIssue({
+      code: 'custom',
+      message: 'Daily report rows and pagination do not reconcile.',
+    });
+}
+
+export const staffDailyReportPageSchema = transactionPageBase
+  .extend({
+    scope: z.literal('STAFF'),
+    items: staffDailyTrend.array().max(100),
+  })
+  .strict()
+  .superRefine(dailyPageValid);
+
+export const merchantDailyReportPageSchema = transactionPageBase
+  .extend({
+    scope: z.literal('MERCHANT'),
+    items: merchantDailyTrend.array().max(100),
+  })
+  .strict()
+  .superRefine((page, context) =>
+    dailyPageValid(
+      {
+        ...page,
+        items: page.items.map((row) => ({
+          date: row.date,
+          grossSales: row.ownGrossSales,
+          transactionCount: row.ownTransactionCount,
+          unitsSold: row.ownUnitsSold,
+          refundedAmount: row.ownRefundedAmount,
+          refundCount: row.ownRefundCount,
+          returnedUnits: row.ownReturnedUnits,
+          netRecordedSales: row.ownNetRecordedSales,
+        })),
+      },
+      context,
+    ),
+  );
+
+export type StaffDailyReportPage = z.infer<typeof staffDailyReportPageSchema>;
+export type MerchantDailyReportPage = z.infer<
+  typeof merchantDailyReportPageSchema
 >;

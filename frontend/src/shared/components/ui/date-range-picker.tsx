@@ -362,7 +362,7 @@ export function DateRangePicker({
             <button
               type="button"
               className={buttonStyles({
-                variant: 'secondary',
+                variant: 'primary',
                 className: 'min-h-10 shrink-0',
               })}
               disabled={!value.fromDay || Boolean(validationError)}

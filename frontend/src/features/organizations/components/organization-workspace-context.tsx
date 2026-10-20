@@ -19,6 +19,15 @@ import type {
 } from '@/features/branches/model/branch.types';
 import { getOrganization } from '../api/organization-api';
 import type { OrganizationAccess } from '../model/organization.types';
+import type {
+  ReportDateRange,
+  ReportPreset,
+} from '@/features/reports/model/report-dates';
+
+export type WorkspaceReportPeriod = {
+  dates: ReportDateRange;
+  preset: ReportPreset;
+};
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -35,6 +44,8 @@ interface OrganizationWorkspaceContextValue {
   branchesError: string | null;
   loadBranches(options?: { refresh?: boolean }): Promise<BranchView[]>;
   upsertBranch(branch: Branch): void;
+  reportPeriod: WorkspaceReportPeriod | null;
+  setReportPeriod(period: WorkspaceReportPeriod): void;
 }
 
 const OrganizationWorkspaceContext =
@@ -86,6 +97,22 @@ function ScopedOrganizationWorkspaceProvider({
     role: OrganizationAccess['role'];
   } | null>(null);
   const currentRole = useRef<OrganizationAccess['role'] | null>(null);
+  const [reportSelection, setReportSelection] = useState<{
+    role: OrganizationAccess['role'];
+    period: WorkspaceReportPeriod;
+  } | null>(null);
+  const reportPeriod =
+    organization &&
+    reportSelection &&
+    organization.role === reportSelection.role
+      ? reportSelection.period
+      : null;
+  const setReportPeriod = useCallback(
+    (period: WorkspaceReportPeriod) => {
+      if (organization) setReportSelection({ role: organization.role, period });
+    },
+    [organization],
+  );
   const [accessGeneration, setAccessGeneration] = useState(0);
   const setSelectedBranchId = useCallback(
     (branchId: string) => {
@@ -129,7 +156,10 @@ function ScopedOrganizationWorkspaceProvider({
     try {
       const result = await getOrganization(request, organizationId);
       if (generation !== organizationGeneration.current) return;
-      if (currentRole.current !== result.role) setSelection(null);
+      if (currentRole.current !== result.role) {
+        setSelection(null);
+        setReportSelection(null);
+      }
       currentRole.current = result.role;
       setOrganization(result);
       setOrganizationStatus('ready');
@@ -149,7 +179,10 @@ function ScopedOrganizationWorkspaceProvider({
     void getOrganization(request, organizationId)
       .then((result) => {
         if (!active || generation !== organizationGeneration.current) return;
-        if (currentRole.current !== result.role) setSelection(null);
+        if (currentRole.current !== result.role) {
+          setSelection(null);
+          setReportSelection(null);
+        }
         currentRole.current = result.role;
         setOrganization(result);
         setOrganizationStatus('ready');
@@ -237,6 +270,8 @@ function ScopedOrganizationWorkspaceProvider({
       branchesError,
       loadBranches,
       upsertBranch,
+      reportPeriod,
+      setReportPeriod,
     }),
     [
       organizationId,
@@ -251,6 +286,8 @@ function ScopedOrganizationWorkspaceProvider({
       branchesError,
       loadBranches,
       upsertBranch,
+      reportPeriod,
+      setReportPeriod,
     ],
   );
 

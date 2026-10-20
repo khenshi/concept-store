@@ -150,7 +150,8 @@ describe('strict staff report contracts', () => {
       { from: range.from },
       { ...range, until: range.from },
       { ...range, from: '2026-09-14T00:00:00+08:00' },
-      { ...range, until: '2028-09-14T16:00:00Z' },
+      { ...range, from: '1899-12-31T15:59:59Z' },
+      { ...range, until: '9999-12-30T16:00:00.001Z' },
       { ...range, page: 1 },
     ])
       expect(reportQuerySchema.safeParse(invalid).success).toBe(false);

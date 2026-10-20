@@ -8,6 +8,8 @@ import {
   getStaffTransactions,
   getMerchantTransactions,
   listReportBranches,
+  resolveReportPeriod,
+  getReportDailyPage,
 } from './report-api';
 
 const branch = {
@@ -19,6 +21,109 @@ const range = {
   from: '2026-09-13T16:00:00.000Z',
   until: '2026-09-14T16:00:00.000Z',
 };
+
+describe('resolved report periods and daily pages', () => {
+  it('requires explicit All time mode and checks scope and concrete bounds', async () => {
+    const request = vi.fn().mockResolvedValue({
+      scope: 'STAFF',
+      branch,
+      ...range,
+      hasActivity: true,
+    });
+    await expect(
+      resolveReportPeriod(request, 'org', branch.id, range.until, false),
+    ).resolves.toMatchObject({ from: range.from });
+    expect(request).toHaveBeenCalledWith(
+      expect.stringContaining('mode=ALL_TIME&until='),
+    );
+    await expect(
+      resolveReportPeriod(request, 'org', branch.id, range.until, true),
+    ).rejects.toThrow();
+    request.mockResolvedValue({
+      scope: 'STAFF',
+      branch,
+      from: null,
+      until: range.until,
+      hasActivity: false,
+    });
+    await expect(
+      resolveReportPeriod(request, 'org', branch.id, range.until, false),
+    ).resolves.toMatchObject({ from: null, hasActivity: false });
+    request.mockResolvedValue({
+      scope: 'STAFF',
+      branch,
+      from: null,
+      until: range.until,
+      hasActivity: true,
+    });
+    await expect(
+      resolveReportPeriod(request, 'org', branch.id, range.until, false),
+    ).rejects.toThrow();
+  });
+  it('checks daily rows against their exact scope, branch, range and page', async () => {
+    const data = {
+      scope: 'STAFF',
+      branch,
+      ...range,
+      page: 1,
+      limit: 15,
+      total: 1,
+      totalPages: 1,
+      items: [
+        {
+          date: '2026-09-14',
+          grossSales: '0.00',
+          transactionCount: '0',
+          unitsSold: '0',
+          refundedAmount: '0.00',
+          refundCount: '0',
+          returnedUnits: '0',
+          netRecordedSales: '0.00',
+        },
+      ],
+    };
+    const request = vi.fn().mockResolvedValue(data);
+    await expect(
+      getReportDailyPage(
+        request,
+        'org',
+        branch.id,
+        { ...range, page: 1 },
+        false,
+      ),
+    ).resolves.toEqual(data);
+    expect(request).toHaveBeenCalledWith(
+      expect.stringContaining('page=1&limit=15'),
+    );
+    await expect(
+      getReportDailyPage(
+        request,
+        'org',
+        branch.id,
+        { ...range, page: 1 },
+        true,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      getReportDailyPage(
+        request,
+        'org',
+        '22222222-2222-4222-8222-222222222222',
+        { ...range, page: 1 },
+        false,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      getReportDailyPage(
+        request,
+        'org',
+        branch.id,
+        { ...range, page: 2 },
+        false,
+      ),
+    ).rejects.toThrow();
+  });
+});
 const empty = {
   scope: 'STAFF',
   branch,

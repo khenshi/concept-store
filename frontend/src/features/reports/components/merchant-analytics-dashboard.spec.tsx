@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { merchantSalesAnalyticsSchema } from '../model/report.schemas';
-import { MerchantAnalyticsDashboard } from './merchant-analytics-dashboard';
+import {
+  MerchantAnalyticsDashboard,
+  MerchantDailyData,
+} from './merchant-analytics-dashboard';
 
 const report = merchantSalesAnalyticsSchema.parse({
   scope: 'MERCHANT',
@@ -47,6 +50,26 @@ const report = merchantSalesAnalyticsSchema.parse({
   totalProducts: '1',
 });
 describe('merchant analytics dashboard', () => {
+  it('labels yearly own-sales buckets with their year', () => {
+    render(<MerchantAnalyticsDashboard report={report} granularity="YEAR" />);
+    expect(
+      screen.getAllByText('Yearly, Asia/Manila · zero line shown'),
+    ).toHaveLength(2);
+    expect(screen.getAllByText('2026')).toHaveLength(2);
+  });
+  it('renders server own daily rows with the supplied pagination footer', () => {
+    render(
+      <MerchantDailyData
+        rows={report.dailyTrends}
+        pagination={<div>Server page 2 of 20</div>}
+      />,
+    );
+    expect(screen.getByText('Server page 2 of 20')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('navigation', { name: 'Daily sales pagination' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('2026-09-14')).toBeInTheDocument();
+  });
   it('renders only explicitly own-labeled analytics and no staff methods/private data', () => {
     const { rerender } = render(<MerchantAnalyticsDashboard report={report} />);
     expect(screen.getByText('Own gross recorded sales')).toBeInTheDocument();
@@ -86,7 +109,12 @@ describe('merchant analytics dashboard', () => {
       screen.getByRole('table', { name: 'Your top products by gross sales' }),
     ).toBeInTheDocument();
     expect(screen.getByText('Sorted by Gross sales')).toBeInTheDocument();
-    expect(screen.getByText('Your products only')).toBeInTheDocument();
+    expect(
+      screen.getByText('Product rankings by Gross sales.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: 'Merchant' }),
+    ).not.toBeInTheDocument();
     const rankingTable = screen.getByRole('table', {
       name: 'Your top products by gross sales',
     });

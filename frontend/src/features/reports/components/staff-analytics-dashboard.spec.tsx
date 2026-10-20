@@ -2,8 +2,24 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import {
   RankingControls,
   StaffAnalyticsDashboard,
+  StaffDailyData,
 } from './staff-analytics-dashboard';
 import { staffSalesAnalyticsSchema } from '../model/report.schemas';
+
+it('renders server daily rows with the supplied pagination footer', () => {
+  render(
+    <StaffDailyData
+      rows={report.dailyTrends}
+      pagination={<div>Server page 2 of 20</div>}
+    />,
+  );
+  expect(screen.getByText('Server page 2 of 20')).toBeInTheDocument();
+  expect(
+    screen.queryByRole('navigation', { name: 'Daily sales pagination' }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText('2026-09-14')).toBeInTheDocument();
+  expect(screen.getByText('2026-09-15')).toBeInTheDocument();
+});
 
 const report = staffSalesAnalyticsSchema.parse({
   scope: 'STAFF',
@@ -183,10 +199,29 @@ function grossOnlyReport({
 }
 
 describe('staff analytics dashboard', () => {
+  it('labels grouped trends and hides weekday averages', () => {
+    const { rerender } = render(
+      <StaffAnalyticsDashboard report={{ ...report, granularity: 'MONTH' }} />,
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Monthly sales trend' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Average gross sales by weekday' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('list', { name: 'Net Sales exact monthly values' }),
+    ).toBeInTheDocument();
+    rerender(<StaffAnalyticsDashboard report={report} granularity="YEAR" />);
+    expect(
+      screen.getByRole('heading', { name: 'Yearly sales trend' }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText('2026').length).toBeGreaterThan(0);
+  });
   it('renders the dashboard hierarchy, negative net and saved top-product data', () => {
     const { rerender } = render(<StaffAnalyticsDashboard report={report} />);
     expect(
-      screen.getByRole('heading', { name: 'Period summary' }),
+      screen.getByLabelText('Sales analytics summary'),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Daily sales trend' }),
@@ -196,9 +231,7 @@ describe('staff analytics dashboard', () => {
     ).toBeInTheDocument();
     rerender(<StaffAnalyticsDashboard report={report} activeTab="rankings" />);
     expect(
-      screen.getByText(
-        /Page 1 of saved product rankings\./,
-      ),
+      screen.getByText('Product rankings by Gross sales for All merchants.'),
     ).toBeInTheDocument();
     const products = screen.getByRole('table', { name: /Top products/i });
     expect(within(products).getByText('Refund only')).toBeInTheDocument();
@@ -442,7 +475,9 @@ describe('staff analytics dashboard', () => {
     });
     expect(within(productTable).getAllByRole('row')).toHaveLength(7);
     expect(screen.getByText('Sorted by Gross sales')).toBeInTheDocument();
-    expect(screen.getAllByText('All merchants')).toHaveLength(2);
+    expect(
+      screen.getByRole('combobox', { name: 'Merchant' }),
+    ).toHaveTextContent('All merchants');
     expect(productTable).toHaveClass('min-w-[46rem]', 'xl:min-w-[62rem]');
     expect(within(productTable).getAllByText(/SKU/)).toHaveLength(7);
   });

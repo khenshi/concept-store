@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import {
@@ -17,6 +17,15 @@ import type {
 } from '../model/report.schemas';
 
 export type SalesReportTab = 'overview' | 'transactions' | 'daily' | 'rankings';
+export type ChartGranularity = 'DAY' | 'MONTH' | 'YEAR';
+
+const granularityLabels = { DAY: 'Daily', MONTH: 'Monthly', YEAR: 'Yearly' };
+const trendDateLabel = (date: string, granularity: ChartGranularity) =>
+  granularity === 'YEAR'
+    ? date.slice(0, 4)
+    : granularity === 'MONTH'
+      ? date.slice(0, 7)
+      : date.slice(5);
 
 function cents(value: string) {
   return BigInt(value.replace('.', ''));
@@ -122,10 +131,12 @@ function TrendChart({
   rows,
   kind,
   own,
+  granularity,
 }: {
   rows: AnalyticsTrendRow[];
   kind: 'activity' | 'net';
   own: boolean;
+  granularity: ChartGranularity;
 }) {
   const gross = rows.map((row) => cents(row.grossSales));
   const refunds = rows.map((row) => cents(row.refundedAmount));
@@ -179,7 +190,7 @@ function TrendChart({
         <div>
           <h2 className="font-semibold">{title}</h2>
           <p className="mt-1 text-xs text-muted">
-            Daily, Asia/Manila · zero line shown
+            {granularityLabels[granularity]}, Asia/Manila · zero line shown
           </p>
         </div>
         <div
@@ -243,7 +254,9 @@ function TrendChart({
         </svg>
         <div className="flex justify-between gap-2 text-xs text-muted">
           {labels.map((row) => (
-            <span key={row!.date}>{row!.date.slice(5)}</span>
+            <span key={row!.date}>
+              {trendDateLabel(row!.date, granularity)}
+            </span>
           ))}
         </div>
       </div>
@@ -254,16 +267,23 @@ function TrendChart({
 export function AnalyticsTrendCharts({
   rows,
   own = false,
+  granularity = 'DAY',
   className = 'mt-6 grid gap-4 xl:grid-cols-2',
 }: {
   rows: AnalyticsTrendRow[];
   own?: boolean;
+  granularity?: ChartGranularity;
   className?: string;
 }) {
   return (
     <div className={className}>
-      <TrendChart rows={rows} kind="activity" own={own} />
-      <TrendChart rows={rows} kind="net" own={own} />
+      <TrendChart
+        rows={rows}
+        kind="activity"
+        own={own}
+        granularity={granularity}
+      />
+      <TrendChart rows={rows} kind="net" own={own} granularity={granularity} />
     </div>
   );
 }
@@ -299,15 +319,18 @@ const staffTrendMetrics: {
 function SelectableStaffTrendChart({
   rows,
   hourlyRows,
+  granularity = 'DAY',
 }: {
   rows: AnalyticsTrendRow[];
   hourlyRows?: StaffSalesAnalytics['hourlyTrends'];
+  granularity?: ChartGranularity;
 }) {
   const [metric, setMetric] = useState<StaffTrendMetric>('netRecordedSales');
   const selectedMetric = staffTrendMetrics.find(
     (candidate) => candidate.value === metric,
   )!;
-  const isHourly = rows.length === 1 && hourlyRows?.length === 24;
+  const isHourly =
+    granularity === 'DAY' && rows.length === 1 && hourlyRows?.length === 24;
   const values = isHourly
     ? hourlyRows!.map((row) => ({
         key: String(row.hour),
@@ -320,7 +343,7 @@ function SelectableStaffTrendChart({
       }))
     : rows.map((row) => ({
         key: row.date,
-        axisLabel: row.date.slice(5),
+        axisLabel: trendDateLabel(row.date, granularity),
         accessibleLabel: row.date,
         amount:
           metric === 'netRecordedSales'
@@ -342,10 +365,12 @@ function SelectableStaffTrendChart({
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-hairline px-5 py-5 sm:px-6">
         <div>
           <h2 className="font-semibold">
-            {isHourly ? 'Hourly sales trend' : 'Daily sales trend'}
+            {isHourly
+              ? 'Hourly sales trend'
+              : `${granularityLabels[granularity]} sales trend`}
           </h2>
           <p className="mt-1 text-sm text-muted">
-            {`${selectedMetric.label} by Philippine ${isHourly ? 'hour' : 'date'}. Net sales may fall below zero after refunds.`}
+            {`${selectedMetric.label} by Philippine ${isHourly ? 'hour' : granularity === 'MONTH' ? 'month' : granularity === 'YEAR' ? 'year' : 'date'}. Net sales may fall below zero after refunds.`}
           </p>
         </div>
         <fieldset className="flex flex-wrap gap-2">
@@ -419,11 +444,18 @@ function SelectableStaffTrendChart({
         <EmptyState
           className="m-5"
           title={`No ${selectedMetric.label.toLocaleLowerCase()} data.`}
-          description={selectedMetric.emptyMessage}
+          description={
+            granularity === 'DAY'
+              ? selectedMetric.emptyMessage
+              : selectedMetric.emptyMessage.replace(
+                  'every date',
+                  granularity === 'MONTH' ? 'every month' : 'every year',
+                )
+          }
         />
       )}
       <ol
-        aria-label={`${selectedMetric.label} exact ${isHourly ? 'hourly' : 'daily'} values`}
+        aria-label={`${selectedMetric.label} exact ${isHourly ? 'hourly' : granularityLabels[granularity].toLowerCase()} values`}
         className="sr-only"
       >
         {values.map((row) => (
@@ -719,17 +751,20 @@ function PaymentMethodDonut({
   );
 }
 
-function StaffDailyData({
+export function StaffDailyData({
   rows,
+  pagination,
 }: {
   rows: StaffSalesAnalytics['dailyTrends'];
+  pagination?: ReactNode;
 }) {
   const [pageState, setPageState] = useState<{
     rows: StaffSalesAnalytics['dailyTrends'];
     page: number;
   }>({ rows, page: 1 });
   const page = pageState.rows === rows ? pageState.page : 1;
-  const pageRows = rows.slice((page - 1) * 15, page * 15);
+  const pageRows =
+    pagination !== undefined ? rows : rows.slice((page - 1) * 15, page * 15);
   const hasNext = page * 15 < rows.length;
   const totalPages = Math.max(1, Math.ceil(rows.length / 15));
   return (
@@ -753,17 +788,21 @@ function StaffDailyData({
           ) : undefined
         }
         footer={
-          <PaginationControls
-            ariaLabel="Daily sales pagination"
-            currentPage={page}
-            totalPages={totalPages}
-            hasNext={hasNext}
-            summary={`${rows.length} days`}
-            onPrevious={() =>
-              setPageState({ rows, page: Math.max(1, page - 1) })
-            }
-            onNext={() => setPageState({ rows, page: page + 1 })}
-          />
+          pagination !== undefined ? (
+            pagination
+          ) : (
+            <PaginationControls
+              ariaLabel="Daily sales pagination"
+              currentPage={page}
+              totalPages={totalPages}
+              hasNext={hasNext}
+              summary={`${rows.length} days`}
+              onPrevious={() =>
+                setPageState({ rows, page: Math.max(1, page - 1) })
+              }
+              onNext={() => setPageState({ rows, page: page + 1 })}
+            />
+          )
         }
       >
         {pageRows.length ? (
@@ -1140,6 +1179,7 @@ function StaffRankings({
 
 export function StaffAnalyticsDashboard({
   report,
+  granularity = report.granularity ?? 'DAY',
   activeTab = 'overview',
   ranking,
   rankingControls = { sortBy: 'GROSS_SALES', merchantId: null },
@@ -1154,6 +1194,7 @@ export function StaffAnalyticsDashboard({
   onRankingPageChange = () => undefined,
 }: {
   report: StaffSalesAnalytics;
+  granularity?: ChartGranularity;
   activeTab?: SalesReportTab;
   ranking?: StaffSalesRankingPage;
   rankingControls?: ReportRankingControls;
@@ -1243,6 +1284,7 @@ export function StaffAnalyticsDashboard({
         <SelectableStaffTrendChart
           rows={report.dailyTrends}
           hourlyRows={report.hourlyTrends}
+          granularity={granularity}
         />
         <section
           aria-labelledby="sales-explore-heading"
@@ -1253,7 +1295,9 @@ export function StaffAnalyticsDashboard({
               Explore the period
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Gross sales by merchant, product, weekday, and payment method.
+              {granularity === 'DAY'
+                ? 'Gross sales by merchant, product, weekday, and payment method.'
+                : 'Gross sales by merchant, product, and payment method.'}
             </p>
           </div>
           <div
@@ -1287,12 +1331,18 @@ export function StaffAnalyticsDashboard({
           </div>
           <div
             role="group"
-            aria-label="Weekday and payment method charts"
-            className="mt-8 grid gap-6 border-t border-hairline pt-8 md:grid-cols-3"
+            aria-label={
+              granularity === 'DAY'
+                ? 'Weekday and payment method charts'
+                : 'Payment method chart'
+            }
+            className={`mt-8 grid gap-6 border-t border-hairline pt-8 ${granularity === 'DAY' ? 'md:grid-cols-3' : ''}`}
           >
-            <div className="min-w-0 md:col-span-2">
-              <AverageWeekdayChart rows={report.dailyTrends} />
-            </div>
+            {granularity === 'DAY' && (
+              <div className="min-w-0 md:col-span-2">
+                <AverageWeekdayChart rows={report.dailyTrends} />
+              </div>
+            )}
             <div className="min-w-0 md:col-span-1">
               <PaymentMethodDonut
                 title="Gross sales by payment method"

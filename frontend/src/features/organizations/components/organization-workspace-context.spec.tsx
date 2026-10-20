@@ -73,6 +73,34 @@ function Consumer() {
   );
 }
 
+function PeriodConsumer() {
+  const {
+    organization: current,
+    reportPeriod,
+    setReportPeriod,
+  } = useOrganizationWorkspaceContext();
+  return (
+    <>
+      <span>{current?.name ?? 'Loading'}</span>
+      <output aria-label="Remembered report period">
+        {reportPeriod
+          ? `${reportPeriod.preset}:${reportPeriod.dates.fromDay}`
+          : 'Today default'}
+      </output>
+      <button
+        onClick={() =>
+          setReportPeriod({
+            preset: 'LAST_2_YEARS',
+            dates: { fromDay: '2024-09-15', throughDay: '2026-09-14' },
+          })
+        }
+      >
+        Apply remembered period
+      </button>
+    </>
+  );
+}
+
 describe('OrganizationWorkspaceProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,6 +109,33 @@ describe('OrganizationWorkspaceProvider', () => {
     >);
     vi.mocked(getOrganization).mockResolvedValue(organization);
     vi.mocked(listBranches).mockResolvedValue([branch]);
+  });
+
+  it('keeps report periods above a remounted branch page and clears them for another tenant', async () => {
+    const view = render(
+      <OrganizationWorkspaceProvider organizationId="organization-id">
+        <PeriodConsumer key="branch-one" />
+      </OrganizationWorkspaceProvider>,
+    );
+    await screen.findByText('North & Pine');
+    fireEvent.click(screen.getByText('Apply remembered period'));
+    view.rerender(
+      <OrganizationWorkspaceProvider organizationId="organization-id">
+        <PeriodConsumer key="branch-two" />
+      </OrganizationWorkspaceProvider>,
+    );
+    expect(screen.getByLabelText('Remembered report period')).toHaveTextContent(
+      'LAST_2_YEARS:2024-09-15',
+    );
+    view.rerender(
+      <OrganizationWorkspaceProvider organizationId="another-org">
+        <PeriodConsumer key="branch-two" />
+      </OrganizationWorkspaceProvider>,
+    );
+    expect(screen.getByLabelText('Remembered report period')).toHaveTextContent(
+      'Today default',
+    );
+    await screen.findByText('North & Pine');
   });
 
   it('loads the organization and deduplicates cached branch requests', async () => {

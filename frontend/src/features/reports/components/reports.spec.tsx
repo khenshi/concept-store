@@ -326,7 +326,7 @@ describe('staff Reports workspace', () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await screen.findAllByText('PHP 60.00');
     const contextBar = screen.getByRole('region', { name: 'Report context' });
-    expect(contextBar).toHaveClass('sticky', 'top-17');
+    expect(contextBar).toHaveClass('top-17');
     expect(contextBar).not.toHaveClass('border-y', 'border-b');
     expect(contextBar).not.toHaveTextContent('Sep 14, 2026');
     const tablist = screen.getByRole('tablist', { name: 'Report views' });
@@ -487,7 +487,7 @@ describe('staff Reports workspace', () => {
       screen.getByRole('button', { name: 'Refresh Report' }),
     ).toBeEnabled();
     expect(request).toHaveBeenCalledTimes(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     await waitFor(() => expect(request).toHaveBeenCalledTimes(4));
     expect(request.mock.calls[3][0]).toContain(
@@ -518,7 +518,7 @@ describe('staff Reports workspace', () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
     chooseReportDates('2026-09-13');
-    fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     await screen.findAllByText('PHP 60.00');
     await act(async () =>
       old.resolve({
@@ -550,22 +550,115 @@ describe('staff Reports workspace', () => {
     ).not.toBeInTheDocument();
     expect(request).toHaveBeenCalledTimes(2);
   });
-  it('resets the date period and scoped data on a branch route change', async () => {
+  it('applies a bounded preset immediately through the custom dropdown', async () => {
+    render(<BranchReports organizationId="org" branchId={branch.id} />);
+    await screen.findAllByText('PHP 60.00');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Period' }));
+    fireEvent.click(screen.getByRole('option', { name: 'This month' }));
+    await screen.findAllByText('PHP 60.00');
+    expect(request.mock.calls.at(-1)?.[0]).toContain(
+      new URLSearchParams({
+        from: '2026-08-31T16:00:00.000Z',
+        until: range.until,
+      }).toString(),
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Apply period' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Report date filter' }),
+    ).toBeInTheDocument();
+  });
+  it('applies All time immediately and freezes bounds on refresh', async () => {
+    render(<BranchReports organizationId="org" branchId={branch.id} />);
+    await screen.findAllByText('PHP 60.00');
+    const original = request.getMockImplementation()!;
+    request.mockImplementation(async (path: string) =>
+      path.includes('/sales/period?')
+        ? { scope: 'STAFF', branch, ...range, hasActivity: true }
+        : original(path),
+    );
+    fireEvent.click(screen.getByRole('combobox', { name: 'Period' }));
+    fireEvent.click(screen.getByRole('option', { name: 'All time' }));
+    expect(
+      screen.queryByRole('button', { name: 'Apply period' }),
+    ).not.toBeInTheDocument();
+    await screen.findAllByText('PHP 60.00');
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/sales/period?')),
+    ).toHaveLength(1);
+    expect(screen.getByLabelText('Applied report period')).toHaveTextContent(
+      'All time',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
+    await screen.findAllByText('PHP 60.00');
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/sales/period?')),
+    ).toHaveLength(1);
+  });
+  it('shows an explicit empty All time without inventing an activity start', async () => {
+    render(<BranchReports organizationId="org" branchId={branch.id} />);
+    await screen.findAllByText('PHP 60.00');
+    request.mockResolvedValueOnce([branch, second]).mockResolvedValueOnce({
+      scope: 'STAFF',
+      branch,
+      from: null,
+      until: range.until,
+      hasActivity: false,
+    });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Period' }));
+    fireEvent.click(screen.getByRole('option', { name: 'All time' }));
+    await screen.findByText('No completed sales or refunds yet.');
+    expect(screen.getByLabelText('Applied report period')).toHaveTextContent(
+      'No completed activity',
+    );
+    expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
+  });
+  it('preserves All time and resolves activity again for a different branch', async () => {
+    const original = request.getMockImplementation()!;
+    request.mockImplementation(async (path: string) =>
+      path.includes('/sales/period?')
+        ? {
+            scope: 'STAFF',
+            branch: path.includes(second.id) ? second : branch,
+            ...range,
+            hasActivity: true,
+          }
+        : original(path),
+    );
+    const view = render(
+      <BranchReports organizationId="org" branchId={branch.id} />,
+    );
+    await screen.findAllByText('PHP 60.00');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Period' }));
+    fireEvent.click(screen.getByRole('option', { name: 'All time' }));
+    await screen.findAllByText('PHP 60.00');
+    view.rerender(<BranchReports organizationId="org" branchId={second.id} />);
+    expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
+    await screen.findAllByText('PHP 60.00');
+    expect(screen.getByRole('combobox', { name: 'Period' })).toHaveTextContent(
+      'All time',
+    );
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/sales/period?')),
+    ).toHaveLength(2);
+  });
+  it('preserves the date period and clears scoped data on a branch route change', async () => {
     const view = render(
       <BranchReports organizationId="org" branchId={branch.id} />,
     );
     await screen.findAllByText('PHP 60.00');
     chooseReportDates('2026-09-13');
-    fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
     await screen.findAllByText('PHP 60.00');
     view.rerender(<BranchReports organizationId="org" branchId={second.id} />);
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Report date filter' }),
-    ).toHaveTextContent('Sep 14, 2026');
+    ).toHaveTextContent('Sep 13, 2026');
     await screen.findAllByText('PHP 60.00');
     expect(request.mock.calls.at(-1)?.[0]).toContain(
-      `/branches/${second.id}/reports/sales/analytics?${new URLSearchParams(range)}`,
+      `/branches/${second.id}/reports/sales/analytics?${new URLSearchParams({ from: '2026-09-12T16:00:00.000Z', until: '2026-09-13T16:00:00.000Z' })}`,
     );
   });
   it('ignores an old user response after the authenticated user changes', async () => {
@@ -613,7 +706,7 @@ describe('staff Reports workspace', () => {
   it('clears totals before branch navigation without a back button', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await screen.findAllByText('PHP 60.00');
-    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
     fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     expect(push).toHaveBeenCalledWith(
@@ -749,6 +842,38 @@ describe('staff Reports workspace', () => {
             },
       );
     });
+    it('revalidates All time on merchant refresh so a changed link cannot truncate history', async () => {
+      const original = request.getMockImplementation()!;
+      let from = range.from;
+      request.mockImplementation(async (path: string) =>
+        path.includes('/sales/period?')
+          ? {
+              scope: 'MERCHANT',
+              branch,
+              from,
+              until: range.until,
+              hasActivity: true,
+            }
+          : original(path),
+      );
+      render(<BranchReports organizationId="org" branchId={branch.id} />);
+      await screen.findAllByText('PHP 25.00');
+      fireEvent.click(screen.getByRole('combobox', { name: 'Period' }));
+      fireEvent.click(screen.getByRole('option', { name: 'All time' }));
+      await screen.findAllByText('PHP 25.00');
+      from = '2026-09-12T16:00:00.000Z';
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
+      await screen.findAllByText('PHP 25.00');
+      expect(screen.getByLabelText('Applied report period')).toHaveTextContent(
+        '2026-09-13',
+      );
+      expect(
+        request.mock.calls.filter(([path]) => path.includes('/sales/period?')),
+      ).toHaveLength(2);
+      expect(request.mock.calls.at(-1)?.[0]).toContain(
+        new URLSearchParams({ from, until: range.until }).toString(),
+      );
+    });
     it('shows own amounts only, without payment/whole-sale/actor data or mutation/print controls', async () => {
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await screen.findAllByText('PHP 25.00');
@@ -780,7 +905,7 @@ describe('staff Reports workspace', () => {
         screen.getByText(/An assignment alone does not grant whole-branch/),
       ).toBeInTheDocument();
       expect(push).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
       fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
       expect(push).toHaveBeenCalledWith(
         `/app/organizations/org/branches/${second.id}/reports`,
@@ -823,9 +948,9 @@ describe('staff Reports workspace', () => {
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await screen.findByText(/If your profile is not linked/);
       chooseReportDates('2026-09-13');
-      fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
       await screen.findAllByText('PHP 0.00');
-      fireEvent.click(screen.getByRole('combobox'));
+      fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
       expect(
         screen.getByRole('option', { name: 'South (MAIN)' }),
       ).toBeInTheDocument();
@@ -913,7 +1038,7 @@ describe('staff Reports workspace', () => {
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
       chooseReportDates('2026-09-13');
-      fireEvent.click(screen.getByRole('button', { name: 'Apply period' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
       await screen.findAllByText('PHP 25.00');
       await act(async () =>
         old.resolve({ ...ownAnalytics, ownGrossSales: '99.00' }),

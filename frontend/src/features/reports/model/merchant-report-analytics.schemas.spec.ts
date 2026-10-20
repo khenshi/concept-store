@@ -1,5 +1,73 @@
 import { describe, expect, it } from 'vitest';
-import { merchantSalesAnalyticsSchema } from './report.schemas';
+import {
+  merchantDailyReportPageSchema,
+  merchantSalesAnalyticsSchema,
+} from './report.schemas';
+
+it('validates own-only server daily rows and pagination', () => {
+  const page = {
+    scope: 'MERCHANT',
+    branch: base.branch,
+    from: base.from,
+    until: base.until,
+    page: 1,
+    limit: 15,
+    total: 1,
+    totalPages: 1,
+    items: base.dailyTrends,
+  };
+  expect(merchantDailyReportPageSchema.safeParse(page).success).toBe(true);
+  expect(
+    merchantDailyReportPageSchema.safeParse({
+      ...page,
+      items: [{ ...base.dailyTrends[0], grossSales: '99.00' }],
+    }).success,
+  ).toBe(false);
+  expect(
+    merchantDailyReportPageSchema.safeParse({
+      ...page,
+      items: [{ ...base.dailyTrends[0], ownNetRecordedSales: '25.00' }],
+    }).success,
+  ).toBe(false);
+});
+
+it('reconciles monthly own-only buckets without exposing staff fields', () => {
+  const dailyTrends = Array.from({ length: 25 }, (_, index) => ({
+    ...base.dailyTrends[0],
+    date: `${2024 + Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}-01`,
+    ...(index
+      ? {
+          ownGrossSales: '0.00',
+          ownTransactionCount: '0',
+          ownUnitsSold: '0',
+          ownRefundedAmount: '0.00',
+          ownRefundCount: '0',
+          ownReturnedUnits: '0',
+          ownNetRecordedSales: '0.00',
+        }
+      : {}),
+  }));
+  const report = {
+    ...base,
+    from: '2023-12-31T16:00:00Z',
+    until: '2026-01-01T16:00:00Z',
+    granularity: 'MONTH',
+    dailyTrends,
+  };
+  expect(merchantSalesAnalyticsSchema.safeParse(report).success).toBe(true);
+  expect(
+    merchantSalesAnalyticsSchema.safeParse({
+      ...report,
+      dailyTrends: dailyTrends.slice(1),
+    }).success,
+  ).toBe(false);
+  expect(
+    merchantSalesAnalyticsSchema.safeParse({
+      ...report,
+      dailyTrends: dailyTrends.map((row) => ({ ...row, grossSales: '99.00' })),
+    }).success,
+  ).toBe(false);
+});
 
 const base = {
   scope: 'MERCHANT' as const,

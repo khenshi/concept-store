@@ -24,6 +24,8 @@ function context(
         : null,
     organizationStatus: status,
     organizationError: 'Workspace unavailable',
+    reportPeriod: null,
+    setReportPeriod: vi.fn(),
     refreshOrganization,
     selectedBranchId: null,
     setSelectedBranchId: vi.fn(),

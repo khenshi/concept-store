@@ -1,4 +1,5 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
+import { z } from 'zod';
 import {
   reportBranchesSchema,
   reportQuerySchema,
@@ -12,10 +13,86 @@ import {
   merchantTransactionsPageSchema,
   reportTransactionQuerySchema,
   staffTransactionsPageSchema,
+  reportDailyQuerySchema,
+  staffDailyReportPageSchema,
+  merchantDailyReportPageSchema,
+  reportBranchSchema,
+  type ReportDailyQuery,
   type ReportQuery,
   type ReportRankingQuery,
   type ReportTransactionQuery,
 } from '../model/report.schemas';
+
+const resolvedPeriodSchema = z
+  .object({
+    scope: z.enum(['STAFF', 'MERCHANT']),
+    branch: reportBranchSchema,
+    from: z.string().datetime().nullable(),
+    until: z.string().datetime(),
+    hasActivity: z.boolean(),
+  })
+  .strict()
+  .refine((period) => period.hasActivity === (period.from !== null));
+
+export async function resolveReportPeriod(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  until: string,
+  merchant: boolean,
+) {
+  const period = resolvedPeriodSchema.parse(
+    await request<unknown>(
+      `/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/reports/sales/period?${new URLSearchParams({ mode: 'ALL_TIME', until })}`,
+    ),
+  );
+  if (
+    period.branch.id !== branchId ||
+    period.scope !== (merchant ? 'MERCHANT' : 'STAFF') ||
+    Date.parse(period.until) !== Date.parse(until) ||
+    (period.from !== null &&
+      !reportQuerySchema.safeParse({ from: period.from, until: period.until })
+        .success)
+  )
+    throw new Error(
+      'The all-time period does not match the selected branch or scope.',
+    );
+  return period;
+}
+
+export async function getReportDailyPage(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  branchId: string,
+  input: ReportDailyQuery,
+  merchant: boolean,
+) {
+  const query = reportDailyQuerySchema.parse(input);
+  const params = new URLSearchParams({
+    from: query.from,
+    until: query.until,
+    page: String(query.page),
+    limit: String(query.limit),
+  });
+  const raw = await request<unknown>(
+    `/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/reports/sales/daily?${params}`,
+  );
+  const page = (
+    merchant ? merchantDailyReportPageSchema : staffDailyReportPageSchema
+  ).parse(raw);
+  if (
+    page.branch.id !== branchId ||
+    page.scope !== (merchant ? 'MERCHANT' : 'STAFF') ||
+    Date.parse(page.from) !== Date.parse(query.from) ||
+    Date.parse(page.until) !== Date.parse(query.until) ||
+    page.page !== query.page ||
+    page.limit !== query.limit
+  )
+    throw new Error(
+      'The daily data does not match the selected branch, period or page.',
+    );
+  return page;
+}
 
 export async function listReportBranches(
   request: AuthenticatedRequest,
