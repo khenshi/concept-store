@@ -454,7 +454,7 @@ export function InventoryStockForm({
             {onCancel ? (
               <button
                 type="button"
-                className={buttonStyles({ variant: 'secondary' })}
+                className={buttonStyles({ variant: 'quiet' })}
                 disabled={pending}
                 onClick={onCancel}
               >

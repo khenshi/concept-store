@@ -149,7 +149,9 @@ In the Types tab, new-type validation appears below the input and Save type uses
 the primary colored action. There is no expanded section below it. The primary
 action stays last in the keyboard order and becomes the first full-width action
 on phones. Closing a
-dirty form asks before discarding the space draft. Creating a type retains the
+dirty form asks before discarding the space draft through Escape/backdrop or
+while editing an existing space. Cancel in Add space closes immediately without
+a browser confirmation. Creating a type retains the
 space draft and selects/reloads the created type;
 failed creation preserves input for retry. A successfully created type remains
 available if the space form is cancelled. Branch-space filters use catalog

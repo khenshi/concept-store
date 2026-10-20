@@ -299,7 +299,7 @@ describe('InventoryPlacementForm', () => {
     expect(picker).toHaveValue('');
     expect(picker).toHaveAttribute(
       'placeholder',
-      'Search by name, SKU, or barcode',
+      'e.g. Ceramic Vase or VASE-01',
     );
     fireEvent.click(picker);
     fireEvent.keyDown(picker, { key: 'Enter' });

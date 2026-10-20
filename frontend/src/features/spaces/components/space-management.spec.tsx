@@ -181,7 +181,7 @@ describe('Space management', () => {
       `/app/organizations/${org}/branches/${branch}/spaces/${space.id}`,
     );
   });
-  it('protects a dirty space draft when the dialog is dismissed', async () => {
+  it('cancels adding a space without a browser confirmation', async () => {
     setup();
     await screen.findByText('Rack A1');
     fireEvent.click(screen.getByRole('button', { name: 'Add space' }));
@@ -191,10 +191,7 @@ describe('Space management', () => {
     });
     const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(false);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    expect(confirmation).toHaveBeenCalledWith('Discard unsaved space changes?');
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    confirmation.mockReturnValue(true);
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(confirmation).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
     );

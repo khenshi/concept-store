@@ -24,7 +24,7 @@ export function InventoryMovementReasonDialog({
       <div className="mt-6 flex justify-end">
         <button
           type="button"
-          className={buttonStyles({ variant: 'secondary' })}
+          className={buttonStyles({ variant: 'quiet' })}
           onClick={onClose}
         >
           Close

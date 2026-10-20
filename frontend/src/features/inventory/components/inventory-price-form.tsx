@@ -84,6 +84,7 @@ export function InventoryPriceForm({
       <TextField
         label="Selling price (PHP)"
         name="sellingPrice"
+        placeholder="e.g. 299.00"
         required
         inputMode="decimal"
         value={price}
@@ -107,7 +108,7 @@ export function InventoryPriceForm({
       >
         {onCancel ? (
           <button
-            className={buttonStyles({ variant: 'secondary' })}
+            className={buttonStyles({ variant: 'quiet' })}
             type="button"
             disabled={pending}
             onClick={onCancel}

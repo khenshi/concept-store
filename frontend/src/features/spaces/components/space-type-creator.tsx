@@ -68,6 +68,7 @@ export function SpaceTypeCreator({
     <InputControl
       id={fieldId}
       icon="tag"
+      placeholder="e.g. Wall rack"
       maxLength={80}
       value={name}
       disabled={pending}

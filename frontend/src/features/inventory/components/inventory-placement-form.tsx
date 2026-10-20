@@ -257,6 +257,7 @@ export function InventoryPlacementForm({
         <TextField
           label="Initial stock"
           name="initialQuantity"
+          placeholder="e.g. 100"
           inputMode="numeric"
           value={initialQuantity}
           error={errors.initialQuantity}
@@ -277,12 +278,13 @@ export function InventoryPlacementForm({
             )
           }
           required
-          hint="Enter the starting stock quantity for this branch"
+          hint="Starting stock quantity for this branch"
         />
         <div className="grid gap-5 sm:grid-cols-2">
           <TextField
             label="Selling price (PHP)"
             name="sellingPrice"
+            placeholder="e.g. 299.00"
             inputMode="decimal"
             value={price}
             error={errors.sellingPrice}
@@ -309,11 +311,12 @@ export function InventoryPlacementForm({
               )
             }
             required
-            hint="Set a different price for this branch"
+            hint="Unique price for this branch"
           />
           <TextField
             label="Low-stock threshold"
             name="lowStockThreshold"
+            placeholder="e.g. 5"
             inputMode="numeric"
             value={threshold}
             error={errors.lowStockThreshold}
@@ -340,7 +343,7 @@ export function InventoryPlacementForm({
               )
             }
             required
-            hint="low-stock warning level. 0 to disable warnings."
+            hint="low-stock warning level. 0 to disable."
           />
         </div>
       </fieldset>
@@ -355,20 +358,20 @@ export function InventoryPlacementForm({
         }
       >
         <button
+          className={buttonStyles({ variant: 'quiet' })}
+          type="button"
+          disabled={pending}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+        <button
           className={buttonStyles({ variant: 'primary' })}
           type="submit"
           disabled={pending || loading || Boolean(loadError) || !productId}
           aria-busy={pending}
         >
           {pending ? 'Saving…' : 'Create placement'}
-        </button>
-        <button
-          className={buttonStyles({ variant: 'secondary' })}
-          type="button"
-          disabled={pending}
-          onClick={onCancel}
-        >
-          Cancel
         </button>
       </ModalActionRow>
     </form>
@@ -498,11 +501,7 @@ function ProductPicker({
           autoComplete="off"
           maxLength={254}
           value={search}
-          placeholder={
-            loading
-              ? 'Loading available products…'
-              : 'Search by name, SKU, or barcode'
-          }
+          placeholder="e.g. Ceramic Vase or VASE-01"
           disabled={disabled}
           className="placeholder:text-muted"
           onFocus={openPicker}
@@ -590,11 +589,7 @@ function ProductPicker({
         ) : null}
       </div>
       <p id={`${id}-hint`} className="text-xs leading-5 text-muted">
-        {selectedProduct
-          ? `Selected: ${productLabel(selectedProduct)}`
-          : !products.length && !loading
-            ? 'No available products match. Already placed or inactive products are excluded.'
-            : 'Focus or click to browse eligible products'}
+        Click to browse eligible products
       </p>
     </div>
   );

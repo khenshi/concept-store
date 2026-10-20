@@ -188,7 +188,7 @@ export function SpaceForm({
         <div className="grid gap-5 md:grid-cols-2 md:items-start">
           <TextField
             label="Space name"
-            hint="Use a name people can recognize quickly, such as Rack A1."
+            hint="Name people can recognize quickly"
             containerClassName="md:col-span-2"
             required
             maxLength={120}
@@ -197,7 +197,7 @@ export function SpaceForm({
             ref={nameRef}
             error={validation.name}
             autoComplete="off"
-            placeholder="Rack A1"
+            placeholder="e.g. Rack A1"
             onBlur={() => {
               setNameTouched(true);
               setValidation((current) => ({
@@ -293,7 +293,7 @@ export function SpaceForm({
                   id={`${errorId}-type-hint`}
                   className="text-xs leading-5 text-muted"
                 >
-                  Shared across branches so similar spaces stay easy to filter.
+                  Shared across branches.
                 </p>
               </>
             )}
@@ -323,7 +323,7 @@ export function SpaceForm({
         </div>
         <Actions
           pending={pending || typePending}
-          onClose={close}
+          onClose={space ? close : onClose}
           disabled={!types || !!typesError || !type || typePending}
           feedback={error}
           label={space ? 'Save space' : 'Add space'}
@@ -604,6 +604,7 @@ export function AssignmentForm({
               icon="calendar"
               className="font-normal text-muted"
               type="date"
+              placeholder="e.g. 2026-10-20"
               value={start}
               required={historical}
               disabled={pending}
@@ -617,6 +618,7 @@ export function AssignmentForm({
                 icon="calendar"
                 className="font-normal text-muted"
                 type="date"
+                placeholder="e.g. 2026-10-20"
                 value={end}
                 required
                 disabled={pending}
@@ -707,6 +709,7 @@ export function ReleaseForm({
             icon="calendar"
             type="date"
             className="font-normal text-muted"
+            placeholder="e.g. 2026-10-20"
             value={end}
             disabled={pending}
             onChange={(e) => setEnd(e.target.value)}
