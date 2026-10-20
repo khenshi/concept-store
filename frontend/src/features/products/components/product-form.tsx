@@ -343,6 +343,7 @@ export function ProductForm({
           <TextField
             name="name"
             label="Product name"
+            placeholder="e.g. Ceramic Vase"
             required
             maxLength={120}
             defaultValue={product?.name}
@@ -353,6 +354,7 @@ export function ProductForm({
             <TextField
               name="sku"
               label="SKU (optional)"
+              placeholder="e.g. VASE-01"
               maxLength={32}
               defaultValue={product?.sku ?? ''}
               error={errors.sku}
@@ -363,6 +365,7 @@ export function ProductForm({
             <TextField
               name="barcode"
               label="Barcode (optional)"
+              placeholder="e.g. 1234567890123"
               maxLength={64}
               defaultValue={product?.barcode ?? ''}
               error={errors.barcode}
@@ -478,6 +481,7 @@ export function ProductForm({
                   <TextField
                     name="sellingPrice"
                     label="Branch selling price (PHP)"
+                    placeholder="e.g. 299.00"
                     required
                     inputMode="decimal"
                     value={openingPrice}
@@ -499,6 +503,7 @@ export function ProductForm({
                   <TextField
                     name="quantity"
                     label="Initial stock quantity"
+                    placeholder="e.g. 100"
                     required
                     inputMode="numeric"
                     value={openingQuantity}
@@ -520,6 +525,7 @@ export function ProductForm({
                   <TextField
                     name="lowStockThreshold"
                     label="Low-stock threshold"
+                    placeholder="e.g. 5"
                     required
                     inputMode="numeric"
                     value={openingThreshold}
@@ -553,6 +559,15 @@ export function ProductForm({
           ) : null
         }
       >
+
+        <button
+          type="button"
+          className={buttonStyles({ variant: 'quiet' })}
+          disabled={disabled}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
         <button
           type="submit"
           className={buttonStyles({ variant: 'primary' })}
@@ -573,14 +588,6 @@ export function ProductForm({
               : product
                 ? 'Save changes'
                 : 'Create product'}
-        </button>
-        <button
-          type="button"
-          className={buttonStyles({ variant: 'secondary' })}
-          disabled={disabled}
-          onClick={onCancel}
-        >
-          Cancel
         </button>
       </ModalActionRow>
     </form>

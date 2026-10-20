@@ -344,6 +344,26 @@ describe('BranchManagement', () => {
 });
 
 describe('BranchForm', () => {
+  it('shows concise hints below fields and disables Add until required values exist', () => {
+    render(
+      <BranchForm
+        organizationId="org"
+        branch={null}
+        onSaved={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    const form = screen.getByRole('form', { name: 'Add branch' });
+    const add = screen.getByRole('button', { name: 'Add' });
+    expect(add).toBeDisabled();
+    expect(screen.getByText('At least 2 characters.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Two-letter code, such as PH.'),
+    ).toBeInTheDocument();
+    fill(form);
+    expect(add).not.toBeDisabled();
+  });
+
   it('shows debounced live validation and clears field feedback when valid', async () => {
     vi.useFakeTimers();
     try {
@@ -410,12 +430,9 @@ describe('BranchForm', () => {
       />,
     );
     fireEvent.submit(screen.getByRole('form', { name: 'Add branch' }));
-    const validationNotice = screen.getByRole('alert');
-    expect(validationNotice).toHaveTextContent('Review the highlighted fields');
-    expect(validationNotice).toHaveClass('sm:max-w-sm');
-    expect(validationNotice.parentElement).toContainElement(
-      screen.getByRole('button', { name: 'Add' }),
-    );
+    expect(
+      screen.queryByText('Review the highlighted fields and try again.'),
+    ).not.toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByLabelText('Branch name')).toHaveFocus(),
     );

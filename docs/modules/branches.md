@@ -124,14 +124,16 @@ directories. The Branches page title has no organization-name eyebrow above it.
 Creation and editing share a scroll-contained native modal. It focuses the form
 heading, blocks background interaction, restores focus/scrolling on close, and
 supports safe Escape/backdrop dismissal. Dismissal and repeat submission are
-blocked while a write is pending. Field hints remain above inputs, and validation
+blocked while a write is pending. Field hints sit below inputs, and validation
 connects messages and focuses the first invalid field.
 The modal groups identity, address, and location fields into a compact responsive
 form with a normal-flow action footer that remains safe for long mobile forms.
-Editable fields provide debounced live validation while typing and immediate
-feedback on blur and submit, while preserving the existing schema normalization.
-The compact form-level error notice appears only after a submit attempt and sits
-at the start of the action row beside the buttons.
+Concise field hints sit below their inputs, while editable fields provide
+debounced live validation while typing and immediate feedback on blur and
+submit, preserving the existing schema normalization. The Add/Save action stays
+disabled until all required fields contain values; request failures remain
+visible above the action row and validation feedback stays with the affected
+fields. Cancel is a borderless quiet action.
 
 The detail view uses the shared wide page frame, page header, accessible tabbed
 workspace navigation, information panel, and owner/manager edit action. Overview,

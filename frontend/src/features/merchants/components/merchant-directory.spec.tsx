@@ -106,9 +106,9 @@ describe('MerchantDirectory', () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add merchant' }));
-    expect(
-      screen.getByRole('dialog', { name: 'Add a merchant' }),
-    ).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Add a merchant' });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveClass('max-w-2xl');
   });
 
   it('debounces search and applies the exact status filter', async () => {

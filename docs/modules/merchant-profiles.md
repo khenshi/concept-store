@@ -104,12 +104,17 @@ and keep column labels and row contents left-aligned. The View action uses a
 left-aligned pill with a subtle hover surface. Suspended merchants use a red
 status treatment.
 
-Creation opens in an accessible, scroll-contained modal. The shared create/edit
+Creation uses the shared `FormDialog` for an accessible, scroll-contained modal.
+The shared create/edit
 form provides 300 ms debounced validation after input, immediate validation on
 blur, and final validation on submit. The profile page displays business and
 contact information, supports profile editing, and keeps lifecycle changes in a
 separate confirmed action.
 Field icons remain centered within their corresponding input boxes.
+The creation dialog uses the compact form width. Code, email and phone inputs
+remove unsupported characters as they are entered; schema validation remains
+authoritative. Form-level validation feedback is kept out of the action footer,
+while server request failures remain visible above the actions.
 
 Cashiers are not shown merchant navigation and direct screens do not request data.
 

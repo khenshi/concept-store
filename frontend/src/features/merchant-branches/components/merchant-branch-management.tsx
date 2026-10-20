@@ -439,7 +439,7 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
               <button
                 type="button"
                 disabled={pending}
-                className={buttonStyles({ variant: 'secondary' })}
+                className={buttonStyles({ variant: 'quiet' })}
                 onClick={() => setAssigning(false)}
               >
                 Cancel

@@ -108,7 +108,29 @@ describe('MerchantForm', () => {
     expect(onSaved).toHaveBeenCalledWith(merchant);
   });
 
-  it('places submit validation feedback beside the form actions', () => {
+  it('filters invalid characters before validation', () => {
+    render(
+      <MerchantForm
+        organizationId={merchant.organizationId}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    const code = screen.getByRole('textbox', { name: /Code/ });
+    const email = screen.getByRole('textbox', { name: /^Email/ });
+    const phone = screen.getByRole('textbox', { name: 'Phone' });
+    fireEvent.change(code, { target: { value: ' mkt_--01 ' } });
+    fireEvent.change(email, { target: { value: 'Mara @EXAMPLE.COM' } });
+    fireEvent.change(phone, {
+      target: { value: 'abc+63 (917) 555-0101x' },
+    });
+
+    expect(code).toHaveValue('MKT-01');
+    expect(email).toHaveValue('mara@example.com');
+    expect(phone).toHaveValue('+63 (917) 555-0101');
+  });
+
+  it('keeps generic validation feedback out of the action row', async () => {
     render(
       <MerchantForm
         organizationId={merchant.organizationId}
@@ -118,10 +140,13 @@ describe('MerchantForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Create merchant' }));
 
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent('Review the highlighted fields');
-    expect(alert.parentElement).toContainElement(
-      screen.getByRole('button', { name: 'Create merchant' }),
+    expect(
+      screen.queryByText('Review the highlighted fields and try again.'),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('textbox', { name: 'Business name' }),
+      ).toHaveFocus(),
     );
   });
 
@@ -145,8 +170,6 @@ describe('MerchantForm', () => {
       ),
     ).toBeInTheDocument();
     const alert = screen.getByRole('alert');
-    expect(alert.parentElement).toContainElement(
-      screen.getByRole('button', { name: 'Save changes' }),
-    );
+    expect(alert.nextElementSibling).toHaveClass('border-t');
   });
 });

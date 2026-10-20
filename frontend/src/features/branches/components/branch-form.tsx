@@ -4,6 +4,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ChangeEvent,
   type ChangeEventHandler,
   type FocusEventHandler,
   type FormEvent,
@@ -23,6 +24,13 @@ import type { Branch, BranchInput } from '../model/branch.types';
 
 type FieldErrors = Partial<Record<keyof BranchInput, string>>;
 const liveValidationDelay = 300;
+const requiredBranchFields: readonly (keyof BranchInput)[] = [
+  'name',
+  'addressLine1',
+  'city',
+  'province',
+  'countryCode',
+];
 
 function readBranchForm(form: HTMLFormElement) {
   const data = new FormData(form);
@@ -45,6 +53,14 @@ function fieldErrorFor(form: HTMLFormElement, field: keyof BranchInput) {
     : result.error.flatten().fieldErrors[field]?.[0];
 }
 
+function hasRequiredBranchValues(form: HTMLFormElement | null) {
+  if (!form) return false;
+  return requiredBranchFields.every((field) => {
+    const control = form.elements.namedItem(field);
+    return control instanceof HTMLInputElement && control.value.trim() !== '';
+  });
+}
+
 export function BranchForm({
   organizationId,
   branch,
@@ -58,9 +74,9 @@ export function BranchForm({
 }) {
   const { request } = useAuth();
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
-  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasRequiredValues, setHasRequiredValues] = useState(Boolean(branch));
   const validationTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(validationTimer.current), []);
@@ -93,11 +109,19 @@ export function BranchForm({
     );
   }
 
+  function handleFieldChange(
+    field: keyof BranchInput,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    setSubmissionError(null);
+    setHasRequiredValues(hasRequiredBranchValues(event.currentTarget.form));
+    validateField(field, event.currentTarget.form);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
     setSubmissionError(null);
-    setHasSubmitted(true);
     const form = event.currentTarget;
     window.clearTimeout(validationTimer.current);
     const result = branchSchema.safeParse(readBranchForm(form));
@@ -158,14 +182,13 @@ export function BranchForm({
             <BranchField
               name="name"
               label="Branch name"
+              placeholder="e.g. Amihan Makati"
               defaultValue={branch?.name}
+              hint=""
               error={fieldErrors.name}
               maxLength={120}
               required
-              onChange={(event) => {
-                setSubmissionError(null);
-                validateField('name', event.currentTarget.form);
-              }}
+              onChange={(event) => handleFieldChange('name', event)}
               onBlur={(event) =>
                 validateField('name', event.currentTarget.form, true)
               }
@@ -173,14 +196,12 @@ export function BranchForm({
             <BranchField
               name="code"
               label="Code"
+              placeholder="e.g. MAK"
               hint=""
               defaultValue={branch?.code ?? undefined}
               error={fieldErrors.code}
               maxLength={32}
-              onChange={(event) => {
-                setSubmissionError(null);
-                validateField('code', event.currentTarget.form);
-              }}
+              onChange={(event) => handleFieldChange('code', event)}
               onBlur={(event) =>
                 validateField('code', event.currentTarget.form, true)
               }
@@ -192,14 +213,13 @@ export function BranchForm({
           <BranchField
             name="addressLine1"
             label="Address line 1"
+            placeholder="e.g. 123 Example Street"
+            hint=""
             defaultValue={branch?.addressLine1}
             error={fieldErrors.addressLine1}
             maxLength={200}
             required
-            onChange={(event) => {
-              setSubmissionError(null);
-              validateField('addressLine1', event.currentTarget.form);
-            }}
+            onChange={(event) => handleFieldChange('addressLine1', event)}
             onBlur={(event) =>
               validateField('addressLine1', event.currentTarget.form, true)
             }
@@ -207,14 +227,12 @@ export function BranchForm({
           <BranchField
             name="addressLine2"
             label="Address line 2"
+            placeholder="e.g. 2nd floor"
             hint=""
             defaultValue={branch?.addressLine2 ?? undefined}
             error={fieldErrors.addressLine2}
             maxLength={200}
-            onChange={(event) => {
-              setSubmissionError(null);
-              validateField('addressLine2', event.currentTarget.form);
-            }}
+            onChange={(event) => handleFieldChange('addressLine2', event)}
             onBlur={(event) =>
               validateField('addressLine2', event.currentTarget.form, true)
             }
@@ -228,14 +246,13 @@ export function BranchForm({
             <BranchField
               name="city"
               label="City"
+              placeholder="e.g. Makati"
+              hint=""
               defaultValue={branch?.city}
               error={fieldErrors.city}
               maxLength={100}
               required
-              onChange={(event) => {
-                setSubmissionError(null);
-                validateField('city', event.currentTarget.form);
-              }}
+              onChange={(event) => handleFieldChange('city', event)}
               onBlur={(event) =>
                 validateField('city', event.currentTarget.form, true)
               }
@@ -243,14 +260,13 @@ export function BranchForm({
             <BranchField
               name="province"
               label="Province or region"
+              placeholder="e.g. Metro Manila"
+              hint=""
               defaultValue={branch?.province}
               error={fieldErrors.province}
               maxLength={100}
               required
-              onChange={(event) => {
-                setSubmissionError(null);
-                validateField('province', event.currentTarget.form);
-              }}
+              onChange={(event) => handleFieldChange('province', event)}
               onBlur={(event) =>
                 validateField('province', event.currentTarget.form, true)
               }
@@ -260,13 +276,12 @@ export function BranchForm({
             <BranchField
               name="postalCode"
               label="Postal code"
+              placeholder="e.g. 1200"
+              hint=""
               defaultValue={branch?.postalCode ?? undefined}
               error={fieldErrors.postalCode}
               maxLength={20}
-              onChange={(event) => {
-                setSubmissionError(null);
-                validateField('postalCode', event.currentTarget.form);
-              }}
+              onChange={(event) => handleFieldChange('postalCode', event)}
               onBlur={(event) =>
                 validateField('postalCode', event.currentTarget.form, true)
               }
@@ -274,38 +289,28 @@ export function BranchForm({
             <BranchField
               name="countryCode"
               label="Country code"
+              placeholder="e.g. PH"
               hint=""
               defaultValue={branch?.countryCode ?? 'PH'}
               error={fieldErrors.countryCode}
               maxLength={2}
               required
-              onChange={(event) => {
-                setSubmissionError(null);
-                validateField('countryCode', event.currentTarget.form);
-              }}
+              onChange={(event) => handleFieldChange('countryCode', event)}
               onBlur={(event) =>
                 validateField('countryCode', event.currentTarget.form, true)
               }
             />
           </div>
         </fieldset>
-        <ModalActionRow
-          feedback={
-            submissionError ||
-            (hasSubmitted && Object.keys(fieldErrors).length > 0) ? (
-              <p
-                role="alert"
-                className="max-w-full text-sm text-danger sm:max-w-sm"
-              >
-                {submissionError ??
-                  'Review the highlighted fields and try again.'}
-              </p>
-            ) : null
-          }
-        >
+        {submissionError ? (
+          <p role="alert" className="text-sm text-danger">
+            {submissionError}
+          </p>
+        ) : null}
+        <ModalActionRow>
           <Button
             className="w-full sm:w-auto"
-            variant="secondary"
+            variant="quiet"
             onClick={onCancel}
             disabled={isSubmitting}
           >
@@ -315,6 +320,7 @@ export function BranchForm({
             className="w-full sm:w-auto"
             type="submit"
             pending={isSubmitting}
+            disabled={!hasRequiredValues}
             pendingLabel={branch ? 'Saving changes…' : 'Adding branch…'}
           >
             {branch ? 'Save' : 'Add'}
@@ -328,6 +334,7 @@ export function BranchForm({
 function BranchField({
   name,
   label,
+  placeholder,
   hint,
   error,
   defaultValue,
@@ -338,6 +345,7 @@ function BranchField({
 }: {
   name: keyof BranchInput;
   label: string;
+  placeholder?: string;
   hint?: string;
   error?: string;
   defaultValue?: string;
@@ -359,8 +367,9 @@ function BranchField({
         </>
       }
       type="text"
+      placeholder={placeholder}
       hint={hint}
-      hintPosition="before"
+      hintPosition="after"
       error={error}
       defaultValue={defaultValue}
       maxLength={maxLength}

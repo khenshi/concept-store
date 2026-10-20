@@ -1,7 +1,8 @@
 'use client';
 
+import { FormDialog } from '@/shared/components/ui/form-dialog';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
@@ -307,74 +308,23 @@ function CreateMerchantModal({
   onCancel(): void;
   onSaved(merchant: Merchant): void;
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    dialog?.showModal();
-    headingRef.current?.focus();
-    document.body.style.overflow = 'hidden';
-    return () => {
-      dialog?.close();
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
-        previousFocus.focus();
-    };
-  }, []);
-
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="create-merchant-title"
-      aria-describedby="create-merchant-description"
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-5xl overflow-y-auto rounded-panel border border-hairline bg-surface p-6 text-ink shadow-overlay backdrop:bg-scrim sm:p-8"
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!pending) onCancel();
-      }}
-      onMouseDown={(event) => {
-        const bounds = event.currentTarget.getBoundingClientRect();
-        if (
-          !pending &&
-          event.target === event.currentTarget &&
-          (event.clientX < bounds.left ||
-            event.clientX > bounds.right ||
-            event.clientY < bounds.top ||
-            event.clientY > bounds.bottom)
-        )
-          onCancel();
-      }}
+    <FormDialog
+      title="Add a merchant"
+      description="Record the business and primary contact information. New merchants start as active."
+      eyebrow="Merchant identity"
+      size="form"
+      pending={pending}
+      onClose={onCancel}
     >
-      <section className="min-w-0">
-        <p className="text-xs font-bold tracking-wider text-ink uppercase">
-          Merchant identity
-        </p>
-        <h2
-          className="mt-2 text-2xl font-bold outline-none"
-          id="create-merchant-title"
-          ref={headingRef}
-          tabIndex={-1}
-        >
-          Add a merchant
-        </h2>
-        <p
-          className="mt-2 text-sm leading-6 text-muted"
-          id="create-merchant-description"
-        >
-          Record the business and primary contact information. New merchants
-          start as active.
-        </p>
-        <MerchantForm
-          organizationId={organizationId}
-          onCancel={onCancel}
-          onSaved={onSaved}
-          onPendingChange={setPending}
-        />
-      </section>
-    </dialog>
+      <MerchantForm
+        organizationId={organizationId}
+        onCancel={onCancel}
+        onSaved={onSaved}
+        onPendingChange={setPending}
+      />
+    </FormDialog>
   );
 }

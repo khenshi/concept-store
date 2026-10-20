@@ -27,6 +27,34 @@ function errorMessage(cause: unknown): string {
     : 'The merchant profile could not be saved. Please try again.';
 }
 
+function sanitizeMerchantInput(target: EventTarget | null) {
+  if (!(target instanceof HTMLInputElement)) return;
+  let value = target.value;
+  switch (target.name) {
+    case 'code':
+      value = value
+        .toUpperCase()
+        .replace(/[^A-Z0-9-]/g, '')
+        .replace(/^-+/, '')
+        .replace(/-{2,}/g, '-');
+      break;
+    case 'email':
+      value = value
+        .toLowerCase()
+        .replace(/\s/g, '')
+        .replace(/[^a-z0-9.!#$%&'*+/=?^_`{|}~@-]/g, '');
+      break;
+    case 'phone':
+      value = value.replace(/[^\d+().\-\s]/g, '');
+      if (value.includes('+'))
+        value = `${value.startsWith('+') ? '+' : ''}${value.replace(/\+/g, '')}`;
+      break;
+    default:
+      return;
+  }
+  if (target.value !== value) target.value = value;
+}
+
 export function MerchantForm({
   organizationId,
   merchant,
@@ -140,13 +168,17 @@ export function MerchantForm({
       className="mt-6 grid gap-5"
       noValidate
       onBlur={(event) => validateChangedField(event, true)}
-      onChange={(event) => validateChangedField(event)}
+      onChange={(event) => {
+        sanitizeMerchantInput(event.target);
+        validateChangedField(event);
+      }}
       onSubmit={handleSubmit}
     >
       <div className="grid min-w-0 gap-5 sm:grid-cols-[minmax(0,1.5fr)_minmax(10rem,0.5fr)]">
         <MerchantFieldInput
           name="name"
           label="Business name"
+          placeholder="e.g. Amihan Trading"
           defaultValue={merchant?.name}
           error={fieldErrors.name}
           maxLength={120}
@@ -155,6 +187,7 @@ export function MerchantForm({
         <MerchantFieldInput
           name="code"
           label="Code"
+          placeholder="e.g. AMI-001"
           hint=""
           defaultValue={merchant?.code ?? undefined}
           error={fieldErrors.code}
@@ -164,6 +197,7 @@ export function MerchantForm({
       <MerchantFieldInput
         name="contactName"
         label="Contact name"
+        placeholder="e.g. Mara Santos"
         defaultValue={merchant?.contactName}
         error={fieldErrors.contactName}
         maxLength={120}
@@ -173,6 +207,7 @@ export function MerchantForm({
         <MerchantFieldInput
           name="email"
           label="Email"
+          placeholder="e.g. mara@example.com"
           defaultValue={merchant?.email ?? undefined}
           error={fieldErrors.email}
           maxLength={254}
@@ -181,6 +216,7 @@ export function MerchantForm({
         <MerchantFieldInput
           name="phone"
           label="Phone"
+          placeholder="e.g. +63 917 123 4567"
           hint=""
           defaultValue={merchant?.phone}
           error={fieldErrors.phone}
@@ -189,16 +225,22 @@ export function MerchantForm({
           required
         />
       </div>
-      <ModalActionRow
-        feedback={
-          submissionError || Object.keys(fieldErrors).length ? (
-            <p className="text-sm text-danger" role="alert">
-              {submissionError ??
-                'Review the highlighted fields and try again.'}
-            </p>
-          ) : null
-        }
-      >
+      {submissionError ? (
+        <p className="text-sm text-danger" role="alert">
+          {submissionError}
+        </p>
+      ) : null}
+      <ModalActionRow>
+        {onCancel ? (
+          <button
+            className={buttonStyles({ variant: 'quiet' })}
+            disabled={isSubmitting}
+            onClick={onCancel}
+            type="button"
+          >
+            Cancel
+          </button>
+        ) : null}
         <button
           className={buttonStyles({ variant: 'primary' })}
           disabled={isSubmitting}
@@ -211,16 +253,6 @@ export function MerchantForm({
               ? 'Save changes'
               : 'Create merchant'}
         </button>
-        {onCancel ? (
-          <button
-            className={buttonStyles({ variant: 'secondary' })}
-            disabled={isSubmitting}
-            onClick={onCancel}
-            type="button"
-          >
-            Cancel
-          </button>
-        ) : null}
       </ModalActionRow>
     </form>
   );
@@ -229,6 +261,7 @@ export function MerchantForm({
 function MerchantFieldInput({
   name,
   label,
+  placeholder,
   hint,
   error,
   defaultValue,
@@ -238,6 +271,7 @@ function MerchantFieldInput({
 }: {
   name: MerchantField;
   label: string;
+  placeholder?: string;
   hint?: string;
   error?: string;
   defaultValue?: string;
@@ -257,7 +291,8 @@ function MerchantFieldInput({
         </>
       }
       hint={hint}
-      hintPosition="before"
+      placeholder={placeholder}
+      hintPosition="after"
       error={error}
       defaultValue={defaultValue}
       maxLength={maxLength}
