@@ -1,5 +1,9 @@
 import { Prisma } from '../../../generated/prisma/client';
-import { intersectingManilaDates, readAnalytics } from './sales-analytics';
+import {
+  intersectingManilaDates,
+  readAnalytics,
+  PRODUCT_RANKING_PAGE_SIZE,
+} from './sales-analytics';
 
 describe('Sales analytics', () => {
   it('zero-fills half-open Manila dates including partial days and the 367-date API bound', () => {
@@ -93,7 +97,9 @@ describe('Sales analytics', () => {
     }
     const productQuery = (raw.mock.calls[1] as [Prisma.Sql])[0];
     expect(productQuery.sql).toMatch(/LIMIT .* OFFSET/);
-    expect(productQuery.values).toEqual(expect.arrayContaining([10, 0]));
+    expect(productQuery.values).toEqual(
+      expect.arrayContaining([PRODUCT_RANKING_PAGE_SIZE, 0]),
+    );
   });
   it('attributes completed refunds to the original sale method with tenant, branch and date filters', async () => {
     const from = new Date('2026-09-01T16:00:00Z');

@@ -1,6 +1,8 @@
 import { ValidationPipe } from '@nestjs/common';
 import {
   ReportBranchesQueryDto,
+  ReportPeriodQueryDto,
+  DailyReportQueryDto,
   SalesRankingQueryDto,
   SalesReportQueryDto,
   TransactionsQueryDto,
@@ -15,6 +17,51 @@ const valid = {
   until: '2026-09-02T00:00:00.123Z',
 };
 describe('Report query validation', () => {
+  it('requires explicit all-time mode and frozen until; rejects conflicting or implicit modes', async () => {
+    await expect(
+      pipe.transform(
+        { mode: 'ALL_TIME', until: valid.until },
+        { type: 'query', metatype: ReportPeriodQueryDto },
+      ),
+    ).resolves.toMatchObject({ mode: 'ALL_TIME', until: valid.until });
+    for (const query of [
+      {},
+      { until: valid.until },
+      { mode: 'ALL_TIME' },
+      { mode: 'BOUNDED', until: valid.until },
+      { mode: 'ALL_TIME', ...valid },
+      { mode: 'ALL_TIME', until: valid.until, merchantId: 'other' },
+      { mode: 'ALL_TIME', until: '2026-02-30T00:00:00Z' },
+    ])
+      await expect(
+        pipe.transform(query, {
+          type: 'query',
+          metatype: ReportPeriodQueryDto,
+        }),
+      ).rejects.toThrow();
+    await expect(
+      pipe.transform(
+        { ...valid, mode: 'ALL_TIME' },
+        { type: 'query', metatype: SalesReportQueryDto },
+      ),
+    ).rejects.toThrow();
+  });
+  it('defaults daily pages and rejects unbounded page sizes and overrides', async () => {
+    await expect(
+      pipe.transform(valid, { type: 'query', metatype: DailyReportQueryDto }),
+    ).resolves.toMatchObject({ ...valid, page: 1, limit: 15 });
+    for (const query of [
+      { ...valid, page: '0' },
+      { ...valid, limit: '101' },
+      { ...valid, page: '21474837' },
+      { ...valid, limit: '1.5' },
+      { ...valid, mode: 'ALL_TIME' },
+      { ...valid, granularity: 'DAY' },
+    ])
+      await expect(
+        pipe.transform(query, { type: 'query', metatype: DailyReportQueryDto }),
+      ).rejects.toThrow();
+  });
   it('trims required UTC timestamps without losing milliseconds', async () => {
     await expect(
       pipe.transform(

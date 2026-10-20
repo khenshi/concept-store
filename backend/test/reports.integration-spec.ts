@@ -11,7 +11,11 @@ import { ProductsService } from '../src/modules/organizations/products/products.
 import { CheckoutService } from '../src/modules/organizations/sales/checkout.service';
 import { RefundsService } from '../src/modules/organizations/refunds/refunds.service';
 import type { OrganizationContext } from '../src/modules/organizations/authorization/organization-authorization.types';
-import { SalesRankingSortBy } from '../src/modules/organizations/reports/dto/sales-report-query.dto';
+import {
+  SalesRankingSortBy,
+  ReportPeriodMode,
+  ReportTransactionType,
+} from '../src/modules/organizations/reports/dto/sales-report-query.dto';
 import type { SalesReport } from '../src/modules/organizations/reports/reports.types';
 
 const connectionString = process.env.TEST_DATABASE_URL;
@@ -136,6 +140,358 @@ async function read(userId = ownerId) {
 }
 
 describe('PostgreSQL branch sales reporting', () => {
+  it('handles historical skipped Manila midnights without leaking prior-day amounts into daily pages', async () => {
+    const sale = await complete('CASH', [[0, 2]]);
+    await prisma.sale.update({
+      where: { id: sale.id },
+      data: { completedAt: new Date('1954-04-11T16:00:00Z') },
+    });
+    const resolved = await reports.period(context(merchantUserId), branchId, {
+      mode: ReportPeriodMode.ALL_TIME,
+      until: range.until,
+    });
+    expect(resolved.from).toBe('1954-04-11T16:00:00.000Z');
+    const applied = {
+      from: '1954-04-10T16:00:00Z',
+      until: '1954-04-13T15:00:00Z',
+      limit: 1,
+    };
+    const first = await reports.daily(context(), branchId, {
+      ...applied,
+      page: 1,
+    });
+    const second = await reports.daily(context(), branchId, {
+      ...applied,
+      page: 2,
+    });
+    const third = await reports.daily(context(), branchId, {
+      ...applied,
+      page: 3,
+    });
+    expect(first.items).toEqual([
+      expect.objectContaining({ date: '1954-04-11', grossSales: '0.00' }),
+    ]);
+    expect(second.items).toEqual([
+      expect.objectContaining({ date: '1954-04-12', grossSales: '25.00' }),
+    ]);
+    expect(third.items).toEqual([
+      expect.objectContaining({ date: '1954-04-13', grossSales: '0.00' }),
+    ]);
+  });
+  it('measures bounded multi-year report queries on 10001 sales and 2001 refunds using existing indexes', async () => {
+    const sale = await complete('CASH', [[0, 2]]);
+    const returned = await refund(sale, [[0, 1]], 'CARD');
+    await prisma.$executeRaw(Prisma.sql`
+      INSERT INTO "Sale" ("id", "organizationId", "branchId", "receiptCode", "createdById", "requestId", "paymentMethod", "cashTender", "cashChange", "paymentReference", "total", "completedAt", "organizationName", "branchName", "branchCode", "cashierName", "checkoutCommand")
+      SELECT md5(s."id" || n::text)::uuid::text, s."organizationId", s."branchId", 'PERF-' || n::text, s."createdById", md5(s."requestId" || n::text)::uuid::text, s."paymentMethod", s."cashTender", s."cashChange", s."paymentReference", s."total", TIMESTAMP '2010-01-01 00:00:00' + (n % 5844) * INTERVAL '1 day', s."organizationName", s."branchName", s."branchCode", s."cashierName", s."checkoutCommand"
+      FROM "Sale" s CROSS JOIN generate_series(1, 10000) n WHERE s."id" = ${sale.id}
+    `);
+    await prisma.$executeRaw(Prisma.sql`
+      INSERT INTO "SaleItem" ("id", "organizationId", "branchId", "saleId", "branchInventoryId", "productId", "merchantId", "quantity", "productName", "sku", "barcode", "merchantName", "unitPrice", "lineTotal")
+      SELECT md5(i."id" || n::text)::uuid::text, i."organizationId", i."branchId", md5(i."saleId" || n::text)::uuid::text, i."branchInventoryId", i."productId", i."merchantId", i."quantity", i."productName", i."sku", i."barcode", i."merchantName", i."unitPrice", i."lineTotal"
+      FROM "SaleItem" i CROSS JOIN generate_series(1, 10000) n WHERE i."saleId" = ${sale.id}
+    `);
+    await prisma.$executeRaw(Prisma.sql`
+      INSERT INTO "Refund" ("id", "organizationId", "branchId", "saleId", "refundCode", "requestId", "createdById", "completedAt", "reason", "paymentMethod", "paymentReference", "total", "refundCommand")
+      SELECT md5(r."id" || n::text)::uuid::text, r."organizationId", r."branchId", md5(r."saleId" || n::text)::uuid::text, 'PERF-REF-' || n::text, md5(r."requestId"::text || n::text)::uuid, r."createdById", TIMESTAMP '2010-01-02 00:00:00' + (n % 5844) * INTERVAL '1 day', r."reason", r."paymentMethod", r."paymentReference", r."total", r."refundCommand"
+      FROM "Refund" r CROSS JOIN generate_series(1, 2000) n WHERE r."id" = ${returned.id}
+    `);
+    await prisma.$executeRaw(Prisma.sql`
+      INSERT INTO "RefundItem" ("id", "organizationId", "branchId", "saleId", "refundId", "saleItemId", "branchInventoryId", "merchantId", "quantity", "restockQuantity", "unitPrice", "lineTotal")
+      SELECT md5(i."id" || n::text)::uuid::text, i."organizationId", i."branchId", md5(i."saleId" || n::text)::uuid::text, md5(i."refundId" || n::text)::uuid::text, md5(i."saleItemId" || n::text)::uuid::text, i."branchInventoryId", i."merchantId", i."quantity", i."restockQuantity", i."unitPrice", i."lineTotal"
+      FROM "RefundItem" i CROSS JOIN generate_series(1, 2000) n WHERE i."refundId" = ${returned.id}
+    `);
+    await admin.query(`ANALYZE "Sale", "SaleItem", "Refund", "RefundItem"`);
+    const queries: Prisma.Sql[] = [];
+    const measuredReports = new ReportsService({
+      $transaction: (
+        callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
+        options: { isolationLevel: Prisma.TransactionIsolationLevel },
+      ) =>
+        prisma.$transaction(
+          (tx) =>
+            callback(
+              new Proxy(tx, {
+                get(target, property, receiver) {
+                  if (property === '$queryRaw')
+                    return async <T>(query: Prisma.Sql): Promise<T> => {
+                      queries.push(query);
+                      return target.$queryRaw<T>(query);
+                    };
+                  return Reflect.get(target, property, receiver) as unknown;
+                },
+              }),
+            ),
+          options,
+        ),
+    } as unknown as PrismaService);
+    const evidence: { label: string; milliseconds: number; bytes: number }[] =
+      [];
+    const measure = async <T>(label: string, read: () => Promise<T>) => {
+      const started = performance.now();
+      const result = await read();
+      const milliseconds = performance.now() - started;
+      const bytes = Buffer.byteLength(JSON.stringify(result));
+      evidence.push({ label, milliseconds: Math.round(milliseconds), bytes });
+      expect(milliseconds).toBeLessThan(2000);
+      expect(bytes).toBeLessThan(2500000);
+      return result;
+    };
+    const applied = {
+      from: '2009-12-31T16:00:00Z',
+      until: '2026-12-31T16:00:00Z',
+    };
+    for (const userId of [ownerId, merchantUserId]) {
+      const own = userId === merchantUserId;
+      await measure(`${own ? 'merchant' : 'staff'}-period`, () =>
+        measuredReports.period(context(userId), branchId, {
+          mode: ReportPeriodMode.ALL_TIME,
+          until: applied.until,
+        }),
+      );
+      const yearly = await measure(`${own ? 'merchant' : 'staff'}-yearly`, () =>
+        measuredReports.analytics(context(userId), branchId, applied),
+      );
+      expect(yearly.granularity).toBe('YEAR');
+      expect(yearly).toMatchObject(
+        own
+          ? {
+              ownTransactionCount: '10001',
+              ownRefundCount: '2001',
+              ownNetRecordedSales: '225012.50',
+            }
+          : {
+              transactionCount: '10001',
+              refundCount: '2001',
+              netRecordedSales: '225012.50',
+            },
+      );
+      const monthly = await measure(
+        `${own ? 'merchant' : 'staff'}-monthly`,
+        () =>
+          measuredReports.analytics(context(userId), branchId, {
+            ...applied,
+            from: '2022-12-31T16:00:00Z',
+          }),
+      );
+      expect(monthly.granularity).toBe('MONTH');
+      const daily = await measure(`${own ? 'merchant' : 'staff'}-daily`, () =>
+        measuredReports.daily(context(userId), branchId, {
+          ...applied,
+          page: 100,
+          limit: 15,
+        }),
+      );
+      expect(daily.items).toHaveLength(15);
+    }
+    const maximum = await measure('maximum-supported-yearly', () =>
+      measuredReports.analytics(context(), branchId, {
+        from: '1899-12-31T16:00:00Z',
+        until: '9999-12-30T16:00:00Z',
+      }),
+    );
+    expect(maximum.dailyTrends).toHaveLength(8100);
+    const plans: { executionMs: number; indexes: string[] }[] = [];
+    for (const query of queries) {
+      const result = await admin.query<{
+        'QUERY PLAN': { 'Execution Time': number; Plan: unknown }[];
+      }>(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query.text}`, query.values);
+      const plan = result.rows[0]['QUERY PLAN'][0];
+      const indexes = [
+        ...JSON.stringify(plan.Plan).matchAll(/"Index Name":"([^"]+)"/g),
+      ].map((match) => match[1]);
+      plans.push({
+        executionMs: plan['Execution Time'],
+        indexes: [...new Set(indexes)],
+      });
+    }
+    console.info(
+      'Reports history performance',
+      JSON.stringify({
+        sales: 10001,
+        saleItems: 10001,
+        refunds: 2001,
+        refundItems: 2001,
+        targets: { endpointMs: 2000, payloadBytes: 2500000 },
+        evidence,
+        rawQueries: plans.length,
+        slowestQueryMs: Math.max(...plans.map((plan) => plan.executionMs)),
+        indexes: [...new Set(plans.flatMap((plan) => plan.indexes))],
+      }),
+    );
+  });
+  it('resolves earliest own activity independently from branch-wide history and refund dates', async () => {
+    const other = await complete('CASH', [[2, 1]]);
+    const own = await complete('CARD', [[0, 2]]);
+    await prisma.sale.update({
+      where: { id: other.id },
+      data: { completedAt: new Date('2001-02-03T00:00:00Z') },
+    });
+    await prisma.sale.update({
+      where: { id: own.id },
+      data: { completedAt: new Date('2020-02-29T16:01:00Z') },
+    });
+    const query = { mode: ReportPeriodMode.ALL_TIME, until: range.until };
+    expect(await reports.period(context(), branchId, query)).toMatchObject({
+      scope: 'STAFF',
+      from: '2001-02-02T16:00:00.000Z',
+      hasActivity: true,
+    });
+    expect(
+      await reports.period(context(merchantUserId), branchId, query),
+    ).toMatchObject({
+      scope: 'MERCHANT',
+      from: '2020-02-29T16:00:00.000Z',
+      hasActivity: true,
+    });
+    expect(
+      await reports.period(context(merchantUserId), branchId, {
+        ...query,
+        until: '2010-01-01T00:00:00Z',
+      }),
+    ).toMatchObject({ scope: 'MERCHANT', from: null, hasActivity: false });
+    await expect(
+      reports.period(
+        { ...context(), organizationId: randomUUID() },
+        branchId,
+        query,
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      reports.daily({ ...context(), organizationId: randomUUID() }, branchId, {
+        ...range,
+        page: 1,
+        limit: 15,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    await refund(own, [[0, 1]], 'CASH', '2019-01-02T01:00:00Z');
+    expect(
+      await reports.period(context(merchantUserId), branchId, query),
+    ).toMatchObject({ from: '2019-01-01T16:00:00.000Z' });
+    expect(
+      await reports.period(context(merchantUserId), emptyBranchId, query),
+    ).toMatchObject({ from: null, hasActivity: false });
+    await prisma.organizationMembership.update({
+      where: {
+        organizationId_userId: { organizationId, userId: merchantUserId },
+      },
+      data: { merchantId: otherMerchantId },
+    });
+    expect(
+      await reports.period(context(merchantUserId), branchId, query),
+    ).toMatchObject({ from: '2001-02-02T16:00:00.000Z' });
+    await prisma.branchMembership.delete({
+      where: {
+        organizationId_branchId_userId: {
+          organizationId,
+          branchId,
+          userId: managerId,
+        },
+      },
+    });
+    await expect(
+      reports.period(context(managerId), branchId, query),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      reports.daily(context(managerId), branchId, {
+        ...range,
+        page: 1,
+        limit: 31,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      reports.period(context(cashierId), branchId, query),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      reports.period(context(), randomUUID(), query),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+  it('reconciles partial monthly/yearly buckets and paginated daily detail across independent refunds', async () => {
+    const sale = await complete('CASH', [[0, 2]]);
+    const other = await complete('CARD', [[2, 1]]);
+    await prisma.sale.update({
+      where: { id: sale.id },
+      data: { completedAt: new Date('2020-02-29T15:59:59.999Z') },
+    });
+    await prisma.sale.update({
+      where: { id: other.id },
+      data: { completedAt: new Date('2021-03-01T00:00:00Z') },
+    });
+    await refund(sale, [[0, 1]], 'CARD', '2021-03-01T16:00:00Z');
+    const applied = {
+      from: '2020-02-29T15:59:59.999Z',
+      until: '2021-03-02T16:00:00Z',
+    };
+    for (const userId of [ownerId, merchantUserId]) {
+      const monthly = await reports.analytics(
+        context(userId),
+        branchId,
+        applied,
+      );
+      expect(monthly.granularity).toBe('MONTH');
+      expect(monthly.dailyTrends[0].date).toBe('2020-02-01');
+      expect(monthly.dailyTrends.at(-1)?.date).toBe('2021-03-01');
+      const prefix = userId === merchantUserId ? 'own' : '';
+      const key = prefix ? 'ownNetRecordedSales' : 'netRecordedSales';
+      const cents = (value: string) => BigInt(value.replace('.', ''));
+      const groupedSum = monthly.dailyTrends.reduce(
+        (sum, row) =>
+          sum + cents((row as unknown as Record<string, string>)[key]),
+        0n,
+      );
+      expect(groupedSum).toBe(
+        cents((monthly as unknown as Record<string, string>)[key]),
+      );
+      const dates: string[] = [];
+      let dailySum = 0n;
+      for (let page = 1; page <= 4; page++) {
+        const daily = await reports.daily(context(userId), branchId, {
+          ...applied,
+          page,
+          limit: 100,
+        });
+        dates.push(...daily.items.map((item) => item.date));
+        dailySum += daily.items.reduce(
+          (sum, row) =>
+            sum + cents((row as unknown as Record<string, string>)[key]),
+          0n,
+        );
+        if (userId === merchantUserId)
+          expect(JSON.stringify(daily)).not.toMatch(
+            /paymentMethod|actorName|"grossSales"|cashier|reason/,
+          );
+      }
+      expect(new Set(dates).size).toBe(dates.length);
+      expect(dates).toHaveLength(368);
+      expect(dates[0]).toBe('2020-02-29');
+      expect(dates.at(-1)).toBe('2021-03-02');
+      expect(dailySum).toBe(groupedSum);
+      const yearly = await reports.analytics(context(userId), branchId, {
+        ...applied,
+        until: '2026-03-01T16:00:00Z',
+      });
+      expect(yearly.granularity).toBe('YEAR');
+      expect(yearly.dailyTrends).toHaveLength(7);
+      expect(
+        yearly.dailyTrends.reduce(
+          (sum, row) =>
+            sum + cents((row as unknown as Record<string, string>)[key]),
+          0n,
+        ),
+      ).toBe(groupedSum);
+    }
+    const refundOnly = await reports.analytics(
+      context(merchantUserId),
+      branchId,
+      { from: '2021-03-01T16:00:00Z', until: '2023-03-01T16:00:00Z' },
+    );
+    expect(refundOnly).toMatchObject({
+      scope: 'MERCHANT',
+      granularity: 'MONTH',
+      ownGrossSales: '0.00',
+      ownNetRecordedSales: '-12.50',
+    });
+  });
   it('combines completed sales and refunds with filters and merchant privacy', async () => {
     const [sale] = await mixedSales();
     await refund(sale, [[0, 1]], 'CARD');
@@ -156,7 +512,7 @@ describe('PostgreSQL branch sales reporting', () => {
     ]);
     const refundItem = page.items[0];
     expect(refundItem).toMatchObject({
-      type: 'REFUND',
+      type: ReportTransactionType.REFUND,
       saleId: sale.id,
       amount: '12.50',
       paymentMethod: 'CARD',
@@ -168,7 +524,7 @@ describe('PostgreSQL branch sales reporting', () => {
       ...range,
       page: 1,
       limit: 10,
-      type: 'REFUND',
+      type: ReportTransactionType.REFUND,
       q: refundItem.reference,
     });
     expect(filtered).toMatchObject({
@@ -628,9 +984,9 @@ describe('PostgreSQL branch sales reporting', () => {
         ?.merchantName,
     ).toBe('Latest saved merchant name');
   });
-  it('analytics ranks ten of all matching products deterministically and picks latest original snapshot', async () => {
+  it('analytics ranks fifteen of all matching products deterministically and picks latest original snapshot', async () => {
     const placements: string[] = [];
-    for (let index = 0; index < 12; index++) {
+    for (let index = 0; index < 17; index++) {
       const product = await fixtureProduct(
         products,
         prisma,
@@ -667,9 +1023,9 @@ describe('PostgreSQL branch sales reporting', () => {
     });
     const ids = first.items.map((row) => row.productId).sort();
     const result = await reports.analytics(context(), branchId, range);
-    expect(result.totalProducts).toBe('12');
+    expect(result.totalProducts).toBe('17');
     expect(result.topProducts.map((row) => row.productId)).toEqual(
-      ids.slice(0, 10),
+      ids.slice(0, 15),
     );
     const productId = first.items[0].productId;
     await prisma.product.update({

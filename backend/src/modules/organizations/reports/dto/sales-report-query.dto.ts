@@ -34,7 +34,7 @@ export class SalesReportQueryDto {
   @ApiProperty({
     format: 'date-time',
     description:
-      'Exclusive UTC completion timestamp ending in Z; required, after from and within 366 days',
+      'Exclusive UTC completion timestamp ending in Z; required, after from; supported Manila dates 1900-01-01 through 9999-12-30',
   })
   @Transform(trimRequiredString)
   @IsString()
@@ -44,6 +44,56 @@ export class SalesReportQueryDto {
 }
 
 export class ReportBranchesQueryDto {}
+
+export enum ReportPeriodMode {
+  ALL_TIME = 'ALL_TIME',
+}
+
+export class ReportPeriodQueryDto {
+  @ApiProperty({
+    enum: ReportPeriodMode,
+    description: 'Explicit all-time resolution; from is forbidden',
+  })
+  @IsEnum(ReportPeriodMode)
+  mode!: ReportPeriodMode;
+
+  @ApiProperty({
+    format: 'date-time',
+    description:
+      'Required frozen exclusive UTC upper bound, normally midnight after today in Manila; no implicit clock reads',
+  })
+  @Transform(trimRequiredString)
+  @IsString()
+  @IsISO8601({ strict: true, strictSeparator: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/)
+  until!: string;
+}
+
+export class DailyReportQueryDto extends SalesReportQueryDto {
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    maximum: 21474836,
+    default: 1,
+  })
+  @Transform(queryInteger)
+  @IsInt()
+  @Min(1)
+  @Max(21474836)
+  page = 1;
+
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    maximum: 100,
+    default: 15,
+  })
+  @Transform(queryInteger)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit = 15;
+}
 
 export enum ReportTransactionType {
   SALE = 'SALE',

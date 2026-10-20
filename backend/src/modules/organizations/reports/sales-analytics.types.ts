@@ -5,6 +5,7 @@ import {
 } from './reports.types';
 import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
 import { SalesRankingSortBy } from './dto/sales-report-query.dto';
+import type { ReportGranularity } from './report-period';
 
 const money = { type: String, pattern: '^(0|[1-9][0-9]*)\\.[0-9]{2}$' };
 const integer = { type: String, pattern: '^(0|[1-9][0-9]*)$' };
@@ -31,7 +32,8 @@ export class MerchantAnalyticsMetricsDto {
 export class StaffDailyTrendDto extends StaffAnalyticsMetricsDto {
   @ApiProperty({
     format: 'date',
-    description: 'Asia/Manila date; exact instant filtering precedes bucketing',
+    description:
+      'Asia/Manila bucket start (daily date, month first, or January 1); first bucket may precede from; metrics are clipped to exact bounds',
   })
   date!: string;
   @ApiProperty(integer) transactionCount!: string;
@@ -48,7 +50,11 @@ export class StaffHourlyTrendDto extends StaffAnalyticsMetricsDto {
   @ApiProperty(integer) refundCount!: string;
 }
 export class MerchantDailyTrendDto extends MerchantAnalyticsMetricsDto {
-  @ApiProperty({ format: 'date', description: 'Asia/Manila date' })
+  @ApiProperty({
+    format: 'date',
+    description:
+      'Asia/Manila bucket start (daily date, month first, or January 1); exact bounds clip metrics',
+  })
   date!: string;
   @ApiProperty(integer) ownTransactionCount!: string;
   @ApiProperty(integer) ownRefundCount!: string;
@@ -105,7 +111,13 @@ export class StaffNetByPaymentMethodDto {
   netRecordedSales!: string;
 }
 export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto {
-  @ApiProperty({ type: [StaffDailyTrendDto], minItems: 1, maxItems: 367 })
+  @ApiPropertyOptional({
+    enum: ['DAY', 'MONTH', 'YEAR'],
+    description:
+      'Omitted for unchanged <=366-day responses; MONTH over 366 days, YEAR beyond five calendar years. At most 367 daily, 61 monthly or 8100 yearly buckets.',
+  })
+  granularity?: ReportGranularity;
+  @ApiProperty({ type: [StaffDailyTrendDto], minItems: 1, maxItems: 8100 })
   dailyTrends!: StaffDailyTrendDto[];
   @ApiPropertyOptional({
     type: [StaffHourlyTrendDto],
@@ -144,7 +156,13 @@ export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto 
   netByPaymentMethod!: StaffNetByPaymentMethodDto[];
 }
 export class MerchantSalesAnalyticsResponseDto extends MerchantSalesReportResponseDto {
-  @ApiProperty({ type: [MerchantDailyTrendDto], minItems: 1, maxItems: 367 })
+  @ApiPropertyOptional({
+    enum: ['DAY', 'MONTH', 'YEAR'],
+    description:
+      'Omitted for <=366-day responses; MONTH over 366 days, YEAR beyond five calendar years; calendar bucket starts with exact clipped metrics',
+  })
+  granularity?: ReportGranularity;
+  @ApiProperty({ type: [MerchantDailyTrendDto], minItems: 1, maxItems: 8100 })
   dailyTrends!: MerchantDailyTrendDto[];
   @ApiProperty({ type: [MerchantTopProductDto], maxItems: 15 })
   topProducts!: MerchantTopProductDto[];
@@ -186,3 +204,34 @@ export type SalesAnalytics =
   StaffSalesAnalyticsResponseDto | MerchantSalesAnalyticsResponseDto;
 export type SalesRankingPage =
   StaffSalesRankingPageResponseDto | MerchantSalesRankingPageResponseDto;
+
+class DailyReportPageResponseDto {
+  @ApiProperty({ type: BranchIdentityResponseDto })
+  branch!: BranchIdentityResponseDto;
+  @ApiProperty({ format: 'date-time' }) from!: string;
+  @ApiProperty({ format: 'date-time' }) until!: string;
+  @ApiProperty({ type: 'integer', minimum: 1 }) page!: number;
+  @ApiProperty({ type: 'integer', minimum: 1, maximum: 100 }) limit!: number;
+  @ApiProperty({
+    type: 'integer',
+    description:
+      'Number of intersecting Manila dates, including zero-activity days',
+  })
+  total!: number;
+  @ApiProperty({ type: 'integer', minimum: 0 }) totalPages!: number;
+}
+
+export class StaffDailyReportPageResponseDto extends DailyReportPageResponseDto {
+  @ApiProperty({ enum: ['STAFF'] }) scope!: 'STAFF';
+  @ApiProperty({ type: [StaffDailyTrendDto], maxItems: 100 })
+  items!: StaffDailyTrendDto[];
+}
+
+export class MerchantDailyReportPageResponseDto extends DailyReportPageResponseDto {
+  @ApiProperty({ enum: ['MERCHANT'] }) scope!: 'MERCHANT';
+  @ApiProperty({ type: [MerchantDailyTrendDto], maxItems: 100 })
+  items!: MerchantDailyTrendDto[];
+}
+
+export type DailyReportPage =
+  StaffDailyReportPageResponseDto | MerchantDailyReportPageResponseDto;

@@ -155,7 +155,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
     { ...valid, from: '2026-02-30T00:00:00Z' },
     { ...valid, until: valid.from },
     { ...valid, until: '2026-08-01T00:00:00Z' },
-    { from: '2025-01-01T00:00:00Z', until: '2026-01-03T00:00:00Z' },
+    { from: '1899-12-31T15:59:59.999Z', until: valid.until },
     { ...valid, until: '2026-09-02T08:00:00+08:00' },
     { ...valid, merchantId: actor },
     { ...valid, page: 1 },
@@ -200,7 +200,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       page: 2,
       sortBy: 'UNITS_SOLD',
       merchantId: actor,
-      limit: 10,
+      limit: 15,
     });
   });
   it.each([
@@ -223,8 +223,30 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
     const schemas = document.components?.schemas;
     expect(schemas?.StaffSalesAnalyticsResponseDto).toHaveProperty(
       'properties.dailyTrends.maxItems',
-      367,
+      8100,
     );
+    expect(schemas?.StaffSalesAnalyticsResponseDto).toHaveProperty(
+      'properties.granularity.enum',
+      ['DAY', 'MONTH', 'YEAR'],
+    );
+    expect(schemas?.ReportPeriodResponseDto).toHaveProperty(
+      'properties.from.nullable',
+      true,
+    );
+    expect(schemas?.StaffDailyReportPageResponseDto).toHaveProperty(
+      'properties.items.maxItems',
+      100,
+    );
+    expect(
+      document.paths[
+        '/organizations/{organizationId}/branches/{branchId}/reports/sales/period'
+      ]?.get,
+    ).toBeDefined();
+    expect(
+      document.paths[
+        '/organizations/{organizationId}/branches/{branchId}/reports/sales/daily'
+      ]?.get,
+    ).toBeDefined();
     expect(schemas?.StaffSalesAnalyticsResponseDto).toHaveProperty(
       'properties.topMerchants.maxItems',
       10,
@@ -265,7 +287,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
     );
     expect(schemas?.MerchantSalesAnalyticsResponseDto).toHaveProperty(
       'properties.topProducts.maxItems',
-      10,
+      15,
     );
     expect(schemas?.MerchantSalesAnalyticsResponseDto).not.toHaveProperty(
       'properties.payments',
@@ -312,6 +334,80 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       ]),
     );
   });
+  it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
+    'resolves explicit all-time and paginates daily reads for %s',
+    async (current) => {
+      role = current;
+      prisma.$queryRaw.mockResolvedValueOnce([
+        { earliest: new Date('2020-03-01T01:00:00Z') },
+      ]);
+      const resolution = await http()
+        .get(`${path}/period`)
+        .auth(token(), { type: 'bearer' })
+        .query({ mode: 'ALL_TIME', until: valid.until })
+        .expect(200);
+      expect(resolution.body).toMatchObject({
+        scope: current === 'MERCHANT' ? 'MERCHANT' : 'STAFF',
+        from: '2020-02-29T16:00:00.000Z',
+        hasActivity: true,
+      });
+      prisma.$queryRaw.mockResolvedValue([]);
+      const daily = await http()
+        .get(`${path}/daily`)
+        .auth(token(), { type: 'bearer' })
+        .query({
+          from: '2020-02-29T16:00:00Z',
+          until: valid.until,
+          page: 2,
+          limit: 15,
+        })
+        .expect(200);
+      expect(daily.body).toMatchObject({
+        scope: current === 'MERCHANT' ? 'MERCHANT' : 'STAFF',
+        page: 2,
+        limit: 15,
+      });
+      expect((daily.body as { items: unknown[] }).items).toHaveLength(15);
+    },
+  );
+  it.each([
+    {},
+    { until: valid.until },
+    { mode: 'ALL_TIME' },
+    { mode: 'ALL_TIME', ...valid },
+    { mode: 'ALL_TIME', until: valid.until, merchantId: actor },
+    { mode: 'ALL_TIME', until: '9999-12-30T16:00:00.001Z' },
+  ])('rejects implicit or conflicting all-time queries %j', async (query) => {
+    await http()
+      .get(`${path}/period`)
+      .auth(token(), { type: 'bearer' })
+      .query(query)
+      .expect(400);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+  it.each(['period', 'daily'])(
+    'denies cashier and inaccessible branch %s before history reads',
+    async (endpoint) => {
+      const query =
+        endpoint === 'period'
+          ? { mode: 'ALL_TIME', until: valid.until }
+          : valid;
+      role = 'CASHIER';
+      await http()
+        .get(`${path}/${endpoint}`)
+        .auth(token(), { type: 'bearer' })
+        .query(query)
+        .expect(403);
+      role = 'OWNER';
+      prisma.branch.findFirst.mockResolvedValue(null);
+      await http()
+        .get(`${path}/${endpoint}`)
+        .auth(token(), { type: 'bearer' })
+        .query(query)
+        .expect(404);
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    },
+  );
   it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
     'returns reduced analytics for %s without changing legacy summary',
     async (current) => {

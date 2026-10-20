@@ -19,7 +19,10 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { OrganizationRole } from '../../../generated/prisma/client';
-import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
+import {
+  BranchIdentityResponseDto,
+  ReportPeriodResponseDto,
+} from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
@@ -27,6 +30,8 @@ import { OrganizationRoles } from '../authorization/organization-roles.decorator
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import {
   ReportBranchesQueryDto,
+  ReportPeriodQueryDto,
+  DailyReportQueryDto,
   SalesRankingQueryDto,
   SalesReportQueryDto,
   TransactionsQueryDto,
@@ -34,6 +39,8 @@ import {
 import { ReportsService } from './reports.service';
 import {
   MerchantSalesAnalyticsResponseDto,
+  MerchantDailyReportPageResponseDto,
+  StaffDailyReportPageResponseDto,
   MerchantSalesRankingPageResponseDto,
   StaffHourlyTrendDto,
   StaffNetByPaymentMethodDto,
@@ -64,6 +71,8 @@ import {
 @ApiExtraModels(
   StaffSalesReportResponseDto,
   MerchantSalesReportResponseDto,
+  StaffDailyReportPageResponseDto,
+  MerchantDailyReportPageResponseDto,
   StaffSalesAnalyticsResponseDto,
   MerchantSalesAnalyticsResponseDto,
   StaffNetByPaymentMethodDto,
@@ -85,10 +94,52 @@ import {
 })
 @ApiBadRequestResponse({
   description:
-    'Invalid UUID, missing/invalid UTC range, range over 366 days or unknown fields',
+    'Invalid UUID, missing/invalid UTC range, dates outside supported Manila dates 1900-01-01 through 9999-12-30, conflicting mode or unknown fields',
 })
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
+
+  @Get('branches/:branchId/reports/sales/period')
+  @ApiOperation({
+    summary:
+      'Resolve explicit ALL_TIME within current authorized scope; freeze returned bounds for every tab; null from means no activity',
+  })
+  @ApiOkResponse({ type: ReportPeriodResponseDto })
+  period(
+    @CurrentOrganization() context: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: ReportPeriodQueryDto,
+  ) {
+    return this.reports.period(context, branchId.toLowerCase(), query);
+  }
+
+  @Get('branches/:branchId/reports/sales/daily')
+  @ApiOperation({
+    summary:
+      'Read a server-paginated zero-filled daily table for explicit bounds; ascending Manila dates, including partially intersected dates',
+  })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffDailyReportPageResponseDto) },
+        { $ref: getSchemaPath(MerchantDailyReportPageResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffDailyReportPageResponseDto),
+          MERCHANT: getSchemaPath(MerchantDailyReportPageResponseDto),
+        },
+      },
+    },
+  })
+  daily(
+    @CurrentOrganization() context: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: DailyReportQueryDto,
+  ) {
+    return this.reports.daily(context, branchId.toLowerCase(), query);
+  }
 
   @Get('branches/:branchId/reports/sales/analytics')
   @ApiOperation({

@@ -9,20 +9,37 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { branchScope, merchantScope } from '../authorization/resource-access';
 import type {
+  DailyReportQueryDto,
+  ReportPeriodQueryDto,
   SalesRankingQueryDto,
   SalesReportQueryDto,
   TransactionsQueryDto,
 } from './dto/sales-report-query.dto';
 import {
   ReportTransactionType,
+  ReportPeriodMode,
   SalesRankingSortBy,
 } from './dto/sales-report-query.dto';
 import {
   PRODUCT_RANKING_PAGE_SIZE,
   readAnalytics,
   readProductRankings,
+  readTrends,
 } from './sales-analytics';
-import type { SalesAnalytics, SalesRankingPage } from './sales-analytics.types';
+import type {
+  SalesAnalytics,
+  SalesRankingPage,
+  DailyReportPage,
+} from './sales-analytics.types';
+import type { ReportPeriodResponseDto } from '../../../openapi/response.dto';
+import {
+  calendarDay,
+  DAY_MS,
+  manilaMidnight,
+  reportDates,
+  reportRange,
+  validateReportUntil,
+} from './report-period';
 import { netRecordedSales } from './report-money';
 export { netRecordedSales } from './report-money';
 import type {
@@ -83,22 +100,138 @@ export class ReportsService {
     return this.read(context, branchId, query, false);
   }
 
+  async period(
+    context: OrganizationContext,
+    branchId: string,
+    query: ReportPeriodQueryDto,
+  ): Promise<ReportPeriodResponseDto> {
+    if (query.mode !== ReportPeriodMode.ALL_TIME)
+      throw new BadRequestException('Explicit ALL_TIME mode is required');
+    const until = validateReportUntil(query.until);
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await this.currentContext(tx, context);
+        const branch = await tx.branch.findFirst({
+          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
+          select: identitySelect,
+        });
+        if (!branch) throw new NotFoundException('Branch not found');
+        const own = current.role === 'MERCHANT';
+        const saleMerchantFilter = own
+          ? Prisma.sql`AND EXISTS (
+        SELECT 1 FROM "SaleItem" i WHERE i."organizationId" = ${current.organizationId}
+          AND i."branchId" = ${branchId} AND i."saleId" = s."id" AND i."merchantId" = ${current.merchantId}
+      )`
+          : Prisma.empty;
+        const refundMerchantFilter = own
+          ? Prisma.sql`AND EXISTS (
+        SELECT 1 FROM "RefundItem" i WHERE i."organizationId" = ${current.organizationId}
+          AND i."branchId" = ${branchId} AND i."refundId" = r."id" AND i."saleId" = r."saleId" AND i."merchantId" = ${current.merchantId}
+      )`
+          : Prisma.empty;
+        const earliest =
+          own && !current.merchantId
+            ? null
+            : ((
+                await tx.$queryRaw<{ earliest: Date | null }[]>(Prisma.sql`
+        SELECT MIN(activity."completedAt") AS earliest FROM (
+          (SELECT s."completedAt" FROM "Sale" s
+            WHERE s."organizationId" = ${current.organizationId} AND s."branchId" = ${branchId}
+              AND s."completedAt" < ${until} ${saleMerchantFilter}
+            ORDER BY s."completedAt" ASC LIMIT 1)
+          UNION ALL
+          (SELECT r."completedAt" FROM "Refund" r
+            WHERE r."organizationId" = ${current.organizationId} AND r."branchId" = ${branchId}
+              AND r."completedAt" < ${until} ${refundMerchantFilter}
+            ORDER BY r."completedAt" ASC LIMIT 1)
+        ) activity
+      `)
+              )[0]?.earliest ?? null);
+        const from = earliest
+          ? manilaMidnight(
+              new Date(calendarDay(earliest) * DAY_MS)
+                .toISOString()
+                .slice(0, 10),
+            ).toISOString()
+          : null;
+        if (from) reportRange({ from, until: until.toISOString() });
+        return {
+          scope: own ? 'MERCHANT' : 'STAFF',
+          branch,
+          from,
+          until: until.toISOString(),
+          hasActivity: earliest !== null,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  async daily(
+    context: OrganizationContext,
+    branchId: string,
+    query: DailyReportQueryDto,
+  ): Promise<DailyReportPage> {
+    const { from, until } = reportRange(query);
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await this.currentContext(tx, context);
+        const branch = await tx.branch.findFirst({
+          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
+          select: identitySelect,
+        });
+        if (!branch) throw new NotFoundException('Branch not found');
+        const total =
+          calendarDay(new Date(until.getTime() - 1)) - calendarDay(from) + 1;
+        const dates = reportDates(
+          from,
+          until,
+          'DAY',
+          (query.page - 1) * query.limit,
+          query.limit,
+        );
+        const pageFrom = dates.length
+          ? new Date(
+              Math.max(from.getTime(), manilaMidnight(dates[0]).getTime()),
+            )
+          : from;
+        const pageUntil = dates.length
+          ? new Date(
+              Math.min(
+                until.getTime(),
+                manilaMidnight(
+                  new Date(Date.parse(`${dates.at(-1)!}T00:00:00Z`) + DAY_MS)
+                    .toISOString()
+                    .slice(0, 10),
+                ).getTime(),
+              ),
+            )
+          : until;
+        const items = dates.length
+          ? await readTrends(tx, current, branchId, pageFrom, pageUntil, 'DAY')
+          : [];
+        return {
+          scope: current.role === 'MERCHANT' ? 'MERCHANT' : 'STAFF',
+          branch,
+          from: from.toISOString(),
+          until: until.toISOString(),
+          items,
+          page: query.page,
+          limit: query.limit,
+          total,
+          totalPages: Math.ceil(total / query.limit),
+        } as DailyReportPage;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
   async transactions(
     context: OrganizationContext,
     branchId: string,
     query: TransactionsQueryDto,
   ): Promise<TransactionsPage> {
-    const from = new Date(query.from);
-    const until = new Date(query.until);
-    const duration = until.getTime() - from.getTime();
-    if (
-      !Number.isFinite(duration) ||
-      duration <= 0 ||
-      duration > 366 * 86400000
-    )
-      throw new BadRequestException(
-        'from must precede until by no more than 366 days',
-      );
+    const { from, until } = reportRange(query);
     return this.prisma.$transaction(
       async (tx) => {
         const current = await this.currentContext(tx, context);
@@ -356,17 +489,7 @@ export class ReportsService {
     branchId: string,
     query: SalesRankingQueryDto,
   ): Promise<SalesRankingPage> {
-    const from = new Date(query.from);
-    const until = new Date(query.until);
-    const duration = until.getTime() - from.getTime();
-    if (
-      !Number.isFinite(duration) ||
-      duration <= 0 ||
-      duration > 366 * 86400000
-    )
-      throw new BadRequestException(
-        'from must precede until by no more than 366 days',
-      );
+    const { from, until } = reportRange(query);
     const page = query.page ?? 1;
     return this.prisma.$transaction(
       async (tx) => {
@@ -462,17 +585,7 @@ export class ReportsService {
     query: SalesReportQueryDto,
     analytics: boolean,
   ) {
-    const from = new Date(query.from);
-    const until = new Date(query.until);
-    const duration = until.getTime() - from.getTime();
-    if (
-      !Number.isFinite(duration) ||
-      duration <= 0 ||
-      duration > 366 * 86400000
-    )
-      throw new BadRequestException(
-        'from must precede until by no more than 366 days',
-      );
+    const { from, until } = reportRange(query);
     return this.prisma.$transaction(
       async (tx) => {
         const current = await this.currentContext(tx, context);

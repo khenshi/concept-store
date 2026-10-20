@@ -476,6 +476,25 @@ export class BranchIdentityResponseDto extends PickType(BranchResponseDto, [
   'name',
   'code',
 ] as const) {}
+export class ReportPeriodResponseDto {
+  @ApiProperty({ enum: ['STAFF', 'MERCHANT'] }) scope!: 'STAFF' | 'MERCHANT';
+  @ApiProperty({ type: BranchIdentityResponseDto })
+  branch!: BranchIdentityResponseDto;
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description:
+      'First valid instant on earliest accessible Manila completed sale/refund date (normally midnight; 01:00 when midnight was skipped); null when no activity exists before until',
+  })
+  from!: string | null;
+  @ApiProperty({
+    format: 'date-time',
+    description: 'Frozen exclusive upper bound supplied by caller',
+  })
+  until!: string;
+  @ApiProperty() hasActivity!: boolean;
+}
 export class MerchantIdentityResponseDto extends PickType(MerchantResponseDto, [
   'id',
   'name',

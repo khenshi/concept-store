@@ -2,6 +2,7 @@ import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import {
   ReportTransactionType,
+  ReportPeriodMode,
   SalesRankingSortBy,
 } from './dto/sales-report-query.dto';
 import { ReportsService, netRecordedSales } from './reports.service';
@@ -225,7 +226,8 @@ describe('ReportsService', () => {
     { from: query.until, until: query.from },
     { from: query.from, until: query.from },
     { from: 'bad', until: query.until },
-    { from: '2025-01-01T00:00:00Z', until: '2026-01-03T00:00:00Z' },
+    { from: '1899-12-31T15:59:59.999Z', until: query.until },
+    { from: query.from, until: '9999-12-30T16:00:00.001Z' },
   ])('rejects invalid ranges before database access %j', async (range) => {
     await expect(service.sales(context, 'branch', range)).rejects.toMatchObject(
       { status: 400 },
@@ -239,6 +241,111 @@ describe('ReportsService', () => {
         until: '2025-01-01T00:00:00Z',
       }),
     ).resolves.toMatchObject({ scope: 'STAFF' });
+  });
+  it('accepts supported multi-year bounded reads', async () => {
+    await expect(
+      service.sales(context, 'branch', {
+        from: '1900-01-01T00:00:00Z',
+        until: query.until,
+      }),
+    ).resolves.toMatchObject({ scope: 'STAFF' });
+  });
+  it('resolves a concrete earliest Manila date within one refreshed snapshot', async () => {
+    tx.$queryRaw
+      .mockReset()
+      .mockResolvedValue([{ earliest: new Date('2020-02-29T16:01:00Z') }]);
+    await expect(
+      service.period(context, 'branch', {
+        mode: ReportPeriodMode.ALL_TIME,
+        until: query.until,
+      }),
+    ).resolves.toEqual({
+      scope: 'STAFF',
+      branch: { id: 'branch', name: 'Branch', code: null },
+      from: '2020-02-29T16:00:00.000Z',
+      until: '2026-09-02T00:00:00.000Z',
+      hasActivity: true,
+    });
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: 'RepeatableRead',
+    });
+    const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
+    expect(sql.sql).toContain('UNION ALL');
+    expect(sql.values).toEqual(
+      expect.arrayContaining(['org', 'branch', new Date(query.until)]),
+    );
+  });
+  it('returns explicit no-activity metadata without a made-up start', async () => {
+    tx.$queryRaw.mockReset().mockResolvedValue([{ earliest: null }]);
+    await expect(
+      service.period(context, 'branch', {
+        mode: ReportPeriodMode.ALL_TIME,
+        until: query.until,
+      }),
+    ).resolves.toMatchObject({ from: null, hasActivity: false });
+  });
+  it('filters both earliest streams to the freshly linked merchant and omits private projections', async () => {
+    tx.organizationMembership.findUnique.mockResolvedValue({
+      role: 'MERCHANT',
+      merchantId: 'fresh-link',
+    });
+    tx.$queryRaw.mockReset().mockResolvedValue([{ earliest: null }]);
+    await expect(
+      service.period(context, 'branch', {
+        mode: ReportPeriodMode.ALL_TIME,
+        until: query.until,
+      }),
+    ).resolves.toMatchObject({ scope: 'MERCHANT', from: null });
+    const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
+    expect(sql.sql).toContain('FROM "SaleItem"');
+    expect(sql.sql).toContain('FROM "RefundItem"');
+    expect(sql.values.filter((value) => value === 'fresh-link')).toHaveLength(
+      2,
+    );
+    expect(sql.sql).not.toMatch(
+      /paymentMethod|cashierName|total|reason|contact/,
+    );
+  });
+  it.each(['period', 'daily'] as const)(
+    'rechecks authorization before %s history reads',
+    async (endpoint) => {
+      tx.organizationMembership.findUnique.mockResolvedValue({
+        role: 'CASHIER',
+      });
+      const read =
+        endpoint === 'period'
+          ? service.period(context, 'branch', {
+              mode: ReportPeriodMode.ALL_TIME,
+              until: query.until,
+            })
+          : service.daily(context, 'branch', { ...query, page: 1, limit: 31 });
+      await expect(read).rejects.toMatchObject({ status: 403 });
+      expect(tx.$queryRaw).not.toHaveBeenCalled();
+    },
+  );
+  it('returns bounded daily pages and skips history for an out-of-range page', async () => {
+    tx.$queryRaw.mockReset().mockResolvedValue([]);
+    const bounded = {
+      from: '2020-01-01T16:00:00Z',
+      until: '2026-01-01T16:00:00Z',
+      page: 2,
+      limit: 31,
+    };
+    const result = await service.daily(context, 'branch', bounded);
+    expect(result.items).toHaveLength(31);
+    expect(result.items[0].date).toBe('2020-02-02');
+    const sql = (tx.$queryRaw.mock.calls[0] as [Prisma.Sql])[0];
+    expect(sql.values).toEqual(
+      expect.arrayContaining([
+        new Date('2020-02-01T16:00:00Z'),
+        new Date('2020-03-03T16:00:00Z'),
+      ]),
+    );
+    tx.$queryRaw.mockClear();
+    await expect(
+      service.daily(context, 'branch', { ...bounded, page: 21474836 }),
+    ).resolves.toMatchObject({ items: [], total: 2192 });
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
   });
   it('looks up only identity fields under assigned plus historical own-sales scope', async () => {
     tx.organizationMembership.findUnique.mockResolvedValue({
@@ -334,7 +441,11 @@ describe('ReportsService', () => {
       },
     ]);
     await expect(
-      service.rankings(context, 'branch', { ...query, page: 2 }),
+      service.rankings(context, 'branch', {
+        ...query,
+        page: 2,
+        sortBy: SalesRankingSortBy.GROSS_SALES,
+      }),
     ).resolves.toEqual({
       branch: { id: 'branch', name: 'Branch', code: null },
       from: '2026-09-01T00:00:00.000Z',
@@ -410,6 +521,8 @@ describe('ReportsService', () => {
       service.rankings(context, 'branch', {
         ...query,
         merchantId,
+        page: 1,
+        sortBy: SalesRankingSortBy.GROSS_SALES,
       }),
     ).rejects.toMatchObject({ status: 404 });
     expect(tx.$queryRaw).not.toHaveBeenCalled();
@@ -421,6 +534,8 @@ describe('ReportsService', () => {
     await expect(
       service.rankings({ ...context, role: 'MERCHANT' }, 'branch', {
         ...query,
+        page: 1,
+        sortBy: SalesRankingSortBy.GROSS_SALES,
         merchantId: '22222222-2222-4222-8222-222222222222',
       }),
     ).rejects.toMatchObject({ status: 400 });
@@ -435,6 +550,7 @@ describe('ReportsService', () => {
       service.rankings({ ...context, role: 'MERCHANT' }, 'branch', {
         ...query,
         page: 1,
+        sortBy: SalesRankingSortBy.GROSS_SALES,
       }),
     ).resolves.toMatchObject({
       scope: 'MERCHANT',

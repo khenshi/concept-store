@@ -2,6 +2,12 @@ import { Prisma } from '../../../generated/prisma/client';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { SalesRankingSortBy } from './dto/sales-report-query.dto';
 import { netRecordedSales } from './report-money';
+import {
+  calendarDay,
+  reportDates,
+  reportGranularity,
+  type ReportGranularity,
+} from './report-period';
 
 type Metrics = {
   grossSales: string;
@@ -44,31 +50,8 @@ const zero = {
   refundedAmount: '0.00',
   returnedUnits: '0',
 };
-const dayMs = 86400000;
-const manilaDate = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Manila',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-});
-
-function calendarDay(date: Date) {
-  const parts = manilaDate.formatToParts(date);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((value) => value.type === type)!.value;
-  return (
-    Date.parse(
-      `${part('year').padStart(4, '0')}-${part('month')}-${part('day')}T00:00:00Z`,
-    ) / dayMs
-  );
-}
-
 export function intersectingManilaDates(from: Date, until: Date): string[] {
-  const first = calendarDay(from);
-  const last = calendarDay(new Date(until.getTime() - 1));
-  return Array.from({ length: last - first + 1 }, (_, index) =>
-    new Date((first + index) * dayMs).toISOString().slice(0, 10),
-  );
+  return reportDates(from, until, 'DAY');
 }
 
 function metrics(row: Metrics, own: boolean) {
@@ -160,12 +143,13 @@ export async function readProductRankings(
 }
 
 // Called only after fresh branch authorization, inside the summary's RepeatableRead transaction.
-export async function readAnalytics(
+export async function readTrends(
   tx: Prisma.TransactionClient,
   context: OrganizationContext,
   branchId: string,
   from: Date,
   until: Date,
+  granularity: ReportGranularity,
 ) {
   const own = context.role === 'MERCHANT';
   const merchantFilter = own
@@ -176,7 +160,7 @@ export async function readAnalytics(
       ? []
       : await tx.$queryRaw<Daily[]>(Prisma.sql`
     WITH sales AS (
-      SELECT (s."completedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date::text AS date,
+      SELECT date_trunc(${granularity.toLowerCase()}, (s."completedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila'))::date::text AS date,
         SUM(i."lineTotal") AS gross, SUM(i."quantity"::numeric) AS units,
         COUNT(DISTINCT s."id") AS transactions
       FROM "Sale" s JOIN "SaleItem" i ON i."saleId" = s."id" AND i."organizationId" = s."organizationId" AND i."branchId" = s."branchId"
@@ -184,7 +168,7 @@ export async function readAnalytics(
         AND s."completedAt" >= ${from} AND s."completedAt" < ${until} ${merchantFilter}
       GROUP BY 1
     ), refunds AS (
-      SELECT (r."completedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila')::date::text AS date,
+      SELECT date_trunc(${granularity.toLowerCase()}, (r."completedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila'))::date::text AS date,
         SUM(i."lineTotal") AS refunded, SUM(i."quantity"::numeric) AS returned,
         COUNT(DISTINCT r."id") AS refunds
       FROM "Refund" r JOIN "RefundItem" i ON i."refundId" = r."id" AND i."organizationId" = r."organizationId" AND i."branchId" = r."branchId" AND i."saleId" = r."saleId"
@@ -199,8 +183,49 @@ export async function readAnalytics(
       COALESCE(r.refunds::text, '0') AS "refundCount"
     FROM sales s FULL OUTER JOIN refunds r ON r.date = s.date
   `);
+  const byDate = new Map(daily.map((row) => [row.date, row]));
+  return reportDates(from, until, granularity).map((date) => {
+    const row = byDate.get(date) ?? {
+      ...zero,
+      date,
+      transactionCount: '0',
+      refundCount: '0',
+    };
+    return {
+      date,
+      ...metrics(row, own),
+      ...(own
+        ? {
+            ownTransactionCount: row.transactionCount,
+            ownRefundCount: row.refundCount,
+          }
+        : {
+            transactionCount: row.transactionCount,
+            refundCount: row.refundCount,
+          }),
+    };
+  });
+}
+
+export async function readAnalytics(
+  tx: Prisma.TransactionClient,
+  context: OrganizationContext,
+  branchId: string,
+  from: Date,
+  until: Date,
+) {
+  const own = context.role === 'MERCHANT';
+  const granularity = reportGranularity(from, until);
+  const dailyTrends = await readTrends(
+    tx,
+    context,
+    branchId,
+    from,
+    until,
+    granularity,
+  );
   const includeHourly =
-    !own && intersectingManilaDates(from, until).length === 1;
+    !own && calendarDay(from) === calendarDay(new Date(until.getTime() - 1));
   const hourly: Hourly[] = includeHourly
     ? await tx.$queryRaw<Hourly[]>(Prisma.sql`
     WITH sales AS (
@@ -315,30 +340,10 @@ export async function readAnalytics(
       };
     },
   );
-  const byDate = new Map(daily.map((row) => [row.date, row]));
   const byHour = new Map(hourly.map((row) => [row.hour, row]));
   return {
-    dailyTrends: intersectingManilaDates(from, until).map((date) => {
-      const row = byDate.get(date) ?? {
-        ...zero,
-        date,
-        transactionCount: '0',
-        refundCount: '0',
-      };
-      return {
-        date,
-        ...metrics(row, own),
-        ...(own
-          ? {
-              ownTransactionCount: row.transactionCount,
-              ownRefundCount: row.refundCount,
-            }
-          : {
-              transactionCount: row.transactionCount,
-              refundCount: row.refundCount,
-            }),
-      };
-    }),
+    dailyTrends,
+    ...(granularity === 'DAY' ? {} : { granularity }),
     ...(!includeHourly
       ? {}
       : {
