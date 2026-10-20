@@ -184,7 +184,7 @@ export function MemberAccessDialog({
               ref={safeFocus}
               type="button"
               disabled={pending}
-              className={buttonStyles({ variant: 'secondary' })}
+              className={buttonStyles({ variant: 'quiet' })}
               onClick={() => {
                 setConfirmation(null);
                 setError(null);
@@ -378,7 +378,7 @@ export function MemberAccessDialog({
         <button
           type="button"
           disabled={pending}
-          className={buttonStyles({ variant: 'secondary' })}
+          className={buttonStyles({ variant: 'quiet' })}
           onClick={onClose}
         >
           Done

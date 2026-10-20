@@ -19,6 +19,24 @@ vi.mock('../api/organization-api', () => ({
 }));
 
 describe('OrganizationEntry', () => {
+  it('retains the organization draft and restores the trigger after closing', async () => {
+    render(<OrganizationEntry />);
+    await screen.findByText('North & Pine');
+    const trigger = screen.getByRole('button', { name: 'Create organization' });
+    fireEvent.click(trigger);
+    fireEvent.change(screen.getByLabelText('Organization name'), {
+      target: { value: 'Draft store' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Close create organization dialog' }),
+    );
+    expect(trigger).toHaveFocus();
+    fireEvent.click(trigger);
+    expect(screen.getByLabelText('Organization name')).toHaveValue(
+      'Draft store',
+    );
+    expect(screen.getByLabelText('Organization name')).toHaveFocus();
+  });
   const push = vi.fn();
 
   beforeEach(() => {

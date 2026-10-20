@@ -1,5 +1,6 @@
 'use client';
 
+import { FormDialog } from '@/shared/components/ui/form-dialog';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -8,7 +9,6 @@ import {
   useRef,
   useState,
   type FormEvent,
-  type MouseEvent,
 } from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -80,9 +80,9 @@ export function OrganizationEntry() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const createDialogRef = useRef<HTMLDialogElement>(null);
-  const createTriggerRef = useRef<HTMLButtonElement>(null);
+  const [nameDraft, setNameDraft] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
+  const createTriggerRef = useRef<HTMLButtonElement>(null);
   const filteredOrganizations = organizations.filter((organization) =>
     organization.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
@@ -116,15 +116,6 @@ export function OrganizationEntry() {
     };
   }, [request]);
 
-  useEffect(() => {
-    if (!isCreateOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isCreateOpen]);
-
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
@@ -142,7 +133,7 @@ export function OrganizationEntry() {
     setIsSubmitting(true);
     try {
       const organization = await createOrganization(request, result.data.name);
-      createDialogRef.current?.close();
+      setIsCreateOpen(false);
       router.push(`/app/organizations/${organization.id}`);
     } catch (cause: unknown) {
       setSubmissionError(errorMessage(cause));
@@ -151,13 +142,17 @@ export function OrganizationEntry() {
     }
   }
 
-  function openCreateDialog(event: MouseEvent<HTMLButtonElement>) {
-    createTriggerRef.current = event.currentTarget;
+  function openCreateDialog() {
     setNameError(null);
     setSubmissionError(null);
-    createDialogRef.current?.showModal();
-    nameRef.current?.focus();
     setIsCreateOpen(true);
+  }
+
+  function closeCreateDialog() {
+    if (isSubmitting) return;
+    setIsCreateOpen(false);
+    setNameError(null);
+    setSubmissionError(null);
   }
 
   return (
@@ -180,8 +175,8 @@ export function OrganizationEntry() {
             </p>
           </div>
           <Button
-            variant="accent"
             ref={createTriggerRef}
+            variant="accent"
             onClick={openCreateDialog}
             className="max-sm:w-full"
           >
@@ -272,36 +267,18 @@ export function OrganizationEntry() {
           )}
         </div>
       </div>
-      <dialog
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-4xl overflow-y-auto rounded-panel border border-hairline bg-surface p-0 text-ink shadow-overlay backdrop:bg-scrim"
-        ref={createDialogRef}
-        onCancel={(event) => {
-          if (isSubmitting) event.preventDefault();
-        }}
-        onClose={() => {
-          setIsCreateOpen(false);
-          setNameError(null);
-          setSubmissionError(null);
-          createTriggerRef.current?.focus();
-        }}
-        aria-labelledby="create-title"
-        aria-describedby="create-description"
-      >
-        <section className="p-6 sm:p-7">
-          <p className="mb-2 text-xs font-medium text-muted">New workspace</p>
-          <h2
-            className="text-xl font-semibold tracking-tight"
-            id="create-title"
-          >
-            Create an organization
-          </h2>
-          <p
-            className="mt-3 text-sm leading-6 text-muted"
-            id="create-description"
-          >
-            Give your concept-store business a name. You will become its first
-            owner.
-          </p>
+      {isCreateOpen ? (
+        <FormDialog
+          title="Create an organization"
+          description="Give your concept-store business a name. You will become its first owner."
+          eyebrow="New workspace"
+          size="medium"
+          initialFocusRef={nameRef}
+          returnFocusRef={createTriggerRef}
+          pending={isSubmitting}
+          dismissOnBackdrop={false}
+          onClose={closeCreateDialog}
+        >
           <form
             aria-label="Create organization"
             className="mt-6 grid gap-5"
@@ -312,7 +289,10 @@ export function OrganizationEntry() {
               ref={nameRef}
               id="organization-name"
               name="name"
+              value={nameDraft}
+              onChange={(event) => setNameDraft(event.target.value)}
               label="Organization name"
+              placeholder="e.g. Kapwesto Greenbelt"
               type="text"
               autoComplete="organization"
               maxLength={120}
@@ -329,10 +309,8 @@ export function OrganizationEntry() {
               }
             >
               <Button
-                variant="secondary"
-                onClick={() => {
-                  if (!isSubmitting) createDialogRef.current?.close();
-                }}
+                variant="quiet"
+                onClick={closeCreateDialog}
                 disabled={isSubmitting}
                 aria-label="Close create organization dialog"
               >
@@ -347,8 +325,8 @@ export function OrganizationEntry() {
               </Button>
             </ModalActionRow>
           </form>
-        </section>
-      </dialog>
+        </FormDialog>
+      ) : null}
     </section>
   );
 }

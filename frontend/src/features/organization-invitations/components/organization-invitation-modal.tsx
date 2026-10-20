@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { InputControl } from '@/shared/components/ui/input-control';
@@ -68,8 +69,6 @@ export function OrganizationInvitationModal({
   const [revision, setRevision] = useState(0);
   const dirty = useRef(false);
   const submitLock = useRef(false);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -132,25 +131,6 @@ export function OrganizationInvitationModal({
     return () => clearTimeout(timer);
   }, [email, role, merchantId, branchIds, created]);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    dialog?.showModal();
-    headingRef.current?.focus();
-    document.body.style.overflow = 'hidden';
-    return () => {
-      dialog?.close();
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
-        previousFocus.focus();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (created) headingRef.current?.focus();
-  }, [created]);
-
   const invitationLink = created
     ? `${window.location.origin}/invitations/${created.token}`
     : '';
@@ -198,252 +178,227 @@ export function OrganizationInvitationModal({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%_-_2rem)] max-w-xl overflow-y-auto rounded-panel border border-hairline bg-surface p-0 text-ink shadow-overlay backdrop:bg-scrim"
-      aria-labelledby="invitation-modal-title"
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!isSubmitting) onClose();
-      }}
-      onMouseDown={(event) => {
-        const bounds = event.currentTarget.getBoundingClientRect();
-        if (
-          event.target === event.currentTarget &&
-          !isSubmitting &&
-          (event.clientX < bounds.left ||
-            event.clientX > bounds.right ||
-            event.clientY < bounds.top ||
-            event.clientY > bounds.bottom)
-        )
-          onClose();
-      }}
+    <FormDialog
+      title={created ? 'Invitation ready' : 'Invite a member'}
+      size="compact"
+      pending={isSubmitting}
+      onClose={onClose}
     >
-      <section className="min-w-0 p-5 sm:p-8">
-        <h2
-          className="text-xl font-bold tracking-tight"
-          id="invitation-modal-title"
-          ref={headingRef}
-          tabIndex={-1}
-        >
-          {created ? 'Invitation ready' : 'Invite a member'}
-        </h2>
-        {created ? (
-          <div className="mt-5 grid gap-4">
-            <p className="text-sm leading-6 text-muted">
-              Share this single-use link with {created.invitation.email}. It
-              expires{' '}
-              {new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium' }).format(
-                new Date(created.invitation.expiresAt),
-              )}{' '}
-              and will only work for that email address.
+      {created ? (
+        <div className="mt-5 grid gap-4">
+          <p className="text-sm leading-6 text-muted">
+            Share this single-use link with {created.invitation.email}. It
+            expires{' '}
+            {new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium' }).format(
+              new Date(created.invitation.expiresAt),
+            )}{' '}
+            and will only work for that email address.
+          </p>
+          <TextField
+            label="Invitation link"
+            id="invitation-link"
+            value={invitationLink}
+            placeholder="https://example.com/invite/..."
+            readOnly
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          {copyStatus ? (
+            <p className="text-sm text-muted" role="status">
+              {copyStatus}
             </p>
-            <TextField
-              label="Invitation link"
-              id="invitation-link"
-              value={invitationLink}
-              readOnly
-              onFocus={(event) => event.currentTarget.select()}
+          ) : null}
+          <div className="flex justify-end gap-3">
+            <button
+              className={buttonStyles({ variant: 'quiet' })}
+              type="button"
+              onClick={onClose}
+            >
+              Done
+            </button>
+            <button
+              className={buttonStyles({ variant: 'primary' })}
+              type="button"
+              onClick={() => void copyLink()}
+            >
+              Copy link
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form className="mt-5 grid gap-4" onSubmit={handleSubmit} noValidate>
+          <p className="text-sm leading-6 text-muted">
+            The recipient will sign in or create their own account before
+            accepting access.
+          </p>
+          {optionsError && (
+            <p role="alert" className="text-sm text-danger">
+              {optionsError}{' '}
+              <button
+                type="button"
+                onClick={() => setRevision((value) => value + 1)}
+              >
+                Try again
+              </button>
+            </p>
+          )}
+          {!options && !optionsError && (
+            <p role="status" className="text-sm text-muted">
+              Loading access choices…
+            </p>
+          )}
+          <div className="grid gap-2">
+            <label className="text-sm font-bold" htmlFor="invitation-email">
+              Email address
+            </label>
+            <InputControl
+              id="invitation-email"
+              icon="mail"
+              name="email"
+              type="email"
+              placeholder="e.g. teammate@example.com"
+              autoComplete="email"
+              maxLength={254}
+              required
+              value={email}
+              disabled={isSubmitting}
+              onChange={(event) => {
+                dirty.current = true;
+                setEmail(event.target.value);
+              }}
+              onBlur={validateInputs}
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={
+                emailError ? 'invitation-email-error' : undefined
+              }
             />
-            {copyStatus ? (
-              <p className="text-sm text-muted" role="status">
-                {copyStatus}
+            {emailError ? (
+              <p className="text-sm text-danger" id="invitation-email-error">
+                {emailError}
               </p>
             ) : null}
-            <div className="flex justify-end gap-3">
-              <button
-                className={buttonStyles({ variant: 'secondary' })}
-                type="button"
-                onClick={onClose}
-              >
-                Done
-              </button>
-              <button
-                className={buttonStyles({ variant: 'primary' })}
-                type="button"
-                onClick={() => void copyLink()}
-              >
-                Copy link
-              </button>
-            </div>
           </div>
-        ) : (
-          <form className="mt-5 grid gap-4" onSubmit={handleSubmit} noValidate>
-            <p className="text-sm leading-6 text-muted">
-              The recipient will sign in or create their own account before
-              accepting access.
-            </p>
-            {optionsError && (
-              <p role="alert" className="text-sm text-danger">
-                {optionsError}{' '}
-                <button
-                  type="button"
-                  onClick={() => setRevision((value) => value + 1)}
-                >
-                  Try again
-                </button>
-              </p>
-            )}
-            {!options && !optionsError && (
-              <p role="status" className="text-sm text-muted">
-                Loading access choices…
-              </p>
-            )}
-            <div className="grid gap-2">
-              <label className="text-sm font-bold" htmlFor="invitation-email">
-                Email address
-              </label>
-              <InputControl
-                id="invitation-email"
-                icon="mail"
-                name="email"
-                type="email"
-                autoComplete="email"
-                maxLength={254}
-                required
-                value={email}
-                disabled={isSubmitting}
-                onChange={(event) => {
-                  dirty.current = true;
-                  setEmail(event.target.value);
-                }}
-                onBlur={validateInputs}
-                aria-invalid={Boolean(emailError)}
-                aria-describedby={
-                  emailError ? 'invitation-email-error' : undefined
-                }
-              />
-              {emailError ? (
-                <p className="text-sm text-danger" id="invitation-email-error">
-                  {emailError}
-                </p>
-              ) : null}
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-bold" htmlFor="invitation-role">
-                Organization role
-              </label>
-              <SelectControl
-                id="invitation-role"
-                name="role"
-                value={role}
-                disabled={isSubmitting}
-                onValueChange={(value) => {
-                  dirty.current = true;
-                  setRole(value as typeof role);
-                  setMerchantId('');
-                  setMerchantError(null);
-                }}
-              >
-                {Object.entries(roleLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </SelectControl>
-            </div>
-            {role === 'MERCHANT' && (
-              <div className="grid gap-2">
-                <label
-                  className="text-sm font-bold"
-                  htmlFor="invitation-merchant"
-                >
-                  Merchant profile
-                </label>
-                <div onBlur={validateInputs}>
-                  <SelectControl
-                    id="invitation-merchant"
-                    value={merchantId}
-                    required
-                    disabled={isSubmitting || !options}
-                    aria-invalid={Boolean(merchantError)}
-                    aria-describedby={
-                      merchantError ? 'invitation-merchant-error' : undefined
-                    }
-                    onValueChange={(value) => {
-                      dirty.current = true;
-                      setMerchantId(value);
-                    }}
-                  >
-                    <option value="">Choose a merchant</option>
-                    {options?.merchants.map((merchant) => (
-                      <option key={merchant.id} value={merchant.id}>
-                        {merchant.name} · {merchant.status}
-                      </option>
-                    ))}
-                  </SelectControl>
-                </div>
-                {merchantError && (
-                  <p
-                    id="invitation-merchant-error"
-                    className="text-sm text-danger"
-                  >
-                    {merchantError}
-                  </p>
-                )}
-                {options?.merchants.length === 0 && (
-                  <p className="text-sm text-muted">
-                    Create a merchant profile before inviting a merchant user.
-                  </p>
-                )}
-              </div>
-            )}
-            {role === 'MERCHANT' ? (
-              <p className="text-sm text-muted">
-                Merchant users inherit every branch associated with the selected
-                merchant profile.
-              </p>
-            ) : (
-              <fieldset disabled={isSubmitting || !options} className="min-w-0">
-                <legend className="text-sm font-bold">
-                  Branch assignments
-                </legend>
-                <p className="mt-2 text-sm text-muted">
-                  Optional. Staff without assignments cannot access branches.
-                </p>
-                {!optionsError ? (
-                  <BranchAccessPicker
-                    branches={options?.branches ?? []}
-                    selectedIds={branchIds}
-                    disabled={isSubmitting}
-                    loading={!options}
-                    onChange={(nextIds) => {
-                      dirty.current = true;
-                      setBranchIds(nextIds);
-                    }}
-                  />
-                ) : null}
-              </fieldset>
-            )}
-            <ModalActionRow
-              className="mt-2"
-              feedback={
-                submissionError ? (
-                  <p className="text-sm text-danger" role="alert">
-                    {submissionError}
-                  </p>
-                ) : null
-              }
+          <div className="grid gap-2">
+            <label className="text-sm font-bold" htmlFor="invitation-role">
+              Organization role
+            </label>
+            <SelectControl
+              id="invitation-role"
+              name="role"
+              value={role}
+              disabled={isSubmitting}
+              onValueChange={(value) => {
+                dirty.current = true;
+                setRole(value as typeof role);
+                setMerchantId('');
+                setMerchantError(null);
+              }}
             >
-              <button
-                className={buttonStyles({ variant: 'secondary' })}
-                type="button"
-                disabled={isSubmitting}
-                onClick={onClose}
+              {Object.entries(roleLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </SelectControl>
+          </div>
+          {role === 'MERCHANT' && (
+            <div className="grid gap-2">
+              <label
+                className="text-sm font-bold"
+                htmlFor="invitation-merchant"
               >
-                Cancel
-              </button>
-              <button
-                className={buttonStyles({ variant: 'primary' })}
-                type="submit"
-                disabled={isSubmitting || Boolean(optionsError)}
-              >
-                {isSubmitting ? 'Creating invitation…' : 'Create invitation'}
-              </button>
-            </ModalActionRow>
-          </form>
-        )}
-      </section>
-    </dialog>
+                Merchant profile
+              </label>
+              <div onBlur={validateInputs}>
+                <SelectControl
+                  id="invitation-merchant"
+                  value={merchantId}
+                  required
+                  disabled={isSubmitting || !options}
+                  aria-invalid={Boolean(merchantError)}
+                  aria-describedby={
+                    merchantError ? 'invitation-merchant-error' : undefined
+                  }
+                  onValueChange={(value) => {
+                    dirty.current = true;
+                    setMerchantId(value);
+                  }}
+                >
+                  <option value="">Choose a merchant</option>
+                  {options?.merchants.map((merchant) => (
+                    <option key={merchant.id} value={merchant.id}>
+                      {merchant.name} · {merchant.status}
+                    </option>
+                  ))}
+                </SelectControl>
+              </div>
+              {merchantError && (
+                <p
+                  id="invitation-merchant-error"
+                  className="text-sm text-danger"
+                >
+                  {merchantError}
+                </p>
+              )}
+              {options?.merchants.length === 0 && (
+                <p className="text-sm text-muted">
+                  Create a merchant profile before inviting a merchant user.
+                </p>
+              )}
+            </div>
+          )}
+          {role === 'MERCHANT' ? (
+            <p className="text-sm text-muted">
+              Merchant users inherit every branch associated with the selected
+              merchant profile.
+            </p>
+          ) : (
+            <fieldset disabled={isSubmitting || !options} className="min-w-0">
+              <legend className="text-sm font-bold">Branch assignments</legend>
+              <p className="mt-2 text-sm text-muted">
+                Optional. Staff without assignments cannot access branches.
+              </p>
+              {!optionsError ? (
+                <BranchAccessPicker
+                  branches={options?.branches ?? []}
+                  selectedIds={branchIds}
+                  disabled={isSubmitting}
+                  loading={!options}
+                  onChange={(nextIds) => {
+                    dirty.current = true;
+                    setBranchIds(nextIds);
+                  }}
+                />
+              ) : null}
+            </fieldset>
+          )}
+          <ModalActionRow
+            className="mt-2"
+            feedback={
+              submissionError ? (
+                <p className="text-sm text-danger" role="alert">
+                  {submissionError}
+                </p>
+              ) : null
+            }
+          >
+            <button
+              className={buttonStyles({ variant: 'quiet' })}
+              type="button"
+              disabled={isSubmitting}
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              className={buttonStyles({ variant: 'primary' })}
+              type="submit"
+              disabled={isSubmitting || Boolean(optionsError)}
+            >
+              {isSubmitting ? 'Creating invitation…' : 'Create invitation'}
+            </button>
+          </ModalActionRow>
+        </form>
+      )}
+    </FormDialog>
   );
 }

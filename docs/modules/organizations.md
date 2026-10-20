@@ -49,7 +49,7 @@ a destination or entering the desktop breakpoint closes the drawer.
 
 Organization selection uses a labeled search toolbar and divided workspace rows
 with visible role context. Loading, no memberships, no search matches, and failed
-requests have distinct feedback. Creation opens a scroll-contained native dialog
+requests have distinct feedback. Creation reuses the shared `FormDialog`, a scroll-contained native dialog
 with an explicit description, initial name-field focus, field validation, pending
 feedback, and disabled dismissal during submission. Successful creation closes
 the dialog and opens the new workspace overview; failure leaves it available for

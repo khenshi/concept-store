@@ -110,7 +110,7 @@ and acceptance do not expose these additional owner-management details.
 Owner invitation management uses neutral controls and explicit pending, accepted,
 revoked, and expired labels. Removing a pending invitation invalidates its link;
 removing any other invitation permanently deletes its invitation record.
-Creation opens a native modal dialog with focus restoration, scroll containment,
+Creation reuses the shared `FormDialog` with focus restoration, scroll containment,
 and pending dismissal protection. The created link shows the actual expiry date
 and supports clipboard copying with a manual-copy fallback.
 
