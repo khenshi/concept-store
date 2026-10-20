@@ -107,11 +107,7 @@ export function useConfirmationDialog(): {
           {pending.description}
         </p>
         <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <Button
-            ref={cancelRef}
-            variant="secondary"
-            onClick={() => close(false)}
-          >
+          <Button ref={cancelRef} variant="quiet" onClick={() => close(false)}>
             Cancel
           </Button>
           <Button

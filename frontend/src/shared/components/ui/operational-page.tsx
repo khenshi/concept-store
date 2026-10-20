@@ -8,6 +8,7 @@ type OperationalCollectionProps = {
   title: string;
   description?: string;
   action?: ReactNode;
+  headerClassName?: string;
   controls?: ReactNode;
   controlsPlacement?: OperationalCollectionControlsPlacement;
   children: ReactNode;
@@ -32,6 +33,7 @@ export function OperationalCollection({
   title,
   description,
   action,
+  headerClassName = '',
   controls,
   controlsPlacement = 'stacked',
   children,
@@ -60,11 +62,7 @@ export function OperationalCollection({
       aria-labelledby={ariaLabelledby}
     >
       <header
-        className={
-          inlineControls
-            ? 'grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center'
-            : `flex items-start justify-between gap-5 max-sm:grid ${open ? 'pb-4' : 'border-b border-hairline px-5 py-5 sm:px-6'}`
-        }
+        className={`${inlineControls ? 'grid gap-4 border-b border-hairline px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center' : `flex items-start justify-between gap-5 max-sm:grid ${open ? 'pb-4' : 'border-b border-hairline px-5 py-5 sm:px-6'}`} ${headerClassName}`.trim()}
       >
         <div className="min-w-0 break-words">
           <h2 className="text-base font-semibold text-ink">{title}</h2>

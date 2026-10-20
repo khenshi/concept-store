@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
+import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { Button } from '@/shared/components/ui/button';
 import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { Notice } from '@/shared/components/ui/notice';
@@ -21,58 +22,8 @@ export function DeleteAccountForm({ className = '' }: { className?: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const dialogRef = useRef<HTMLElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const titleId = useId();
-  const descriptionId = useId();
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const focusDialog = () =>
-      dialogRef.current
-        ?.querySelector<HTMLElement>('input, button:not(:disabled)')
-        ?.focus();
-    const frameId = window.requestAnimationFrame(focusDialog);
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !isDeleting) {
-        event.preventDefault();
-        setIsOpen(false);
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      const controls = dialogRef.current?.querySelectorAll<HTMLElement>(
-        'input:not(:disabled), button:not(:disabled)',
-      );
-      if (!controls?.length) return;
-      const first = controls[0];
-      const last = controls[controls.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      const focusTarget =
-        previousFocus instanceof HTMLElement &&
-        previousFocus !== document.body &&
-        previousFocus.isConnected
-          ? previousFocus
-          : triggerRef.current;
-      focusTarget?.focus();
-    };
-  }, [isDeleting, isOpen]);
 
   function openModal() {
     setPassword('');
@@ -149,79 +100,67 @@ export function DeleteAccountForm({ className = '' }: { className?: string }) {
         {error && !isOpen ? <Notice tone="error">{error}</Notice> : null}
       </OperationalPanel>
       {isOpen ? (
-        <div className="fixed inset-0 z-[70] grid place-items-center p-4 sm:p-6">
-          <div className="modal-backdrop" aria-hidden="true" />
-          <section
-            ref={dialogRef}
-            className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-panel border border-hairline bg-surface p-5 text-ink shadow-overlay sm:p-6"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-            aria-describedby={descriptionId}
+        <FormDialog
+          role="alertdialog"
+          title="Permanently delete your account?"
+          description="You will lose access to every organization. Historical operational records will retain an anonymized reference. Enter your password to continue."
+          eyebrow={<span className="text-danger">Danger zone</span>}
+          size="confirmation"
+          initialFocusRef={passwordRef}
+          returnFocusRef={triggerRef}
+          dismissOnBackdrop={false}
+          pending={isDeleting}
+          onClose={closeModal}
+        >
+          <form
+            aria-label="Confirm account deletion"
+            className="mt-5 grid gap-5"
+            onSubmit={submit}
+            noValidate
           >
-            <p className="text-xs font-medium text-danger">Danger zone</p>
-            <h2
-              className="mt-2 text-xl font-semibold tracking-tight text-ink"
-              id={titleId}
+            <TextField
+              ref={passwordRef}
+              id="deletePassword"
+              name="deletePassword"
+              label="Password"
+              type="password"
+              placeholder="e.g. ••••••••"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              maxLength={128}
+              error={passwordError}
+              showPasswordToggle
+              disabled={isDeleting}
+            />
+            <ModalActionRow
+              feedback={
+                error ? (
+                  <p role="alert" className="text-sm text-danger">
+                    {error}
+                  </p>
+                ) : null
+              }
             >
-              Permanently delete your account?
-            </h2>
-            <p
-              className="mt-3 whitespace-pre-line leading-7 text-muted"
-              id={descriptionId}
-            >
-              You will lose access to every organization. Historical operational
-              records will retain an anonymized reference. Enter your password
-              to continue.
-            </p>
-            <form
-              aria-label="Confirm account deletion"
-              className="mt-5 grid gap-5"
-              onSubmit={submit}
-              noValidate
-            >
-              <TextField
-                id="deletePassword"
-                name="deletePassword"
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                maxLength={128}
-                error={passwordError}
-                showPasswordToggle
+              <Button
+                variant="quiet"
+                type="button"
+                onClick={closeModal}
                 disabled={isDeleting}
-              />
-              <ModalActionRow
-                feedback={
-                  error ? (
-                    <p role="alert" className="text-sm text-danger">
-                      {error}
-                    </p>
-                  ) : null
-                }
               >
-                <Button
-                  variant="secondary"
-                  type="button"
-                  onClick={closeModal}
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="danger"
-                  type="submit"
-                  pending={isDeleting}
-                  pendingLabel="Deleting account…"
-                >
-                  Delete account
-                </Button>
-              </ModalActionRow>
-            </form>
-          </section>
-        </div>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                type="submit"
+                pending={isDeleting}
+                pendingLabel="Deleting account…"
+              >
+                Delete account
+              </Button>
+            </ModalActionRow>
+          </form>
+        </FormDialog>
       ) : null}
     </>
   );

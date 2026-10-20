@@ -82,7 +82,8 @@ to the account, and restores the saved choice if the request fails. The
 selection applies across devices and organization memberships. Public and
 sign-in pages retain the Graphite brand palette.
 
-Account deletion requires the current password and a separate destructive
-confirmation. The form's initial action is outlined rather than solid red. Cancel
+Account deletion requires the current password in the shared `FormDialog` shell
+with alert-dialog semantics, initial password focus and protected pending
+dismissal. The form's initial action is outlined rather than solid red. Cancel
 does not call the API and restores focus; server rejections, including sole-owner
 restrictions, are shown without changing the backend's authorization rules.

@@ -197,6 +197,7 @@ describe('useConfirmationDialog', () => {
     expect(document.querySelector('.modal-backdrop')).toBeInTheDocument();
     const cancel = screen.getByRole('button', { name: 'Cancel' });
     const remove = screen.getByRole('button', { name: 'Remove' });
+    expect(cancel).toHaveClass('ui-button-quiet');
     expect(cancel).toHaveFocus();
     expect(document.body.style.overflow).toBe('hidden');
     fireEvent.keyDown(cancel, { key: 'Tab', shiftKey: true });

@@ -13,6 +13,11 @@ canvases remain unchanged.
 This is a presentation-only change. No API, database, authorization, tenant,
 branch or business behavior changed.
 
+## POS loading headers (October 20, 2026)
+
+POS retains its page heading and description while access/branch reads load;
+the shared loading treatment covers only branch selection and page content.
+
 ## Shared card surfaces (October 13, 2026)
 
 Card-like surfaces across the public landing page, guest flows, organization
@@ -27,14 +32,30 @@ semantic notices, popovers and dialogs retain their own interaction or feedback
 geometry. This presentation change does not alter routes, data, authorization,
 tenant isolation or business behavior.
 
+## Shared form modal shell (October 20, 2026)
+
+Ordinary form modals share `FormDialog` for their surface, heading typography,
+description spacing, responsive padding, scroll containment, initial focus,
+focus restoration and pending dismissal protection. Merchant creation, member
+invitations, organization creation and the account deletion password form reuse
+this shell alongside the existing operational forms. Feature components retain
+their fields, validation, action rows, success views and business behavior.
+Widths remain explicit variants to fit the workflow rather than forcing every
+form to the same width. Account deletion retains alert-dialog semantics.
+
+Confirmation prompts remain a separate shared pattern. Mobile navigation
+drawers, the POS cart sheet and the calendar popover retain their specialized
+layouts. These intentional variants share theme/backdrop tokens but are not
+ordinary form modals.
+
 ## Shared modal backdrop blur (October 13, 2026)
 
 Every modal path softens the page beneath it with the shared scrim and a 12px
 backdrop blur while keeping the modal content crisp. Native `<dialog>` surfaces
 use the global `dialog::backdrop` rule, including form dialogs, organization and
 merchant modals, invitation flows, the mobile workspace drawer and the POS cart
-sheet. Custom alert dialogs for confirmations and account deletion use the
-shared `.modal-backdrop` class. Focus restoration, scroll locking, Escape and
+sheet and account deletion. Custom confirmation alerts use the shared
+`.modal-backdrop` class. Focus restoration, scroll locking, Escape and
 pending-dismissal behavior remain unchanged.
 
 ## Inventory workflow refinement (Part 1, committed `3e34a8f`)
@@ -95,8 +116,10 @@ API contracts, authorization and tenant isolation are unchanged.
 
 ## Modal form action feedback
 
-Form-level submission and validation feedback in modal forms appears at the
-bottom-left of the modal action row, with the form actions kept on the right.
+Form-level submission and validation feedback in modal forms generally appears
+at the bottom-left of the modal action row, with the form actions kept on the
+right. The merchant form keeps generic validation feedback with its fields and
+places server request failures above the action row.
 The shared `ModalActionRow` preserves the responsive wrapping and separator used
 by the branch form across merchant, product, inventory, space, invitation,
 organization, member-access, POS, refund and account-deletion forms. Field-level
@@ -105,6 +128,15 @@ the control whose data could not be loaded. Footer errors use compact red text
 without a bordered notice, while the buttons stay aligned to the bottom-right.
 This is a presentation-only change; form validation, request behavior,
 authorization and tenant isolation are unchanged.
+
+Modal dismissal actions such as Cancel, Close, Done and Return to cart use the
+borderless quiet button treatment. Primary, danger and non-dismiss secondary
+actions retain their existing emphasis and behavior.
+
+Text-like inputs inside modal workflows use concise example placeholders that
+match the expected value, including names, codes, quantities, prices, dates and
+references. Select controls, radio buttons and checkboxes remain unplaceholdered
+because their visible options or labels provide the input guidance.
 
 ## Placement opening stock and numeric fields (Part 4, uncommitted)
 
@@ -603,7 +635,7 @@ Submit and action groups in every modal align to the lower right, including
 single primary actions and multi-action cancel/submit groups. Existing labels,
 pending states, focus behavior, and dismissal safeguards are unchanged.
 Merchant workflows now use the shared centered canvas, full-width responsive linked
-directory rows, neutral profile panels and shared form controls. Creation uses a wide native dialog with
+directory rows, neutral profile panels and shared form controls. Creation uses a compact form-width native dialog with
 focus restoration, scroll containment, and pending dismissal protection. Existing
 debounced search and validation, role restrictions, and confirmed lifecycle
 changes are preserved.
