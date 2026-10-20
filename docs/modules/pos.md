@@ -65,6 +65,12 @@ cashiers, with branch checkout routes marking POS rather than Branches active.
 `/app/organizations/:organizationId/pos` requires an explicit branch selection,
 even when only one branch is available. The branch-title dropdown reuses authorized
 branch reads: owners see tenant branches and managers/cashiers only assigned ones.
+The POS title and description stay visible while organization or authorized
+branch access loads. A Reports/Inventory-style shared `ListSkeleton` is limited
+to the branch-selector area and content below the header. Failed reads retain
+the title with existing retry feedback, without a loading branch placeholder.
+No branch selection or POS controls mount before access checks succeed.
+
 Loading, failed-read/retry and empty/unassigned states are provided. Missing current
 branch access clears the cart and catalog. Merchants retain their separate Sales
 entry and direct POS access does not request branches or catalog data.

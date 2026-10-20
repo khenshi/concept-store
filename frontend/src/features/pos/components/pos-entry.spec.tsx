@@ -29,6 +29,23 @@ describe('POS organization entry', () => {
     await screen.findByRole('status');
     expect(listPosBranches).toHaveBeenCalled();
   });
+  it('keeps the header visible while access loads without reading branches', () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: null,
+      organizationStatus: 'loading',
+    } as never);
+    render(<PosEntry organizationId="org" />);
+    expect(screen.getByRole('heading', { name: 'POS' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Choose an authorized branch to start a branch-specific cart.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: 'Loading POS branch selector' }),
+    ).toBeInTheDocument();
+    expect(listPosBranches).not.toHaveBeenCalled();
+  });
   it('does not load branches for merchant direct access', () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { id: 'org', role: 'MERCHANT' },

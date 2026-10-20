@@ -38,6 +38,23 @@ vi.mock('../api/pos-api', () => ({
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 describe('Branch POS cart workflows', () => {
+  it('keeps the POS header while the authorized branch loads', () => {
+    vi.mocked(getPosBranch).mockReturnValue(new Promise(() => {}));
+    render(<BranchPos {...scope} />);
+    expect(screen.getByRole('heading', { name: 'POS' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Scan or search products, then review the cart.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: 'Loading POS branch selector' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('status', { name: 'Loading authorized POS branch' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('textbox', { name: 'SKU or barcode' }),
+    ).not.toBeInTheDocument();
+  });
   it('keeps a cancelled branch cart and clears it after confirmation', async () => {
     vi.mocked(listPosBranches).mockResolvedValue([
       { id: scope.branchId, name: 'Makati', code: 'MKT' },

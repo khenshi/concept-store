@@ -12,6 +12,7 @@ import {
   useCheckoutAttempt,
 } from '../model/checkout-attempt';
 import { PosBranchSelector } from './pos-branch-selector';
+import { PosLoadingHeader } from './pos-loading-header';
 
 export function PosEntry({ organizationId }: { organizationId: string }) {
   const { user } = useAuth();
@@ -29,6 +30,10 @@ export function PosEntry({ organizationId }: { organizationId: string }) {
   if (!organization || organization.id !== organizationId)
     return (
       <OrganizationPageFrame wide>
+        <PosLoadingHeader
+          loading={organizationStatus !== 'error'}
+          description="Choose an authorized branch to start a branch-specific cart."
+        />
         {organizationStatus === 'error' ? (
           <RequestError
             message={organizationError ?? 'Organization could not be loaded.'}

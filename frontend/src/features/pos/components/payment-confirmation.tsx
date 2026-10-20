@@ -300,6 +300,7 @@ export function PaymentConfirmation({
                 inputMode="decimal"
                 icon="money"
                 maxLength={25}
+                placeholder="e.g. 500.00"
                 value={draft.tender}
                 disabled={locked}
                 error={fieldError}
@@ -322,6 +323,7 @@ export function PaymentConfirmation({
                 label="Payment reference"
                 icon="pencil"
                 maxLength={100}
+                placeholder="e.g. GCASH-20261020-001"
                 value={draft.reference}
                 disabled={locked}
                 error={fieldError}
@@ -365,7 +367,7 @@ export function PaymentConfirmation({
               ) : null
             }
           >
-            <Button variant="secondary" disabled={locked} onClick={close}>
+            <Button variant="quiet" disabled={locked} onClick={close}>
               Return to cart
             </Button>
             <Button

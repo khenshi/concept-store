@@ -44,6 +44,7 @@ import { PosProductBrowser } from './pos-product-browser';
 import { PosCartPanel } from './pos-cart-panel';
 import { PosCartSummary } from './pos-cart-summary';
 import { PosCartSheet } from './pos-cart-sheet';
+import { PosLoadingHeader } from './pos-loading-header';
 
 type BranchPosProps = PosScope & {
   cartActive?: boolean;
@@ -75,6 +76,7 @@ export function BranchPos(props: BranchPosProps) {
   if (!organization || organization.id !== props.organizationId)
     return (
       <OrganizationPageFrame wide>
+        <PosLoadingHeader loading={organizationStatus !== 'error'} />
         {organizationStatus === 'error' ? (
           <RequestError
             message={organizationError ?? 'Organization could not be loaded.'}
@@ -785,6 +787,7 @@ function ScopedBranchPos({
   if (!branch && !recovering)
     return (
       <OrganizationPageFrame wide>
+        <PosLoadingHeader loading={!branchError} />
         {branchError ? (
           <RequestError
             className="mt-6"
@@ -1114,7 +1117,7 @@ function ScopedBranchPos({
               </ul>
               <div className="mt-6 flex justify-end">
                 <Button
-                  variant="secondary"
+                  variant="quiet"
                   onClick={() => {
                     lookupBusy.current = false;
                     setMatches(null);
@@ -1135,7 +1138,7 @@ function ScopedBranchPos({
             >
               <div className="mt-6 flex flex-wrap justify-end gap-3">
                 <Button
-                  variant="secondary"
+                  variant="quiet"
                   onClick={() => setPendingNavigationHref(null)}
                 >
                   Cancel
@@ -1153,7 +1156,7 @@ function ScopedBranchPos({
               onClose={() => setClearing(false)}
             >
               <div className="mt-6 flex flex-wrap justify-end gap-3">
-                <Button variant="secondary" onClick={() => setClearing(false)}>
+                <Button variant="quiet" onClick={() => setClearing(false)}>
                   Cancel
                 </Button>
                 <Button
