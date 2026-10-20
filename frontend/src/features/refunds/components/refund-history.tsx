@@ -171,6 +171,7 @@ export function RefundHistory({
       <OperationalPanel
         variant="open"
         className="data-surface pt-5"
+        headerClassName="border-b border-hairline px-5 pb-4 sm:px-6"
         title={role === 'MERCHANT' ? 'Own returned items' : 'Return refunds'}
         description="Original sales stay unchanged. Remaining quantities include every completed return, not just this page."
         action={
@@ -271,7 +272,7 @@ export function RefundHistory({
                 aria-label="Returnable quantities"
                 className="mt-4 list-none p-0"
               >
-                <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_8rem_6rem_6rem] gap-x-6 gap-y-3 sm:grid">
+                <li className="data-column-header hidden grid-cols-[minmax(0,1fr)_10rem_8rem_8rem] gap-x-6 gap-y-3 sm:grid">
                   <span>Product</span>
                   <span>Available to return</span>
                   <span>Returned</span>
@@ -280,9 +281,9 @@ export function RefundHistory({
                 {result.remainingItems.map((item) => (
                   <li
                     key={item.saleItemId}
-                    className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_8rem_6rem_6rem] sm:items-center"
+                    className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_10rem_8rem_8rem] sm:items-center"
                   >
-                    <span className="break-words">
+                    <span className="break-words font-semibold">
                       {
                         sale.items.find((line) => line.id === item.saleItemId)
                           ?.productName
@@ -310,10 +311,8 @@ export function RefundHistory({
                 ))}
               </ul>
             </section>
-            <section
-              className="mt-8 border-t border-hairline pt-6"
-              aria-labelledby="recorded-refunds-title"
-            >
+            <div className="mt-8 border-t border-hairline" aria-hidden="true" />
+            <section className="pt-6" aria-labelledby="recorded-refunds-title">
               <div className="min-w-0">
                 <h3 id="recorded-refunds-title" className="font-semibold">
                   Recorded refunds
@@ -342,31 +341,46 @@ export function RefundHistory({
                 />
               ) : (
                 <ul className="mt-4 list-none p-0">
-                  <li className="data-column-header hidden grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] gap-x-6 gap-y-3 sm:grid">
+                  <li className="data-column-header hidden grid-cols-[minmax(15rem,1.3fr)_minmax(7rem,1fr)_minmax(8rem,auto)_auto] gap-x-6 gap-y-3 sm:grid">
                     <span>Refund</span>
+                    <span>Date</span>
+                    <span>Amount</span>
                     <span>Action</span>
                   </li>
                   {result.items.map((row) => (
                     <li
                       key={row.id}
-                      className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1.3fr)_minmax(13rem,auto)] sm:items-center"
+                      className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(15rem,1.3fr)_minmax(7rem,1fr)_minmax(8rem,auto)_auto] sm:items-center"
                     >
                       <div className="min-w-0 break-words">
-                        <h3 className="font-semibold">{row.refundCode}</h3>
-                        <p className="text-sm tabular-nums">
-                          {'total' in row
-                            ? `Refund: PHP ${row.total}`
-                            : `Own returned items subtotal: PHP ${row.ownItemsSubtotal}`}
-                        </p>
+                        <h3 className="text-sm font-semibold">
+                          {row.refundCode}
+                        </h3>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 sm:block">
+                        <span className="text-xs font-medium text-muted sm:hidden">
+                          Date
+                        </span>
                         <time
-                          className="text-xs text-muted"
+                          className="text-sm text-muted"
                           dateTime={row.completedAt}
                         >
                           {new Date(row.completedAt).toLocaleString()}
                         </time>
                       </div>
+                      <div className="flex items-center justify-between gap-3 tabular-nums sm:block">
+                        <span className="text-xs font-medium text-muted sm:hidden">
+                          Amount
+                        </span>
+                        <span className="text-sm font-semibold">
+                          {'total' in row
+                            ? `PHP ${row.total}`
+                            : `PHP ${row.ownItemsSubtotal}`}
+                        </span>
+                      </div>
                       <Button
-                        variant="secondary"
+                        variant="quiet"
+                        className="w-fit px-3"
                         disabled={unresolved}
                         onClick={() => {
                           setDetail(null);
@@ -374,7 +388,7 @@ export function RefundHistory({
                           setSelected(row.id);
                         }}
                       >
-                        View refund {row.refundCode}
+                        View
                       </Button>
                     </li>
                   ))}
@@ -431,12 +445,13 @@ export function RefundHistory({
       ) : null}
       {selected ? (
         <FormDialog
-          title="Saved refund"
+          title="Refund details"
           description={
             role === 'MERCHANT'
-              ? 'Only returned items belonging to your currently linked business.'
-              : 'Immutable manual refund record. No payment provider was called.'
+              ? 'Review the returned items and branch where this refund was recorded.'
+              : 'Immutable manual refund record. Review the saved amount, payment details and returned items.'
           }
+          size="medium"
           onClose={() => {
             setSelected(null);
             setDetail(null);
@@ -452,56 +467,144 @@ export function RefundHistory({
           ) : !detail ? (
             <ListSkeleton className="mt-5" label="Loading saved refund" />
           ) : (
-            <section className="mt-5 min-w-0 break-words">
-              <h3 className="font-semibold">{detail.refundCode}</h3>
-              <p className="text-sm text-muted">
-                Original receipt: {detail.receiptCode}
-              </p>
+            <section className="mt-6 min-w-0 break-words">
+              <div className="grid gap-5 border-b border-hairline pb-5 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)] sm:items-end">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-[0.06em] text-muted">
+                    Refund code
+                  </p>
+                  <h3 className="mt-1 text-xl font-semibold tracking-tight">
+                    {detail.refundCode}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Original receipt: {detail.receiptCode}
+                  </p>
+                </div>
+                <dl className="grid gap-3 sm:text-right">
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-[0.06em] text-muted">
+                      Completed
+                    </dt>
+                    <dd className="mt-1 text-sm text-muted">
+                      {new Date(detail.completedAt).toLocaleString()}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-[0.06em] text-muted">
+                      {detail.scope === 'STAFF'
+                        ? 'Refund total'
+                        : 'Own returned items subtotal'}
+                    </dt>
+                    <dd className="mt-1 text-2xl font-semibold tabular-nums">
+                      PHP{' '}
+                      {detail.scope === 'STAFF'
+                        ? detail.total
+                        : detail.ownItemsSubtotal}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
               {detail.scope === 'STAFF' ? (
-                <>
-                  <p className="mt-3">
-                    Actual refund method: {detail.paymentMethod}
-                  </p>
+                <dl className="grid gap-4 border-b border-hairline py-5 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-[0.06em] text-muted">
+                      Actual refund method
+                    </dt>
+                    <dd className="mt-1 font-medium">{detail.paymentMethod}</dd>
+                  </div>
                   {detail.paymentReference ? (
-                    <p>Reference: {detail.paymentReference}</p>
+                    <div>
+                      <dt className="text-xs font-medium uppercase tracking-[0.06em] text-muted">
+                        Reference
+                      </dt>
+                      <dd className="mt-1 break-words font-medium">
+                        {detail.paymentReference}
+                      </dd>
+                    </div>
                   ) : null}
-                  <p>Reason: {detail.reason}</p>
-                  <p className="font-semibold tabular-nums">
-                    Refund: PHP {detail.total}
-                  </p>
-                </>
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs font-medium uppercase tracking-[0.06em] text-muted">
+                      Reason
+                    </dt>
+                    <dd className="mt-1">{detail.reason}</dd>
+                  </div>
+                </dl>
               ) : (
-                <>
-                  <p>
-                    {detail.branchName}
-                    {detail.branchCode ? ` · ${detail.branchCode}` : ''}
-                  </p>
-                  <p className="font-semibold tabular-nums">
-                    Own returned items subtotal: PHP {detail.ownItemsSubtotal}
-                  </p>
-                </>
+                <dl className="border-b border-hairline py-5">
+                  <div>
+                    <dt className="text-xs font-medium uppercase tracking-[0.06em] text-muted">
+                      Branch
+                    </dt>
+                    <dd className="mt-1 font-medium">
+                      {detail.branchName}
+                      {detail.branchCode ? ` · ${detail.branchCode}` : ''}
+                    </dd>
+                  </div>
+                </dl>
               )}
-              <ul className="mt-4 divide-y divide-hairline">
+              <div className="mt-6 flex flex-wrap items-baseline justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold">Returned items</h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Saved quantities and amounts from this refund.
+                  </p>
+                </div>
+                <span className="text-sm text-muted">
+                  {detail.items.length}{' '}
+                  {detail.items.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+              <ul className="mt-4 overflow-hidden rounded-panel border border-hairline divide-y divide-hairline">
                 {detail.items.map((item) => (
-                  <li key={item.id} className="py-3 text-sm">
-                    <strong>{item.productName}</strong>
-                    <p>
-                      {item.merchantName} · SKU {item.sku ?? 'not set'} ·
-                      Barcode {item.barcode ?? 'not set'}
-                    </p>
-                    <p className="tabular-nums">
-                      {item.quantity} returned · {item.restockQuantity}{' '}
-                      restocked · {item.quantity} × PHP {item.unitPrice} = PHP{' '}
-                      {item.lineTotal}
-                    </p>
+                  <li
+                    key={item.id}
+                    className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(17rem,auto)] sm:items-start"
+                  >
+                    <div className="min-w-0">
+                      <h4 className="font-semibold">{item.productName}</h4>
+                      <p className="mt-1 text-sm text-muted">
+                        {item.merchantName} · SKU {item.sku ?? 'not set'} ·
+                        Barcode {item.barcode ?? 'not set'}
+                      </p>
+                    </div>
+                    <dl className="grid grid-cols-2 gap-x-5 gap-y-3 text-sm tabular-nums">
+                      <div>
+                        <dt className="text-xs font-medium text-muted">
+                          Returned
+                        </dt>
+                        <dd className="mt-1 font-semibold">{item.quantity}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-muted">
+                          Restocked
+                        </dt>
+                        <dd className="mt-1 font-semibold">
+                          {item.restockQuantity}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-muted">
+                          Unit price
+                        </dt>
+                        <dd className="mt-1">PHP {item.unitPrice}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-muted">
+                          Line total
+                        </dt>
+                        <dd className="mt-1 font-semibold">
+                          PHP {item.lineTotal}
+                        </dd>
+                      </div>
+                    </dl>
                   </li>
                 ))}
               </ul>
             </section>
           )}
-          <div className="mt-6 flex justify-end">
+          <div className="mt-6 flex justify-end border-t border-hairline pt-5">
             <Button
-              variant="secondary"
+              variant="quiet"
               onClick={() => {
                 setSelected(null);
                 setDetail(null);

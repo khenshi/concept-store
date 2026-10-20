@@ -140,7 +140,7 @@ describe('manual refund dialog and frozen recovery', () => {
       screen.getByRole('textbox', { name: 'Refund reason' }),
     ).toBeDisabled();
     expect(
-      screen.getByRole('button', { name: 'Cancel return' }),
+      screen.getByRole('button', { name: 'Cancel' }),
     ).toBeDisabled();
     fireEvent.submit(screen.getByRole('dialog').querySelector('form')!);
     fireEvent(

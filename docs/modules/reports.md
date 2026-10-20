@@ -121,6 +121,8 @@ display name and saved merchant-name context. Merchant rows contain only the
 currently linked profile's own sale/refund amount and source identifiers; they
 omit payment, actor and other-merchant fields. Every row includes the source sale
 ID so Action opens the existing authorized sale detail and its refund workflow.
+The full row is also keyboard-focusable and opens that same branch-scoped detail
+route on click, Enter or Space; the explicit View action remains available.
 All authorization, filters, counts and rows are read inside one REPEATABLE READ
 transaction. The endpoint is read-only and adds no schema, index or migration.
 

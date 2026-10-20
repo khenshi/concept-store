@@ -36,10 +36,17 @@ refunded outside the system is required. No provider operation or discretionary
 refund amount is offered.
 
 The sale-detail workflow presents returnable quantities and recorded refunds as
-separate sections. The return form groups item quantities first, then refund
-details, and keeps the estimated refund in a distinct summary row so the amount
+separate sections. The Return refunds panel header uses the same responsive
+horizontal inset as its content and a hairline divider to align and separate the
+title, description and action from the sections below. The return form groups
+item quantities first, then refund details, and keeps the estimated refund in a
+distinct summary row so the amount
 can be checked before submission. This improves scanning without changing the
 existing validation, confirmation, retry, authorization or persistence rules.
+Returnable quantities keep product identity emphasized while giving the three
+quantity measures dedicated comparison columns. Recorded refunds separate the
+refund code, completion date, amount and View action; the action remains a
+borderless quiet control.
 
 Before POST, a memory-only organization/user-scoped attempt retains the exact
 command and request ID. Pending submissions freeze fields and block duplicates,
@@ -66,13 +73,15 @@ are not persistent/offline drafts and cannot survive a full process/page restart
 An unresolved other-sale attempt blocks new refunds and links staff to its original
 sale; a completed other-sale attempt asks for original-sale read acknowledgement.
 
-Saved staff refund detail displays immutable reason, actual method/reference,
-amount and original returned/restocked lines, without edit/delete or printing.
-Merchants independently decode only reduced own-line/subtotal records, including
-saved branch identity, and have no create, staff/payment/actor or refund-print
-exposure. Cashiers mount no refund history reads or management controls. Sale
-detail remounts on organization/user/role/branch/sale changes; obsolete reads cannot
-restore privileged records. Backend fresh object authorization remains authoritative.
+Saved refund detail displays immutable identity, completion time, role-appropriate
+amount and metadata, then presents each returned line with product identity,
+returned/restocked quantities, unit price and line total. It has no edit/delete or
+printing controls. Merchants independently decode only reduced own-line/subtotal
+records, including saved branch identity, and have no create, staff/payment/actor or
+refund-print exposure. Cashiers mount no refund history reads or management
+controls. Sale detail remounts on organization/user/role/branch/sale changes;
+obsolete reads cannot restore privileged records. Backend fresh object authorization
+remains authoritative.
 
 ## Records and precise types
 

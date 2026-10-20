@@ -247,6 +247,7 @@ export function RefundDialog({
                     <TextField
                       label={`Return units — ${item.productName}`}
                       inputMode="numeric"
+                      placeholder="e.g. 2"
                       value={line.quantity}
                       disabled={locked || left === 0}
                       error={errors[`${item.id}:quantity`]}
@@ -267,6 +268,7 @@ export function RefundDialog({
                     <TextField
                       label={`Restock units — ${item.productName}`}
                       inputMode="numeric"
+                      placeholder="e.g. 2"
                       value={line.restock}
                       disabled={locked || left === 0}
                       error={errors[`${item.id}:restock`]}
@@ -307,6 +309,7 @@ export function RefundDialog({
           <div className="grid min-w-0 gap-4 sm:grid-cols-2">
             <TextField
               label="Refund reason"
+              placeholder="e.g. Customer changed their mind"
               value={draft.reason}
               disabled={locked}
               error={errors.reason}
@@ -350,6 +353,7 @@ export function RefundDialog({
             {draft.method !== 'CASH' ? (
               <TextField
                 label="Refund reference"
+                placeholder="e.g. GCASH-20261020-001"
                 value={draft.reference}
                 disabled={locked}
                 error={errors.reference}
@@ -396,8 +400,8 @@ export function RefundDialog({
             </div>
           }
         >
-          <Button variant="secondary" disabled={locked} onClick={onClose}>
-            Cancel return
+          <Button variant="quiet" disabled={locked} onClick={onClose}>
+            Cancel
           </Button>
           <Button
             type="submit"

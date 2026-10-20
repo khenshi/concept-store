@@ -408,6 +408,16 @@ describe('staff Reports workspace', () => {
       'href',
       `/app/organizations/org/branches/${branch.id}/sales/33333333-3333-4333-8333-333333333333`,
     );
+    const transactionHref = `/app/organizations/org/branches/${branch.id}/sales/33333333-3333-4333-8333-333333333333`;
+    expect(transactionRow).toHaveAttribute('tabindex', '0');
+    fireEvent.click(transactionRow);
+    expect(push).toHaveBeenCalledWith(transactionHref);
+    push.mockClear();
+    fireEvent.keyDown(transactionRow, { key: 'Enter' });
+    expect(push).toHaveBeenCalledWith(transactionHref);
+    push.mockClear();
+    fireEvent.keyDown(transactionRow, { key: ' ' });
+    expect(push).toHaveBeenCalledWith(transactionHref);
     expect(screen.getByText('Filter by')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('combobox', { name: 'Transaction type' }));
     fireEvent.click(screen.getByRole('option', { name: 'Refunds' }));

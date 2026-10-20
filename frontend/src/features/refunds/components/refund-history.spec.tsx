@@ -89,6 +89,15 @@ describe('saved refund history and role privacy', () => {
       const remainingList = await screen.findByRole('list', {
         name: 'Returnable quantities',
       });
+      const refundHeader = screen
+        .getByRole('heading', { name: 'Return refunds' })
+        .closest('header');
+      expect(refundHeader).toHaveClass(
+        'border-b',
+        'border-hairline',
+        'px-5',
+        'sm:px-6',
+      );
       const header = within(remainingList).getByText('Product').parentElement;
       expect(header).not.toBeNull();
       expect(
@@ -96,20 +105,29 @@ describe('saved refund history and role privacy', () => {
       ).toBeInTheDocument();
       expect(within(header!).getByText('Returned')).toBeInTheDocument();
       expect(within(header!).getByText('Restocked')).toBeInTheDocument();
+      expect(screen.getByText(completedSale.items[0].productName)).toHaveClass(
+        'font-semibold',
+      );
+      const recordedHeader = screen.getByText('Refund').closest('li');
+      expect(recordedHeader).not.toBeNull();
+      expect(within(recordedHeader!).getByText('Date')).toBeInTheDocument();
+      expect(within(recordedHeader!).getByText('Amount')).toBeInTheDocument();
+      expect(within(recordedHeader!).getByText('Action')).toBeInTheDocument();
+      const viewButton = screen.getByRole('button', { name: 'View' });
+      expect(viewButton).toHaveClass('ui-button-quiet');
       expectReturnedQuantities();
       expect(
         screen.getByRole('button', { name: 'Return items' }),
       ).toBeDisabled();
-      fireEvent.click(
-        screen.getByRole('button', {
-          name: `View refund ${staffRefund.refundCode}`,
-        }),
-      );
+      fireEvent.click(viewButton);
       const dialog = await screen.findByRole('dialog');
-      await within(dialog).findByText(`Reason: ${command.reason}`);
+      await within(dialog).findByText(command.reason);
       expect(
-        within(dialog).getByText('Actual refund method: CASH'),
+        within(dialog).getByText('Actual refund method'),
       ).toBeInTheDocument();
+      expect(within(dialog).getByText('CASH')).toBeInTheDocument();
+      expect(within(dialog).getByText('Refund total')).toBeInTheDocument();
+      expect(within(dialog).getByText('Returned items')).toBeInTheDocument();
       expect(
         within(dialog).queryByRole('button', { name: /print|edit|delete/i }),
       ).not.toBeInTheDocument();
@@ -128,17 +146,13 @@ describe('saved refund history and role privacy', () => {
         onDenied={denied}
       />,
     );
-    await screen.findByText('Own returned items subtotal: PHP 850.00');
+    await screen.findByText('PHP 850.00');
     expect(
       screen.queryByRole('button', { name: 'Return items' }),
     ).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: `View refund ${merchantRefund.refundCode}`,
-      }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
     const dialog = await screen.findByRole('dialog');
-    await within(dialog).findByText('Own returned items subtotal: PHP 850.00');
+    await within(dialog).findByText('Own returned items subtotal');
     expect(within(dialog).getByText(/Saved Makati/)).toBeInTheDocument();
     expect(
       within(dialog).queryByText(
@@ -338,7 +352,7 @@ describe('saved refund history and role privacy', () => {
         onDenied={denied}
       />,
     );
-    await screen.findByText('Own returned items subtotal: PHP 850.00');
+    await screen.findByText('PHP 850.00');
     await act(async () => {
       resolve(refundPage);
     });

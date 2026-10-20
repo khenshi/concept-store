@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { InputControl } from '@/shared/components/ui/input-control';
@@ -32,6 +35,14 @@ function typeLabel(type: ReportTransactionType) {
 
 function typeClass(type: ReportTransactionType) {
   return type === 'SALE' ? 'text-success-ink' : 'text-danger';
+}
+
+function transactionHref(
+  organizationId: string,
+  branchId: string,
+  saleId: string,
+) {
+  return `/app/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/sales/${encodeURIComponent(saleId)}`;
 }
 
 function TransactionsSkeleton() {
@@ -83,6 +94,8 @@ export function TransactionsTab({
   onRetry(): void;
   onPageChange(page: number): void;
 }) {
+  const router = useRouter();
+
   return (
     <OperationalCollection
       surface="data"
@@ -196,50 +209,81 @@ export function TransactionsTab({
               </tr>
             </thead>
             <tbody>
-              {page.items.map((item) => (
-                <tr key={`${item.type}-${item.id}`}>
-                  <td className="whitespace-nowrap px-4 py-4 align-middle tabular-nums">
-                    {completedDate(item.completedAt)}
-                  </td>
-                  <td className="px-4 py-4 align-middle">
-                    <span className={`font-semibold ${typeClass(item.type)}`}>
-                      {typeLabel(item.type)}
-                    </span>
-                  </td>
-                  <th
-                    scope="row"
-                    className="px-4 py-4 align-middle font-semibold text-ink"
+              {page.items.map((item) => {
+                const href = transactionHref(
+                  organizationId,
+                  branchId,
+                  item.saleId,
+                );
+                return (
+                  <tr
+                    key={`${item.type}-${item.id}`}
+                    tabIndex={0}
+                    aria-label={`Open ${typeLabel(item.type).toLowerCase()} ${item.reference}`}
+                    className="cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus"
+                    onClick={(event) => {
+                      if (
+                        event.target instanceof Element &&
+                        event.target.closest('a,button')
+                      )
+                        return;
+                      router.push(href);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      if (
+                        event.target instanceof Element &&
+                        event.target.closest('a,button')
+                      )
+                        return;
+                      event.preventDefault();
+                      router.push(href);
+                    }}
                   >
-                    {item.reference}
-                    {'actorName' in item ? (
-                      <span className="mt-1 block text-xs font-normal text-muted">
-                        {item.actorName}
+                    <td className="whitespace-nowrap px-4 py-4 align-middle tabular-nums">
+                      {completedDate(item.completedAt)}
+                    </td>
+                    <td className="px-4 py-4 align-middle">
+                      <span className={`font-semibold ${typeClass(item.type)}`}>
+                        {typeLabel(item.type)}
                       </span>
-                    ) : null}
-                  </th>
-                  <td className="max-w-64 px-4 py-4 align-middle text-muted">
-                    {'merchantNames' in item
-                      ? item.merchantNames.join(', ') || 'No merchant recorded'
-                      : 'Your items'}
-                  </td>
-                  <td
-                    className={`whitespace-nowrap px-4 py-4 align-middle font-semibold tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-ink'}`}
-                  >
-                    {item.type === 'REFUND' ? '− ' : ''}PHP {item.amount}
-                  </td>
-                  <td className="px-4 py-4 align-middle">
-                    <Link
-                      href={`/app/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/sales/${encodeURIComponent(item.saleId)}`}
-                      className={buttonStyles({
-                        variant: 'quiet',
-                        className: 'min-h-0 px-0',
-                      })}
+                    </td>
+                    <th
+                      scope="row"
+                      className="px-4 py-4 align-middle font-semibold text-ink"
                     >
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                      {item.reference}
+                      {'actorName' in item ? (
+                        <span className="mt-1 block text-xs font-normal text-muted">
+                          {item.actorName}
+                        </span>
+                      ) : null}
+                    </th>
+                    <td className="max-w-64 px-4 py-4 align-middle text-muted">
+                      {'merchantNames' in item
+                        ? item.merchantNames.join(', ') ||
+                          'No merchant recorded'
+                        : 'Your items'}
+                    </td>
+                    <td
+                      className={`whitespace-nowrap px-4 py-4 align-middle font-semibold tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-ink'}`}
+                    >
+                      {item.type === 'REFUND' ? '− ' : ''}PHP {item.amount}
+                    </td>
+                    <td className="px-4 py-4 align-middle">
+                      <Link
+                        href={href}
+                        className={buttonStyles({
+                          variant: 'quiet',
+                          className: 'min-h-0 px-0',
+                        })}
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </OperationalTable>
         ) : null}
