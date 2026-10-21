@@ -1,190 +1,282 @@
 # Current plan
 
-## Reports period presets and all-time reporting
+## POS Refund history and sale selection
 
-**Status:** Implemented locally October 19, 2026. Automated correctness,
-performance and independent deep review passed. Rendered browser QA remains
-unavailable in this session; retain this plan until that acceptance step is done.
+**Status:** Implemented locally October 21, 2026. Independent review passed;
+rendered browser acceptance remains outstanding. Do not treat unavailable QA as passed.
 
-### Goal
+### Goal and scope
 
-Make common reporting periods easy to select and support all available sales
-and refund history within the existing authorized branch and merchant scope.
-Use one applied period across all Reports tabs.
+Add a branch-wide Refund history tab beside Cart and Sales History. Authorized
+Owners and Managers can find saved refunds across sales and start a return
+by selecting its original sale, then using the existing return form.
 
-### Current constraints
+Keep sale-detail refund controls available. Preserve original-sale pricing,
+remaining quantity checks, optional original-placement restocking, manual refund
+recording and idempotent recovery. This changes discovery and entry points,
+not refund financial rules.
 
-- Frontend date validation, runtime response schemas and backend validation
-  currently enforce a maximum period of 366 days.
-- Requests use explicit UTC `from` inclusive and `until` exclusive bounds;
-  the UI selects inclusive Asia/Manila calendar dates.
-- Analytics returns zero-filled daily rows for the entire period.
-- Summary totals aggregate the complete matching period in PostgreSQL.
-  Transactions and rankings remain server-paginated.
-- Sales use completion dates; refunds use their own completion dates, including
-  refunds for older sales. Net recorded sales is not profit.
+### Confirmed user decisions
 
-### Confirmed periods
+1. Include Owner/Manager history only. Merchants continue using Reports →
+   Transactions for own sale/refund history and existing own-sale detail. No
+   additional Merchant history tab or POS access. Cashier retains existing POS
+   access without refund history or creation.
+2. Entry flow: `Find sale to refund` → select original sale → existing return form.
+3. Include refund-code/original-receipt search, refund date range and actual
+   refund-method filtering, subject to the existing role privacy boundaries.
 
-| Preset         | Meaning                                                    |
-| -------------- | ---------------------------------------------------------- |
-| Today          | Current Philippine calendar day                            |
-| This month     | First day of this month through today                      |
-| Last 30 days   | Today and the preceding 29 calendar days                   |
-| This year      | January 1 through today                                    |
-| Last 12 months | Rolling 12 calendar months ending today                    |
-| Last 2 years   | Rolling 24 calendar months ending today                    |
-| All time       | Earliest accessible completed sale or refund through today |
-| Custom dates   | User-selected inclusive date range                         |
+October 21 refinement: Reports Transactions already includes own-only SALE and
+REFUND records, type filtering, code search and the applied report date range.
+Preserve that existing Merchant workflow and its privacy projections unchanged.
 
-### Confirmed interaction
+### Repository evidence and constraints
 
-October 20 refinement approved: place preset and calendar selectors in one row,
-reuse the shared custom dropdown, and apply presets immediately without a
-separate Apply button. Custom calendar edits continue to require Apply.
-The shared calendar Apply action uses the filled primary treatment; Reports
-labels that action simply `Apply`.
-The Period label matches Report dates: muted, extra-small, medium weight with
-the same label-to-control spacing.
+- `PosWorkspace` and `BranchPos` maintain Cart and Sales History beneath one
+  persistent POS shell. Sale details live under `pos/sales/:saleId`.
+- `RefundHistory` currently owns per-sale history, returnable quantities, refund
+  detail, return entry and unresolved-attempt feedback.
+- Existing list/detail/create APIs are sale-scoped:
+  `/organizations/:organizationId/branches/:branchId/sales/:saleId/refunds`.
+- The existing list includes cumulative remaining quantities; do not reuse its
+  complete payload for a branch-wide list or fetch every sale in the browser.
+- Frontend refund decoding verifies original-sale identity/item snapshots.
+  Preserve these checks when resolving detail from branch history.
+- Shared operational tables, calendar, dropdown, pagination and dialogs exist.
+  Reuse their contracts and visual treatment.
+- Preserve existing uncommitted POS/refund changes and establish a baseline
+  before implementation. Planning does not authorize unrelated cleanup.
 
-- Keep Today as the initial default.
-- Add presets beside the existing shared calendar in one row. Selecting a preset
-  applies it immediately; custom calendar edits remain pending until Apply.
-- Show the selected preset and actual inclusive dates in the report context.
-- Refresh/retry uses the applied concrete bounds without silently shifting them.
-- Apply identical bounds to Overview, Transactions, Daily Data and Rankings;
-  reset affected pagination and retain existing stale-response protection.
-- Preserve staff and own-only merchant projections. All time never broadens
-  branch, organization or merchant access.
-- Keep report-specific preset behavior in Reports, outside the shared calendar.
-- Preserve the selected preset or Custom dates when switching branches. Retain
-  the applied concrete dates for bounded periods; resolve All time again within
-  the newly authorized branch scope. Clear old branch results while loading.
+### Navigation and history table
 
-### Confirmed decisions
+- Add `.../pos/refunds` with a `Refund history` tab for the confirmed roles,
+  including fullscreen POS. Direct route access enforces the same permissions.
+- Owner/Manager see `Find sale to refund` in the table title/action row.
+  Merchant and Cashier cannot access this tab or sale-selection workflow.
+- Put labeled search, shared date picker and staff method dropdown on the muted
+  filter row. Calendar supports one date, a range, Apply and Clear dates.
+- Default to all accessible refunds, newest first, using bounded pagination.
+  A single date means exactly that Manila calendar day. Clearing dates restores
+  unrestricted dates within the authorized paginated scope.
+- Columns: Refund code, Original receipt, Refunded at, Method, Amount, Action.
+- Use refund completion time and actual refund method, independently of the
+  original sale date/payment. All saved refunds are completed; no status filter.
+- Default 15 rows/page; use shared pagination, current/total pages, refund count,
+  separator and borderless arrows, including the standard empty-state treatment.
+- View opens the existing immutable refund-detail presentation. Resolve its
+  authorized original sale and verify saved snapshots first. Link to the original
+  role-appropriate sale detail; do not stack detail and return dialogs.
+- Use route query state for applied filters/page and selection/detail identity.
+  Refresh and browser Back restore context. Define the exact query keys before
+  implementation; parse/normalize malformed queries without expanding access.
+- Reset page on filter changes. Clear old branch/actor/role results before reads;
+  stale requests cannot restore them. Preserve list context while viewing detail.
+- Distinguish initial loading, no refunds, no matches and retryable read errors.
+  A failed read never initiates a refund command.
 
-1. Include all eight listed period options, with Today as the initial default.
-2. Rolling periods look backward from today. Inclusive
-   rule: subtract 12/24 calendar months from tomorrow's Manila date, clamp invalid
-   month days, then include through today. Test month ends and leap days.
-3. Use monthly chart buckets for
-   periods over 366 days, yearly buckets beyond five years, and a server-paginated
-   Daily Data table retaining daily detail.
-4. Custom dates can also exceed 366 days under the same supported bounds
-   and grouping rules.
-5. Branch changes preserve the selected period. All time resolves its start for
-   the new authorized scope; bounded periods retain their selected dates.
+### Sale selection and refund creation
 
-### Backend and contract requirements
+1. `Find sale to refund` opens a selection view within Refund history, avoiding
+   stacked selector/return dialogs. Reuse the existing paginated Sales API and
+   receipt search. Show receipt, original completion date and original total.
+2. Selecting a sale loads authorized sale detail and fresh cumulative remaining
+   quantities, then opens the existing return form with clear receipt context.
+   Do not infer return eligibility from the branch list or original sale total.
+3. If nothing remains returnable, explain that state and allow another selection.
+   Cancel returns to the preserved selection/history context.
+4. Successful completion refreshes history/remaining quantities and shows the
+   saved refund code. Preserve filters even when the new refund falls outside
+   them; provide completion feedback without silently resetting filters.
+5. Reuse the organization/user-scoped pending attempt and original-sale recovery
+   path. Unknown outcomes retain the exact command/request ID for explicit retry.
+   No new command, automatic POST retry or money operation is introduced.
+6. Tab changes, selection changes, Back, branch changes and fullscreen navigation
+   must respect existing checkout/refund locks. Preserve the active cart and
+   existing other-sale unresolved-attempt handling. A follow-up read failure
+   offers GET retry and never repeats creation.
 
-Implementation decisions: supported Manila dates are 1900-01-01 through
-9999-12-30; analytics emits at most 367 daily, 61 monthly or 8,100 yearly buckets.
-Daily pages default to 15 and are capped at 100. Existing explicit-range
-responses remain compatible, with optional granularity for grouped periods.
-Merchant All time refresh re-resolves earliest activity under current linkage,
-retaining the frozen upper bound; this prevents truncated history after relinking.
-Period selection is stored in the organization workspace above the branch route,
-with user/tenant isolation and role-change clearing. Historical date boundaries
-resolve the first valid instant of each Manila date, including skipped midnight.
+Inspect existing POS navigation event handling: it currently recognizes Cart
+and Sales History. Extend it narrowly for the new route and selection states.
+Extract only the minimum feature-owned presentation/controller needed to reuse
+the existing return dialog and detail; avoid a general workflow framework.
 
-- Inspect the existing Reports DTOs, service queries, response types, OpenAPI,
-  frontend schemas and consumers before choosing exact contract extensions.
-- Preserve existing explicit bounded requests. Introduce an explicit all-time
-  mode; missing dates must not accidentally trigger unrestricted history reads.
-  Reject conflicting modes and unknown fields.
-- Resolve earliest activity server-side from both completed sale and refund
-  streams within current authorized scope. Never expose another merchant's
-  earliest activity date. Return the concrete resolved range.
-- Define no-activity behavior explicitly: zero totals, empty collections and
-  no-activity metadata without inventing a first-activity date.
-- Keep authorization, range resolution and data consistent within each request's
-  existing snapshot. Coordinate separate tab requests with the same applied
-  bounds so they cannot resolve different reporting periods.
-- Extend backend and frontend range validation together. Define a supported
-  historical boundary and finite bucket/page sizes before implementation.
-  Do not merely remove the limit and return unlimited daily arrays.
-- Add grouped analytics and paginated daily reads only as needed, preserving
-  existing bounded consumers. Define partial buckets, zero filling and exact
-  reconciliation to the applied range.
-- Preserve exact monetary/count arithmetic, independent refund dates, ranking
-  over the full period, existing role guards and tenant isolation.
-- Reuse existing indexes. Measure representative multi-year queries first;
-  any index migration requires evidence and review. No new datastore, reporting
-  entities, infrastructure or dependencies are planned.
+### Backend and frontend contract
 
-### Implementation sequence after approval
+Add `GET /organizations/:organizationId/branches/:branchId/refunds`. Retain
+all existing sale-scoped endpoints and their response/command compatibility.
 
-1. Preserve the confirmed user decisions and finalize historical limits,
-   API contracts and measurable response/payload acceptance targets here.
-2. Add bounded presets using existing Apply and calendar behavior.
-3. Extend backend range handling, all-time resolution and bounded long-period
-   analytics/daily pagination; update OpenAPI and strict frontend schemas together.
-4. Enable long-period presets and All time after their contracts are supported.
-   Add resolved labels, chart grouping and daily pagination while preserving
-   loading, empty/error/retry, focus and responsive behavior.
-5. Validate correctness, privacy and performance; obtain an additional review of
-   authorization/privacy changes before completion.
-6. Update `docs/modules/reports.md` and affected frontend module documentation;
-   archive this plan after acceptance, recording unperformed checks explicitly.
+- Pagination: page defaults to 1, limit defaults to 15 and caps at 100; finite
+  page bounds follow existing refund query conventions.
+- Optional search matches refund code OR original receipt, using case-insensitive
+  literal substring semantics. Set a finite length bound aligned with Sales
+  History. Treat search text as data, including SQL wildcard characters.
+- Optional `from` inclusive and `until` exclusive UTC bounds must appear together;
+  validate ordering and supported bounds. Convert inclusive Manila calendar
+  selections with the shared date utilities. Missing bounds means no date
+  predicate, not an unbounded response payload.
+- Authorized staff may filter by the existing actual payment-method enum.
+  Reject unknown query fields and malformed parameters using existing DTO rules.
+- Staff summary rows contain refund ID/code, original sale ID/receipt, branch/
+  organization scope, completion time, actual method and exact decimal total.
+  Return pagination totals; omit item arrays, reason, reference and private command.
+- The new endpoint has no Merchant projection; deny Merchant access. Preserve
+  existing reduced Merchant Reports and sale-scoped refund responses unchanged.
+- Stable sort: completion timestamp descending, then ID descending. Count/page
+  predicates must match and use a consistent database snapshot. Keep amounts
+  exact; do not calculate subtotals with JavaScript floating-point arithmetic.
+- Reuse current membership and branch authorization: Owner in tenant branches,
+  Manager in assigned branches. Merchant and Cashier denied.
+  Inaccessible tenant/branch/sale/refund objects retain existing
+  not-found behavior. Access changes must be respected on every read.
+- Inspect existing branch/time and merchant indexes; measure representative
+  queries before proposing migrations. Never aggregate all sales client-side.
+- Extend DTO/OpenAPI, strict frontend schemas and API tests together. Validate
+  role projection, response scope, page metadata and duplicate refund IDs.
+- Opening detail may reuse existing original-sale and refund-detail GETs. Preserve
+  original snapshot validation and clear restricted content after access denial.
+
+### Exclusions
+
+No payment-provider operations, discretionary amounts, exchanges, return windows,
+refund editing/deletion/printing, new Cashier permissions, cross-branch history,
+export, extra reporting dashboard, new infrastructure or dependencies. No schema
+change without demonstrated query need and an explicit plan update. No broad
+POS/sales refactor or unrelated dirty-worktree fixes.
+
+### Delivery sequence after implementation approval
+
+1. Finalize route/query keys and bounded search/date validation against existing
+   utilities. Record any material deviation here; establish focused baselines.
+2. Implement staff branch-list queries, DTOs, OpenAPI and
+   authorization/privacy tests, with representative disposable database fixtures.
+3. Implement frontend staff API/schema contracts and shared history table.
+4. Add POS route/tab, detail resolution and retained query/navigation state.
+5. Add staff sale selection and existing return-form entry with recovery locks.
+6. Validate, review authorization and command recovery independently, then update
+   `docs/modules/refunds.md`, `docs/modules/pos.md` and affected frontend docs.
+7. Archive this plan after acceptance, recording any unperformed browser checks.
 
 ### Acceptance and verification
 
-- Date tests: Manila midnight, month/year boundaries, leap years, month-end
-  clamping, inclusive endpoints and agreed rolling-date rules.
-- Interaction tests: no fetch before Apply, visible dates match requests, refresh
-  retains applied bounds, pagination resets and stale responses stay discarded.
-- Data tests: all tabs reconcile, including empty, refund-only, negative-net and
-  original-sale-outside-period cases. Grouped buckets and daily pages reconcile
-  to exact totals without duplicate rows.
-- Security tests: unauthorized roles, foreign tenant/branch IDs, changed access
-  and merchant links cannot expose totals or earliest-activity metadata.
-- Contract tests: old bounded requests remain valid; conflicting/malformed modes
-  fail; all-time no-activity responses are explicit and valid.
-- Use disposable PostgreSQL fixtures for multi-year correctness and query-plan/
-  timing evidence. Record dataset size, payload size and measured results against
-  the agreed targets; unit tests alone do not establish performance.
-- Run relevant tests, lint, typecheck/build, formatting and final diff checks.
-  Browser-check desktop/mobile, keyboard operation, long labels, grouping,
-  pagination and loading/empty/error states.
+- Combined search/date/method filters operate on refund fields, including refunds
+  whose original sale is outside the date range; cleared dates and one-day ranges
+  have correct Manila boundaries.
+- Stable ordering, 15-row pages, totals, empty/no-match states, first/last pages
+  and multiple refunds for one sale behave correctly.
+- Test unauthenticated access, denied Cashier, foreign tenant/branch guesses,
+  unassigned Manager, changed membership/branch grants and wrong-sale detail IDs.
+- Verify Merchant is denied the new history endpoint and POS route/tab, while
+  existing Reports Transactions still lists only own sale/refund amounts and
+  existing own-sale refund detail remains accessible. Retain privacy regressions.
+- Test deep links, refresh/Back, filter/page restoration, cart retention,
+  fullscreen, stale reads and actor/branch/role changes during requests.
+- Test selection cancellation, exhausted sales, fresh quantities, successful
+  return, completion outside current filters and detail access revocation.
+- Preserve concurrent over-return, exact totals, atomic restocking and existing
+  idempotency tests. Add focused tests for the new entry and navigation paths,
+  especially ambiguous outcomes and unchanged-command retries across tabs.
+- Use disposable PostgreSQL integration fixtures for count/filter/privacy and
+  query plans; record fixture size, timing and payload observations. No production
+  writes. Obtain an independent review of access and attempt-handling changes.
+- Run affected unit/API/integration suites, lint, typecheck and relevant builds;
+  inspect final diff. Report baseline failures separately, preserving user edits.
+- Browser QA: desktop/mobile/fullscreen, keyboard and focus return, long labels,
+  calendar overflow, dialog scrolling and loading/empty/error states. Static
+  checks do not establish rendered behavior; report unavailable checks explicitly.
 
-### Local verification evidence
+### Implemented route and recovery decisions
 
-Commit-time recheck October 20: manual removal of the applied-period summary is
-preserved. The focused frontend run passes 244 of 247 tests; three workspace
-tests still query the removed `Applied report period` label. This mismatch
-remains unresolved rather than restoring the manually removed UI or weakening
-the assertions during the commit-only task.
+October 21 nested Reports routes approved: replace local-only tab switching with
+`reports/overview`, `reports/transactions`, `reports/daily-data` and
+`reports/rankings` beneath one persistent Reports layout. Keep the shared header,
+branch selection and report-period controls. Preserve report calculations,
+authorization, Merchant projections and refund-details modal. Retain applied
+period and tab-specific filters/pages in URL query state for refresh, direct
+links and Back/Forward. The existing branch Reports URL redirects to Overview;
+branch switching retains the selected tab and period and resets branch-specific
+filters. Use existing dependencies and server contracts. Verify the same focused
+Reports/refund tests before and after, plus route/state regression tests.
 
-- Backend: 74 focused unit tests, 45 HTTP/OpenAPI tests and 51 disposable
-  PostgreSQL integration tests passed; build, focused lint and formatting passed.
-- Frontend: 246 tests across 14 Reports and affected workspace suites, typecheck,
-  lint and production build passed.
-- Independent deep review found three issues (route-level period persistence,
-  merchant relink bounds and historical clock transitions); all were fixed and
-  the reviewer confirmed no remaining high/medium findings in those changes.
-- Disposable fixture: 10,001 sales and sale items plus 2,001 refunds and refund
-  items. Targets: each measured endpoint under 2,000 ms and response under
-  2,500,000 bytes. Measured endpoints took 4–99 ms; maximum historical-range
-  response was 1,370,581 bytes. Of 36 explained queries, the slowest took
-  36.001 ms. Existing indexes sufficed; these are local results, not production
-  latency guarantees.
-- Browser connector reported no available browser; desktop/mobile rendered QA
-  was not performed. No production data was modified.
-- Whole-backend typecheck has unrelated pre-existing test errors; the Reports
-  files and backend production build pass. Preserve this as a separate baseline
-  validation gap rather than expanding this implementation into other modules.
-  `npx tsc --noEmit --pretty false` reports 25 errors across refresh-cookie,
-  inventory, inventory-performance, milestone-access, refund-command and spaces
-  test files. No Reports errors remain. The disposable database was removed
-  after validation; only local test data was deleted.
+October 21 follow-up approved: Reports Transactions refund View/row activation
+opens the existing read-only refund-details modal within Reports. Sale rows keep
+their existing navigation. Extract the existing dialog for reuse, load the
+authorized original sale before refund detail, preserve Merchant projections,
+and discard obsolete reads on modal/context changes. No new API or refund command.
+Implemented using the extracted `RefundDetailsDialog` in both history and
+Reports. All 126 focused refund/transaction tests, frontend typecheck and focused
+lint passed. At that handoff, broader Reports retained three removed-label test
+failures; the nested-route work subsequently replaced those stale assertions with
+visible calendar and URL-state checks while preserving date/access coverage.
 
-### Exclusions and stop condition
+Nested-route verification: one standard agent implemented/tested URL parsing and
+reviewed the route integration. Initial review found queryless Back period loss,
+search-draft resurrection, stale ranking errors and whitespace-only search
+invalidation. Those were fixed with regression coverage; focused re-review found
+no remaining issues. The Reports workspace suite now passes all 44 tests.
+Frontend typecheck, focused lint and formatting pass; production build includes
+all four nested routes. Final regression run passed 322 tests across 17 Reports,
+affected refund and organization-navigation suites; the final production build
+and diff checks passed. The prior three Reports label failures are resolved by
+the new route/calendar assertions, without restoring the manually removed UI.
+No backend/schema/dependency changes were needed for this routing refinement.
+Rendered browser QA remains unavailable and is not implied by automated checks.
 
-The user approved implementation of this plan. Do not change Inventory or Sales
-History filters, combine branches, add forecasting, comparison periods, profit
-or settlement calculations, scheduled reports, exports, caches or infrastructure.
-Do not alter sales/refunds or introduce dependencies without prior discussion.
+- Applied history state uses `q`, `method`, `fromDay`, `throughDay`, `page`.
+  Selection uses `select=1`, `saleQ`, `salePage`, `sale`; saved detail adds `refund`.
+  Search caps at 254 characters; page bounds match the existing refund API.
+- A branch summary omits item arrays; detail reads reuse authorized source-sale
+  and existing refund-detail APIs with original snapshot checks.
+- Reuse `RefundHistory` entry props to open the existing return/detail dialogs.
+  The command and write endpoint remain unchanged.
+- Retained attempts pin the sale subtree through query Back and completed read
+  acknowledgement. The persistent POS layout substitutes original-sale recovery
+  on Cart/History browser transitions. This retention is limited to the mounted
+  POS layout; attempts retain the existing memory-only lifecycle contract.
+- Remounted dialogs use external attempt state for externally pending requests;
+  only locally started requests own local pending/busy flags. This prevents a
+  pending remount from permanently disabling explicit same-command retry.
 
-Stop after the approved period controls and long-history behavior satisfy the
-agreed correctness, privacy, performance and UI checks. Any broader work requires
-an explicit scope decision.
+### Local verification and remaining acceptance
+
+- Backend: 73 focused unit tests, 82 refund HTTP/OpenAPI tests and 44 disposable
+  PostgreSQL refund integration tests passed, including changed access, literal
+  wildcard searches, date bounds and concurrent count/page snapshot consistency.
+  Application build, focused lint/formatting and diff checks passed.
+- Disposable fixture: 1,500 refunds, 15-row response 4,068 bytes, observed 5.4 ms
+  unfiltered / 7.4 ms filtered. EXPLAIN used `Refund_branch_reports_idx`;
+  no schema, index, dependency or infrastructure addition was needed.
+- Frontend: production build, typecheck and focused lint passed. All 179 tests
+  in the final focused refund/POS workspace/branch POS/sales-workflow run passed,
+  including date-boundary and exhausted-sale cases.
+  Coverage includes pending remount, query Back retention, failed completion
+  acknowledgement GET retry, same-command explicit retry and cart retention.
+- Two pre-existing POS workspace assertions were updated to exercise the current
+  calendar and 15-row pagination while preserving their behavioral assertions.
+- Broader frontend run: 292/293 passed. The untouched `pos-cart.spec.ts` expects
+  `Only 1` while untouched `pos-cart.ts` emits `max quantity for ...`; leave this
+  unrelated message mismatch separate from the delivered work.
+- Broader backend checks found existing inventory HTTP pagination assertions,
+  a sales integration pagination assertion and repository test typing failures;
+  these are outside this plan. Production build and focused refund checks pass.
+- Independent deep frontend review found pending/Back recovery, completed
+  acknowledgement and inherited-pending known-rejection issues; fixes and
+  regression tests were added. The reviewer confirmed no remaining findings
+  after inspecting frontend fixes and backend authorization/query contracts.
+  The final inherited-pending fix passed all 18 refund-dialog tests independently.
+- Backend full test-inclusive typecheck reports 25 errors across six existing
+  test files; no pre-edit full run was recorded. The existing refund fixture
+  diagnostic was confirmed in HEAD. No production build failure was introduced.
+- The disposable PostgreSQL container was created for this task, isolated test
+  schemas were removed after tests, and the container was stopped after review.
+  No production data was changed.
+- Browser inventory exposed no enabled browser surface; opening Chrome returned
+  `Browser is not available: chrome`. Desktop/mobile rendered, keyboard/focus and
+  visual QA were not performed. Keep this current plan until acceptance or an
+  explicit rendered-QA waiver; no waiver is inferred.
+
+### Prior plan
+
+The previous Reports plan is preserved in
+`archive/reports-period-presets-superseded-2026-10-21.md`. Its outstanding rendered
+QA and test-label mismatches are not resolved by archival. POS and refund module
+documentation now describes the implemented branch-history workflow.

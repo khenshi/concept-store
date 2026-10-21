@@ -17,23 +17,71 @@ inventory screens accept positive RETURN history and label it Return; no separat
 inventory stock command is added. Refund controls live beside the original sale
 in existing POS Sales History; merchants use their existing own-sale detail.
 
+## Branch refund history in POS
+
+Owners and Managers also have a `Refund history` POS tab at
+`.../branches/:branchId/pos/refunds`. Merchants continue using their own-only
+Reports Transactions and sale detail; neither Merchants nor Cashiers can access
+the new tab or branch refund-list endpoint.
+
+`GET /organizations/:organizationId/branches/:branchId/refunds` returns staff
+summary rows with refund ID/code, source sale ID/receipt, refund completion time,
+actual method and exact decimal total. Page scope includes `scope: STAFF`,
+organization/branch IDs, `page`, `limit`, `total` and `totalPages`. It omits item
+arrays, reasons, payment references and private commands. Fresh membership,
+Manager branch grants, count and rows share a REPEATABLE READ snapshot.
+
+The list defaults to page 1 and 15 rows, with a limit cap of 100 and stable
+completion-time/ID descending order. Optional `q` (maximum 254 characters) matches
+literal case-insensitive substrings in saved refund or receipt codes; SQL
+wildcards are escaped. Optional `paymentMethod` filters the actual refund method.
+Optional UTC `from`/`until` must appear together and be ordered within years
+0001–9999; `from` is inclusive and `until` exclusive. Unknown fields are rejected.
+No dates means all authorized history with bounded pagination.
+
+The history table uses shared collection/filter/calendar/pagination components.
+Its calendar filters Manila dates, including a single day, and supports Apply
+and Clear dates. URL query state retains `q`, `method`, `fromDay`, `throughDay`
+and `page`; `select=1`, `saleQ`, `salePage`, `sale` and `refund` identify sale
+selection and detail states. Invalid selection IDs and pagination normalize safely.
+View loads the protected source sale and existing refund detail, preserving
+snapshot checks before display. History does not introduce refund edit/delete.
+
+`Find sale to refund` opens a receipt-searchable paginated sale-selection view,
+then reads the selected sale and fresh remaining quantities before opening the
+existing return form. Exhausted sales cannot start a new return. Completion
+shows the saved refund code, preserves history filters and refreshes reads.
+
+Pending/unknown attempts pin the original sale in the Refund history subtree;
+browser query Back cannot substitute another sale or detail. The persistent POS
+shell also substitutes original-sale recovery if browser navigation reaches Cart
+or Sales History. Recovery remains through completed acknowledgement until a
+successful quantities GET clears the retained attempt. Remounted pending dialogs
+derive external request state from the attempt, so a later unknown outcome enables
+explicit same-command retry. Existing command calculations and write endpoints
+are unchanged. These retained UI protections apply while the POS layout remains
+mounted; attempts remain memory-only under the existing lifecycle contract.
+
 ## Sale-detail frontend workflow
 
 Owner/manager detail loads saved refund history with 15 rows per page and
 all-page remaining/returned/restocked quantities. Return items opens the shared
 native scroll-contained form dialog. Each original line shows saved identity,
-unit price, remaining units and distinct whole-unit return/restock inputs.
+remaining units and distinct whole-unit return/restock inputs.
 Exhausted lines cannot start another return. Restocking defaults to zero and
 targets only the original sold placement; non-restocked units do not change stock.
 The exact BigInt estimate is advisory; the backend derives the persisted amount.
 
-Reason, quantities and applicable reference validate on every input after 300 ms,
-immediately on blur and on submit. Invalid submit focuses the first invalid field.
+Reason, quantities and applicable reference validate on every corresponding
+input after 300 ms, immediately on blur and on submit. Changing the refund
+method does not validate untouched fields. Invalid submit focuses the first
+invalid field.
 The actual refund method defaults to the original sale method but may differ.
-Changing it clears reference and confirmation. Noncash references are manual and
-unverified; cash sends no reference. Explicit confirmation that money was already
-refunded outside the system is required. No provider operation or discretionary
-refund amount is offered.
+Changing it clears the reference. The reference field stays visible but is
+disabled and muted for Cash; noncash references are manual and unverified. Cash
+sends no reference. Submission retains the backend-required
+`refundConfirmed: true` contract without displaying a separate confirmation
+checkbox. No provider operation or discretionary refund amount is offered.
 
 The sale-detail workflow presents returnable quantities and recorded refunds as
 separate sections. The Return refunds panel header uses the same responsive
@@ -42,7 +90,18 @@ title, description and action from the sections below. The return form groups
 item quantities first, then refund details, and keeps the estimated refund in a
 distinct summary row so the amount
 can be checked before submission. This improves scanning without changing the
-existing validation, confirmation, retry, authorization or persistence rules.
+existing validation, retry, authorization or persistence rules.
+The Return items dialog uses a wide landscape layout on larger screens, with a
+column-labeled item table on the left and refund details on the right. Product
+rows keep only the identity needed for selection; its column header stays fixed
+while only the item rows use bounded scrolling when the sale has many items.
+Refund methods and the external refund confirmation remains an API contract
+while refund methods use custom
+accessible radio controls. Invalid or incomplete drafts keep Record refund
+disabled; new Return and Restock quantities start empty, with an empty Restock
+quantity treated as zero while Return remains required. Quantity controls retain
+validation state without rendering inline feedback below the inputs, and server
+feedback appears above the action row.
 Returnable quantities keep product identity emphasized while giving the three
 quantity measures dedicated comparison columns. Recorded refunds separate the
 refund code, completion date, amount and View action; the action remains a
@@ -74,14 +133,21 @@ An unresolved other-sale attempt blocks new refunds and links staff to its origi
 sale; a completed other-sale attempt asks for original-sale read acknowledgement.
 
 Saved refund detail displays immutable identity, completion time, role-appropriate
-amount and metadata, then presents each returned line with product identity,
-returned/restocked quantities, unit price and line total. It has no edit/delete or
-printing controls. Merchants independently decode only reduced own-line/subtotal
-records, including saved branch identity, and have no create, staff/payment/actor or
-refund-print exposure. Cashiers mount no refund history reads or management
-controls. Sale detail remounts on organization/user/role/branch/sale changes;
-obsolete reads cannot restore privileged records. Backend fresh object authorization
-remains authoritative.
+amount and metadata, then presents returned lines in a labeled table with product
+identity, returned/restocked quantities, unit price and line total. Staff metadata
+stacks the date, completed status, method and reference beside the refund reason;
+the detail dialog uses a wide layout and clear section separation for scanning.
+The same `RefundDetailsDialog` is shared by sale/POS refund history and Reports
+Transactions. Reports opens it in place and first loads the authorized source
+sale; both paths validate refund snapshots against that sale. Closing does not
+change the applied report period, filters or page. Obsolete detail reads are
+discarded after dismissal or report-context changes.
+It has no edit/delete or printing controls. Merchants independently decode only
+reduced own-line/subtotal records, including saved branch identity, and have no
+create, staff/payment/actor or refund-print exposure. Cashiers mount no refund
+history reads or management controls. Sale detail remounts on organization/user/
+role/branch/sale changes; obsolete reads cannot restore privileged records.
+Backend fresh object authorization remains authoritative.
 
 ## Records and precise types
 

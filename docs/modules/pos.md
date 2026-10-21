@@ -1,5 +1,22 @@
 # Branch POS
 
+## Refund history navigation
+
+Owner and Manager POS navigation includes `Refund history` beside Cart and
+Sales History at `.../pos/refunds`. It lists authorized branch refunds using
+shared filters and 15-row pagination and provides `Find sale to refund` → sale
+selection → the existing return form. Cashier has no Refund history tab;
+Merchant has no POS access and retains Reports Transactions for own history.
+See [Item Returns and Manual Refunds](refunds.md) for API and recovery details.
+
+Same-branch refund navigation preserves the cart. Checkout locks still take
+precedence; unresolved checkout cannot be hidden by this route. Pending/unknown
+refunds block ordinary link/programmatic departure, retain their sale through
+query Back and keep original-sale recovery visible on browser Cart/History
+transitions inside the persistent POS layout. Completed recovery stays visible
+until its acknowledgement read succeeds. Moving away from Cart exits fullscreen
+under the existing fullscreen behavior.
+
 **Status:** Catalog, branch cart, payment confirmation, completion and internal receipt printing implemented.
 
 The organization POS entry and branch checkout routes use the shared warm-neutral
@@ -171,21 +188,22 @@ Rendered viewport QA was not run because no browser surface was available.
 ## Payment confirmation and recovery
 
 Review payment opens a native dialog showing the cart and estimated total. The
-payment-method controls and received confirmation use custom accessible controls.
+payment-method controls use custom accessible controls.
 Cash tender accepts only up to 22 whole digits and two decimal places; invalid
 characters are ignored, it must cover the total, and estimated change remains
 visible while editing. GCash/card are explicitly manual and provider-unverified,
 requiring a trimmed 2–100 character reference; overlong input is rejected. The
-reviewed item list has its own maximum height and scrolls independently. Staff
-must explicitly confirm that payment was received. Changing method clears its
-fields and received confirmation. Estimated change uses integer cents;
+reviewed item list has its own maximum height and scrolls independently. The
+Complete sale action stays disabled until the cash tender or manual payment
+reference is valid. Changing method clears its fields. Estimated change uses
+integer cents;
 completion displays backend-persisted change.
 
 Pending checkout blocks cart/payment edits, repeat activation, Escape/backdrop
 dismissal and outgoing link/menu navigation. A known rejected unchanged command
 keeps its request ID; changed content receives a new ID only after known rejection.
-Price conflicts update the identified cart price and require another review and
-received confirmation. Stock/lifecycle conflicts mark the affected line invalid;
+Price conflicts update the identified cart price and require another review.
+Stock/lifecycle conflicts mark the affected line invalid;
 staff must correct or remove it. Refresh never automatically submits checkout.
 
 Network/server errors, malformed/mismatched successful responses and request-ID
@@ -207,13 +225,16 @@ keeps Cart/recovery visible and does not request sales or auto-submit checkout.
 Only the active receipt mounts the print portal, so a hidden completion receipt
 cannot print alongside a saved receipt opened within the History workspace.
 
-Completion clears the cart and shows validated persisted receipt snapshots. Failed
-catalog refresh retries only the read and preserves the receipt. Printing uses a
-receipt-only print surface without shell/cart controls, and shows print-dialog or
-failure feedback without claiming the printer succeeded. Print cancellation/failure
-can retry printing only. Receipts are internal transaction records, not fiscal/tax
-invoices. POS links to branch history and the saved receipt detail; merchant own-sale
-screens remain separate and do not expose full receipt/print controls.
+Completion clears the cart and opens validated persisted receipt snapshots in a
+shared modal. The whole receipt modal scrolls when needed while its saved-receipt,
+dismissal and print actions stay together in a sticky footer. Failed catalog refresh
+retries only the read and preserves the receipt. Printing uses a receipt-only print
+surface without shell/cart
+controls, and shows print-dialog or failure feedback without claiming the printer
+succeeded. Print cancellation/failure can retry printing only. Receipts are
+internal transaction records, not fiscal/tax invoices. POS links to branch history
+and the saved receipt detail; merchant own-sale screens remain separate and do not
+expose full receipt/print controls.
 The saved receipt detail groups receipt identity, purchased items and payment
 summary into distinct reading zones; the total is separated from supporting payment
 metadata. Its return workflow presents remaining quantities before recorded refund

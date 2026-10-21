@@ -18,6 +18,18 @@ branch or business behavior changed.
 POS retains its page heading and description while access/branch reads load;
 the shared loading treatment covers only branch selection and page content.
 
+## POS refund history (October 21, 2026)
+
+Owners and Managers have a route-backed Refund history tab using the shared
+stacked collection header, muted filter row, custom calendar/dropdown and 15-row
+pagination. Search and dates are retained in URL state. Find sale to refund
+opens a paginated original-sale selection view before reusing the existing return
+dialog; saved refund detail reuses the existing read-only presentation. Merchants
+retain Reports Transactions and own-sale detail; Cashiers have no refund tab.
+Same-branch navigation preserves the cart. Within the POS layout, pending refund
+recovery survives query/Cart/History browser transitions and remains until the
+completed record's quantities read succeeds. See [Refunds](refunds.md).
+
 ## Shared card surfaces (October 13, 2026)
 
 Card-like surfaces across the public landing page, guest flows, organization
@@ -352,6 +364,15 @@ the user on September 19, 2026 because no browser surface was connected.
 Automated checks do not certify rendered layout or accessibility.
 
 ## Staff sales reports
+
+Branch Reports now has nested Overview, Transactions, Daily Data and Rankings
+routes under a persistent shared layout. The header, branch selector and period
+controls remain in place while tab links change the URL. Applied concrete dates,
+filters and pagination survive refresh and Back/Forward; branch changes retain
+the view/period and reset branch-specific filters. The existing branch Reports
+URL redirects to Overview. Refund rows still open their details modal within
+Transactions. Existing access and calculation contracts remain unchanged; see
+[Reports navigation](reports.md#nested-reports-navigation).
 
 Owners/managers now have Reports in sidebar/mobile navigation, with both Reports
 routes active under that entry rather than Branches. The entry requires explicit

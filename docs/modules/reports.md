@@ -96,6 +96,39 @@ dates never imply All time.
 
 No schema migration, dependency or new reporting infrastructure is required.
 
+## Nested Reports navigation
+
+Branch Reports shares one persistent layout for the header, authorized branch
+picker and applied report period. Its route-backed views are `reports/overview`,
+`reports/transactions`, `reports/daily-data` and `reports/rankings`. The existing
+branch `reports` URL redirects to Overview while retaining query parameters;
+organization Reports entry and branch lookup/access behavior remain unchanged.
+
+Tab links retain the same concrete applied period and tab-specific query state.
+The initial queryless view is replaced with a URL containing `preset`, `fromDay`
+and `throughDay`, so Back restores the original period after another is applied.
+Bounded dates stay frozen across tabs and reloads. All time retains its frozen
+upper date and re-resolves authorized history on a fresh mount; merely switching
+tabs does not re-resolve it. Existing Merchant refresh revalidation is unchanged.
+
+Transactions uses `transactionQ`, `transactionType` and `transactionPage`;
+rankings uses `rankingSort`, `rankingMerchant` and `rankingPage`; daily detail
+uses `dailyPage`. Search edits are debounced and replace the current URL;
+tab, committed filter and page changes create history entries. Invalid/partial
+periods fall back to the workspace period, invalid pages normalize to one, and
+Merchant scope ignores staff-only merchant filters. The URL does not authorize
+tenant/branch/profile access; existing protected read endpoints remain authoritative.
+
+Changing branches retains the active view and period, clears branch-specific
+filters/pages and discards old results before navigation. Period changes also
+reset tab filters/pages. Normal tab changes keep the header mounted and reuse
+the applied analytics response; only the selected tab loads detail reads.
+Transactions and ranking results/errors are matched to their active queries;
+obsolete responses cannot restore a previous filter/page's data or retry target.
+Daily tables retain 15-row local pagination for short periods and bounded
+server pagination for grouped periods. Refund details remain an in-page modal
+within Transactions, preserving the selected route, dates and filters on close.
+
 ## Transactions history
 
 The Reports workspace includes a read-only `Transactions` tab beside `Overview`,
@@ -120,9 +153,14 @@ Owner and Manager rows expose the saved reference, amount, payment method, actor
 display name and saved merchant-name context. Merchant rows contain only the
 currently linked profile's own sale/refund amount and source identifiers; they
 omit payment, actor and other-merchant fields. Every row includes the source sale
-ID so Action opens the existing authorized sale detail and its refund workflow.
-The full row is also keyboard-focusable and opens that same branch-scoped detail
-route on click, Enter or Space; the explicit View action remains available.
+ID so sale navigation and refund-detail reads retain the authorized sale context.
+Sale rows are keyboard-focusable and open that same branch-scoped sale-detail
+route on click, Enter or Space; the explicit View link remains available.
+Refund rows and their View button open the shared read-only refund-details modal
+within Reports, after loading the authorized source sale and validating the
+refund's saved item snapshots. Merchant details remain reduced to own items.
+Closing preserves report period, filters and pagination; loading, scope/page
+changes or read failures discard the prior modal context and obsolete reads.
 All authorization, filters, counts and rows are read inside one REPEATABLE READ
 transaction. The endpoint is read-only and adds no schema, index or migration.
 
@@ -335,8 +373,8 @@ BigInt performs unlimited accounting arithmetic; SVG coordinates use only bounde
 integer ratios, never direct unlimited-money Number conversion. The Daily Data
 tab retains all exact daily values in a paginated semantic table.
 
-The Sales Reports workspace has Inventory-style `Overview`, `Daily Data` and
-`Rankings` tabs beside the title-cased `Refresh Report` action. Switching tabs
+The Sales Reports workspace has Inventory-style `Overview`, `Transactions`,
+`Daily Data` and `Rankings` route tabs beside the title-cased `Refresh Report` action. Switching tabs
 keeps the selected Philippines date range and branch filters in place. Overview
 contains the cards and charts. Daily Data moves the exact Asia/Manila daily table
 into a semantic Inventory-style table with 15 rows per page and local pagination.
