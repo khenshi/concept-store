@@ -2,6 +2,8 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { Prisma } from '../../../generated/prisma/client';
 import { RefundReadService } from './refund-read.service';
 import { merchantRefundSelect } from './refund-read.types';
+import { branchRefundSummarySelect } from './branch-refund-read.types';
+import { ListBranchRefundsQueryDto } from './dto/list-branch-refunds-query.dto';
 const context = {
   organizationId: 'org',
   userId: 'user',
@@ -35,6 +37,170 @@ describe('RefundReadService scopes and snapshots', () => {
     ]);
     tx.refund.count.mockResolvedValue(3);
     tx.refund.findMany.mockResolvedValue([]);
+  });
+  it('returns only branch summaries and exact totals in a single authorized snapshot', async () => {
+    tx.refund.findMany.mockResolvedValue([
+      {
+        id: 'refund',
+        saleId: 'sale',
+        refundCode: 'RF-1',
+        completedAt: new Date('2026-10-21T00:00:00Z'),
+        paymentMethod: 'GCASH',
+        total: new Prisma.Decimal('1234567890123456789012.34'),
+        sale: { receiptCode: 'RC-1' },
+      },
+    ]);
+    const result = await service.findBranchHistory(
+      context,
+      'branch',
+      new ListBranchRefundsQueryDto(),
+    );
+    expect(result).toEqual({
+      scope: 'STAFF',
+      organizationId: 'org',
+      branchId: 'branch',
+      page: 1,
+      limit: 15,
+      total: 3,
+      totalPages: 1,
+      items: [
+        {
+          id: 'refund',
+          saleId: 'sale',
+          refundCode: 'RF-1',
+          receiptCode: 'RC-1',
+          completedAt: new Date('2026-10-21T00:00:00Z'),
+          paymentMethod: 'GCASH',
+          total: '1234567890123456789012.34',
+        },
+      ],
+    });
+    expect(tx.refund.findMany).toHaveBeenCalledWith({
+      where: { organizationId: 'org', branchId: 'branch' },
+      skip: 0,
+      take: 15,
+      orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
+      select: branchRefundSummarySelect,
+    });
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    });
+    expect(tx.organizationMembership.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          organizationId_userId: { organizationId: 'org', userId: 'user' },
+          user: { deletedAt: null },
+        },
+      }),
+    );
+    expect(tx.sale.findFirst).not.toHaveBeenCalled();
+    expect(tx.saleItem.findMany).not.toHaveBeenCalled();
+    expect(tx.refundItem.groupBy).not.toHaveBeenCalled();
+  });
+  it('uses identical combined predicates for count and page, escaping literal LIKE metacharacters', async () => {
+    await service.findBranchHistory(context, 'branch', {
+      page: 2,
+      limit: 100,
+      q: 'a%_\\b',
+      paymentMethod: 'CARD',
+      from: '0001-01-01T00:00:00Z',
+      until: '9999-12-31T23:59:59.999Z',
+    });
+    const where = {
+      organizationId: 'org',
+      branchId: 'branch',
+      paymentMethod: 'CARD',
+      completedAt: {
+        gte: new Date('0001-01-01T00:00:00Z'),
+        lt: new Date('9999-12-31T23:59:59.999Z'),
+      },
+      OR: [
+        { refundCode: { contains: 'a\\%\\_\\\\b', mode: 'insensitive' } },
+        {
+          sale: {
+            receiptCode: { contains: 'a\\%\\_\\\\b', mode: 'insensitive' },
+          },
+        },
+      ],
+    };
+    expect(tx.refund.count).toHaveBeenCalledWith({ where });
+    expect(tx.refund.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where, skip: 100, take: 100 }),
+    );
+  });
+  it.each(['CASHIER', 'MERCHANT'])(
+    'denies current %s branch history even with a stale OWNER context',
+    async (role) => {
+      tx.organizationMembership.findUnique.mockResolvedValue({
+        role,
+        merchantId: 'merchant',
+      });
+      await expect(
+        service.findBranchHistory(
+          context,
+          'branch',
+          new ListBranchRefundsQueryDto(),
+        ),
+      ).rejects.toThrow('cannot read refunds');
+      expect(tx.refund.count).not.toHaveBeenCalled();
+      expect(tx.branch.findFirst).not.toHaveBeenCalled();
+    },
+  );
+  it.each(['member', 'branch'])(
+    'denies missing current %s for branch history before any refund query',
+    async (missing) => {
+      if (missing === 'member')
+        tx.organizationMembership.findUnique.mockResolvedValue(null);
+      else tx.branch.findFirst.mockResolvedValue(null);
+      await expect(
+        service.findBranchHistory(
+          context,
+          'branch',
+          new ListBranchRefundsQueryDto(),
+        ),
+      ).rejects.toThrow('not found');
+      expect(tx.refund.count).not.toHaveBeenCalled();
+    },
+  );
+  it('checks current manager assignments for branch history', async () => {
+    tx.organizationMembership.findUnique.mockResolvedValue({
+      role: 'MANAGER',
+      merchantId: null,
+    });
+    await service.findBranchHistory(
+      context,
+      'branch',
+      new ListBranchRefundsQueryDto(),
+    );
+    expect(tx.branch.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            organizationId: 'org',
+            memberships: { some: { organizationId: 'org', userId: 'user' } },
+          },
+          { id: 'branch' },
+        ],
+      },
+      select: { id: true },
+    });
+  });
+  it.each([
+    { from: '2026-10-21T00:00:00Z' },
+    { until: '2026-10-21T00:00:00Z' },
+    { from: 'bad', until: '2026-10-21T00:00:00Z' },
+    { from: '2026-10-21T00:00:00Z', until: '2026-10-21T00:00:00Z' },
+    { from: '2026-10-22T00:00:00Z', until: '2026-10-21T00:00:00Z' },
+    { from: '0000-12-31T23:59:59Z', until: '2026-10-21T00:00:00Z' },
+    { from: '2026-10-21T00:00:00Z', until: '+010000-01-01T00:00:00Z' },
+  ])('rejects unsupported or unpaired bounds %j', async (bounds) => {
+    await expect(
+      service.findBranchHistory(context, 'branch', {
+        ...new ListBranchRefundsQueryDto(),
+        ...bounds,
+      }),
+    ).rejects.toThrow('paired, ordered UTC bounds');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
   it('uses repeatable read and full-scope sums independently of page bounds', async () => {
     expect(

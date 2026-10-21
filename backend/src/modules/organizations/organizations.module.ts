@@ -36,7 +36,10 @@ import { ReportsController } from './reports/reports.controller';
 import { ReportsService } from './reports/reports.service';
 import { RefundsController } from './refunds/refunds.controller';
 import { RefundsService } from './refunds/refunds.service';
-import { RefundReadController } from './refunds/refund-read.controller';
+import {
+  BranchRefundReadController,
+  RefundReadController,
+} from './refunds/refund-read.controller';
 import { RefundReadService } from './refunds/refund-read.service';
 
 @Module({
@@ -45,6 +48,7 @@ import { RefundReadService } from './refunds/refund-read.service';
     SpacesController,
     MerchantBranchesController,
     RefundReadController,
+    BranchRefundReadController,
     RefundsController,
     ReportsController,
     OrganizationsController,

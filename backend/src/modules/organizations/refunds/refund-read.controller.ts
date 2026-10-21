@@ -25,6 +25,8 @@ import { OrganizationRoles } from '../authorization/organization-roles.decorator
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { RefundCommandQueryDto } from './dto/create-refund.dto';
 import { ListRefundsQueryDto } from './dto/list-refunds-query.dto';
+import { ListBranchRefundsQueryDto } from './dto/list-branch-refunds-query.dto';
+import { BranchRefundPageDto } from './branch-refund-read.types';
 import { RefundReadService } from './refund-read.service';
 import { CompletedRefundResponseDto } from './refunds.types';
 import {
@@ -109,6 +111,43 @@ export class RefundReadController {
       branchId.toLowerCase(),
       saleId.toLowerCase(),
       refundId.toLowerCase(),
+    );
+  }
+}
+
+@Controller('organizations/:organizationId/branches/:branchId/refunds')
+@UseGuards(AuthGuard, OrganizationAccessGuard)
+@OrganizationRoles('OWNER', 'MANAGER')
+@ApiTags('refunds')
+@ApiBearerAuth('access-token')
+@ApiUnauthorizedResponse({ description: 'Authentication required' })
+@ApiForbiddenResponse({
+  description: 'Current role cannot read branch refund history',
+})
+@ApiNotFoundResponse({
+  description: 'Organization or accessible branch not found',
+})
+@ApiBadRequestResponse({
+  description:
+    'Invalid UUID, paired UTC bounds, filters, pagination or unknown query fields',
+})
+export class BranchRefundReadController {
+  constructor(private readonly refunds: RefundReadService) {}
+
+  @Get()
+  @ApiOperation({
+    summary: 'Paginated staff branch refund summaries, newest completion first',
+  })
+  @ApiOkResponse({ type: BranchRefundPageDto })
+  findAll(
+    @CurrentOrganization() context: OrganizationContext,
+    @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
+    @Query() query: ListBranchRefundsQueryDto,
+  ) {
+    return this.refunds.findBranchHistory(
+      context,
+      branchId.toLowerCase(),
+      query,
     );
   }
 }

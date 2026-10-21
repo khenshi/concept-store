@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,6 +9,12 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { branchScope } from '../authorization/resource-access';
 import type { ListRefundsQueryDto } from './dto/list-refunds-query.dto';
+import type { ListBranchRefundsQueryDto } from './dto/list-branch-refunds-query.dto';
+import {
+  branchRefundSummaryResponse,
+  branchRefundSummarySelect,
+  type BranchRefundPageDto,
+} from './branch-refund-read.types';
 import {
   completedRefundResponse,
   completedRefundSelect,
@@ -20,6 +27,73 @@ import {
 @Injectable()
 export class RefundReadService {
   constructor(private readonly prisma: PrismaService) {}
+  async findBranchHistory(
+    context: OrganizationContext,
+    branchId: string,
+    query: ListBranchRefundsQueryDto,
+  ): Promise<BranchRefundPageDto> {
+    let completedAt: Prisma.DateTimeFilter | undefined;
+    if (query.from !== undefined || query.until !== undefined) {
+      const from = new Date(query.from ?? '');
+      const until = new Date(query.until ?? '');
+      if (
+        !Number.isFinite(from.getTime()) ||
+        !Number.isFinite(until.getTime()) ||
+        from.getTime() < Date.parse('0001-01-01T00:00:00Z') ||
+        until.getTime() > Date.parse('9999-12-31T23:59:59.999Z') ||
+        from >= until
+      )
+        throw new BadRequestException(
+          'from and until must be paired, ordered UTC bounds within years 0001–9999',
+        );
+      completedAt = { gte: from, lt: until };
+    }
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await this.authorize(tx, context, branchId);
+        const search = query.q?.replace(/[\\%_]/g, '\\$&');
+        const where: Prisma.RefundWhereInput = {
+          organizationId: current.organizationId,
+          branchId,
+          ...(completedAt ? { completedAt } : {}),
+          ...(query.paymentMethod
+            ? { paymentMethod: query.paymentMethod }
+            : {}),
+          ...(search
+            ? {
+                OR: [
+                  { refundCode: { contains: search, mode: 'insensitive' } },
+                  {
+                    sale: {
+                      receiptCode: { contains: search, mode: 'insensitive' },
+                    },
+                  },
+                ],
+              }
+            : {}),
+        };
+        const total = await tx.refund.count({ where });
+        const rows = await tx.refund.findMany({
+          where,
+          orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
+          skip: (query.page - 1) * query.limit,
+          take: query.limit,
+          select: branchRefundSummarySelect,
+        });
+        return {
+          scope: 'STAFF',
+          organizationId: current.organizationId,
+          branchId,
+          page: query.page,
+          limit: query.limit,
+          total,
+          totalPages: Math.ceil(total / query.limit),
+          items: rows.map(branchRefundSummaryResponse),
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
   async findAll(
     context: OrganizationContext,
     branchId: string,
@@ -119,7 +193,7 @@ export class RefundReadService {
     tx: Prisma.TransactionClient,
     context: OrganizationContext,
     branchId: string,
-    saleId: string,
+    saleId?: string,
   ): Promise<OrganizationContext> {
     const member = await tx.organizationMembership.findUnique({
       where: {
@@ -132,7 +206,11 @@ export class RefundReadService {
       select: { role: true, merchantId: true },
     });
     if (!member) throw new NotFoundException('Organization not found');
-    if (!['OWNER', 'MANAGER', 'MERCHANT'].includes(member.role))
+    if (
+      !(
+        saleId ? ['OWNER', 'MANAGER', 'MERCHANT'] : ['OWNER', 'MANAGER']
+      ).includes(member.role)
+    )
       throw new ForbiddenException(
         'Your organization role cannot read refunds',
       );
@@ -148,6 +226,7 @@ export class RefundReadService {
       });
       if (!branch) throw new NotFoundException('Branch not found');
     }
+    if (saleId === undefined) return current;
     // A historical own sale grants reduced reads even without assignments or active placements.
     // An assignment alone never grants another merchant's sale or refund.
     const sale = await tx.sale.findFirst({

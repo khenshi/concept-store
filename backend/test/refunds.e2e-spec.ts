@@ -9,13 +9,17 @@ import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
 import { RefundsController } from '../src/modules/organizations/refunds/refunds.controller';
 import { RefundsService } from '../src/modules/organizations/refunds/refunds.service';
-import { RefundReadController } from '../src/modules/organizations/refunds/refund-read.controller';
+import {
+  BranchRefundReadController,
+  RefundReadController,
+} from '../src/modules/organizations/refunds/refund-read.controller';
 import { RefundReadService } from '../src/modules/organizations/refunds/refund-read.service';
 const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const sale = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const actor = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const path = `/organizations/${org}/branches/${branch}/sales/${sale}/refunds`;
+const branchPath = `/organizations/${org}/branches/${branch}/refunds`;
 const valid = {
   requestId: actor,
   items: [{ saleItemId: actor, quantity: 2 }],
@@ -28,7 +32,11 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
   let jwt: JwtService;
   let role = 'OWNER';
   const refunds = { complete: jest.fn() };
-  const reads = { findAll: jest.fn(), findOne: jest.fn() };
+  const reads = {
+    findAll: jest.fn(),
+    findOne: jest.fn(),
+    findBranchHistory: jest.fn(),
+  };
   const prisma = {
     user: { findFirst: jest.fn() },
     organizationMembership: { findUnique: jest.fn() },
@@ -40,7 +48,11 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'refund-http-test-only' })],
-      controllers: [RefundsController, RefundReadController],
+      controllers: [
+        RefundsController,
+        RefundReadController,
+        BranchRefundReadController,
+      ],
       providers: [
         AuthGuard,
         OrganizationAccessGuard,
@@ -83,11 +95,171 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
       items: [],
       remainingItems: [],
       page: 1,
-      limit: 50,
+      limit: 15,
       total: 0,
       totalPages: 0,
     });
     reads.findOne.mockResolvedValue({ scope: 'STAFF', total: '25.00' });
+    reads.findBranchHistory.mockResolvedValue({
+      scope: 'STAFF',
+      organizationId: org,
+      branchId: branch,
+      items: [],
+      page: 1,
+      limit: 15,
+      total: 0,
+      totalPages: 0,
+    });
+  });
+  it.each(['OWNER', 'MANAGER'])(
+    'allows %s branch history with bounded defaults',
+    async (current) => {
+      role = current;
+      await http()
+        .get(branchPath.replace(branch, branch.toUpperCase()))
+        .auth(token(), { type: 'bearer' })
+        .expect(200);
+      expect(reads.findBranchHistory).toHaveBeenCalledWith(
+        expect.objectContaining({ organizationId: org, userId: actor, role }),
+        branch,
+        expect.objectContaining({ page: 1, limit: 15 }),
+      );
+    },
+  );
+  it.each(['CASHIER', 'MERCHANT'])(
+    'denies %s branch history',
+    async (current) => {
+      role = current;
+      await http()
+        .get(branchPath)
+        .auth(token(), { type: 'bearer' })
+        .expect(403);
+      expect(reads.findBranchHistory).not.toHaveBeenCalled();
+    },
+  );
+  it('requires branch history authentication and current tenant membership', async () => {
+    await http().get(branchPath).expect(401);
+    await http()
+      .get(branchPath.replace(org, actor))
+      .auth(token(), { type: 'bearer' })
+      .expect(404);
+    for (const id of [org, branch])
+      await http()
+        .get(branchPath.replace(id, 'bad'))
+        .auth(token(), { type: 'bearer' })
+        .expect(400);
+    expect(reads.findBranchHistory).not.toHaveBeenCalled();
+  });
+  it.each([
+    { q: 'x'.repeat(255) },
+    { q: ['a', 'b'] },
+    { paymentMethod: 'OTHER' },
+    { paymentMethod: ['CASH', 'CARD'] },
+    { from: '2026-10-21T00:00:00Z' },
+    { until: '2026-10-22T00:00:00Z' },
+    { from: '2026-02-30T00:00:00Z', until: '2026-10-22T00:00:00Z' },
+    { from: '2026-10-21', until: '2026-10-22T00:00:00Z' },
+    { from: '2026-10-21T00:00:00+00:00', until: '2026-10-22T00:00:00Z' },
+    { from: '0000-01-01T00:00:00Z', until: '2026-10-22T00:00:00Z' },
+    { from: '2026-10-21T00:00:00.1234Z', until: '2026-10-22T00:00:00Z' },
+    {
+      from: ['2026-10-21T00:00:00Z', '2026-10-21T00:00:00Z'],
+      until: '2026-10-22T00:00:00Z',
+    },
+    { page: '0' },
+    { page: '21474837' },
+    { page: '1e2' },
+    { page: '1.2' },
+    { limit: '0' },
+    { limit: '101' },
+    { limit: ['1', '2'] },
+    { merchantId: actor },
+    { cashierId: actor },
+    { saleId: sale },
+  ])('rejects malformed branch history filters %j', async (query) => {
+    await http()
+      .get(branchPath)
+      .query(query)
+      .auth(token(), { type: 'bearer' })
+      .expect(400);
+    expect(reads.findBranchHistory).not.toHaveBeenCalled();
+  });
+  it('normalizes branch filters and accepts supported UTC year boundaries', async () => {
+    await http()
+      .get(branchPath)
+      .query({
+        q: ' RF%_\\ ',
+        paymentMethod: 'CARD',
+        from: '0001-01-01T00:00:00Z',
+        until: '9999-12-31T23:59:59.999Z',
+        page: '2',
+        limit: '100',
+      })
+      .auth(token(), { type: 'bearer' })
+      .expect(200);
+    expect(reads.findBranchHistory).toHaveBeenCalledWith(
+      expect.anything(),
+      branch,
+      expect.objectContaining({
+        q: 'RF%_\\',
+        paymentMethod: 'CARD',
+        page: 2,
+        limit: 100,
+        from: '0001-01-01T00:00:00Z',
+        until: '9999-12-31T23:59:59.999Z',
+      }),
+    );
+  });
+  it('documents the exact lightweight branch history contract', () => {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().build(),
+    );
+    expect(
+      document.paths[
+        '/organizations/{organizationId}/branches/{branchId}/refunds'
+      ].get,
+    ).toMatchObject({
+      responses: {
+        '200': {
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/BranchRefundPageDto' },
+            },
+          },
+        },
+      },
+    });
+    const row = document.components?.schemas?.BranchRefundSummaryDto;
+    expect(
+      row && 'properties' in row
+        ? Object.keys(row.properties ?? {}).sort()
+        : [],
+    ).toEqual(
+      [
+        'id',
+        'saleId',
+        'receiptCode',
+        'refundCode',
+        'completedAt',
+        'paymentMethod',
+        'total',
+      ].sort(),
+    );
+    expect(row).toMatchObject({
+      properties: {
+        total: { type: 'string' },
+        paymentMethod: { enum: ['CASH', 'GCASH', 'CARD'] },
+      },
+    });
+    expect(document.components?.schemas?.BranchRefundPageDto).toMatchObject({
+      properties: {
+        scope: { enum: ['STAFF'] },
+        organizationId: { type: 'string' },
+        branchId: { type: 'string' },
+        items: { type: 'array' },
+      },
+    });
   });
   it.each(['OWNER', 'MANAGER', 'MERCHANT'])(
     'allows %s to call refund reads but not wider write roles',
@@ -98,7 +270,7 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
         expect.objectContaining({ organizationId: org, userId: actor, role }),
         branch,
         sale,
-        expect.objectContaining({ page: 1, limit: 50 }),
+        expect.objectContaining({ page: 1, limit: 15 }),
       );
       await http()
         .get(`${path}/${actor}`)

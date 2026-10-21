@@ -13,6 +13,7 @@ import { InventoryStockService } from '../src/modules/organizations/inventory/in
 import { InventoryReconciliationService } from '../src/modules/organizations/inventory/inventory-reconciliation.service';
 import type { CreateRefundDto } from '../src/modules/organizations/refunds/dto/create-refund.dto';
 import type { OrganizationContext } from '../src/modules/organizations/authorization/organization-authorization.types';
+import { ListBranchRefundsQueryDto } from '../src/modules/organizations/refunds/dto/list-branch-refunds-query.dto';
 const connectionString = process.env.TEST_DATABASE_URL;
 if (!connectionString)
   throw new Error(
@@ -246,6 +247,488 @@ describe('PostgreSQL refund commands and concurrency', () => {
       }),
     ).toEqual(original);
     expect(await balance()).toBe(90);
+  });
+  it('returns an empty scoped branch page without cumulative item data or writes', async () => {
+    expect(
+      await reads.findBranchHistory(
+        owner(),
+        branchId,
+        new ListBranchRefundsQueryDto(),
+      ),
+    ).toEqual({
+      scope: 'STAFF',
+      organizationId,
+      branchId,
+      page: 1,
+      limit: 15,
+      total: 0,
+      totalPages: 0,
+      items: [],
+    });
+    expect(await prisma.refund.count({ where: { organizationId } })).toBe(0);
+    await ledger();
+  });
+  it('combines refund date, actual method and receipt/refund-code search across original sales', async () => {
+    const first = await record({
+      ...command(1, 0),
+      paymentMethod: 'CARD',
+      paymentReference: 'MANUAL',
+    });
+    const second = await record(command(1, 0));
+    const third = await record({
+      ...command(1, 0),
+      paymentMethod: 'CARD',
+      paymentReference: 'MANUAL',
+    });
+    const earlier = await record({
+      ...command(1, 0),
+      paymentMethod: 'CARD',
+      paymentReference: 'MANUAL',
+    });
+    const from = '2026-10-20T16:00:00Z',
+      until = '2026-10-21T16:00:00Z';
+    await prisma.sale.update({
+      where: { id: saleId },
+      data: {
+        completedAt: new Date('2020-01-01T00:00:00Z'),
+        receiptCode: 'Old-Receipt',
+      },
+    });
+    await prisma.refund.update({
+      where: { id: first.id },
+      data: { completedAt: new Date(from), refundCode: 'Target-Refund' },
+    });
+    await prisma.refund.update({
+      where: { id: second.id },
+      data: { completedAt: new Date(from) },
+    });
+    await prisma.refund.update({
+      where: { id: third.id },
+      data: { completedAt: new Date(until) },
+    });
+    await prisma.refund.update({
+      where: { id: earlier.id },
+      data: { completedAt: new Date('2026-10-20T15:59:59.999Z') },
+    });
+    const anotherSale = await checkout.complete(owner(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '12.50',
+      items: [
+        {
+          branchInventoryId: inventories[0],
+          quantity: 1,
+          expectedUnitPrice: '12.50',
+        },
+      ],
+    });
+    const another = await refunds.complete(owner(), branchId, anotherSale.id, {
+      ...command(1, 0),
+      items: [
+        {
+          saleItemId: anotherSale.items[0].id,
+          quantity: 1,
+          restockQuantity: 0,
+        },
+      ],
+      paymentMethod: 'CARD',
+      paymentReference: 'MANUAL',
+    });
+    await prisma.refund.update({
+      where: { id: another.id },
+      data: { completedAt: new Date(from) },
+    });
+    for (const q of ['old-RECEIPT', 'target-REFUND']) {
+      const page = await reads.findBranchHistory(owner(), branchId, {
+        ...new ListBranchRefundsQueryDto(),
+        from,
+        until,
+        q,
+        paymentMethod: 'CARD',
+      });
+      expect(page).toMatchObject({
+        total: 1,
+        totalPages: 1,
+        items: [
+          {
+            id: first.id,
+            saleId,
+            receiptCode: 'Old-Receipt',
+            paymentMethod: 'CARD',
+            total: '12.50',
+          },
+        ],
+      });
+      expect(Object.keys(page.items[0]).sort()).toEqual(
+        [
+          'id',
+          'saleId',
+          'receiptCode',
+          'refundCode',
+          'completedAt',
+          'paymentMethod',
+          'total',
+        ].sort(),
+      );
+    }
+    expect(
+      await reads.findBranchHistory(owner(), branchId, {
+        ...new ListBranchRefundsQueryDto(),
+        from,
+        until,
+        paymentMethod: 'CARD',
+      }),
+    ).toMatchObject({ total: 2 });
+    expect(
+      await reads.findBranchHistory(
+        owner(),
+        branchId,
+        new ListBranchRefundsQueryDto(),
+      ),
+    ).toMatchObject({ total: 5 });
+    expect(
+      await reads.findBranchHistory(owner(), branchId, {
+        ...new ListBranchRefundsQueryDto(),
+        from: '0001-01-01T00:00:00Z',
+        until: '9999-12-31T23:59:59.999Z',
+      }),
+    ).toMatchObject({ total: 5 });
+    expect(
+      await reads.findBranchHistory(owner(), branchId, {
+        ...new ListBranchRefundsQueryDto(),
+        q: 'no match',
+      }),
+    ).toMatchObject({ total: 0, totalPages: 0, items: [] });
+  });
+  it('treats percent, underscore and backslash literally in either searchable code', async () => {
+    const literal = await record(command(1, 0));
+    const decoy = await record(command(1, 0));
+    await prisma.refund.update({
+      where: { id: literal.id },
+      data: { refundCode: 'Refund%_\\Mixed' },
+    });
+    await prisma.refund.update({
+      where: { id: decoy.id },
+      data: { refundCode: 'RefundAAAMixed' },
+    });
+    for (const q of ['%', '_', '\\', 'refund%_\\mixed'])
+      expect(
+        await reads.findBranchHistory(owner(), branchId, {
+          ...new ListBranchRefundsQueryDto(),
+          q,
+        }),
+      ).toMatchObject({ total: 1, items: [{ id: literal.id }] });
+    await prisma.sale.update({
+      where: { id: saleId },
+      data: { receiptCode: 'Receipt%_\\Mixed' },
+    });
+    expect(
+      await reads.findBranchHistory(owner(), branchId, {
+        ...new ListBranchRefundsQueryDto(),
+        q: 'receipt%_\\mixed',
+      }),
+    ).toMatchObject({ total: 2 });
+    expect(
+      await reads.findBranchHistory(owner(), branchId, {
+        ...new ListBranchRefundsQueryDto(),
+        q: '%_\\',
+      }),
+    ).toMatchObject({ total: 2 });
+  });
+  it('paginates tied completion times by descending ID without duplicates or lost totals', async () => {
+    const sale = await checkout.complete(owner(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '250.00',
+      items: [
+        {
+          branchInventoryId: inventories[0],
+          quantity: 20,
+          expectedUnitPrice: '12.50',
+        },
+      ],
+    });
+    const ids: string[] = [];
+    for (let index = 0; index < 17; index++)
+      ids.push(
+        (
+          await refunds.complete(owner(), branchId, sale.id, {
+            ...command(1, 0),
+            items: [
+              { saleItemId: sale.items[0].id, quantity: 1, restockQuantity: 0 },
+            ],
+          })
+        ).id,
+      );
+    await prisma.refund.updateMany({
+      where: { organizationId },
+      data: { completedAt: new Date('2026-10-21T00:00:00Z') },
+    });
+    const first = await reads.findBranchHistory(
+      owner(),
+      branchId,
+      new ListBranchRefundsQueryDto(),
+    );
+    const second = await reads.findBranchHistory(owner(), branchId, {
+      ...new ListBranchRefundsQueryDto(),
+      page: 2,
+    });
+    expect(first).toMatchObject({
+      page: 1,
+      limit: 15,
+      total: 17,
+      totalPages: 2,
+    });
+    expect(first.items).toHaveLength(15);
+    expect(second.items).toHaveLength(2);
+    expect([...first.items, ...second.items].map((row) => row.id)).toEqual(
+      ids.sort().reverse(),
+    );
+    expect(
+      await reads.findBranchHistory(owner(), branchId, {
+        ...new ListBranchRefundsQueryDto(),
+        page: 3,
+      }),
+    ).toMatchObject({ total: 17, totalPages: 2, items: [] });
+  });
+  it('checks current branch assignments and isolates other branches and tenants on every read', async () => {
+    await record();
+    const managerId = await actor('MANAGER');
+    const stale = { ...owner(), userId: managerId };
+    await expect(
+      reads.findBranchHistory(stale, branchId, new ListBranchRefundsQueryDto()),
+    ).rejects.toThrow('Branch not found');
+    await prisma.branchMembership.create({
+      data: { organizationId, branchId, userId: managerId },
+    });
+    expect(
+      await reads.findBranchHistory(
+        stale,
+        branchId,
+        new ListBranchRefundsQueryDto(),
+      ),
+    ).toMatchObject({ total: 1 });
+    await prisma.branchMembership.deleteMany({
+      where: { organizationId, userId: managerId },
+    });
+    await expect(
+      reads.findBranchHistory(stale, branchId, new ListBranchRefundsQueryDto()),
+    ).rejects.toThrow('Branch not found');
+    expect(
+      await reads.findBranchHistory(
+        owner(),
+        otherBranchId,
+        new ListBranchRefundsQueryDto(),
+      ),
+    ).toMatchObject({ total: 0, items: [] });
+    const foreign = await prisma.organization.create({
+      data: { name: 'Foreign history tenant' },
+    });
+    await prisma.organizationMembership.create({
+      data: { organizationId: foreign.id, userId: ownerId, role: 'OWNER' },
+    });
+    await expect(
+      reads.findBranchHistory(
+        { ...owner(), organizationId: foreign.id },
+        branchId,
+        new ListBranchRefundsQueryDto(),
+      ),
+    ).rejects.toThrow('Branch not found');
+    await expect(
+      reads.findBranchHistory(
+        { ...owner(), organizationId: randomUUID() },
+        branchId,
+        new ListBranchRefundsQueryDto(),
+      ),
+    ).rejects.toThrow('Organization not found');
+    await expect(
+      reads.findBranchHistory(
+        owner(),
+        randomUUID(),
+        new ListBranchRefundsQueryDto(),
+      ),
+    ).rejects.toThrow('Branch not found');
+  });
+  it.each(['MERCHANT', 'CASHIER', 'removed', 'deleted'] as const)(
+    'revokes branch history after current access becomes %s',
+    async (change) => {
+      await record();
+      const context = owner();
+      expect(
+        await reads.findBranchHistory(
+          context,
+          branchId,
+          new ListBranchRefundsQueryDto(),
+        ),
+      ).toMatchObject({ total: 1 });
+      if (change === 'removed')
+        await prisma.organizationMembership.deleteMany({
+          where: { organizationId, userId: ownerId },
+        });
+      else if (change === 'deleted')
+        await prisma.user.update({
+          where: { id: ownerId },
+          data: { deletedAt: new Date() },
+        });
+      else
+        await prisma.organizationMembership.update({
+          where: { organizationId_userId: { organizationId, userId: ownerId } },
+          data: { role: change },
+        });
+      await expect(
+        reads.findBranchHistory(
+          context,
+          branchId,
+          new ListBranchRefundsQueryDto(),
+        ),
+      ).rejects.toThrow(
+        change === 'removed' || change === 'deleted'
+          ? 'Organization not found'
+          : 'cannot read refunds',
+      );
+    },
+  );
+  it('keeps branch count and page rows in the same snapshot during a concurrent completed refund', async () => {
+    const first = await record(command(1, 0));
+    let captured!: () => void, release!: () => void;
+    const ready = new Promise<void>((done) => {
+      captured = done;
+    });
+    const resumed = new Promise<void>((done) => {
+      release = done;
+    });
+    const facade = {
+      $transaction: (
+        callback: (tx: Prisma.TransactionClient) => Promise<unknown>,
+        options: { isolationLevel: Prisma.TransactionIsolationLevel },
+      ) =>
+        prisma.$transaction(
+          async (tx) =>
+            callback({
+              ...tx,
+              refund: {
+                ...tx.refund,
+                count: async (args: Prisma.RefundCountArgs) => {
+                  const count = await tx.refund.count(args);
+                  captured();
+                  await resumed;
+                  return count;
+                },
+              },
+            } as unknown as Prisma.TransactionClient),
+          { ...options, timeout: 15000 },
+        ),
+    };
+    const pending = new RefundReadService(
+      facade as unknown as PrismaService,
+    ).findBranchHistory(owner(), branchId, new ListBranchRefundsQueryDto());
+    try {
+      await ready;
+      await record(command(1, 0));
+    } finally {
+      release();
+    }
+    expect(await pending).toMatchObject({
+      total: 1,
+      items: [{ id: first.id }],
+    });
+    expect(
+      await reads.findBranchHistory(
+        owner(),
+        branchId,
+        new ListBranchRefundsQueryDto(),
+      ),
+    ).toMatchObject({ total: 2 });
+  });
+  it('measures bounded history and the existing branch/time index over 1500 consistent refund fixtures', async () => {
+    const size = 1500;
+    await stocks.receive(organizationId, branchId, inventories[1], ownerId, {
+      requestId: randomUUID(),
+      quantity: size,
+    });
+    const sale = await checkout.complete(owner(), branchId, {
+      requestId: randomUUID(),
+      paymentMethod: 'CASH',
+      cashTender: '15.00',
+      items: [
+        {
+          branchInventoryId: inventories[1],
+          quantity: size,
+          expectedUnitPrice: '0.01',
+        },
+      ],
+    });
+    const item = sale.items[0];
+    const rows = Array.from({ length: size }, (_, index) => ({
+      id: randomUUID(),
+      organizationId,
+      branchId,
+      saleId: sale.id,
+      refundCode: `HISTORY-${index}`,
+      requestId: randomUUID(),
+      createdById: ownerId,
+      completedAt: new Date(Date.UTC(2026, 9, 21, 0, 0, index)),
+      reason: 'Returned goods',
+      paymentMethod: 'CASH' as const,
+      total: '0.01',
+      refundCommand: {
+        items: [{ saleItemId: item.id, quantity: 1, restockQuantity: 0 }],
+        reason: 'Returned goods',
+        paymentMethod: 'CASH',
+        refundConfirmed: true,
+      },
+    }));
+    await prisma.$transaction(async (tx) => {
+      await tx.refund.createMany({ data: rows });
+      await tx.refundItem.createMany({
+        data: rows.map((row) => ({
+          organizationId,
+          branchId,
+          saleId: sale.id,
+          refundId: row.id,
+          saleItemId: item.id,
+          branchInventoryId: item.branchInventoryId,
+          merchantId: item.merchantId,
+          quantity: 1,
+          restockQuantity: 0,
+          unitPrice: '0.01',
+          lineTotal: '0.01',
+        })),
+      });
+    });
+    await prisma.$executeRawUnsafe('ANALYZE "Refund"');
+    const started = performance.now();
+    const page = await reads.findBranchHistory(
+      owner(),
+      branchId,
+      new ListBranchRefundsQueryDto(),
+    );
+    const unfilteredMs = performance.now() - started;
+    const filteredStart = performance.now();
+    const filtered = await reads.findBranchHistory(owner(), branchId, {
+      ...new ListBranchRefundsQueryDto(),
+      q: 'history-',
+      paymentMethod: 'CASH',
+      from: '2026-10-20T16:00:00Z',
+      until: '2026-10-21T16:00:00Z',
+    });
+    const filteredMs = performance.now() - filteredStart;
+    expect(page).toMatchObject({ total: size, totalPages: 100 });
+    expect(page.items).toHaveLength(15);
+    expect(filtered).toMatchObject({ total: size, totalPages: 100 });
+    expect(filtered.items).toEqual(page.items);
+    const plan = await prisma.$queryRaw<Array<{ 'QUERY PLAN': string }>>`
+      EXPLAIN (ANALYZE, BUFFERS) SELECT "id" FROM "Refund"
+      WHERE "organizationId" = ${organizationId} AND "branchId" = ${branchId}
+      ORDER BY "completedAt" DESC, "id" DESC LIMIT 15`;
+    console.info('Branch refund history fixture metrics', {
+      rows: size,
+      unfilteredMs,
+      filteredMs,
+      payloadBytes: Buffer.byteLength(JSON.stringify(page)),
+      plan: plan.map((line) => line['QUERY PLAN']),
+    });
+    await ledger(1);
   });
   it('paginates beyond 50 refunds while remaining quantities cover every page', async () => {
     const sale = await checkout.complete(owner(), branchId, {
