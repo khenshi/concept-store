@@ -41,7 +41,6 @@ describe('manual refund dialog and frozen recovery', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Refund reason' }), {
       target: { value: 'Damaged item' },
     });
-    fireEvent.click(screen.getByRole('checkbox'));
   }
   function submit() {
     fireEvent.click(screen.getByRole('button', { name: 'Record refund' }));
@@ -55,9 +54,72 @@ describe('manual refund dialog and frozen recovery', () => {
     setRefundAttempt(key, null);
     vi.restoreAllMocks();
   });
-  it('validates each input after 300ms, on blur and submit without sending', async () => {
+  it('recovers when remounted during a pending request that later becomes unknown', async () => {
+    let reject!: (cause: unknown) => void;
+    request.mockImplementationOnce(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
+    const first = mount();
+    fill();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Record refund' }),
+      ).toBeEnabled(),
+    );
+    submit();
+    await waitFor(() => expect(getRefundAttempt(key)?.state).toBe('pending'));
+    first.unmount();
+    mount();
+    expect(
+      screen.getByRole('textbox', { name: 'Refund reason' }),
+    ).toBeDisabled();
+    await act(async () => reject(new Error('network interrupted')));
+    const retry = await screen.findByRole('button', {
+      name: 'Retry same refund',
+    });
+    expect(retry).toBeEnabled();
+    request.mockResolvedValueOnce(staffRefund);
+    fireEvent.click(retry);
+    await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
+    expect(request.mock.calls[1]).toEqual(request.mock.calls[0]);
+  });
+  it('closes and refreshes after an inherited pending request receives a known rejection', async () => {
+    let reject!: (cause: unknown) => void;
+    request.mockImplementationOnce(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
+    const first = mount();
+    fill();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Record refund' }),
+      ).toBeEnabled(),
+    );
+    submit();
+    await waitFor(() => expect(getRefundAttempt(key)?.state).toBe('pending'));
+    first.unmount();
+    mount();
+    await act(async () => reject(new ApiError(400, 'Invalid return.')));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(onIssue).toHaveBeenCalledWith(
+      expect.stringContaining('Refresh and review'),
+      false,
+    );
+    expect(getRefundAttempt(key)).toBeNull();
+    expect(request).toHaveBeenCalledOnce();
+  });
+  it('validates each input after 300ms and disables incomplete submissions', async () => {
     vi.useFakeTimers();
     mount();
+    expect(
+      screen.getByRole('button', { name: 'Record refund' }),
+    ).toBeDisabled();
     const quantity = screen.getByRole('textbox', { name: /Return units/ });
     fireEvent.change(quantity, { target: { value: '2' } });
     expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
@@ -69,22 +131,50 @@ describe('manual refund dialog and frozen recovery', () => {
       vi.advanceTimersByTime(1);
     });
     expect(quantity).toHaveAttribute('aria-invalid', 'true');
+    expect(quantity).toHaveClass('bg-subtle');
+    expect(quantity).not.toHaveClass('border');
+    expect(
+      screen.queryByText('Enter whole units from 0 to 1.'),
+    ).not.toBeInTheDocument();
     fireEvent.change(quantity, { target: { value: '1' } });
     fireEvent.blur(quantity);
     expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
-    submit();
-    expect(screen.getByRole('checkbox')).toHaveAttribute(
-      'aria-invalid',
-      'true',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Record refund' }),
+    ).toBeDisabled();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Refund reason' }), {
+      target: { value: 'Damaged item' },
+    });
+    expect(screen.getByRole('button', { name: 'Record refund' })).toBeEnabled();
     expect(request).not.toHaveBeenCalled();
   });
-  it('defaults to original method and zero restock, requires explicit confirmation and records saved prices', async () => {
+  it('defaults to original method and empty quantities and records saved prices', async () => {
     request.mockResolvedValue(staffRefund);
     mount();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Product' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Returnable' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Cash' })).toHaveClass('sr-only');
+    expect(
+      screen.getByRole('textbox', { name: 'Refund reference' }),
+    ).toBeDisabled();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Cash' })).toBeChecked();
+    expect(screen.getByRole('textbox', { name: /Return units/ })).toHaveValue(
+      '',
+    );
     expect(screen.getByRole('textbox', { name: /Restock units/ })).toHaveValue(
-      '0',
+      '',
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: /Return units/ }), {
+      target: { value: '' },
+    });
+    expect(screen.getByRole('textbox', { name: /Return units/ })).toHaveValue(
+      '',
     );
     fill();
     expect(screen.getByText('Estimated refund')).toBeInTheDocument();
@@ -108,7 +198,7 @@ describe('manual refund dialog and frozen recovery', () => {
     expect(body).not.toHaveProperty('paymentReference');
     expect(getRefundAttempt(key)?.state).toBe('completed');
   });
-  it('switching actual method clears reference and confirmation; noncash stays manual', async () => {
+  it('switching actual method clears reference; noncash stays available', async () => {
     request.mockResolvedValue({
       ...staffRefund,
       paymentMethod: 'GCASH',
@@ -116,20 +206,29 @@ describe('manual refund dialog and frozen recovery', () => {
     });
     mount();
     fill();
-    fireEvent.click(screen.getByRole('radio', { name: 'GCash (manual)' }));
-    expect(screen.getByRole('checkbox')).not.toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: 'GCash' }));
     submit();
     expect(request).not.toHaveBeenCalled();
     fireEvent.change(
       screen.getByRole('textbox', { name: 'Refund reference' }),
       { target: { value: 'manual-ref' } },
     );
-    fireEvent.click(screen.getByRole('checkbox'));
     submit();
     await waitFor(() => expect(onCompleted).toHaveBeenCalledOnce());
     expect(JSON.parse(request.mock.calls[0][1].body).paymentReference).toBe(
       'manual-ref',
     );
+  });
+  it('does not validate untouched fields when selecting a refund method', () => {
+    mount();
+    fireEvent.click(screen.getByRole('radio', { name: 'GCash' }));
+    expect(
+      screen.getByRole('textbox', { name: 'Refund reason' }),
+    ).not.toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.getByRole('textbox', { name: 'Refund reference' }),
+    ).not.toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText('2–500 characters')).not.toBeInTheDocument();
   });
   it('freezes pending command, prevents duplicate submissions and dismissal', async () => {
     request.mockReturnValue(new Promise(() => {}));
@@ -139,9 +238,7 @@ describe('manual refund dialog and frozen recovery', () => {
     expect(
       screen.getByRole('textbox', { name: 'Refund reason' }),
     ).toBeDisabled();
-    expect(
-      screen.getByRole('button', { name: 'Cancel' }),
-    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
     fireEvent.submit(screen.getByRole('dialog').querySelector('form')!);
     fireEvent(
       screen.getByRole('dialog'),

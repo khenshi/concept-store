@@ -44,7 +44,6 @@ describe('saved refund history and role privacy', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Refund reason' }), {
       target: { value: command.reason },
     });
-    fireEvent.click(screen.getByRole('checkbox'));
   }
   function expectReturnedQuantities() {
     const list = screen.getByRole('list', {
@@ -125,9 +124,25 @@ describe('saved refund history and role privacy', () => {
       expect(
         within(dialog).getByText('Actual refund method'),
       ).toBeInTheDocument();
+      expect(within(dialog).getByText('Date')).toBeInTheDocument();
+      expect(within(dialog).getByText('Status')).toBeInTheDocument();
+      expect(
+        within(dialog).getByText('Completed', { exact: true }),
+      ).toHaveClass('text-success-ink');
       expect(within(dialog).getByText('CASH')).toBeInTheDocument();
       expect(within(dialog).getByText('Refund total')).toBeInTheDocument();
       expect(within(dialog).getByText('Returned items')).toBeInTheDocument();
+      expect(within(dialog).getByRole('table')).toBeInTheDocument();
+      for (const label of [
+        'Product',
+        'Returned',
+        'Restocked',
+        'Unit price',
+        'Line total',
+      ])
+        expect(
+          within(dialog).getByRole('columnheader', { name: label }),
+        ).toBeInTheDocument();
       expect(
         within(dialog).queryByRole('button', { name: /print|edit|delete/i }),
       ).not.toBeInTheDocument();

@@ -14,7 +14,6 @@ describe('focused memory-only checkout attempt state', () => {
         method: 'CASH',
         tender: '1000',
         reference: '',
-        received: true,
       }),
       requestId: '44444444-4444-4444-8444-444444444444',
     };

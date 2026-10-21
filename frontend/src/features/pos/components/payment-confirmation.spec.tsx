@@ -31,7 +31,6 @@ describe('payment confirmation', () => {
       screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
       { target: { value: '1000' } },
     );
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
   }
   beforeEach(() => {
@@ -44,6 +43,7 @@ describe('payment confirmation', () => {
   });
   it('validates on each input with debounce, blur and final submit', async () => {
     render(<PaymentConfirmation {...props} />);
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     vi.useFakeTimers();
     const field = screen.getByRole('textbox', { name: 'Cash tender (PHP)' });
     fireEvent.change(field, { target: { value: '1e3' } });
@@ -58,15 +58,28 @@ describe('payment confirmation', () => {
     fireEvent.change(field, { target: { value: '849.99' } });
     fireEvent.blur(field);
     expect(screen.getByText('Amount is below total.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Complete sale' }),
+    ).toBeDisabled();
     fireEvent.change(field, { target: { value: '1000' } });
     expect(
       screen.getByText('Estimated change: PHP 150.00'),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Confirm payment received.',
-    );
-    expect(completeCheckout).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Complete sale' })).toBeEnabled();
+  });
+  it('does not show payment errors for an untouched method input', () => {
+    vi.useFakeTimers();
+    render(<PaymentConfirmation {...props} />);
+    fireEvent.click(screen.getByRole('radio', { name: 'GCash' }));
+    const reference = screen.getByRole('textbox', {
+      name: 'Payment reference',
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(reference).not.toHaveAttribute('aria-invalid', 'true');
+    fireEvent.blur(reference);
+    expect(reference).toHaveAttribute('aria-invalid', 'true');
   });
   it('blocks pending repeat activation, edits and Escape dismissal', async () => {
     let resolve!: (value: typeof completedSale) => void;
@@ -178,18 +191,16 @@ describe('payment confirmation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Return to cart' }));
     view.rerender(<PaymentConfirmation {...props} open={false} />);
     view.rerender(<PaymentConfirmation {...props} />);
-    expect(screen.getByRole('checkbox')).not.toBeChecked();
     fireEvent.change(
       screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
       { target: { value: '01000.00' } },
     );
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
     await waitFor(() => expect(callbacks.onCompleted).toHaveBeenCalled());
     expect(vi.mocked(completeCheckout).mock.calls[1][2]).toEqual(first);
   });
   it.each(['PRICE_CHANGED', 'INSUFFICIENT_STOCK', 'PRODUCT_UNAVAILABLE'])(
-    'returns %s to cart review and resets receipt confirmation',
+    'returns %s to cart review',
     async (code) => {
       vi.mocked(completeCheckout).mockRejectedValueOnce(
         new ApiError(409, 'Review required', {
@@ -216,21 +227,22 @@ describe('payment confirmation', () => {
           ]}
         />,
       );
-      expect(screen.getByRole('checkbox')).not.toBeChecked();
       expect(completeCheckout).toHaveBeenCalledTimes(1);
     },
   );
   it.each(['GCash', 'Card'])(
-    'records %s without cash fields and requires received confirmation',
+    'records %s without cash fields when the reference is valid',
     async (label) => {
       render(<PaymentConfirmation {...props} />);
       fireEvent.click(screen.getByRole('radio', { name: label }));
       expect(screen.getByText('Use 2–100 characters.')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Complete sale' }),
+      ).toBeDisabled();
       fireEvent.change(
         screen.getByRole('textbox', { name: 'Payment reference' }),
         { target: { value: ' ref-001 ' } },
       );
-      fireEvent.click(screen.getByRole('checkbox'));
       fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
       await waitFor(() => expect(completeCheckout).toHaveBeenCalled());
       const command = vi.mocked(completeCheckout).mock.calls[0][2];

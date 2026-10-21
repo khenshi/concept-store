@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import type { CompletedSale } from '../model/checkout';
 
@@ -124,35 +124,52 @@ function ReceiptContent({ sale }: { sale: CompletedSale }) {
     </article>
   );
 }
-export function SaleReceipt({ sale }: { sale: CompletedSale }) {
+export function SaleReceipt({
+  sale,
+  renderActions,
+}: {
+  sale: CompletedSale;
+  renderActions?: (actions: {
+    printButton: ReactNode;
+    feedback: ReactNode;
+  }) => ReactNode;
+}) {
   const [feedback, setFeedback] = useState<string | null>(null);
+  const printButton = (
+    <Button
+      variant="primary"
+      onClick={() => {
+        try {
+          window.print();
+          setFeedback(
+            'Print dialog requested. If cancelled or unsuccessful, print this saved receipt again; checkout will not repeat.',
+          );
+        } catch {
+          setFeedback(
+            'Printing could not be opened. Try printing this saved receipt again; the sale is already completed.',
+          );
+        }
+      }}
+    >
+      Print
+    </Button>
+  );
+  const printFeedback = feedback ? (
+    <p role="status" className="text-sm text-muted">
+      {feedback}
+    </p>
+  ) : null;
   return (
     <>
       <ReceiptContent sale={sale} />
-      <div className="mt-5 flex justify-end">
-        <Button
-          variant="primary"
-          onClick={() => {
-            try {
-              window.print();
-              setFeedback(
-                'Print dialog requested. If cancelled or unsuccessful, print this saved receipt again; checkout will not repeat.',
-              );
-            } catch {
-              setFeedback(
-                'Printing could not be opened. Try printing this saved receipt again; the sale is already completed.',
-              );
-            }
-          }}
-        >
-          Print
-        </Button>
-      </div>
-      {feedback ? (
-        <p role="status" className="mt-3 text-sm text-muted">
-          {feedback}
-        </p>
-      ) : null}
+      {renderActions ? (
+        renderActions({ printButton, feedback: printFeedback })
+      ) : (
+        <>
+          <div className="mt-5 flex justify-end">{printButton}</div>
+          {printFeedback ? <div className="mt-3">{printFeedback}</div> : null}
+        </>
+      )}
       {createPortal(
         <div id="pos-receipt-print-root" aria-hidden="true">
           <style>{`#pos-receipt-print-root { display: none; } @media print { body > *:not(#pos-receipt-print-root) { display: none !important; } #pos-receipt-print-root { display: block !important; padding: 12mm; background: white; color: black; } body { overflow: visible !important; } @page { margin: 8mm; } }`}</style>

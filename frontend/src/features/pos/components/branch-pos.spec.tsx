@@ -206,7 +206,6 @@ describe('Branch POS cart workflows', () => {
       screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
       { target: { value: '1000' } },
     );
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
   }
   it('clears a successful cart and retries a failed catalog read without completing again', async () => {
@@ -218,6 +217,22 @@ describe('Branch POS cart workflows', () => {
     );
     await startPayment();
     await screen.findByText('Sale completed');
+    const receiptDialog = screen.getByRole('dialog', {
+      name: 'Sale completed',
+    });
+    expect(receiptDialog).toBeInTheDocument();
+    expect(receiptDialog).toHaveClass('overflow-y-auto');
+    const receiptActions = within(receiptDialog).getByRole('group', {
+      name: 'Receipt actions',
+    });
+    expect(
+      within(receiptActions).getByRole('link', { name: 'View' }),
+    ).toHaveClass('ui-button-quiet');
+    expect(
+      Array.from(receiptActions.querySelectorAll('button, a')).map((element) =>
+        element.textContent?.trim(),
+      ),
+    ).toEqual(['Close', 'View', 'Print']);
     expect(screen.getByLabelText('Estimated total')).toHaveTextContent('0.00');
     expect(
       screen.getByRole('button', { name: 'Review payment' }),
@@ -260,8 +275,6 @@ describe('Branch POS cart workflows', () => {
     );
     expect(request).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Review payment' }));
-    expect(screen.getByRole('checkbox')).not.toBeChecked();
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
     await screen.findByText('Sale completed');
     const first = JSON.parse(request.mock.calls[0][1].body);

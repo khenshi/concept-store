@@ -9,7 +9,6 @@ const cash = {
   method: 'CASH' as const,
   tender: ' 1000.0 ',
   reference: '',
-  received: true,
 };
 const lines = [{ product, quantity: 1, quantityInput: '1' }];
 describe('checkout client validation and exact amounts', () => {
@@ -19,12 +18,9 @@ describe('checkout client validation and exact amounts', () => {
       expect(paymentError({ ...cash, tender }, '850.00')).toBeDefined();
     },
   );
-  it('requires sufficient cash, explicit received confirmation and valid cart', () => {
+  it('requires sufficient cash and a valid cart', () => {
     expect(paymentError({ ...cash, tender: '849.99' }, '850.00')).toMatch(
       /below total/,
-    );
-    expect(() => checkoutContent(lines, { ...cash, received: false })).toThrow(
-      /received/,
     );
     expect(() => checkoutContent([], cash)).toThrow(/quantities/);
     expect(() =>

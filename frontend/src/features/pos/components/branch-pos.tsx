@@ -17,7 +17,6 @@ import { BackLink } from '@/shared/components/ui/back-link';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
-import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
@@ -48,6 +47,7 @@ import { PosLoadingHeader } from './pos-loading-header';
 
 type BranchPosProps = PosScope & {
   cartActive?: boolean;
+  refundsActive?: boolean;
   history?(active: boolean): ReactNode;
 };
 
@@ -109,6 +109,7 @@ function ScopedBranchPos({
   organizationId,
   branchId,
   role,
+  refundsActive = false,
   cartActive: requestedCartActive = true,
   history,
 }: BranchPosProps & { role: 'OWNER' | 'MANAGER' | 'CASHIER' }) {
@@ -418,7 +419,8 @@ function ScopedBranchPos({
         (url.origin === window.location.origin &&
           (url.pathname === pathname ||
             url.pathname === `${pathname}/sales` ||
-            url.pathname.startsWith(`${pathname}/sales/`)))
+            url.pathname.startsWith(`${pathname}/sales/`) ||
+            url.pathname === `${pathname}/refunds`))
       )
         return true;
       if (pendingNavigationHref) return false;
@@ -819,8 +821,17 @@ function ScopedBranchPos({
     {
       label: 'Sales History',
       href: `${pathname}/sales`,
-      active: !cartActive,
+      active: !cartActive && !refundsActive,
     },
+    ...(role === 'OWNER' || role === 'MANAGER'
+      ? [
+          {
+            label: 'Refund history',
+            href: `${pathname}/refunds`,
+            active: refundsActive,
+          },
+        ]
+      : []),
   ];
   return (
     <PosPageFrame fullscreen={posFullscreen}>
@@ -913,34 +924,52 @@ function ScopedBranchPos({
           }
         >
           {completed && cartActive ? (
-            <OperationalPanel
-              variant="open"
+            <FormDialog
               title="Sale completed"
               description="This persisted sale is complete. Printing and catalog retries do not repeat checkout."
+              size="medium"
+              onClose={() => {
+                setCompleted(null);
+                focusCode();
+              }}
             >
-              <div className="py-5 sm:py-6">
-                <SaleReceipt sale={completed} />
-                <Link
-                  className={buttonStyles({
-                    variant: 'secondary',
-                    className: 'mt-4',
-                  })}
-                  href={`${pathname}/sales/${completed.id}`}
-                >
-                  Open saved receipt
-                </Link>
-                <Button
-                  variant="quiet"
-                  className="mt-4"
-                  onClick={() => {
-                    setCompleted(null);
-                    focusCode();
-                  }}
-                >
-                  Dismiss receipt
-                </Button>
+              <div className=" mt-6 min-w-0 sm:-mb-8">
+                <SaleReceipt
+                  sale={completed}
+                  renderActions={({ printButton, feedback }) => (
+                    <div
+                      role="group"
+                      aria-label="Receipt actions"
+                      className="bottom-0 z-10 -mx-6 mt-5 border-t border-hairline bg-surface px-6 py-3 sm:-mx-8 sm:px-8"
+                    >
+                      <div className="flex min-w-0 items-center justify-between gap-4">
+                        <div className="min-w-0 max-w-sm flex-1">
+                          {feedback}
+                        </div>
+                        <div className="flex shrink-0 flex-nowrap justify-end gap-2">
+                          <Button
+                            variant="quiet"
+                            onClick={() => {
+                              setCompleted(null);
+                              focusCode();
+                            }}
+                          >
+                            Close
+                          </Button>
+                          <Link
+                            className={buttonStyles({ variant: 'quiet' })}
+                            href={`${pathname}/sales/${completed.id}`}
+                          >
+                            View
+                          </Link>
+                          {printButton}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                />
               </div>
-            </OperationalPanel>
+            </FormDialog>
           ) : null}
           <fieldset
             disabled={

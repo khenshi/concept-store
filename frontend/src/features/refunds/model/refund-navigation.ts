@@ -27,6 +27,7 @@ export function useRefundNavigationGuard(key: string, scope: RefundScope) {
       return false;
     };
     const navigation = (event: Event) => {
+      if (event.defaultPrevented) return;
       const href = (event as CustomEvent<{ href: string }>).detail?.href;
       if (typeof href === 'string' && !target(href)) event.preventDefault();
     };

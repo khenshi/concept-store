@@ -9,7 +9,6 @@ export type PaymentDraft = {
   method: PaymentMethod;
   tender: string;
   reference: string;
-  received: boolean;
 };
 export function moneyCents(value: string) {
   const [whole, fraction = ''] = value.split('.');
@@ -52,7 +51,6 @@ export function checkoutContent(lines: PosCartLine[], draft: PaymentDraft) {
     throw new Error('Fix cart quantities before checkout.');
   const error = paymentError(draft, posCartTotal(lines));
   if (error) throw new Error(error);
-  if (!draft.received) throw new Error('Confirm payment received.');
   return {
     items: lines
       .map((line) => ({

@@ -7,12 +7,19 @@ const valid: RefundDraft = {
   reason: 'Damaged item',
   method: 'CASH',
   reference: '',
-  confirmed: true,
 };
 describe('live refund draft validation', () => {
-  it('accepts explicit confirmed return with default zero restock and saved-price estimate', () => {
+  it('accepts a valid return with default zero restock and saved-price estimate', () => {
     expect(refundErrors(valid, remaining)).toEqual({});
     expect(refundEstimate(completedSale, valid)).toBe('850.00');
+  });
+  it('treats an empty restock quantity as zero', () => {
+    expect(
+      refundErrors(
+        { ...valid, lines: { [id]: { quantity: '1', restock: '' } } },
+        remaining,
+      ),
+    ).toEqual({});
   });
   it.each(['', '-1', '1.5', '2', '2147483648', 'NaN'])(
     'rejects return quantity %s against all-page remaining',
@@ -36,17 +43,16 @@ describe('live refund draft validation', () => {
       ).toBeTruthy();
     },
   );
-  it('requires a selected line, reason, actual noncash reference and fresh confirmation', () => {
+  it('requires a selected line, reason and actual noncash reference', () => {
     expect(
       refundErrors(
-        { ...valid, lines: {}, reason: ' ', method: 'GCASH', confirmed: false },
+        { ...valid, lines: {}, reason: ' ', method: 'GCASH' },
         remaining,
       ),
     ).toMatchObject({
       items: expect.any(String),
       reason: expect.any(String),
       reference: expect.any(String),
-      confirmed: expect.any(String),
     });
     expect(
       refundErrors(

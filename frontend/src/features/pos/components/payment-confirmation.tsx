@@ -5,7 +5,6 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
 import { Button } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
-import { Icon } from '@/shared/components/ui/icon';
 import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { TextField } from '@/shared/components/ui/text-field';
 import { completeCheckout } from '../api/checkout-api';
@@ -62,7 +61,6 @@ export function PaymentConfirmation({
     tender: saved && 'cashTender' in saved ? saved.cashTender : '',
     reference:
       saved && 'paymentReference' in saved ? saved.paymentReference : '',
-    received: Boolean(saved),
   });
   const [fieldError, setFieldError] = useState<string>();
   const [message, setMessage] = useState<string | undefined>(
@@ -89,12 +87,13 @@ export function PaymentConfirmation({
       window.clearTimeout(timer.current);
     };
   }, []);
-  function edit(next: PaymentDraft, immediate = false) {
+  function edit(next: PaymentDraft, immediate = false, shouldValidate = true) {
     if (busy.current || uncertain.current) return;
     setDraft(next);
     setMessage(undefined);
     // A known rejected command may be replaced only when its content changes.
     window.clearTimeout(timer.current);
+    if (!shouldValidate) return;
     const validate = () => setFieldError(paymentError(next, total));
     if (immediate) validate();
     else timer.current = window.setTimeout(validate, 300);
@@ -190,11 +189,9 @@ export function PaymentConfirmation({
             : api?.message,
         );
         if (code && code !== 'CHECKOUT_RETRY') {
-          setDraft((current) => ({ ...current, received: false }));
           onIssue({ message: api!.message, ...api!.details });
           onClose();
         } else if (api && [401, 403, 404].includes(api.status)) {
-          setDraft((current) => ({ ...current, received: false }));
           onIssue({ message: api.message, code: 'ACCESS_DENIED' });
           onClose();
         }
@@ -206,16 +203,16 @@ export function PaymentConfirmation({
   }
   const requestPending = pending || retained?.state === 'pending';
   const locked = requestPending || unknown;
+  const paymentValidationError = paymentError(draft, total);
   function close() {
     if (busy.current || uncertain.current) return;
-    setDraft((current) => ({ ...current, received: false }));
     onClose();
   }
   if (!open) return null;
   return (
     <FormDialog
       title="Confirm payment"
-      description="Review the branch cart and confirm payment received. Completion records one sale and deducts stock atomically."
+      description="Review the branch cart and payment details. Completion records one sale and deducts stock atomically."
       pending={locked}
       onClose={close}
     >
@@ -270,12 +267,15 @@ export function PaymentConfirmation({
                     checked={draft.method === method}
                     onChange={() => {
                       setFieldError(undefined);
-                      edit({
-                        method,
-                        tender: '',
-                        reference: '',
-                        received: false,
-                      });
+                      edit(
+                        {
+                          method,
+                          tender: '',
+                          reference: '',
+                        },
+                        false,
+                        false,
+                      );
                     }}
                   />
                   <span
@@ -337,42 +337,21 @@ export function PaymentConfirmation({
               />
             </>
           )}
-          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
-            <input
-              className="peer sr-only"
-              type="checkbox"
-              checked={draft.received}
-              disabled={locked}
-              onChange={(event) =>
-                edit({ ...draft, received: event.target.checked })
-              }
-            />
-            <span
-              aria-hidden="true"
-              className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-compact border border-control-border bg-surface text-transparent transition-colors peer-checked:border-action peer-checked:bg-action peer-checked:text-action-foreground peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-focus peer-disabled:bg-subtle peer-disabled:opacity-60"
-            >
-              <Icon name="check" className="size-3.5" />
-            </span>
-            <span>
-              I confirm this payment was received
-              {draft.method !== 'CASH' ? ' outside this system' : ''}.
-            </span>
-          </label>
-          <ModalActionRow
-            feedback={
-              message ? (
-                <p role="alert" className="break-words text-sm text-danger">
-                  {message}
-                </p>
-              ) : null
-            }
-          >
+          {message ? (
+            <p role="alert" className="break-words text-sm text-danger">
+              {message}
+            </p>
+          ) : null}
+          <ModalActionRow>
             <Button variant="quiet" disabled={locked} onClick={close}>
               Return to cart
             </Button>
             <Button
               type="submit"
               pending={requestPending}
+              disabled={
+                requestPending || (!unknown && Boolean(paymentValidationError))
+              }
               pendingLabel="Completing checkout…"
             >
               {unknown ? 'Retry same checkout' : 'Complete sale'}

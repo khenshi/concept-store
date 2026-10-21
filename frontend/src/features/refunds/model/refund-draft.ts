@@ -10,7 +10,6 @@ export type RefundDraft = {
   reason: string;
   method: PaymentMethod;
   reference: string;
-  confirmed: boolean;
 };
 export function refundErrors(draft: RefundDraft, remaining: RemainingItem[]) {
   const errors: Record<string, string> = {};
@@ -23,28 +22,27 @@ export function refundErrors(draft: RefundDraft, remaining: RemainingItem[]) {
     const valid =
       /^\d+$/.test(line.quantity) &&
       Number(line.quantity) <= item.remainingQuantity;
+    const restock = line.restock === '' ? '0' : line.restock;
     if (!valid)
       errors[`${item.saleItemId}:quantity`] =
         `Enter whole units from 0 to ${item.remainingQuantity}.`;
     if (valid && Number(line.quantity) > 0) selected = true;
     if (
-      !/^\d+$/.test(line.restock) ||
-      Number(line.restock) > Number(line.quantity) ||
-      Number(line.restock) > 2147483647
+      !/^\d+$/.test(restock) ||
+      Number(restock) > Number(line.quantity) ||
+      Number(restock) > 2147483647
     )
       errors[`${item.saleItemId}:restock`] =
         'Restock whole units from zero through the returned quantity.';
   }
   if (!selected) errors.items = 'Choose at least one whole item to return.';
   if (draft.reason.trim().length < 2 || draft.reason.trim().length > 500)
-    errors.reason = 'Enter a reason of 2–500 characters.';
+    errors.reason = '2–500 characters';
   if (
     draft.method !== 'CASH' &&
     (draft.reference.trim().length < 2 || draft.reference.trim().length > 100)
   )
-    errors.reference = 'Enter the manual refund reference (2–100 characters).';
-  if (!draft.confirmed)
-    errors.confirmed = 'Confirm the refund was issued outside this system.';
+    errors.reference = '2–100 characters';
   return errors;
 }
 export function refundEstimate(sale: CompletedSale, draft: RefundDraft) {

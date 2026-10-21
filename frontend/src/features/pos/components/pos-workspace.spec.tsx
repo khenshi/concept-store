@@ -20,6 +20,15 @@ import {
 } from '../model/pos.test-fixtures';
 import { allowPosNavigation } from '../model/pos-navigation';
 import { setCheckoutAttempt } from '../model/checkout-attempt';
+import {
+  setRefundAttempt,
+  refundAttemptKey,
+} from '@/features/refunds/model/refund-attempt';
+import {
+  command,
+  refundScope,
+  emptyPage,
+} from '@/features/refunds/model/refund.test-fixtures';
 import { PosWorkspace } from './pos-workspace';
 import {
   useWorkspaceChrome,
@@ -53,6 +62,66 @@ function ChromeStatus() {
 }
 
 describe('Persistent route-backed POS workspace', () => {
+  it('keeps original-sale refund recovery visible after browser Back to Cart', async () => {
+    const key = refundAttemptKey(scope.organizationId, 'actor');
+    const attemptKey = key;
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    request.mockImplementation(async (path: string) =>
+      path.includes('/refunds?') ? emptyPage : completedSale,
+    );
+    setRefundAttempt(attemptKey, {
+      scope: refundScope,
+      command,
+      state: 'unknown',
+    });
+    const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
+    try {
+      expect(
+        await screen.findByRole('button', { name: 'Retry same refund' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Review payment' }),
+      ).toBeNull();
+      expect(allowPosNavigation(`${base}/refunds`)).toBe(false);
+      expect(alert).toHaveBeenCalled();
+      expect(completeCheckout).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      setRefundAttempt(attemptKey, null);
+      setRefundAttempt(key, null);
+    }
+  });
+  it('retains the cart on Refund history and marks only its tab active', async () => {
+    const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
+    await addProduct();
+    expect(allowPosNavigation(`${base}/refunds?select=1`)).toBe(true);
+    vi.mocked(usePathname).mockReturnValue(`${base}/refunds`);
+    view.rerender(
+      <PosWorkspace {...scope}>
+        <p>Refund history content</p>
+      </PosWorkspace>,
+    );
+    await screen.findByText('Refund history content');
+    expect(
+      screen.getByRole('link', { name: 'Refund history' }),
+    ).toHaveAttribute('aria-current', 'page');
+    expect(
+      screen.getByRole('link', { name: 'Sales History' }),
+    ).not.toHaveAttribute('aria-current');
+    vi.mocked(usePathname).mockReturnValue(base);
+    view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
+    await readyCart();
+    expect(
+      screen.getByRole('textbox', { name: `Quantity for ${product.name}` }),
+    ).toHaveValue('1');
+    expect(completeCheckout).not.toHaveBeenCalled();
+  });
+  it('does not expose the refund tab to cashiers', async () => {
+    workspace('CASHIER');
+    render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
+    await readyCart();
+    expect(screen.queryByRole('link', { name: 'Refund history' })).toBeNull();
+  });
   it('keeps full-screen mode on Cart only and exits when navigating to Sales History', async () => {
     const view = render(
       <WorkspaceChromeProvider>
@@ -159,9 +228,8 @@ describe('Persistent route-backed POS workspace', () => {
       screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
       { target: { value: '1000.00' } },
     );
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
-    await screen.findByRole('link', { name: 'Open saved receipt' });
+    await screen.findByRole('link', { name: 'View' });
     expect(document.querySelectorAll('#pos-receipt-print-root')).toHaveLength(
       1,
     );
@@ -201,38 +269,39 @@ describe('Persistent route-backed POS workspace', () => {
     expect(
       screen.getByRole('textbox', { name: 'Payment reference' }),
     ).toHaveValue('GCASH-REFERENCE');
-    expect(screen.getByRole('checkbox')).not.toBeChecked();
     expect(completeCheckout).not.toHaveBeenCalled();
   });
   it('retains history pagination between Cart and History', async () => {
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     const page1 = {
       ...staffPage,
-      items: Array.from({ length: 10 }, (_, index) => ({
+      items: Array.from({ length: 15 }, (_, index) => ({
         ...completedSale,
         id: `11111111-1111-4111-8111-${String(index).padStart(12, '0')}`,
       })),
       total: 51,
-      totalPages: 6,
+      limit: 15,
+      totalPages: 4,
     };
     request.mockResolvedValue(page1);
     const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
-    await screen.findByText('51 permitted sales · Page 1 of 6');
+    await screen.findByLabelText('Page 1/4');
     request.mockResolvedValue({
       ...staffPage,
       items: page1.items,
       page: 2,
       total: 51,
-      totalPages: 6,
+      limit: 15,
+      totalPages: 4,
     });
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
-    await screen.findByText('51 permitted sales · Page 2 of 6');
+    await screen.findByLabelText('Page 2/4');
     vi.mocked(usePathname).mockReturnValue(base);
     view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
     await readyCart();
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
-    await screen.findByText('51 permitted sales · Page 2 of 6');
+    await screen.findByLabelText('Page 2/4');
     expect(request).toHaveBeenLastCalledWith(expect.stringContaining('page=2'));
   });
   it('locks History during a pending checkout and retains the original request', async () => {
@@ -245,7 +314,6 @@ describe('Persistent route-backed POS workspace', () => {
       screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
       { target: { value: '1000.00' } },
     );
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
     await screen.findByRole('button', { name: 'Completing checkout…' });
     expect(allowPosNavigation(`${base}/sales`)).toBe(false);
@@ -354,12 +422,24 @@ describe('Persistent route-backed POS workspace', () => {
   it('keeps history date filters through receipt detail and Cart and uses a single receipt print surface', async () => {
     vi.mocked(usePathname).mockReturnValue(`${base}/sales`);
     const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
-    await screen.findByRole('button', { name: 'Apply Dates' });
-    const from = '2026-09-13';
-    fireEvent.change(screen.getByLabelText('From Date'), {
-      target: { value: from },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Apply Dates' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Sales date filter' }),
+    );
+    const now = new Date();
+    const from = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now);
+    const dayLabel = new Intl.DateTimeFormat('en-PH', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(now);
+    fireEvent.click(screen.getByRole('gridcell', { name: dayLabel }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply dates' }));
     await screen.findByRole('link', {
       name: `View receipt ${completedSale.receiptCode}`,
     });
@@ -391,9 +471,20 @@ describe('Persistent route-backed POS workspace', () => {
     await screen.findByRole('link', {
       name: `View receipt ${completedSale.receiptCode}`,
     });
-    expect(screen.getByLabelText('From Date')).toHaveValue(from);
+    expect(
+      screen.getByRole('button', { name: 'Sales date filter' }),
+    ).toHaveTextContent(
+      new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(now),
+    );
     expect(request).toHaveBeenLastCalledWith(
-      expect.stringContaining('from=2026-09-12T16%3A00%3A00.000Z'),
+      expect.stringContaining(
+        `from=${encodeURIComponent(new Date(`${from}T00:00:00.000+08:00`).toISOString())}`,
+      ),
     );
     expect(document.querySelectorAll('#pos-receipt-print-root')).toHaveLength(
       0,
@@ -454,7 +545,6 @@ describe('Persistent route-backed POS workspace', () => {
       screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
       { target: { value: '1000.00' } },
     );
-    fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));
     await screen.findByRole('button', { name: 'Retry same checkout' });
     expect(allowPosNavigation(`${base}/sales`)).toBe(false);
