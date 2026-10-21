@@ -6,12 +6,13 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { ReportsEntry } from './reports-entry';
-import { BranchReports } from './branch-reports';
+import { BranchReports, ReportView } from './branch-reports';
+import { reportTabFromPath } from '../model/report-location';
 import { StaffReportSummary } from './staff-report-summary';
 import { MerchantReportSummary } from './merchant-report-summary';
 import type {
@@ -21,7 +22,32 @@ import type {
 import type { MerchantSalesReport } from '../model/report.schemas';
 import type { MerchantSalesAnalytics } from '../model/report.schemas';
 
-vi.mock('next/navigation', () => ({ useRouter: vi.fn() }));
+const navigationState = vi.hoisted(() => ({
+  href: '',
+  listeners: new Set<() => void>(),
+}));
+vi.mock('next/navigation', async () => {
+  const { useSyncExternalStore } = await import('react');
+  const useHref = () =>
+    useSyncExternalStore(
+      (listener) => {
+        navigationState.listeners.add(listener);
+        return () => {
+          navigationState.listeners.delete(listener);
+        };
+      },
+      () => navigationState.href,
+    );
+  return {
+    useRouter: vi.fn(),
+    usePathname: () =>
+      new URL(useHref() || '/reports/overview', 'http://localhost').pathname,
+    useSearchParams: () =>
+      new URLSearchParams(
+        new URL(useHref() || '/reports/overview', 'http://localhost').search,
+      ),
+  };
+});
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
   '@/features/organizations/components/organization-workspace-context',
@@ -176,8 +202,16 @@ function transactionsFor(path: string) {
 }
 const request = vi.fn();
 const push = vi.fn();
+const replace = vi.fn();
 const refreshOrganization = vi.fn();
 const setSelectedBranchId = vi.fn();
+function RoutedReportView() {
+  return <ReportView tab={reportTabFromPath(usePathname())} />;
+}
+function restoreReportUrl(href: string) {
+  navigationState.href = href;
+  for (const listener of navigationState.listeners) listener();
+}
 function context(role = 'OWNER', id = 'org', status = 'ready') {
   vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
     organization: { id, name: 'Store', role },
@@ -211,6 +245,7 @@ function chooseReportDates(...days: string[]) {
 describe('staff Reports workspace', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    navigationState.href = '';
     // Freeze the calendar without blocking asynchronous component timers.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-13T16:30:00Z'));
@@ -218,9 +253,17 @@ describe('staff Reports workspace', () => {
       request,
       user: { id: 'user' },
     } as unknown as ReturnType<typeof useAuth>);
-    vi.mocked(useRouter).mockReturnValue({ push } as unknown as ReturnType<
-      typeof useRouter
-    >);
+    push.mockImplementation((href: string) => {
+      if (!new URL(href, 'http://localhost').pathname.includes('/reports'))
+        return;
+      navigationState.href = href;
+      for (const listener of navigationState.listeners) listener();
+    });
+    replace.mockImplementation((href: string) => restoreReportUrl(href));
+    vi.mocked(useRouter).mockReturnValue({
+      push,
+      replace,
+    } as unknown as ReturnType<typeof useRouter>);
     context();
     request.mockImplementation(async (path: string) =>
       path.endsWith('/reports/sales/branches')
@@ -260,6 +303,306 @@ describe('staff Reports workspace', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it('switches nested pages while retaining the same header and applied dates', async () => {
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findAllByText('PHP 60.00');
+    const header = screen.getByRole('heading', { name: 'Sales reports' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }));
+    expect(
+      await screen.findByRole('table', { name: 'Transaction history' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sales reports' })).toBe(header);
+    expect(screen.getByRole('tab', { name: 'Transactions' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(new URL(navigationState.href, 'http://localhost').pathname).toBe(
+      `/app/organizations/org/branches/${branch.id}/reports/transactions`,
+    );
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/sales/analytics?')),
+    ).toHaveLength(1);
+    const transactionUrl = navigationState.href;
+    fireEvent.click(screen.getByRole('tab', { name: 'Daily Data' }));
+    expect(
+      await screen.findByRole('table', {
+        name: 'Daily sales data in Asia/Manila',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      new URL(navigationState.href, 'http://localhost').pathname,
+    ).toContain('/reports/daily-data');
+    act(() => restoreReportUrl(transactionUrl));
+    expect(
+      await screen.findByRole('table', { name: 'Transaction history' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sales reports' })).toBe(header);
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/sales/analytics?')),
+    ).toHaveLength(1);
+  });
+  it('captures the queryless initial period so Back restores it after applying another period', async () => {
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findAllByText('PHP 60.00');
+    const initial = navigationState.href;
+    expect(
+      new URL(initial, 'http://localhost').searchParams.get('preset'),
+    ).toBe('TODAY');
+    fireEvent.click(screen.getByRole('combobox', { name: 'Period' }));
+    fireEvent.click(screen.getByRole('option', { name: 'This month' }));
+    await screen.findAllByText('PHP 60.00');
+    expect(
+      new URL(navigationState.href, 'http://localhost').searchParams.get(
+        'preset',
+      ),
+    ).toBe('THIS_MONTH');
+    act(() => restoreReportUrl(initial));
+    await screen.findAllByText('PHP 60.00');
+    expect(screen.getByRole('combobox', { name: 'Period' })).toHaveTextContent(
+      'Today',
+    );
+    expect(request.mock.calls.at(-1)![0]).toContain(
+      new URLSearchParams(range).toString(),
+    );
+  });
+  it('does not resurrect a committed search draft when Back restores its old source query', async () => {
+    navigationState.href = `/app/organizations/org/branches/${branch.id}/reports/transactions?preset=TODAY&fromDay=2026-09-14&throughDay=2026-09-14&transactionQ=OLD`;
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findByRole('table', { name: 'Transaction history' });
+    const original = navigationState.href;
+    fireEvent.change(
+      screen.getByRole('searchbox', { name: 'Search transactions' }),
+      { target: { value: 'NEW ' } },
+    );
+    await waitFor(() =>
+      expect(
+        new URL(navigationState.href, 'http://localhost').searchParams.get(
+          'transactionQ',
+        ),
+      ).toBe('NEW'),
+    );
+    await screen.findByRole('table', { name: 'Transaction history' });
+    act(() => restoreReportUrl(original));
+    expect(
+      screen.getByRole('searchbox', { name: 'Search transactions' }),
+    ).toHaveValue('OLD');
+    await waitFor(() =>
+      expect(
+        request.mock.calls
+          .filter(([path]) => path.includes('/transactions?'))
+          .at(-1)![0],
+      ).toContain('q=OLD'),
+    );
+    expect(navigationState.href).toBe(original);
+  });
+  it.each(['', 'OLD'])(
+    'keeps loaded transactions when whitespace leaves normalized search unchanged: %s',
+    async (q) => {
+      navigationState.href = `/app/organizations/org/branches/${branch.id}/reports/transactions?preset=TODAY&fromDay=2026-09-14&throughDay=2026-09-14&transactionQ=${q}`;
+      render(
+        <BranchReports organizationId="org" branchId={branch.id}>
+          <RoutedReportView />
+        </BranchReports>,
+      );
+      await screen.findByRole('table', { name: 'Transaction history' });
+      const count = request.mock.calls.filter(([path]) =>
+        path.includes('/transactions?'),
+      ).length;
+      fireEvent.change(
+        screen.getByRole('searchbox', { name: 'Search transactions' }),
+        { target: { value: `${q}   ` } },
+      );
+      expect(
+        screen.getByRole('table', { name: 'Transaction history' }),
+      ).toBeInTheDocument();
+      expect(
+        request.mock.calls.filter(([path]) => path.includes('/transactions?')),
+      ).toHaveLength(count);
+    },
+  );
+  it('does not display a ranking error from another restored page or filter', async () => {
+    const base = `/app/organizations/org/branches/${branch.id}/reports/rankings?preset=TODAY&fromDay=2026-09-14&throughDay=2026-09-14`;
+    navigationState.href = `${base}&rankingSort=UNITS_SOLD&rankingPage=2`;
+    const original = request.getMockImplementation()!;
+    request.mockImplementation(async (path: string) => {
+      if (path.includes('/rankings?') && path.includes('sortBy=UNITS_SOLD'))
+        throw new ApiError(503, 'Old ranking failed.');
+      if (path.includes('/rankings?')) return new Promise(() => {});
+      return original(path);
+    });
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findByText('Old ranking failed.');
+    act(() => restoreReportUrl(base));
+    expect(screen.queryByText('Old ranking failed.')).toBeNull();
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(
+          ([path]) =>
+            path.includes('/rankings?') && path.includes('sortBy=GROSS_SALES'),
+        ),
+      ).toBe(true),
+    );
+    expect(screen.queryByText('Old ranking failed.')).toBeNull();
+  });
+  it('restores a direct transaction link and its filters after remount', async () => {
+    const href = `/app/organizations/org/branches/${branch.id}/reports/transactions?preset=CUSTOM&fromDay=2026-09-13&throughDay=2026-09-14&transactionQ=REF&transactionType=REFUND&transactionPage=2`;
+    navigationState.href = href;
+    const original = request.getMockImplementation()!;
+    request.mockImplementation(async (path: string) =>
+      path.includes('/transactions?')
+        ? { ...transactionsFor(path), total: 16, totalPages: 2 }
+        : original(path),
+    );
+    const first = render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findByLabelText('Page 2/2');
+    expect(
+      screen.getByRole('searchbox', { name: 'Search transactions' }),
+    ).toHaveValue('REF');
+    expect(
+      screen.getByRole('combobox', { name: 'Transaction type' }),
+    ).toHaveTextContent('Refunds');
+    const last = new URL(
+      request.mock.calls
+        .filter(([path]) => path.includes('/transactions?'))
+        .at(-1)![0],
+      'http://localhost',
+    ).searchParams;
+    expect(Object.fromEntries(last)).toMatchObject({
+      page: '2',
+      type: 'REFUND',
+      q: 'REF',
+      from: '2026-09-12T16:00:00.000Z',
+      until: range.until,
+    });
+    first.unmount();
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findByLabelText('Page 2/2');
+    expect(
+      screen.getByRole('searchbox', { name: 'Search transactions' }),
+    ).toHaveValue('REF');
+    expect(navigationState.href).toBe(href);
+  });
+  it('restores ranking controls and page from a direct nested link', async () => {
+    navigationState.href = `/app/organizations/org/branches/${branch.id}/reports/rankings?preset=TODAY&fromDay=2026-09-14&throughDay=2026-09-14&rankingPage=2&rankingSort=UNITS_SOLD&rankingMerchant=44444444-4444-4444-8444-444444444444`;
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await waitFor(() =>
+      expect(
+        request.mock.calls.some(
+          ([path]) =>
+            path.includes('/rankings?') &&
+            path.includes('page=2') &&
+            path.includes('sortBy=UNITS_SOLD') &&
+            path.includes('merchantId=44444444-4444-4444-8444-444444444444'),
+        ),
+      ).toBe(true),
+    );
+    expect(screen.getByRole('combobox', { name: 'Rank by' })).toHaveTextContent(
+      'Units sold',
+    );
+    expect(screen.getByRole('tab', { name: 'Rankings' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+  it('restores short-period daily pagination through browser Back without reloading analytics', async () => {
+    const href = `/app/organizations/org/branches/${branch.id}/reports/daily-data?preset=CUSTOM&fromDay=2026-08-01&throughDay=2026-09-14&dailyPage=2`;
+    navigationState.href = href;
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findByLabelText('Page 2/3');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByLabelText('Page 3/3');
+    expect(
+      new URL(navigationState.href, 'http://localhost').searchParams.get(
+        'dailyPage',
+      ),
+    ).toBe('3');
+    act(() => restoreReportUrl(href));
+    await screen.findByLabelText('Page 2/3');
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/sales/analytics?')),
+    ).toHaveLength(1);
+  });
+  it('does not re-resolve All time simply when navigating between nested tabs', async () => {
+    navigationState.href = `/app/organizations/org/branches/${branch.id}/reports/overview?preset=ALL_TIME&fromDay=2026-09-14&throughDay=2026-09-14`;
+    const original = request.getMockImplementation()!;
+    request.mockImplementation(async (path: string) =>
+      path.includes('/sales/period?')
+        ? { scope: 'STAFF', branch, ...range, hasActivity: true }
+        : original(path),
+    );
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findAllByText('PHP 60.00');
+    fireEvent.click(screen.getByRole('tab', { name: 'Transactions' }));
+    await screen.findByRole('table', { name: 'Transaction history' });
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    await screen.findAllByText('PHP 60.00');
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/sales/period?')),
+    ).toHaveLength(1);
+    expect(
+      request.mock.calls.filter(([path]) => path.includes('/sales/analytics?')),
+    ).toHaveLength(1);
+  });
+  it('retains the active tab and period when switching branches and drops branch-specific filters', async () => {
+    navigationState.href = `/app/organizations/org/branches/${branch.id}/reports/transactions?preset=CUSTOM&fromDay=2026-09-13&throughDay=2026-09-14&transactionQ=OLD&transactionType=REFUND`;
+    render(
+      <BranchReports organizationId="org" branchId={branch.id}>
+        <RoutedReportView />
+      </BranchReports>,
+    );
+    await screen.findByRole('table', { name: 'Transaction history' });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
+    fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
+    const next = new URL(push.mock.calls.at(-1)![0], 'http://localhost');
+    expect(next.pathname).toBe(
+      `/app/organizations/org/branches/${second.id}/reports/transactions`,
+    );
+    expect(Object.fromEntries(next.searchParams)).toEqual({
+      preset: 'CUSTOM',
+      fromDay: '2026-09-13',
+      throughDay: '2026-09-14',
+    });
+    expect(
+      screen.queryByRole('table', { name: 'Transaction history' }),
+    ).toBeNull();
   });
 
   it('requires explicit selection even for one branch and uses no summary/general branch read', async () => {
@@ -597,9 +940,11 @@ describe('staff Reports workspace', () => {
     expect(
       request.mock.calls.filter(([path]) => path.includes('/sales/period?')),
     ).toHaveLength(1);
-    expect(screen.getByLabelText('Applied report period')).toHaveTextContent(
-      'All time',
-    );
+    expect(
+      new URL(navigationState.href, 'http://localhost').searchParams.get(
+        'preset',
+      ),
+    ).toBe('ALL_TIME');
     fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
     await screen.findAllByText('PHP 60.00');
     expect(
@@ -619,9 +964,9 @@ describe('staff Reports workspace', () => {
     fireEvent.click(screen.getByRole('combobox', { name: 'Period' }));
     fireEvent.click(screen.getByRole('option', { name: 'All time' }));
     await screen.findByText('No completed sales or refunds yet.');
-    expect(screen.getByLabelText('Applied report period')).toHaveTextContent(
-      'No completed activity',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Report date filter' }),
+    ).toHaveTextContent('Sep 14, 2026');
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
   });
   it('preserves All time and resolves activity again for a different branch', async () => {
@@ -720,7 +1065,7 @@ describe('staff Reports workspace', () => {
     fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     expect(push).toHaveBeenCalledWith(
-      `/app/organizations/org/branches/${second.id}/reports`,
+      `/app/organizations/org/branches/${second.id}/reports/overview?${new URLSearchParams({ preset: 'TODAY', fromDay: '2026-09-14', throughDay: '2026-09-14' })}`,
     );
     expect(
       screen.queryByRole('button', { name: /back/i }),
@@ -874,9 +1219,9 @@ describe('staff Reports workspace', () => {
       from = '2026-09-12T16:00:00.000Z';
       fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
       await screen.findAllByText('PHP 25.00');
-      expect(screen.getByLabelText('Applied report period')).toHaveTextContent(
-        '2026-09-13',
-      );
+      expect(
+        screen.getByRole('button', { name: 'Report date filter' }),
+      ).toHaveTextContent('Sep 13, 2026');
       expect(
         request.mock.calls.filter(([path]) => path.includes('/sales/period?')),
       ).toHaveLength(2);

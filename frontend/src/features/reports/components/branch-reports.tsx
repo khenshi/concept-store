@@ -1,6 +1,16 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -25,7 +35,6 @@ import {
   reportUtcRange,
   todayInPhilippines,
   reportPresetDates,
-  reportPresets,
   reportCalendarRange,
   type ReportPreset,
   type ReportDateRange,
@@ -38,7 +47,6 @@ import type {
   MerchantSalesRankingPage,
   ReportMerchantOption,
   ReportRankingControls,
-  ReportTransactionType,
   StaffTransactionsPage,
   MerchantTransactionsPage,
 } from '../model/report.schemas';
@@ -51,6 +59,15 @@ import { MerchantAnalyticsDashboard } from './merchant-analytics-dashboard';
 import { MerchantReportGuidance } from './merchant-report-guidance';
 import { TransactionsTab } from './transactions-tab';
 import { DailyDataTab } from './daily-data-tab';
+import { StaffDailyData } from './staff-analytics-dashboard';
+import { MerchantDailyData } from './merchant-analytics-dashboard';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
+import {
+  parseReportLocation,
+  reportLocationParams,
+  reportTabFromPath,
+  reportTabPath,
+} from '../model/report-location';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
@@ -73,17 +90,83 @@ const salesReportTabs: { value: SalesReportTab; label: string }[] = [
   label,
 }));
 
+const ReportViewContext = createContext<
+  ((tab: SalesReportTab) => ReactNode) | null
+>(null);
+export function ReportView({ tab }: { tab: SalesReportTab }) {
+  const renderView = useContext(ReportViewContext);
+  return renderView?.(tab) ?? null;
+}
+type ReportLocation = ReturnType<typeof parseReportLocation>;
+type ReportNavigation = (
+  patch: Record<string, string | undefined>,
+  options?: { tab?: SalesReportTab; replace?: boolean },
+) => boolean;
+
+function ReportDailyContent({
+  report,
+  organizationId,
+  branchId,
+  page,
+  onPageChange,
+}: {
+  report: StaffSalesAnalytics | MerchantSalesAnalytics;
+  organizationId: string;
+  branchId: string;
+  page: number;
+  onPageChange(page: number): void;
+}) {
+  if (report.granularity && report.granularity !== 'DAY')
+    return (
+      <DailyDataTab
+        key={page}
+        organizationId={organizationId}
+        branchId={branchId}
+        from={report.from}
+        until={report.until}
+        merchant={report.scope === 'MERCHANT'}
+        currentPage={page}
+        onPageChange={onPageChange}
+      />
+    );
+  const total = report.dailyTrends.length;
+  const pagination = (
+    <PaginationControls
+      ariaLabel="Daily data pagination"
+      currentPage={page}
+      totalPages={Math.ceil(total / 15)}
+      hasNext={page * 15 < total}
+      summary={`${total} days`}
+      onPrevious={() => onPageChange(page - 1)}
+      onNext={() => onPageChange(page + 1)}
+    />
+  );
+  return report.scope === 'STAFF' ? (
+    <StaffDailyData
+      rows={report.dailyTrends.slice((page - 1) * 15, page * 15)}
+      pagination={pagination}
+    />
+  ) : (
+    <MerchantDailyData
+      rows={report.dailyTrends.slice((page - 1) * 15, page * 15)}
+      pagination={pagination}
+    />
+  );
+}
+
 function ReportContextBar({
   activeTab,
   loading,
   validDraft,
   onTabChange,
+  tabHref,
   onRefresh,
 }: {
   activeTab: SalesReportTab;
   loading: boolean;
   validDraft: boolean;
   onTabChange(tab: SalesReportTab): void;
+  tabHref(tab: SalesReportTab): string;
   onRefresh(): void;
 }) {
   return (
@@ -104,11 +187,12 @@ function ReportContextBar({
           aria-label="Report views"
         >
           {salesReportTabs.map(({ value, label }) => (
-            <button
+            <Link
               key={value}
               id={`sales-report-tab-${value}`}
-              type="button"
+              href={tabHref(value)}
               role="tab"
+              aria-current={activeTab === value ? 'page' : undefined}
               aria-selected={activeTab === value}
               aria-controls={`sales-${value}-panel`}
               className={`relative min-h-10 shrink-0 rounded-none border-b px-2 text-sm font-semibold transition-colors sm:flex sm:h-full sm:items-center ${
@@ -116,10 +200,21 @@ function ReportContextBar({
                   ? 'border-ink text-ink'
                   : 'border-transparent text-muted hover:text-ink'
               }`}
-              onClick={() => onTabChange(value)}
+              onClick={(event) => {
+                if (
+                  event.button !== 0 ||
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey
+                )
+                  return;
+                event.preventDefault();
+                onTabChange(value);
+              }}
             >
               {label}
-            </button>
+            </Link>
           ))}
         </div>
         <button
@@ -142,6 +237,7 @@ function ReportContextBar({
 export function BranchReports(props: {
   organizationId: string;
   branchId: string;
+  children?: ReactNode;
 }) {
   return (
     <ReportAccess organizationId={props.organizationId}>
@@ -162,18 +258,94 @@ function PeriodBranchReports(props: {
   branchId: string;
   merchant: boolean;
   role: 'OWNER' | 'MANAGER' | 'MERCHANT';
+  children?: ReactNode;
 }) {
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const router = useRouter();
   const { reportPeriod, setReportPeriod } = useOrganizationWorkspaceContext();
   const [selection, setSelection] = useState<PeriodSelection>(() => ({
     dates: todayInPhilippines(),
     preset: 'TODAY',
   }));
+  const location = parseReportLocation(
+    new URLSearchParams(params.toString()),
+    reportPeriod ?? selection,
+    props.merchant,
+  );
+  const activeTab = reportTabFromPath(pathname);
+  const appliedSelectionKey = JSON.stringify(location.selection);
+  const rememberedSelectionKey = JSON.stringify(reportPeriod);
+  useEffect(() => {
+    if (
+      appliedSelectionKey !== rememberedSelectionKey &&
+      params.has('fromDay') &&
+      params.has('throughDay')
+    )
+      setReportPeriod?.(JSON.parse(appliedSelectionKey));
+  }, [appliedSelectionKey, rememberedSelectionKey, params, setReportPeriod]);
+  const base = `/app/organizations/${props.organizationId}/branches/${props.branchId}/reports`;
+  const makeHref = (
+    tab: SalesReportTab,
+    patch: Record<string, string | undefined> = {},
+  ) => {
+    const next = new URLSearchParams(params.toString());
+    reportLocationParams(location.selection).forEach((value, key) =>
+      next.set(key, value),
+    );
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    return `${base}/${reportTabPath(tab)}?${next}`;
+  };
+  const canonicalHref = makeHref(activeTab);
+  const canonicalPeriod = reportLocationParams(location.selection);
+  const needsCanonicalPeriod = [...canonicalPeriod].some(
+    ([key, value]) => params.get(key) !== value,
+  );
+  const canonicalizedHref = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      !needsCanonicalPeriod ||
+      canonicalizedHref.current === canonicalHref ||
+      !allowPosNavigation(canonicalHref)
+    )
+      return;
+    canonicalizedHref.current = canonicalHref;
+    router.replace(canonicalHref, { scroll: false });
+  }, [canonicalHref, needsCanonicalPeriod, router]);
+  const navigate: ReportNavigation = (patch, options = {}) => {
+    const href = makeHref(options.tab ?? activeTab, patch);
+    if (!allowPosNavigation(href)) return false;
+    if (options.replace) router.replace(href, { scroll: false });
+    else router.push(href, { scroll: false });
+    return true;
+  };
   return (
     <ScopedBranchReports
-      key={props.branchId}
+      key={`${props.branchId}:${JSON.stringify(location.selection)}`}
       {...props}
-      selection={reportPeriod ?? selection}
+      selection={location.selection}
+      location={location}
+      activeTab={activeTab}
+      navigate={navigate}
+      tabHref={(tab) => makeHref(tab)}
       onSelectionChange={(next) => {
+        const period = Object.fromEntries(reportLocationParams(next));
+        if (
+          !navigate({
+            ...period,
+            transactionPage: undefined,
+            transactionType: undefined,
+            transactionQ: undefined,
+            rankingPage: undefined,
+            rankingSort: undefined,
+            rankingMerchant: undefined,
+            dailyPage: undefined,
+          })
+        )
+          return;
         setSelection(next);
         setReportPeriod?.(next);
       }}
@@ -187,6 +359,11 @@ function ScopedBranchReports({
   role,
   selection,
   onSelectionChange,
+  location,
+  activeTab,
+  navigate,
+  tabHref,
+  children,
 }: {
   organizationId: string;
   branchId: string;
@@ -194,6 +371,11 @@ function ScopedBranchReports({
   role: 'OWNER' | 'MANAGER' | 'MERCHANT';
   selection: PeriodSelection;
   onSelectionChange(value: PeriodSelection): void;
+  location: ReportLocation;
+  activeTab: SalesReportTab;
+  navigate: ReportNavigation;
+  tabHref(tab: SalesReportTab): string;
+  children?: ReactNode;
 }) {
   const { request, user } = useAuth();
   const { refreshOrganization, setSelectedBranchId } =
@@ -201,16 +383,14 @@ function ScopedBranchReports({
   const router = useRouter();
   const [draft, setDraft] = useState(selection.dates);
   const [preset, setPreset] = useState<ReportPreset>(selection.preset);
-  const [appliedPreset, setAppliedPreset] = useState<ReportPreset>(
-    selection.preset,
-  );
+  const appliedPreset = selection.preset;
   const allTimeRange = useRef<{ from: string; until: string } | null>(null);
   const [resolvedRange, setResolvedRange] = useState<{
     from: string;
     until: string;
   } | null>(null);
   const [emptyAllTime, setEmptyAllTime] = useState(false);
-  const [applied, setApplied] = useState<ReportDateRange>(draft);
+  const [applied] = useState<ReportDateRange>(selection.dates);
   const [branches, setBranches] = useState<ReportBranch[] | null>(null);
   const [report, setReport] = useState<
     StaffSalesAnalytics | MerchantSalesAnalytics | null
@@ -218,31 +398,90 @@ function ScopedBranchReports({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
-  const [activeTab, setActiveTab] = useState<SalesReportTab>('overview');
   const [transactions, setTransactions] = useState<
     StaffTransactionsPage | MerchantTransactionsPage | null
   >(null);
   const [transactionLoading, setTransactionLoading] = useState(false);
   const [transactionRevision, setTransactionRevision] = useState(0);
   const [transactionError, setTransactionError] = useState<string | null>(null);
-  const [transactionPage, setTransactionPage] = useState(1);
-  const [transactionType, setTransactionType] = useState<
-    ReportTransactionType | 'ALL'
-  >('ALL');
-  const [transactionSearch, setTransactionSearch] = useState('');
-  const debouncedTransactionSearch = useDebouncedValue(transactionSearch);
+  const [transactionOutcomeKey, setTransactionOutcomeKey] = useState('');
+  const transactionPage = location.transaction.page;
+  const transactionType = location.transaction.type;
+  const transactionQueryKey = JSON.stringify([
+    report?.from,
+    report?.until,
+    transactionPage,
+    transactionType,
+    location.transaction.q,
+  ]);
+  const [transactionInput, setTransactionInput] = useState({
+    source: location.transaction.q,
+    value: location.transaction.q,
+  });
+  if (transactionInput.source !== location.transaction.q)
+    setTransactionInput({
+      source: location.transaction.q,
+      value: location.transaction.q,
+    });
+  const transactionSearch =
+    transactionInput.source === location.transaction.q
+      ? transactionInput.value
+      : location.transaction.q;
+  const normalizedTransactionSearch = transactionSearch.trim();
+  const debouncedTransactionSearch = useDebouncedValue(
+    normalizedTransactionSearch,
+  );
+  const currentTransactions =
+    transactionOutcomeKey === transactionQueryKey &&
+    normalizedTransactionSearch === location.transaction.q
+      ? transactions
+      : null;
+  const currentTransactionError =
+    transactionOutcomeKey === transactionQueryKey &&
+    normalizedTransactionSearch === location.transaction.q
+      ? transactionError
+      : null;
+  const navigateRef = useRef(navigate);
+  useEffect(() => {
+    navigateRef.current = navigate;
+  }, [navigate]);
+  useEffect(() => {
+    if (
+      transactionInput.source === location.transaction.q &&
+      debouncedTransactionSearch === transactionInput.value.trim() &&
+      debouncedTransactionSearch !== location.transaction.q
+    )
+      navigateRef.current(
+        {
+          transactionQ: debouncedTransactionSearch || undefined,
+          transactionPage: undefined,
+        },
+        { replace: true },
+      );
+  }, [debouncedTransactionSearch, location.transaction.q, transactionInput]);
   const [ranking, setRanking] = useState<
     StaffSalesRankingPage | MerchantSalesRankingPage | null
   >(null);
   const [rankingLoading, setRankingLoading] = useState(false);
   const [rankingError, setRankingError] = useState<string | null>(null);
   const [rankingErrorPage, setRankingErrorPage] = useState<number | null>(null);
-  const [rankingControls, setRankingControls] = useState<ReportRankingControls>(
-    {
-      sortBy: 'GROSS_SALES',
-      merchantId: null,
-    },
+  const [rankingOutcomeKey, setRankingOutcomeKey] = useState('');
+  const rankingControls = useMemo<ReportRankingControls>(
+    () => ({
+      sortBy: location.ranking.sortBy,
+      merchantId: location.ranking.merchantId,
+    }),
+    [location.ranking.sortBy, location.ranking.merchantId],
   );
+  const rankingQueryKey = JSON.stringify([
+    report?.from,
+    report?.until,
+    location.ranking.page,
+    rankingControls.sortBy,
+    rankingControls.merchantId,
+  ]);
+  const currentRankingError =
+    rankingOutcomeKey === rankingQueryKey ? rankingError : null;
   const [merchantOptions, setMerchantOptions] = useState<
     ReportMerchantOption[] | null
   >(null);
@@ -269,15 +508,11 @@ function ScopedBranchReports({
     setRankingLoading(false);
     setRankingError(null);
     setRankingErrorPage(null);
-    setRankingControls({ sortBy: 'GROSS_SALES', merchantId: null });
     setMerchantOptions(null);
     setMerchantOptionsError(null);
     setTransactions(null);
     setTransactionLoading(false);
     setTransactionError(null);
-    setTransactionPage(1);
-    setTransactionType('ALL');
-    setTransactionSearch('');
   }
   useEffect(() => {
     let active = true;
@@ -354,7 +589,13 @@ function ScopedBranchReports({
     setSelectedBranchId,
   ]);
   useEffect(() => {
-    if (activeTab !== 'transactions' || !report) return;
+    if (
+      activeTab !== 'transactions' ||
+      !report ||
+      normalizedTransactionSearch !== debouncedTransactionSearch ||
+      debouncedTransactionSearch !== location.transaction.q
+    )
+      return;
     let active = true;
     const current = generation.current;
     const currentRequest = ++transactionRequest.current;
@@ -379,6 +620,8 @@ function ScopedBranchReports({
         )
           return;
         setTransactions(result);
+        setTransactionOutcomeKey(transactionQueryKey);
+        setTransactionError(null);
       })
       .catch((cause) => {
         if (
@@ -388,6 +631,7 @@ function ScopedBranchReports({
         )
           return;
         setTransactions(null);
+        setTransactionOutcomeKey(transactionQueryKey);
         setTransactionError(
           cause instanceof ApiError
             ? cause.message
@@ -417,6 +661,9 @@ function ScopedBranchReports({
     transactionPage,
     transactionRevision,
     transactionType,
+    normalizedTransactionSearch,
+    location.transaction.q,
+    transactionQueryKey,
   ]);
   useEffect(() => {
     if (
@@ -458,70 +705,281 @@ function ScopedBranchReports({
   ]);
   const merchantOptionsLoading =
     !merchant && merchantOptions === null && merchantOptionsError === null;
-  async function loadRankingPage(
-    page: number,
-    controls: ReportRankingControls = rankingControls,
-    force = false,
-  ) {
-    if ((rankingLoading && !force) || page < 1) return;
-    const current = generation.current;
-    const currentRequest = ++rankingRequest.current;
-    setRankingLoading(true);
-    setRankingError(null);
-    setRankingErrorPage(null);
-    try {
-      const query = {
-        ...(report
-          ? { from: report.from, until: report.until }
-          : reportUtcRange(applied)),
-        page,
-        sortBy: controls.sortBy,
-        ...(controls.merchantId ? { merchantId: controls.merchantId } : {}),
-      };
-      const result = merchant
-        ? await getMerchantSalesRankings(
-            request,
-            organizationId,
-            branchId,
-            query,
-          )
-        : await getStaffSalesRankings(request, organizationId, branchId, query);
-      if (
-        current !== generation.current ||
-        currentRequest !== rankingRequest.current
-      )
-        return;
-      setRanking(result);
-    } catch (cause) {
-      if (
-        current !== generation.current ||
-        currentRequest !== rankingRequest.current
-      )
-        return;
-      setRankingError(
-        cause instanceof ApiError
-          ? cause.message
-          : 'The product ranking page could not be loaded.',
-      );
-      setRankingErrorPage(page);
-    } finally {
-      if (
-        current === generation.current &&
-        currentRequest === rankingRequest.current
-      )
-        setRankingLoading(false);
-    }
-  }
+  const loadRankingPage = useCallback(
+    async (page: number, controls: ReportRankingControls = rankingControls) => {
+      if (page < 1) return;
+      const current = generation.current;
+      const currentRequest = ++rankingRequest.current;
+      setRankingLoading(true);
+      setRankingError(null);
+      setRankingErrorPage(null);
+      try {
+        const query = {
+          ...(report
+            ? { from: report.from, until: report.until }
+            : reportUtcRange(applied)),
+          page,
+          sortBy: controls.sortBy,
+          ...(controls.merchantId ? { merchantId: controls.merchantId } : {}),
+        };
+        const result = merchant
+          ? await getMerchantSalesRankings(
+              request,
+              organizationId,
+              branchId,
+              query,
+            )
+          : await getStaffSalesRankings(
+              request,
+              organizationId,
+              branchId,
+              query,
+            );
+        if (
+          current !== generation.current ||
+          currentRequest !== rankingRequest.current
+        )
+          return;
+        setRanking(result);
+        setRankingOutcomeKey(
+          JSON.stringify([
+            query.from,
+            query.until,
+            page,
+            controls.sortBy,
+            controls.merchantId,
+          ]),
+        );
+      } catch (cause) {
+        if (
+          current !== generation.current ||
+          currentRequest !== rankingRequest.current
+        )
+          return;
+        setRankingError(
+          cause instanceof ApiError
+            ? cause.message
+            : 'The product ranking page could not be loaded.',
+        );
+        setRankingErrorPage(page);
+        setRankingOutcomeKey(
+          JSON.stringify([
+            report?.from,
+            report?.until,
+            page,
+            controls.sortBy,
+            controls.merchantId,
+          ]),
+        );
+      } finally {
+        if (
+          current === generation.current &&
+          currentRequest === rankingRequest.current
+        )
+          setRankingLoading(false);
+      }
+    },
+    [
+      rankingControls,
+      report,
+      applied,
+      merchant,
+      request,
+      organizationId,
+      branchId,
+    ],
+  );
+  useEffect(() => {
+    if (activeTab !== 'rankings' || !report) return;
+    let active = true;
+    const requestCounter = rankingRequest;
+    void Promise.resolve().then(() => {
+      if (active) void loadRankingPage(location.ranking.page, rankingControls);
+    });
+    return () => {
+      active = false;
+      requestCounter.current++;
+    };
+  }, [
+    activeTab,
+    report,
+    location.ranking.page,
+    rankingControls,
+    loadRankingPage,
+  ]);
   function changeRankingControls(next: ReportRankingControls) {
+    if (
+      next.sortBy === rankingControls.sortBy &&
+      next.merchantId === rankingControls.merchantId
+    )
+      return;
     rankingRequest.current++;
-    setRankingControls(next);
     setRanking(null);
     setRankingError(null);
     setRankingErrorPage(null);
-    void loadRankingPage(1, next, true);
+    navigate({
+      rankingSort: next.sortBy,
+      rankingMerchant: next.merchantId ?? undefined,
+      rankingPage: undefined,
+    });
+  }
+  const displayedRanking =
+    ranking &&
+    ranking.page === location.ranking.page &&
+    ranking.sortBy === rankingControls.sortBy &&
+    ranking.merchantId === rankingControls.merchantId
+      ? ranking
+      : null;
+  function changeRankingPage(page: number) {
+    if (page === location.ranking.page) {
+      void loadRankingPage(page, rankingControls);
+      return;
+    }
+    rankingRequest.current++;
+    setRanking(null);
+    setRankingError(null);
+    setRankingErrorPage(null);
+    navigate({ rankingPage: String(page) });
   }
   const validDraft =
     preset === 'ALL_TIME' || reportDateRangeSchema.safeParse(draft).success;
+  const renderView = (tab: SalesReportTab) =>
+    loading ? (
+      <ListSkeleton label="Loading sales report" />
+    ) : error ? (
+      <>
+        {validDraft ? (
+          <RequestError
+            message={error}
+            onRetry={() => {
+              invalidate();
+              setRevision((value) => value + 1);
+            }}
+          />
+        ) : (
+          <p role="alert">{error} Correct the report dates before retrying.</p>
+        )}
+        {denied && !merchant ? (
+          <button
+            type="button"
+            className={buttonStyles({
+              variant: 'secondary',
+              className: 'mt-3',
+            })}
+            onClick={() => void refreshOrganization()}
+          >
+            Refresh access
+          </button>
+        ) : null}
+      </>
+    ) : emptyAllTime ? (
+      <div className="card-surface p-6">
+        <EmptyState
+          title="No completed sales or refunds yet."
+          description="All-time sales, refunds and net recorded sales are PHP 0.00. Transactions and units are 0 for this branch and your current access."
+        />
+      </div>
+    ) : report ? (
+      tab === 'transactions' ? (
+        <TransactionsTab
+          organizationId={organizationId}
+          branchId={branchId}
+          merchant={merchant}
+          page={currentTransactions}
+          loading={
+            transactionLoading ||
+            (currentTransactions === null && currentTransactionError === null)
+          }
+          error={currentTransactionError}
+          filterType={transactionType}
+          search={transactionSearch}
+          onTypeChange={(next) => {
+            if (next === transactionType) return;
+            transactionRequest.current++;
+            setTransactions(null);
+            setTransactionError(null);
+            navigate({
+              transactionPage: undefined,
+              transactionType: next === 'ALL' ? undefined : next,
+            });
+          }}
+          onSearchChange={(next) => {
+            if (next.slice(0, 254).trim() !== normalizedTransactionSearch) {
+              transactionRequest.current++;
+              setTransactions(null);
+              setTransactionError(null);
+            }
+            setTransactionInput({
+              source: location.transaction.q,
+              value: next.slice(0, 254),
+            });
+          }}
+          onRetry={() => {
+            setTransactions(null);
+            setTransactionError(null);
+            setTransactionRevision((value) => value + 1);
+          }}
+          onPageChange={(next) => {
+            if (next < 1) return;
+            transactionRequest.current++;
+            setTransactions(null);
+            setTransactionError(null);
+            navigate({ transactionPage: String(next) });
+          }}
+        />
+      ) : tab === 'daily' ? (
+        <ReportDailyContent
+          key={`${report.scope}:${branchId}:${report.from}:${report.until}:${revision}`}
+          report={report}
+          organizationId={organizationId}
+          branchId={branchId}
+          page={location.dailyPage}
+          onPageChange={(page) => navigate({ dailyPage: String(page) })}
+        />
+      ) : report.scope === 'MERCHANT' ? (
+        <MerchantAnalyticsDashboard
+          report={report}
+          activeTab={tab}
+          ranking={
+            displayedRanking?.scope === 'MERCHANT'
+              ? displayedRanking
+              : undefined
+          }
+          rankingControls={rankingControls}
+          onRankingControlsChange={changeRankingControls}
+          rankingLoading={
+            rankingLoading || (!displayedRanking && location.ranking.page !== 1)
+          }
+          rankingError={currentRankingError}
+          rankingErrorPage={currentRankingError ? rankingErrorPage : null}
+          onRankingPageChange={changeRankingPage}
+        />
+      ) : (
+        <StaffAnalyticsDashboard
+          report={report}
+          activeTab={tab}
+          ranking={
+            displayedRanking?.scope === 'STAFF' ? displayedRanking : undefined
+          }
+          rankingControls={rankingControls}
+          merchantOptions={merchantOptions ?? []}
+          merchantOptionsLoading={merchantOptionsLoading}
+          merchantOptionsError={merchantOptionsError}
+          onMerchantOptionsRetry={() => {
+            setMerchantOptions(null);
+            setMerchantOptionsError(null);
+            setMerchantOptionsRevision((value) => value + 1);
+          }}
+          onRankingControlsChange={changeRankingControls}
+          rankingLoading={
+            rankingLoading || (!displayedRanking && location.ranking.page !== 1)
+          }
+          rankingError={currentRankingError}
+          rankingErrorPage={currentRankingError ? rankingErrorPage : null}
+          onRankingPageChange={changeRankingPage}
+        />
+      )
+    ) : null;
   return (
     <OrganizationPageFrame wide>
       <PageHeader
@@ -548,7 +1006,11 @@ function ScopedBranchReports({
                 (refund && refund.state !== 'completed')
               )
                 return;
-              const href = `/app/organizations/${organizationId}/branches/${next}/reports`;
+              const period = reportLocationParams({
+                dates: applied,
+                preset: appliedPreset,
+              });
+              const href = `/app/organizations/${organizationId}/branches/${next}/reports/${reportTabPath(activeTab)}?${period}`;
               if (!allowPosNavigation(href)) return;
               setSelectedBranchId(next);
               invalidate();
@@ -591,23 +1053,27 @@ function ScopedBranchReports({
                   ? todayInPhilippines()
                   : reportPresetDates(next);
               setDraft(dates);
-              invalidate();
-              allTimeRange.current = null;
-              setResolvedRange(null);
-              setRevision((value) => value + 1);
-              setApplied(dates);
-              setAppliedPreset(next);
+              if (
+                next === appliedPreset &&
+                dates.fromDay === applied.fromDay &&
+                dates.throughDay === applied.throughDay
+              ) {
+                invalidate();
+                setRevision((value) => value + 1);
+              }
               onSelectionChange({ dates, preset: next });
             }}
             onChange={setDraft}
             onApply={(next) => {
-              invalidate();
-              allTimeRange.current = null;
-              setResolvedRange(null);
-              setRevision((value) => value + 1);
               const dates = preset === 'ALL_TIME' ? todayInPhilippines() : next;
-              setApplied(dates);
-              setAppliedPreset(preset);
+              if (
+                preset === appliedPreset &&
+                dates.fromDay === applied.fromDay &&
+                dates.throughDay === applied.throughDay
+              ) {
+                invalidate();
+                setRevision((value) => value + 1);
+              }
               onSelectionChange({ dates, preset });
             }}
           />
@@ -617,135 +1083,16 @@ function ScopedBranchReports({
         activeTab={activeTab}
         loading={loading}
         validDraft={validDraft}
-        onTabChange={setActiveTab}
+        onTabChange={(tab) => navigate({}, { tab })}
+        tabHref={tabHref}
         onRefresh={() => {
           invalidate();
           setRevision((value) => value + 1);
         }}
       />
-      {loading ? (
-        <ListSkeleton label="Loading sales report" />
-      ) : error ? (
-        <>
-          {validDraft ? (
-            <RequestError
-              message={error}
-              onRetry={() => {
-                invalidate();
-                setRevision((value) => value + 1);
-              }}
-            />
-          ) : (
-            <p role="alert">
-              {error} Correct the report dates before retrying.
-            </p>
-          )}
-          {denied && !merchant ? (
-            <button
-              type="button"
-              className={buttonStyles({
-                variant: 'secondary',
-                className: 'mt-3',
-              })}
-              onClick={() => void refreshOrganization()}
-            >
-              Refresh access
-            </button>
-          ) : null}
-        </>
-      ) : emptyAllTime ? (
-        <div className="card-surface p-6">
-          <EmptyState
-            title="No completed sales or refunds yet."
-            description="All-time sales, refunds and net recorded sales are PHP 0.00. Transactions and units are 0 for this branch and your current access."
-          />
-        </div>
-      ) : report ? (
-        activeTab === 'transactions' ? (
-          <TransactionsTab
-            organizationId={organizationId}
-            branchId={branchId}
-            merchant={merchant}
-            page={transactions}
-            loading={
-              transactionLoading ||
-              (transactions === null && transactionError === null)
-            }
-            error={transactionError}
-            filterType={transactionType}
-            search={transactionSearch}
-            onTypeChange={(next) => {
-              transactionRequest.current++;
-              setTransactions(null);
-              setTransactionError(null);
-              setTransactionPage(1);
-              setTransactionType(next);
-            }}
-            onSearchChange={(next) => {
-              transactionRequest.current++;
-              setTransactions(null);
-              setTransactionError(null);
-              setTransactionPage(1);
-              setTransactionSearch(next);
-            }}
-            onRetry={() => {
-              setTransactions(null);
-              setTransactionError(null);
-              setTransactionRevision((value) => value + 1);
-            }}
-            onPageChange={(next) => {
-              if (next < 1) return;
-              transactionRequest.current++;
-              setTransactions(null);
-              setTransactionError(null);
-              setTransactionPage(next);
-            }}
-          />
-        ) : activeTab === 'daily' &&
-          report.granularity &&
-          report.granularity !== 'DAY' ? (
-          <DailyDataTab
-            key={`${report.scope}:${branchId}:${report.from}:${report.until}:${revision}`}
-            organizationId={organizationId}
-            branchId={branchId}
-            from={report.from}
-            until={report.until}
-            merchant={merchant}
-          />
-        ) : report.scope === 'MERCHANT' ? (
-          <MerchantAnalyticsDashboard
-            report={report}
-            activeTab={activeTab}
-            ranking={ranking?.scope === 'MERCHANT' ? ranking : undefined}
-            rankingControls={rankingControls}
-            onRankingControlsChange={changeRankingControls}
-            rankingLoading={rankingLoading}
-            rankingError={rankingError}
-            rankingErrorPage={rankingErrorPage}
-            onRankingPageChange={loadRankingPage}
-          />
-        ) : (
-          <StaffAnalyticsDashboard
-            report={report}
-            activeTab={activeTab}
-            ranking={ranking?.scope === 'STAFF' ? ranking : undefined}
-            rankingControls={rankingControls}
-            merchantOptions={merchantOptions ?? []}
-            merchantOptionsLoading={merchantOptionsLoading}
-            merchantOptionsError={merchantOptionsError}
-            onMerchantOptionsRetry={() => {
-              setMerchantOptions(null);
-              setMerchantOptionsError(null);
-              setMerchantOptionsRevision((value) => value + 1);
-            }}
-            onRankingControlsChange={changeRankingControls}
-            rankingLoading={rankingLoading}
-            rankingError={rankingError}
-            rankingErrorPage={rankingErrorPage}
-            onRankingPageChange={loadRankingPage}
-          />
-        )
-      ) : null}
+      <ReportViewContext.Provider value={renderView}>
+        {children ?? <ReportView tab={activeTab} />}
+      </ReportViewContext.Provider>
       {merchant ? (
         <button
           type="button"

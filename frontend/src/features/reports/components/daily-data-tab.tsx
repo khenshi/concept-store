@@ -20,15 +20,20 @@ export function DailyDataTab({
   from,
   until,
   merchant,
+  currentPage,
+  onPageChange,
 }: {
   organizationId: string;
   branchId: string;
   from: string;
   until: string;
   merchant: boolean;
+  currentPage?: number;
+  onPageChange?(page: number): void;
 }) {
   const { request } = useAuth();
-  const [page, setPage] = useState(1);
+  const [localPage, setPage] = useState(1);
+  const page = currentPage ?? localPage;
   const [data, setData] = useState<
     StaffDailyReportPage | MerchantDailyReportPage | null
   >(null);
@@ -81,7 +86,8 @@ export function DailyDataTab({
   const changePage = (next: number) => {
     setData(null);
     setError(null);
-    setPage(next);
+    if (onPageChange) onPageChange(next);
+    else setPage(next);
   };
   const pagination = (
     <PaginationControls
