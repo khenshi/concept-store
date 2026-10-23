@@ -13,6 +13,7 @@ import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { Icon } from '@/shared/components/ui/icon';
+import { FloatingNotice } from '@/shared/components/ui/floating-notice';
 import { listOccupancies, listSpaces, setSpaceStatus } from '../api/space-api';
 import {
   releaseLabels,
@@ -30,14 +31,15 @@ const message = (cause: unknown) =>
     : 'Spaces could not be loaded. Try again.';
 const action = buttonStyles({
   variant: 'quiet',
-  className: 'min-h-9 shrink-0 px-2 py-1 text-sm',
+  className: 'min-h-9 shrink-0 px-2 py-1 text-sm font-semibold',
 });
 const archiveAction = buttonStyles({
   variant: 'quiet',
-  className: 'min-h-9 shrink-0 px-2 py-1 text-sm text-danger hover:text-danger',
+  className:
+    'min-h-9 shrink-0 px-2 py-1 text-sm font-semibold text-danger hover:text-danger',
 });
 const spaceTableGrid =
-  'lg:grid-cols-[minmax(15rem,2fr)_minmax(8rem,0.8fr)_minmax(8rem,0.8fr)_minmax(12rem,1.2fr)_11rem]';
+  'lg:grid-cols-[minmax(8rem,1fr)_minmax(5rem,0.7fr)_minmax(5rem,0.7fr)_minmax(8rem,1fr)_minmax(9rem,1fr)_11rem]';
 const spaceTableCell = 'min-w-0 break-words lg:justify-self-start';
 function date(value: string) {
   return new Date(value).toLocaleString(undefined, {
@@ -240,6 +242,7 @@ function ScopedSpaces(
               : 'The space will be available for new assignments.',
           confirmLabel:
             next === 'ARCHIVED' ? 'Archive space' : 'Reactivate space',
+          tone: next === 'ARCHIVED' ? 'danger' : 'primary',
         }))
       )
         return;
@@ -304,6 +307,7 @@ function ScopedSpaces(
                 />
                 <input
                   id="space-search"
+                  placeholder="e.g. Shelf A1"
                   className="min-h-11 w-full min-w-0 rounded-full border border-control-border bg-surface py-2 pr-4 pl-10 text-sm placeholder:text-muted"
                   maxLength={120}
                   value={q}
@@ -430,11 +434,13 @@ function ScopedSpaces(
         )
       }
     >
-      {success && (
-        <p className="mt-4 px-5 text-sm text-success-ink sm:px-6" role="status">
-          {success}
-        </p>
-      )}
+      {success ? (
+        <FloatingNotice
+          key={success}
+          message={success}
+          onDismiss={() => setSuccess(null)}
+        />
+      ) : null}
       {error && (
         <div className="mt-4 px-5 sm:px-6" role="alert">
           <p className="text-danger">{error}</p>
@@ -502,47 +508,48 @@ function ScopedSpaces(
                 <span>Space</span>
                 <span>Type</span>
                 <span>Status</span>
+                <span>Current merchant</span>
                 <span>Occupancy</span>
                 <span>Actions</span>
               </li>
               {spaces.items.map((row) => (
                 <li
-                  className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:items-center lg:justify-items-start ${spaceTableGrid}`}
+                  className={`data-row inventory-data-row grid min-w-0 gap-x-6 gap-y-3 text-sm font-normal text-ink sm:grid-cols-2 lg:items-center lg:justify-items-start ${spaceTableGrid}`}
                   key={row.id}
                 >
                   <div className={spaceTableCell}>
                     <p className="font-semibold">{row.name}</p>
                   </div>
-                  <div className={`${spaceTableCell} text-sm text-muted`}>
+                  <div className={`${spaceTableCell} text-sm text-ink`}>
                     {row.type}
                   </div>
                   <div className={spaceTableCell}>
                     <span
-                      className={`text-sm font-semibold ${row.status === 'ACTIVE' ? 'text-success-ink' : 'text-danger'}`}
+                      className={`text-sm font-normal ${row.status === 'ACTIVE' ? 'text-success-ink' : 'text-danger'}`}
                     >
                       {row.status === 'ACTIVE' ? 'Active' : 'Archived'}
                     </span>
                   </div>
                   <div className={spaceTableCell}>
+                    {row.currentOccupancy?.merchant.name ?? ''}
+                  </div>
+                  <div className={spaceTableCell}>
                     {row.currentOccupancy ? (
                       <>
-                        <span className="text-sm font-semibold text-success-ink">
+                        <span className="text-sm font-normal text-success-ink">
                           Occupied
                         </span>
-                        <p className="mt-2">
-                          {row.currentOccupancy.merchant.name}
-                        </p>
-                        <p className="mt-1 text-muted">
+                        <p className="mt-1 text-ink">
                           Since {date(row.currentOccupancy.startedAt)}
                         </p>
                       </>
                     ) : (
                       <>
-                        <span className="text-sm font-semibold text-success-ink">
+                        <span className="text-sm font-normal text-success-ink">
                           {own ? 'No assignment' : 'Vacant'}
                         </span>
                         {own && (
-                          <p className="mt-2 text-muted">
+                          <p className="mt-2 text-ink">
                             No current assignment for you
                           </p>
                         )}

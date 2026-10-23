@@ -16,13 +16,13 @@ function SkeletonBar({ className }: { className: string }) {
 
 function BranchRowsSkeleton() {
   const grid =
-    'lg:grid-cols-[minmax(10rem,1.1fr)_minmax(7rem,0.75fr)_minmax(11rem,1fr)_minmax(0,2.2fr)]';
+    'lg:grid-cols-[minmax(8rem,1fr)_minmax(5rem,0.7fr)_minmax(5rem,0.7fr)_minmax(8rem,1fr)_minmax(9rem,1fr)_11rem]';
   return (
     <>
       <div
         className={`data-column-header hidden gap-x-6 gap-y-3 lg:grid ${grid}`}
       >
-        {Array.from({ length: 4 }, (_, index) => (
+        {Array.from({ length: 6 }, (_, index) => (
           <SkeletonBar className="h-2.5 w-2/3" key={index} />
         ))}
       </div>
@@ -36,6 +36,8 @@ function BranchRowsSkeleton() {
             <SkeletonBar className="h-2.5 w-3/5" />
           </div>
           <SkeletonBar className="h-3 w-3/5" />
+          <SkeletonBar className="h-3 w-3/5" />
+          <SkeletonBar className="h-3 w-4/5" />
           <div className="min-w-0 space-y-2">
             <SkeletonBar className="h-7 w-20 rounded-full" />
             <SkeletonBar className="h-2.5 w-4/5" />

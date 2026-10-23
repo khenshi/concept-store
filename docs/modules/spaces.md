@@ -1,5 +1,38 @@
 # Branch space occupancy
 
+Space Overview content uses responsive side padding matching the card header.
+
+Occupancy history's Search Merchant and Occupancy Dates labels both use xs,
+medium-weight muted text.
+Search and calendar controls use matching label spacing for horizontal alignment.
+
+Space Detail occupancy history uses the shared applied date-range calendar with
+Clear Dates and a gray filter section. Search is debounced and history shows a
+row skeleton while typing/loading. Row text is sm normal weight except semibold
+merchant names. Existing date-boundary semantics and access rules are unchanged.
+
+Space Detail success feedback, including release confirmation, uses the shared
+floating slide-down/up notice with manual and five-second automatic dismissal.
+
+The Spaces table uses a narrower Space column and a separate Current merchant
+column, blank for vacant spaces. Occupancy shows status/start date without
+repeating the merchant name. Existing access-scoped data remains unchanged.
+
+Space edit dirty-state reporting compares baseline name/type values rather than
+space object identity, avoiding repeated parent updates on detail-page renders.
+
+Assignment start dates use the native system calendar, with the optional-today
+hint below the input. Optional-today and historical-date rules remain unchanged. Archive
+confirmation uses a red danger action; reactivation retains the primary action.
+
+Add Space initially focuses its heading, not the name input. Successful creation,
+archiving and assignment use the shared floating slide-down/up notice, dismissible
+manually or automatically after five seconds. Error feedback remains unchanged.
+
+The Spaces table search includes an example placeholder. Rows use sm graphite
+text, with semibold space names and actions only. Status and occupancy retain
+their existing colors with normal weight.
+
 **Status:** Implemented October 9, 2026.
 
 ## Purpose and ownership

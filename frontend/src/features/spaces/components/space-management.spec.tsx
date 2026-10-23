@@ -30,6 +30,7 @@ import {
   timestamp,
 } from '../model/space.test-fixtures';
 import { SpaceManagement } from './space-management';
+import { SpaceForm } from './space-forms';
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
   '@/features/organizations/components/organization-workspace-context',
@@ -109,12 +110,56 @@ beforeEach(() => {
   );
 });
 describe('Space management', () => {
+  it('reports edit state only when values change, not space object identity', async () => {
+    vi.mocked(useAuth).mockReturnValue({ request } as never);
+    const onStateChange = vi.fn();
+    const onClose = vi.fn();
+    const onSaved = vi.fn();
+    const view = render(
+      <SpaceForm
+        organizationId={org}
+        branchId={branch}
+        space={{ ...space }}
+        onStateChange={onStateChange}
+        onClose={onClose}
+        onSaved={onSaved}
+      />,
+    );
+    await waitFor(() =>
+      expect(onStateChange).toHaveBeenCalledWith({
+        dirty: false,
+        pending: false,
+      }),
+    );
+    onStateChange.mockClear();
+    view.rerender(
+      <SpaceForm
+        organizationId={org}
+        branchId={branch}
+        space={{ ...space }}
+        onStateChange={onStateChange}
+        onClose={onClose}
+        onSaved={onSaved}
+      />,
+    );
+    expect(onStateChange).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Space name'), {
+      target: { value: 'Updated space' },
+    });
+    expect(onStateChange).toHaveBeenLastCalledWith({
+      dirty: true,
+      pending: false,
+    });
+  });
   it('creates a named space and reloads the branch catalog', async () => {
     setup();
     await screen.findByText('Rack A1');
     fireEvent.click(screen.getByRole('button', { name: 'Add space' }));
     const dialog = screen.getByRole('dialog');
-    expect(within(dialog).getByLabelText('Space name')).toHaveFocus();
+    expect(within(dialog).getByLabelText('Space name')).not.toHaveFocus();
+    expect(
+      within(dialog).getByRole('heading', { name: 'Create a space' }),
+    ).toHaveFocus();
     fireEvent.blur(within(dialog).getByLabelText('Space name'));
     expect(within(dialog).getByText('Enter a space name.')).toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText('Space name'), {
@@ -165,12 +210,12 @@ describe('Space management', () => {
     );
     expect(within(spaces).getByText('Active')).toHaveClass(
       'text-sm',
-      'font-semibold',
+      'font-normal',
       'text-success-ink',
     );
     expect(within(spaces).getByText('Vacant')).toHaveClass(
       'text-sm',
-      'font-semibold',
+      'font-normal',
       'text-success-ink',
     );
     expect(screen.getByRole('button', { name: 'Assign' })).toBeInTheDocument();
@@ -204,7 +249,10 @@ describe('Space management', () => {
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveClass('max-w-2xl');
     expect(within(dialog).queryByLabelText('Start date and time')).toBeNull();
-    expect(dialog.querySelector('input[type="date"]')).not.toBeNull();
+    expect(within(dialog).getByLabelText('Start date')).toHaveAttribute(
+      'type',
+      'date',
+    );
     await waitFor(() =>
       expect(within(dialog).getByLabelText('Merchant')).toBeEnabled(),
     );
@@ -305,7 +353,7 @@ describe('Space management', () => {
       within(screen.getByRole('list', { name: 'Branch spaces' })).getByText(
         'Occupied',
       ),
-    ).toHaveClass('text-sm', 'font-semibold', 'text-success-ink');
+    ).toHaveClass('text-sm', 'font-normal', 'text-success-ink');
     view.unmount();
     vi.mocked(listSpaces).mockResolvedValue(page([space]));
     setup();

@@ -1,4 +1,5 @@
 'use client';
+import { FloatingNotice } from '@/shared/components/ui/floating-notice';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -10,7 +11,6 @@ import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   OperationalCollection,
   OperationalPanel,
-  StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
@@ -19,6 +19,11 @@ import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import { TextField } from '@/shared/components/ui/text-field';
+import {
+  DateRangePicker,
+  type DateRangePickerValue,
+} from '@/shared/components/ui/date-range-picker';
+import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { SpacesBranchSelector } from './spaces-branch-selector';
 import { AssignmentForm, ReleaseForm, SpaceForm } from './space-forms';
 import { getSpace, listOccupancies, setSpaceStatus } from '../api/space-api';
@@ -92,7 +97,7 @@ function HistoryList({ data }: { data: OccupancyPage }) {
         {data.items.map((row) => (
           <li
             key={row.id}
-            className={`data-row ${historyGrid} px-4 py-4 sm:items-center`}
+            className={`data-row ${historyGrid} px-4 py-4 text-sm font-normal sm:items-center`}
           >
             <div className="min-w-0 break-words sm:justify-self-start">
               <p className="font-semibold">{row.merchant.name}</p>
@@ -168,6 +173,14 @@ function ScopedSpaceDetail({
   const [revision, setRevision] = useState(0);
   const [historyPage, setHistoryPage] = useState(1);
   const [historySearch, setHistorySearch] = useState('');
+  const debouncedHistorySearch = useDebouncedValue(historySearch);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const historyBusy =
+    historyLoading || historySearch !== debouncedHistorySearch;
+  const [historyDates, setHistoryDates] = useState<DateRangePickerValue>({
+    fromDay: '',
+    throughDay: '',
+  });
   const [historyFrom, setHistoryFrom] = useState('');
   const [historyUntil, setHistoryUntil] = useState('');
   const [pending, setPending] = useState(false);
@@ -201,6 +214,7 @@ function ScopedSpaceDetail({
       .then(() => {
         if (!active || read !== generation.current) return null;
         setLoading(!hasLoaded.current);
+        setHistoryLoading(true);
         setError(null);
         return Promise.all([
           getSpace(request, organizationId, branchId, spaceId),
@@ -217,7 +231,7 @@ function ScopedSpaceDetail({
             {
               page: historyPage,
               view: 'HISTORY',
-              q: historySearch.trim() || undefined,
+              q: debouncedHistorySearch.trim() || undefined,
               dateFrom: historyFrom
                 ? historyDateBoundary(historyFrom)
                 : undefined,
@@ -246,7 +260,10 @@ function ScopedSpaceDetail({
           );
       })
       .finally(() => {
-        if (active && read === generation.current) setLoading(false);
+        if (active && read === generation.current) {
+          setLoading(false);
+          setHistoryLoading(false);
+        }
       });
     return () => {
       active = false;
@@ -256,7 +273,7 @@ function ScopedSpaceDetail({
     branchId,
     historyFrom,
     historyPage,
-    historySearch,
+    debouncedHistorySearch,
     historyUntil,
     organizationId,
     request,
@@ -396,7 +413,13 @@ function ScopedSpaceDetail({
         description={`${space.type} space${branchName ? ` in ${branchName}` : ''}. Review occupancy, history, and available actions.`}
         action={branchSelector}
       />
-      {success ? <StatusNotice>{success}</StatusNotice> : null}
+      {success ? (
+        <FloatingNotice
+          key={success}
+          message={success}
+          onDismiss={() => setSuccess(null)}
+        />
+      ) : null}
       <div className="mt-7 grid min-w-0 gap-7">
         <div className="grid min-w-0 gap-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
           <OperationalPanel
@@ -404,7 +427,7 @@ function ScopedSpaceDetail({
             title="Space overview"
             description="Current identity and availability for this branch space."
           >
-            <dl className="grid gap-5 border-y border-hairline py-5 sm:grid-cols-2">
+            <dl className="grid gap-5 border-y border-hairline px-5 py-5 sm:grid-cols-2 sm:px-6">
               <div>
                 <dt className="text-xs text-muted">Type</dt>
                 <dd className="mt-1 font-semibold">{space.type}</dd>
@@ -500,14 +523,15 @@ function ScopedSpaceDetail({
           description="Current and completed assignments recorded for this space."
         >
           <div className="border-t border-hairline">
-            <div className="border-b border-hairline px-4 py-4 sm:px-5">
+            <div className="border-b border-hairline bg-subtle px-4 py-4 sm:px-5">
               <div
-                className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(10rem,0.7fr)_minmax(10rem,0.7fr)]"
+                className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]"
                 role="search"
                 aria-label="Filter occupancy history"
               >
                 <TextField
                   label="Search merchant"
+                  containerClassName="[&_label]:text-xs [&_label]:font-medium [&_label]:text-muted"
                   icon="search"
                   placeholder="Search by merchant"
                   value={historySearch}
@@ -517,35 +541,33 @@ function ScopedSpaceDetail({
                     setHistoryPage(1);
                   }}
                 />
-                <TextField
-                  label="From date"
-                  icon="calendar"
-                  type="date"
-                  value={historyFrom}
-                  onChange={(event) => {
-                    setHistoryFrom(event.target.value);
+                <DateRangePicker
+                  id="occupancy-history-dates"
+                  label="Occupancy dates"
+                  className="[&_label]:mb-2"
+                  filterLabel="Occupancy date filter"
+                  dialogLabel="Choose occupancy history dates"
+                  value={historyDates}
+                  onChange={setHistoryDates}
+                  onApply={(value) => {
+                    setHistoryDates(value);
+                    setHistoryFrom(value.fromDay);
+                    setHistoryUntil(value.throughDay);
                     setHistoryPage(1);
                   }}
-                />
-                <TextField
-                  label="Until date"
-                  icon="calendar"
-                  type="date"
-                  value={historyUntil}
-                  onChange={(event) => {
-                    setHistoryUntil(event.target.value);
+                  onClear={() => {
+                    setHistoryDates({ fromDay: '', throughDay: '' });
+                    setHistoryFrom('');
+                    setHistoryUntil('');
                     setHistoryPage(1);
                   }}
+                  align="end"
                 />
               </div>
-              <p className="mt-3 text-xs text-muted">
-                All dates are shown by default. Date filters include occupancy
-                periods that overlap the selected range.
-              </p>
             </div>
             <OperationalTableFrame
               empty={
-                !history.items.length ? (
+                !historyBusy && !history.items.length ? (
                   <EmptyState
                     className="mt-6"
                     title="No occupancy history yet."
@@ -559,7 +581,7 @@ function ScopedSpaceDetail({
                   ariaLabel="Occupancy history pagination"
                   currentPage={history.page}
                   totalPages={history.totalPages}
-                  pending={pending}
+                  pending={pending || historyBusy}
                   hasNext={history.hasNext}
                   summary={`${history.total} records`}
                   onPrevious={() => setHistoryPage((value) => value - 1)}
@@ -567,7 +589,41 @@ function ScopedSpaceDetail({
                 />
               }
             >
-              <HistoryList data={history} />
+              {historyBusy ? (
+                <div
+                  role="status"
+                  aria-label="Loading occupancy history"
+                  aria-busy="true"
+                  className="p-4"
+                >
+                  <div
+                    className={`data-column-header ${historyGrid}`}
+                    aria-hidden="true"
+                  >
+                    {['Merchant', 'From date', 'Until date', 'Released by'].map(
+                      (label) => (
+                        <span key={label}>{label}</span>
+                      ),
+                    )}
+                  </div>
+                  {Array.from({ length: 4 }, (_, index) => (
+                    <div
+                      key={index}
+                      className={`${historyGrid} border-t border-hairline px-4 py-5`}
+                      aria-hidden="true"
+                    >
+                      {Array.from({ length: 4 }, (_, cell) => (
+                        <span
+                          key={cell}
+                          className="h-4 w-3/4 animate-pulse rounded-control bg-selected"
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <HistoryList data={history} />
+              )}
             </OperationalTableFrame>
           </div>
         </OperationalCollection>

@@ -116,7 +116,8 @@ export function SpaceForm({
   }, [
     name,
     type,
-    space,
+    space?.name,
+    space?.type,
     pending,
     typePending,
     addingType,
@@ -145,7 +146,7 @@ export function SpaceForm({
     <FormDialog
       title={space ? 'Edit space' : 'Create a space'}
       description="Add a named location to this branch. Choose an existing type or create one for the organization."
-      initialFocusRef={nameRef}
+      initialFocusRef={space ? nameRef : undefined}
       size="form"
       pending={pending || typePending}
       onClose={close}
@@ -593,24 +594,25 @@ export function AssignmentForm({
           </p>
         )}
         <div className={historical ? 'grid gap-5 md:grid-cols-2' : undefined}>
-          <label className="grid gap-2 text-sm font-semibold">
-            Start date
+          <div className="grid gap-2 text-sm">
+            <label className="grid gap-2 text-sm font-semibold">
+              Start date
+              <InputControl
+                icon="calendar"
+                className="font-normal text-muted"
+                type="date"
+                value={start}
+                required={historical}
+                disabled={pending}
+                onChange={(event) => setStart(event.target.value)}
+              />
+            </label>
             {!historical && (
-              <span className="font-normal text-muted">
+              <p className="text-xs font-normal text-muted">
                 Optional; leave blank to use today.
-              </span>
+              </p>
             )}
-            <InputControl
-              icon="calendar"
-              className="font-normal text-muted"
-              type="date"
-              placeholder="e.g. 2026-10-20"
-              value={start}
-              required={historical}
-              disabled={pending}
-              onChange={(e) => setStart(e.target.value)}
-            />
-          </label>
+          </div>
           {historical && (
             <label className="grid gap-2 text-sm font-semibold">
               End date
