@@ -882,6 +882,7 @@ function ScopedBranchReports({
     ) : report ? (
       tab === 'transactions' ? (
         <TransactionsTab
+          returnTo={tabHref('transactions')}
           organizationId={organizationId}
           branchId={branchId}
           merchant={merchant}

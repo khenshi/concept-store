@@ -13,6 +13,7 @@ import type { PosScope } from '@/features/pos/model/pos.types';
 import { SaleReceipt } from '@/features/pos/components/sale-receipt';
 import type { MerchantSale } from '../model/sales.schemas';
 import { getSale } from '../api/sales-api';
+import { reportReturnHref } from '../model/sale-return';
 import { SalesAccess } from './sales-access';
 import { SalesBranchSelector } from './sales-branch-selector';
 import { RefundHistory } from '@/features/refunds/components/refund-history';
@@ -38,7 +39,7 @@ function SalePageFrame({
 }
 
 export function SaleDetail(
-  props: PosScope & { saleId: string; embedded?: boolean },
+  props: PosScope & { saleId: string; embedded?: boolean; returnTo?: string },
 ) {
   return (
     <SalesAccess organizationId={props.organizationId}>
@@ -103,7 +104,14 @@ function ScopedSaleDetail({
   saleId,
   role,
   embedded = false,
-}: PosScope & { saleId: string; role: OrganizationRole; embedded?: boolean }) {
+  returnTo,
+}: PosScope & {
+  saleId: string;
+  role: OrganizationRole;
+  embedded?: boolean;
+  returnTo?: string;
+}) {
+  const source = reportReturnHref(returnTo, { organizationId, branchId });
   const { request, user } = useAuth();
   useRefundNavigationGuard(refundAttemptKey(organizationId, user?.id ?? ''), {
     organizationId,
@@ -150,9 +158,16 @@ function ScopedSaleDetail({
   return (
     <SalePageFrame embedded={embedded}>
       <BackLink
-        href={`/app/organizations/${organizationId}/branches/${branchId}/${embedded && role !== 'MERCHANT' ? 'pos/sales' : 'sales'}`}
+        href={
+          source ??
+          `/app/organizations/${organizationId}/branches/${branchId}/${embedded && role !== 'MERCHANT' ? 'pos/sales' : 'sales'}`
+        }
       >
-        {embedded ? 'Return to sales history' : 'Back to branch sales'}
+        {source
+          ? 'Back to transactions'
+          : embedded
+            ? 'Return to sales history'
+            : 'Back to branch sales'}
       </BackLink>
       {!embedded ? (
         <PageHeader

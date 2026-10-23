@@ -53,6 +53,36 @@ describe('Compatible historical sales routes', () => {
       ),
     );
   });
+  it('preserves a scoped Transactions return URL through the POS redirect', async () => {
+    const returnTo = `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/reports/transactions?preset=TODAY&fromDay=2026-10-21&throughDay=2026-10-21&transactionPage=2`;
+    render(
+      <LegacySalesRoute
+        {...scope}
+        saleId={completedSale.id}
+        returnTo={returnTo}
+      />,
+    );
+    await waitFor(() => expect(replace).toHaveBeenCalledOnce());
+    const href = new URL(replace.mock.calls[0][0], 'http://localhost');
+    expect(href.pathname).toBe(
+      `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/pos/sales/${completedSale.id}`,
+    );
+    expect(href.searchParams.get('returnTo')).toBe(returnTo);
+  });
+  it('drops external return URLs rather than forwarding them through the redirect', async () => {
+    render(
+      <LegacySalesRoute
+        {...scope}
+        saleId={completedSale.id}
+        returnTo="https://external.example"
+      />,
+    );
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith(
+        `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/pos/sales/${completedSale.id}`,
+      ),
+    );
+  });
   it('retains merchant own-sale history/detail without redirecting to POS', () => {
     workspace('MERCHANT');
     const view = render(<LegacySalesRoute {...scope} />);

@@ -7,6 +7,12 @@ September 14, 2026. All six delivery parts reviewed and approved; plan archived.
 
 ## Implemented scope
 
+The shared refund details modal displays saved totals, unit prices and line
+totals without a PHP prefix. Amount values and other refund surfaces are unchanged.
+Sale-detail Recorded refunds uses xs normal-weight labels and sm graphite row
+text, with semibold refund codes and actions only. Dates display as abbreviated
+English month, day and year in Asia/Manila (for example, Oct 21, 2026).
+
 Refund and RefundItem records preserve partial/full whole-item returns against an
 immutable completed sale. The create API records manually issued refunds and
 optionally restocks original placements through linked RETURN movements. Existing

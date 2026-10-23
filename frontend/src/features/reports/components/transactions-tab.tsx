@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, buttonStyles } from '@/shared/components/ui/button';
 import { SalesAccess } from '@/features/sales/components/sales-access';
+import { reportReturnHref } from '@/features/sales/model/sale-return';
 import { RefundDetailsDialog } from '@/features/refunds/components/refund-details-dialog';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { InputControl } from '@/shared/components/ui/input-control';
@@ -44,8 +45,10 @@ function transactionHref(
   organizationId: string,
   branchId: string,
   saleId: string,
+  returnTo?: string,
 ) {
-  return `/app/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/sales/${encodeURIComponent(saleId)}`;
+  const source = reportReturnHref(returnTo, { organizationId, branchId });
+  return `/app/organizations/${encodeURIComponent(organizationId)}/branches/${encodeURIComponent(branchId)}/sales/${encodeURIComponent(saleId)}${source ? `?${new URLSearchParams({ returnTo: source })}` : ''}`;
 }
 
 function TransactionsSkeleton() {
@@ -83,6 +86,7 @@ export function TransactionsTab({
   onSearchChange,
   onRetry,
   onPageChange,
+  returnTo,
 }: {
   organizationId: string;
   branchId: string;
@@ -96,6 +100,7 @@ export function TransactionsTab({
   onSearchChange(search: string): void;
   onRetry(): void;
   onPageChange(page: number): void;
+  returnTo?: string;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<{
@@ -210,7 +215,7 @@ export function TransactionsTab({
               <caption className="sr-only">
                 {merchant ? 'Own transaction history' : 'Transaction history'}
               </caption>
-              <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
+              <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted [&_th]:font-normal">
                 <tr>
                   <th scope="col">Date</th>
                   <th scope="col">Type</th>
@@ -220,12 +225,13 @@ export function TransactionsTab({
                   <th scope="col">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="text-sm font-normal text-ink [&_th]:font-normal">
                 {page.items.map((item) => {
                   const href = transactionHref(
                     organizationId,
                     branchId,
                     item.saleId,
+                    returnTo,
                   );
                   const open = () => {
                     if (item.type === 'REFUND') {
@@ -264,19 +270,19 @@ export function TransactionsTab({
                         open();
                       }}
                     >
-                      <td className="whitespace-nowrap px-4 py-4 align-middle tabular-nums">
+                      <td className="whitespace-nowrap px-4 py-4 align-middle font-semibold tabular-nums">
                         {completedDate(item.completedAt)}
                       </td>
                       <td className="px-4 py-4 align-middle">
                         <span
-                          className={`font-semibold ${typeClass(item.type)}`}
+                          className={`font-normal ${typeClass(item.type)}`}
                         >
                           {typeLabel(item.type)}
                         </span>
                       </td>
                       <th
                         scope="row"
-                        className="px-4 py-4 align-middle font-semibold text-ink"
+                        className="px-4 py-4 align-middle font-normal text-ink"
                       >
                         {item.reference}
                         {'actorName' in item ? (
@@ -285,22 +291,23 @@ export function TransactionsTab({
                           </span>
                         ) : null}
                       </th>
-                      <td className="max-w-64 px-4 py-4 align-middle text-muted">
+                      <td className="max-w-64 px-4 py-4 align-middle text-ink">
                         {'merchantNames' in item
                           ? item.merchantNames.join(', ') ||
                             'No merchant recorded'
                           : 'Your items'}
                       </td>
                       <td
-                        className={`whitespace-nowrap px-4 py-4 align-middle font-semibold tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-ink'}`}
+                        className={`whitespace-nowrap px-4 py-4 align-middle font-normal tabular-nums ${item.type === 'REFUND' ? 'text-danger' : 'text-success-ink'}`}
                       >
-                        {item.type === 'REFUND' ? '− ' : ''}PHP {item.amount}
+                        {item.type === 'REFUND' ? '− ' : '+ '}
+                        {item.amount}
                       </td>
                       <td className="px-4 py-4 align-middle">
                         {item.type === 'REFUND' ? (
                           <Button
                             variant="quiet"
-                            className="min-h-0 px-0"
+                            className="min-h-0 px-0 text-sm font-semibold text-ink"
                             onClick={open}
                           >
                             View
@@ -310,7 +317,7 @@ export function TransactionsTab({
                             href={href}
                             className={buttonStyles({
                               variant: 'quiet',
-                              className: 'min-h-0 px-0',
+                              className: 'min-h-0 px-0 text-sm font-semibold text-ink',
                             })}
                           >
                             View

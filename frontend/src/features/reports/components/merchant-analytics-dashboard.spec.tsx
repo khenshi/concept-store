@@ -100,8 +100,8 @@ describe('merchant analytics dashboard', () => {
         screen.getByRole('table', {
           name: 'Daily own-sales data in Asia/Manila',
         }),
-      ).getByText('PHP -8.00'),
-    ).toBeInTheDocument();
+      ).getByText('-8.00'),
+    ).toHaveClass('text-danger');
     rerender(
       <MerchantAnalyticsDashboard report={report} activeTab="rankings" />,
     );

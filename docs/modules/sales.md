@@ -19,6 +19,20 @@ remains unchanged; refund records have no print operation. See the
 
 ## Implemented scope
 
+### Contextual return from Reports
+
+Reports Transactions sale links carry a `returnTo` URL containing the applied
+report period, filters and pagination. The legacy staff Sales route preserves
+that parameter when redirecting into POS sale detail. Shared staff and Merchant
+sale detail then shows `Back to transactions`, returning directly to that URL.
+Only the same organization's and branch's internal `reports/transactions` path
+is accepted; external, malformed, oversized and foreign-scope targets are ignored.
+This navigation hint grants no access and does not bypass the existing refund
+navigation lock. Direct links and ordinary history entries keep their previous
+Sales History or merchant branch-sales fallback; no browser-history guess is used.
+
+### Saved sale records
+
 `Sale` stores a completed transaction with organization/branch scope, creator,
 organization-unique receipt code and request ID, completion time, payment method,
 precise total, and payment fields. Organization, branch and cashier display names

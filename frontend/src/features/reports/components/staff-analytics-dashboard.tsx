@@ -810,7 +810,7 @@ export function StaffDailyData({
             <caption className="sr-only">
               Daily sales data in Asia/Manila
             </caption>
-            <thead className="text-xs uppercase tracking-[0.08em] text-muted">
+            <thead className="text-xs uppercase tracking-[0.08em] text-muted [&_th]:font-normal">
               <tr>
                 {[
                   'Date',
@@ -828,25 +828,30 @@ export function StaffDailyData({
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="text-sm font-normal text-ink">
               {pageRows.map((row) => (
                 <tr key={row.date}>
-                  <th scope="row" className="px-4 py-3 font-medium">
+                  <th scope="row" className="px-4 py-3 font-semibold">
                     {row.date}
                   </th>
                   {[
-                    money(row.grossSales),
+                    row.grossSales,
                     row.transactionCount,
                     row.unitsSold,
-                    money(row.refundedAmount),
+                    row.refundedAmount,
                     row.refundCount,
                     row.returnedUnits,
-                    money(row.netRecordedSales),
                   ].map((value, index) => (
                     <td key={index} className="px-4 py-3 tabular-nums">
                       {value}
                     </td>
                   ))}
+                  <td
+                    className={`px-4 py-3 tabular-nums ${Number(row.netRecordedSales) > 0 ? 'text-success-ink' : Number(row.netRecordedSales) < 0 ? 'text-danger' : 'text-ink'}`}
+                  >
+                    {Number(row.netRecordedSales) > 0 ? '+' : ''}
+                    {row.netRecordedSales}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1069,7 +1074,7 @@ function StaffRankings({
             className="min-w-[46rem] xl:min-w-[62rem]"
             tableProps={{ 'aria-label': title }}
           >
-            <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
+            <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted [&_th]:font-normal">
               <tr>
                 <th
                   scope="col"
@@ -1089,11 +1094,6 @@ function StaffRankings({
                   aria-sort={
                     controls.sortBy === 'UNITS_SOLD' ? 'descending' : undefined
                   }
-                  className={
-                    controls.sortBy === 'UNITS_SOLD'
-                      ? 'font-semibold text-ink'
-                      : ''
-                  }
                 >
                   Units sold
                 </th>
@@ -1102,15 +1102,10 @@ function StaffRankings({
                   aria-sort={
                     controls.sortBy === 'GROSS_SALES' ? 'descending' : undefined
                   }
-                  className={
-                    controls.sortBy === 'GROSS_SALES'
-                      ? 'font-semibold text-ink'
-                      : ''
-                  }
                 >
                   Gross sales
                 </th>
-                <th scope="col" className="font-semibold text-ink">
+                <th scope="col">
                   Net recorded
                 </th>
                 <th scope="col" className="hidden xl:table-cell">
@@ -1124,39 +1119,35 @@ function StaffRankings({
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="text-sm font-normal text-ink [&_th]:font-normal">
               {page.items.map((row, index) => (
-                <tr key={row.productId}>
-                  <td className="sticky left-0 z-10 w-12 bg-surface px-3 py-4 tabular-nums">
+                <tr key={row.productId} className="group">
+                  <td className="sticky left-0 z-10 w-12 bg-surface px-3 py-4 text-center align-middle font-semibold tabular-nums transition-colors duration-150 group-hover:bg-subtle">
                     {(page.page - 1) * page.limit + index + 1}
                   </td>
                   <th
                     scope="row"
-                    className="sticky left-12 z-10 min-w-56 max-w-64 bg-surface px-4 py-4 font-semibold"
+                    className="sticky left-12 z-10 min-w-56 max-w-64 bg-surface px-4 py-4 font-normal transition-colors duration-150 group-hover:bg-subtle"
                   >
                     <span className="block break-words">{row.productName}</span>
-                    <span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs font-normal leading-5 text-muted xl:hidden">
+                    <span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-sm font-normal leading-5 text-ink xl:hidden">
                       <span>SKU {row.sku ?? '—'}</span>
                       <span>Barcode {row.barcode ?? '—'}</span>
                       <span>Returned {row.returnedUnits}</span>
-                      <span>Refunded {money(row.refundedAmount)}</span>
+                      <span>Refunded {row.refundedAmount}</span>
                     </span>
                   </th>
                   <td className="max-w-48 break-words px-4 py-4">
                     {row.merchantName}
                   </td>
-                  <td
-                    className={`px-4 py-4 tabular-nums ${controls.sortBy === 'UNITS_SOLD' ? 'font-semibold text-ink' : ''}`}
-                  >
+                  <td className="px-4 py-4 tabular-nums">
                     {row.unitsSold}
                   </td>
-                  <td
-                    className={`px-4 py-4 tabular-nums ${controls.sortBy === 'GROSS_SALES' ? 'font-semibold text-ink' : ''}`}
-                  >
-                    {money(row.grossSales)}
+                  <td className="px-4 py-4 tabular-nums">
+                    {row.grossSales}
                   </td>
-                  <td className="px-4 py-4 font-semibold tabular-nums text-ink">
-                    {money(row.netRecordedSales)}
+                  <td className="px-4 py-4 tabular-nums">
+                    {row.netRecordedSales}
                   </td>
                   <td className="hidden px-4 py-4 xl:table-cell">
                     {row.sku ?? '—'} / {row.barcode ?? '—'}
@@ -1165,7 +1156,7 @@ function StaffRankings({
                     {row.returnedUnits}
                   </td>
                   <td className="hidden px-4 py-4 tabular-nums xl:table-cell">
-                    {money(row.refundedAmount)}
+                    {row.refundedAmount}
                   </td>
                 </tr>
               ))}

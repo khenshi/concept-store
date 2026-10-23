@@ -83,7 +83,7 @@ export function MerchantDailyData({
             <caption className="sr-only">
               Daily own-sales data in Asia/Manila
             </caption>
-            <thead className="text-xs uppercase tracking-[0.08em] text-muted">
+            <thead className="text-xs uppercase tracking-[0.08em] text-muted [&_th]:font-normal">
               <tr>
                 {[
                   'Date',
@@ -101,25 +101,30 @@ export function MerchantDailyData({
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="text-sm font-normal text-ink">
               {pageRows.map((row) => (
                 <tr key={row.date}>
-                  <th scope="row" className="px-4 py-3 font-medium">
+                  <th scope="row" className="px-4 py-3 font-semibold">
                     {row.date}
                   </th>
                   {[
-                    money(row.ownGrossSales),
+                    row.ownGrossSales,
                     row.ownTransactionCount,
                     row.ownUnitsSold,
-                    money(row.ownRefundedAmount),
+                    row.ownRefundedAmount,
                     row.ownRefundCount,
                     row.ownReturnedUnits,
-                    money(row.ownNetRecordedSales),
                   ].map((value, index) => (
                     <td key={index} className="px-4 py-3 tabular-nums">
                       {value}
                     </td>
                   ))}
+                  <td
+                    className={`px-4 py-3 tabular-nums ${Number(row.ownNetRecordedSales) > 0 ? 'text-success-ink' : Number(row.ownNetRecordedSales) < 0 ? 'text-danger' : 'text-ink'}`}
+                  >
+                    {Number(row.ownNetRecordedSales) > 0 ? '+' : ''}
+                    {row.ownNetRecordedSales}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -214,7 +219,7 @@ function MerchantRankings({
             className="min-w-[44rem] xl:min-w-[60rem]"
             tableProps={{ 'aria-label': title }}
           >
-            <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted">
+            <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted [&_th]:font-normal">
               <tr>
                 <th
                   scope="col"
@@ -234,11 +239,6 @@ function MerchantRankings({
                   aria-sort={
                     controls.sortBy === 'UNITS_SOLD' ? 'descending' : undefined
                   }
-                  className={
-                    controls.sortBy === 'UNITS_SOLD'
-                      ? 'font-semibold text-ink'
-                      : ''
-                  }
                 >
                   Own units sold
                 </th>
@@ -247,15 +247,10 @@ function MerchantRankings({
                   aria-sort={
                     controls.sortBy === 'GROSS_SALES' ? 'descending' : undefined
                   }
-                  className={
-                    controls.sortBy === 'GROSS_SALES'
-                      ? 'font-semibold text-ink'
-                      : ''
-                  }
                 >
                   Own gross
                 </th>
-                <th scope="col" className="font-semibold text-ink">
+                <th scope="col">
                   Own net recorded
                 </th>
                 <th scope="col" className="hidden xl:table-cell">
@@ -269,39 +264,35 @@ function MerchantRankings({
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="text-sm font-normal text-ink [&_th]:font-normal">
               {page.items.map((row, index) => (
-                <tr key={row.productId}>
-                  <td className="sticky left-0 z-10 w-12 bg-surface px-3 py-4 tabular-nums">
+                <tr key={row.productId} className="group">
+                  <td className="sticky left-0 z-10 w-12 bg-surface px-3 py-4 text-center align-middle font-semibold tabular-nums transition-colors duration-150 group-hover:bg-subtle">
                     {(page.page - 1) * page.limit + index + 1}
                   </td>
                   <th
                     scope="row"
-                    className="sticky left-12 z-10 min-w-56 max-w-64 bg-surface px-4 py-4 font-semibold"
+                    className="sticky left-12 z-10 min-w-56 max-w-64 bg-surface px-4 py-4 font-normal transition-colors duration-150 group-hover:bg-subtle"
                   >
                     <span className="block break-words">{row.productName}</span>
-                    <span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs font-normal leading-5 text-muted xl:hidden">
+                    <span className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-sm font-normal leading-5 text-ink xl:hidden">
                       <span>SKU {row.sku ?? '—'}</span>
                       <span>Barcode {row.barcode ?? '—'}</span>
                       <span>Returned {row.ownReturnedUnits}</span>
-                      <span>Refunded {money(row.ownRefundedAmount)}</span>
+                      <span>Refunded {row.ownRefundedAmount}</span>
                     </span>
                   </th>
                   <td className="max-w-48 break-words px-4 py-4">
                     {row.merchantName}
                   </td>
-                  <td
-                    className={`px-4 py-4 tabular-nums ${controls.sortBy === 'UNITS_SOLD' ? 'font-semibold text-ink' : ''}`}
-                  >
+                  <td className="px-4 py-4 tabular-nums">
                     {row.ownUnitsSold}
                   </td>
-                  <td
-                    className={`px-4 py-4 tabular-nums ${controls.sortBy === 'GROSS_SALES' ? 'font-semibold text-ink' : ''}`}
-                  >
-                    {money(row.ownGrossSales)}
+                  <td className="px-4 py-4 tabular-nums">
+                    {row.ownGrossSales}
                   </td>
-                  <td className="px-4 py-4 font-semibold tabular-nums text-ink">
-                    {money(row.ownNetRecordedSales)}
+                  <td className="px-4 py-4 tabular-nums">
+                    {row.ownNetRecordedSales}
                   </td>
                   <td className="hidden px-4 py-4 xl:table-cell">
                     {row.sku ?? '—'} / {row.barcode ?? '—'}
@@ -310,7 +301,7 @@ function MerchantRankings({
                     {row.ownReturnedUnits}
                   </td>
                   <td className="hidden px-4 py-4 tabular-nums xl:table-cell">
-                    {money(row.ownRefundedAmount)}
+                    {row.ownRefundedAmount}
                   </td>
                 </tr>
               ))}

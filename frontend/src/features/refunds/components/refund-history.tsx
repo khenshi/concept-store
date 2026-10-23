@@ -357,7 +357,7 @@ export function RefundHistory({
                   />
                 ) : (
                   <ul className="mt-4 list-none p-0">
-                    <li className="data-column-header hidden grid-cols-[minmax(15rem,1.3fr)_minmax(7rem,1fr)_minmax(8rem,auto)_auto] gap-x-6 gap-y-3 sm:grid">
+                    <li className="data-column-header hidden grid-cols-[minmax(15rem,1.3fr)_minmax(7rem,1fr)_minmax(8rem,auto)_auto] gap-x-6 gap-y-3 text-xs font-normal sm:grid">
                       <span>Refund</span>
                       <span>Date</span>
                       <span>Amount</span>
@@ -366,7 +366,7 @@ export function RefundHistory({
                     {result.items.map((row) => (
                       <li
                         key={row.id}
-                        className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(15rem,1.3fr)_minmax(7rem,1fr)_minmax(8rem,auto)_auto] sm:items-center"
+                        className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 text-sm font-normal text-ink sm:grid-cols-[minmax(15rem,1.3fr)_minmax(7rem,1fr)_minmax(8rem,auto)_auto] sm:items-center"
                       >
                         <div className="min-w-0 break-words">
                           <h3 className="text-sm font-semibold">
@@ -378,17 +378,22 @@ export function RefundHistory({
                             Date
                           </span>
                           <time
-                            className="text-sm text-muted"
+                            className="text-sm text-ink"
                             dateTime={row.completedAt}
                           >
-                            {new Date(row.completedAt).toLocaleString()}
+                            {new Date(row.completedAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              timeZone: 'Asia/Manila',
+                            })}
                           </time>
                         </div>
                         <div className="flex items-center justify-between gap-3 tabular-nums sm:block">
                           <span className="text-xs font-medium text-muted sm:hidden">
                             Amount
                           </span>
-                          <span className="text-sm font-semibold">
+                          <span className="text-sm font-normal">
                             {'total' in row
                               ? `PHP ${row.total}`
                               : `PHP ${row.ownItemsSubtotal}`}
@@ -396,7 +401,7 @@ export function RefundHistory({
                         </div>
                         <Button
                           variant="quiet"
-                          className="w-fit px-3"
+                          className="w-fit px-3 text-sm font-semibold text-ink"
                           disabled={unresolved}
                           onClick={() => {
                             setSelected(row.id);

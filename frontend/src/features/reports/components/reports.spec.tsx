@@ -747,11 +747,12 @@ describe('staff Reports workspace', () => {
     expect(screen.getByRole('link', { name: 'View' })).not.toHaveClass(
       'underline',
     );
+    const returnTo = navigationState.href;
+    const transactionHref = `/app/organizations/org/branches/${branch.id}/sales/33333333-3333-4333-8333-333333333333?${new URLSearchParams({ returnTo })}`;
     expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute(
       'href',
-      `/app/organizations/org/branches/${branch.id}/sales/33333333-3333-4333-8333-333333333333`,
+      transactionHref,
     );
-    const transactionHref = `/app/organizations/org/branches/${branch.id}/sales/33333333-3333-4333-8333-333333333333`;
     expect(transactionRow).toHaveAttribute('tabindex', '0');
     fireEvent.click(transactionRow);
     expect(push).toHaveBeenCalledWith(transactionHref);

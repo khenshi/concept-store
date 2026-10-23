@@ -82,6 +82,56 @@ describe('read-only scoped sales workflows', () => {
     workspace();
   });
   afterEach(() => vi.restoreAllMocks());
+  it.each(['OWNER', 'MERCHANT'])(
+    'returns %s sale detail to the originating Transactions query',
+    async (role) => {
+      workspace(role);
+      request.mockImplementation(() => new Promise(() => {}));
+      const returnTo = `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/reports/transactions?preset=CUSTOM&fromDay=2026-10-01&throughDay=2026-10-21&transactionQ=SALE&transactionPage=3`;
+      render(
+        <SaleDetail
+          {...scope}
+          saleId={completedSale.id}
+          embedded={role !== 'MERCHANT'}
+          returnTo={returnTo}
+        />,
+      );
+      expect(
+        screen.getByRole('link', { name: 'Back to transactions' }),
+      ).toHaveAttribute('href', returnTo);
+      expect(
+        screen.queryByRole('link', { name: 'Return to sales history' }),
+      ).toBeNull();
+    },
+  );
+  it.each([
+    undefined,
+    'https://external.example',
+    `/app/organizations/other/branches/${scope.branchId}/reports/transactions`,
+  ])(
+    'keeps the POS history fallback for missing or invalid return targets: %s',
+    (returnTo) => {
+      workspace('CASHIER');
+      request.mockImplementation(() => new Promise(() => {}));
+      render(
+        <SaleDetail
+          {...scope}
+          saleId={completedSale.id}
+          embedded
+          returnTo={returnTo}
+        />,
+      );
+      expect(
+        screen.getByRole('link', { name: 'Return to sales history' }),
+      ).toHaveAttribute(
+        'href',
+        `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/pos/sales`,
+      );
+      expect(
+        screen.queryByRole('link', { name: 'Back to transactions' }),
+      ).toBeNull();
+    },
+  );
   it('discovers historical merchant selling branches without general branch/product APIs', async () => {
     request.mockResolvedValue(sellingBranches);
     render(<MerchantSalesBranches organizationId={scope.organizationId} />);

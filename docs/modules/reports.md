@@ -131,6 +131,10 @@ within Transactions, preserving the selected route, dates and filters on close.
 
 ## Transactions history
 
+Transaction amounts show sales with a `+` prefix and green text; refunds keep
+their minus prefix and red text. Amount cells omit the `PHP` prefix. This treatment applies to staff and own-only
+Merchant rows without changing stored amounts or report calculations.
+
 The Reports workspace includes a read-only `Transactions` tab beside `Overview`,
 `Daily Data` and `Rankings`. It is a cross-reference for completed `SALE` and
 `REFUND` records; it does not replace Sales History and does not mount checkout,
@@ -156,6 +160,10 @@ omit payment, actor and other-merchant fields. Every row includes the source sal
 ID so sale navigation and refund-detail reads retain the authorized sale context.
 Sale rows are keyboard-focusable and open that same branch-scoped sale-detail
 route on click, Enter or Space; the explicit View link remains available.
+Their links retain the complete current Transactions URL in a validated
+`returnTo` parameter. It survives the staff POS redirect, and sale detail shows
+`Back to transactions` to restore the applied dates, filters and page. Only the
+same organization/branch's Transactions destination is permitted.
 Refund rows and their View button open the shared read-only refund-details modal
 within Reports, after loading the authorized source sale and validating the
 refund's saved item snapshots. Merchant details remain reduced to own items.
@@ -391,7 +399,25 @@ responsive product metadata on tablet and narrow widths and expanded columns on
 large screens. The selected sort metric and merchant scope remain visible above
 the table, and the rank/product identity columns stay fixed while supporting
 metrics scroll horizontally. The table never claims bounded rows reconcile to
-report totals. Empty/refund-only periods remain explicit.
+report totals. Sticky Rank and Product cells share the full row's hover background
+and transition in both staff and Merchant rankings. Column labels remain muted
+gray, including Gross sales, Net recorded and the selected sort metric.
+Rankings column labels use extra-small, normal-weight text. All row content,
+including responsive metadata, uses small, normal-weight graphite text.
+Transactions uses extra-small normal-weight column labels, small normal-weight
+row text with semibold dates/actions and extra-small actor text below references. Type and amount colors
+remain unchanged; other primary row text uses graphite.
+Rankings rank values alone use semibold row emphasis and are centered
+horizontally and vertically in their cells; column labels remain unchanged.
+Daily Data uses extra-small normal-weight labels and small normal-weight rows
+with semibold dates
+without PHP prefixes. Net recorded sales is green when positive, graphite at
+zero and red when negative; positive values have a plus prefix, negative values
+retain their minus sign, and zero stays unsigned. Other row values remain
+graphite in both scopes.
+Rankings gross sales, net recorded and refunded values omit the PHP prefix,
+including responsive refunded metadata; underlying amounts remain unchanged.
+Empty/refund-only periods remain explicit.
 The Transactions, Daily Data and Rankings tables use the shared frontend
 `OperationalTable` viewport and `OperationalTableFrame` collection shell; their
 feature-owned columns, responsive metadata and empty states remain unchanged.

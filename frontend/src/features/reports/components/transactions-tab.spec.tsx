@@ -123,6 +123,24 @@ describe('Reports inline refund details', () => {
     expect(screen.getByRole('link', { name: 'View' })).toBeInTheDocument();
     expect(request).not.toHaveBeenCalled();
   });
+  it('includes the complete Transactions return URL in sale links and row navigation', () => {
+    const returnTo = `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/reports/transactions?preset=CUSTOM&fromDay=2026-10-01&throughDay=2026-10-21&transactionPage=3&transactionQ=RCPT%20%2B%201&transactionType=SALE`;
+    const salePage: StaffTransactionsPage = {
+      ...page,
+      items: [{ ...page.items[0], type: 'SALE', refundId: null }],
+    };
+    render(<TransactionsTab {...props} page={salePage} returnTo={returnTo} />);
+    const link = screen.getByRole('link', { name: 'View' });
+    const href = link.getAttribute('href')!;
+    expect(new URL(href, 'http://localhost').searchParams.get('returnTo')).toBe(
+      returnTo,
+    );
+    fireEvent.keyDown(
+      screen.getByRole('row', { name: `Open sale ${staffRefund.refundCode}` }),
+      { key: 'Enter' },
+    );
+    expect(navigation.push).toHaveBeenCalledWith(href);
+  });
   it('uses only the reduced own-item projection for merchants', async () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { id: scope.organizationId, role: 'MERCHANT' },

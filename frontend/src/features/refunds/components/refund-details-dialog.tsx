@@ -126,7 +126,6 @@ export function RefundDetailsDialog({
                     : 'Own returned items subtotal'}
                 </dt>
                 <dd className="mt-1 text-2xl font-semibold tabular-nums">
-                  PHP{' '}
                   {detail.scope === 'STAFF'
                     ? detail.total
                     : detail.ownItemsSubtotal}
@@ -250,10 +249,10 @@ export function RefundDetailsDialog({
                       {item.restockQuantity}
                     </td>
                     <td className="w-32 px-4 py-4 text-left align-middle tabular-nums">
-                      PHP {item.unitPrice}
+                      {item.unitPrice}
                     </td>
                     <td className="w-36 px-4 py-4 text-left align-middle font-semibold tabular-nums">
-                      PHP {item.lineTotal}
+                      {item.lineTotal}
                     </td>
                   </tr>
                 ))}

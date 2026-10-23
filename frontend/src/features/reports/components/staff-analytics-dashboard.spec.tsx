@@ -235,7 +235,7 @@ describe('staff analytics dashboard', () => {
     ).toBeInTheDocument();
     const products = screen.getByRole('table', { name: /Top products/i });
     expect(within(products).getByText('Refund only')).toBeInTheDocument();
-    expect(within(products).getByText('PHP -10.00')).toBeInTheDocument();
+    expect(within(products).getByText('-10.00')).toBeInTheDocument();
     expect(
       screen.queryByText(/profit margin|visitor|in stock/i),
     ).not.toBeInTheDocument();
@@ -252,7 +252,7 @@ describe('staff analytics dashboard', () => {
       name: 'Daily sales data in Asia/Manila',
     });
     expect(within(daily).getByText('2026-09-15')).toBeInTheDocument();
-    expect(within(daily).getByText('PHP -10.00')).toBeInTheDocument();
+    expect(within(daily).getByText('-10.00')).toHaveClass('text-danger');
   });
   it('paginates daily rows at fifteen and requests the next ranking page', () => {
     const dates = Array.from({ length: 21 }, (_, index) =>
