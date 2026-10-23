@@ -109,6 +109,10 @@ export function DateRangePicker({
   align = 'start',
   validate,
   className = '',
+  singleDay = false,
+  emptyLabel = 'All dates',
+  inline = false,
+  placement = 'bottom',
 }: {
   id: string;
   value: DateRangePickerValue;
@@ -123,6 +127,10 @@ export function DateRangePicker({
   align?: 'start' | 'end';
   validate?(value: DateRangePickerValue): string | undefined;
   className?: string;
+  singleDay?: boolean;
+  emptyLabel?: string;
+  inline?: boolean;
+  placement?: 'top' | 'bottom';
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -131,7 +139,7 @@ export function DateRangePicker({
     monthValue(dayDate(todayPhilippines())),
   );
   const days = useMemo(() => monthDays(visibleMonth), [visibleMonth]);
-  const selectedLabel = selectionLabel(value);
+  const selectedLabel = value.fromDay ? selectionLabel(value) : emptyLabel;
   const monthLabel = monthFormatter.format(monthDate(visibleMonth));
   const appliedValue = {
     fromDay: value.fromDay,
@@ -160,6 +168,11 @@ export function DateRangePicker({
   }, [open]);
 
   function selectDay(day: string) {
+    if (singleDay) {
+      onChange({ fromDay: day, throughDay: day });
+      setSelecting(false);
+      return;
+    }
     if (!selecting || !value.fromDay) {
       onChange({ fromDay: day, throughDay: day });
       setSelecting(true);
@@ -240,7 +253,7 @@ export function DateRangePicker({
         <div
           role="dialog"
           aria-label={dialogLabel}
-          className={`absolute top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-control border border-hairline bg-surface p-4 shadow-floating ${align === 'end' ? 'right-0' : 'left-0'}`}
+          className={`${inline ? 'relative mt-2 w-full max-w-80' : `absolute ${placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'} w-[min(20rem,calc(100vw-2rem))] ${align === 'end' ? 'right-0' : 'left-0'}`} z-50 rounded-control border border-hairline bg-surface p-4 shadow-floating`}
         >
           <div className="flex items-center justify-between gap-3">
             <button
@@ -342,9 +355,11 @@ export function DateRangePicker({
             role={validationError ? 'alert' : undefined}
           >
             {validationError ??
-              (selecting
-                ? 'Choose a second date for a range, or apply this day.'
-                : 'Choose one day or two dates to filter this view.')}
+              (singleDay
+                ? 'Choose a date and apply.'
+                : selecting
+                  ? 'Choose a second date for a range, or apply this day.'
+                  : 'Choose one day or two dates to filter this view.')}
           </p>
           <div className="mt-3 flex flex-wrap justify-end gap-2 border-t border-hairline pt-3">
             {onClear ? (

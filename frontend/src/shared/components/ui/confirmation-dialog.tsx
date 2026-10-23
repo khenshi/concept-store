@@ -13,6 +13,7 @@ import { Button } from './button';
 interface ConfirmationOptions {
   title: string;
   description: string;
+  content?: ReactNode;
   confirmLabel: string;
   tone?: 'danger' | 'primary';
 }
@@ -106,6 +107,7 @@ export function useConfirmationDialog(): {
         >
           {pending.description}
         </p>
+        {pending.content}
         <div className="mt-6 flex flex-wrap justify-end gap-3">
           <Button ref={cancelRef} variant="quiet" onClick={() => close(false)}>
             Cancel

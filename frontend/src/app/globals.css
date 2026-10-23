@@ -254,3 +254,38 @@
     color-scheme: light;
   }
 }
+@keyframes inventory-notice-enter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-100% - 1rem));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes inventory-notice-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(-100% - 1rem));
+  }
+}
+
+.inventory-notice-enter {
+  animation: inventory-notice-enter 240ms ease-out both;
+}
+.inventory-notice-exit {
+  animation: inventory-notice-exit 200ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inventory-notice-enter,
+  .inventory-notice-exit {
+    animation: none;
+  }
+}
