@@ -1,282 +1,215 @@
 # Current plan
 
-## POS Refund history and sale selection
+## Deployment readiness: sequential planning stage
 
-**Status:** Implemented locally October 21, 2026. Independent review passed;
-rendered browser acceptance remains outstanding. Do not treat unavailable QA as passed.
+Date: October 22, 2026
 
-### Goal and scope
+Status: Approved documentation-only task. No product implementation, deployment,
+dependency installation, database reset or migration execution is authorized.
 
-Add a branch-wide Refund history tab beside Cart and Sales History. Authorized
-Owners and Managers can find saved refunds across sales and start a return
-by selecting its original sale, then using the existing return form.
+### 1. Goal
 
-Keep sale-detail refund controls available. Preserve original-sale pricing,
-remaining quantity checks, optional original-placement restocking, manual refund
-recording and idempotent recovery. This changes discovery and entry points,
-not refund financial rules.
+Turn the [deployment readiness checklist](../deployment-readiness-checklist.md)
+into focused implementation plans under `docs/plans/pending/`, one plan at a
+time. Maintain a [sequence README](pending/README.md) showing coverage,
+dependencies, unresolved decisions and implementation order.
 
-### Confirmed user decisions
+This stage comes before implementing any of those plans. Do not interpret a
+drafted plan, a checklist finding or an archived specification as approval to
+change application behavior.
 
-1. Include Owner/Manager history only. Merchants continue using Reports →
-   Transactions for own sale/refund history and existing own-sale detail. No
-   additional Merchant history tab or POS access. Cashier retains existing POS
-   access without refund history or creation.
-2. Entry flow: `Find sale to refund` → select original sale → existing return form.
-3. Include refund-code/original-receipt search, refund date range and actual
-   refund-method filtering, subject to the existing role privacy boundaries.
+### 2. Confirmed scope and preserved work
 
-October 21 refinement: Reports Transactions already includes own-only SALE and
-REFUND records, type filtering, code search and the applied report date range.
-Preserve that existing Merchant workflow and its privacy projections unchanged.
+- Initial rollout is a free, controlled pilot for 1–2 organizations, followed by
+  a separately qualified paid launch. Free hosting is not a reliability guarantee.
+- Payment Account Management/Reporting and Reports All Branches are required.
+- October 23 module-review decisions: forgot-password recovery and email
+  verification must be available before the first pilot organizations start.
+  Include active-session viewing and selected-session revocation in the pending
+  authentication scope. Plan behavior changes for registration email enumeration,
+  dedicated password-change/deletion rate limits and the outlined deletion
+  confirmation; do not merely rewrite documentation to match those discrepancies.
+  These are planning requirements, not implementation approval.
+- Merchant settlements, payouts, reconciliation and automated subscription billing
+  are excluded. Manual fee collection and controlled activation remain the scope.
+- October 23 Organizations review decisions: retain the chooser cards and
+  in-memory report-period persistence; correct outdated documentation later.
+  Add Owner-only organization renaming to Plan 07. Only the platform operator
+  may provision organizations; ordinary authenticated users and organization
+  Owners must not create additional tenants through self-service or direct APIs.
+  Plan 07 must define the smallest secure operator workflow, initial Owner
+  assignment and treatment of existing tenants without assuming a full admin
+  platform or choosing an operator identity from client input.
+- October 23 Branches review decision: choose option 2, replacing label-only
+  inactivity with backend-enforced restrictions on new operations while preserving
+  history. Queue a separate branch lifecycle plan (16). Define permitted refunds,
+  corrections and closure actions before implementation; existing behavior remains
+  label-only until an approved implementation changes it. Keep branch inputs
+  hint-free as already confirmed in Plan 01.
+- October 23 Memberships review decisions: add server-side member search and
+  pagination with a default of 15 rows, plus tenant-scoped member access-change
+  history showing actor, time and before/after values. Queue these together as
+  Plan 17. Preserve Owner-only management, last-Owner protection, existing role/
+  branch/merchant rules and historical attribution. This is not approval for a
+  general audit platform; history visibility, retention and release priority must
+  be defined in the detailed plan.
+- October 23 Invitations review decisions: require an explicit Accept invitation
+  action instead of automatic acceptance; automatically email invitations while
+  retaining Copy link; extend Plan 17 with server-side invitation email search,
+  status filtering and 15-row default pagination. Plan 07 owns delivery/acceptance
+  and the outstanding requirement to permanently delete every removed invitation,
+  invalidate its link and preserve any membership already created by acceptance.
+  Mail-provider choice, delivery failure/retry rules and release priority require
+  definition in the detailed plan. No implementation is authorized by this record.
+- October 23 Merchant Profiles review decisions: add server-side merchant directory
+  pagination with 15-row defaults to Plan 17, preserving search/status filters,
+  tenant isolation and role-specific projections/search fields. Keep the existing
+  creation modal size; Plan 15 may correct conflicting compact/wide wording.
+  Plan 11 must clarify status confirmations: explain restrictions on new sales,
+  products/placements and stock receipts, affected space releases, preserved
+  history/balances, and that reactivation does not restore space assignments.
+  This is approved guidance-only scope; do not change lifecycle rules.
+- October 23 Products review decisions: add server-side product directory
+  pagination with a default of 15 rows under Plan 17, preserving existing search,
+  merchant/status filters and scoped projections. Plan 11 must clarify that
+  inactive products cannot be sold, placed or receive stock, while saved balances,
+  prices and history remain. These are pagination/guidance requirements, not
+  changes to eligibility rules. Keep affiliation-based Manager product visibility,
+  including unplaced products from affiliated merchants in assigned branches;
+  stock/prices remain assigned-branch-only and product identity remains read-only.
+  Plan 15 must correct the older placement-only visibility wording.
+- Reuse the existing pending Payment Accounts specification rather than drafting
+  another conflicting model. Review its remaining policy decisions in its turn.
+- The former current All Branches plan is preserved, unimplemented, in
+  [pending as queue item 09](pending/09-reports-all-branches.md).
+  Revalidate it at its turn and retain its approved business decisions. Payment
+  Accounts (`pending/finance-reconciliation.md`) is explicitly queued as item 08.
+  Both remain queued for implementation after this planning stage.
+- October 23 Branch Inventory review decisions: keep current behavior and correct
+  outdated Manager visibility, eligible-product page-size, integrity-pagination
+  and discarded-draft prompt documentation under Plan 15. Set the new inventory
+  placement form's initial low-stock threshold to 5 under Plan 01; retain explicit
+  0 as the opt-out and preserve existing saved thresholds. Do not add branch-to-
+  branch stock transfers to this planning batch.
+- October 23 POS review decisions: keep current fullscreen behavior and correct
+  conflicting documentation under Plan 15. Add Load more product browsing to Plan
+  17, preserving branch/role/catalog eligibility and search semantics. Define a
+  bounded continuation contract rather than fetching the entire catalog; scanner
+  exact-code lookup remains independent. Durable checkout recovery after reload/
+  tab closure is now approved planning scope (18), required before real checkout
+  use. Preserve the original frozen command/request ID securely, resolve saved
+  outcomes, and permit only explicit same-command retries; never automatically
+  submit checkout on reopening. Define retention, user/tenant isolation, access
+  revalidation and cross-tab coordination. This is not offline POS or draft-cart
+  persistence and does not authorize implementation yet.
+- October 23 Refunds review decisions: extend Plan 18 to durable refund outcome
+  recovery after reload/reopening, preserving the frozen original command/ID,
+  explicit retries and fresh actor/tenant/branch/sale authorization. Prevent duplicate
+  refund records and restocking; never automatically issue money or instruct a
+  second payout while the original outcome is unresolved. Plan 15 must remove
+  stale future-work and Reports-navigation descriptions from refund documentation.
+  Existing actual-account attribution remains owned by Plan 08.
+- October 23 Reports review decisions: Plan 15 must correct obsolete summary-only
+  frontend and date-range restriction descriptions, preserving current behavior.
+  Add optional scoped CSV exports for Transactions, Daily Data and Rankings as
+  Plan 19. Export all matching rows for the applied period/filters, not only the
+  visible page, with fresh tenant/branch/role checks and Merchant own-only fields.
+  Define bounded generation, exact values, formula-injection protection and
+  interaction with Payment Accounts (08) and All Branches (09). Release priority
+  is not established; this is approved planning scope, not implementation.
+- October 23 Spaces review decisions: Plan 15 must correct conflicting focus,
+  layout and row-style descriptions while retaining current UI. Released-by
+  identity must be staff-only: omit actor ID/name from Merchant responses on the
+  backend and client schemas, not merely hide a column. Add Owner-only space-type
+  rename/archive management as Plan 20, preserving existing references/history.
+  Plan 20 also owns the narrow actor-projection correction and must define archive
+  selection rules, rename semantics, concurrency and migration compatibility.
+  These are planning requirements; no implementation or database change is approved.
+- October 23 shared Frontend Experience decisions: Plan 11 must include explicit
+  route error/not-found recovery that preserves unresolved checkout/refund safety,
+  revalidates access and never automatically resubmits commands. Plan 15 must
+  consolidate current frontend behavior and separate obsolete layouts/defaults
+  and historical delivery evidence, preserving current designs and relevant
+  verification limitations. The first module source/focused-test review pass is
+  complete; database/browser/deployment qualification remains outstanding.
+- Preserve all unrelated application and documentation edits. Do not mark old
+  browser/printing waivers or audit test counts as current launch acceptance.
 
-### Repository evidence and constraints
+### 3. One-plan-at-a-time workflow
 
-- `PosWorkspace` and `BranchPos` maintain Cart and Sales History beneath one
-  persistent POS shell. Sale details live under `pos/sales/:saleId`.
-- `RefundHistory` currently owns per-sale history, returnable quantities, refund
-  detail, return entry and unresolved-attempt feedback.
-- Existing list/detail/create APIs are sale-scoped:
-  `/organizations/:organizationId/branches/:branchId/sales/:saleId/refunds`.
-- The existing list includes cumulative remaining quantities; do not reuse its
-  complete payload for a branch-wide list or fetch every sale in the browser.
-- Frontend refund decoding verifies original-sale identity/item snapshots.
-  Preserve these checks when resolving detail from branch history.
-- Shared operational tables, calendar, dropdown, pagination and dialogs exist.
-  Reuse their contracts and visual treatment.
-- Preserve existing uncommitted POS/refund changes and establish a baseline
-  before implementation. Planning does not authorize unrelated cleanup.
+1. The first source/focused-test module review pass is complete. Resume plan
+   drafting while retaining its recorded decisions and outstanding evidence gates.
+   Future verification remains read-only; scope decisions belong in planning
+   records, not implemented-module documentation. Use the next unfinished numbered row
+   in the pending README. The next detailed
+   plan to create is **05: hosting selection and secure session topology**.
+   Plan 04 is [drafted](pending/04-database-safety.md), with recovery targets open
+   and no database operations authorized.
+   Plan 03 is [drafted](pending/03-auth-security.md): bcrypt's 72-byte new-password
+   cap and immediate subsequent-request session revocation are confirmed;
+   compatibility/cutover details remain open and implementation is not approved. Plan 02
+   is [drafted](pending/02-production-runtime.md), with startup/logging/readiness
+   implementation and operational proof still pending. Plan 01 is
+   [drafted](pending/01-regression-baseline.md), with the hint-free design confirmed;
+   no fixes have been implemented.
+2. Read the exact checklist items, relevant current module documentation, code,
+   schema, API contracts and tests. Reuse prior evidence only as dated context;
+   cheaply verify source findings and distinguish unverified deployed state.
+3. Draft that one plan, or revise the existing specification assigned to that row.
+   Do not generate placeholder plans and call them complete. Group related
+   checklist actions into a cohesive plan rather than one file per checkbox.
+4. Ask about business/security decisions that materially affect scope. Record
+   unanswered questions as implementation gates, not implicit assumptions.
+5. Check the plan's links, scope, dependencies and checklist coverage. Update its
+   README status and next-plan pointer. Report the plan and open questions before
+   advancing to the next plan; do not start implementation between planning turns.
+6. Once all required plans are drafted, review the complete dependency sequence,
+   cross-plan contracts, omissions and decisions. Keep P2 work explicitly optional.
+7. Archive this planning-stage document only after the batch review. With explicit
+   user approval, promote the next bounded implementation plan to `current.md`.
+   Move rather than maintain two active copies, and update README links/status.
 
-### Navigation and history table
+### 4. Required contents of each detailed plan
 
-- Add `.../pos/refunds` with a `Refund history` tab for the confirmed roles,
-  including fullscreen POS. Direct route access enforces the same permissions.
-- Owner/Manager see `Find sale to refund` in the table title/action row.
-  Merchant and Cashier cannot access this tab or sale-selection workflow.
-- Put labeled search, shared date picker and staff method dropdown on the muted
-  filter row. Calendar supports one date, a range, Apply and Clear dates.
-- Default to all accessible refunds, newest first, using bounded pagination.
-  A single date means exactly that Manila calendar day. Clearing dates restores
-  unrestricted dates within the authorized paginated scope.
-- Columns: Refund code, Original receipt, Refunded at, Method, Amount, Action.
-- Use refund completion time and actual refund method, independently of the
-  original sale date/payment. All saved refunds are completed; no status filter.
-- Default 15 rows/page; use shared pagination, current/total pages, refund count,
-  separator and borderless arrows, including the standard empty-state treatment.
-- View opens the existing immutable refund-detail presentation. Resolve its
-  authorized original sale and verify saved snapshots first. Link to the original
-  role-appropriate sale detail; do not stack detail and return dialogs.
-- Use route query state for applied filters/page and selection/detail identity.
-  Refresh and browser Back restore context. Define the exact query keys before
-  implementation; parse/normalize malformed queries without expanding access.
-- Reset page on filter changes. Clear old branch/actor/role results before reads;
-  stale requests cannot restore them. Preserve list context while viewing detail.
-- Distinguish initial loading, no refunds, no matches and retryable read errors.
-  A failed read never initiates a refund command.
+- Priority and release gate: before real pilot data, before paid launch, or P2.
+- Goal, observable acceptance conditions, exclusions and checklist items owned.
+- Current architecture/evidence, weaknesses and relevant source paths.
+- Smallest proposed changes across schema, backend, frontend and operations where
+  applicable; name non-applicable layers rather than inventing changes.
+- Authentication, RBAC, organization/branch isolation and data-integrity rules.
+- Integration contracts and prerequisites, without duplicated ownership.
+- Edge cases, historical compatibility, migration/rollback and recovery safety.
+- Phased steps with validation commands/evidence, failure handling and stop gates.
+- Required updates to module docs after implementation, risks and real questions.
 
-### Sale selection and refund creation
+Security, financial calculations, migrations and concurrency need a deep review
+during their implementation/review stage. A documentation draft is not that proof.
+Do not prescribe new packages/infrastructure before verifying an actual need.
 
-1. `Find sale to refund` opens a selection view within Refund history, avoiding
-   stacked selector/return dialogs. Reuse the existing paginated Sales API and
-   receipt search. Show receipt, original completion date and original total.
-2. Selecting a sale loads authorized sale detail and fresh cumulative remaining
-   quantities, then opens the existing return form with clear receipt context.
-   Do not infer return eligibility from the branch list or original sale total.
-3. If nothing remains returnable, explain that state and allow another selection.
-   Cancel returns to the preserved selection/history context.
-4. Successful completion refreshes history/remaining quantities and shows the
-   saved refund code. Preserve filters even when the new refund falls outside
-   them; provide completion feedback without silently resetting filters.
-5. Reuse the organization/user-scoped pending attempt and original-sale recovery
-   path. Unknown outcomes retain the exact command/request ID for explicit retry.
-   No new command, automatic POST retry or money operation is introduced.
-6. Tab changes, selection changes, Back, branch changes and fullscreen navigation
-   must respect existing checkout/refund locks. Preserve the active cart and
-   existing other-sale unresolved-attempt handling. A follow-up read failure
-   offers GET retry and never repeats creation.
+### 5. Coverage and sequencing rules
 
-Inspect existing POS navigation event handling: it currently recognizes Cart
-and Sales History. Extend it narrowly for the new route and selection states.
-Extract only the minimum feature-owned presentation/controller needed to reuse
-the existing return dialog and detail; avoid a general workflow framework.
+The README owns the planning manifest and dependency order. The original checklist
+remains the release-evidence tracker; leave its checkboxes unchecked until verified.
+Its existing six frontend failures, two HTTP assertions and test-source type errors
+are dated audit evidence, not a permanent baseline or permission to weaken tests.
 
-### Backend and frontend contract
+Each checklist action has one primary plan owner. Other plans may consume its
+contract/evidence, but must not implement the same feature independently. Hosted
+cookie topology, proxy trust, readiness and migrations need coordinated contracts
+across their owners before any deployment is authorized.
 
-Add `GET /organizations/:organizationId/branches/:branchId/refunds`. Retain
-all existing sale-scoped endpoints and their response/command compatibility.
+All Branches implementation is deferred until the planning batch finishes, not
+cancelled and not certified implemented. Its exact implementation position follows
+prerequisite safety gates; its pending status does not allow those to be skipped.
 
-- Pagination: page defaults to 1, limit defaults to 15 and caps at 100; finite
-  page bounds follow existing refund query conventions.
-- Optional search matches refund code OR original receipt, using case-insensitive
-  literal substring semantics. Set a finite length bound aligned with Sales
-  History. Treat search text as data, including SQL wildcard characters.
-- Optional `from` inclusive and `until` exclusive UTC bounds must appear together;
-  validate ordering and supported bounds. Convert inclusive Manila calendar
-  selections with the shared date utilities. Missing bounds means no date
-  predicate, not an unbounded response payload.
-- Authorized staff may filter by the existing actual payment-method enum.
-  Reject unknown query fields and malformed parameters using existing DTO rules.
-- Staff summary rows contain refund ID/code, original sale ID/receipt, branch/
-  organization scope, completion time, actual method and exact decimal total.
-  Return pagination totals; omit item arrays, reason, reference and private command.
-- The new endpoint has no Merchant projection; deny Merchant access. Preserve
-  existing reduced Merchant Reports and sale-scoped refund responses unchanged.
-- Stable sort: completion timestamp descending, then ID descending. Count/page
-  predicates must match and use a consistent database snapshot. Keep amounts
-  exact; do not calculate subtotals with JavaScript floating-point arithmetic.
-- Reuse current membership and branch authorization: Owner in tenant branches,
-  Manager in assigned branches. Merchant and Cashier denied.
-  Inaccessible tenant/branch/sale/refund objects retain existing
-  not-found behavior. Access changes must be respected on every read.
-- Inspect existing branch/time and merchant indexes; measure representative
-  queries before proposing migrations. Never aggregate all sales client-side.
-- Extend DTO/OpenAPI, strict frontend schemas and API tests together. Validate
-  role projection, response scope, page metadata and duplicate refund IDs.
-- Opening detail may reuse existing original-sale and refund-detail GETs. Preserve
-  original snapshot validation and clear restricted content after access denial.
+### 6. Completion of this planning stage
 
-### Exclusions
-
-No payment-provider operations, discretionary amounts, exchanges, return windows,
-refund editing/deletion/printing, new Cashier permissions, cross-branch history,
-export, extra reporting dashboard, new infrastructure or dependencies. No schema
-change without demonstrated query need and an explicit plan update. No broad
-POS/sales refactor or unrelated dirty-worktree fixes.
-
-### Delivery sequence after implementation approval
-
-1. Finalize route/query keys and bounded search/date validation against existing
-   utilities. Record any material deviation here; establish focused baselines.
-2. Implement staff branch-list queries, DTOs, OpenAPI and
-   authorization/privacy tests, with representative disposable database fixtures.
-3. Implement frontend staff API/schema contracts and shared history table.
-4. Add POS route/tab, detail resolution and retained query/navigation state.
-5. Add staff sale selection and existing return-form entry with recovery locks.
-6. Validate, review authorization and command recovery independently, then update
-   `docs/modules/refunds.md`, `docs/modules/pos.md` and affected frontend docs.
-7. Archive this plan after acceptance, recording any unperformed browser checks.
-
-### Acceptance and verification
-
-- Combined search/date/method filters operate on refund fields, including refunds
-  whose original sale is outside the date range; cleared dates and one-day ranges
-  have correct Manila boundaries.
-- Stable ordering, 15-row pages, totals, empty/no-match states, first/last pages
-  and multiple refunds for one sale behave correctly.
-- Test unauthenticated access, denied Cashier, foreign tenant/branch guesses,
-  unassigned Manager, changed membership/branch grants and wrong-sale detail IDs.
-- Verify Merchant is denied the new history endpoint and POS route/tab, while
-  existing Reports Transactions still lists only own sale/refund amounts and
-  existing own-sale refund detail remains accessible. Retain privacy regressions.
-- Test deep links, refresh/Back, filter/page restoration, cart retention,
-  fullscreen, stale reads and actor/branch/role changes during requests.
-- Test selection cancellation, exhausted sales, fresh quantities, successful
-  return, completion outside current filters and detail access revocation.
-- Preserve concurrent over-return, exact totals, atomic restocking and existing
-  idempotency tests. Add focused tests for the new entry and navigation paths,
-  especially ambiguous outcomes and unchanged-command retries across tabs.
-- Use disposable PostgreSQL integration fixtures for count/filter/privacy and
-  query plans; record fixture size, timing and payload observations. No production
-  writes. Obtain an independent review of access and attempt-handling changes.
-- Run affected unit/API/integration suites, lint, typecheck and relevant builds;
-  inspect final diff. Report baseline failures separately, preserving user edits.
-- Browser QA: desktop/mobile/fullscreen, keyboard and focus return, long labels,
-  calendar overflow, dialog scrolling and loading/empty/error states. Static
-  checks do not establish rendered behavior; report unavailable checks explicitly.
-
-### Implemented route and recovery decisions
-
-October 21 nested Reports routes approved: replace local-only tab switching with
-`reports/overview`, `reports/transactions`, `reports/daily-data` and
-`reports/rankings` beneath one persistent Reports layout. Keep the shared header,
-branch selection and report-period controls. Preserve report calculations,
-authorization, Merchant projections and refund-details modal. Retain applied
-period and tab-specific filters/pages in URL query state for refresh, direct
-links and Back/Forward. The existing branch Reports URL redirects to Overview;
-branch switching retains the selected tab and period and resets branch-specific
-filters. Use existing dependencies and server contracts. Verify the same focused
-Reports/refund tests before and after, plus route/state regression tests.
-
-October 21 follow-up approved: Reports Transactions refund View/row activation
-opens the existing read-only refund-details modal within Reports. Sale rows keep
-their existing navigation. Extract the existing dialog for reuse, load the
-authorized original sale before refund detail, preserve Merchant projections,
-and discard obsolete reads on modal/context changes. No new API or refund command.
-Implemented using the extracted `RefundDetailsDialog` in both history and
-Reports. All 126 focused refund/transaction tests, frontend typecheck and focused
-lint passed. At that handoff, broader Reports retained three removed-label test
-failures; the nested-route work subsequently replaced those stale assertions with
-visible calendar and URL-state checks while preserving date/access coverage.
-
-Nested-route verification: one standard agent implemented/tested URL parsing and
-reviewed the route integration. Initial review found queryless Back period loss,
-search-draft resurrection, stale ranking errors and whitespace-only search
-invalidation. Those were fixed with regression coverage; focused re-review found
-no remaining issues. The Reports workspace suite now passes all 44 tests.
-Frontend typecheck, focused lint and formatting pass; production build includes
-all four nested routes. Final regression run passed 322 tests across 17 Reports,
-affected refund and organization-navigation suites; the final production build
-and diff checks passed. The prior three Reports label failures are resolved by
-the new route/calendar assertions, without restoring the manually removed UI.
-No backend/schema/dependency changes were needed for this routing refinement.
-Rendered browser QA remains unavailable and is not implied by automated checks.
-
-- Applied history state uses `q`, `method`, `fromDay`, `throughDay`, `page`.
-  Selection uses `select=1`, `saleQ`, `salePage`, `sale`; saved detail adds `refund`.
-  Search caps at 254 characters; page bounds match the existing refund API.
-- A branch summary omits item arrays; detail reads reuse authorized source-sale
-  and existing refund-detail APIs with original snapshot checks.
-- Reuse `RefundHistory` entry props to open the existing return/detail dialogs.
-  The command and write endpoint remain unchanged.
-- Retained attempts pin the sale subtree through query Back and completed read
-  acknowledgement. The persistent POS layout substitutes original-sale recovery
-  on Cart/History browser transitions. This retention is limited to the mounted
-  POS layout; attempts retain the existing memory-only lifecycle contract.
-- Remounted dialogs use external attempt state for externally pending requests;
-  only locally started requests own local pending/busy flags. This prevents a
-  pending remount from permanently disabling explicit same-command retry.
-
-### Local verification and remaining acceptance
-
-- Backend: 73 focused unit tests, 82 refund HTTP/OpenAPI tests and 44 disposable
-  PostgreSQL refund integration tests passed, including changed access, literal
-  wildcard searches, date bounds and concurrent count/page snapshot consistency.
-  Application build, focused lint/formatting and diff checks passed.
-- Disposable fixture: 1,500 refunds, 15-row response 4,068 bytes, observed 5.4 ms
-  unfiltered / 7.4 ms filtered. EXPLAIN used `Refund_branch_reports_idx`;
-  no schema, index, dependency or infrastructure addition was needed.
-- Frontend: production build, typecheck and focused lint passed. All 179 tests
-  in the final focused refund/POS workspace/branch POS/sales-workflow run passed,
-  including date-boundary and exhausted-sale cases.
-  Coverage includes pending remount, query Back retention, failed completion
-  acknowledgement GET retry, same-command explicit retry and cart retention.
-- Two pre-existing POS workspace assertions were updated to exercise the current
-  calendar and 15-row pagination while preserving their behavioral assertions.
-- Broader frontend run: 292/293 passed. The untouched `pos-cart.spec.ts` expects
-  `Only 1` while untouched `pos-cart.ts` emits `max quantity for ...`; leave this
-  unrelated message mismatch separate from the delivered work.
-- Broader backend checks found existing inventory HTTP pagination assertions,
-  a sales integration pagination assertion and repository test typing failures;
-  these are outside this plan. Production build and focused refund checks pass.
-- Independent deep frontend review found pending/Back recovery, completed
-  acknowledgement and inherited-pending known-rejection issues; fixes and
-  regression tests were added. The reviewer confirmed no remaining findings
-  after inspecting frontend fixes and backend authorization/query contracts.
-  The final inherited-pending fix passed all 18 refund-dialog tests independently.
-- Backend full test-inclusive typecheck reports 25 errors across six existing
-  test files; no pre-edit full run was recorded. The existing refund fixture
-  diagnostic was confirmed in HEAD. No production build failure was introduced.
-- The disposable PostgreSQL container was created for this task, isolated test
-  schemas were removed after tests, and the container was stopped after review.
-  No production data was changed.
-- Browser inventory exposed no enabled browser surface; opening Chrome returned
-  `Browser is not available: chrome`. Desktop/mobile rendered, keyboard/focus and
-  visual QA were not performed. Keep this current plan until acceptance or an
-  explicit rendered-QA waiver; no waiver is inferred.
-
-### Prior plan
-
-The previous Reports plan is preserved in
-`archive/reports-period-presets-superseded-2026-10-21.md`. Its outstanding rendered
-QA and test-label mismatches are not resolved by archival. POS and refund module
-documentation now describes the implemented branch-history workflow.
+- Every required README row has a source-reviewed pending plan and explicit
+  acceptance conditions; optional P2 work is clearly distinguished.
+- Every checklist action is covered, including testing, hosting upgrade triggers,
+  business policies and final sign-off, not just missing application features.
+- Existing Payment Accounts and All Branches decisions are retained consistently.
+- Unresolved decisions, dependencies, risks and authorization boundaries are visible.
+- Relative links resolve and the sequence has no circular prerequisites.
+- No product code, dependencies or application data changed during this stage.
+- User reviews the batch before any individual implementation phase is promoted.

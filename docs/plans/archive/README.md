@@ -1,5 +1,10 @@
 # Archived Implementation Plans
 
+The unimplemented Sales Reports All Branches plan was moved from this archive to
+[pending](../pending/09-reports-all-branches.md) on October 23, 2026.
+It is not completed or cancelled. See the
+[pending sequence](../pending/README.md) for its review and implementation place.
+
 The completed local Spaces workspace plan, including its routes, role boundaries,
 history filters, and documented rollout limits, is retained in
 [`dedicated-spaces-workspace-2026-10-11.md`](dedicated-spaces-workspace-2026-10-11.md).

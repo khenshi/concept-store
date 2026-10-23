@@ -11,6 +11,8 @@ Documentation is separated by purpose:
 - [`plans/archive/`](plans/archive/) contains completed and superseded plans that
   are not active requirements.
 - [`development/`](development/) contains development and operational guides.
+- [Deployment readiness checklist](deployment-readiness-checklist.md) tracks
+  observed release blockers, required features, pilot hosting and launch gates.
 
 ## Implemented modules
 
@@ -22,8 +24,12 @@ Documentation is separated by purpose:
 - [Merchant profiles](modules/merchant-profiles.md)
 - [Products](modules/products.md)
 - [Branch inventory](modules/branch-inventory.md)
+- [Merchant–branch participation](modules/merchant-branches.md)
 - [Sales history, merchant own-sale views and internal receipts](modules/sales.md)
 - [Branch POS catalog, cart and payment confirmation](modules/pos.md)
+- [Returns and manual refunds](modules/refunds.md)
+- [Sales Reports](modules/reports.md)
+- [Spaces and occupancy](modules/spaces.md)
 - [Frontend experience](modules/frontend-experience.md)
 
 Branch and merchant access control is implemented across memberships, invitations,
@@ -41,6 +47,7 @@ on September 13, 2026; automated tests do not certify rendered layout or printin
 ## Planning
 
 - [Current implementation plan](plans/current.md)
+- [Pending plans and implementation sequence](plans/pending/README.md)
 - [Archived plans](plans/archive/README.md)
 
 Archived documents and the pre-rollback branch are historical context only and
