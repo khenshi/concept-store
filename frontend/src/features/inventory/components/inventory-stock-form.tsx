@@ -175,21 +175,63 @@ export function InventoryStockForm({
         mode === 'adjustment' &&
         !(await confirm({
           title: 'Review stock adjustment',
-          description: [
-            'Review the complete change before applying it:',
-            '',
-            `Product: ${inventory.product.name}${inventory.product.sku ? ` · SKU ${inventory.product.sku}` : ''}`,
-            `Branch: ${branchName ?? 'Current branch'}`,
-            `Current stock: ${inventory.quantity.toLocaleString()} units`,
-            absoluteTarget !== undefined
-              ? `Adjustment method: New stock value\nNew stock value: ${absoluteTarget.toLocaleString()} units`
-              : `Adjustment method: Quantity change\nQuantity change: ${signedDelta} units`,
-            `Net stock change: ${signedDelta} units`,
-            `Estimated stock after adjustment: ${estimated.toLocaleString()} units`,
-            `Reason: ${normalizedReason}`,
-            '',
+          description:
             'Only this branch placement will change. The server verifies current stock before saving.',
-          ].join('\n'),
+          content: (
+            <div className="mt-5 grid gap-5 text-sm">
+              <div className="min-w-0 break-words">
+                <p className="font-semibold text-ink">
+                  {inventory.product.name}
+                </p>
+                <p className="mt-1 text-muted">
+                  {branchName ?? 'Current branch'}
+                  {inventory.product.sku
+                    ? ` · SKU ${inventory.product.sku}`
+                    : ''}
+                </p>
+              </div>
+              <dl className="grid gap-3 rounded-control bg-subtle p-4">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">Current stock</dt>
+                  <dd className="font-medium tabular-nums">
+                    {inventory.quantity.toLocaleString()} units
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted">Net stock change</dt>
+                  <dd
+                    className={`font-semibold tabular-nums ${delta < 0 ? 'text-danger' : 'text-success-ink'}`}
+                  >
+                    {signedDelta} units
+                  </dd>
+                </div>
+                <div className="border-t border-hairline pt-3">
+                  <dt className="text-xs text-muted">
+                    Estimated stock after adjustment
+                  </dt>
+                  <dd className="mt-1 text-xl font-semibold tabular-nums">
+                    {estimated.toLocaleString()} units
+                  </dd>
+                </div>
+              </dl>
+              <dl className="grid gap-4">
+                <div>
+                  <dt className="text-xs text-muted">Adjustment method</dt>
+                  <dd className="mt-1">
+                    {absoluteTarget !== undefined
+                      ? `New stock value: ${absoluteTarget.toLocaleString()} units`
+                      : 'Quantity change'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted">Reason</dt>
+                  <dd className="mt-1 break-words whitespace-pre-wrap">
+                    {normalizedReason}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          ),
           confirmLabel: 'Apply adjustment',
           tone: delta < 0 ? 'danger' : 'primary',
         }))
@@ -248,6 +290,11 @@ export function InventoryStockForm({
     inventory.product.status === 'ACTIVE' &&
     inventory.product.merchant.status === 'ACTIVE';
   const unavailable = mode === 'receipt' && !active;
+  const validInput = parse(quantity, newQuantity, reason).success;
+  const unchangedTarget =
+    mode === 'adjustment' &&
+    adjustmentInputMode === 'target' &&
+    Number(newQuantity) === inventory.quantity;
   const reasonSuggestions = [
     'Stock count correction',
     'Damaged stock',
@@ -282,6 +329,7 @@ export function InventoryStockForm({
       disabled={pending || unavailable}
       onChange={(event) => {
         const value = sanitizeWholeNumber(event.target.value);
+        if (Number(value) > 2147483647) return;
         command.current = null;
         setQuantity(value);
         validate('quantity', value, '', reason);
@@ -295,7 +343,7 @@ export function InventoryStockForm({
     <button
       type="submit"
       className={buttonStyles({ variant: 'primary' })}
-      disabled={pending || unavailable}
+      disabled={pending || unavailable || !validInput || unchangedTarget}
       aria-busy={pending}
     >
       {pending
@@ -340,6 +388,8 @@ export function InventoryStockForm({
                 disabled={pending || unavailable}
                 onChange={(event) => {
                   const value = sanitizeSignedWholeNumber(event.target.value);
+                  if (Number(value) > 2147483647 || Number(value) < -2147483648)
+                    return;
                   command.current = null;
                   setQuantity(value);
                   validate('quantity', value, '', reason);
@@ -361,6 +411,7 @@ export function InventoryStockForm({
                 disabled={pending || unavailable}
                 onChange={(event) => {
                   const value = sanitizeWholeNumber(event.target.value);
+                  if (Number(value) > 2147483647) return;
                   command.current = null;
                   setNewQuantity(value);
                   validate('newQuantity', '', value, reason);

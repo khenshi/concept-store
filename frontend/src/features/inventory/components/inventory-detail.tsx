@@ -19,12 +19,18 @@ import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import {
   OperationalCollection,
   OperationalPanel,
-  StatusNotice,
 } from '@/shared/components/ui/operational-page';
 import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { FloatingNotice } from '@/shared/components/ui/floating-notice';
+import {
+  DateRangePicker,
+  type DateRangePickerValue,
+} from '@/shared/components/ui/date-range-picker';
+import { SelectControl } from '@/shared/components/ui/select-control';
+import type { InventoryMovementRecordFilters } from '../model/inventory.types';
 import {
   getInventory,
   getInventoryBranch,
@@ -146,6 +152,13 @@ function ScopedInventoryDetail({
   const [inventory, setInventory] = useState<BranchInventory | null>(null);
   const [branch, setBranch] = useState<InventoryBranch | null>(null);
   const [movements, setMovements] = useState<InventoryMovementView[]>([]);
+  const [movementDates, setMovementDates] = useState<DateRangePickerValue>({
+    fromDay: '',
+    throughDay: '',
+  });
+  const [movementFilters, setMovementFilters] = useState<
+    Pick<InventoryMovementRecordFilters, 'type' | 'from' | 'until'>
+  >({});
   const [nextMovementCursor, setNextMovementCursor] = useState<string | null>(
     null,
   );
@@ -173,6 +186,8 @@ function ScopedInventoryDetail({
   const [revision, setRevision] = useState(0);
   const dirty = useRef(false);
   const readGeneration = useRef(0);
+  const loadedPlacement = useRef(false);
+  const previousMovementFilters = useRef(movementFilters);
   const accessLost = useCallback(() => {
     readGeneration.current++;
     dirty.current = false;
@@ -200,6 +215,51 @@ function ScopedInventoryDetail({
     async function load() {
       await Promise.resolve();
       if (!active || generation !== readGeneration.current) return;
+      const filtersChanged =
+        previousMovementFilters.current !== movementFilters;
+      previousMovementFilters.current = movementFilters;
+      if (filtersChanged && loadedPlacement.current) {
+        setMovementPageLoading(true);
+        setMovements([]);
+        setNextMovementCursor(null);
+        setMovementTotalPages(0);
+        setMovementPageIndex(0);
+        setMovementPageCursors([undefined]);
+        setMovementPageError(null);
+        setMovementPageRetry(null);
+        try {
+          const history = await listMovements(
+            request,
+            { organizationId, branchId, inventoryId },
+            organization?.role,
+            undefined,
+            movementFilters,
+          );
+          if (!active || generation !== readGeneration.current) return;
+          setMovements(history.items);
+          setNextMovementCursor(history.nextCursor);
+          setMovementTotalPages(history.totalPages ?? 0);
+        } catch (cause) {
+          if (!active || generation !== readGeneration.current) return;
+          if (
+            cause instanceof ApiError &&
+            [401, 403, 404].includes(cause.status)
+          ) {
+            accessLost();
+            return;
+          }
+          setMovementPageError(
+            cause instanceof ApiError
+              ? cause.message
+              : 'Movement history could not be refreshed.',
+          );
+          setMovementPageRetry({ index: 0 });
+        } finally {
+          if (active && generation === readGeneration.current)
+            setMovementPageLoading(false);
+        }
+        return;
+      }
       setLoading(true);
       setError(null);
       setInventory(null);
@@ -217,10 +277,17 @@ function ScopedInventoryDetail({
         const [item, location, history] = await Promise.all([
           getInventory(request, scope),
           getInventoryBranch(request, scope),
-          listMovements(request, scope, organization?.role),
+          listMovements(
+            request,
+            scope,
+            organization?.role,
+            undefined,
+            movementFilters,
+          ),
         ]);
         if (active && generation === readGeneration.current) {
           setInventory(item);
+          loadedPlacement.current = true;
           setBranch(location);
           setMovements(history.items);
           setNextMovementCursor(history.nextCursor);
@@ -249,6 +316,8 @@ function ScopedInventoryDetail({
     branchId,
     inventoryId,
     revision,
+    movementFilters,
+    accessLost,
   ]);
   useEffect(() => {
     const activeGeneration = readGeneration;
@@ -281,14 +350,7 @@ function ScopedInventoryDetail({
       onAccessDenied={accessLost}
       rememberBranch={setSelectedBranchId}
       beforeChange={() => {
-        if (
-          pendingOperation !== null ||
-          (dirty.current &&
-            !window.confirm(
-              'Discard this unsaved inventory form and change branches?',
-            ))
-        )
-          return false;
+        if (pendingOperation !== null) return false;
         dirty.current = false;
         readGeneration.current++;
         setInventory(null);
@@ -322,7 +384,13 @@ function ScopedInventoryDetail({
       <OrganizationPageFrame wide>
         {back}
         {branchSelector}
-        {success ? <StatusNotice>{success}</StatusNotice> : null}
+        {success ? (
+          <FloatingNotice
+            key={success}
+            message={success}
+            onDismiss={() => setSuccess(null)}
+          />
+        ) : null}
         <RequestError
           message={error ?? 'Inventory unavailable.'}
           onRetry={() => setRevision((value) => value + 1)}
@@ -343,11 +411,6 @@ function ScopedInventoryDetail({
   const selectAction = (action: InventoryAction) => {
     if (pendingOperation !== null) return;
     if (activeAction === action) return;
-    if (
-      dirty.current &&
-      !window.confirm('Discard this unsaved inventory form and open another?')
-    )
-      return;
     dirty.current = false;
     setActiveAction(action);
   };
@@ -364,6 +427,7 @@ function ScopedInventoryDetail({
         scope,
         organization?.role,
         cursor,
+        movementFilters,
       );
       if (generation !== readGeneration.current) return;
       setMovements(history.items);
@@ -577,7 +641,13 @@ function ScopedInventoryDetail({
         description={`${branch.name} · ${inventory.product.merchant.name} · ${inventory.product.status === 'ACTIVE' ? 'Active' : 'Inactive'} product`}
         action={branchSelector}
       />
-      {success ? <StatusNotice>{success}</StatusNotice> : null}
+      {success ? (
+        <FloatingNotice
+          key={success}
+          message={success}
+          onDismiss={() => setSuccess(null)}
+        />
+      ) : null}
       <section className="inventory-placement-panel mt-0 card-surface text-ink">
         <dl className="inventory-placement-summary grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
           <div className="inventory-placement-stat flex items-center justify-start gap-3 px-4 py-5 lg:py-6">
@@ -643,6 +713,67 @@ function ScopedInventoryDetail({
       <OperationalCollection
         className="data-surface mt-5"
         title="Movement history"
+        controls={
+          <fieldset
+            disabled={pendingOperation !== null}
+            className="grid min-w-0 gap-4 border-0 p-0 sm:grid-cols-[minmax(0,18rem)_minmax(0,14rem)]"
+          >
+            <DateRangePicker
+              id="inventory-history-dates"
+              value={movementDates}
+              onChange={setMovementDates}
+              onApply={(value) => {
+                setMovementDates(value);
+                if (!value.fromDay || !value.throughDay) return;
+                const from = new Date(
+                  `${value.fromDay}T00:00:00.000+08:00`,
+                ).toISOString();
+                const until = new Date(
+                  new Date(`${value.throughDay}T00:00:00.000+08:00`).getTime() +
+                    86400000,
+                ).toISOString();
+                readGeneration.current++;
+                setMovementFilters((current) => ({ ...current, from, until }));
+              }}
+              onClear={() => {
+                setMovementDates({ fromDay: '', throughDay: '' });
+                readGeneration.current++;
+                setMovementFilters((current) => ({ type: current.type }));
+              }}
+              filterLabel="Movement date filter"
+              dialogLabel="Choose movement history dates"
+            />
+            <div>
+              <label
+                className="block text-xs font-medium text-muted"
+                htmlFor="inventory-history-type"
+              >
+                Movement type
+              </label>
+              <SelectControl
+                id="inventory-history-type"
+                aria-label="Movement type"
+                className="mt-1 bg-subtle text-sm"
+                value={movementFilters.type ?? ''}
+                disabled={pendingOperation !== null}
+                onValueChange={(value) => {
+                  readGeneration.current++;
+                  setMovementFilters((current) => ({
+                    ...current,
+                    type: (value ||
+                      undefined) as InventoryMovementRecordFilters['type'],
+                  }));
+                }}
+              >
+                <option value="">All movements</option>
+                <option value="RECEIPT">Receipt</option>
+                <option value="ADJUSTMENT">Adjustment</option>
+                <option value="SALE">Sale</option>
+                <option value="RETURN">Return</option>
+              </SelectControl>
+            </div>
+          </fieldset>
+        }
         description={
           canWrite
             ? 'A permanent record of stock received and adjustments, with the latest activity shown first.'
@@ -651,7 +782,11 @@ function ScopedInventoryDetail({
       >
         <OperationalTableFrame
           empty={
-            !loading && !error && !movements.length ? (
+            !loading &&
+            !error &&
+            !movementPageLoading &&
+            !movementPageError &&
+            !movements.length ? (
               <EmptyState
                 className="mt-6"
                 title="No stock movements yet."
@@ -662,9 +797,7 @@ function ScopedInventoryDetail({
           footer={
             !loading && !error ? (
               <>
-                {movements.length > 0 &&
-                movementPageError &&
-                movementPageRetry ? (
+                {movementPageError && movementPageRetry ? (
                   <RequestError
                     className="p-6"
                     message={movementPageError}
@@ -694,6 +827,13 @@ function ScopedInventoryDetail({
             ) : undefined
           }
         >
+          {movementPageLoading && !movements.length ? (
+            <InventoryMovementTableSkeleton
+              variant="history"
+              canWrite={canWrite}
+              label="Loading movement history"
+            />
+          ) : null}
           {movements.length ? (
             <ol
               aria-label="Inventory movement history"
@@ -714,8 +854,11 @@ function ScopedInventoryDetail({
                   key={movement.id}
                   className={`data-row inventory-movement-row grid min-w-0 gap-x-3 gap-y-3 px-3 py-4 sm:px-4 lg:items-center xl:min-w-0 xl:gap-x-6 ${movementMinWidth} ${movementGrid}`}
                 >
-                  <InventoryMovementDateTime value={movement.createdAt} />
-                  <span className="flex items-center gap-2 text-sm font-medium">
+                  <InventoryMovementDateTime
+                    value={movement.createdAt}
+                    emphasizeDate
+                  />
+                  <span className="flex items-center gap-2 text-sm font-normal">
                     {movement.type === 'RECEIPT'
                       ? 'Receipt'
                       : movement.type === 'SALE'
@@ -725,7 +868,7 @@ function ScopedInventoryDetail({
                           : 'Adjustment'}
                   </span>
                   <span
-                    className={`text-sm font-semibold tabular-nums ${
+                    className={`text-sm font-normal tabular-nums ${
                       movement.quantityChange > 0
                         ? 'text-success-ink'
                         : movement.quantityChange < 0

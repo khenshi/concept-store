@@ -57,9 +57,17 @@ describe('InventoryThresholdForm', () => {
       name: 'Low-stock threshold',
     });
     fireEvent.change(threshold, { target: { value: '-1' } });
+    expect(threshold).toHaveValue(String(inventory.lowStockThreshold));
+    expect(
+      screen.getByRole('button', { name: 'Save threshold' }),
+    ).toBeDisabled();
     expect(threshold).not.toHaveAttribute('aria-invalid', 'true');
     await act(() => vi.advanceTimersByTimeAsync(300));
-    expect(threshold).toHaveAttribute('aria-invalid', 'true');
+    expect(threshold).not.toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(threshold, { target: { value: '' } });
+    expect(
+      screen.getByRole('button', { name: 'Save threshold' }),
+    ).toBeDisabled();
     fireEvent.change(threshold, { target: { value: '5' } });
     fireEvent.blur(threshold);
     expect(threshold).not.toHaveAttribute('aria-invalid', 'true');

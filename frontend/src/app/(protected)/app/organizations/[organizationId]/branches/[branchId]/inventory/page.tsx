@@ -1,4 +1,4 @@
-import { InventoryDirectory } from '@/features/inventory/components/inventory-directory';
+import { redirect } from 'next/navigation';
 
 export default async function InventoryPage({
   params,
@@ -9,17 +9,12 @@ export default async function InventoryPage({
 }) {
   const { organizationId, branchId } = await params;
   const requestedStatus = (await searchParams).stockStatus;
-  const initialStockStatus =
+  const stockStatus =
     typeof requestedStatus === 'string' &&
     ['IN_STOCK', 'LOW_STOCK', 'OUT_OF_STOCK'].includes(requestedStatus)
-      ? (requestedStatus as 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK')
+      ? requestedStatus
       : undefined;
-  return (
-    <InventoryDirectory
-      key={`${organizationId}/${branchId}`}
-      organizationId={organizationId}
-      branchId={branchId}
-      initialStockStatus={initialStockStatus}
-    />
+  redirect(
+    `/app/organizations/${organizationId}/branches/${branchId}/inventory/stock${stockStatus ? `?stockStatus=${stockStatus}` : ''}`,
   );
 }

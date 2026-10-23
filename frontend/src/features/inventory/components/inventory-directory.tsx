@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
@@ -12,15 +13,13 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
-import {
-  OperationalCollection,
-  StatusNotice,
-} from '@/shared/components/ui/operational-page';
+import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import { OperationalTableFrame } from '@/shared/components/ui/operational-table';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { Icon } from '@/shared/components/ui/icon';
+import { Notice } from '@/shared/components/ui/notice';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { getInventoryBranch, listInventory } from '../api/inventory-api';
@@ -39,10 +38,14 @@ import { InventoryMovementRecords } from './inventory-movement-records';
 import { InventoryTableSkeleton } from './inventory-table-skeleton';
 
 type InventoryPageTarget = { index: number; cursor?: string };
+export type InventoryTab = 'stock' | 'movements' | 'integrity';
+type InventoryDirectoryProps = InventoryScope & {
+  initialStockStatus?: InventoryStockStatus;
+  selectedTab?: InventoryTab;
+  onTabChange?(tab: InventoryTab): void;
+};
 
-export function InventoryDirectory(
-  props: InventoryScope & { initialStockStatus?: InventoryStockStatus },
-) {
+export function InventoryDirectory(props: InventoryDirectoryProps) {
   const { user } = useAuth();
   const { organization } = useOrganizationWorkspaceContext();
   return (
@@ -57,7 +60,9 @@ function ScopedInventoryDirectory({
   organizationId,
   branchId,
   initialStockStatus,
-}: InventoryScope & { initialStockStatus?: InventoryStockStatus }) {
+  selectedTab,
+  onTabChange,
+}: InventoryDirectoryProps) {
   const { request } = useAuth();
   const { organization, organizationStatus, setSelectedBranchId } =
     useOrganizationWorkspaceContext();
@@ -85,12 +90,28 @@ function ScopedInventoryDirectory({
   const [stockStatus, setStockStatus] = useState<InventoryStockStatus | ''>(
     initialStockStatus ?? '',
   );
-  const [activeTab, setActiveTab] = useState<
+  const [localTab, setActiveTab] = useState<
     'stock' | 'movements' | 'integrity'
   >('stock');
+  const activeTab = selectedTab ?? localTab;
+  const changeTab = onTabChange ?? setActiveTab;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [closingSuccess, setClosingSuccess] = useState<string | null>(null);
+  useEffect(() => {
+    if (!success) return;
+    const timeout = window.setTimeout(() => setClosingSuccess(success), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [success]);
+  useEffect(() => {
+    if (!success || closingSuccess !== success) return;
+    const timeout = window.setTimeout(() => {
+      setSuccess(null);
+      setClosingSuccess(null);
+    }, 200);
+    return () => window.clearTimeout(timeout);
+  }, [success, closingSuccess]);
   const [creating, setCreating] = useState(false);
   const [stockAction, setStockAction] = useState<{
     inventory: BranchInventory;
@@ -306,7 +327,30 @@ function ScopedInventoryDirectory({
           />
         }
       />
-      {success ? <StatusNotice>{success}</StatusNotice> : null}
+      {success
+        ? createPortal(
+            <div className="pointer-events-none fixed inset-x-0 top-4 z-[80] flex justify-center px-4">
+              <div
+                className={`pointer-events-auto w-full max-w-xl rounded-control bg-surface shadow-overlay ${closingSuccess === success ? 'inventory-notice-exit' : 'inventory-notice-enter'}`}
+              >
+                <Notice>
+                  <div className="flex items-center gap-4">
+                    <span>{success}</span>
+                    <button
+                      type="button"
+                      aria-label="Dismiss notification"
+                      className="shrink-0 rounded-full p-2 text-muted hover:bg-subtle focus-visible:outline-2 focus-visible:outline-focus"
+                      onClick={() => setClosingSuccess(success)}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </div>
+                </Notice>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {allowed ? (
         <div
           className="mb-4 flex flex-wrap items-center gap-1 border-b border-hairline"
@@ -323,7 +367,7 @@ function ScopedInventoryDirectory({
                 ? 'border-ink text-ink'
                 : 'border-transparent text-muted hover:text-ink'
             }`}
-            onClick={() => setActiveTab('stock')}
+            onClick={() => changeTab('stock')}
           >
             Inventory stock
           </button>
@@ -337,7 +381,7 @@ function ScopedInventoryDirectory({
                 ? 'border-ink text-ink'
                 : 'border-transparent text-muted hover:text-ink'
             }`}
-            onClick={() => setActiveTab('movements')}
+            onClick={() => changeTab('movements')}
           >
             Movement records
           </button>
@@ -352,12 +396,15 @@ function ScopedInventoryDirectory({
                   ? 'border-ink text-ink'
                   : 'border-transparent text-muted hover:text-ink'
               }`}
-              onClick={() => setActiveTab('integrity')}
+              onClick={() => changeTab('integrity')}
             >
               Stock integrity
             </button>
           ) : null}
         </div>
+      ) : null}
+      {activeTab === 'integrity' && !canWrite ? (
+        <p role="alert">Your organization role cannot view stock integrity.</p>
       ) : null}
       {activeTab === 'stock' ? (
         <OperationalCollection

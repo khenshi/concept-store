@@ -54,7 +54,7 @@ describe('InventoryDetail workflows', () => {
       screen.getByRole('heading', { name: 'Movement history' }),
     ).toBeInTheDocument();
   });
-  it('retains edits when a branch switch is cancelled and navigates to the new directory on confirmation', async () => {
+  it('switches branches without a discard prompt for unsaved edits', async () => {
     vi.mocked(listBranches).mockResolvedValue([
       { id: scope.branchId, name: branch.name, code: branch.code },
       { id: 'other', name: 'BGC', code: 'BGC' },
@@ -67,11 +67,7 @@ describe('InventoryDetail workflows', () => {
     fireEvent.change(quantity, { target: { value: '3' } });
     fireEvent.click(screen.getByRole('combobox', { name: 'Inventory branch' }));
     fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
-    expect(push).not.toHaveBeenCalled();
-    expect(quantity).toHaveValue('3');
-    confirm.mockReturnValue(true);
-    fireEvent.click(screen.getByRole('combobox', { name: 'Inventory branch' }));
-    fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
+    expect(confirm).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith(
       `/app/organizations/${scope.organizationId}/branches/other/inventory`,
     );
@@ -290,7 +286,13 @@ describe('InventoryDetail workflows', () => {
     expect(
       screen.queryByRole('button', { name: 'Review adjustment' }),
     ).not.toBeInTheDocument();
-    expect(listMovements).toHaveBeenCalledWith(request, scope, 'MERCHANT');
+    expect(listMovements).toHaveBeenCalledWith(
+      request,
+      scope,
+      'MERCHANT',
+      undefined,
+      {},
+    );
   });
   it('clears actionable owner data immediately on a role change', async () => {
     const { rerender } = render(<InventoryDetail {...scope} />);
@@ -353,6 +355,30 @@ describe('InventoryDetail workflows', () => {
     ).not.toBeInTheDocument();
     expect(receiveStock).toHaveBeenCalledOnce();
   });
+  it('filters movement history by type and resets the cursor', async () => {
+    render(<InventoryDetail {...scope} />);
+    await screen.findByRole('button', { name: 'View' });
+    const inventoryReads = vi.mocked(getInventory).mock.calls.length;
+    const branchReads = vi.mocked(getInventoryBranch).mock.calls.length;
+    expect(
+      screen.getByRole('button', { name: /Movement date filter/ }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Movement type' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Return' }));
+    await waitFor(() =>
+      expect(listMovements).toHaveBeenLastCalledWith(
+        request,
+        scope,
+        'MANAGER',
+        undefined,
+        { type: 'RETURN' },
+      ),
+    );
+    await screen.findByRole('combobox', { name: 'Movement type' });
+    expect(screen.queryByText('Page 2')).not.toBeInTheDocument();
+    expect(getInventory).toHaveBeenCalledTimes(inventoryReads);
+    expect(getInventoryBranch).toHaveBeenCalledTimes(branchReads);
+  });
   it('pages through movement history without changing the current stock summary', async () => {
     const older = {
       ...movementHistory,
@@ -381,6 +407,7 @@ describe('InventoryDetail workflows', () => {
       scope,
       'MANAGER',
       movementHistory.id,
+      {},
     );
     fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
     expect(await screen.findByText('Page 1')).toBeInTheDocument();
@@ -390,6 +417,7 @@ describe('InventoryDetail workflows', () => {
       scope,
       'MANAGER',
       undefined,
+      {},
     );
   });
   it('retries a failed movement page without losing current stock or repeating a write', async () => {

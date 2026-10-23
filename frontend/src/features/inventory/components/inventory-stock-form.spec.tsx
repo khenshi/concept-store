@@ -67,6 +67,48 @@ describe('InventoryStockForm', () => {
         target: { value: ' Delivery ' },
       });
   };
+  it.each(['receipt', 'adjustment'] as const)(
+    'disables invalid %s submissions until inputs are valid',
+    (mode) => {
+      render(
+        <InventoryStockForm
+          scope={scope}
+          inventory={inventory}
+          mode={mode}
+          onSaved={vi.fn()}
+          onPendingChange={vi.fn()}
+        />,
+      );
+      const submit = screen.getByRole('button', {
+        name: mode === 'receipt' ? 'Receive stock' : 'Review adjustment',
+      });
+      expect(submit).toBeDisabled();
+      const input = screen.getByRole('textbox', {
+        name: mode === 'receipt' ? 'Units to receive' : 'New stock value',
+      });
+      if (mode === 'adjustment') {
+        fireEvent.change(input, { target: { value: '8' } });
+        expect(submit).toBeDisabled();
+        fireEvent.change(screen.getByRole('textbox', { name: 'Reason' }), {
+          target: { value: 'Count correction' },
+        });
+        expect(submit).toBeEnabled();
+        fireEvent.change(input, {
+          target: { value: String(inventory.quantity) },
+        });
+        expect(submit).toBeDisabled();
+      } else {
+        fireEvent.change(input, { target: { value: '0' } });
+        expect(submit).toBeDisabled();
+        fireEvent.change(input, { target: { value: '8' } });
+        expect(submit).toBeEnabled();
+      }
+      fireEvent.change(input, { target: { value: '' } });
+      expect(submit).toBeDisabled();
+      expect(receiveStock).not.toHaveBeenCalled();
+      expect(adjustStock).not.toHaveBeenCalled();
+    },
+  );
   it('reuses request ID after an uncertain failure and changes it when edited', async () => {
     vi.mocked(receiveStock).mockRejectedValue(new Error('Connection lost'));
     render(
@@ -113,29 +155,23 @@ describe('InventoryStockForm', () => {
     fill('-7', 'adjustment');
     fireEvent.click(screen.getByRole('button', { name: 'Review adjustment' }));
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Review the complete change before applying it:',
+      'Only this branch placement will change.',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('Vase');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Current stock5 units',
     );
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Product: Vase · SKU VA',
+      'Adjustment methodQuantity change',
+    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('-7 units');
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Net stock change-7 units',
     );
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Current stock: 5 units',
+      'Estimated stock after adjustment-2 units',
     );
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Adjustment method: Quantity change',
-    );
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Quantity change: -7 units',
-    );
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Net stock change: -7 units',
-    );
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Estimated stock after adjustment: -2 units',
-    );
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Reason: Delivery',
-    );
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('ReasonDelivery');
     expect(adjustStock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Apply adjustment' }));
     await waitFor(() =>
@@ -203,16 +239,16 @@ describe('InventoryStockForm', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Review adjustment' }));
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Adjustment method: New stock value',
+      'Adjustment methodNew stock value',
     );
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
       'New stock value: 8 units',
     );
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Net stock change: +3 units',
+      'Net stock change+3 units',
     );
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Estimated stock after adjustment: 8 units',
+      'Estimated stock after adjustment8 units',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Apply adjustment' }));
     await waitFor(() =>
@@ -273,6 +309,12 @@ describe('InventoryStockForm', () => {
         onPendingChange={vi.fn()}
       />,
     );
+    fireEvent.change(screen.getByRole('textbox', { name: 'New stock value' }), {
+      target: { value: '8' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Reason' }), {
+      target: { value: 'Count correction' },
+    });
     expect(
       screen.getByRole('button', { name: 'Review adjustment' }),
     ).not.toBeDisabled();

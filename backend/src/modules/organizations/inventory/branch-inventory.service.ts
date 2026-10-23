@@ -523,19 +523,39 @@ export class BranchInventoryService {
     >
   > {
     await this.findOne(organizationId, branchId, inventoryId, context);
+    if (Boolean(query.from) !== Boolean(query.until))
+      throw new BadRequestException(
+        'from and until must be provided together for a date range',
+      );
+    if (
+      query.from &&
+      query.until &&
+      new Date(query.from) >= new Date(query.until)
+    )
+      throw new BadRequestException(
+        'from must be earlier than until for a date range',
+      );
+    const where: Prisma.InventoryMovementWhereInput = {
+      organizationId,
+      branchId,
+      branchInventoryId: inventoryId,
+      ...(query.type ? { type: query.type } : {}),
+      ...(query.from && query.until
+        ? {
+            createdAt: { gte: new Date(query.from), lt: new Date(query.until) },
+          }
+        : {}),
+    };
     if (query.cursor) {
       const cursor = await this.prisma.inventoryMovement.findFirst({
         where: {
           id: query.cursor,
-          organizationId,
-          branchId,
-          branchInventoryId: inventoryId,
+          ...where,
         },
         select: { id: true },
       });
       if (!cursor) throw new NotFoundException('Movement cursor not found');
     }
-    const where = { organizationId, branchId, branchInventoryId: inventoryId };
     const [movements, total] = await Promise.all([
       this.prisma.inventoryMovement.findMany({
         select: inventoryMovementHistorySelect,

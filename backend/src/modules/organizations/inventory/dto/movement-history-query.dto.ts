@@ -1,11 +1,44 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsUUID,
+  Max,
+  Min,
+  IsEnum,
+  IsISO8601,
+  Matches,
+} from 'class-validator';
+import { InventoryMovementType } from '../../../../generated/prisma/client';
 
 const queryInteger = ({ value }: { value: unknown }) =>
   typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
 
 export class MovementHistoryQueryDto {
+  @ApiPropertyOptional({ enum: InventoryMovementType })
+  @IsOptional()
+  @IsEnum(InventoryMovementType)
+  type?: InventoryMovementType;
+
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'Inclusive UTC timestamp',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true, strictSeparator: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/)
+  from?: string;
+
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'Exclusive UTC timestamp',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true, strictSeparator: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/)
+  until?: string;
+
   @ApiPropertyOptional({
     type: 'integer',
     minimum: 1,

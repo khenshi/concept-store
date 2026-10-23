@@ -374,6 +374,17 @@ describe('InventoryDirectory workflows', () => {
       ),
     );
   });
+  it('denies a merchant direct integrity tab without reconciliation reads', async () => {
+    vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
+      organization: { role: 'MERCHANT' },
+      organizationStatus: 'ready',
+    } as never);
+    render(<InventoryDirectory {...scope} selectedTab="integrity" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your organization role cannot view stock integrity.',
+    );
+    expect(getInventoryReconciliation).not.toHaveBeenCalled();
+  });
   it('lazy-loads branch movement records and hides integrity for merchants', async () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { role: 'MERCHANT' },

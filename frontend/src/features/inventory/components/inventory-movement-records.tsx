@@ -389,7 +389,7 @@ export function InventoryMovementRecords({
               {items.map((movement) => (
                 <li
                   key={movement.id}
-                  className={`data-row grid min-w-0 gap-x-3 gap-y-3 px-3 py-4 sm:px-4 lg:min-w-[47rem] lg:items-center xl:min-w-0 xl:gap-x-6 ${grid}`}
+                  className={`data-row grid min-w-0 gap-x-3 gap-y-3 px-3 py-4 text-sm font-normal sm:px-4 lg:min-w-[47rem] lg:items-center xl:min-w-0 xl:gap-x-6 ${grid}`}
                 >
                   <Link
                     className="min-w-0 text-sm font-semibold text-ink underline-offset-3 hover:underline"
@@ -404,11 +404,11 @@ export function InventoryMovementRecords({
                     </span>
                   </Link>
                   <InventoryMovementDateTime value={movement.createdAt} />
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-normal">
                     {movementTypeLabel(movement.type)}
                   </span>
                   <span
-                    className={`text-sm font-semibold tabular-nums ${
+                    className={`text-sm font-normal tabular-nums ${
                       movement.quantityChange > 0
                         ? 'text-success-ink'
                         : movement.quantityChange < 0

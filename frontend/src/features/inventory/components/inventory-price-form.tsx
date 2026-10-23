@@ -36,6 +36,10 @@ export function InventoryPriceForm({
   const [fieldError, setFieldError] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const parsedInput = priceInputSchema.safeParse({ sellingPrice: price });
+  const canSave =
+    parsedInput.success &&
+    Number(parsedInput.data.sellingPrice) !== Number(inventory.sellingPrice);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   function validate(value: string, immediate = false) {
@@ -51,7 +55,7 @@ export function InventoryPriceForm({
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending) return;
+    if (pending || !canSave) return;
     window.clearTimeout(timer.current);
     const parsed = priceInputSchema.safeParse({ sellingPrice: price });
     if (!parsed.success) {
@@ -91,8 +95,10 @@ export function InventoryPriceForm({
         disabled={pending}
         error={fieldError}
         onChange={(event) => {
-          setPrice(event.target.value);
-          validate(event.target.value);
+          const value = event.target.value;
+          if (!/^(?:\d{1,10}(?:\.\d{0,2})?)?$/.test(value)) return;
+          setPrice(value);
+          validate(value);
         }}
         onBlur={() => validate(price, true)}
         hint="This changes only this branch’s price, not stock or other branches."
@@ -119,7 +125,7 @@ export function InventoryPriceForm({
         <button
           className={buttonStyles({ variant: 'primary' })}
           type="submit"
-          disabled={pending}
+          disabled={pending || !canSave}
           aria-busy={pending}
         >
           {pending ? 'Saving…' : 'Save branch price'}

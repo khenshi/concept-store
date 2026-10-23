@@ -130,8 +130,11 @@ export async function listMovements(
   scope: InventoryDetailScope,
   role?: string,
   cursor?: string,
+  filters: Pick<InventoryMovementRecordFilters, 'type' | 'from' | 'until'> = {},
 ) {
   const query = new URLSearchParams({ limit: '15' });
+  for (const [key, value] of Object.entries(filters))
+    if (value) query.set(key, value);
   if (cursor) query.set('cursor', cursor);
   const result = await request<unknown>(`${detail(scope)}/movements?${query}`);
   return role === 'MERCHANT'

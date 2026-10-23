@@ -13,11 +13,19 @@ const philippineTimeFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Manila',
 });
 
-export function InventoryMovementDateTime({ value }: { value: string }) {
+export function InventoryMovementDateTime({
+  value,
+  emphasizeDate = false,
+}: {
+  value: string;
+  emphasizeDate?: boolean;
+}) {
   const date = new Date(value);
   return (
     <time className="min-w-0 tabular-nums" dateTime={value}>
-      <span className="block text-sm font-medium text-ink">
+      <span
+        className={`block text-sm text-ink ${emphasizeDate ? 'font-semibold' : 'font-normal'}`}
+      >
         {philippineDateFormatter.format(date)}
       </span>
       <span className="mt-1 block text-xs leading-5 text-muted">

@@ -55,12 +55,23 @@ describe('InventoryPriceForm', () => {
       />,
     );
     const price = screen.getByRole('textbox', { name: 'Selling price (PHP)' });
+    expect(
+      screen.getByRole('button', { name: 'Save branch price' }),
+    ).toBeDisabled();
     fireEvent.change(price, { target: { value: '1e2' } });
+    expect(price).toHaveValue(inventory.sellingPrice);
     expect(price).not.toHaveAttribute('aria-invalid', 'true');
     await act(() => vi.advanceTimersByTimeAsync(300));
-    expect(price).toHaveAttribute('aria-invalid', 'true');
+    expect(price).not.toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(price, { target: { value: '' } });
+    expect(
+      screen.getByRole('button', { name: 'Save branch price' }),
+    ).toBeDisabled();
     fireEvent.change(price, { target: { value: '0.01' } });
     fireEvent.blur(price);
     expect(price).not.toHaveAttribute('aria-invalid', 'true');
+    expect(
+      screen.getByRole('button', { name: 'Save branch price' }),
+    ).toBeEnabled();
   });
 });

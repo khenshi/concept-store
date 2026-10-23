@@ -1,5 +1,50 @@
 # Branch Inventory
 
+Inventory tabs have nested routes: `/inventory/stock`, `/inventory/movements`
+and `/inventory/integrity`. A persistent tab layout retains the header, branch
+selector and stock filters while navigating; browser back/forward selects tabs.
+The legacy `/inventory` redirects to Stock, preserving a valid stockStatus query.
+Placement detail remains `/inventory/:inventoryId` outside the tab layout.
+Integrity remains Owner/Manager-only; Merchant direct navigation shows a denial
+without reading reconciliation. Branch changes retain their existing Stock entry.
+
+Movement Records uses sm normal-weight row text, semibold product names and View
+actions, and xs product metadata/time. Existing movement colors remain unchanged.
+
+Stock detail places Inventory Actions below Movement History. History dates and
+View actions are semibold; other row values use normal-weight sm text, with xs
+time and existing change colors. Merchant visibility and permissions are unchanged.
+
+Movement History filter changes refresh only the table, not placement/branch
+reads or action forms. Loading/errors/retry remain within the history surface;
+authorization failures still clear protected content.
+
+Placement Movement History supports type (Receipt, Adjustment, Sale, Return)
+and the shared calendar's single-day/date-range filters. Dates are inclusive
+Asia/Manila days converted to UTC `[from, until)` bounds. The placement history
+GET accepts optional `type`, `from`, `until`; paired ordered dates are required.
+Rows, counts and cursor checks share the authorized placement/filter scope.
+Changing filters resets pagination; newest-first ordering and Merchant privacy
+remain unchanged.
+
+Stock detail uses the same five-second floating slide-down/up success feedback.
+Action/branch changes no longer ask to discard drafts; pending writes still block
+switching. Threshold accepts nonnegative whole numbers within its schema range;
+price accepts up to ten integer digits and two decimal places. Empty/intermediate
+edits are allowed, but threshold/price saves require valid changed values.
+
+Inventory directory success notices float at the top center of the viewport
+without shifting content, disappear after five seconds, and can be dismissed
+earlier. Refresh behavior is unchanged.
+Notices slide down on entry and up on automatic/manual dismissal. Reduced-motion
+preferences disable these animations.
+
+Stock receipt and adjustment forms disable submission until the existing input
+schemas pass; absolute adjustments matching the displayed stock are also disabled.
+Adjustment confirmation separates product/branch identity, current stock, signed
+change, estimated resulting stock, method and reason. Backend balance validation,
+authorization and idempotent request handling remain authoritative and unchanged.
+
 **Status:** Implemented; rendered QA for inventory integrity/performance and
 earlier replenishment visibility was explicitly waived.
 

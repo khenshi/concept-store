@@ -564,6 +564,51 @@ describe('BranchInventoryService', () => {
     expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
   });
 
+  it('applies placement history filters to rows, counts and cursor checks', async () => {
+    const from = '2026-10-20T16:00:00.000Z';
+    const until = '2026-10-21T16:00:00.000Z';
+    prisma.inventoryMovement.findFirst.mockResolvedValue({ id: 'cursor' });
+    await service.findMovements('org', 'branch', 'inventory', undefined, {
+      limit: 15,
+      type: 'RETURN',
+      from,
+      until,
+      cursor: 'cursor',
+    });
+    const where = {
+      organizationId: 'org',
+      branchId: 'branch',
+      branchInventoryId: 'inventory',
+      type: 'RETURN',
+      createdAt: { gte: new Date(from), lt: new Date(until) },
+    };
+    expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where }),
+    );
+    expect(prisma.inventoryMovement.count).toHaveBeenCalledWith({ where });
+    expect(prisma.inventoryMovement.findFirst).toHaveBeenCalledWith({
+      where: { ...where, id: 'cursor' },
+      select: { id: true },
+    });
+  });
+
+  it('rejects incomplete and reversed placement history ranges', async () => {
+    await expect(
+      service.findMovements('org', 'branch', 'inventory', undefined, {
+        limit: 15,
+        from: '2026-10-21T00:00:00Z',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.findMovements('org', 'branch', 'inventory', undefined, {
+        limit: 15,
+        from: '2026-10-22T00:00:00Z',
+        until: '2026-10-21T00:00:00Z',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
+  });
+
   it('bounds history and rejects a foreign movement cursor', async () => {
     prisma.inventoryMovement.count.mockResolvedValue(3);
     prisma.inventoryMovement.findMany.mockResolvedValue(

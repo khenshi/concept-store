@@ -37,6 +37,12 @@ export function InventoryThresholdForm({
   const [fieldError, setFieldError] = useState<string>();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const parsedInput = thresholdInputSchema.safeParse({
+    lowStockThreshold: threshold,
+  });
+  const canSave =
+    parsedInput.success &&
+    parsedInput.data.lowStockThreshold !== inventory.lowStockThreshold;
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
   function validate(value: string, immediate = false) {
@@ -54,7 +60,7 @@ export function InventoryThresholdForm({
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending) return;
+    if (pending || !canSave) return;
     window.clearTimeout(timer.current);
     const parsed = thresholdInputSchema.safeParse({
       lowStockThreshold: threshold,
@@ -92,7 +98,7 @@ export function InventoryThresholdForm({
     <button
       className={buttonStyles({ variant: 'primary' })}
       type="submit"
-      disabled={pending}
+      disabled={pending || !canSave}
       aria-busy={pending}
     >
       {pending ? 'Saving…' : 'Save threshold'}
@@ -125,8 +131,10 @@ export function InventoryThresholdForm({
           disabled={pending}
           error={fieldError}
           onChange={(event) => {
-            setThreshold(event.target.value);
-            validate(event.target.value);
+            const value = event.target.value;
+            if (!/^\d*$/.test(value) || Number(value) > 2147483647) return;
+            setThreshold(value);
+            validate(value);
           }}
           onBlur={() => validate(threshold, true)}
           hint="Set the low-stock warning level. Enter 0 to disable warnings."
