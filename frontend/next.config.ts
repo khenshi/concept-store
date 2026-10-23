@@ -7,6 +7,7 @@ validateFrontendEnvironment({
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  allowedDevOrigins: ['macbook-air-4.tailf876a2.ts.net'],
 };
 
 export default nextConfig;
