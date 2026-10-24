@@ -1,8 +1,12 @@
-# Payment Account Management and Reporting implementation plan
+# Plan 08: Payment Account Management and Reporting
 
-Date: October 22, 2026
+Date: October 22, 2026; source-reviewed and updated October 24, 2026
 
 Status: Pending design; planning only. No implementation authorized.
+
+Priority: Required before real pilot use. Numbered delivery phases below are
+steps, not release-priority exemptions. This filename is retained to preserve
+existing links; it does not authorize reconciliation.
 
 This replaces the former reconciliation proposal in this same pending file.
 It does not modify or authorize work beyond `../current.md`. Earlier decisions
@@ -32,6 +36,9 @@ Confirmed decisions:
 - Managers retain account breakdowns for their assigned branches; Owners retain
   tenant-wide authorized branch access. Merchant/Cashier reporting is not widened.
 - Owners configure whether each custom noncash account requires a reference.
+- Confirmed October 24: Owner-only Payment Accounts entry in the organization
+  sidebar; custom accounts default to requiring a reference, editable for future
+  transactions only; fixed Cash label and unique normalized custom names per tenant.
 - The system is developmental: use a verified development reset and fresh dataset
   instead of preserving existing development GCash/Card records. Planning remains
   non-destructive; section 8 defines the later reset safeguards.
@@ -51,16 +58,16 @@ settlement timing. A completed manual POS payment is not provider-verified.
 
 Inspected source and implemented module documentation:
 
-| Area | Current implementation | Planned impact |
-| --- | --- | --- |
-| `backend/prisma/schema.prisma`: Sale, Refund, SalePaymentMethod | Each source stores CASH/GCASH/CARD enum, total, reference and completedAt; Sale also stores cash tender/change. No standalone Payment or payment-account model. | Add account configuration and account linkage/snapshots to existing sources. Do not create duplicate transaction rows. |
-| `sales/checkout.service.ts`, `sales/dto/checkout.dto.ts` | Enum-dependent conditional validation, precise server totals, atomic stock writes, canonical checkoutCommand and request-ID replay. | Replace new-command enum with account ID, derive cash/reference behavior from server configuration; preserve saved command replay. |
-| `refunds/refunds.service.ts`, create-refund DTO | Actual payout method may differ from original sale; partial item returns and precise totals are already supported. | Store the actual refund account independently of the original sale account; keep quantity/restock limits. |
-| `sales/sales.types.ts`, sales/refund read services and list DTOs | Explicit staff versus merchant projections; enum-dependent filters. | Add staff account identity/snapshot and account ID filters; preserve merchant exclusions and cashier restrictions. |
-| `reports/reports.service.ts`, `reports/sales-analytics.ts` | Gross sale/payment and actual refund-method aggregates. Existing netByPaymentMethod subtracts refunds grouped by the ORIGINAL sale method. | New account net must subtract ACTUAL refund-account outflows. Reusing original-method net would produce wrong account totals. |
-| Frontend `pos/model/checkout.ts`, checkout/refund APIs, sales/refund schemas | Fixed enum whitelist and response-versus-command checks. Pending/unknown command recovery is intentionally strict. | Update runtime schemas, drafts, fingerprints, receipts and recovery together, not just labels. |
-| `reports/model/report.schemas.ts`, `staff-analytics-dashboard.tsx` | Fixed three-row arrays, hard-coded labels/colors and PaymentMethodDonut. | Dynamic account arrays, exact invariants, metric toggle and signed-net chart. |
-| `docs/modules/{pos,sales,refunds,reports}.md` | Existing money, tenant scope, replay, access and read-only reporting contracts. No implemented Finance or Settlement module. | Update implemented docs only when each approved implementation phase ships. |
+| Area                                                                         | Current implementation                                                                                                                                          | Planned impact                                                                                                                     |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/prisma/schema.prisma`: Sale, Refund, SalePaymentMethod              | Each source stores CASH/GCASH/CARD enum, total, reference and completedAt; Sale also stores cash tender/change. No standalone Payment or payment-account model. | Add account configuration and account linkage/snapshots to existing sources. Do not create duplicate transaction rows.             |
+| `sales/checkout.service.ts`, `sales/dto/checkout.dto.ts`                     | Enum-dependent conditional validation, precise server totals, atomic stock writes, canonical checkoutCommand and request-ID replay.                             | Replace new-command enum with account ID, derive cash/reference behavior from server configuration; preserve saved command replay. |
+| `refunds/refunds.service.ts`, create-refund DTO                              | Actual payout method may differ from original sale; partial item returns and precise totals are already supported.                                              | Store the actual refund account independently of the original sale account; keep quantity/restock limits.                          |
+| `sales/sales.types.ts`, sales/refund read services and list DTOs             | Explicit staff versus merchant projections; enum-dependent filters.                                                                                             | Add staff account identity/snapshot and account ID filters; preserve merchant exclusions and cashier restrictions.                 |
+| `reports/reports.service.ts`, `reports/sales-analytics.ts`                   | Gross sale/payment and actual refund-method aggregates. Existing netByPaymentMethod subtracts refunds grouped by the ORIGINAL sale method.                      | New account net must subtract ACTUAL refund-account outflows. Reusing original-method net would produce wrong account totals.      |
+| Frontend `pos/model/checkout.ts`, checkout/refund APIs, sales/refund schemas | Fixed enum whitelist and response-versus-command checks. Pending/unknown command recovery is intentionally strict.                                              | Update runtime schemas, drafts, fingerprints, receipts and recovery together, not just labels.                                     |
+| `reports/model/report.schemas.ts`, `staff-analytics-dashboard.tsx`           | Fixed three-row arrays, hard-coded labels/colors and PaymentMethodDonut.                                                                                        | Dynamic account arrays, exact invariants, metric toggle and signed-net chart.                                                      |
+| `docs/modules/{pos,sales,refunds,reports}.md`                                | Existing money, tenant scope, replay, access and read-only reporting contracts. No implemented Finance or Settlement module.                                    | Update implemented docs only when each approved implementation phase ships.                                                        |
 
 Paths in the table are relative to
 `backend/src/modules/organizations/` or `frontend/src/features/` where applicable.
@@ -73,6 +80,14 @@ The old enum cannot identify multiple wallets/bank accounts retrospectively.
 Existing reports are branch-scoped. Preserve their branch/date selection and
 Asia/Manila calendar conversion to UTC half-open intervals. An account shared
 across branches must not accidentally return its other branches' totals.
+
+October 24 review reconfirmed fixed enums and three-element response arrays,
+original-sale-method net attribution in `sales-analytics.ts`, and serializable
+checkout with saved canonical command comparison. Reviewed schema/migration
+constraints, checkout DTO/service, refund schema/service, report service/schema,
+staff analytics UI, OrganizationsModule and relevant module documentation.
+No new application tests, build, database, provider or browser checks ran for this
+planning update. Earlier tests elsewhere are not evidence this feature exists.
 
 ## 3. Smallest architecture
 
@@ -95,9 +110,9 @@ checkout/refund transactions. Register through existing OrganizationsModule
 conventions. No broad Finance framework, separate datastore or generic ledger.
 
 Frontend: `features/payment-accounts/{api,model,components}/` plus the existing
-POS, Sales, Refunds and Reports features. Suggested Owner-only management route:
-`/app/organizations/:org/payment-accounts`. Placement in organization navigation
-should be decided before implementation; a new Finance dashboard is unnecessary.
+POS, Sales, Refunds and Reports features. Owner-only management route:
+`/app/organizations/:org/payment-accounts`, linked as Payment Accounts in the
+organization sidebar. A new Finance dashboard is unnecessary.
 
 Account configuration is authoritative for NEW selections. Historical receipt
 snapshots are authoritative for what a saved transaction displayed. Reports group
@@ -112,16 +127,16 @@ stable account IDs, not display names. Do not hard-code payment choices in clien
 - Immutable nullable systemKey: CASH for the organization's single system Cash;
   null for owner-created accounts. Enforce tenant/system-key uniqueness.
 - Minimal account behavior: owner-configurable requiresReference for custom accounts
-  (initial default and later edit policy still require confirmation). Cash behavior follows systemKey,
+  (default true; later edits affect future transactions only). Cash behavior follows systemKey,
   not its label. Do not create a second method entity or infer behavior from names.
 - Version and normal created/updated timestamps for configuration concurrency.
 - Optional bounded description/display order only if the management UI needs them;
   no bank credentials, account balance, provider integration or payment secrets.
 - Cash constraints: enabled=true, assignmentMode=ALL, requiresReference=false;
-  immutable system identity. Cash renaming is an unresolved policy, not permission
-  to bypass these invariants.
-- Prefer unique trimmed/case-insensitive names per organization, subject to name
-  policy confirmation. Never merge accounts with equal or similar names.
+  immutable system identity and fixed Cash label.
+- Enforce unique trimmed/case-insensitive names per organization, including the
+  reserved Cash name. Distinct accounts such as GCash Main and GCash Backup are
+  allowed. Never merge accounts with equal or similar names.
 - No hard-delete endpoint in MVP; disable custom accounts to preserve references.
   This is a simpler stronger rule than allowing deletion only for unused accounts.
 
@@ -174,6 +189,8 @@ two-decimal strings. No floating-point amount arithmetic.
    per organization in the replacement dataset idempotently, including those with no sales.
    Demo/test seeds follow the same invariant. Cash availability is not dependent on
    a later maintenance job.
+   With Plan 07, creation means protected operator provisioning, not restored public
+   tenant creation. Integrate Cash creation in that transaction/service seam.
 2. Owner creates an account, configures applicable reference behavior, enabled state
    and ALL or selected branches. Validate branch IDs and name uniqueness server-side.
 3. Edit supports rename, enable/disable and assignment changes with a version check.
@@ -232,9 +249,12 @@ Merchant own-item views must still omit whole-sale payment/account information.
 
 Extend existing Sales Reports analytics response with dynamic paymentAccounts:
 accountId, displayName, current enabled/assignment status as appropriate, received,
-refunded and netReceived. Use an additive versioned contract during migration;
-remove deprecated fixed-enum arrays only once all callers are migrated.
-Do not sum both old and new response representations.
+refunded and netReceived. Coordinate a single account-aware API/client contract
+cutover for the approved empty-development dataset. No temporary dual enum/account
+representation is required just to preserve disposable clients. Reject stale
+method-based writes. A version marker for frozen commands is distinct from
+maintaining two payment configurations; agree it with 18 before implementing.
+Never sum old and new response representations.
 
 Owners and assigned-branch Managers can read the account breakdown. Preserve
 existing Merchant/Cashier restrictions; do not widen their financial projections.
@@ -267,9 +287,10 @@ Net Received(A) = Received(A) - Refunded(A)
   For an Owner all-account view, zero-valued disabled accounts can be explicitly
   included through a display filter; totals never depend on that filter.
 - Group shared accounts once by ID. Branch-scoped reports only include that branch;
-  if a future authorized multi-branch selector is added, use distinct branch IDs and
-  include each Sale/Refund once. Do not add an all-branches report in this MVP unless
-  explicitly approved; preserve current branch/date filters.
+  when Plan 09 adds the approved authorized multi-branch selector, use distinct
+  branch IDs and include each Sale/Refund once. Plan 09 owns that selector and
+  scope-resolution contract; this plan must support it without duplicating routes
+  or introducing another branch preference. Both are required before pilot launch.
 - Sums across all account rows reconcile exactly to scoped gross/refund/net totals.
   A renamed account stays one account row, using its current label for discovery;
   source details keep original snapshot names. Disabled/historical badges explain
@@ -399,23 +420,23 @@ Do not expose staff whole-payment account details in merchant-reduced views.
 
 ## 11. Delivery phases and dependencies
 
-1. **P0 — Approve contracts/policies:** settle section 13, finish reference inventory,
+1. **Approve contracts/policies:** settle section 13, finish reference inventory,
    schema/constraint/migration design, role projection and verified reset/cutover.
    Promote an explicitly approved bounded phase into current.md; this pending file
    is not build authority.
-2. **P1 — Account registry:** account/branch schema and fresh-data Cash provisioning,
+2. **Account registry:** account/branch schema and fresh-data Cash provisioning,
    Owner management APIs/UI, transactional availability and concurrency tests.
-3. **P2 — Account-aware sources and selections:** source FKs/snapshots, command/read
+3. **Account-aware sources and selections:** source FKs/snapshots, command/read
    contracts, POS/refund/sales selections/history/receipt updates and recovery parity.
    Account configuration must be ready before enabling custom account writes.
-4. **P3 — Account reporting:** independent grouped aggregates, dynamic schemas,
+4. **Account reporting:** independent grouped aggregates, dynamic schemas,
    Received/Refunded/Net toggle, signed chart and exact breakdown table. Remove
    original-sale-method net reuse and prove all scoped totals match existing Reports.
-5. **P4 — Development cutover and hardening:** disposable migration/reset rehearsal,
+5. **Development cutover and hardening:** disposable migration/reset rehearsal,
    verified target reset/reseed, stale attempt invalidation, new command replay,
    all-tenant Cash checks and coordinated API/frontend rollout. Remove public
    method terminology, obsolete contracts and fixed arrays.
-6. **P5 — Final verification/docs:** focused/full regression, performance and browser
+6. **Final verification/docs:** focused/full regression, performance and browser
    QA; update implemented module docs and archive approved completed phases.
 
 No database write is performed during planning. The user permits a later verified
@@ -453,7 +474,8 @@ infrastructure/dependency is authorized. Do not replace current.md during this t
   targeted API/unit/integration tests, relevant full suites and production builds.
   Measure actual grouping queries with representative account/transaction volumes.
   Browser desktop/mobile, keyboard/focus, modal calendar/dropdown overflow and
-  200% zoom require real QA or an explicit feature-specific waiver.
+  200% zoom require recorded real QA under 11/14; a waiver records missing evidence
+  and is not equivalent to passing launch acceptance.
 - Completion means account configuration is the ONLY source for new choices,
   enabled/assignment rules are enforced server-side, snapshots/history are stable,
   recorded per-account flows are exact, current POS/refund/replay rules are preserved,
@@ -466,22 +488,21 @@ Do not interpret documentation checks as implemented/runtime verification.
 
 Confirmed: one account per sale/refund now, Cash always enabled/all branches,
 signed bars for negative net, assigned-branch Manager access, Owner-configurable
-reference requirements and a fresh development dataset. Still resolve:
+reference requirements and a fresh development dataset. October 24 confirmations
+and remaining gates:
 
-1. **Management location:** where should Payment Accounts live in the existing
-   organization navigation?
-2. **Reference policy details:** Owners may make references optional. Choose the
-   initial checkbox default and whether edits after first use are allowed (recommended
-   future-only with snapshots). Required references use existing 2–100-character
+1. **Confirmed management location:** Owner-only Payment Accounts entry in the
+   organization sidebar.
+2. **Confirmed reference policy:** default required for custom accounts; Owners
+   may edit it later for future transactions only, preserving snapshots.
+   Required references use existing 2–100-character
    validation; optional absent references must be valid without blank placeholders.
    If an optional reference is supplied, validate it with the same bounded format.
 3. **Reset dataset:** confirm the exact development target at implementation time
    and choose example accounts/branches/transactions and any desired backup before
    reset. No historical GCash/Card backfill is needed for the disposable dataset.
-4. **Cash naming and account names:** should Cash's label stay fixed? Are custom
-   account names unique per tenant, and may an Owner create more than one GCash/BPI
-   account under distinct names? Recommended fixed Cash label and unique normalized
-   custom labels with distinct account IDs.
+4. **Confirmed names:** fixed Cash label; unique normalized custom names per
+   tenant. Multiple GCash/BPI accounts use distinct labels and stable account IDs.
 5. **Zero-row scope/volume:** proposed show currently assigned accounts plus every
    account with historical activity, never hide historical amounts. Should Owners
    also see all disabled zero-valued accounts by default? Confirm reasonable
@@ -489,3 +510,66 @@ reference requirements and a fresh development dataset. Still resolve:
 
 These decisions affect usability/compatibility, not authority to restore any
 removed reconciliation workflow.
+
+## 14. Cross-plan contracts, security and rollout gates
+
+- **03/07:** verification, current membership/session and tenant activation apply
+  to every configuration, availability and reporting path. Inactive organizations
+  retain authorized historical reads, not new configuration/payment writes. Cash
+  being always available does not override tenant/branch/role restrictions.
+- **04/06:** use approved target validation, migration provenance, disposable tests
+  and controlled release ordering. The account schema change must not accidentally
+  break operator activation or token migrations from earlier plans. An explicitly
+  empty-dataset-only migration fails on nonempty data: never run the demo reset to
+  make a live release pass. Stop for a preservation plan if real records exist.
+- **09:** resolve authorized branch IDs once per report request. Account aggregate,
+  table totals and overall totals share a consistent database snapshot and date
+  interval. Never resolve scope from current account assignment alone. Manager
+  responses omit assignment details and zero-account identities from inaccessible
+  branches; current relevant accounts plus in-scope historical activity suffice.
+  Merchant responses remain own-item-only and never acquire whole-account totals.
+- **16/18:** completed-command lookup requires fresh authorization but not current
+  account availability. Distinguish returning an existing saved result from creating
+  a new write during deactivation. A retry with no saved outcome must satisfy
+  current account/tenant/branch rules; never mutate a frozen command to a replacement
+  account or automatically submit it. Define lock order across account, branch,
+  sale/refund and inventory rows and bounded serialization/deadlock retry behavior.
+- **17:** reuse branch multi-select UI without implementing unrelated directory
+  pagination. Paginate management tables at 15 rows; charts and report totals must
+  represent all in-scope accounts, not just that management page.
+- **19:** optional exports consume the same account ID/snapshot and exact decimal
+  contracts. Export work is not required to ship this feature.
+
+### Maintainable reporting bounds
+
+Prefer a complete grouped result for the organization's small operational account
+set, with bounded label lengths, pagination of rendered table rows and measured
+response/query budgets under 12. No arbitrary first-N query limit that loses money.
+If realistic volume cannot satisfy the budget, agree a bounded complete aggregate/
+legend contract before implementation rather than silently merging accounts into
+Other or requesting one query per account. Show zero currently applicable accounts
+and all historically contributing accounts by default; disabled zero-only accounts
+are discoverable through Owner management, not hidden amounts in financial totals.
+This conservative display proposal still awaits confirmation in section 13.
+
+### Rollout and rollback
+
+Rehearse the complete migration chain, fresh Cash provisioning and known fixture
+totals before the separately authorized exact-target development cutover. Drain
+writers and coordinate browser reload/schema/command version changes. Do not allow
+an old client or saved development command to create a transaction in the new
+dataset. Verify newly completed commands remain replayable after account edits.
+
+After any non-disposable account-aware transaction exists, rollback must preserve
+its account FK, snapshot, command and money records. Do not revert to an enum-only
+writer, drop account columns or reset financial data as rollback. Retain a compatible
+application/configuration or roll forward under 04/06; real database disaster
+recovery uses the tested 15-minute RPO / 2-hour RTO, not a code-deployment shortcut.
+
+Required completion evidence: deep security/financial/concurrency review during
+implementation; API/client contract parity; Cash/tenant constraints; independently
+computed fixture totals for cash-tender, cross-account and refund-only periods;
+queries with representative volumes; replay/race tests; 11/14 browser/printing
+acceptance. Update POS, sales, refunds, reports, organizations and a new
+`docs/modules/payment-accounts.md` only when implemented. Keep launch checklist
+items unchecked until their actual proof exists.

@@ -1,4 +1,4 @@
-# Pending plan: Sales Reports All Branches
+# Plan 09: Sales Reports All Branches
 
 Moved from the deferred archive to pending on October 23, 2026. This feature is
 not completed or cancelled. Review this specification at planning queue item 09;
@@ -7,9 +7,13 @@ specific scope is approved. See [planning sequence](README.md).
 
 ## Sales Reports: All Branches
 
-Date: October 22, 2026
+Date: October 22, 2026; source-reviewed and updated October 24, 2026
 
 Status: Planning only. User requested a plan first; implementation is not authorized.
+
+Priority: Required before real pilot use. Plan 08 owns Payment Accounts and must
+coordinate its account-aware reporting contract before launch. No application or
+database change is authorized by drafting this plan.
 
 ### 1. Goal and confirmed scope
 
@@ -30,7 +34,7 @@ guidance for restricted roles without revealing inaccessible branch identities.
 Exclude other selectors/pages (POS, Inventory, Spaces), shared preference changes,
 checkout/refund writes, payment account implementation, settlements, reconciliation,
 new dependencies/infrastructure and schema changes unless a measured index need is
-separately approved. Payment Account Management remains a separate pending proposal.
+separately approved. Payment Account Management remains owned by required Plan 08.
 
 ### 2. Repository evidence and gaps
 
@@ -109,6 +113,23 @@ other merchants or actor information). Preserve historical access rules.
 Use consistent read snapshots for rows/counts/totals. Never aggregate separately
 fetched branch snapshots and claim transactionally consistent results. No writes.
 
+Return an explicit aggregate response identity, such as `reportScope: 'ALL'`,
+separate from the existing STAFF/MERCHANT projection discriminator; it must not
+masquerade as a fabricated branch object. Keep existing branch response contracts
+compatible. Aggregate transaction rows include real `branch: {id,name,code}` with
+shared safe metadata for staff and own-item Merchant projections. Do not include a
+full organization branch list or account assignment list in summary metadata.
+
+Empty authorized scope returns zero summary/empty transactions/rankings and
+defined zero-filled bounded date rows; ALL_TIME retains its no-activity period
+representation. Permission denial is not an empty result. Update strict schemas
+and test empty-date pagination explicitly.
+
+Per-request consistency does not imply all tabs use one database snapshot. Freeze
+period bounds per scope and reject stale client results, but later requests may
+reflect newer commits. Do not add a snapshot store, long-lived transaction or
+cached authorization to synchronize tabs. Access changes apply on fresh reads.
+
 ### 5. Aggregate semantics and detail actions
 
 - Summary: exact Sales and Refunds sums within authorized branches and `[from,until)`;
@@ -130,10 +151,11 @@ fetched branch snapshots and claim transactionally consistent results. No writes
 - Top charts/distinct counts: compute full-scope top products/merchants and distinct
   products/merchants from source rows, not summed branch distinct counts or truncated
   charts. Avoid sale/refund/item joins multiplying amounts.
-- Existing payment reporting remains as implemented. If Payment Accounts ships first,
-  group stable account IDs across branches and subtract actual refund-account flows;
+- Coordinate with required Plan 08: group stable account IDs across branches and
+  subtract actual refund-account flows;
   never count a shared account's branch assignments as extra transactions. That
-  separate feature is not authorized by this plan.
+  separate feature is not independently implemented by this plan. Do not permanently
+  encode original-sale-method net attribution in new aggregate acceptance tests.
 
 Use exact Decimal/PostgreSQL numeric aggregation and amount strings, never floating
 point money. Preserve bounded analytics for long/All Time ranges and pagination.
@@ -179,7 +201,8 @@ No database reset/migration, code or dependency modifications during planning.
   integration suites and production builds. Report unrelated baseline failures.
 - Browser: desktop/mobile dropdown/calendar overflow, keyboard/focus, Branch column,
   table/chart alignment, loading/empty/error and 200% zoom. Static checks do not
-  prove rendered behavior; unavailable QA needs disclosure or an explicit waiver.
+  prove rendered behavior. Disclose unavailable QA; a waiver records missing evidence,
+  not equivalent proof of passing 11/14 launch acceptance.
 
 Acceptance: All branches shows accurate complete Reports across exactly authorized
 scope; every tab/detail action works; date/navigation state is coherent; other
@@ -197,3 +220,69 @@ proposed consistent behavior. Confirm any material contract ambiguity before edi
 
 Plan checks: repository/module inspection and document whitespace checks only.
 No runtime implementation or acceptance tests performed for this proposal.
+
+### 9. October 24 source review and cross-plan contracts
+
+Fresh source inspection covered ReportsController/ReportsService, analytics SQL,
+ReportsEntry/ReportBranchPicker, route inventory and relevant implemented docs:
+
+- Existing routes are UUID-branch-only. ReportBranchPicker rejects IDs absent from
+  returned choices and disables itself with no branches; adding an option alone
+  will not implement All Branches or its authorized empty state.
+- ReportsService refreshes current membership in repeatable-read queries.
+  `reportBranchScope` preserves current merchant branch access OR branches with
+  saved sales for the currently linked merchant. Keep that historical union;
+  active affiliations alone would drop valid own history.
+- Rankings group by stable product ID and choose saved snapshot labels
+  deterministically. Expand that existing rule, not product-name grouping.
+- No fresh tests, build, database or browser checks ran for this planning review.
+  Existing module docs remain current-behavior descriptions, not feature proof.
+
+Dependencies and boundaries:
+
+- **03/07:** verified identity, current membership and permitted tenant access on
+  every endpoint. Inactive organizations retain authorized read-only history;
+  no new writes, Owner self-activation or public tenant provisioning.
+- **08:** use identical branch/date predicates for account and report totals.
+  Historical contributions survive account disable/reassignment; current account
+  assignments cannot expand branch access. Managers receive no inaccessible
+  branch/account identities; Merchants still receive no whole-account totals.
+- **16:** retain inactive-branch history. New-operation restrictions are not
+  blanket historical report filters; policy changes remain owned by 16.
+- **17:** server pagination stays 15 by default; no browser-side full-history
+  download for global counts, sorting or ranking.
+- **18:** actual-source detail navigation preserves unresolved command safety.
+  Viewing reports/refunds never submits a return, payout or command retry.
+- **19:** optional exports later reuse scope resolution, not unbounded endpoints.
+- **04/06/12:** disposable tests, enforced gates and measured query budgets. No
+  schema change presumed necessary; propose indexes only with SQL-plan evidence
+  and approved migration. No cache, job or extra infrastructure.
+
+Extract only the narrow report-scope resolver/predicate shared by existing
+single-branch and aggregate reads. Do not duplicate all SQL/services or build a
+generic cross-module analytics framework. Apply authorization before grouping,
+top-N and pagination. Source joins preserve organization/branch ties and merchant
+own-item predicates, including refund-source joins.
+
+Invalidate role-sensitive client results on user/tenant/access-generation/scope/
+period/filter changes. Old requests cannot restore revoked data. On inaccessible
+detail or branch, show safe unavailable feedback and refresh authorization; never
+fall back to a broader scope or silently redirect to POS. Keep load failures
+retryable with the selected scope/period, without destroying unresolved commands.
+
+Implement in order: agree scope/period/account response contracts; shared backend
+predicates and tests; aggregate endpoints; thin aggregate routes reusing workspace;
+detail return navigation; precision/performance/browser gates. Update reports and
+relevant frontend/navigation module docs only after implementation. Preserve
+single-branch API behavior, existing visual design and other page selectors.
+
+Rollback can withdraw aggregate UI/routes while retaining compatible single-branch
+history and explicit fallback feedback for saved aggregate links. Never reset data,
+undo Payment Account schema changes, broaden access or interpret missing branch
+as unrestricted scope. Preserve safe returnTo validation and actual source access.
+
+Remaining gates: exact aggregate response metadata, empty-date pagination and
+measured query budget. No new business clarification is required for this draft;
+global product grouping and the aggregate Branch column remain explicit proposed
+behavior to review before implementation. Browser and launch acceptance belong
+to 11/14, not documentation checks.
