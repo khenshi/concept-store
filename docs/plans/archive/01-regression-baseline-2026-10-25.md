@@ -2,7 +2,10 @@
 
 Date: October 23, 2026
 
-Status: Draft for review. Planning only; no implementation authorized.
+Status: Completed October 25, 2026 after explicit implementation approval.
+Source/local gates and 72 affected disposable-PostgreSQL tests passed, including
+the opt-in benchmark. See [dated results](../../validation/regression-baseline-2026-10-25.md)
+for commands, counts, warnings and limits. No automatic approval of Plan 02.
 
 Priority: P0 engineering gate before real pilot transactions. This plan repairs
 the local regression baseline; it does not certify deployment readiness.
@@ -16,7 +19,7 @@ keep authorization, validation and monetary assertions intact.
 
 Owns the failing-check item in checklist §3 and all failure triage in §4 of the
 [deployment checklist](../../deployment-readiness-checklist.md). See the
-[sequence](README.md) for the other workstreams.
+[sequence](../pending/README.md) for the other workstreams.
 
 Included:
 

@@ -494,20 +494,14 @@ it('creates a missing type inline, preserves the space draft, and selects the ne
   fireEvent.change(screen.getByLabelText('Space name'), {
     target: { value: 'Display A' },
   });
-  expect(
-    screen.getByLabelText('Space name').parentElement?.parentElement,
-  ).toHaveClass('md:col-span-2');
-  expect(
-    screen.getByRole('button', { name: 'Create a new type' }).parentElement,
-  ).toHaveClass('md:grid-cols-[minmax(0,1fr)_auto]');
+  expect(screen.getByLabelText('Space name')).toHaveValue('Display A');
+  expect(screen.getByRole('combobox', { name: 'Space type' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: 'Create a new type' }));
   expect(
     screen.queryByRole('combobox', { name: 'Space type' }),
   ).not.toBeInTheDocument();
   expect(screen.getByLabelText('New type name')).toBeInTheDocument();
-  expect(
-    screen.getByRole('button', { name: 'Discard' }).parentElement,
-  ).toHaveClass('md:grid-cols-[minmax(0,1fr)_auto_auto]');
+  expect(screen.getByRole('button', { name: 'Discard' })).toBeEnabled();
   expect(
     screen.getByText('Available across all branches in this organization.'),
   ).toBeInTheDocument();

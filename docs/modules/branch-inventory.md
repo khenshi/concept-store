@@ -135,6 +135,8 @@ whitelisting reject malformed IDs and unexpected fields.
   The threshold defaults to `5`; positive opening stock creates an attributed
   RECEIPT in the placement transaction, while explicit zero creates no movement.
   Setting the threshold to `0` is retained for the low-warning opt-out behavior.
+  The new-placement form also initializes its threshold to `5`; explicit `0`
+  remains valid and existing saved thresholds are not changed.
   Duplicate product/branch placement returns `409`.
 - New placements require an active product, active merchant, and active merchant–branch association.
 - Price requests use positive decimal strings with at most 10 integer and two

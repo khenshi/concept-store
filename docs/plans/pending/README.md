@@ -2,18 +2,19 @@
 
 Date: October 22, 2026
 
-Queue updated: October 23, 2026
+Queue updated: October 25, 2026
 
-Status: Planning manifest only. The [current plan](../current.md) authorizes the
-documentation stage, not application changes. Numbered entries below are a queue,
-not a claim that their documents exist or their work is approved/completed.
+Status: Plan 01 completed and archived October 25. The [current plan](../current.md)
+is a handoff with no active implementation scope. Other numbered plans remain
+pending, not implementation authority. Final batch review remains outstanding;
+the user approved Plan 01 separately without declaring that review complete.
 
 Source: [deployment readiness checklist](../../deployment-readiness-checklist.md).
 Verify the implemented modules and clarify documentation/code discrepancies first,
 as requested October 23. Then create/review **one detailed plan per planning turn**
 and update this file.
-Do not start implementation until the planning batch has been reviewed and the
-specific next implementation scope has been approved in `current.md`.
+Implement only the explicitly approved current scope. Do not advance to another
+plan without approval or treat archived specifications as active requirements.
 
 ## 1. Planning queue
 
@@ -22,7 +23,7 @@ Existing specifications remain the source of truth until their review turn.
 
 | ID  | Plan / intended file                                                                              | Priority                                 | Draft status                                                                                                   |
 | --- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 01  | [Regression baseline and test-contract recovery](01-regression-baseline.md)                       | P0                                       | Drafted October 23; hint-free design confirmed; implementation not approved                                    |
+| 01  | [Regression baseline and test-contract recovery](../archive/01-regression-baseline-2026-10-25.md) | P0                                       | Completed October 25; local gates and 72 affected PostgreSQL tests passed                                      |
 | 02  | [Production startup, logging and readiness](02-production-runtime.md)                             | P0                                       | Drafted October 23; implementation not approved                                                                |
 | 03  | [Authentication and request-boundary hardening](03-auth-security.md)                              | P0                                       | Drafted October 23; 72-byte cap/immediate revocation confirmed; implementation not approved                    |
 | 04  | [Database migration, isolation and recovery safety](04-database-safety.md)                        | P0                                       | Drafted October 23; 15-minute/2-hour targets confirmed October 24; implementation not approved                 |
@@ -593,10 +594,13 @@ Remaining shared gates:
   projection and frontend schema/rendering review. User confirmed both parts pre-pilot,
   retained archived uses/reactivation and current-label history. No application tests,
   migration/database or browser checks ran; privacy and concurrency proof pending.
-- Next: final batch coverage/dependency/open-decision review. All numbered plans
-  are drafted/reviewed; this does not complete planning or approve implementation.
-  Do not implement Plan 01–20 between
-  planning turns or claim its successful drafting repairs the regression baseline.
+- October 25: user explicitly approved Plan 01 for implementation. Moved it to
+  current.md and archived the planning-stage document as superseded, not completed.
+  Source/local repairs and follow-up 72 affected PostgreSQL tests passed on a fresh
+  verified disposable target (benchmark enabled). Plan 01 completed/archived;
+  current.md is now a handoff. No approval for Plan 02–20.
+- Next after current scope: final batch coverage/dependency/open-decision review
+  and explicit approval of any next implementation. Drafting alone repairs nothing.
 - Batch completion: 01–14 and 16–20 drafted/reviewed, 15 explicitly classified as optional,
   remaining decisions visible and dependencies reviewed with the user. Only then
   close the planning stage and seek approval for the next implementation scope.

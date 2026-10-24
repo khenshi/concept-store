@@ -124,11 +124,11 @@ directories. The Branches page title has no organization-name eyebrow above it.
 Creation and editing share a scroll-contained native modal. It focuses the form
 heading, blocks background interaction, restores focus/scrolling on close, and
 supports safe Escape/backdrop dismissal. Dismissal and repeat submission are
-blocked while a write is pending. Field hints sit below inputs, and validation
+blocked while a write is pending. Inputs remain hint-free, and validation
 connects messages and focuses the first invalid field.
 The modal groups identity, address, and location fields into a compact responsive
 form with a normal-flow action footer that remains safe for long mobile forms.
-Concise field hints sit below their inputs, while editable fields provide
+Persistent labels identify the inputs, while editable fields provide
 debounced live validation while typing and immediate feedback on blur and
 submit, preserving the existing schema normalization. The Add/Save action stays
 disabled until all required fields contain values; request failures remain

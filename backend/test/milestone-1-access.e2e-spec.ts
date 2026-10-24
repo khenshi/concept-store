@@ -61,7 +61,7 @@ describe('Milestone 1 organization access (e2e)', () => {
               userId: string;
             };
           };
-        }) => {
+        }): Promise<{ role: OrganizationRole } | null> => {
           const { organizationId, userId } = where.organizationId_userId;
 
           if (organizationId !== ORGANIZATION_ID) return Promise.resolve(null);

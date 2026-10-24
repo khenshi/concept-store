@@ -52,22 +52,42 @@ describe('shared field and page primitives', () => {
     expect(email).not.toBeDisabled();
   });
 
-  it('keeps visible validation feedback compact while retaining the full message', () => {
-    render(
-      <TextField
-        label="Selling price"
-        error="Enter a positive PHP price with up to two decimal places (maximum 9999999999.99)."
-      />,
-    );
-    expect(
-      screen.getByText('Enter a valid PHP price (up to 2 decimals).'),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
+  it.each(['label', 'after'] as const)(
+    'retains full accessible validation with %s errors',
+    (errorPosition) => {
+      render(
+        <>
+          <p id="external-help">Price guidance</p>
+          <TextField
+            id="price"
+            label="Selling price"
+            hint="Branch price"
+            aria-describedby="external-help"
+            errorPosition={errorPosition}
+            error="Enter a positive PHP price with up to two decimal places (maximum 9999999999.99)."
+          />
+        </>,
+      );
+      expect(screen.getByText('Enter a valid price.')).toBeVisible();
+      expect(
+        screen.getByText(
+          'Enter a positive PHP price with up to two decimal places (maximum 9999999999.99).',
+        ),
+      ).toHaveClass('sr-only');
+      const input = screen.getByRole('textbox', { name: 'Selling price' });
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(input).toHaveAttribute(
+        'aria-describedby',
+        'external-help price-hint price-error-detail',
+      );
+      expect(document.getElementById('price-error-detail')).toHaveTextContent(
         'Enter a positive PHP price with up to two decimal places (maximum 9999999999.99).',
-      ),
-    ).toHaveClass('sr-only');
-  });
+      );
+      expect(input).toHaveAccessibleDescription(
+        'Price guidance Branch price Enter a positive PHP price with up to two decimal places (maximum 9999999999.99).',
+      );
+    },
+  );
 
   it('uses a single page heading and announces feedback semantically', () => {
     render(

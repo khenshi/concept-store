@@ -41,12 +41,15 @@ describe('POS cart rules and exact arithmetic', () => {
       addPosProduct([], { ...product, quantity: 0, eligible: false }),
     ).toThrow('out of stock');
     const cart = addPosProduct([], { ...product, quantity: 1 });
+    const snapshot = structuredClone(cart);
     expect(() => addPosProduct(cart, { ...product, quantity: 1 })).toThrow(
-      'Only 1',
+      `max quantity for ${product.name}`,
     );
+    expect(cart).toEqual(snapshot);
     expect(() =>
       addPosProduct(cart, { ...product, sellingPrice: '900.00' }),
     ).toThrow('price');
+    expect(cart).toEqual(snapshot);
   });
   it('caps distinct lines at 100 but allows repeating an existing line', () => {
     const cart = Array.from({ length: 100 }, (_, index) => ({

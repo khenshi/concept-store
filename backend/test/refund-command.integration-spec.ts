@@ -1503,7 +1503,6 @@ describe('PostgreSQL refund commands and concurrency', () => {
       stocks.receive(organizationId, branchId, inventories[0], ownerId, {
         requestId: randomUUID(),
         quantity: 3,
-        reason: 'New stock',
       }),
       stocks.adjust(organizationId, branchId, inventories[0], ownerId, {
         requestId: randomUUID(),

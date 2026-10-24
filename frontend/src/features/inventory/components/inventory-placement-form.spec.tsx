@@ -39,39 +39,48 @@ describe('InventoryPlacementForm', () => {
       screen.getByRole('option', { name: `${product.name} · ${product.sku}` }),
     );
   };
-  it('creates a placement with required opening stock and a decimal-string price', async () => {
-    vi.mocked(createPlacement).mockResolvedValue({
-      ...inventory,
-      quantity: 10,
-    });
-    const onSaved = vi.fn();
-    render(
-      <InventoryPlacementForm
-        scope={scope}
-        onSaved={onSaved}
-        onCancel={vi.fn()}
-        onPendingChange={vi.fn()}
-      />,
-    );
-    await select();
-    fireEvent.change(
-      screen.getByRole('textbox', { name: 'Selling price (PHP)' }),
-      { target: { value: ' 925.50 ' } },
-    );
-    fireEvent.change(screen.getByRole('textbox', { name: 'Initial stock' }), {
-      target: { value: '10' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Create placement' }));
-    await waitFor(() =>
-      expect(createPlacement).toHaveBeenCalledWith(request, scope, {
-        productId: product.id,
-        sellingPrice: '925.50',
-        initialQuantity: 10,
-        lowStockThreshold: 0,
-      }),
-    );
-    expect(onSaved).toHaveBeenCalledOnce();
-  });
+  it.each([undefined, '0'])(
+    'creates a placement with threshold input %s and a decimal-string price',
+    async (thresholdInput) => {
+      vi.mocked(createPlacement).mockResolvedValue({
+        ...inventory,
+        quantity: 10,
+      });
+      const onSaved = vi.fn();
+      render(
+        <InventoryPlacementForm
+          scope={scope}
+          onSaved={onSaved}
+          onCancel={vi.fn()}
+          onPendingChange={vi.fn()}
+        />,
+      );
+      await select();
+      const threshold = screen.getByRole('textbox', {
+        name: 'Low-stock threshold',
+      });
+      expect(threshold).toHaveValue('5');
+      if (thresholdInput !== undefined)
+        fireEvent.change(threshold, { target: { value: thresholdInput } });
+      fireEvent.change(
+        screen.getByRole('textbox', { name: 'Selling price (PHP)' }),
+        { target: { value: ' 925.50 ' } },
+      );
+      fireEvent.change(screen.getByRole('textbox', { name: 'Initial stock' }), {
+        target: { value: '10' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Create placement' }));
+      await waitFor(() =>
+        expect(createPlacement).toHaveBeenCalledWith(request, scope, {
+          productId: product.id,
+          sellingPrice: '925.50',
+          initialQuantity: 10,
+          lowStockThreshold: thresholdInput === undefined ? 5 : 0,
+        }),
+      );
+      expect(onSaved).toHaveBeenCalledOnce();
+    },
+  );
   it('rejects letters from price, threshold and opening-stock inputs', async () => {
     render(
       <InventoryPlacementForm
@@ -304,7 +313,31 @@ describe('InventoryPlacementForm', () => {
     fireEvent.click(picker);
     fireEvent.keyDown(picker, { key: 'Enter' });
     expect(picker).toHaveValue(`${product.name} · ${product.sku}`);
-    expect(screen.getByText(/Selected:/)).toHaveTextContent(product.name);
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Selling price (PHP)' }),
+      {
+        target: { value: '12.50' },
+      },
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Initial stock' }), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create placement' }));
+    await waitFor(() =>
+      expect(createPlacement).toHaveBeenCalledWith(request, scope, {
+        productId: product.id,
+        sellingPrice: '12.50',
+        initialQuantity: 2,
+        lowStockThreshold: 5,
+      }),
+    );
+    fireEvent.change(picker, { target: { value: 'Another product' } });
+    expect(
+      screen.getByRole('button', { name: 'Create placement' }),
+    ).toBeDisabled();
+    fireEvent.submit(picker.closest('form')!);
+    expect(picker).toHaveAttribute('aria-invalid', 'true');
+    expect(createPlacement).toHaveBeenCalledTimes(1);
   });
   it('preserves inputs after a placement conflict', async () => {
     vi.mocked(createPlacement).mockRejectedValue(

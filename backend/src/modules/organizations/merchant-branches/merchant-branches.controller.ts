@@ -54,7 +54,7 @@ export class MerchantBranchPageResponseDto {
   @ApiProperty({ type: [MerchantBranchResponseDto] })
   items!: MerchantBranchResponseDto[];
   @ApiProperty() page!: number;
-  @ApiProperty({ enum: [10] }) limit!: number;
+  @ApiProperty({ enum: [15] }) limit!: number;
   @ApiProperty() total!: number;
   @ApiProperty() totalPages!: number;
   @ApiProperty() hasNext!: boolean;

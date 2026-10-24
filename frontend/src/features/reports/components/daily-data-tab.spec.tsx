@@ -227,13 +227,14 @@ it('requests the merchant projection and renders only own-sales columns', async 
     scope: 'MERCHANT',
     items: staffPage().items.map((row, index) => ({
       date: row.date,
-      ownGrossSales: '0.00',
-      ownTransactionCount: '0',
-      ownUnitsSold: '0',
+      ownGrossSales: index === 1 ? '7.00' : '0.00',
+      ownTransactionCount: index === 1 ? '1' : '0',
+      ownUnitsSold: index === 1 ? '1' : '0',
       ownRefundedAmount: index ? '0.00' : '7.00',
       ownRefundCount: index ? '0' : '1',
       ownReturnedUnits: index ? '0' : '1',
-      ownNetRecordedSales: index ? '0.00' : '-7.00',
+      ownNetRecordedSales:
+        index === 0 ? '-7.00' : index === 1 ? '7.00' : '0.00',
     })),
   };
   vi.mocked(getReportDailyPage).mockResolvedValueOnce(page);
@@ -250,7 +251,31 @@ it('requests the merchant projection and renders only own-sales columns', async 
       name: 'Transactions with own items',
     }),
   ).toBeInTheDocument();
-  expect(within(table).getByText('PHP -7.00')).toBeInTheDocument();
+  const rows = within(table).getAllByRole('row').slice(1);
+  for (const [index, amount, tone] of [
+    [0, '-7.00', 'text-danger'],
+    [1, '+7.00', 'text-success-ink'],
+    [2, '0.00', 'text-ink'],
+  ] as const) {
+    const cells = within(rows[index]).getAllByRole('cell');
+    expect(cells.at(-1)?.textContent).toBe(amount);
+    expect(cells.at(-1)).toHaveClass(tone);
+    for (const cell of cells) expect(cell).not.toHaveTextContent('PHP');
+  }
+  expect(
+    within(table)
+      .getAllByRole('columnheader')
+      .map((cell) => cell.textContent),
+  ).toEqual([
+    'Date',
+    'Own gross',
+    'Transactions with own items',
+    'Own units sold',
+    'Own refunded',
+    'Matching refunds',
+    'Own returned units',
+    'Own net recorded',
+  ]);
   expect(
     within(table).queryByRole('columnheader', { name: 'Gross sales' }),
   ).not.toBeInTheDocument();

@@ -9,6 +9,7 @@ import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
 import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
+import { InventoryStockStatus } from '../src/modules/organizations/inventory/inventory.types';
 
 // Explicit opt-in: never seed or benchmark an application database.
 const enabled = process.env.RUN_PERF_BENCHMARK === '1';
@@ -156,7 +157,7 @@ suite('disposable Inventory/POS performance baseline', () => {
       {},
       context,
     );
-    if (firstPage.items.length !== 50 || !firstPage.nextCursor)
+    if (firstPage.items.length !== 15 || !firstPage.nextCursor)
       throw new Error('Expected a full bounded first Inventory page');
     const nextCursor = firstPage.nextCursor;
     const actions = {
@@ -173,7 +174,7 @@ suite('disposable Inventory/POS performance baseline', () => {
         inventory.findAll(
           organizationId,
           branchId,
-          { stockStatus: 'LOW_STOCK' },
+          { stockStatus: InventoryStockStatus.LOW_STOCK },
           context,
         ),
       summary: () => inventory.summarize(organizationId, branchId, context),
@@ -241,7 +242,7 @@ suite('disposable Inventory/POS performance baseline', () => {
     const picker = () =>
       inventory.eligibleProducts(organizationId, branchId, {}, context);
     const pickerFirst = await picker();
-    if (pickerFirst.items.length !== 50 || !pickerFirst.nextCursor)
+    if (pickerFirst.items.length !== 15 || !pickerFirst.nextCursor)
       throw new Error('Expected a full bounded first picker page');
     const pickerSamples: number[] = [];
     const pickerCount = queryCount;

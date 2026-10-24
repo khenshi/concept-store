@@ -50,7 +50,7 @@ export function InventoryPlacementForm({
   const [productId, setProductId] = useState('');
   const [price, setPrice] = useState('');
   const [initialQuantity, setInitialQuantity] = useState('');
-  const [threshold, setThreshold] = useState('0');
+  const [threshold, setThreshold] = useState('5');
   const [errors, setErrors] = useState<
     Partial<
       Record<

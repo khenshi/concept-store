@@ -47,7 +47,7 @@ let branchId: string,
 let app: INestApplication, jwt: JwtService;
 const old = (offset = 0) =>
   new Date(Date.now() - 86400000 + offset).toISOString();
-const create = (name = randomUUID(), branch = branchId) =>
+const create = (name: string = randomUUID(), branch = branchId) =>
   spaces.create(context, branch, { name, type: 'Shelf' });
 const assign = (id: string, m = merchantId, branch = branchId, c = context) =>
   spaces.assign(c, branch, id, { merchantId: m, startedAt: old() });
@@ -657,11 +657,11 @@ describe('Optional branch spaces and occupancy', () => {
     ).toBeNull();
   });
   it('paginates and filters spaces without leaking foreign records', async () => {
-    for (let i = 0; i < 11; i++)
+    for (let i = 0; i < 16; i++)
       await create(`Shelf ${String(i).padStart(2, '0')}`);
     expect(
       (await spaces.list(context, branchId, { page: 1, type: 'shelf' })).items,
-    ).toHaveLength(10);
+    ).toHaveLength(15);
     expect(
       (await spaces.list(context, branchId, { page: 2 })).items,
     ).toHaveLength(1);
@@ -695,12 +695,12 @@ describe('Optional branch spaces and occupancy', () => {
         space: expect.any(Object) as object,
       },
     });
-    expect(
-      document.components?.schemas?.SpaceOccupancyResponseDto?.properties,
-    ).not.toHaveProperty('createdAt');
-    expect(
-      document.components?.schemas?.SpaceOccupancyResponseDto?.properties,
-    ).not.toHaveProperty('updatedAt');
+    const occupancySchema =
+      document.components?.schemas?.SpaceOccupancyResponseDto;
+    if (!occupancySchema || '$ref' in occupancySchema)
+      throw new Error('Expected an inline occupancy response schema');
+    expect(occupancySchema.properties).not.toHaveProperty('createdAt');
+    expect(occupancySchema.properties).not.toHaveProperty('updatedAt');
   });
   it('prevents concurrent archiving from leaving an archived space occupied', async () => {
     const a = await create();
@@ -794,7 +794,7 @@ describe('Optional branch spaces and occupancy', () => {
 });
 
 it('filters occupancy before pagination and combines lifecycle and merchant filters', async () => {
-  for (let i = 0; i < 12; i++)
+  for (let i = 0; i < 17; i++)
     await create(`Vacancy ${String(i).padStart(2, '0')}`);
   const occupied = await create('Vacancy occupied');
   await assign(occupied.id);
@@ -810,8 +810,8 @@ it('filters occupancy before pagination and combines lifecycle and merchant filt
     q: 'Vacancy',
     occupancy: 'VACANT',
   });
-  expect(vacant.total).toBe(13);
-  expect(vacant.items).toHaveLength(10);
+  expect(vacant.total).toBe(18);
+  expect(vacant.items).toHaveLength(15);
   const second = await spaces.list(context, branchId, {
     page: 2,
     q: 'Vacancy',
@@ -839,7 +839,7 @@ it('filters occupancy before pagination and combines lifecycle and merchant filt
       })
     ).total,
   ).toBe(0);
-  expect((await spaces.list(context, branchId, { page: 1 })).total).toBe(14);
+  expect((await spaces.list(context, branchId, { page: 1 })).total).toBe(19);
 });
 
 it('enforces occupancy query validation, role scope, and branch isolation', async () => {

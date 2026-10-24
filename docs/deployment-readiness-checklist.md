@@ -81,7 +81,7 @@ These are code/build findings, not guesses based on absent documentation.
       `backend/src/modules/auth/auth.guard.ts` catches JWT verification and database
       active-user lookup in one block and converts both to 401. Prove an infrastructure
       outage produces safe service feedback/alerts rather than false session expiry.
-- [ ] **Resolve current automated failures** in section 4 without weakening tests
+- [x] **Resolve current automated failures** in section 4 without weakening tests
       or making unrelated manual edits disappear. Triage stale expectations separately
       from real bugs, then rerun relevant complete gates.
 - [ ] **Verify migration state on the actual target before matching API deployment.**
@@ -91,6 +91,15 @@ These are code/build findings, not guesses based on absent documentation.
       migration history, not just that one migration. Never reset a real store database.
 
 ## 4. Fresh local verification evidence
+
+October 25 follow-up: Plan 01's source/local regression repairs are implemented.
+See [dated results](validation/regression-baseline-2026-10-25.md): frontend 1,154
+tests, backend 539 unit/264 mocked HTTP tests and full type/lint/build/schema
+gates passed, with four pre-existing frontend lint warnings. Follow-up affected
+PostgreSQL suites passed 72/72 tests on a verified fresh disposable database,
+including the enabled benchmark. Plan 01 is complete; browser/deployed and other
+DB/recovery qualification are not established. The older audit table below is
+historical, not the repaired snapshot.
 
 Commands ran against the current local worktree during this audit. No application
 database was queried, migrated, reset or seeded by the audit.

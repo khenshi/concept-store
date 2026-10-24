@@ -6,7 +6,10 @@ import {
 import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { BranchInventoryService } from './branch-inventory.service';
-import { inventoryMovementHistorySelect } from './inventory.types';
+import {
+  InventoryStockStatus,
+  inventoryMovementHistorySelect,
+} from './inventory.types';
 import { inventoryScope } from '../authorization/resource-access';
 
 describe('BranchInventoryService', () => {
@@ -89,7 +92,6 @@ describe('BranchInventoryService', () => {
         'branch',
         {
           productId: 'product',
-          merchantId: 'merchant',
           sellingPrice: '12.50',
           initialQuantity: 10,
         },
@@ -102,7 +104,6 @@ describe('BranchInventoryService', () => {
           organizationId: 'org',
           branchId: 'branch',
           productId: 'product',
-          merchantId: 'merchant',
           merchantId: 'merchant',
           sellingPrice: new Prisma.Decimal('12.50'),
           quantity: 10,
@@ -140,7 +141,6 @@ describe('BranchInventoryService', () => {
         'branch',
         {
           productId: 'product',
-          merchantId: 'merchant',
           sellingPrice: '12.50',
           initialQuantity: 0,
         },
@@ -169,7 +169,6 @@ describe('BranchInventoryService', () => {
           branchId: 'branch',
           productId: 'product',
           merchantId: 'merchant',
-          merchantId: 'merchant',
           sellingPrice: new Prisma.Decimal('12.50'),
           quantity: 10,
           lowStockThreshold: 0,
@@ -186,7 +185,6 @@ describe('BranchInventoryService', () => {
         'foreign',
         {
           productId: 'product',
-          merchantId: 'merchant',
           sellingPrice: '1',
           initialQuantity: 1,
         },
@@ -230,7 +228,6 @@ describe('BranchInventoryService', () => {
           'branch',
           {
             productId: 'product',
-            merchantId: 'merchant',
             sellingPrice: '1',
             initialQuantity: 1,
           },
@@ -316,7 +313,9 @@ describe('BranchInventoryService', () => {
       },
     ]);
     await expect(
-      service.findAll('org', 'branch', { stockStatus: 'LOW_STOCK' }),
+      service.findAll('org', 'branch', {
+        stockStatus: InventoryStockStatus.LOW_STOCK,
+      }),
     ).resolves.toEqual({
       items: [expect.objectContaining({ id: 'low', stockStatus: 'LOW_STOCK' })],
       nextCursor: null,
@@ -773,7 +772,7 @@ describe('BranchInventoryService', () => {
           userId: 'manager',
           role: OrganizationRole.MANAGER,
         },
-        { from: '2026-09-01T00:00:00.000Z' },
+        { from: '2026-09-01T00:00:00.000Z', limit: 15 },
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();
@@ -790,7 +789,7 @@ describe('BranchInventoryService', () => {
           role: OrganizationRole.MERCHANT,
           merchantId: 'merchant',
         },
-        { merchantId: 'other-merchant' },
+        { merchantId: 'other-merchant', limit: 15 },
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.inventoryMovement.findMany).not.toHaveBeenCalled();

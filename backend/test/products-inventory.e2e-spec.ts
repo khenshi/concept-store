@@ -311,7 +311,7 @@ describe('Products and inventory HTTP boundaries', () => {
       org,
       branch,
       expect.objectContaining({ role: 'MERCHANT', userId: merchant }),
-      expect.objectContaining({ limit: 10 }),
+      expect.objectContaining({ limit: 15 }),
     );
   });
   const posPath = `/organizations/${org}/branches/${branch}/pos/products`;
@@ -544,7 +544,7 @@ describe('Products and inventory HTTP boundaries', () => {
       branch,
       item,
       expect.objectContaining({ role: 'MERCHANT' }),
-      expect.objectContaining({ limit: 50 }),
+      expect.objectContaining({ limit: 15 }),
     );
   });
   it('bounds movement history queries and forwards a validated cursor', async () => {

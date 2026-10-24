@@ -40,10 +40,10 @@ describe('RefreshCookieService', () => {
 
   it('reads the refresh cookie', async () => {
     const service = await createService('development');
-    const request = {
+    const request: Pick<Request, 'cookies'> = {
       cookies: { concept_store_refresh: 'refresh-token' },
-    } as Request;
+    };
 
-    expect(service.read(request)).toBe('refresh-token');
+    expect(service.read(request as Request)).toBe('refresh-token');
   });
 });

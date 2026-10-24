@@ -344,7 +344,7 @@ describe('BranchManagement', () => {
 });
 
 describe('BranchForm', () => {
-  it('shows concise hints below fields and disables Add until required values exist', () => {
+  it('keeps fields hint-free and disables Add until required values exist', () => {
     render(
       <BranchForm
         organizationId="org"
@@ -356,10 +356,14 @@ describe('BranchForm', () => {
     const form = screen.getByRole('form', { name: 'Add branch' });
     const add = screen.getByRole('button', { name: 'Add' });
     expect(add).toBeDisabled();
-    expect(screen.getByText('At least 2 characters.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Branch name')).toBeRequired();
+    expect(screen.getByLabelText('Country code')).toBeRequired();
     expect(
-      screen.getByText('Two-letter code, such as PH.'),
-    ).toBeInTheDocument();
+      screen.queryByText('At least 2 characters.'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Two-letter code, such as PH.'),
+    ).not.toBeInTheDocument();
     fill(form);
     expect(add).not.toBeDisabled();
   });
@@ -380,6 +384,7 @@ describe('BranchForm', () => {
       expect(name).not.toHaveAttribute('aria-invalid', 'true');
       await act(() => vi.advanceTimersByTimeAsync(300));
       expect(name).toHaveAttribute('aria-invalid', 'true');
+      expect(name).toHaveAccessibleDescription(/at least 2 characters/i);
       expect(
         screen.queryByText('Review the highlighted fields and try again.'),
       ).not.toBeInTheDocument();
