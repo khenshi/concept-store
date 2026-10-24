@@ -4,7 +4,8 @@ Date: October 23, 2026
 
 Status: Draft for review. Planning only. No database connection, migration, reset,
 seed, backup/restore operation or infrastructure provisioning is authorized.
-Recovery targets in §8 await user clarification.
+Recovery targets in §8 were confirmed October 24: at most 15 minutes of lost data
+and recovery within 2 hours. Implementation and measured proof remain pending.
 
 Priority: P0 before storing real pilot data. Free testing with real organizations
 still requires tested data protection, not assumptions about free hosting.
@@ -245,11 +246,12 @@ appropriate. Feature docs change only after their behavior/schema actually ships
 
 ## 8. Open decisions and risks
 
-The user requested explanation of recovery targets, not a selection. Examples
-offered were at most 15 minutes of lost history/2 hours to restore, or 1 hour/
-4 hours. These are unapproved targets, not guarantees or permission to buy hosting.
-Keep the release gate open until the user accepts a target and testing proves it.
-Even meeting a timing target does not reconstruct missing real-world payments.
+User confirmed October 24: at most 15 minutes of lost transaction history
+(RPO ≤15 minutes) and safe service recovery within 2 hours (RTO ≤2 hours),
+including validation and application reconnection, not just restoring a dump.
+These are accepted targets, not demonstrated guarantees or permission to buy
+hosting. Keep the release gate open until a restore drill proves both. Even
+meeting them does not reconstruct missing real-world payments.
 
 Also resolve backup location, operator/key ownership, retention and actual
 provider export/restore capability with 05/13. If free infrastructure cannot meet

@@ -299,8 +299,10 @@ database was queried, migrated, reset or seeded by the audit.
 - [ ] Rehearse migrations from the repository-supported baseline; verify existing
       target migration provenance. `docs/development/database-seeding.md` warns against
       deploying the rewritten baseline over a database from an older migration chain.
-- [ ] Establish backup frequency, retention/access, recovery-point and recovery-time
-      targets; run a restore drill to a separate target and verify sales/refunds/stock.
+- [ ] Establish backup frequency and retention/access to meet the user-confirmed
+      October 24 targets: at most 15 minutes of lost data (RPO) and safe service
+      recovery within 2 hours (RTO). Run a restore drill to a separate target and
+      verify sales/refunds/stock, access integrity and application reconnection.
       A successful backup upload alone is not a tested recovery procedure.
 - [ ] Do not use the destructive demo seed in release automation. It truncates tables
       and uses known demo passwords. A prior development reset authorization never
