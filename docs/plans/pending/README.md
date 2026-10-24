@@ -20,36 +20,36 @@ specific next implementation scope has been approved in `current.md`.
 IDs are stable; filenames in code formatting are planned files, not broken links.
 Existing specifications remain the source of truth until their review turn.
 
-| ID  | Plan / intended file                                                                              | Priority                                 | Draft status                                                                                |
-| --- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 01  | [Regression baseline and test-contract recovery](01-regression-baseline.md)                       | P0                                       | Drafted October 23; hint-free design confirmed; implementation not approved                 |
-| 02  | [Production startup, logging and readiness](02-production-runtime.md)                             | P0                                       | Drafted October 23; implementation not approved                                             |
-| 03  | [Authentication and request-boundary hardening](03-auth-security.md)                              | P0                                       | Drafted October 23; 72-byte cap/immediate revocation confirmed; implementation not approved |
-| 04  | [Database migration, isolation and recovery safety](04-database-safety.md)                        | P0                                       | Drafted October 23; recovery targets open; implementation not approved                      |
-| 05  | Hosting selection and secure session topology — `05-hosting-session-topology.md`                  | P0                                       | Not drafted                                                                                 |
-| 06  | CI and repeatable release pipeline — `06-ci-release-pipeline.md`                                  | P0                                       | Not drafted                                                                                 |
-| 07  | Controlled enrollment, activation and account recovery — `07-controlled-access.md`                | Required before pilot                    | Not drafted                                                                                 |
-| 08  | [Payment Account Management and Reporting — finance-reconciliation.md](finance-reconciliation.md) | Required before pilot                    | Existing pending draft; review/update in this queue                                         |
-| 09  | [Reports All Branches — 09-reports-all-branches.md](09-reports-all-branches.md)                   | Required before pilot                    | Existing draft moved to pending; review/update in this queue                                |
-| 10  | Monitoring, transaction recovery and outage operations — `10-operational-reliability.md`          | P0                                       | Not drafted                                                                                 |
-| 11  | End-to-end workflow, accessibility and receipt acceptance — `11-workflow-acceptance.md`           | P0/P1 by risk                            | Not drafted                                                                                 |
-| 12  | Performance, dependency and security qualification — `12-performance-security-qualification.md`   | P0 critical risks; P1 scale gates        | Not drafted                                                                                 |
-| 13  | Privacy, support and commercial-readiness policies — `13-service-policies.md`                     | P0 personal-data controls; P1 paid terms | Not drafted                                                                                 |
-| 14  | Pilot release and paid-launch sign-off — `14-release-signoff.md`                                  | P0 pilot; P1 paid launch                 | Not drafted                                                                                 |
-| 15  | Optional interface and documentation refinements — `15-optional-refinements.md`                   | P2                                       | Not drafted; explicitly nonblocking                                                         |
+| ID  | Plan / intended file                                                                              | Priority                                 | Draft status                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 01  | [Regression baseline and test-contract recovery](01-regression-baseline.md)                       | P0                                       | Drafted October 23; hint-free design confirmed; implementation not approved                                    |
+| 02  | [Production startup, logging and readiness](02-production-runtime.md)                             | P0                                       | Drafted October 23; implementation not approved                                                                |
+| 03  | [Authentication and request-boundary hardening](03-auth-security.md)                              | P0                                       | Drafted October 23; 72-byte cap/immediate revocation confirmed; implementation not approved                    |
+| 04  | [Database migration, isolation and recovery safety](04-database-safety.md)                        | P0                                       | Drafted October 23; 15-minute/2-hour targets confirmed October 24; implementation not approved                 |
+| 05  | [Hosting selection and secure session topology](05-hosting-session-topology.md)                   | P0                                       | Drafted October 24; same-origin `/api` confirmed; provider/budget open; implementation not approved            |
+| 06  | [CI and repeatable release pipeline](06-ci-release-pipeline.md)                                   | P0                                       | Drafted October 24; repository/host settings unverified; implementation not approved                           |
+| 07  | [Controlled enrollment, activation and account recovery](07-controlled-access.md)                 | Required before pilot                    | Drafted October 24; operator/read-only/verification policies confirmed; implementation not approved            |
+| 08  | [Payment Account Management and Reporting — finance-reconciliation.md](finance-reconciliation.md) | Required before pilot                    | Source-reviewed/updated October 24; policy clarifications open; implementation not approved                    |
+| 09  | [Reports All Branches — 09-reports-all-branches.md](09-reports-all-branches.md)                   | Required before pilot                    | Source-reviewed/updated October 24; technical contracts/proof pending; implementation not approved             |
+| 10  | [Monitoring, transaction recovery and outage operations](10-operational-reliability.md)           | P0                                       | Drafted October 24; coverage/channel/drill gates open; implementation not approved                             |
+| 11  | [End-to-end workflow, accessibility and receipt acceptance](11-workflow-acceptance.md)            | P0/P1 by risk                            | Drafted October 24; saved/PDF pilot confirmed; browser proof pending; implementation not approved              |
+| 12  | [Performance, dependency and security qualification](12-performance-security-qualification.md)    | P0 critical risks; P1 scale gates        | Drafted October 24; five simultaneous staff confirmed; execution evidence pending; implementation not approved |
+| 13  | [Privacy, support and commercial-readiness policies](13-service-policies.md)                      | P0 personal-data controls; P1 paid terms | Drafted October 24; registered business/manual requests/handover gate confirmed; implementation not approved   |
+| 14  | [Pilot release and paid-launch sign-off](14-release-signoff.md)                                   | P0 pilot; P1 paid launch                 | Drafted October 24; no release approved; remaining batch/dependency review pending                             |
+| 15  | [Optional interface and documentation refinements](15-optional-refinements.md)                    | P2                                       | Drafted/classified October 24; explicitly nonblocking; implementation not approved                             |
 
 ### Added during module verification
 
-| ID  | Plan / intended file                                                                                       | Priority                    | Draft status                                |
-| --- | ---------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------- |
-| 16  | Branch lifecycle enforcement — `16-branch-lifecycle.md`                                                    | Release priority to confirm | Not drafted; option 2 confirmed October 23  |
-| 17  | Member/invitation/merchant/product pagination and member access-change history — `17-member-management.md` | Release priority to confirm | Not drafted; additions confirmed October 23 |
+| ID  | Plan / intended file                                                                    | Priority              | Draft status                                                                                         |
+| --- | --------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
+| 16  | [Branch lifecycle enforcement](16-branch-lifecycle.md)                                  | Required before pilot | Drafted October 24; Owner-only status/controlled closure confirmed; implementation not approved      |
+| 17  | [Directory pagination, member access history and POS browsing](17-member-management.md) | Required before pilot | Drafted October 24; Owner-only history/15-product POS batches confirmed; implementation not approved |
 
 ### Checkout and refund recovery addition
 
-| ID  | Plan / intended file                                                 | Priority                                 | Draft status                                  |
-| --- | -------------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------- |
-| 18  | Durable checkout/refund outcome recovery — `18-checkout-recovery.md` | Required before real checkout/refund use | Not drafted; approved for planning October 23 |
+| ID  | Plan / intended file                                                | Priority                                 | Draft status                                                                                     |
+| --- | ------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 18  | [Durable checkout/refund outcome recovery](18-checkout-recovery.md) | Required before real checkout/refund use | Drafted October 24; cross-device/blocking/acknowledgement confirmed; implementation not approved |
 
 Plan 18 owns the recovery feature; Plan 10 consumes it in the operator runbook.
 Coordinate with session/access behavior (03/07), Payment Accounts (08), branch
@@ -59,9 +59,9 @@ new infrastructure is selected by this manifest.
 
 ### Reports export addition
 
-| ID  | Plan / intended file                                          | Priority                              | Draft status                                  |
-| --- | ------------------------------------------------------------- | ------------------------------------- | --------------------------------------------- |
-| 19  | Scoped Sales Reports CSV exports — `19-report-csv-exports.md` | Optional; release priority to confirm | Not drafted; approved for planning October 23 |
+| ID  | Plan / intended file                                         | Priority             | Draft status                                                               |
+| --- | ------------------------------------------------------------ | -------------------- | -------------------------------------------------------------------------- |
+| 19  | [Scoped Sales Reports CSV exports](19-report-csv-exports.md) | Optional after pilot | Drafted October 24; optional timing confirmed; implementation not approved |
 
 Plan 19 depends on existing report contracts and must integrate the reviewed 08/09
 account/all-branches scopes. Do not make it a pilot blocker without confirmation.
@@ -70,9 +70,9 @@ before 11/12/14 sign-off; otherwise document explicit deferral.
 
 ### Spaces maintenance and privacy addition
 
-| ID  | Plan / intended file                                                                    | Priority                                                                           | Draft status                                  |
-| --- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------- |
-| 20  | Space-type maintenance and occupancy actor privacy — `20-spaces-maintenance-privacy.md` | Privacy correction before real pilot; type-maintenance release priority to confirm | Not drafted; approved for planning October 23 |
+| ID  | Plan / intended file                                                                   | Priority                   | Draft status                                                                                          |
+| --- | -------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 20  | [Space-type maintenance and occupancy actor privacy](20-spaces-maintenance-privacy.md) | Both required before pilot | Drafted October 24; archive/reactivation/current-label history confirmed; implementation not approved |
 
 Plan 20 reuses existing Spaces authorization and catalog relationships. Coordinate
 with database safety (04), branch lifecycle (16) and final qualification (11/14).
@@ -210,8 +210,11 @@ Confirmed during Branches verification on October 23:
 - Current Branches behavior is still label-only. Focused verification passed 15
   backend unit and 12 mocked HTTP tests; frontend had 33 passes and the one known
   obsolete hint assertion. Plan 01 retains the confirmed hint-free design.
-- Release priority for 16 remains to be confirmed. Final release qualification
-  must explicitly record whether it is included or deferred, not assume it shipped.
+- October 24: enforcement is required before pilot. Status changes become Owner-only;
+  assigned Managers retain ordinary detail editing. Inactive branches permit
+  authorized existing-sale refunds, existing-stock corrections, occupied-space
+  release and participation deactivation, within existing action permissions.
+  Tenant inactivity still blocks new writes; unlisted edits and lock rules remain gates.
 
 Confirmed during Organization Memberships verification on October 23:
 
@@ -435,8 +438,10 @@ Confirmed during Spaces verification on October 23:
   historical display behavior and concurrent space/type edits explicitly; do not
   silently change every historical label or let legacy writes reactivate types.
   No speculative new catalog abstraction is approved.
-- Privacy correction is a pre-pilot safety gate; type-maintenance release priority
-  and detailed archive/reactivation policies remain to be confirmed. Add tenant/
+- October 24: privacy correction and type maintenance are both required before
+  pilot. Archived types retain existing uses, reject new selections and can be
+  reactivated by Owners. Rename displays the current label in occupancy history.
+  Technical archive/trigger/concurrency proof remains pending. Add tenant/
   role/API projection tests plus disposable migration/concurrency tests where
   required. Update module documentation after implementation, not before.
 - Frontend verification: 41 passed, 1 known Plan 01 layout assertion failed. Spaces
@@ -504,9 +509,93 @@ Remaining shared gates:
   for new passwords and immediate subsequent-request revocation; legacy-password/
   old-token cutover still needs design. Protections/session APIs remain unimplemented.
 - Plan 04 drafted after migration/seed/runtime/test-harness inspection. Prisma
-  validation passed; no database was contacted. Recovery targets await user
-  clarification; migration/backup/restore evidence is not established.
-- Next: draft **05-hosting-session-topology.md**. Do not implement Plan 01–04 between
+  validation passed; no database was contacted. User confirmed October 24 an RPO
+  of at most 15 minutes and RTO of at most 2 hours. Migration/backup/restore evidence
+  is not established; 05 must assess hosting against these targets without assuming
+  free-tier capability or authorization to spend.
+- Plan 05 drafted after source inspection and official hosting/session documentation
+  review. Same-origin `/api` routing is confirmed. Focused checks passed: 10 backend
+  and 17 frontend tests. Provider/budget decisions and actual deployment, browser
+  cookie/proxy identity and recovery qualification remain open; no deployment or
+  purchase is authorized.
+- Plan 06 drafted after package scripts, lockfiles, TypeScript/Jest configuration,
+  integration harness and release-checklist review. Defines required verification,
+  isolated databases, least-privilege workflow contexts, approved migration/release
+  ordering and compatible rollback. No CI, build, database or deployment executed;
+  operational settings and hosted qualification remain open.
+- Plan 07 drafted after auth/organization/invitation/schema/frontend source review.
+  User confirmed protected operator commands, inactive-organization read-only history
+  and verification required for workspace access. Mail provider, signup credential
+  binding/cutover, operator identity and any refund/correction exception remain
+  implementation gates. No application tests, database or mail delivery ran.
+- Plan 08 source-reviewed/updated October 24 in the existing Payment Accounts file.
+  Reconfirmed original-sale-method versus actual-refund-account attribution, fixed
+  schemas and canonical checkout replay. Added 07/09/16/18 contracts, scope/privacy,
+  coordinated development-only cutover and rollback gates. User confirmed Owner
+  sidebar placement, references required by default with future-only edits, and
+  fixed Cash/unique custom names. Display bounds and exact reset target remain
+  gates. No new application tests, database or browser checks ran.
+- Plan 09 reviewed/updated after Reports routes, service authorization, analytics,
+  frontend selector/entry and source route inspection. Preserves merchant historical
+  branch union and defines aggregate identity, empty states, per-request consistency,
+  Payment Accounts integration and rollback/navigation safety. No new application
+  tests, database or browser checks ran; runtime acceptance remains pending.
+- Plan 10 drafted after logging/health, checkout/refund attempt storage, source-read
+  route and checklist review. Defines actionable alerts, privacy-safe diagnostics,
+  unknown-outcome escalation and restoration safety including missing replay records.
+  User confirmed they are primary direct pilot support with no 24/7 promise.
+  Channels/coverage/fallback and actual drills remain gates; no application tests,
+  database, monitoring configuration or alerts ran.
+- Plan 11 drafted after design/module, route inventory, receipt and shared dialog/
+  feedback source review. Includes role workflows, safe route recovery, approved
+  confirmation guidance, accessibility and saved/PDF acceptance. User confirmed
+  saved receipts/PDF initially; printer testing deferred and devices undecided.
+  No application tests, browser, printing or database checks ran for this draft.
+- Plan 12 drafted after opt-in performance harness, rate limits, runtime pool/config
+  and bootstrap review. User confirmed up to five simultaneous pilot staff. Defines
+  mixed-load/query, dependency/security and financial-concurrency qualification;
+  dataset/host/budgets remain gates. No benchmarks, audits, database or network
+  security probes ran; no dependencies changed.
+- Plan 13 drafted after auth deletion/schema/snapshot and public-route review,
+  with official NPC guidance as qualified-review inputs. Distinguishes profile
+  anonymization, tenant history, handover, inactivity and disposal. Legal identity,
+  details and retention remain gates. User confirmed an existing registered business,
+  manual verified Owner requests and tested tenant-scoped handover before launch,
+  independent of optional Reports CSV. Handover evidence remains pending. No legal documents
+  published, application tests, data exports/deletions or database checks ran.
+- Plan 14 drafted after checklist/queue and foundation/support/policy contract
+  review. Defines exact-candidate evidence gates, no-go/approval records, bounded
+  pilot activation and distinct paid-launch/upgrade decisions. No release approved,
+  checklist gates closed, application tests or operational drills performed.
+- Plan 15 drafted/classified P2 after module-review records, affected descriptions,
+  Sales default DTO/tests and docs index review. Maps current-behavior corrections,
+  historical-evidence preservation and critical-finding routing. No module docs,
+  application behavior, tests or database changed for this draft.
+- Plan 16 drafted after branch status/controller/service, checkout authorization,
+  stock/product-initial-stock and participation-lock/space transaction review.
+  Pre-pilot priority, Owner status changes and controlled closure confirmed by user.
+  No application tests, database, browser or concurrency checks ran for this draft.
+- Plan 17 drafted after membership/invitation services, list DTOs/consumers and POS
+  catalog/code paths review. User confirmed all scope pre-pilot, Owner-only access
+  history and 15-product Load more batches. Defines complete bounded options,
+  transactional history and cursor/search safety. No application tests, database
+  or browser checks ran; retention/consumer/cursor details remain gates.
+- Plan 18 drafted after memory attempt stores, canonical replay, source persistence
+  and strict result validators review. User confirmed same-actor cross-device
+  recovery, server same-kind blocking and explicit completed acknowledgement.
+  Proposes minimal durable command coordination, no duplicate ledger. Fencing,
+  lock/retention/version/restore gates remain open; no tests or database checks ran.
+- Plan 19 drafted after report query/projection/service review and OWASP CSV safety
+  guidance. User confirmed optional after pilot; Plan 13 tested handover stays
+  required. Defines full-scope bounded reads, Merchant-safe columns, exact values,
+  no truncation and supported spreadsheet tests. No actual exports/tests/DB checks ran.
+- Plan 20 drafted after name-based FK/cascade, registration trigger, shared occupancy
+  projection and frontend schema/rendering review. User confirmed both parts pre-pilot,
+  retained archived uses/reactivation and current-label history. No application tests,
+  migration/database or browser checks ran; privacy and concurrency proof pending.
+- Next: final batch coverage/dependency/open-decision review. All numbered plans
+  are drafted/reviewed; this does not complete planning or approve implementation.
+  Do not implement Plan 01–20 between
   planning turns or claim its successful drafting repairs the regression baseline.
 - Batch completion: 01–14 and 16–20 drafted/reviewed, 15 explicitly classified as optional,
   remaining decisions visible and dependencies reviewed with the user. Only then

@@ -142,9 +142,66 @@ change application behavior.
    Future verification remains read-only; scope decisions belong in planning
    records, not implemented-module documentation. Use the next unfinished numbered row
    in the pending README. The next detailed
-   plan to create is **05: hosting selection and secure session topology**.
-   Plan 04 is [drafted](pending/04-database-safety.md), with recovery targets open
-   and no database operations authorized.
+   step is **final batch coverage, dependency and open-decision review**. All
+   numbered plans are drafted/reviewed, but the planning stage is not complete.
+   Plan 20 is [drafted](pending/20-spaces-maintenance-privacy.md): both parts are
+   confirmed pre-pilot; archived types retain uses/reactivate and renamed labels
+   display throughout space history. Privacy/trigger/migration proof remains open.
+   Plan 19 is [drafted](pending/19-report-csv-exports.md), confirmed optional after
+   pilot. Column/size/spreadsheet safety contracts remain gates; Plan 13's required
+   manual tenant handover is independent. No CSV functionality implemented.
+   Plan 18 is [drafted](pending/18-checkout-recovery.md): cross-device same-actor
+   recovery, server-enforced same-kind blocking and explicit completion acknowledgement
+   are confirmed. State/fencing/retention/restore proof remain implementation gates.
+   Plan 17 is [drafted](pending/17-member-management.md): October 24 confirms all
+   scope pre-pilot, Owner-only history and 15-product POS batches. Retention,
+   consumer/cursor contracts and actual proof remain gates; nothing implemented.
+   Plan 16 is [drafted](pending/16-branch-lifecycle.md): October 24 confirms
+   pre-pilot enforcement, Owner-only status changes and controlled closure on
+   inactive branches. Unlisted edits/lock ordering remain implementation gates.
+   Plan 15 is [drafted/classified](pending/15-optional-refinements.md), explicitly
+   P2/nonblocking. Documentation corrections preserve current behavior; critical
+   findings remain with their safety owner. Plans 16–20 and batch review remain.
+   Plan 14 is [drafted](pending/14-release-signoff.md): candidate-specific go/no-go,
+   pilot activation, upgrade triggers and separate paid approval are planned. No
+   release is approved; 15–20 and batch dependency review remain outstanding.
+   Plan 13 is [drafted](pending/13-service-policies.md): notices, support, retention,
+   verified requests/handover and offboarding are planned. Existing registered
+   business operation, manual verified Owner requests and tested tenant-scoped
+   handover before launch are confirmed. Exact business details, retention,
+   handover proof and qualified review remain gates; nothing was published.
+   Plan 12 is [drafted](pending/12-performance-security-qualification.md), with
+   five simultaneous pilot staff confirmed. Dataset/host/budget and actual
+   performance, dependency and security evidence remain qualification gates.
+   Plan 11 is [drafted](pending/11-workflow-acceptance.md). Saved receipts/browser
+   PDF are confirmed acceptable initially; actual printer qualification is deferred.
+   Browser/device setup and real workflow/accessibility/PDF evidence remain gates.
+   Plan 10 is [drafted](pending/10-operational-reliability.md): alerting, outage and
+   uncertain-outcome support procedures are planned. The project owner is confirmed
+   as direct pilot support with no 24/7 promise. Coverage/channels and
+   recovery drills remain gates; no operational configuration changed.
+   Plan 09 is [reviewed/updated](pending/09-reports-all-branches.md) October 24;
+   authorized historical scope, aggregate response/empty states, account integration
+   and safe navigation are planned. Technical contracts and runtime/browser proof
+   remain gates; no aggregate Reports behavior is implemented.
+   Plan 08 is [reviewed/updated](pending/finance-reconciliation.md) October 24;
+   Owner sidebar placement, required-reference default with future-only edits and
+   fixed Cash/unique custom names are confirmed. Display bounds and exact reset
+   target remain gates. Financial attribution, cutover and cross-plan
+   contracts are documented; no feature or database change was implemented.
+   Plan 07 is [drafted](pending/07-controlled-access.md). October 24 decisions:
+   protected operator commands, read-only history while organizations are inactive,
+   and verified email required for workspace access are confirmed. Provider,
+   credential-binding/cutover and inactive-tenant refund exceptions remain gates.
+   Plan 06 is [drafted](pending/06-ci-release-pipeline.md): verification gates and
+   controlled release ordering are planned; repository settings, host integration
+   and operator approval remain implementation gates. No workflow was changed.
+   Plan 05 is [drafted](pending/05-hosting-session-topology.md), with the October 24
+   confirmed same-origin `/api` proxy. Provider selection, spending approval and
+   deployment/browser/recovery qualification remain open; no deployment is authorized.
+   Plan 04 is [drafted](pending/04-database-safety.md), with the October 24 confirmed
+   targets of at most 15 minutes of lost data and recovery within 2 hours. Restore
+   proof remains pending; no database operations are authorized.
    Plan 03 is [drafted](pending/03-auth-security.md): bcrypt's 72-byte new-password
    cap and immediate subsequent-request session revocation are confirmed;
    compatibility/cutover details remain open and implementation is not approved. Plan 02
