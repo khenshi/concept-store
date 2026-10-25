@@ -25,10 +25,9 @@ Inventory warnings, typecheck and build; backend format/lint/typecheck/build,
 604 unit tests and 274 HTTP tests; built Nest readiness; and built Next
 `/api/health/live` proxy smoke against the disposable PostgreSQL service.
 
-The explicit PostgreSQL integration run remains red and is not hidden by the
-workflow: 311 tests passed, one was skipped and four existing fixture/contract
-failures remain in sales persistence pagination, inventory movement pagination,
-merchant-branch pagination and the space-types migration fixture. Branch
+The explicit PostgreSQL integration run is now green: 315 tests passed and one
+was skipped. Four stale pagination/migration fixtures were repaired without
+changing the current production contracts or migration behavior. Branch
 protection settings, runner enforcement, hosted release, migration approval and
 provider credentials remain unverified/open. This plan is staged, not complete.
 

@@ -19,13 +19,12 @@ is skipped. Branch protection and required-check settings are repository-side
 controls and still need an owner to configure and verify them; this workflow
 file alone does not claim that enforcement exists.
 
-The October 25 disposable PostgreSQL run passed 311 tests, skipped one and
-reported four existing failures: sales-persistence pagination expects 50 rather
-than the current 15-row default, inventory movement pagination has the same stale
-expectation, merchant-branch pagination expects 10 rather than the current 12
-fixture rows, and the space-types migration fixture violates a current null
-constraint. The workflow keeps these failures visible; it does not exclude or
-weaken the integration gate.
+The October 25 disposable PostgreSQL run initially exposed four stale
+pagination/migration fixtures. The fixtures now match the current 15-row
+contracts and explicitly seed the legacy occupancy timestamp columns required
+before their later removal. The complete integration run now passes 315 tests
+with one intentional skip. Branch protection and required-check settings remain
+repository-side controls that need an owner to configure and verify.
 
 For local verification, use the existing app commands from each package. Backend
 integration and runtime smoke commands require explicit disposable localhost

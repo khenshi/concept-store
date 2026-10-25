@@ -175,9 +175,9 @@ there is no alternate full-receipt endpoint for merchants.
 
 Lists return `{ items, page, limit, total, totalPages }`, newest completion first
 then descending sale ID. `total` counts only permitted matching sales. Default
-page/limit are 1/50 at the API boundary; the staff POS history requests a fixed
-15-row page. Limit is 1–100 and page is bounded to 21474836 to keep database
-offsets within integer bounds. `from` is inclusive and `until` exclusive; optional
+page/limit are 1/15 at the API boundary. Limit is 1–100 and page is bounded to
+21474836 to keep database offsets within integer bounds. `from` is inclusive and
+`until` exclusive; optional
 strict UTC timestamps end in Z, with up to millisecond precision. Both supplied
 requires from < until. Unknown fields, malformed dates/pagination and non-v4 UUIDs
 are rejected. Details and branch lookup accept no query options.
