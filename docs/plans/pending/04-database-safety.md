@@ -39,12 +39,14 @@ The local destructive demo-seed path now requires a loopback
 `DEMO_DATABASE_URL`, exact database-name confirmation, an explicit reset
 confirmation, the public schema, and current completed Prisma migration history.
 It no longer falls back to `DATABASE_URL`/`DIRECT_DATABASE_URL` or accepts a
-production override. Refusal behavior is covered by focused tests. No database
-was contacted by this slice. A separate read-only migration preflight now
-compares explicit-target history names/checksums with repository files and
-classifies empty, upgrade-needed, current and unsafe states. The provider-specific migration rehearsal,
-least-privilege roles, backup/restore drill, pool/outage qualification and deep
-review remain open.
+production override. Refusal behavior is covered by focused tests. A separate
+read-only migration preflight compares explicit-target history names/checksums
+with repository files and classifies empty, upgrade-needed, current and unsafe
+states. A disposable PostgreSQL 17 rehearsal classified an empty target,
+applied all 18 tracked migrations, and then classified the target as current;
+evidence is recorded in [the dated validation note](../validation/database-safety-2026-10-25.md).
+The provider-specific target selection, least-privilege roles, backup/restore
+drill, pool/outage qualification and deep review remain open.
 
 ## 2. Current evidence and architectural weaknesses
 
