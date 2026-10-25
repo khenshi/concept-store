@@ -2,9 +2,10 @@
 
 Date: October 24, 2026
 
-Status: Draft for review. Planning only; no accounts, purchases, deployments,
-DNS/secrets changes or database operations authorized. User confirmed a same-origin
-`/api` proxy. Provider selection and real-data qualification remain open.
+Status: Approved for staged implementation October 25, 2026. Provider
+provisioning, billing, DNS/secrets changes, deployments and database operations
+remain unauthorized. User confirmed a same-origin `/api` proxy. Provider
+selection and real-data qualification remain open.
 
 Priority: P0 deployment gate. Preserve free-first testing where feasible, but do
 not claim free infrastructure meets the approved ≤15-minute data-loss / ≤2-hour
@@ -73,6 +74,22 @@ free web services exceed the shared 750-hour monthly allowance. Wake delays,
 build quotas, DB/egress limits, mail and backup scheduling costs matter even for
 two organizations. Do not use artificial keep-awake traffic as a reliability plan.
 Keep current pricing out of contractual uptime/recovery promises.
+
+## 3A. Provider-agnostic implementation progress — October 25
+
+The approved local slice now provides a fixed Next external rewrite from public
+`/api/:path*` to a server-only origin-only `NEXT_API_UPSTREAM_URL`. The validator
+rejects credentials, paths, query/hash tricks and non-HTTPS external upstreams in
+production; direct mode remains available when the upstream is absent. The
+frontend production launcher keeps the local 3001 default while honoring a host
+`PORT`. Backend refresh-cookie issuance and clearing accept only `/auth` or
+`/api/auth`, defaulting to the existing `/auth` path.
+
+Focused config/cookie tests, full frontend tests, type checks, lint/format checks,
+both builds and an elevated localhost proxy smoke check passed. The smoke check
+confirmed path/query forwarding, incoming Cookie forwarding and preservation of
+multiple Set-Cookie headers. Browser, provider-console, deployed-origin, ingress
+identity, CSRF, cost, backup and real-data qualification remain open.
 
 If free infrastructure cannot meet approved safety targets, keep hosted testing
 synthetic and obtain a revised budget/provider decision before real transactions.

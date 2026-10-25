@@ -1,11 +1,16 @@
 # Runtime operations
 
-Implemented October 25, 2026. Backend only; no schema or frontend change.
+Implemented October 25, 2026. Includes the provider-agnostic frontend runtime
+and same-origin API routing contract; no schema or provider deployment change.
 
 ## Build and startup
 
 From `backend/`, run `npm run build`, then `npm run start:prod`. The production
 command executes `node dist/src/main.js`; Nest's build clears previous output.
+From `frontend/`, `npm run start` defaults to port 3001 and honors an assigned
+`PORT` without changing the development command. When same-origin routing is
+enabled, the server-only `NEXT_API_UPSTREAM_URL` must be a fixed origin and
+`NEXT_PUBLIC_API_URL` must be the public frontend origin plus `/api`.
 Startup validates configuration and performs a bounded database connectivity probe
 using the existing Prisma adapter pool before serving HTTP. Failure exits nonzero
 with a generic `API startup failed` diagnostic, without raw configuration/error
@@ -38,7 +43,9 @@ Production configuration rejects `LOG_DB_QUERY_PARAMETERS=true` and
 `SWAGGER_ENABLED=true`; a boolean cannot authorize public production UI/JSON docs.
 Nonproduction diagnostics remain configurable. Direct mode explicitly disables
 Express proxy trust and uses the socket peer; hosted proxy identity, request-ID
-provenance, cookie forwarding and deployment proof remain gated on Plan 05.
+provenance and deployment proof remain gated on Plan 05. The Next proxy does not
+accept a client-selected upstream, and no auth response may be cached or retried
+by this routing contract.
 
 ## Health contracts
 

@@ -44,7 +44,10 @@ DELETE /auth/sessions/:sessionId
   session in PostgreSQL. Sessionless old JWTs are rejected; valid existing refresh
   sessions can rotate into bound JWTs without a schema migration or mass reset.
 - Refresh tokens rotate, are stored hashed, and are transported in HTTP-only
-  cookies.
+  cookies. Direct deployments use `Path=/auth`; same-origin Next proxy
+  deployments set `REFRESH_COOKIE_PATH=/api/auth` so issuance and clearing match
+  the browser-visible route. Production cookies remain Secure, host-only and
+  SameSite=Lax.
 - Password changes atomically update the password and revoke all sessions.
   Existing session JWTs are rejected at subsequent authorization checks, not just
   expiry. Already-authorized in-flight operations are not cancelled. Concurrent
