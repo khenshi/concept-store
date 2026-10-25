@@ -73,6 +73,15 @@ prove migrations, schema compatibility, financial invariants or release safety.
 Plans 04/06 own target/migration gates and authorized schema-dependent smoke reads;
 never route real traffic solely because `/health/ready` returns 200.
 
+## Database migration boundary
+
+The backend exposes a read-only `npm run prisma:migration:preflight` command for
+an explicitly supplied target. It verifies the target database/schema identity
+and compares Prisma migration names and checksums with repository files, stopping
+on failed, unknown, reordered or drifted history. It never falls back to runtime
+URLs, runs migrations, resets data or authorizes deployment. Empty and
+upgrade-needed states require a separate reviewed rehearsal and release gate.
+
 ## Verification and limits
 
 See [October 25 runtime validation](../validation/production-runtime-2026-10-25.md).

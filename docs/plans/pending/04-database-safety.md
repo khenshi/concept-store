@@ -40,7 +40,9 @@ The local destructive demo-seed path now requires a loopback
 confirmation, the public schema, and current completed Prisma migration history.
 It no longer falls back to `DATABASE_URL`/`DIRECT_DATABASE_URL` or accepts a
 production override. Refusal behavior is covered by focused tests. No database
-was contacted by this slice. The provider-specific migration rehearsal,
+was contacted by this slice. A separate read-only migration preflight now
+compares explicit-target history names/checksums with repository files and
+classifies empty, upgrade-needed, current and unsafe states. The provider-specific migration rehearsal,
 least-privilege roles, backup/restore drill, pool/outage qualification and deep
 review remain open.
 
