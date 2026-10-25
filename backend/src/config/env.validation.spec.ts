@@ -16,6 +16,7 @@ describe('validateEnvironment', () => {
       PORT: 4000,
       JWT_ACCESS_TTL_MINUTES: 15,
       REFRESH_TOKEN_TTL_DAYS: 30,
+      REFRESH_COOKIE_PATH: '/auth',
       DB_POOL_MAX: 10,
       DB_POOL_IDLE_TIMEOUT_MS: 30_000,
       DB_CONNECTION_TIMEOUT_MS: 10_000,
@@ -141,6 +142,22 @@ describe('validateEnvironment', () => {
         JWT_ACCESS_TTL_MINUTES: '120',
       }),
     ).toThrow('JWT_ACCESS_TTL_MINUTES');
+  });
+
+  it('allows only the direct or same-origin proxy refresh-cookie paths', () => {
+    expect(
+      validateEnvironment({
+        ...requiredEnvironment,
+        REFRESH_COOKIE_PATH: '/api/auth',
+      }),
+    ).toMatchObject({ REFRESH_COOKIE_PATH: '/api/auth' });
+
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        REFRESH_COOKIE_PATH: '/',
+      }),
+    ).toThrow('REFRESH_COOKIE_PATH');
   });
 
   it('reports all invalid required configuration', () => {

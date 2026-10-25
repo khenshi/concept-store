@@ -4,13 +4,20 @@ import type { Request, Response } from 'express';
 import { RefreshCookieService } from './refresh-cookie.service';
 
 describe('RefreshCookieService', () => {
-  async function createService(environment: string) {
+  async function createService(
+    environment: string,
+    path: '/auth' | '/api/auth' = '/auth',
+  ) {
     const moduleRef = await Test.createTestingModule({
       providers: [
         RefreshCookieService,
         {
           provide: ConfigService,
-          useValue: { getOrThrow: jest.fn().mockReturnValue(environment) },
+          useValue: {
+            getOrThrow: jest.fn((key: string) =>
+              key === 'NODE_ENV' ? environment : path,
+            ),
+          },
         },
       ],
     }).compile();
@@ -49,5 +56,22 @@ describe('RefreshCookieService', () => {
     };
 
     expect(service.read(request as Request)).toBe('refresh-token');
+  });
+
+  it('uses the public proxy path when configured', async () => {
+    const service = await createService('production', '/api/auth');
+    const cookie = jest.fn();
+    const response = { cookie } as unknown as Response;
+
+    service.write(response, {
+      id: 'session-id',
+      token: 'refresh-token',
+      expiresAt: new Date('2026-09-22T00:00:00.000Z'),
+    });
+
+    const calls = cookie.mock.calls as unknown as Array<
+      [string, string, { path: string }]
+    >;
+    expect(calls[0]?.[2]).toMatchObject({ path: '/api/auth' });
   });
 });

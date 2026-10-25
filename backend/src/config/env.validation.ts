@@ -65,6 +65,7 @@ const envSchema = z
     JWT_SECRET: z.string().min(32),
     JWT_ACCESS_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+    REFRESH_COOKIE_PATH: z.enum(['/auth', '/api/auth']).default('/auth'),
     SWAGGER_ENABLED: z
       .union([z.boolean(), z.enum(['true', 'false'])])
       .transform((value) => value === true || value === 'true')
