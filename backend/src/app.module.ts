@@ -7,8 +7,10 @@ import { AppController } from './app.controller';
 import { validateEnvironment } from './config/env.validation';
 import { pinoHttpOptions } from './config/logging';
 import { STANDARD_RATE_LIMIT } from './config/rate-limit';
+import { RuntimeExceptionFilter } from './config/runtime-exception.filter';
 import { PrismaModule } from './infrastructure/database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { HealthModule } from './modules/health/health.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 
 @Module({
@@ -28,10 +30,14 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
     }),
     ThrottlerModule.forRoot([STANDARD_RATE_LIMIT]),
     PrismaModule,
+    HealthModule,
     AuthModule,
     OrganizationsModule,
   ],
   controllers: [AppController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    RuntimeExceptionFilter,
+  ],
 })
 export class AppModule {}

@@ -70,7 +70,19 @@ const envSchema = z
       .transform((value) => value === true || value === 'true')
       .optional(),
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((environment, context) => {
+    if (environment.NODE_ENV !== 'production') return;
+    for (const key of ['SWAGGER_ENABLED', 'LOG_DB_QUERY_PARAMETERS'] as const) {
+      if (environment[key]) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: 'Must remain disabled in production',
+        });
+      }
+    }
+  });
 
 export function validateEnvironment(
   environment: Record<string, unknown>,

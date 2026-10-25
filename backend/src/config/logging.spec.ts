@@ -18,6 +18,38 @@ describe('logging configuration', () => {
     );
   });
 
+  it('does not expose invitation tokens in logged request paths', () => {
+    expect(
+      sanitizeRequestUrl('/organization-invitations/private-token/accept'),
+    ).toBe('/organization-invitations/[Redacted]/accept');
+  });
+
+  it('redacts search/contact/reference values and recovery path tokens', () => {
+    const url = sanitizeRequestUrl(
+      '/auth/password-reset/private-token?email=contact@example.test&q=private-reference&page=2',
+    );
+    expect(url).not.toContain('private-token');
+    expect(url).not.toContain('contact');
+    expect(url).not.toContain('private-reference');
+    expect(url).toContain('page=2');
+  });
+
+  it('keeps the application logger enabled when access logging is disabled', () => {
+    const config = {
+      getOrThrow: (key: string) =>
+        ({
+          NODE_ENV: 'production',
+          LOG_LEVEL: 'info',
+          LOG_HTTP_REQUESTS: false,
+        })[key],
+    } as ConfigService;
+    expect(pinoHttpOptions(config)).toMatchObject({
+      enabled: true,
+      autoLogging: false,
+      level: 'info',
+    });
+  });
+
   it('uses configured request logging and keeps request logs minimal', () => {
     const values: Record<string, unknown> = {
       NODE_ENV: 'development',

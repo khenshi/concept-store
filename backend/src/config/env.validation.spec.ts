@@ -42,17 +42,17 @@ describe('validateEnvironment', () => {
     ).toThrow('DB_POOL_MAX');
   });
 
-  it('disables Swagger by default in production and supports an explicit override', () => {
+  it('disables Swagger in production and rejects an unsafe override', () => {
     expect(
       validateEnvironment({ ...requiredEnvironment, NODE_ENV: 'production' }),
     ).toMatchObject({ SWAGGER_ENABLED: false });
-    expect(
+    expect(() =>
       validateEnvironment({
         ...requiredEnvironment,
         NODE_ENV: 'production',
         SWAGGER_ENABLED: 'true',
       }),
-    ).toMatchObject({ SWAGGER_ENABLED: true });
+    ).toThrow('SWAGGER_ENABLED');
   });
 
   it('uses quiet production logging defaults and supports explicit overrides', () => {
@@ -72,14 +72,30 @@ describe('validateEnvironment', () => {
         LOG_LEVEL: 'warn',
         LOG_HTTP_REQUESTS: 'true',
         LOG_DB_QUERIES: 'true',
-        LOG_DB_QUERY_PARAMETERS: 'true',
       }),
     ).toMatchObject({
       LOG_LEVEL: 'warn',
       LOG_HTTP_REQUESTS: true,
       LOG_DB_QUERIES: true,
-      LOG_DB_QUERY_PARAMETERS: true,
+      LOG_DB_QUERY_PARAMETERS: false,
     });
+  });
+
+  it('rejects SQL parameter logging in production while allowing local diagnostics', () => {
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        NODE_ENV: 'production',
+        LOG_DB_QUERY_PARAMETERS: 'true',
+      }),
+    ).toThrow('LOG_DB_QUERY_PARAMETERS');
+    expect(
+      validateEnvironment({
+        ...requiredEnvironment,
+        NODE_ENV: 'development',
+        LOG_DB_QUERY_PARAMETERS: 'true',
+      }),
+    ).toMatchObject({ LOG_DB_QUERY_PARAMETERS: true });
   });
 
   it('rejects a non-PostgreSQL database URL', () => {
