@@ -4,10 +4,11 @@ Date: October 22, 2026
 
 Queue updated: October 25, 2026
 
-Status: Plan 01 completed and archived October 25. The [current plan](../current.md)
-is a handoff with no active implementation scope. Other numbered plans remain
+Status: Plans 01–02 completed and archived October 25. Plan 03 is approved for
+staged implementation in the [current plan](../current.md); independent security
+work is being verified, with joint Plan 05/07 gates still pending. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
-the user approved Plan 01 separately without declaring that review complete.
+the user approved these scopes separately without declaring that review complete.
 
 Source: [deployment readiness checklist](../../deployment-readiness-checklist.md).
 Verify the implemented modules and clarify documentation/code discrepancies first,
@@ -24,8 +25,8 @@ Existing specifications remain the source of truth until their review turn.
 | ID  | Plan / intended file                                                                              | Priority                                 | Draft status                                                                                                   |
 | --- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | 01  | [Regression baseline and test-contract recovery](../archive/01-regression-baseline-2026-10-25.md) | P0                                       | Completed October 25; local gates and 72 affected PostgreSQL tests passed                                      |
-| 02  | [Production startup, logging and readiness](02-production-runtime.md)                             | P0                                       | Drafted October 23; implementation not approved                                                                |
-| 03  | [Authentication and request-boundary hardening](03-auth-security.md)                              | P0                                       | Drafted October 23; 72-byte cap/immediate revocation confirmed; implementation not approved                    |
+| 02  | [Production startup, logging and readiness](../archive/02-production-runtime-2026-10-25.md)       | P0                                       | Completed October 25; local/deep review/disposable-process gates passed                                        |
+| 03  | [Authentication and request-boundary hardening](../current.md)                              | P0                                       | Approved staged implementation October 25; local implementation/verification in progress; joint 05/07 gates open |
 | 04  | [Database migration, isolation and recovery safety](04-database-safety.md)                        | P0                                       | Drafted October 23; 15-minute/2-hour targets confirmed October 24; implementation not approved                 |
 | 05  | [Hosting selection and secure session topology](05-hosting-session-topology.md)                   | P0                                       | Drafted October 24; same-origin `/api` confirmed; provider/budget open; implementation not approved            |
 | 06  | [CI and repeatable release pipeline](06-ci-release-pipeline.md)                                   | P0                                       | Drafted October 24; repository/host settings unverified; implementation not approved                           |
@@ -173,15 +174,16 @@ Confirmed during Authentication and Accounts verification on October 23:
   manual support alone no longer satisfies this requirement. Define verification
   enforcement and safe treatment of existing users in the detailed plan.
 - Plan 03 owns active-session viewing and selected-session revocation, including
-  a clear access-token revocation contract. This is approved planning scope;
-  its release priority and detailed session metadata remain to be defined.
+  a clear access-token revocation contract. The approved implementation uses
+  account-owned 15-row pages with ID, creation, expiry and current metadata only.
 - Plan 03 also owns registration anti-enumeration behavior and dedicated
   password-change/account-deletion rate limits. Plan 11 owns changing the deletion
   confirmation to the documented outlined design and its interaction coverage.
   User requested behavior changes, not documentation-only corrections.
-- Authentication focused verification passed 28 backend and 51 frontend tests.
-  This is not deployed, database-concurrency or browser proof. Other modules still
-  need verification; do not treat the full module audit as complete.
+- Authentication focused verification passed the Plan 03 backend/frontend suites,
+  plus nine real-PostgreSQL session-integrity scenarios on an isolated target.
+  This is not deployed, browser/two-tab, hosted-proxy or Plan 07 proof. Other
+  modules still need verification; do not treat the full module audit as complete.
 
 Confirmed during Organizations verification on October 23:
 
@@ -505,10 +507,10 @@ Remaining shared gates:
 - Plan 02 drafted after runtime source/artifact inspection and 13 passing focused
   config/controller tests. Startup/logging/readiness fixes remain unimplemented;
   real process/DB/deployment proof is still required by the plan.
-- Plan 03 drafted after auth/session/request-boundary source review; 40 backend
-  and 50 frontend focused tests passed. User confirmed bcrypt's 72-byte UTF-8 cap
-  for new passwords and immediate subsequent-request revocation; legacy-password/
-  old-token cutover still needs design. Protections/session APIs remain unimplemented.
+- Plan 03 is in staged implementation after auth/session/request-boundary source
+  review. New-password byte limits, session-bound JWTs, own-session controls,
+  request-boundary redaction and auth dependency handling are locally implemented
+  and verified. Plan 05/07/browser/deployed gates remain.
 - Plan 04 drafted after migration/seed/runtime/test-harness inspection. Prisma
   validation passed; no database was contacted. User confirmed October 24 an RPO
   of at most 15 minutes and RTO of at most 2 hours. Migration/backup/restore evidence
@@ -598,7 +600,10 @@ Remaining shared gates:
   current.md and archived the planning-stage document as superseded, not completed.
   Source/local repairs and follow-up 72 affected PostgreSQL tests passed on a fresh
   verified disposable target (benchmark enabled). Plan 01 completed/archived;
-  current.md is now a handoff. No approval for Plan 02–20.
+  Plan 01 committed as 297665e. User then approved Plan 02; it is completed and
+  archived after 564 unit/267 HTTP tests, two built-process checks and deep review.
+  No production DB/deployment. Current.md remains the active staged Plan 03 scope;
+  no approval for Plans 04 and 05–20 is implied.
 - Next after current scope: final batch coverage/dependency/open-decision review
   and explicit approval of any next implementation. Drafting alone repairs nothing.
 - Batch completion: 01–14 and 16–20 drafted/reviewed, 15 explicitly classified as optional,

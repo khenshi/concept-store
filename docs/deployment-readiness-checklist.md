@@ -55,32 +55,29 @@ module docs are historical, not a certificate for the current worktree.
 
 These are code/build findings, not guesses based on absent documentation.
 
-- [ ] **Fix production startup command.** `backend/package.json` starts
-      `node dist/main.js`, but the current build produces `backend/dist/src/main.js`.
-      Prove the actual production artifact starts with the documented command. Build
-      success alone misses this. Evidence: package script and current dist output.
-- [ ] **Keep application error logging enabled in production.**
-      `backend/src/config/env.validation.ts` defaults LOG_HTTP_REQUESTS off outside
-      development; `config/logging.ts` assigns that value to Pino's global `enabled`.
-      Separate optional HTTP request logging from application/error logging and prove
-      a production exception is recorded without sensitive data. Reviewer synthetic
-      verification confirmed the disabling mechanism.
-- [ ] **Resolve bcrypt input truncation.** Registration/password change accept up
-      to 128 characters, while current bcrypt hashing has a 72-byte boundary. Reviewer
-      synthetic tests confirmed differing suffixes beyond that boundary can match.
-      Approve a byte-aware policy or a deliberate compatible hashing transition; test
-      Unicode, login, existing accounts and password changes. Do not silently weaken
-      validation or make existing users unable to log in.
+- [x] **Fix production startup command.** October 25 Plan 02 corrects start:prod
+      to `node dist/src/main.js`; fresh built-process smoke proves real startup,
+      configured port and sanitized nonzero configuration/dependency failures.
+- [x] **Keep application error logging enabled in production.** October 25 Plan 02
+      separates automatic access logging, verifies captured application/HTTP errors
+      with access logging off/on and severity filtering, and sanitizes implicit
+      Error messages. Plan 03 adds nested-field/query redaction and production
+      Swagger/SQL-parameter controls; hosted/private diagnostic qualification remains.
+- [x] **Resolve new-password bcrypt input truncation.** October 25 Plan 03 caps
+      registration/change passwords at 72 UTF-8 bytes in DTOs/services/UI. Legacy
+      login/current-password compatibility is preserved and its prefix ambiguity
+      documented. Plan 07 must reuse this policy for verified password resets.
 - [ ] **Configure trusted proxy/rate-limit identity for the selected host.**
-      `backend/src/main.ts` does not set proxy trust; the installed throttler uses
-      req.ip. Behind a reverse proxy this can bucket all users together. Trust only
+      Plan 03 explicitly disables proxy trust in direct mode; the throttler uses
+      req.ip and ignores forged forwarding headers. Behind an unqualified reverse
+      proxy this can still bucket all users together. Trust only
       documented proxy hops/networks, reject spoofed forwarded input as appropriate,
       and verify real clients plus login/invitation limits. Default counters are local
       to a process; replica behavior needs evidence, not an unapproved Redis addition.
-- [ ] **Distinguish database outages from invalid sessions.**
-      `backend/src/modules/auth/auth.guard.ts` catches JWT verification and database
-      active-user lookup in one block and converts both to 401. Prove an infrastructure
-      outage produces safe service feedback/alerts rather than false session expiry.
+- [x] **Distinguish database outages from invalid sessions locally.** Plan 03
+      separates JWT errors (401) from failed DB authentication lookups (503).
+      Frontend tests prove no refresh/sign-out/mutation retry on 503. Hosted outage
+      alerts, origin-pair behavior and operations qualification remain pending.
 - [x] **Resolve current automated failures** in section 4 without weakening tests
       or making unrelated manual edits disappear. Triage stale expectations separately
       from real bugs, then rerun relevant complete gates.
@@ -229,9 +226,10 @@ database was queried, migrated, reset or seeded by the audit.
       tenant isolation and deliberate retention/visibility rules. No general audit
       platform is implied. Both additions were confirmed October 23; release
       priority remains to be confirmed and neither feature is implemented.
-- [ ] Add active-session viewing and selected-session revocation to the planned
-      authentication scope. Define what revocation does to existing access JWTs;
-      revoking a refresh session alone is not immediate access-token invalidation.
+- [x] Implement active-session viewing and selected-session revocation. Plan 03
+      adds account-owned API/UI, pagination of 15 and signed session-bound JWTs.
+      Local PostgreSQL tests prove immediate subsequent-request denial. Real browser,
+      deployed origin and joint 05/07 gates remain required before pilot.
 - [ ] Extend Plan 17 with server-side merchant directory pagination, default 15
       rows, preserving existing search/status filters and role-specific access and
       contact visibility. Preserve complete selector workflows when evolving the
@@ -281,14 +279,11 @@ database was queried, migrated, reset or seeded by the audit.
       exact HTTPS FRONTEND_ORIGIN and no credentials in NEXT_PUBLIC variables.
 - [ ] Verify login, refresh rotation, expired/revoked refresh, logout, deletion and
       password-change revocation on the actual deployed origin pair.
-      Distinguish refresh-session revocation from existing access JWT expiry: current
-      access tokens can remain usable until expiry after logout/password change
-      (15 minutes by default), while deleted-account checks deny subsequent access.
-      User confirmed October 23 that Plan 03 must reject revoked-session JWTs on
-      subsequent requests immediately, including after password change/reset.
-      Implement session-state enforcement and explicit old-token cutover; refresh
-      revocation alone does not provide this. Keep bcrypt with a 72-byte UTF-8 cap
-      for new/change/reset passwords and define safe existing-login compatibility.
+      Plan 03 now binds access JWTs to active DB sessions and rejects revoked
+      sessions at subsequent checks. Old sessionless tokens are rejected; valid
+      refresh sessions can rotate into bound tokens. Legacy login is retained and
+      new passwords are limited to 72 UTF-8 bytes. Plan 07 reset integration and
+      actual hosted/browser validation remain open; local tests do not waive them.
 - [ ] Refresh cookies currently use HttpOnly, Secure in production, Path=/auth and
       SameSite=Lax. Unrelated frontend/API provider domains can break refresh despite
       correct CORS. Select a same-site/custom-domain or reviewed same-origin proxy
@@ -329,8 +324,11 @@ database was queried, migrated, reset or seeded by the audit.
 - [ ] Explicit migration-before-app release ordering, API/frontend compatibility,
       release identifier, canary/smoke and rollback runbook. Schema rollback must not
       destroy financial history to restore an old application build.
-- [ ] Dependency readiness: current `GET /` returns process status only; add/define
-      a meaningful DB/schema readiness gate without public diagnostic leakage.
+- [x] Process/DB connectivity readiness under Plan 02: root unchanged; public
+      no-cache live/ready routes, static bounded shared-pool probe, draining and
+      dependency loss/recovery verified October 25. See runtime validation.
+- [ ] Separate schema/migration compatibility gate under 04/06. A ready SELECT 1
+      response (even on an empty database) is not release-schema certification.
 - [ ] Uptime/error alerts, backup-failure alerts, pool/CPU/memory/bandwidth/DB quota
       monitoring and named incident contact. Verify real alerts rather than assuming
       provider dashboards are watched.

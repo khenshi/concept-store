@@ -204,10 +204,10 @@ change application behavior.
    Plan 04 is [drafted](../pending/04-database-safety.md), with the October 24 confirmed
    targets of at most 15 minutes of lost data and recovery within 2 hours. Restore
    proof remains pending; no database operations are authorized.
-   Plan 03 is [drafted](../pending/03-auth-security.md): bcrypt's 72-byte new-password
+   Plan 03 was drafted (now [current](../current.md)): bcrypt's 72-byte new-password
    cap and immediate subsequent-request session revocation are confirmed;
    compatibility/cutover details remain open and implementation is not approved. Plan 02
-   is [drafted](../pending/02-production-runtime.md), with startup/logging/readiness
+   is [drafted](02-production-runtime-2026-10-25.md), with startup/logging/readiness
    implementation and operational proof still pending. Plan 01 is
    [drafted](../current.md), with the hint-free design confirmed;
    no fixes have been implemented.

@@ -16,6 +16,8 @@ Documentation is separated by purpose:
 
 ## Implemented modules
 
+- [Runtime startup, logging and health](modules/runtime-operations.md)
+
 - [Authentication and accounts](modules/authentication-and-accounts.md)
 - [Organizations](modules/organizations.md)
 - [Branches](modules/branches.md)
