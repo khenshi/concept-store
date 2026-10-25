@@ -2,11 +2,11 @@
 
 Date: October 23, 2026
 
-Status: Approved for staged implementation October 25, 2026. The first local
-safeguard slice is implemented; no application database connection, migration,
-reset, seed, backup/restore operation or infrastructure provisioning was run.
-Recovery targets in §8 were confirmed October 24: at most 15 minutes of lost data
-and recovery within 2 hours. Implementation and measured proof remain pending.
+Status: Approved for staged implementation October 25, 2026. Local target
+safeguards, migration rehearsal and synthetic restore evidence are recorded; no
+application, pilot or production database was contacted. Recovery targets in §8
+were confirmed October 24: at most 15 minutes of lost data and recovery within
+2 hours. Provider-qualified implementation and measured proof remain pending.
 
 Priority: P0 before storing real pilot data. Free testing with real organizations
 still requires tested data protection, not assumptions about free hosting.
@@ -45,8 +45,13 @@ with repository files and classifies empty, upgrade-needed, current and unsafe
 states. A disposable PostgreSQL 17 rehearsal classified an empty target,
 applied all 18 tracked migrations, and then classified the target as current;
 evidence is recorded in [the dated validation note](../validation/database-safety-2026-10-25.md).
-The provider-specific target selection, least-privilege roles, backup/restore
-drill, pool/outage qualification and deep review remain open.
+The same local validation restored a guarded synthetic fixture into a separate
+target, preserved aggregate tenant/inventory/sale/refund counts, verified current
+migration history and reconnected the production API with successful root,
+liveness and readiness checks. It does not establish provider backup coverage,
+two-organization privacy, least-privilege roles or the accepted RPO/RTO. The
+provider-specific target selection, provider backup/restore qualification,
+least-privilege roles, pool/outage qualification and deep review remain open.
 
 ## 2. Current evidence and architectural weaknesses
 
