@@ -791,7 +791,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
       .get(list.replace(branchId, randomUUID()))
       .auth(token(merchantUser), { type: 'bearer' })
       .expect(404);
-    for (let i = 0; i < 11; i++) {
+    for (let i = 0; i < 15; i++) {
       const m = await db.merchant.create({
         data: merchantData(context.organizationId, `Merchant ${i}`),
       });
@@ -800,11 +800,11 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
     const page = await associations.list(context, 'branch', branchId, {
       page: 1,
     });
-    expect(page.items).toHaveLength(10);
+    expect(page.items).toHaveLength(15);
     expect(page.hasNext).toBe(true);
     expect(
       (await associations.list(context, 'branch', branchId, { page: 2 })).items,
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(
       (
         await associations.list(merchantContext(), 'branch', branchId, {

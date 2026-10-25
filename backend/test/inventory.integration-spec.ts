@@ -851,6 +851,8 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       organizationId,
       branchId,
       inventoryId,
+      undefined,
+      { limit: 50 },
     );
     expect(first.items).toHaveLength(50);
     expect(first.nextCursor).toBe(first.items[49].id);
@@ -930,6 +932,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
       branchId,
       inventoryId,
       merchant,
+      { limit: 50 },
     );
     expect(own.items).toHaveLength(50);
     expect(own.items[0]).not.toHaveProperty('createdById');

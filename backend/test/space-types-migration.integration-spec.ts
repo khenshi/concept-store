@@ -103,18 +103,22 @@ it('backfills existing active/archived labels without losing spaces or occupancy
       type: 'rack',
     },
   });
-  const occupancy = await db.spaceOccupancy.create({
-    data: {
-      organizationId: org.id,
-      branchId: branch.id,
-      spaceId: space.id,
-      merchantId: merchant.id,
-      assignedById: owner.id,
-      startedAt: new Date('2026-01-01T00:00:00Z'),
-    },
-  });
+  const occupancyId = randomUUID();
+  await sql.query(
+    `INSERT INTO "SpaceOccupancy" ("id", "organizationId", "branchId", "spaceId", "merchantId", "startedAt", "assignedById", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    [
+      occupancyId,
+      org.id,
+      branch.id,
+      space.id,
+      merchant.id,
+      new Date('2026-01-01T00:00:00Z'),
+      owner.id,
+    ],
+  );
   const before = await db.spaceOccupancy.findUniqueOrThrow({
-    where: { id: occupancy.id },
+    where: { id: occupancyId },
   });
   await sql.query(
     readFileSync(
@@ -125,7 +129,7 @@ it('backfills existing active/archived labels without losing spaces or occupancy
   expect(await db.spaceType.count()).toBe(2);
   expect(await db.space.count()).toBe(3);
   expect(
-    await db.spaceOccupancy.findUniqueOrThrow({ where: { id: occupancy.id } }),
+    await db.spaceOccupancy.findUniqueOrThrow({ where: { id: occupancyId } }),
   ).toEqual(before);
   expect(
     (await db.space.findUniqueOrThrow({ where: { id: space.id } })).type,
@@ -174,7 +178,7 @@ it('backfills existing active/archived labels without losing spaces or occupancy
   );
   expect(await db.space.count()).toBe(4);
   expect(
-    await db.spaceOccupancy.findUniqueOrThrow({ where: { id: occupancy.id } }),
+    await db.spaceOccupancy.findUniqueOrThrow({ where: { id: occupancyId } }),
   ).toEqual(before);
   expect(
     (

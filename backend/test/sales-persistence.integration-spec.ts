@@ -338,7 +338,7 @@ describe('PostgreSQL sale persistence integrity', () => {
     for (const context of [unrelated]) {
       expect(
         await salesReads.findAll(context, branchId, new ListSalesQueryDto()),
-      ).toEqual({ items: [], page: 1, limit: 50, total: 0, totalPages: 0 });
+      ).toEqual({ items: [], page: 1, limit: 15, total: 0, totalPages: 0 });
       expect(await salesReads.sellingBranches(context)).toEqual([]);
       await expect(
         salesReads.findOne(context, branchId, sale.id),
