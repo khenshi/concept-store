@@ -2,8 +2,9 @@
 
 Date: October 23, 2026
 
-Status: Draft for review. Planning only. No database connection, migration, reset,
-seed, backup/restore operation or infrastructure provisioning is authorized.
+Status: Approved for staged implementation October 25, 2026. The first local
+safeguard slice is implemented; no application database connection, migration,
+reset, seed, backup/restore operation or infrastructure provisioning was run.
 Recovery targets in §8 were confirmed October 24: at most 15 minutes of lost data
 and recovery within 2 hours. Implementation and measured proof remain pending.
 
@@ -31,6 +32,17 @@ Past permission to reset development data is not permission to reset real data.
 02 owns health/start contracts; 04 owns DB/schema safety; 05 selects hosting;
 06 executes approved release gates; 10 operates recovery; 14 requires evidence.
 Agree interfaces early without creating circular deployment prerequisites.
+
+## Implementation progress — October 25
+
+The local destructive demo-seed path now requires a loopback
+`DEMO_DATABASE_URL`, exact database-name confirmation, an explicit reset
+confirmation, the public schema, and current completed Prisma migration history.
+It no longer falls back to `DATABASE_URL`/`DIRECT_DATABASE_URL` or accepts a
+production override. Refusal behavior is covered by focused tests. No database
+was contacted by this slice. The provider-specific migration rehearsal,
+least-privilege roles, backup/restore drill, pool/outage qualification and deep
+review remain open.
 
 ## 2. Current evidence and architectural weaknesses
 

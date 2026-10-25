@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
 import { createHash, randomUUID } from 'node:crypto';
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   InventoryMovementType,
   MerchantStatus,
@@ -11,7 +13,11 @@ import {
   Prisma,
   SalePaymentMethod,
 } from '../src/generated/prisma/client';
-
+import {
+  assertDemoSeedDatabaseIdentity,
+  assertDemoSeedMigrationState,
+  getDemoSeedConnectionString,
+} from '../src/infrastructure/database/demo-seed-safety';
 const ids = {
   organization: '00000000-0000-4000-8000-000000000001',
   branches: {
@@ -45,21 +51,6 @@ const ids = {
     pouch: '00000000-0000-4000-8000-000000000065',
   },
 } as const;
-
-function assertSafeEnvironment(resetRequested: boolean): void {
-  const runtimeEnvironment = process.env.NODE_ENV ?? 'development';
-  if (
-    !['development', 'test'].includes(runtimeEnvironment) &&
-    process.env.SEED_DEMO_DATA !== '1'
-  ) {
-    throw new Error(
-      'Demo seed is restricted to development/test. Set SEED_DEMO_DATA=1 explicitly to override.',
-    );
-  }
-  if (!resetRequested) {
-    throw new Error('Foundation demo seed requires the --reset flag.');
-  }
-}
 
 async function resetDatabase(prisma: PrismaClient): Promise<void> {
   const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
@@ -655,18 +646,67 @@ async function seedSales(prisma: PrismaClient): Promise<void> {
 
 async function main(): Promise<void> {
   const resetRequested = process.argv.includes('--reset');
-  assertSafeEnvironment(resetRequested);
-  const connectionString =
-    process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error(
-      'DATABASE_URL or DIRECT_DATABASE_URL is required to seed demo data',
-    );
+  const connectionString = getDemoSeedConnectionString(
+    resetRequested,
+    process.env,
+  );
+  const expectedDatabaseName = process.env.SEED_DEMO_DATABASE_NAME;
+  if (!expectedDatabaseName) {
+    throw new Error('SEED_DEMO_DATABASE_NAME is required.');
   }
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString }),
   });
   try {
+    const [identity] = await prisma.$queryRaw<
+      Array<{ database_name: string; current_schema: string }>
+    >`SELECT current_database() AS database_name, current_schema() AS current_schema`;
+    assertDemoSeedDatabaseIdentity(
+      {
+        databaseName: identity?.database_name ?? '',
+        currentSchema: identity?.current_schema ?? '',
+      },
+      expectedDatabaseName,
+    );
+
+    const migrationTable = await prisma.$queryRaw<
+      Array<{ table_exists: boolean }>
+    >`SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS table_exists`;
+    if (!migrationTable[0]?.table_exists) {
+      throw new Error(
+        'Demo seed requires a migrated disposable database with Prisma history.',
+      );
+    }
+
+    const migrations = await prisma.$queryRaw<
+      Array<{
+        migration_name: string;
+        finished_at: Date | null;
+        rolled_back_at: Date | null;
+      }>
+    >`SELECT migration_name, finished_at, rolled_back_at
+       FROM public._prisma_migrations
+       ORDER BY finished_at DESC NULLS LAST, started_at DESC`;
+    const migrationDirectories = readdirSync(
+      join(process.cwd(), 'prisma/migrations'),
+    )
+      .filter((name) => /^\d/.test(name))
+      .sort();
+    const expectedLatestMigration = migrationDirectories.at(-1);
+    if (!expectedLatestMigration) {
+      throw new Error(
+        'No repository migration was found for demo seed preflight.',
+      );
+    }
+    assertDemoSeedMigrationState(
+      migrations.map((migration) => ({
+        migrationName: migration.migration_name,
+        finishedAt: migration.finished_at,
+        rolledBackAt: migration.rolled_back_at,
+      })),
+      expectedLatestMigration,
+    );
+
     await resetDatabase(prisma);
     await seedFoundation(prisma);
   } finally {

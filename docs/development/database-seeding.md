@@ -38,12 +38,24 @@ Other existing nonowners are not automatically backfilled with branch access.
 From `backend/`, run:
 
 ```bash
+NODE_ENV=development \
+DEMO_DATABASE_URL=postgresql://demo:demo@127.0.0.1:55439/concept_store_demo \
+SEED_DEMO_DATABASE_NAME=concept_store_demo \
+SEED_DEMO_CONFIRM=I_UNDERSTAND_DISPOSABLE_DEMO_RESET \
 npm run prisma:reset:demo
 ```
 
 All demo members use `DemoPassword123!`. The command prints the pending
-invitation token after seeding. The seed refuses non-development/test execution
-unless `SEED_DEMO_DATA=1` is explicitly set.
+invitation token after seeding. The seed requires an explicit loopback
+`DEMO_DATABASE_URL`, exact database-name confirmation, the reset flag and the
+confirmation value above. It refuses ambient `DATABASE_URL`/
+`DIRECT_DATABASE_URL`, non-loopback targets, production execution, missing
+Prisma migration history, failed migrations and stale migration history.
+
+The command is destructive: it truncates only the verified public schema of the
+selected disposable database. Do not run it against a shared, pilot or
+production database. The command does not create databases, verify a hosting
+provider, or substitute for a backup/restore drill.
 
 The repository now contains a rewritten foundation-only migration baseline.
 Never deploy it over a shared or production database created from the former

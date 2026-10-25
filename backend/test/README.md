@@ -122,6 +122,9 @@ all records must roll back. Explicit retries model recovery, never automatic API
 disposable PostgreSQL test database. It never falls back to application
 `DATABASE_URL`, loads application environment files, resets a database, or runs
 the demo seed. Use a test-only database/user, never production credentials.
+The destructive demo seed separately requires `DEMO_DATABASE_URL`, loopback
+target verification, exact database-name confirmation and the explicit reset
+confirmation; it is not part of integration-test setup.
 
 For example, start a disposable local container:
 
