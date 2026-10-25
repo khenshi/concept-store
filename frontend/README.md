@@ -10,9 +10,16 @@ Next.js application for the Concept Store Management System foundation. The curr
 ## Setup
 
 1. Copy `.env.example` to `.env.local`.
-2. Set `NEXT_PUBLIC_API_URL` to the backend origin.
+2. Set `NEXT_PUBLIC_API_URL` to the backend origin for direct local mode, or to
+   the frontend origin plus `/api` when using the same-origin proxy. In proxy
+   mode, also set the server-only `NEXT_API_UPSTREAM_URL` to the fixed backend
+   origin; never put that value in a `NEXT_PUBLIC_` variable.
 3. Install dependencies with `npm install`.
 4. Start development with `npm run dev`.
+
+Production `npm run start` keeps the local default port at `3001` and honors a
+host-provided `PORT` when one is assigned. The same-origin proxy forwards
+`/api/<path>` to the configured upstream origin without accepting a client URL.
 
 ## Checks
 
