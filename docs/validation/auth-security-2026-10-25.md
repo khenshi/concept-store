@@ -1,8 +1,10 @@
 # Plan 03 staged authentication validation — October 25, 2026
 
 Scope: independent approved Plan 03 security work. Plan 02 changes were preserved.
-No deployment, application-database operation, schema migration authoring, new
-dependency or commit was performed. This is not pilot/production sign-off.
+The implementation was committed in `638280a`; no deployment or application-
+database operation was performed for this validation record. Later Plan 04–06
+commits are tracked separately in the [background-agent audit](background-agent-audit-2026-10-25.md).
+This is not pilot/production sign-off.
 
 ## Implemented contracts
 
@@ -40,11 +42,11 @@ dependency or commit was performed. This is not pilot/production sign-off.
 - Frontend typecheck, lint and webpack production build passed. Lint retains four
   existing unused-variable warnings in inventory-placement-form.tsx; build retains
   the existing multiple-lockfiles/workspace-root warning.
-- The complete PostgreSQL integration command was also attempted on the same
-  disposable target: 7 suites passed and 4 failed on unrelated existing contracts
-  (default list-limit expectations and the pre-existing SpaceOccupancy migration
-  fixture). These failures are not treated as Plan 03 proof and were not weakened
-  or changed here.
+- The initial PostgreSQL integration command exposed four stale repository
+  contracts (default list-limit expectations and the pre-existing SpaceOccupancy
+  migration fixture). They were repaired later in `6bbb9c7`; the subsequent
+  repository record is 315 passed and 1 skipped. That later result is Plan 06
+  evidence, not additional Plan 03 security proof.
 
 ## Isolated PostgreSQL proof
 
@@ -73,6 +75,7 @@ origin/proxy/cookie behavior are unverified. Temporary local servers were stoppe
 automatically generated frontend agent-document files were removed as out of scope.
 
 Plan 07 still owns registration anti-enumeration/verified onboarding/reset. Plan 05
-still owns reviewed hosted identity/cookie/CSRF routing. Plan 18 durable financial
-recovery and release qualification are not implemented by this patch. Plan 03
-remains active until its required joint gates are proven; no full completion claim.
+has local rewrite/cookie-path implementation, but reviewed hosted identity/cookie/
+CSRF routing remains open. Plan 18 durable financial recovery and release
+qualification are not implemented by this patch. Plan 03 remains active until its
+required joint gates are proven; no full completion claim.

@@ -8,8 +8,11 @@ This is an audit/checklist, not approval to implement new modules or deploy/rese
 databases. Continue using approved current plans for implementation.
 
 Planning sequence: [pending plans and implementation order](plans/pending/README.md).
-The active current plan now covers documentation-only planning; feature plans
-remain pending/deferred and none of these checklist boxes are certified by it.
+Plan 03 is the active staged implementation plan. Plans 04–06 also contain
+committed local implementation slices, documented in the [background-agent
+audit](validation/background-agent-audit-2026-10-25.md), but their hosted,
+provider and release gates are not certified here. Other feature plans remain
+pending/deferred and checklist boxes are only certified where the evidence says so.
 
 ## 1. Confirmed rollout and scope
 
@@ -32,7 +35,7 @@ does not establish deployed security, database recovery or rendered correctness.
 
 | Area                                                         | Repository status                                                                     | Remaining deployment work                                                                                                       |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Authentication/account settings                              | Registration/login, rotating sessions, profile/password/account deletion implemented  | Password boundary fix; account recovery/onboarding policy; deployed cookies and rate limits                                     |
+| Authentication/account settings                              | Registration/login, rotating sessions, profile/password/account deletion and Plan 03 session-bound controls implemented | Account recovery/onboarding policy; deployed cookies, proxy identity, rate limits and browser proof |
 | Organizations/branches                                       | Tenant memberships and branch-scoped workflows implemented                            | Controlled pilot enrollment and future manual paid activation/suspension are not an implemented subscription entitlement system |
 | Members/invitations                                          | Owner management, branch/merchant access and invitation links implemented             | Real onboarding delivery, revocation and role-change smoke tests; email sending is not present                                  |
 | Merchants/branch participation                               | Profiles and affiliations implemented                                                 | Representative real data, access verification; no settlement/payout requirement                                                 |
@@ -284,11 +287,12 @@ database was queried, migrated, reset or seeded by the audit.
       refresh sessions can rotate into bound tokens. Legacy login is retained and
       new passwords are limited to 72 UTF-8 bytes. Plan 07 reset integration and
       actual hosted/browser validation remain open; local tests do not waive them.
-- [ ] Refresh cookies currently use HttpOnly, Secure in production, Path=/auth and
-      SameSite=Lax. Unrelated frontend/API provider domains can break refresh despite
-      correct CORS. Select a same-site/custom-domain or reviewed same-origin proxy
-      topology, or deliberately revise cookie/CSRF policy. Test path/forwarded cookies;
-      do not casually enable SameSite=None or wildcard credentialed CORS.
+- [ ] Refresh cookies use HttpOnly, Secure in production and SameSite=Lax. Local
+      code now supports direct Path=/auth and the reviewed local same-origin
+      `/api/auth` proxy path, with issuance and clearing kept consistent. Select
+      the actual host/provider topology and prove browser refresh, forwarded
+      cookies, origin/CSRF behavior and logout before pilot; do not casually enable
+      SameSite=None or wildcard credentialed CORS.
 - [ ] Redaction and production exception tests: passwords, authorization/cookies,
       invitation tokens, private command JSON and contact data must not leak. Keep
       SQL parameter logging off. Disable or explicitly protect production Swagger.
@@ -316,9 +320,11 @@ database was queried, migrated, reset or seeded by the audit.
 
 ### Release operations
 
-- [ ] Add enforced CI: dependency install, formatting/lint, application and test-source
-      typechecks, unit/HTTP suites, disposable integration/concurrency suites and builds.
-      No tracked CI/deployment definition was found; platform-side setup is unverified.
+- [ ] Enforce the tracked CI workflow: dependency install, formatting/lint,
+      application and test-source typechecks, unit/HTTP suites, disposable
+      integration/concurrency suites and builds. The repository now contains the
+      workflow and records local green integration evidence; branch protection,
+      required checks and a hosted pull-request run remain unverified.
 - [ ] Pin supported Node/package-manager versions, monorepo root/build paths and
       exact start commands. Verify host PORT binding; frontend currently starts on 3001.
 - [ ] Explicit migration-before-app release ordering, API/frontend compatibility,
@@ -428,13 +434,13 @@ and test cold starts; do not treat the free restore window as the recovery plan.
 
 The deployment must solve the session-cookie origin topology described in section 6.
 Free provider hostnames are not automatically a valid same-site session design.
-A reviewed same-origin proxy can avoid a new custom-domain expense, but it is an
-implementation decision requiring browser-facing cookie paths, tests and a plan;
-it does not exist merely because Next.js supports proxying. Never weaken cookie
-security just to make the free setup work. If external requests stay under `/auth`,
-the current path can remain; if a proxy exposes another prefix, deliberately map
-cookie Path on issuance and clearing so both refresh and logout work. Preserve
-HttpOnly/Secure and the reviewed SameSite/CSRF protections.
+A reviewed same-origin proxy can avoid a new custom-domain expense. The repository
+now has a local `/api` rewrite and explicit cookie-path support, but browser-facing
+provider qualification is still required. Never weaken cookie security just to
+make the free setup work. If external requests stay under `/auth`, the direct path
+can remain; if the proxy exposes `/api/auth`, map cookie Path on issuance and
+clearing so both refresh and logout work. Preserve HttpOnly/Secure and the reviewed
+SameSite/CSRF protections.
 
 ### When charging or relying on daily checkout
 

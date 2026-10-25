@@ -6,7 +6,9 @@ Queue updated: October 25, 2026
 
 Status: Plans 01–02 completed and archived October 25. Plan 03 is approved for
 staged implementation in the [current plan](../current.md); independent security
-work is being verified, with joint Plan 05/07 gates still pending. Other numbered plans remain
+work is being verified, with joint Plan 05/07 gates still pending. Plans 04–06
+contain committed local implementation slices from the background agent, but their
+provider, hosted, branch-protection and release gates remain open. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
 the user approved these scopes separately without declaring that review complete.
 
@@ -511,21 +513,20 @@ Remaining shared gates:
   review. New-password byte limits, session-bound JWTs, own-session controls,
   request-boundary redaction and auth dependency handling are locally implemented
   and verified. Plan 05/07/browser/deployed gates remain.
-- Plan 04 drafted after migration/seed/runtime/test-harness inspection. Prisma
-  validation passed; no database was contacted. User confirmed October 24 an RPO
-  of at most 15 minutes and RTO of at most 2 hours. Migration/backup/restore evidence
-  is not established; 05 must assess hosting against these targets without assuming
-  free-tier capability or authorization to spend.
-- Plan 05 drafted after source inspection and official hosting/session documentation
-  review. Same-origin `/api` routing is confirmed. Focused checks passed: 10 backend
-  and 17 frontend tests. Provider/budget decisions and actual deployment, browser
-  cookie/proxy identity and recovery qualification remain open; no deployment or
-  purchase is authorized.
-- Plan 06 drafted after package scripts, lockfiles, TypeScript/Jest configuration,
-  integration harness and release-checklist review. Defines required verification,
-  isolated databases, least-privilege workflow contexts, approved migration/release
-  ordering and compatible rollback. No CI, build, database or deployment executed;
-  operational settings and hosted qualification remain open.
+- Plan 04 has committed local migration/seed safeguards and disposable migration/
+  synthetic-restore evidence. Provider backup coverage, RPO/RTO measurement,
+  least privilege, upgrade/drift/failure rehearsal and production qualification
+  remain open.
+- Plan 05 has committed same-origin `/api` rewrite validation and configurable
+  refresh-cookie paths for direct/proxied routing. Provider/budget decisions,
+  actual deployment, browser cookie/proxy identity, CSRF and recovery
+  qualification remain open; no deployment or purchase is authorized.
+- Plan 06 has a committed pinned CI workflow, runtime smoke job and repaired
+  integration fixtures. Local evidence records the required test/build slices;
+  branch protection, hosted workflow confirmation, migration approval and release
+  qualification remain open.
+- See the [background-agent audit](../validation/background-agent-audit-2026-10-25.md)
+  for the complete implementation-versus-gates matrix.
 - Plan 07 drafted after auth/organization/invitation/schema/frontend source review.
   User confirmed protected operator commands, inactive-organization read-only history
   and verification required for workspace access. Mail provider, signup credential

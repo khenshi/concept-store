@@ -22,16 +22,36 @@ post-auth account/IP throttling, dependency-safe 503 handling, direct socket tru
 nested log redaction and production Swagger/SQL-parameter restrictions. No schema
 or dependency change. The implementation is committed in `638280a`.
 
-See [dated evidence](../validation/auth-security-2026-10-25.md) for actual local,
-PostgreSQL and review gates. Browser connection was unavailable; no visual or
-real-browser two-tab proof is claimed. This plan remains current, not fully closed.
+See [dated evidence](../validation/auth-security-2026-10-25.md) for the Plan 03
+local, PostgreSQL and review gates, and the [background-agent audit](../validation/background-agent-audit-2026-10-25.md)
+for the later Plans 04–06 repository work. Browser connection was unavailable;
+no visual or real-browser two-tab proof is claimed. This plan remains current,
+not fully closed.
+
+## Background-agent work reviewed — October 25
+
+Committed local implementation slices for Plans 04–06 were found after this plan
+was made current. They are documented and preserved, but they do not authorize
+advancing the queue or waive the plans' remaining provider, browser, branch
+protection, recovery and deployment gates.
+
+- Plan 04 has guarded demo-seed and migration-preflight tooling plus disposable
+  migration and synthetic restore evidence.
+- Plan 05 has same-origin `/api` rewrite validation and configurable refresh-cookie
+  paths for direct and proxied deployments.
+- Plan 06 has a pinned CI workflow, runtime smoke job and repaired integration
+  fixtures, with local green-gate evidence recorded.
+
+See [background-agent audit](../validation/background-agent-audit-2026-10-25.md)
+for commit-level evidence and the exact remaining work.
 
 Remaining required joint gates:
 
 - Plan 07: generic non-session registration acknowledgement, verified onboarding,
   new-password policy for resets and atomic reset/all-session revocation.
-- Plan 05: reviewed hosted proxy identity, same-origin cookie/CSRF forwarding and
-  distinct-client/spoofing deployment tests. Direct mode alone does not qualify it.
+- Plan 05 local rewrite and cookie-path slices are implemented, but reviewed hosted
+  proxy identity, same-origin cookie/CSRF forwarding and distinct-client/spoofing
+  deployment tests remain. Direct mode alone does not qualify it.
 - Plans 11/14: real browser/session focus, two-tab rotation and shared-device
   acceptance on the selected deployment; no automated build substitutes for it.
 - Plan 18: durable unresolved financial-command recovery, without introducing a
