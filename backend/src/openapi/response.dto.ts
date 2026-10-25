@@ -38,6 +38,22 @@ export class AuthResponseDto {
   user!: AuthenticatedUserResponseDto;
 }
 
+export class ActiveSessionResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty() isCurrent!: boolean;
+  @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ format: 'date-time' }) expiresAt!: Date;
+}
+
+export class ActiveSessionPageResponseDto {
+  @ApiProperty({ type: [ActiveSessionResponseDto] })
+  items!: ActiveSessionResponseDto[];
+  @ApiProperty({ minimum: 1 }) page!: number;
+  @ApiProperty({ enum: [15] }) pageSize!: number;
+  @ApiProperty({ minimum: 0 }) total!: number;
+  @ApiProperty({ minimum: 0 }) totalPages!: number;
+}
+
 export class OrganizationAccessResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ example: 'Common Ground Concept Store' }) name!: string;

@@ -23,7 +23,11 @@ describe('RefreshCookieService', () => {
     const response = { cookie } as unknown as Response;
     const expiresAt = new Date('2026-09-22T00:00:00.000Z');
 
-    service.write(response, { token: 'refresh-token', expiresAt });
+    service.write(response, {
+      id: 'session-id',
+      token: 'refresh-token',
+      expiresAt,
+    });
 
     expect(cookie).toHaveBeenCalledWith(
       'concept_store_refresh',

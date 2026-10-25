@@ -3,6 +3,11 @@ import { Reflector } from '@nestjs/core';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import {
+  ActiveSessionUserQuery,
+  matchesActiveSession,
+  sessionIdFor,
+} from './auth-session-fixtures';
 import { OrganizationRole } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
@@ -78,8 +83,12 @@ describe('Products and inventory HTTP boundaries', () => {
       findMany: jest.fn().mockResolvedValue([]),
     },
     user: {
-      findFirst: jest.fn(({ where }: { where: { id: string } }) =>
-        Promise.resolve(roles.has(where.id) ? { id: where.id } : null),
+      findFirst: jest.fn(({ where }: { where: ActiveSessionUserQuery }) =>
+        Promise.resolve(
+          roles.has(where.id) && matchesActiveSession(where)
+            ? { id: where.id }
+            : null,
+        ),
       ),
     },
     organizationMembership: {
@@ -101,7 +110,10 @@ describe('Products and inventory HTTP boundaries', () => {
     },
   };
   const token = (userId = actor) =>
-    jwt.sign({ email: `${userId}@example.test` }, { subject: userId });
+    jwt.sign(
+      { email: `${userId}@example.test`, sid: sessionIdFor(userId) },
+      { subject: userId },
+    );
   // Supertest's getHttpServer boundary is untyped in Nest's application interface.
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const http = () => request(app.getHttpServer());

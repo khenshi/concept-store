@@ -3,11 +3,11 @@ import {
   IsEmail,
   IsOptional,
   IsString,
-  Length,
   MaxLength,
   MinLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNewPassword } from './new-password';
 
 export class RegisterDto {
   @ApiProperty({ example: 'Maria', minLength: 1, maxLength: 80 })
@@ -49,8 +49,13 @@ export class RegisterDto {
   @MaxLength(254)
   email!: string;
 
-  @ApiProperty({ format: 'password', minLength: 12, maxLength: 128 })
+  @ApiProperty({
+    format: 'password',
+    minLength: 12,
+    maxLength: 72,
+    description: 'At most 72 UTF-8 bytes',
+  })
   @IsString()
-  @Length(12, 128)
+  @IsNewPassword()
   password!: string;
 }

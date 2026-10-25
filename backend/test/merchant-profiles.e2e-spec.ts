@@ -8,6 +8,11 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import {
+  ActiveSessionUserQuery,
+  matchesActiveSession,
+  sessionIdFor,
+} from './auth-session-fixtures';
+import {
   MerchantStatus,
   OrganizationRole,
 } from '../src/generated/prisma/client';
@@ -40,8 +45,12 @@ describe('Merchant profiles (e2e)', () => {
   const prismaService = {
     merchant: { findFirst: jest.fn().mockResolvedValue({ id: MERCHANT_ID }) },
     user: {
-      findFirst: jest.fn(({ where }: { where: { id: string } }) =>
-        Promise.resolve(roles.has(where.id) ? { id: where.id } : null),
+      findFirst: jest.fn(({ where }: { where: ActiveSessionUserQuery }) =>
+        Promise.resolve(
+          roles.has(where.id) && matchesActiveSession(where)
+            ? { id: where.id }
+            : null,
+        ),
       ),
     },
     organizationMembership: {
@@ -160,7 +169,7 @@ describe('Merchant profiles (e2e)', () => {
 
   function token(userId: string): string {
     return jwtService.sign(
-      { email: `${userId}@example.com` },
+      { email: `${userId}@example.com`, sid: sessionIdFor(userId) },
       { subject: userId },
     );
   }

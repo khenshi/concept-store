@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   createHash,
@@ -7,7 +11,7 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
-import type { RefreshSession } from '../auth.types';
+import type { ActiveSessionPage, RefreshSession } from '../auth.types';
 import type { RotatedSession, SessionPersistenceClient } from './session.types';
 
 const SESSION_ID_PATTERN =
@@ -47,7 +51,7 @@ export class SessionService {
       },
     });
 
-    return { token: `${id}.${secret}`, expiresAt };
+    return { id, token: `${id}.${secret}`, expiresAt };
   }
 
   async rotate(token: string | undefined): Promise<RotatedSession> {
@@ -119,6 +123,7 @@ export class SessionService {
         colorTheme: session.user.colorTheme,
       },
       refreshSession: {
+        id: parsed.id,
         token: `${parsed.id}.${nextSecret}`,
         expiresAt: session.expiresAt,
       },
@@ -137,6 +142,46 @@ export class SessionService {
       },
       data: { revokedAt: new Date() },
     });
+  }
+
+  async list(
+    userId: string,
+    currentSessionId: string,
+    page: number,
+  ): Promise<ActiveSessionPage> {
+    const pageSize = 15;
+    const where = { userId, revokedAt: null, expiresAt: { gt: new Date() } };
+    return this.prisma.$transaction(
+      async (transaction) => {
+        const total = await transaction.userSession.count({ where });
+        const sessions = await transaction.userSession.findMany({
+          where,
+          select: { id: true, createdAt: true, expiresAt: true },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        });
+        return {
+          items: sessions.map((session) => ({
+            ...session,
+            isCurrent: session.id === currentSessionId,
+          })),
+          page,
+          pageSize,
+          total,
+          totalPages: Math.ceil(total / pageSize),
+        };
+      },
+      { isolationLevel: 'RepeatableRead' },
+    );
+  }
+
+  async revokeOwned(userId: string, sessionId: string): Promise<void> {
+    const result = await this.prisma.userSession.updateMany({
+      where: { id: sessionId, userId },
+      data: { revokedAt: new Date() },
+    });
+    if (result.count !== 1) throw new NotFoundException('Session not found');
   }
 
   private createSecret(): string {

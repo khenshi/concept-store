@@ -2,6 +2,12 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { ThrottlerModule } from '@nestjs/throttler';
+import {
+  ActiveSessionUserQuery,
+  matchesActiveSession,
+  sessionIdFor,
+} from './auth-session-fixtures';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthController } from '../src/modules/auth/auth.controller';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
@@ -23,13 +29,20 @@ describe('Account color theme (e2e)', () => {
   const authService = { updateColorTheme: jest.fn() };
   const prismaService = {
     user: {
-      findFirst: jest.fn().mockResolvedValue({ id: userId }),
+      findFirst: jest.fn(({ where }: { where: ActiveSessionUserQuery }) =>
+        Promise.resolve(
+          where.id === userId && matchesActiveSession(where)
+            ? { id: userId }
+            : null,
+        ),
+      ),
     },
   };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
+        ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
         JwtModule.register({ secret: 'account-theme-e2e-test-secret' }),
       ],
       controllers: [AuthController],
@@ -63,7 +76,10 @@ describe('Account color theme (e2e)', () => {
       .send({ colorTheme: 'OCEAN' })
       .expect(401);
 
-    const token = jwtService.sign({ email: user.email }, { subject: userId });
+    const token = jwtService.sign(
+      { email: user.email, sid: sessionIdFor(userId) },
+      { subject: userId },
+    );
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())
       .patch('/auth/me/theme')
@@ -81,7 +97,10 @@ describe('Account color theme (e2e)', () => {
 
   it('updates the identity derived from the access token', async () => {
     authService.updateColorTheme.mockResolvedValue(user);
-    const token = jwtService.sign({ email: user.email }, { subject: userId });
+    const token = jwtService.sign(
+      { email: user.email, sid: sessionIdFor(userId) },
+      { subject: userId },
+    );
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())

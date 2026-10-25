@@ -4,6 +4,11 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
+import {
+  ActiveSessionUserQuery,
+  matchesActiveSession,
+  sessionIdFor,
+} from './auth-session-fixtures';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
@@ -44,7 +49,10 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const http = () => request(app.getHttpServer());
   const token = () =>
-    jwt.sign({ email: 'refund@example.test' }, { subject: actor });
+    jwt.sign(
+      { email: 'refund@example.test', sid: sessionIdFor(actor) },
+      { subject: actor },
+    );
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       imports: [JwtModule.register({ secret: 'refund-http-test-only' })],
@@ -78,7 +86,14 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     role = 'OWNER';
-    prisma.user.findFirst.mockResolvedValue({ id: actor });
+    prisma.user.findFirst.mockImplementation(
+      ({ where }: { where: ActiveSessionUserQuery }) =>
+        Promise.resolve(
+          where.id === actor && matchesActiveSession(where)
+            ? { id: actor }
+            : null,
+        ),
+    );
     prisma.organizationMembership.findUnique.mockImplementation(
       ({
         where,

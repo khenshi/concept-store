@@ -3,6 +3,11 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import {
+  ActiveSessionUserQuery,
+  matchesActiveSession,
+  sessionIdFor,
+} from './auth-session-fixtures';
 import { OrganizationRole } from '../src/generated/prisma/client';
 import { OPENAPI_JSON_PATH, setupSwagger } from '../src/config/swagger';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
@@ -40,14 +45,13 @@ describe('Milestone 1 organization access (e2e)', () => {
   };
   const prismaService = {
     user: {
-      findFirst: jest.fn(
-        ({ where }: { where: { id: string; deletedAt: null } }) =>
-          Promise.resolve(
-            (where.id === OWNER_ID || where.id === CASHIER_ID) &&
-              where.deletedAt === null
-              ? { id: where.id }
-              : null,
-          ),
+      findFirst: jest.fn(({ where }: { where: ActiveSessionUserQuery }) =>
+        Promise.resolve(
+          (where.id === OWNER_ID || where.id === CASHIER_ID) &&
+            matchesActiveSession(where)
+            ? { id: where.id }
+            : null,
+        ),
       ),
     },
     organizationMembership: {
@@ -118,7 +122,10 @@ describe('Milestone 1 organization access (e2e)', () => {
   beforeEach(() => jest.clearAllMocks());
 
   function accessToken(userId: string, email: string): string {
-    return jwtService.sign({ email }, { subject: userId });
+    return jwtService.sign(
+      { email, sid: sessionIdFor(userId) },
+      { subject: userId },
+    );
   }
 
   it('rejects an unauthenticated organization request', async () => {

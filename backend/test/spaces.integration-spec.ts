@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sessionIdFor } from './auth-session-fixtures';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -51,19 +52,32 @@ const create = (name: string = randomUUID(), branch = branchId) =>
   spaces.create(context, branch, { name, type: 'Shelf' });
 const assign = (id: string, m = merchantId, branch = branchId, c = context) =>
   spaces.assign(c, branch, id, { merchantId: m, startedAt: old() });
-const user = () =>
-  db.user.create({
+const user = () => {
+  const id = randomUUID();
+  return db.user.create({
     data: {
+      id,
       email: `${randomUUID()}@example.test`,
       firstName: 'Test',
       lastName: 'User',
       passwordHash: 'unused',
+      sessions: {
+        create: {
+          id: sessionIdFor(id),
+          refreshTokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 3600000),
+        },
+      },
     },
   });
+};
 const http = () =>
   request(app.getHttpServer() as Parameters<typeof request>[0]);
 const token = (c = context) =>
-  jwt.sign({ email: 'test@example.test' }, { subject: c.userId });
+  jwt.sign(
+    { email: 'test@example.test', sid: sessionIdFor(c.userId) },
+    { subject: c.userId },
+  );
 const path = () =>
   `/organizations/${context.organizationId}/branches/${branchId}/spaces`;
 

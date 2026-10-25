@@ -5,6 +5,10 @@ export interface AuthenticatedPrincipal {
   email: string;
 }
 
+export interface AuthenticatedSessionPrincipal extends AuthenticatedPrincipal {
+  sessionId: string;
+}
+
 export interface AuthenticatedUser extends AuthenticatedPrincipal {
   firstName: string;
   lastName: string;
@@ -18,6 +22,7 @@ export interface AuthResponse {
 }
 
 export interface RefreshSession {
+  id: string;
   token: string;
   expiresAt: Date;
 }
@@ -30,4 +35,18 @@ export interface AuthSessionResponse {
 export interface AccessTokenPayload {
   sub: string;
   email: string;
+  sid: string;
+}
+
+export interface ActiveSessionPage {
+  items: {
+    id: string;
+    isCurrent: boolean;
+    createdAt: Date;
+    expiresAt: Date;
+  }[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }

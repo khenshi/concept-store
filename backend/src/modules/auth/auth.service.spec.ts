@@ -20,12 +20,13 @@ describe('AuthService', () => {
     colorTheme: 'GRAPHITE',
   };
   const refreshSession = {
+    id: '580c75b7-1050-4a08-a2c2-585171d84dc8',
     token: 'session-id.refresh-secret',
     expiresAt: new Date('2026-09-22T00:00:00.000Z'),
   };
   const transaction = {
-    user: { create: jest.fn(), update: jest.fn() },
-    userSession: { deleteMany: jest.fn() },
+    user: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    userSession: { deleteMany: jest.fn(), updateMany: jest.fn() },
     organizationMembership: {
       findMany: jest.fn(),
       deleteMany: jest.fn(),
@@ -67,6 +68,8 @@ describe('AuthService', () => {
     service = moduleRef.get(AuthService);
     jwtService.signAsync.mockResolvedValue('signed-token');
     sessionService.issue.mockResolvedValue(refreshSession);
+    transaction.user.updateMany.mockResolvedValue({ count: 1 });
+    transaction.userSession.updateMany.mockResolvedValue({ count: 2 });
   });
 
   it('registers the user and session atomically without returning password data', async () => {
@@ -103,7 +106,7 @@ describe('AuthService', () => {
     });
     expect(sessionService.issue).toHaveBeenCalledWith(user.id, transaction);
     expect(jwtService.signAsync).toHaveBeenCalledWith(
-      { email: user.email },
+      { email: user.email, sid: refreshSession.id },
       { subject: user.id },
     );
   });
@@ -123,7 +126,7 @@ describe('AuthService', () => {
       response: { accessToken: 'signed-token', user },
       refreshSession,
     });
-    expect(sessionService.issue).toHaveBeenCalledWith(user.id);
+    expect(sessionService.issue).toHaveBeenCalledWith(user.id, transaction);
   });
 
   it('uses the same generic error for an unknown email or wrong password', async () => {
@@ -248,11 +251,15 @@ describe('AuthService', () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: user.id },
+    expect(transaction.user.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: user.id,
+        passwordHash: expect.any(String) as unknown,
+        deletedAt: null,
+      },
       data: { passwordHash: expect.any(String) as unknown },
     });
-    expect(prisma.userSession.updateMany).toHaveBeenCalledWith({
+    expect(transaction.userSession.updateMany).toHaveBeenCalledWith({
       where: { userId: user.id, revokedAt: null },
       data: { revokedAt: expect.any(Date) as unknown },
     });
@@ -350,6 +357,77 @@ describe('AuthService', () => {
     await expect(
       service.deleteCurrentUser(user.id, 'incorrect password'),
     ).rejects.toThrow(new UnauthorizedException('Password is incorrect'));
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects oversized registration and replacement passwords even without DTO validation', async () => {
+    await expect(
+      service.register({
+        firstName: 'Test',
+        lastName: 'User',
+        email: user.email,
+        password: 'a'.repeat(73),
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.changePassword(user.id, {
+        currentPassword: 'old password',
+        newPassword: 'é'.repeat(37),
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.user.findUniqueOrThrow).not.toHaveBeenCalled();
+  });
+
+  it('allows a legacy long login input and binds its token to the issued session', async () => {
+    const password = 'a'.repeat(72) + 'legacy suffix';
+    prisma.user.findUnique.mockResolvedValue({
+      ...user,
+      passwordHash: await hash(password, 4),
+    });
+    await service.login({ email: user.email, password });
+    expect(jwtService.signAsync).toHaveBeenCalledWith(
+      { email: user.email, sid: refreshSession.id },
+      { subject: user.id },
+    );
+  });
+
+  it('rejects a stale login credential check before issuing a new session', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      ...user,
+      passwordHash: await hash('current password', 4),
+    });
+    transaction.user.updateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      service.login({ email: user.email, password: 'current password' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(sessionService.issue).not.toHaveBeenCalled();
+  });
+
+  it('rejects a competing password change without revoking sessions outside its transaction', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({
+      passwordHash: await hash('current password', 4),
+    });
+    transaction.user.updateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      service.changePassword(user.id, {
+        currentPassword: 'current password',
+        newPassword: 'different password',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(transaction.userSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('retains legacy current-password input and rejects bcrypt-equivalent unchanged replacements', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({
+      passwordHash: await hash('a'.repeat(72) + 'legacy suffix', 4),
+    });
+    await expect(
+      service.changePassword(user.id, {
+        currentPassword: 'a'.repeat(72) + 'legacy suffix',
+        newPassword: 'a'.repeat(72),
+      }),
+    ).rejects.toThrow('New password must be different');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

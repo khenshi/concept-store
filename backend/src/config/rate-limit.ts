@@ -10,6 +10,8 @@ export const AUTH_RATE_LIMITS = {
   login: { limit: 5, ttl: minutes(1) },
   refresh: { limit: 30, ttl: minutes(1) },
   logout: { limit: 30, ttl: minutes(1) },
+  changePassword: { limit: 5, ttl: minutes(1) },
+  deleteAccount: { limit: 5, ttl: minutes(1) },
 } as const;
 
 export const INVITATION_RATE_LIMITS = {

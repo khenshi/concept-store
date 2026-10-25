@@ -1,10 +1,10 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { Request } from 'express';
-import { AuthenticatedPrincipal } from './auth.types';
+import { AuthenticatedSessionPrincipal } from './auth.types';
 
-type AuthenticatedRequest = Request & { user: AuthenticatedPrincipal };
+type AuthenticatedRequest = Request & { user: AuthenticatedSessionPrincipal };
 
 export const CurrentUser = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): AuthenticatedPrincipal =>
+  (_data: unknown, context: ExecutionContext): AuthenticatedSessionPrincipal =>
     context.switchToHttp().getRequest<AuthenticatedRequest>().user,
 );

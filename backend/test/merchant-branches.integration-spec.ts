@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { sessionIdFor } from './auth-session-fixtures';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -79,15 +80,25 @@ const merchantData = (organizationId: string, name: string) => ({
   contactName: 'Contact',
   phone: '09171234567',
 });
-const user = () =>
-  db.user.create({
+const user = () => {
+  const id = randomUUID();
+  return db.user.create({
     data: {
+      id,
       email: `${randomUUID()}@example.test`,
       passwordHash: 'unused',
       firstName: 'Test',
       lastName: 'User',
+      sessions: {
+        create: {
+          id: sessionIdFor(id),
+          refreshTokenHash: randomUUID(),
+          expiresAt: new Date(Date.now() + 3600000),
+        },
+      },
     },
   });
+};
 const merchantContext = (
   id = merchantId,
   userId = merchantUser,
@@ -107,7 +118,10 @@ const createPlacement = (id = branchId, price = '12.50') =>
 const http = () =>
   request(app.getHttpServer() as Parameters<typeof request>[0]);
 const token = (id: string) =>
-  jwt.sign({ email: 'test@example.test' }, { subject: id });
+  jwt.sign(
+    { email: 'test@example.test', sid: sessionIdFor(id) },
+    { subject: id },
+  );
 async function snapshotMigration() {
   const tables = [
     'BranchInventory',

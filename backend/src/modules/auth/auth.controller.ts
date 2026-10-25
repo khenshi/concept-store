@@ -6,7 +6,10 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  Param,
+  ParseUUIDPipe,
   Post,
+  Query,
   Req,
   Res,
   UseGuards,
@@ -19,23 +22,32 @@ import {
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiServiceUnavailableResponse,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AUTH_RATE_LIMITS } from '../../config/rate-limit';
 import {
   AuthenticatedUserResponseDto,
   AuthResponseDto,
+  ActiveSessionPageResponseDto,
 } from '../../openapi/response.dto';
 import { AuthGuard } from './auth.guard';
+import {
+  AccountThrottle,
+  AuthAccountThrottleGuard,
+} from './auth-account-throttle.guard';
 import { AuthService } from './auth.service';
 import type {
   AuthResponse,
   AuthenticatedPrincipal,
   AuthenticatedUser,
+  AuthenticatedSessionPrincipal,
+  ActiveSessionPage,
 } from './auth.types';
 import { CurrentUser } from './current-user.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -45,6 +57,7 @@ import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateColorThemeDto } from './dto/update-color-theme.dto';
 import { RefreshCookieService } from './sessions/refresh-cookie.service';
+import { SessionPageQueryDto } from './dto/session-page-query.dto';
 
 @ApiTags('authentication')
 @Controller('auth')
@@ -165,7 +178,9 @@ export class AuthController {
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, AuthAccountThrottleGuard)
+  @Throttle({ default: AUTH_RATE_LIMITS.changePassword })
+  @AccountThrottle(AUTH_RATE_LIMITS.changePassword)
   @Post('change-password')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Change the authenticated user password' })
@@ -184,7 +199,9 @@ export class AuthController {
   }
 
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, AuthAccountThrottleGuard)
+  @Throttle({ default: AUTH_RATE_LIMITS.deleteAccount })
+  @AccountThrottle(AUTH_RATE_LIMITS.deleteAccount)
   @Delete('me')
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Delete the authenticated user account' })
@@ -202,5 +219,43 @@ export class AuthController {
   ): Promise<void> {
     await this.authService.deleteCurrentUser(user.id, dto.password);
     this.refreshCookieService.clear(response);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('sessions')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'List the authenticated account active sessions' })
+  @ApiOkResponse({ type: ActiveSessionPageResponseDto })
+  @ApiUnauthorizedResponse({
+    description: 'Access token or session is invalid',
+  })
+  @ApiServiceUnavailableResponse({
+    description: 'Authentication is temporarily unavailable',
+  })
+  listSessions(
+    @CurrentUser() user: AuthenticatedSessionPrincipal,
+    @Query() query: SessionPageQueryDto,
+  ): Promise<ActiveSessionPage> {
+    return this.authService.listSessions(user.id, user.sessionId, query.page);
+  }
+
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AuthGuard)
+  @Delete('sessions/:sessionId')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Revoke one session owned by the authenticated account',
+  })
+  @ApiNoContentResponse()
+  @ApiNotFoundResponse({ description: 'Session not found' })
+  async revokeSession(
+    @CurrentUser() user: AuthenticatedSessionPrincipal,
+    @Param('sessionId', new ParseUUIDPipe({ version: '4' })) sessionId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    const normalizedId = sessionId.toLowerCase();
+    await this.authService.revokeSession(user.id, normalizedId);
+    if (normalizedId === user.sessionId)
+      this.refreshCookieService.clear(response);
   }
 }

@@ -12,16 +12,22 @@ describe('SessionService', () => {
   const hashSecret = (value: string) =>
     createHash('sha256').update(value).digest('hex');
   const prisma = {
+    $transaction: jest.fn(),
     userSession: {
       create: jest.fn(),
       findUnique: jest.fn(),
       updateMany: jest.fn(),
+      count: jest.fn(),
+      findMany: jest.fn(),
     },
   };
   let service: SessionService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation(
+      (operation: (client: typeof prisma) => unknown) => operation(prisma),
+    );
     jest.useFakeTimers().setSystemTime(new Date('2026-08-23T00:00:00.000Z'));
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -166,5 +172,67 @@ describe('SessionService', () => {
       revokedAt: null,
     });
     expect(revokeArguments.data.revokedAt).toBeInstanceOf(Date);
+  });
+
+  it('lists only safe metadata from active owned sessions in fixed pages', async () => {
+    const session = {
+      id: sessionId,
+      createdAt: new Date(),
+      expiresAt: new Date('2026-09-22'),
+    };
+    prisma.userSession.count.mockResolvedValue(16);
+    prisma.userSession.findMany.mockResolvedValue([session]);
+    await expect(service.list('user-id', sessionId, 2)).resolves.toEqual({
+      items: [{ ...session, isCurrent: true }],
+      page: 2,
+      pageSize: 15,
+      total: 16,
+      totalPages: 2,
+    });
+    expect(prisma.userSession.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-id',
+        revokedAt: null,
+        expiresAt: { gt: expect.any(Date) as unknown },
+      },
+      select: { id: true, createdAt: true, expiresAt: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: 15,
+      take: 15,
+    });
+  });
+
+  it('revokes an owned selected session and treats foreign/absent IDs identically', async () => {
+    prisma.userSession.updateMany.mockResolvedValue({ count: 1 });
+    await expect(
+      service.revokeOwned('user-id', sessionId),
+    ).resolves.toBeUndefined();
+    expect(prisma.userSession.updateMany).toHaveBeenCalledWith({
+      where: { id: sessionId, userId: 'user-id' },
+      data: { revokedAt: expect.any(Date) as unknown },
+    });
+    prisma.userSession.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.revokeOwned('user-id', sessionId)).rejects.toThrow(
+      'Session not found',
+    );
+  });
+
+  it('revokes the session if its atomic rotation loses a race', async () => {
+    prisma.userSession.findUnique.mockResolvedValue({
+      refreshTokenHash: hashSecret(secret),
+      expiresAt: new Date('2026-09-22'),
+      revokedAt: null,
+      user: { id: 'user-id' },
+    });
+    prisma.userSession.updateMany
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 });
+    await expect(service.rotate(token)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(prisma.userSession.updateMany).toHaveBeenLastCalledWith({
+      where: { id: sessionId, revokedAt: null },
+      data: { revokedAt: expect.any(Date) as unknown },
+    });
   });
 });

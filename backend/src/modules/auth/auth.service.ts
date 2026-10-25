@@ -13,14 +13,18 @@ import type {
   AuthResponse,
   AuthenticatedUser,
   AuthSessionResponse,
+  ActiveSessionPage,
 } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import type { ChangePasswordDto } from './dto/change-password.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import { SessionService } from './sessions/session.service';
+import { assertNewPassword } from './dto/new-password';
 
 const PASSWORD_HASH_ROUNDS = 12;
+const LOGIN_DUMMY_HASH =
+  '$2b$12$X9nD9NBciwsB2qzEz/gPMul/FaLxQkrac4ys9p2AZS3ctsNhKQEOG';
 
 @Injectable()
 export class AuthService {
@@ -31,6 +35,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthSessionResponse> {
+    assertNewPassword(dto.password);
     const passwordHash = await hash(dto.password, PASSWORD_HASH_ROUNDS);
 
     try {
@@ -62,7 +67,7 @@ export class AuthService {
       );
 
       return {
-        response: await this.createAuthResponse(user),
+        response: await this.createAuthResponse(user, refreshSession.id),
         refreshSession,
       };
     } catch (error: unknown) {
@@ -94,11 +99,11 @@ export class AuthService {
       },
     });
 
-    if (
-      !user ||
-      user.deletedAt ||
-      !(await compare(dto.password, user.passwordHash))
-    ) {
+    const passwordMatches = await compare(
+      dto.password,
+      user && !user.deletedAt ? user.passwordHash : LOGIN_DUMMY_HASH,
+    );
+    if (!user || user.deletedAt || !passwordMatches) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -110,22 +115,55 @@ export class AuthService {
       phone: user.phone,
       colorTheme: user.colorTheme,
     };
+    const refreshSession = await this.prisma.$transaction(
+      async (transaction) => {
+        const current = await transaction.user.updateMany({
+          where: {
+            id: user.id,
+            passwordHash: user.passwordHash,
+            deletedAt: null,
+          },
+          data: { passwordHash: user.passwordHash },
+        });
+        if (current.count !== 1)
+          throw new UnauthorizedException('Invalid email or password');
+        return this.sessionService.issue(user.id, transaction);
+      },
+    );
     return {
-      response: await this.createAuthResponse(authenticatedUser),
-      refreshSession: await this.sessionService.issue(user.id),
+      response: await this.createAuthResponse(
+        authenticatedUser,
+        refreshSession.id,
+      ),
+      refreshSession,
     };
   }
 
   async refresh(token: string | undefined): Promise<AuthSessionResponse> {
     const rotated = await this.sessionService.rotate(token);
     return {
-      response: await this.createAuthResponse(rotated.user),
+      response: await this.createAuthResponse(
+        rotated.user,
+        rotated.refreshSession.id,
+      ),
       refreshSession: rotated.refreshSession,
     };
   }
 
   logout(token: string | undefined): Promise<void> {
     return this.sessionService.revoke(token);
+  }
+
+  listSessions(
+    userId: string,
+    currentSessionId: string,
+    page: number,
+  ): Promise<ActiveSessionPage> {
+    return this.sessionService.list(userId, currentSessionId, page);
+  }
+
+  revokeSession(userId: string, sessionId: string): Promise<void> {
+    return this.sessionService.revokeOwned(userId, sessionId);
   }
 
   async getCurrentUser(userId: string): Promise<AuthenticatedUser> {
@@ -183,6 +221,7 @@ export class AuthService {
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    assertNewPassword(dto.newPassword);
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { passwordHash: true },
@@ -197,16 +236,18 @@ export class AuthService {
     }
 
     const passwordHash = await hash(dto.newPassword, PASSWORD_HASH_ROUNDS);
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: userId },
+    await this.prisma.$transaction(async (transaction) => {
+      const changed = await transaction.user.updateMany({
+        where: { id: userId, passwordHash: user.passwordHash, deletedAt: null },
         data: { passwordHash },
-      }),
-      this.prisma.userSession.updateMany({
+      });
+      if (changed.count !== 1)
+        throw new UnauthorizedException('Current password is incorrect');
+      await transaction.userSession.updateMany({
         where: { userId, revokedAt: null },
         data: { revokedAt: new Date() },
-      }),
-    ]);
+      });
+    });
   }
 
   async deleteCurrentUser(userId: string, password: string): Promise<void> {
@@ -261,9 +302,10 @@ export class AuthService {
 
   private async createAuthResponse(
     user: AuthenticatedUser,
+    sessionId: string,
   ): Promise<AuthResponse> {
     const accessToken = await this.jwtService.signAsync(
-      { email: user.email },
+      { email: user.email, sid: sessionId },
       { subject: user.id },
     );
 
