@@ -14,6 +14,7 @@ import type { BranchDirectoryPage, BranchRecord } from './branches.types';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { branchScope } from '../authorization/resource-access';
 import { BranchStatus } from '../../../generated/prisma/client';
+import { assertActiveOrganization } from '../organization-state';
 
 const BRANCH_DIRECTORY_PAGE_SIZE = 15;
 
@@ -26,9 +27,15 @@ export class BranchesService {
     dto: CreateBranchDto,
   ): Promise<BranchRecord> {
     try {
-      return await this.prisma.branch.create({
-        data: { organizationId, ...dto },
-      });
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          await assertActiveOrganization(transaction, organizationId);
+          return transaction.branch.create({
+            data: { organizationId, ...dto },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -140,12 +147,22 @@ export class BranchesService {
     if (!Object.values(dto).some((value) => value !== undefined)) {
       throw new BadRequestException('At least one branch field is required');
     }
-    await this.findOne(organizationId, branchId);
     try {
-      return await this.prisma.branch.update({
-        where: { id: branchId, organizationId },
-        data: dto,
-      });
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          await assertActiveOrganization(transaction, organizationId);
+          const branch = await transaction.branch.findFirst({
+            where: { id: branchId, organizationId },
+            select: { id: true },
+          });
+          if (!branch) throw new NotFoundException('Branch not found');
+          return transaction.branch.update({
+            where: { id: branchId, organizationId },
+            data: dto,
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -157,14 +174,20 @@ export class BranchesService {
     context: OrganizationContext,
     dto: UpdateBranchStatusDto,
   ): Promise<BranchRecord> {
-    const branch = await this.prisma.branch.findFirst({
-      where: { AND: [branchScope(context), { id: branchId }] },
-    });
-    if (!branch) throw new NotFoundException('Branch not found');
-    return this.prisma.branch.update({
-      where: { id: branchId, organizationId },
-      data: { status: dto.status },
-    });
+    return this.prisma.$transaction(
+      async (transaction) => {
+        await assertActiveOrganization(transaction, organizationId);
+        const branch = await transaction.branch.findFirst({
+          where: { AND: [branchScope(context), { id: branchId }] },
+        });
+        if (!branch) throw new NotFoundException('Branch not found');
+        return transaction.branch.update({
+          where: { id: branchId, organizationId },
+          data: { status: dto.status },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   private directoryWhere(

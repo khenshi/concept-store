@@ -36,6 +36,9 @@ describe('OrganizationMembershipsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    transaction.$queryRaw.mockResolvedValue([
+      { id: organizationId, status: 'ACTIVE' },
+    ]);
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof transaction) => unknown) =>
         callback(transaction),

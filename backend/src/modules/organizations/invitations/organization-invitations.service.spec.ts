@@ -27,6 +27,7 @@ describe('OrganizationInvitationsService', () => {
     createdAt: new Date('2026-08-27T00:00:00.000Z'),
   };
   const transaction = {
+    $queryRaw: jest.fn(),
     merchant: { findUnique: jest.fn() },
     branch: { count: jest.fn() },
     organizationMembership: {
@@ -59,6 +60,9 @@ describe('OrganizationInvitationsService', () => {
       (operation: (client: typeof transaction) => unknown) =>
         operation(transaction),
     );
+    transaction.$queryRaw.mockResolvedValue([
+      { id: organizationId, status: 'ACTIVE' },
+    ]);
     const moduleRef = await Test.createTestingModule({
       providers: [
         OrganizationInvitationsService,
@@ -117,9 +121,9 @@ describe('OrganizationInvitationsService', () => {
     expect(transaction.organizationInvitation.create).not.toHaveBeenCalled();
   });
 
-  it('revokes a pending invitation and invalidates its link', async () => {
+  it('permanently removes a pending invitation and invalidates its link', async () => {
     transaction.organizationInvitation.findFirst.mockResolvedValue(invitation);
-    transaction.organizationInvitation.updateMany.mockResolvedValue({
+    transaction.organizationInvitation.deleteMany.mockResolvedValue({
       count: 1,
     });
 
@@ -127,21 +131,9 @@ describe('OrganizationInvitationsService', () => {
       service.remove(organizationId, invitation.id),
     ).resolves.toBeUndefined();
 
-    expect(transaction.organizationInvitation.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          id: invitation.id,
-          organizationId,
-          acceptedAt: null,
-          revokedAt: null,
-          expiresAt: { gt: new Date('2026-08-27T00:00:00.000Z') },
-        }) as unknown,
-        data: { revokedAt: new Date('2026-08-27T00:00:00.000Z') },
-      }),
-    );
-    expect(
-      transaction.organizationInvitation.deleteMany,
-    ).not.toHaveBeenCalled();
+    expect(transaction.organizationInvitation.deleteMany).toHaveBeenCalledWith({
+      where: { id: invitation.id, organizationId },
+    });
   });
 
   it.each([

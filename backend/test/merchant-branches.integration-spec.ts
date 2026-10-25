@@ -87,6 +87,7 @@ const user = () => {
       id,
       email: `${randomUUID()}@example.test`,
       passwordHash: 'unused',
+      emailVerifiedAt: new Date(),
       firstName: 'Test',
       lastName: 'User',
       sessions: {
@@ -148,8 +149,25 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
     await admin.query(`CREATE SCHEMA "${schema}"`);
     await admin.query(`SET search_path TO "${schema}"`);
     const root = join(__dirname, '../prisma/migrations');
+    await admin.query(
+      readFileSync(
+        join(root, '20260911010000_foundation_baseline', 'migration.sql'),
+        'utf8',
+      ),
+    );
+    await admin.query(
+      readFileSync(
+        join(root, '20261025010000_add_controlled_access', 'migration.sql'),
+        'utf8',
+      ),
+    );
     for (const directory of readdirSync(root)
-      .filter((name) => /^\d/.test(name))
+      .filter(
+        (name) =>
+          /^\d/.test(name) &&
+          name !== '20260911010000_foundation_baseline' &&
+          name !== '20261025010000_add_controlled_access',
+      )
       .sort()) {
       if (directory === '20261001020000_add_merchant_branches') {
         const org = await db.organization.create({ data: { name: 'Legacy' } });
@@ -490,6 +508,55 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
         )
       ).total,
     ).toBe(1);
+  });
+  it('rechecks organization status inside direct mutation transactions', async () => {
+    await associations.assign(context, merchantId, branchId);
+    const placed = await createPlacement();
+    const correction = {
+      requestId: randomUUID(),
+      newQuantity: 4,
+      reason: 'Direct service correction',
+    };
+    const original = await stock.adjust(
+      context.organizationId,
+      branchId,
+      placed.id,
+      context.userId,
+      correction,
+    );
+    await db.organization.update({
+      where: { id: context.organizationId },
+      data: { status: 'INACTIVE' },
+    });
+
+    expect(
+      (
+        await stock.adjust(
+          context.organizationId,
+          branchId,
+          placed.id,
+          context.userId,
+          correction,
+        )
+      ).id,
+    ).toBe(original.id);
+    await expect(
+      stock.adjust(
+        context.organizationId,
+        branchId,
+        placed.id,
+        context.userId,
+        {
+          requestId: randomUUID(),
+          newQuantity: 2,
+          reason: 'New correction after deactivation',
+        },
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(
+      (await db.branchInventory.findUniqueOrThrow({ where: { id: placed.id } }))
+        .quantity,
+    ).toBe(4);
   });
   it('restocks the original placement after participation ends', async () => {
     await associations.assign(context, merchantId, branchId);

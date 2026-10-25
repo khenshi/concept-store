@@ -24,6 +24,7 @@ import { productSelect } from './products.types';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { inventoryScope, productScope } from '../authorization/resource-access';
 import { deriveInventoryStockStatus } from '../inventory/inventory.types';
+import { assertActiveOrganization } from '../organization-state';
 
 @Injectable()
 export class ProductsService {
@@ -43,21 +44,33 @@ export class ProductsService {
     }
     if (dto.requestId !== undefined)
       throw new BadRequestException('requestId requires initialInventory');
-    const merchant = await this.resolveMerchant(organizationId, dto.merchantId);
-    if (merchant.status !== MerchantStatus.ACTIVE) {
-      throw new ConflictException('New products require an active merchant');
-    }
     try {
-      return await this.prisma.product.create({
-        select: productSelect,
-        data: {
-          organizationId,
-          merchantId: dto.merchantId,
-          name: dto.name,
-          sku: dto.sku,
-          barcode: dto.barcode,
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          await assertActiveOrganization(transaction, organizationId);
+          const merchant = await transaction.merchant.findUnique({
+            where: { id: dto.merchantId, organizationId },
+            select: { status: true },
+          });
+          if (!merchant) throw new NotFoundException('Merchant not found');
+          if (merchant.status !== MerchantStatus.ACTIVE) {
+            throw new ConflictException(
+              'New products require an active merchant',
+            );
+          }
+          return transaction.product.create({
+            select: productSelect,
+            data: {
+              organizationId,
+              merchantId: dto.merchantId,
+              name: dto.name,
+              sku: dto.sku,
+              barcode: dto.barcode,
+            },
+          });
         },
-      });
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -118,13 +131,23 @@ export class ProductsService {
         'At least one product profile field is required',
       );
     }
-    await this.findOne(organizationId, productId);
     try {
-      return await this.prisma.product.update({
-        select: productSelect,
-        where: { id: productId, organizationId },
-        data: { name: dto.name, sku: dto.sku, barcode: dto.barcode },
-      });
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          await assertActiveOrganization(transaction, organizationId);
+          const product = await transaction.product.findUnique({
+            where: { id: productId, organizationId },
+            select: { id: true },
+          });
+          if (!product) throw new NotFoundException('Product not found');
+          return transaction.product.update({
+            select: productSelect,
+            where: { id: productId, organizationId },
+            data: { name: dto.name, sku: dto.sku, barcode: dto.barcode },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -135,13 +158,23 @@ export class ProductsService {
     productId: string,
     dto: UpdateProductStatusDto,
   ): Promise<ProductRecord> {
-    await this.findOne(organizationId, productId);
     try {
-      return await this.prisma.product.update({
-        select: productSelect,
-        where: { id: productId, organizationId },
-        data: { status: dto.status },
-      });
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          await assertActiveOrganization(transaction, organizationId);
+          const product = await transaction.product.findUnique({
+            where: { id: productId, organizationId },
+            select: { id: true },
+          });
+          if (!product) throw new NotFoundException('Product not found');
+          return transaction.product.update({
+            select: productSelect,
+            where: { id: productId, organizationId },
+            data: { status: dto.status },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -245,6 +278,7 @@ export class ProductsService {
           await authorize(tx);
           const existing = await replay(tx);
           if (existing) return existing;
+          await assertActiveOrganization(tx, organizationId);
           const merchant = await tx.merchant.findUnique({
             where: { id: command.merchantId, organizationId },
             select: { status: true },

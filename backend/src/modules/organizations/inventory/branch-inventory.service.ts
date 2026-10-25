@@ -44,6 +44,7 @@ import {
   type InventoryMovementRecordView,
   inventoryMovementRecordsSelect,
 } from './inventory.types';
+import { assertActiveOrganization } from '../organization-state';
 
 @Injectable()
 export class BranchInventoryService {
@@ -76,6 +77,7 @@ export class BranchInventoryService {
     try {
       const inventory = await this.prisma.$transaction(
         async (tx) => {
+          await assertActiveOrganization(tx, organizationId);
           await requireActiveParticipation(tx, organizationId, branchId, [
             product.merchantId,
           ]);
@@ -473,16 +475,22 @@ export class BranchInventoryService {
     inventoryId: string,
     dto: InventoryPriceDto,
   ): Promise<BranchInventoryRecord> {
-    await this.findOne(organizationId, branchId, inventoryId);
     try {
-      const inventory = await this.prisma.branchInventory.update({
-        where: { id: inventoryId, organizationId, branchId },
-        data: { sellingPrice: new Prisma.Decimal(dto.sellingPrice) },
-        include: {
-          product: { select: inventoryProductSelect },
-          merchantBranch: { select: { status: true } },
+      const inventory = await this.prisma.$transaction(
+        async (tx) => {
+          await assertActiveOrganization(tx, organizationId);
+          const updated = await tx.branchInventory.update({
+            where: { id: inventoryId, organizationId, branchId },
+            data: { sellingPrice: new Prisma.Decimal(dto.sellingPrice) },
+            include: {
+              product: { select: inventoryProductSelect },
+              merchantBranch: { select: { status: true } },
+            },
+          });
+          return updated;
         },
-      });
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
       return this.toRecord(inventory);
     } catch (error: unknown) {
       this.rethrowKnownError(error);
@@ -495,16 +503,22 @@ export class BranchInventoryService {
     inventoryId: string,
     dto: InventoryThresholdDto,
   ): Promise<BranchInventoryRecord> {
-    await this.findOne(organizationId, branchId, inventoryId);
     try {
-      const inventory = await this.prisma.branchInventory.update({
-        where: { id: inventoryId, organizationId, branchId },
-        data: { lowStockThreshold: dto.lowStockThreshold },
-        include: {
-          product: { select: inventoryProductSelect },
-          merchantBranch: { select: { status: true } },
+      const inventory = await this.prisma.$transaction(
+        async (tx) => {
+          await assertActiveOrganization(tx, organizationId);
+          const updated = await tx.branchInventory.update({
+            where: { id: inventoryId, organizationId, branchId },
+            data: { lowStockThreshold: dto.lowStockThreshold },
+            include: {
+              product: { select: inventoryProductSelect },
+              merchantBranch: { select: { status: true } },
+            },
+          });
+          return updated;
         },
-      });
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
       return this.toRecord(inventory);
     } catch (error: unknown) {
       this.rethrowKnownError(error);

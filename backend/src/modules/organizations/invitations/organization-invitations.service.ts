@@ -16,6 +16,7 @@ import type {
   OrganizationInvitationPreview,
   OrganizationInvitationView,
 } from './organization-invitations.types';
+import { assertActiveOrganization } from '../organization-state';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -51,6 +52,7 @@ export class OrganizationInvitationsService {
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
 
     const invitation = await this.prisma.$transaction(async (transaction) => {
+      await assertActiveOrganization(transaction, organizationId);
       if (
         dto.role !== OrganizationRole.MERCHANT &&
         dto.merchantId !== undefined
@@ -133,57 +135,37 @@ export class OrganizationInvitationsService {
     organizationId: string,
     invitationId: string,
   ): Promise<OrganizationInvitationView> {
-    const result = await this.prisma.organizationInvitation.updateMany({
-      where: {
-        id: invitationId,
-        organizationId,
-        acceptedAt: null,
-        revokedAt: null,
-      },
-      data: { revokedAt: new Date() },
-    });
-    if (result.count !== 1) {
-      throw new ConflictException('Invitation is no longer pending');
-    }
-    return this.prisma.organizationInvitation.findFirstOrThrow({
-      where: { id: invitationId, organizationId },
-      select: invitationSelect,
+    return this.prisma.$transaction(async (transaction) => {
+      await assertActiveOrganization(transaction, organizationId);
+      const result = await transaction.organizationInvitation.updateMany({
+        where: {
+          id: invitationId,
+          organizationId,
+          acceptedAt: null,
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date() },
+      });
+      if (result.count !== 1) {
+        throw new ConflictException('Invitation is no longer pending');
+      }
+      return transaction.organizationInvitation.findFirstOrThrow({
+        where: { id: invitationId, organizationId },
+        select: invitationSelect,
+      });
     });
   }
 
   async remove(organizationId: string, invitationId: string): Promise<void> {
     await this.prisma.$transaction(async (transaction) => {
+      await assertActiveOrganization(transaction, organizationId);
       const invitation = await transaction.organizationInvitation.findFirst({
         where: { id: invitationId, organizationId },
-        select: { acceptedAt: true, revokedAt: true, expiresAt: true },
+        select: { id: true },
       });
       if (!invitation) {
         throw new ConflictException('Invitation is no longer removable');
       }
-
-      const now = new Date();
-      const pending =
-        !invitation.acceptedAt &&
-        !invitation.revokedAt &&
-        invitation.expiresAt > now;
-
-      if (pending) {
-        const result = await transaction.organizationInvitation.updateMany({
-          where: {
-            id: invitationId,
-            organizationId,
-            acceptedAt: null,
-            revokedAt: null,
-            expiresAt: { gt: now },
-          },
-          data: { revokedAt: now },
-        });
-        if (result.count !== 1) {
-          throw new ConflictException('Invitation is no longer removable');
-        }
-        return;
-      }
-
       const result = await transaction.organizationInvitation.deleteMany({
         where: { id: invitationId, organizationId },
       });
@@ -207,6 +189,11 @@ export class OrganizationInvitationsService {
     token: string,
     user: AuthenticatedPrincipal,
   ): Promise<AcceptedOrganizationInvitation> {
+    if (user.emailVerified === false) {
+      throw new ForbiddenException(
+        'Verify your email before accepting an invitation',
+      );
+    }
     if (!TOKEN_PATTERN.test(token)) this.throwUnavailable();
     const tokenHash = this.hashToken(token);
 
@@ -222,7 +209,9 @@ export class OrganizationInvitationsService {
                 expiresAt: { gt: new Date() },
               },
               include: {
-                organization: { select: { id: true, name: true } },
+                organization: {
+                  select: { id: true, name: true, status: true },
+                },
                 branches: { select: { branchId: true } },
               },
             },
@@ -233,6 +222,11 @@ export class OrganizationInvitationsService {
               'Sign in with the email address that received this invitation',
             );
           }
+
+          await assertActiveOrganization(
+            transaction,
+            invitation.organizationId,
+          );
 
           if (
             invitation.role === OrganizationRole.MERCHANT &&

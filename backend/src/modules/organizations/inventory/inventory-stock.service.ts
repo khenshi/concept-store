@@ -20,6 +20,7 @@ import {
   inventoryMovementSelect,
   type InventoryMovementRecord,
 } from './inventory.types';
+import { assertActiveOrganization } from '../organization-state';
 
 interface StockCommand {
   organizationId: string;
@@ -114,6 +115,7 @@ export class InventoryStockService {
             },
           });
           if (original) return this.resolveReplay(original, command);
+          await assertActiveOrganization(tx, organizationId);
           if (command.type === InventoryMovementType.RECEIPT)
             await requireActiveParticipation(tx, organizationId, branchId, [
               inventory.merchantId,

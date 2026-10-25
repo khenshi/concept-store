@@ -217,8 +217,29 @@ describe('PostgreSQL refund persistence', () => {
     await admin.query(`CREATE SCHEMA "${schema}"`);
     await admin.query(`SET search_path TO "${schema}"`);
     const migrations = join(__dirname, '../prisma/migrations');
+    await admin.query(
+      readFileSync(
+        join(migrations, '20260911010000_foundation_baseline', 'migration.sql'),
+        'utf8',
+      ),
+    );
+    await admin.query(
+      readFileSync(
+        join(
+          migrations,
+          '20261025010000_add_controlled_access',
+          'migration.sql',
+        ),
+        'utf8',
+      ),
+    );
     for (const directory of readdirSync(migrations)
-      .filter((name) => /^\d/.test(name))
+      .filter(
+        (name) =>
+          /^\d/.test(name) &&
+          name !== '20260911010000_foundation_baseline' &&
+          name !== '20261025010000_add_controlled_access',
+      )
       .sort()) {
       if (directory === '20260914020000_add_refund_persistence') {
         legacy = await fixture(true);

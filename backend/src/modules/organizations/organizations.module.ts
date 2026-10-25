@@ -41,6 +41,7 @@ import {
   RefundReadController,
 } from './refunds/refund-read.controller';
 import { RefundReadService } from './refunds/refund-read.service';
+import { OrganizationLifecycleService } from './organization-lifecycle.service';
 
 @Module({
   imports: [AuthModule],
@@ -68,6 +69,7 @@ import { RefundReadService } from './refunds/refund-read.service';
     SpacesService,
     MerchantBranchesService,
     RefundReadService,
+    OrganizationLifecycleService,
     RefundsService,
     ReportsService,
     OrganizationsService,
@@ -85,6 +87,6 @@ import { RefundReadService } from './refunds/refund-read.service';
     CheckoutService,
     SalesReadService,
   ],
-  exports: [OrganizationAccessGuard],
+  exports: [OrganizationAccessGuard, OrganizationLifecycleService],
 })
 export class OrganizationsModule {}

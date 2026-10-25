@@ -22,8 +22,26 @@ beforeAll(async () => {
   await sql.query(`CREATE SCHEMA "${schema}"`);
   await sql.query(`SET search_path TO "${schema}"`);
   const root = join(process.cwd(), 'prisma/migrations');
+  await sql.query(
+    readFileSync(
+      join(root, '20260911010000_foundation_baseline', 'migration.sql'),
+      'utf8',
+    ),
+  );
+  await sql.query(
+    readFileSync(
+      join(root, '20261025010000_add_controlled_access', 'migration.sql'),
+      'utf8',
+    ),
+  );
   for (const name of readdirSync(root)
-    .filter((name) => /^\d/.test(name) && name < migration)
+    .filter(
+      (name) =>
+        /^\d/.test(name) &&
+        name < migration &&
+        name !== '20260911010000_foundation_baseline' &&
+        name !== '20261025010000_add_controlled_access',
+    )
     .sort())
     await sql.query(readFileSync(join(root, name, 'migration.sql'), 'utf8'));
 });

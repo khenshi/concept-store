@@ -77,7 +77,9 @@ describe('RefundsService', () => {
     );
     tx.organizationMembership.findUnique.mockResolvedValue({ role: 'OWNER' });
     tx.branch.findFirst.mockResolvedValue({ id: branch });
-    tx.$queryRaw.mockResolvedValue([{ id: sale }]);
+    tx.$queryRaw
+      .mockResolvedValueOnce([{ id: org, status: 'ACTIVE' }])
+      .mockResolvedValue([{ id: sale }]);
     tx.refund.findUnique.mockResolvedValue(null);
     tx.saleItem.findMany.mockResolvedValue([
       {

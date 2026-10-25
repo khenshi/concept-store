@@ -1,32 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrganizationRole } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
-import type { CreateOrganizationDto } from './dto/create-organization.dto';
 import type { OrganizationAccess } from './organizations.types';
+import { assertActiveOrganization } from './organization-state';
 
 @Injectable()
 export class OrganizationsService {
   constructor(private readonly prisma: PrismaService) {}
-
-  create(
-    userId: string,
-    dto: CreateOrganizationDto,
-  ): Promise<OrganizationAccess> {
-    return this.prisma.$transaction(async (transaction) => {
-      const organization = await transaction.organization.create({
-        data: { name: dto.name },
-      });
-      const membership = await transaction.organizationMembership.create({
-        data: {
-          organizationId: organization.id,
-          userId,
-          role: OrganizationRole.OWNER,
-        },
-      });
-
-      return { ...organization, role: membership.role };
-    });
-  }
 
   async findAllForUser(userId: string): Promise<OrganizationAccess[]> {
     const memberships = await this.prisma.organizationMembership.findMany({
@@ -57,5 +37,19 @@ export class OrganizationsService {
     }
 
     return { ...membership.organization, role: membership.role };
+  }
+
+  async rename(
+    organizationId: string,
+    name: string,
+  ): Promise<OrganizationAccess> {
+    const organization = await this.prisma.$transaction(async (transaction) => {
+      await assertActiveOrganization(transaction, organizationId);
+      return transaction.organization.update({
+        where: { id: organizationId },
+        data: { name },
+      });
+    });
+    return { ...organization, role: OrganizationRole.OWNER };
   }
 }

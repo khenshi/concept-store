@@ -9,6 +9,7 @@ import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { branchScope, merchantScope } from '../authorization/resource-access';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
+import { assertActiveOrganization } from '../organization-state';
 import type {
   AssignSpaceDto,
   CreateSpaceDto,
@@ -151,8 +152,10 @@ export class SpacesService {
     try {
       return await this.prisma.$transaction(
         async (tx) => {
-          if (write)
+          if (write) {
+            await assertActiveOrganization(tx, context.organizationId);
             await tx.$queryRaw`SELECT "userId" FROM "OrganizationMembership" WHERE "organizationId" = ${context.organizationId} AND "userId" = ${context.userId} FOR UPDATE`;
+          }
           return work(tx, await this.current(tx, context, write));
         },
         {

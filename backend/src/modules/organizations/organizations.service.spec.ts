@@ -11,12 +11,10 @@ describe('OrganizationsService', () => {
     createdAt: new Date('2026-08-23T00:00:00.000Z'),
     updatedAt: new Date('2026-08-23T00:00:00.000Z'),
   };
-  const transaction = {
-    organization: { create: jest.fn() },
-    organizationMembership: { create: jest.fn() },
-  };
   const prisma = {
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
+    organization: { update: jest.fn() },
     organizationMembership: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -27,9 +25,11 @@ describe('OrganizationsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation(
-      (callback: (client: typeof transaction) => unknown) =>
-        callback(transaction),
+      (operation: (client: typeof prisma) => unknown) => operation(prisma),
     );
+    prisma.$queryRaw.mockResolvedValue([
+      { id: organization.id, status: 'ACTIVE' },
+    ]);
     const moduleRef = await Test.createTestingModule({
       providers: [
         OrganizationsService,
@@ -37,26 +37,6 @@ describe('OrganizationsService', () => {
       ],
     }).compile();
     service = moduleRef.get(OrganizationsService);
-  });
-
-  it('creates the organization and owner membership atomically', async () => {
-    transaction.organization.create.mockResolvedValue(organization);
-    transaction.organizationMembership.create.mockResolvedValue({
-      organizationId: organization.id,
-      userId: 'user-id',
-      role: OrganizationRole.OWNER,
-    });
-
-    await expect(
-      service.create('user-id', { name: organization.name }),
-    ).resolves.toEqual({ ...organization, role: OrganizationRole.OWNER });
-    expect(transaction.organizationMembership.create).toHaveBeenCalledWith({
-      data: {
-        organizationId: organization.id,
-        userId: 'user-id',
-        role: OrganizationRole.OWNER,
-      },
-    });
   });
 
   it('lists only memberships for the authenticated user', async () => {

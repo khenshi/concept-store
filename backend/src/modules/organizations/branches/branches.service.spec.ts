@@ -47,14 +47,25 @@ describe('BranchesService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
-    $transaction: jest.fn((queries: Promise<unknown>[]) =>
-      Promise.all(queries),
-    ),
+    $queryRaw: jest.fn(),
+    $transaction: jest.fn(),
   };
   let service: BranchesService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.$transaction.mockImplementation((operationOrQueries: unknown) => {
+      if (typeof operationOrQueries === 'function') {
+        const operation = operationOrQueries as (
+          client: typeof prisma,
+        ) => unknown;
+        return operation(prisma);
+      }
+      return Promise.all(operationOrQueries as Promise<unknown>[]);
+    });
+    prisma.$queryRaw.mockResolvedValue([
+      { id: organizationId, status: 'ACTIVE' },
+    ]);
     const moduleRef = await Test.createTestingModule({
       providers: [
         BranchesService,

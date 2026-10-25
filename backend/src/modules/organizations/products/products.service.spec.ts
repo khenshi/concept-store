@@ -10,6 +10,8 @@ import { productSelect } from './products.types';
 
 describe('ProductsService', () => {
   const prisma = {
+    $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
     merchant: { findUnique: jest.fn() },
     product: {
       create: jest.fn(),
@@ -22,6 +24,10 @@ describe('ProductsService', () => {
   const service = new ProductsService(prisma as unknown as PrismaService);
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$transaction.mockImplementation(
+      (operation: (client: typeof prisma) => unknown) => operation(prisma),
+    );
+    prisma.$queryRaw.mockResolvedValue([{ id: 'org', status: 'ACTIVE' }]);
     prisma.merchant.findUnique.mockResolvedValue({ status: 'ACTIVE' });
     prisma.product.findUnique.mockResolvedValue({
       id: 'product',

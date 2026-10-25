@@ -14,6 +14,7 @@ import { branchScope } from '../authorization/resource-access';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import type { CheckoutDto } from './dto/checkout.dto';
 import { completedSaleResponse, completedSaleSelect } from './sales.types';
+import { assertActiveOrganization } from '../organization-state';
 
 const ExactDecimal = Prisma.Decimal.clone({ precision: 40 });
 const originalSelect = {
@@ -51,6 +52,7 @@ export class CheckoutService {
           );
           if (original)
             return this.replay(original, context, branchId, command);
+          await assertActiveOrganization(tx, context.organizationId);
           const lines = await tx.branchInventory.findMany({
             where: {
               organizationId: context.organizationId,

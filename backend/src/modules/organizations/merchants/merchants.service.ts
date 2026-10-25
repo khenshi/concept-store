@@ -19,6 +19,7 @@ import type { UpdateMerchantDto } from './dto/update-merchant.dto';
 import type { MerchantRecord } from './merchants.types';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { merchantScope } from '../authorization/resource-access';
+import { assertActiveOrganization } from '../organization-state';
 
 @Injectable()
 export class MerchantsService {
@@ -29,9 +30,15 @@ export class MerchantsService {
     dto: CreateMerchantDto,
   ): Promise<MerchantRecord> {
     try {
-      return await this.prisma.merchant.create({
-        data: { organizationId, ...dto },
-      });
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          await assertActiveOrganization(transaction, organizationId);
+          return transaction.merchant.create({
+            data: { organizationId, ...dto },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -124,12 +131,22 @@ export class MerchantsService {
         'At least one merchant profile field is required',
       );
     }
-    await this.findOne(organizationId, merchantId);
     try {
-      return await this.prisma.merchant.update({
-        where: { id: merchantId, organizationId },
-        data: dto,
-      });
+      return await this.prisma.$transaction(
+        async (transaction) => {
+          await assertActiveOrganization(transaction, organizationId);
+          const merchant = await transaction.merchant.findUnique({
+            where: { id: merchantId, organizationId },
+            select: { id: true },
+          });
+          if (!merchant) throw new NotFoundException('Merchant not found');
+          return transaction.merchant.update({
+            where: { id: merchantId, organizationId },
+            data: dto,
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
     } catch (error: unknown) {
       this.rethrowKnownError(error);
     }
@@ -144,6 +161,7 @@ export class MerchantsService {
     try {
       return await this.prisma.$transaction(
         async (tx) => {
+          await assertActiveOrganization(tx, organizationId);
           await tx.$queryRaw`SELECT "userId" FROM "OrganizationMembership" WHERE "organizationId" = ${organizationId} AND "userId" = ${actorId} FOR UPDATE`;
           const member = await tx.organizationMembership.findFirst({
             where: {

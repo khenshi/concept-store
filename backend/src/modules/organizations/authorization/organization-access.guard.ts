@@ -35,6 +35,12 @@ export class OrganizationAccessGuard implements CanActivate {
       throw new BadRequestException('Organization ID must be a valid UUID');
     }
 
+    if (request.user.emailVerified !== true) {
+      throw new ForbiddenException(
+        'Verify your email before accessing an organization workspace',
+      );
+    }
+
     const membership = await this.prisma.organizationMembership.findUnique({
       where: {
         organizationId_userId: {
@@ -42,7 +48,11 @@ export class OrganizationAccessGuard implements CanActivate {
           userId: request.user.id,
         },
       },
-      select: { role: true, merchantId: true },
+      select: {
+        role: true,
+        merchantId: true,
+        organization: { select: { status: true } },
+      },
     });
 
     if (!membership) {
@@ -60,11 +70,21 @@ export class OrganizationAccessGuard implements CanActivate {
       );
     }
 
+    if (
+      membership.organization.status === 'INACTIVE' &&
+      !['GET', 'HEAD', 'OPTIONS'].includes(request.method)
+    ) {
+      throw new ForbiddenException(
+        'This organization is inactive and currently read-only',
+      );
+    }
+
     request.organizationContext = {
       organizationId,
       userId: request.user.id,
       role: membership.role,
       merchantId: membership.merchantId ?? null,
+      status: membership.organization.status,
     };
     return true;
   }

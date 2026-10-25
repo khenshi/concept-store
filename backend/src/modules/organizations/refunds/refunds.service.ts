@@ -16,6 +16,7 @@ import {
   completedRefundResponse,
   completedRefundSelect,
 } from './refunds.types';
+import { assertActiveOrganization } from '../organization-state';
 const Exact = Prisma.Decimal.clone({ precision: 40 });
 const originalSelect = {
   ...completedRefundSelect,
@@ -69,6 +70,7 @@ export class RefundsService {
           );
           if (original)
             return this.replay(original, context, branchId, saleId, command);
+          await assertActiveOrganization(tx, context.organizationId);
           // Serialize refunds of one sale; SSI also rejects a waiter’s stale snapshot.
           const locked = await tx.$queryRaw<{ id: string }[]>(
             Prisma.sql`SELECT "id" FROM "Sale" WHERE "organizationId" = ${context.organizationId} AND "branchId" = ${branchId} AND "id" = ${saleId} FOR UPDATE`,

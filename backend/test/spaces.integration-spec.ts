@@ -61,6 +61,7 @@ const user = () => {
       firstName: 'Test',
       lastName: 'User',
       passwordHash: 'unused',
+      emailVerifiedAt: new Date(),
       sessions: {
         create: {
           id: sessionIdFor(id),

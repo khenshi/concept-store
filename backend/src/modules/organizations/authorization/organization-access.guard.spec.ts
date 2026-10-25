@@ -30,13 +30,21 @@ describe('OrganizationAccessGuard', () => {
     guard = moduleRef.get(OrganizationAccessGuard);
   });
 
-  function createContext(id = organizationId): {
+  function createContext(
+    id = organizationId,
+    method = 'GET',
+  ): {
     context: ExecutionContext;
     request: Record<string, unknown>;
   } {
     const request = {
       params: { organizationId: id },
-      user: { id: 'user-id', email: 'owner@example.com' },
+      method,
+      user: {
+        id: 'user-id',
+        email: 'owner@example.com',
+        emailVerified: true,
+      },
     };
     const context = {
       switchToHttp: () => ({ getRequest: () => request }),
@@ -50,6 +58,7 @@ describe('OrganizationAccessGuard', () => {
     const { context, request } = createContext();
     prisma.organizationMembership.findUnique.mockResolvedValue({
       role: OrganizationRole.OWNER,
+      organization: { status: 'ACTIVE' },
     });
     reflector.getAllAndOverride.mockReturnValue([OrganizationRole.OWNER]);
 
@@ -59,6 +68,7 @@ describe('OrganizationAccessGuard', () => {
       organizationId,
       userId: 'user-id',
       role: OrganizationRole.OWNER,
+      status: 'ACTIVE',
     });
   });
 
@@ -75,6 +85,7 @@ describe('OrganizationAccessGuard', () => {
     const { context } = createContext();
     prisma.organizationMembership.findUnique.mockResolvedValue({
       role: OrganizationRole.CASHIER,
+      organization: { status: 'ACTIVE' },
     });
     reflector.getAllAndOverride.mockReturnValue([
       OrganizationRole.OWNER,
@@ -86,6 +97,36 @@ describe('OrganizationAccessGuard', () => {
         'Your organization role cannot perform this action',
       ),
     );
+  });
+
+  it('allows verified members to read but blocks writes for inactive organizations', async () => {
+    const { context: readContext } = createContext(organizationId, 'GET');
+    prisma.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.OWNER,
+      organization: { status: 'INACTIVE' },
+    });
+    reflector.getAllAndOverride.mockReturnValue([OrganizationRole.OWNER]);
+
+    await expect(guard.canActivate(readContext)).resolves.toBe(true);
+
+    const { context: writeContext } = createContext(organizationId, 'POST');
+    await expect(guard.canActivate(writeContext)).rejects.toThrow(
+      new ForbiddenException(
+        'This organization is inactive and currently read-only',
+      ),
+    );
+  });
+
+  it('rejects unverified users before membership lookup', async () => {
+    const { context, request } = createContext();
+    (request.user as { emailVerified?: boolean }).emailVerified = false;
+
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      new ForbiddenException(
+        'Verify your email before accessing an organization workspace',
+      ),
+    );
+    expect(prisma.organizationMembership.findUnique).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid organization ID before querying', async () => {

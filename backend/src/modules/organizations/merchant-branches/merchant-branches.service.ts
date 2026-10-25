@@ -13,6 +13,7 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { branchScope, merchantScope } from '../authorization/resource-access';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import type { ListMerchantBranchesDto } from './dto/merchant-branch.dto';
+import { assertActiveOrganization } from '../organization-state';
 
 export const merchantBranchSelect = {
   id: true,
@@ -203,6 +204,7 @@ export class MerchantBranchesService {
     try {
       return await this.prisma.$transaction(
         async (tx) => {
+          await assertActiveOrganization(tx, context.organizationId);
           await tx.$queryRaw`SELECT "userId" FROM "OrganizationMembership" WHERE "organizationId" = ${context.organizationId} AND "userId" = ${context.userId} FOR UPDATE`;
           await this.current(tx, context, true);
           return work(tx);

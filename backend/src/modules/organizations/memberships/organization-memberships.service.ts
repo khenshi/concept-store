@@ -8,6 +8,7 @@ import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import type { OrganizationMember } from './organization-memberships.types';
+import { assertActiveOrganization } from '../organization-state';
 
 @Injectable()
 export class OrganizationMembershipsService {
@@ -45,6 +46,7 @@ export class OrganizationMembershipsService {
     grant: boolean,
   ): Promise<void> {
     return this.withOwnerInvariant(async (tx) => {
+      await assertActiveOrganization(tx, organizationId);
       const member = await this.findMembership(tx, organizationId, userId);
       if (member.role === OrganizationRole.MERCHANT)
         throw new ConflictException(
@@ -136,6 +138,7 @@ export class OrganizationMembershipsService {
     dto: UpdateOrganizationMemberRoleDto,
   ): Promise<OrganizationMember> {
     return this.withOwnerInvariant(async (transaction) => {
+      await assertActiveOrganization(transaction, organizationId);
       if (
         dto.role !== OrganizationRole.MERCHANT &&
         dto.merchantId !== undefined
@@ -191,6 +194,7 @@ export class OrganizationMembershipsService {
 
   remove(organizationId: string, userId: string): Promise<void> {
     return this.withOwnerInvariant(async (transaction) => {
+      await assertActiveOrganization(transaction, organizationId);
       const membership = await this.findMembership(
         transaction,
         organizationId,
