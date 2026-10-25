@@ -41,9 +41,8 @@ describe('new password byte policy', () => {
         firstName: 'Ari',
         lastName: 'Mendoza',
         email: 'owner@example.com',
-        password: 'a'.repeat(73),
       }).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 
@@ -102,7 +101,7 @@ describe('authentication form schemas', () => {
     ).toBe(true);
   });
 
-  it('rejects registration passwords shorter than twelve characters', () => {
+  it('keeps password creation in the verified account flow', () => {
     const result = registrationSchema.safeParse({
       firstName: 'Maria',
       lastName: 'Santos',
@@ -111,7 +110,8 @@ describe('authentication form schemas', () => {
       password: 'too-short',
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).not.toHaveProperty('password');
   });
 
   it('normalizes email validation errors for the form', () => {

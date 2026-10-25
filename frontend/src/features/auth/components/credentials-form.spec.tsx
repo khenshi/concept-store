@@ -54,7 +54,6 @@ it('normalizes registration fields and reports server rejection', async () => {
     ['First name', ' Mara '],
     ['Last name', ' Santos '],
     ['Email address', 'mara@example.com'],
-    ['Password', 'long-password-123'],
   ])
     fireEvent.change(screen.getByLabelText(label), { target: { value } });
   fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
@@ -66,7 +65,6 @@ it('normalizes registration fields and reports server rejection', async () => {
     lastName: 'Santos',
     phone: undefined,
     email: 'mara@example.com',
-    password: 'long-password-123',
   });
   expect(replace).not.toHaveBeenCalled();
 });

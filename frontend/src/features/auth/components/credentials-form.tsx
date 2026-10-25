@@ -100,18 +100,25 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
       if (mode === 'login') {
         const loginResult = loginSchema.parse(values);
         await login(loginResult);
+        const returnTo = new URLSearchParams(window.location.search).get(
+          'returnTo',
+        );
+        router.replace(
+          returnTo?.startsWith('/') && !returnTo.startsWith('//')
+            ? returnTo
+            : '/app',
+        );
       } else {
         const registrationResult = registrationSchema.parse(values);
         await register(registrationResult);
+        const returnTo = new URLSearchParams(window.location.search).get(
+          'returnTo',
+        );
+        const params = new URLSearchParams({ email: registrationResult.email });
+        if (returnTo?.startsWith('/') && !returnTo.startsWith('//'))
+          params.set('returnTo', returnTo);
+        router.replace(`/verify-email?${params.toString()}`);
       }
-      const returnTo = new URLSearchParams(window.location.search).get(
-        'returnTo',
-      );
-      router.replace(
-        returnTo?.startsWith('/') && !returnTo.startsWith('//')
-          ? returnTo
-          : '/app',
-      );
     } catch (cause: unknown) {
       setSubmissionError(
         cause instanceof ApiError
@@ -130,7 +137,7 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
       description={
         mode === 'login'
           ? 'Continue to your organizations and the people behind them.'
-          : 'Start with your account. Create an organization or accept a team invitation after signing in.'
+          : 'Start with your account. The platform operator will provision your organization or invite you to a team.'
       }
     >
       <form className="grid min-w-0 gap-5" onSubmit={handleSubmit} noValidate>
@@ -181,20 +188,17 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
           required
           error={fieldErrors.email}
         />
-        <TextField
-          id="password"
-          name="password"
-          label="Password"
-          type="password"
-          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          hint={
-            mode === 'register'
-              ? 'Use at least 12 characters and no more than 72 UTF-8 bytes. Some characters use more than one byte.'
-              : undefined
-          }
-          required
-          error={fieldErrors.password}
-        />
+        {mode === 'login' ? (
+          <TextField
+            id="password"
+            name="password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            required
+            error={fieldErrors.password}
+          />
+        ) : null}
         <Button
           variant="accent"
           type="submit"
@@ -204,6 +208,16 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
           {copy.submit}
         </Button>
       </form>
+      {mode === 'login' ? (
+        <p className="mt-4 text-center text-sm text-muted">
+          <Link
+            className="font-medium text-ink underline underline-offset-4"
+            href="/forgot-password"
+          >
+            Forgot your password?
+          </Link>
+        </p>
+      ) : null}
       <p className="mt-6 text-center text-sm text-muted">
         {copy.alternate}{' '}
         <Link

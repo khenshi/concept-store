@@ -1,28 +1,14 @@
 'use client';
 
-import { FormDialog } from '@/shared/components/ui/form-dialog';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
-import { Button } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { Icon } from '@/shared/components/ui/icon';
-import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { RequestError } from '@/shared/components/ui/request-error';
-import {
-  TextField,
-  focusFirstInvalidField,
-} from '@/shared/components/ui/text-field';
-import { createOrganization, listOrganizations } from '../api/organization-api';
-import { createOrganizationSchema } from '../model/organization.schemas';
+import { TextField } from '@/shared/components/ui/text-field';
+import { listOrganizations } from '../api/organization-api';
 import type { OrganizationAccess } from '../model/organization.types';
 
 const roleLabels = {
@@ -70,19 +56,11 @@ function OrganizationGridSkeleton() {
 }
 
 export function OrganizationEntry() {
-  const router = useRouter();
   const { request } = useAuth();
   const [organizations, setOrganizations] = useState<OrganizationAccess[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const [submissionError, setSubmissionError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [nameDraft, setNameDraft] = useState('');
-  const nameRef = useRef<HTMLInputElement>(null);
-  const createTriggerRef = useRef<HTMLButtonElement>(null);
   const filteredOrganizations = organizations.filter((organization) =>
     organization.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
@@ -116,45 +94,6 @@ export function OrganizationEntry() {
     };
   }, [request]);
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isSubmitting) return;
-    const form = event.currentTarget;
-    setNameError(null);
-    setSubmissionError(null);
-    const result = createOrganizationSchema.safeParse({
-      name: new FormData(form).get('name'),
-    });
-    if (!result.success) {
-      setNameError(result.error.flatten().fieldErrors.name?.[0] ?? null);
-      focusFirstInvalidField(form);
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const organization = await createOrganization(request, result.data.name);
-      setIsCreateOpen(false);
-      router.push(`/app/organizations/${organization.id}`);
-    } catch (cause: unknown) {
-      setSubmissionError(errorMessage(cause));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  function openCreateDialog() {
-    setNameError(null);
-    setSubmissionError(null);
-    setIsCreateOpen(true);
-  }
-
-  function closeCreateDialog() {
-    if (isSubmitting) return;
-    setIsCreateOpen(false);
-    setNameError(null);
-    setSubmissionError(null);
-  }
-
   return (
     <section
       className="min-h-[calc(100dvh-4.25rem)] bg-surface"
@@ -170,18 +109,10 @@ export function OrganizationEntry() {
               Your organizations
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-muted">
-              Switch between the teams and workspaces you belong to, or create a
-              new place for your next project.
+              Switch between the teams and workspaces you belong to. New
+              organizations are provisioned by the platform operator.
             </p>
           </div>
-          <Button
-            ref={createTriggerRef}
-            variant="accent"
-            onClick={openCreateDialog}
-            className="max-sm:w-full"
-          >
-            Create organization
-          </Button>
         </header>
 
         <div className="mt-10 flex items-center justify-between gap-5 max-sm:items-stretch max-sm:flex-col">
@@ -219,13 +150,8 @@ export function OrganizationEntry() {
           ) : organizations.length === 0 ? (
             <EmptyState
               className="my-6"
-              title="Your first workspace starts here"
-              description="You do not belong to an organization yet. Create your first one to continue."
-              action={
-                <Button variant="secondary" onClick={openCreateDialog}>
-                  Create your first organization
-                </Button>
-              }
+              title="No organizations yet"
+              description="You do not belong to an organization yet. Ask the platform operator to provision your workspace or invite you to an existing one."
             />
           ) : filteredOrganizations.length === 0 ? (
             <EmptyState
@@ -267,66 +193,6 @@ export function OrganizationEntry() {
           )}
         </div>
       </div>
-      {isCreateOpen ? (
-        <FormDialog
-          title="Create an organization"
-          description="Give your concept-store business a name. You will become its first owner."
-          eyebrow="New workspace"
-          size="medium"
-          initialFocusRef={nameRef}
-          returnFocusRef={createTriggerRef}
-          pending={isSubmitting}
-          dismissOnBackdrop={false}
-          onClose={closeCreateDialog}
-        >
-          <form
-            aria-label="Create organization"
-            className="mt-6 grid gap-5"
-            onSubmit={handleCreate}
-            noValidate
-          >
-            <TextField
-              ref={nameRef}
-              id="organization-name"
-              name="name"
-              value={nameDraft}
-              onChange={(event) => setNameDraft(event.target.value)}
-              label="Organization name"
-              placeholder="e.g. Kapwesto Greenbelt"
-              type="text"
-              autoComplete="organization"
-              maxLength={120}
-              error={nameError}
-            />
-            <ModalActionRow
-              className="mt-1"
-              feedback={
-                submissionError ? (
-                  <p role="alert" className="text-sm text-danger">
-                    {submissionError}
-                  </p>
-                ) : null
-              }
-            >
-              <Button
-                variant="quiet"
-                onClick={closeCreateDialog}
-                disabled={isSubmitting}
-                aria-label="Close create organization dialog"
-              >
-                Close
-              </Button>
-              <Button
-                type="submit"
-                pending={isSubmitting}
-                pendingLabel="Creating organization…"
-              >
-                Create organization
-              </Button>
-            </ModalActionRow>
-          </form>
-        </FormDialog>
-      ) : null}
     </section>
   );
 }

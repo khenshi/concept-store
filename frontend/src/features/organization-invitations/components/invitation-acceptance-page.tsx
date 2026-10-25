@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { GuestShell } from '@/shared/components/ui/guest-shell';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -37,7 +37,6 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const acceptanceStarted = useRef(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -69,8 +68,7 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
   }, [request, token]);
 
   const accept = useCallback(async () => {
-    if (acceptanceStarted.current) return;
-    acceptanceStarted.current = true;
+    if (isAccepting) return;
     setActionError(null);
     setIsAccepting(true);
     try {
@@ -78,22 +76,10 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
       router.push(`/app/organizations/${accepted.organizationId}`);
     } catch (cause: unknown) {
       setActionError(errorMessage(cause));
-      acceptanceStarted.current = false;
     } finally {
       setIsAccepting(false);
     }
-  }, [request, router, token]);
-
-  useEffect(() => {
-    if (
-      invitation &&
-      status === 'authenticated' &&
-      user?.email === invitation.email
-    ) {
-      const timeoutId = window.setTimeout(() => void accept(), 0);
-      return () => window.clearTimeout(timeoutId);
-    }
-  }, [accept, invitation, status, user?.email]);
+  }, [isAccepting, request, router, token]);
 
   const returnTo = `/invitations/${encodeURIComponent(token)}`;
 
@@ -203,27 +189,15 @@ export function InvitationAcceptancePage({ token }: { token: string }) {
             </div>
           ) : (
             <div className="mt-6">
-              <p className="text-sm font-semibold text-ink" role="status">
-                {isAccepting
-                  ? 'Adding you to the organization…'
-                  : actionError
-                    ? 'Automatic acceptance did not complete.'
-                    : 'Preparing your organization access…'}
-              </p>
-              {actionError ? (
-                <button
-                  className={buttonStyles({
-                    variant: 'accent',
-                    className: 'mt-3',
-                  })}
-                  type="button"
-                  disabled={isAccepting}
-                  aria-busy={isAccepting}
-                  onClick={() => void accept()}
-                >
-                  Try again
-                </button>
-              ) : null}
+              <button
+                className={buttonStyles({ variant: 'accent' })}
+                type="button"
+                disabled={isAccepting}
+                aria-busy={isAccepting}
+                onClick={() => void accept()}
+              >
+                {isAccepting ? 'Accepting invitation…' : 'Accept invitation'}
+              </button>
             </div>
           )}
         </>

@@ -25,6 +25,7 @@ export interface AuthenticatedUser {
   lastName: string;
   phone: string | null;
   colorTheme: ColorTheme;
+  emailVerified?: boolean;
 }
 
 export interface AuthResponse {
@@ -37,10 +38,15 @@ export interface Credentials {
   password: string;
 }
 
-export interface RegistrationCredentials extends Credentials {
+export interface RegistrationCredentials {
   firstName: string;
   lastName: string;
   phone?: string;
+  email: string;
+}
+
+export interface AccountActionAcknowledgement {
+  status: 'accepted';
 }
 
 export interface UpdateProfileInput {

@@ -65,7 +65,6 @@ export const registrationSchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   email,
-  password: newPasswordSchema,
 });
 
 export type AuthFormValues = z.infer<typeof loginSchema>;

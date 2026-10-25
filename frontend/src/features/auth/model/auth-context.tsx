@@ -28,6 +28,10 @@ interface AuthContextValue {
   error: string | null;
   login(credentials: Credentials): Promise<void>;
   register(credentials: RegistrationCredentials): Promise<void>;
+  requestEmailVerification(email: string): Promise<void>;
+  confirmEmail(token: string, password?: string): Promise<void>;
+  requestPasswordReset(email: string): Promise<void>;
+  confirmPasswordReset(token: string, newPassword: string): Promise<void>;
   updateProfile(input: UpdateProfileInput): Promise<AuthenticatedUser>;
   colorTheme: ColorTheme;
   updateColorTheme(colorTheme: ColorTheme): Promise<void>;
@@ -75,6 +79,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (credentials: RegistrationCredentials) => {
     await authClient.register(credentials);
   }, []);
+
+  const requestEmailVerification = useCallback(async (email: string) => {
+    await authClient.requestEmailVerification(email);
+  }, []);
+
+  const confirmEmail = useCallback(
+    (token: string, password?: string) => authClient.confirmEmail(token, password),
+    [],
+  );
+
+  const requestPasswordReset = useCallback(async (email: string) => {
+    await authClient.requestPasswordReset(email);
+  }, []);
+
+  const confirmPasswordReset = useCallback(
+    (token: string, newPassword: string) =>
+      authClient.confirmPasswordReset(token, newPassword),
+    [],
+  );
 
   const updateProfile = useCallback(async (input: UpdateProfileInput) => {
     const updatedUser = await authClient.updateProfile(input);
@@ -126,6 +149,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       login,
       register,
+      requestEmailVerification,
+      confirmEmail,
+      requestPasswordReset,
+      confirmPasswordReset,
       updateProfile,
       colorTheme: previewColorTheme ?? user?.colorTheme ?? 'GRAPHITE',
       updateColorTheme,
@@ -142,6 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error,
       login,
       register,
+      requestEmailVerification,
+      confirmEmail,
+      requestPasswordReset,
+      confirmPasswordReset,
       updateProfile,
       previewColorTheme,
       updateColorTheme,

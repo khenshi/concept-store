@@ -7,6 +7,7 @@ import {
 } from '../model/auth.schemas';
 import type {
   AuthResponse,
+  AccountActionAcknowledgement,
   ColorTheme,
   ChangePasswordInput,
   DeleteAccountInput,
@@ -90,8 +91,34 @@ export class AuthClient {
     return () => this.listeners.delete(listener);
   }
 
-  register(credentials: RegistrationCredentials): Promise<AuthResponse> {
-    return this.authenticate('/auth/register', credentials);
+  register(
+    credentials: RegistrationCredentials,
+  ): Promise<AccountActionAcknowledgement> {
+    return this.publicPost('/auth/register', credentials);
+  }
+
+  requestEmailVerification(
+    email: string,
+  ): Promise<AccountActionAcknowledgement> {
+    return this.publicPost('/auth/verification/request', { email });
+  }
+
+  confirmEmail(token: string, password?: string): Promise<void> {
+    return this.publicPost('/auth/verification/confirm', {
+      token,
+      ...(password ? { password } : {}),
+    });
+  }
+
+  requestPasswordReset(email: string): Promise<AccountActionAcknowledgement> {
+    return this.publicPost('/auth/password-reset/request', { email });
+  }
+
+  confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+    return this.publicPost('/auth/password-reset/confirm', {
+      token,
+      newPassword,
+    });
   }
 
   login(credentials: Credentials): Promise<AuthResponse> {
@@ -201,6 +228,19 @@ export class AuthClient {
     const session = (await response.json()) as AuthResponse;
     this.setSession(session);
     return session;
+  }
+
+  private async publicPost<T>(path: string, body: unknown): Promise<T> {
+    const response = await fetch(`${this.apiUrl}${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) throw await this.createApiError(response);
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
   }
 
   private refresh(): Promise<AuthResponse | null> {

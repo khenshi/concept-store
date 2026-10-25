@@ -63,7 +63,7 @@ it('does not accept for a mismatched account and offers sign-out', async () => {
   expect(acceptOrganizationInvitation).not.toHaveBeenCalled();
 });
 
-it('automatically accepts once for the matching account', async () => {
+it('accepts only after an explicit action for the matching account', async () => {
   vi.mocked(useAuth).mockReturnValue({
     request,
     logout,
@@ -76,6 +76,9 @@ it('automatically accepts once for the matching account', async () => {
     role: 'CASHIER',
   });
   render(<InvitationAcceptancePage token="token" />);
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Accept invitation' }),
+  );
   await waitFor(() =>
     expect(push).toHaveBeenCalledWith('/app/organizations/org'),
   );
