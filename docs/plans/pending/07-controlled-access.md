@@ -2,8 +2,17 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No code, mail delivery, provider purchase,
-operator command, database change or activation is authorized by this document.
+Status: Approved for staged implementation October 25, 2026. The active scope is
+summarized in `docs/plans/current.md`; this file remains the detailed design and
+test contract. Provider purchase, real mail delivery, production activation and
+business-data changes remain separately gated.
+
+Implementation checkpoint October 25, 2026: local schema/auth/operator/access,
+transaction-level inactive mutation rechecks and invitation slices are
+implemented, and the disposable PostgreSQL integration suite passes. Provider
+delivery, staging operator proof, rollout of existing users and hosted
+verification remain open; do not archive this plan until those gates are
+evidenced.
 
 Priority: Required before the first pilot organizations start, including email
 verification and forgot-password recovery. Manual support alone is insufficient.

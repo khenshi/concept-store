@@ -122,9 +122,10 @@ all records must roll back. Explicit retries model recovery, never automatic API
 disposable PostgreSQL test database. It never falls back to application
 `DATABASE_URL`, loads application environment files, resets a database, or runs
 the demo seed. Use a test-only database/user, never production credentials.
-The destructive demo seed separately requires `DEMO_DATABASE_URL`, loopback
-target verification, exact database-name confirmation and the explicit reset
-confirmation; it is not part of integration-test setup.
+The destructive demo seed separately requires `DEMO_DATABASE_URL`, exact
+database-name confirmation and the explicit reset confirmation. Remote
+development resets additionally require an exact host match and a separate
+remote-reset confirmation; it is not part of integration-test setup.
 The read-only migration preflight separately requires
 `MIGRATION_PREFLIGHT_DATABASE_URL`, an exact database-name confirmation and an
 explicit confirmation value. It reports migration history only; it does not

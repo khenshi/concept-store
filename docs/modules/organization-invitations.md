@@ -1,16 +1,15 @@
 # Organization Invitations
 
-**Status:** Implemented
+**Status:** Implemented locally; provider delivery gate remains pending
 
 ## Responsibilities
 
 - Create and list organization invitations.
 - Preview an invitation through its token.
-- Accept an invitation into the authenticated user's matching account.
+- Accept an invitation into the authenticated user's matching account through
+  an explicit action.
 - Revoke a pending invitation.
-- Remove any invitation: active invitations are revoked, while expired,
-  accepted, and previously revoked invitations are permanently deleted with
-  their access grants.
+- Permanently remove any invitation and its access grants.
 
 ## API
 
@@ -34,9 +33,8 @@ POST  /organization-invitations/:token/accept
 - Invitation tokens are random and stored only as hashes.
 - Invitations expire and are single use.
 - Revoked, expired, or accepted invitations cannot be accepted again.
-- Removing an active invitation marks it revoked, invalidating its link.
-- Expired, accepted, and revoked invitations can be permanently deleted; their
-  branch access grants are deleted with them.
+- Removing an active, expired, accepted, or revoked invitation deletes it and
+  its branch access grants; its link is unavailable and cannot resurrect access.
 - An email already belonging to the organization cannot be invited again.
 - Acceptance creates the membership and marks the invitation accepted in one
   transaction.
@@ -71,8 +69,10 @@ return 409 with retry guidance. Legacy unlinked MERCHANT invitations return 409
 with owner revoke/reinvite guidance before claiming the invitation.
 
 Grants are immutable after creation; revoke/reinvite to change them. The demo
-invitation's BGC grant is now applied on acceptance. No email delivery integration
-or branch-resource authorization change is included in this part.
+invitation's BGC grant is now applied on acceptance. Automatic email delivery is
+owned by the Plan 07 mail boundary. The current repository keeps Copy link and
+explicit acceptance, but provider/sender setup and real-mail verification remain
+a release gate; no raw token is logged or persisted for delivery retries.
 
 ### Verification
 
@@ -117,7 +117,8 @@ and supports clipboard copying with a manual-copy fallback.
 The token acceptance page shares the neutral guest shell with login and
 registration. It retains invitation preview/retry, explicit recipient and expiry,
 registration and login links with the invitation return path, mismatch/sign-out
-feedback, and automatic acceptance for the matching authenticated account.
+feedback, and an explicit Accept invitation action for the matching authenticated
+account.
 Acceptance remains guarded against duplicate requests and redirects to the
 accepted organization; token and authorization behavior are unchanged.
 Mismatch sign-out announces pending state, prevents repeat activation, and shows

@@ -1,7 +1,7 @@
 # Development Database Seeding
 
 The foundation seed is destructive and is intended only for disposable local or
-test databases. It truncates application tables, then creates one organization,
+explicitly confirmed development databases. It truncates application tables, then creates one organization,
 two branches, OWNER/MANAGER/CASHIER/MERCHANT members, and one pending invitation.
 It also creates five merchants (including lifecycle examples and Luntian Studio),
 four products including an inactive product, and five branch placements. The vase
@@ -45,17 +45,21 @@ SEED_DEMO_CONFIRM=I_UNDERSTAND_DISPOSABLE_DEMO_RESET \
 npm run prisma:reset:demo
 ```
 
-All demo members use `DemoPassword123!`. The command prints the pending
-invitation token after seeding. The seed requires an explicit loopback
+All demo members use `DemoPassword123!` and seeded accounts are verified so the
+development workspace can be tested without a mail provider. The command prints
+the pending invitation token after seeding. The seed requires an explicit
 `DEMO_DATABASE_URL`, exact database-name confirmation, the reset flag and the
-confirmation value above. It refuses ambient `DATABASE_URL`/
-`DIRECT_DATABASE_URL`, non-loopback targets, production execution, missing
-Prisma migration history, failed migrations and stale migration history.
+confirmation value above. Loopback targets are accepted with the local
+confirmation alone. A remote development target additionally requires
+`SEED_DEMO_ALLOW_REMOTE_RESET=I_UNDERSTAND_REMOTE_DEMO_RESET` and an exact
+`SEED_DEMO_REMOTE_HOST` match. It refuses production execution, missing Prisma
+migration history, failed migrations and stale migration history.
 
 The command is destructive: it truncates only the verified public schema of the
-selected disposable database. Do not run it against a shared, pilot or
-production database. The command does not create databases, verify a hosting
-provider, or substitute for a backup/restore drill.
+selected target. Remote reset is permitted only for an explicitly designated
+development database and must never be used for a shared, pilot or production
+database. The command does not create databases, verify a hosting provider, or
+substitute for a backup/restore drill.
 
 The repository now contains a rewritten foundation-only migration baseline.
 Never deploy it over a shared or production database created from the former

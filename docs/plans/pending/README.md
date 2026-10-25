@@ -4,9 +4,10 @@ Date: October 22, 2026
 
 Queue updated: October 25, 2026
 
-Status: Plans 01–02 completed and archived October 25. Plan 03 is approved for
-staged implementation in the [current plan](../current.md); independent security
-work is being verified, with joint Plan 05/07 gates still pending. Plans 04–06
+Status: Plans 01–02 completed and archived October 25. Plan 03 has a committed
+local implementation record with remaining release gates deferred to the owning
+plans. Plan 07 is now the approved active implementation scope in the [current
+plan](../current.md). Plans 04–06
 contain committed local implementation slices from the background agent, but their
 provider, hosted, branch-protection and release gates remain open. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
@@ -28,11 +29,11 @@ Existing specifications remain the source of truth until their review turn.
 | --- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | 01  | [Regression baseline and test-contract recovery](../archive/01-regression-baseline-2026-10-25.md) | P0                                       | Completed October 25; local gates and 72 affected PostgreSQL tests passed                                      |
 | 02  | [Production startup, logging and readiness](../archive/02-production-runtime-2026-10-25.md)       | P0                                       | Completed October 25; local/deep review/disposable-process gates passed                                        |
-| 03  | [Authentication and request-boundary hardening](../current.md)                              | P0                                       | Approved staged implementation October 25; local implementation/verification in progress; joint 05/07 gates open |
+| 03  | [Authentication and request-boundary hardening](../archive/03-authentication-and-request-boundary-2026-10-25.md) | P0 | Local implementation committed; hosted/browser and dependent acceptance gates remain with Plans 05, 07, 11, 14 and 18 |
 | 04  | [Database migration, isolation and recovery safety](04-database-safety.md)                        | P0                                       | Approved for staged implementation October 25; migration and synthetic restore evidence recorded; provider/RPO/RTO proof pending |
 | 05  | [Hosting selection and secure session topology](05-hosting-session-topology.md)                   | P0                                       | Approved staged implementation October 25; provider/budget/deployed qualification remain open                 |
 | 06  | [CI and repeatable release pipeline](06-ci-release-pipeline.md)                                   | P0                                       | Approved staged implementation October 25; workflow and integration gates green; branch enforcement remains open |
-| 07  | [Controlled enrollment, activation and account recovery](07-controlled-access.md)                 | Required before pilot                    | Drafted October 24; operator/read-only/verification policies confirmed; implementation not approved            |
+| 07  | [Controlled enrollment, activation and account recovery](../current.md)                            | Required before pilot                    | Approved October 25; implementation in progress; detailed design remains in [07-controlled-access.md](07-controlled-access.md) |
 | 08  | [Payment Account Management and Reporting — finance-reconciliation.md](finance-reconciliation.md) | Required before pilot                    | Source-reviewed/updated October 24; policy clarifications open; implementation not approved                    |
 | 09  | [Reports All Branches — 09-reports-all-branches.md](09-reports-all-branches.md)                   | Required before pilot                    | Source-reviewed/updated October 24; technical contracts/proof pending; implementation not approved             |
 | 10  | [Monitoring, transaction recovery and outage operations](10-operational-reliability.md)           | P0                                       | Drafted October 24; coverage/channel/drill gates open; implementation not approved                             |
@@ -509,10 +510,9 @@ Remaining shared gates:
 - Plan 02 drafted after runtime source/artifact inspection and 13 passing focused
   config/controller tests. Startup/logging/readiness fixes remain unimplemented;
   real process/DB/deployment proof is still required by the plan.
-- Plan 03 is in staged implementation after auth/session/request-boundary source
-  review. New-password byte limits, session-bound JWTs, own-session controls,
-  request-boundary redaction and auth dependency handling are locally implemented
-  and verified. Plan 05/07/browser/deployed gates remain.
+- Plan 03 local implementation is recorded and archived as an active-plan scope;
+  its hosted/browser and dependent acceptance gates remain with Plans 05, 07, 11,
+  14 and 18.
 - Plan 04 has committed local migration/seed safeguards and disposable migration/
   synthetic-restore evidence. Provider backup coverage, RPO/RTO measurement,
   least privilege, upgrade/drift/failure rehearsal and production qualification
@@ -527,11 +527,11 @@ Remaining shared gates:
   qualification remain open.
 - See the [background-agent audit](../validation/background-agent-audit-2026-10-25.md)
   for the complete implementation-versus-gates matrix.
-- Plan 07 drafted after auth/organization/invitation/schema/frontend source review.
-  User confirmed protected operator commands, inactive-organization read-only history
-  and verification required for workspace access. Mail provider, signup credential
-  binding/cutover, operator identity and any refund/correction exception remain
-  implementation gates. No application tests, database or mail delivery ran.
+- Plan 07 is approved and active after auth/organization/invitation/schema/frontend
+  source review. User-confirmed protected operator commands, inactive-organization
+  read-only history and verification requirements are now implementation scope.
+  Mail provider, signup credential binding/cutover, operator identity and any
+  refund/correction exception remain gated decisions; implementation is beginning.
 - Plan 08 source-reviewed/updated October 24 in the existing Payment Accounts file.
   Reconfirmed original-sale-method versus actual-refund-account attribution, fixed
   schemas and canonical checkout replay. Added 07/09/16/18 contracts, scope/privacy,
@@ -603,8 +603,8 @@ Remaining shared gates:
   verified disposable target (benchmark enabled). Plan 01 completed/archived;
   Plan 01 committed as 297665e. User then approved Plan 02; it is completed and
   archived after 564 unit/267 HTTP tests, two built-process checks and deep review.
-  No production DB/deployment. Current.md remains the active staged Plan 03 scope;
-  no approval for Plans 04 and 05–20 is implied.
+  No production DB/deployment. Plan 03 is preserved as an archive record and
+  Plan 07 is now the active staged scope; no approval for Plans 08–20 is implied.
 - Next after current scope: final batch coverage/dependency/open-decision review
   and explicit approval of any next implementation. Drafting alone repairs nothing.
 - Batch completion: 01–14 and 16–20 drafted/reviewed, 15 explicitly classified as optional,

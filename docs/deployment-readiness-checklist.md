@@ -1,6 +1,6 @@
 # Deployment readiness checklist
 
-Assessment date: October 22, 2026
+Assessment date: October 25, 2026
 
 Status: **Not ready for a live paid launch.** A controlled pilot still needs the
 critical security/startup fixes, required features and operational gates below.
@@ -8,7 +8,7 @@ This is an audit/checklist, not approval to implement new modules or deploy/rese
 databases. Continue using approved current plans for implementation.
 
 Planning sequence: [pending plans and implementation order](plans/pending/README.md).
-Plan 03 is the active staged implementation plan. Plans 04–06 also contain
+Plan 07 is the active staged implementation plan. Plans 03–06 also contain
 committed local implementation slices, documented in the [background-agent
 audit](validation/background-agent-audit-2026-10-25.md), but their hosted,
 provider and release gates are not certified here. Other feature plans remain
@@ -36,8 +36,8 @@ does not establish deployed security, database recovery or rendered correctness.
 | Area                                                         | Repository status                                                                     | Remaining deployment work                                                                                                       |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Authentication/account settings                              | Registration/login, rotating sessions, profile/password/account deletion and Plan 03 session-bound controls implemented | Account recovery/onboarding policy; deployed cookies, proxy identity, rate limits and browser proof |
-| Organizations/branches                                       | Tenant memberships and branch-scoped workflows implemented                            | Controlled pilot enrollment and future manual paid activation/suspension are not an implemented subscription entitlement system |
-| Members/invitations                                          | Owner management, branch/merchant access and invitation links implemented             | Real onboarding delivery, revocation and role-change smoke tests; email sending is not present                                  |
+| Organizations/branches                                       | Tenant memberships, controlled operator provisioning/activation and branch-scoped workflows implemented | Hosted operator access, pilot enrollment procedure and future manual paid activation/suspension are not an entitlement system |
+| Members/invitations                                          | Owner management, branch/merchant access, explicit acceptance and permanent invitation removal implemented | Real onboarding delivery and role-change smoke tests; provider-backed email sending is not present                         |
 | Merchants/branch participation                               | Profiles and affiliations implemented                                                 | Representative real data, access verification; no settlement/payout requirement                                                 |
 | Products/inventory                                           | Placements, prices, stock, immutable movements and stock-integrity checks implemented | Full regression, input/empty/loading QA and measured directory scale                                                            |
 | POS/Sales                                                    | Atomic completed sale, cash/manual GCash/card, receipts and replay implemented        | Required account configuration feature, printer QA and uncertain-outcome runbook                                                |
@@ -199,15 +199,12 @@ database was queried, migrated, reset or seeded by the audit.
 - [ ] **Reports All Branches:** implement the [pending plan](plans/pending/09-reports-all-branches.md) after promotion/approval, preserving
       Owner/Manager/Merchant scope, global counts/rankings/pagination, safe source branch
       links and All Time periods. No shared branch-preference sentinel in POS/Inventory.
-- [ ] **Controlled enrollment/manual activation:** define the smallest server-side
-      control for pilot participants and later manual subscriptions. User confirmed
-      October 23 that only the platform operator may provision organizations;
-      ordinary users and organization Owners must not bypass this through direct
-      APIs. Define secure operator authorization and initial Owner assignment in
-      Plan 07, without assuming a full platform-admin module. Current registration
-      is not this control. Suspension/reinstatement must preserve history. Approve
-      a narrow plan before implementation.
-- [ ] Add Owner-only organization renaming to Plan 07, with backend tenant/role
+- [x] **Controlled enrollment/manual activation:** the protected operator command
+      provisions inactive organizations and separately activates/deactivates them.
+      Ordinary users and organization Owners cannot bypass this through direct
+      APIs. Hosted operator identity, host restrictions and staging proof remain
+      deployment gates; future manual paid activation is not an entitlement system.
+- [x] Add Owner-only organization renaming to Plan 07, with backend tenant/role
       enforcement, existing name validation and workspace refresh. Keep existing
       organization chooser cards and report-period persistence; correct outdated
       module wording rather than changing those retained behaviors.
@@ -216,11 +213,12 @@ database was queried, migrated, reset or seeded by the audit.
       remains readable. Define allowed refunds/corrections/closure actions, roles,
       reactivation and in-flight retry semantics before implementation. Current
       behavior is label-only; release priority remains to be confirmed.
-- [ ] Implement forgot-password recovery and email verification before the first
-      pilot organizations start, as confirmed October 23. Neither workflow nor mail
-      delivery is currently implemented. Plan token expiry/single use, abuse protection,
-      secure delivery and recovery-session behavior; manual support is not a substitute
-      for these required features. Never have support request plaintext passwords.
+- [x] Implement forgot-password recovery and email verification before the first
+      pilot organizations start, as confirmed October 23. Token expiry/single use,
+      abuse protection, secure token handling and recovery-session behavior are
+      implemented. Provider-backed delivery and hosted/browser proof remain open;
+      manual support is not a substitute. Never have support request plaintext
+      passwords.
 - [ ] Plan server-side member search and 15-row default pagination (queue item 17),
       with bounded query validation, stable order and page/count metadata. Preserve
       Owner-only tenant access and the current role/branch/merchant rules.
@@ -260,16 +258,17 @@ database was queried, migrated, reset or seeded by the audit.
 - [ ] Plan automatic invitation email delivery with Copy link retained (Plan 07),
       confirmed October 23. Reuse planned mail capability; define provider, failure
       feedback and safe retry semantics. Current delivery is still manual.
-- [ ] Require an explicit Accept invitation button (Plan 07); opening a matching
+- [x] Require an explicit Accept invitation button (Plan 07); opening a matching
       signed-in invitation link must not automatically create membership. Preserve
       expiry/single-use, matching-account, verification and duplicate-submit guards.
 - [ ] Extend Plan 17 with server-side invitation email search, status filtering
       and 15-row default pagination alongside members. Counts, status predicates
       and pages must remain tenant-scoped and consistent at expiry boundaries.
-- [ ] Fulfill the earlier removal requirement in Plan 07: permanently delete every
+- [x] Fulfill the earlier removal requirement in Plan 07: permanently delete every
       removed invitation and invalidate its link, including active invitations.
       Preserve existing accepted memberships and their branch grants; define safe
-      acceptance/deletion race behavior. Current active removal only revokes.
+      acceptance/deletion race behavior. Current active removal is now permanent;
+      provider-backed delivery remains separate.
 
 ## 6. P0: deployed security, database and operational gates
 

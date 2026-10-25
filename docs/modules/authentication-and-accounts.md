@@ -1,6 +1,6 @@
 # Authentication and Accounts
 
-**Status:** Implemented
+**Status:** Implemented locally; provider and rollout gates remain pending
 
 ## Responsibilities
 
@@ -12,11 +12,16 @@
 - Personal signed-in color theme selection.
 - Access-token issuance and refresh-session rotation.
 - Account-owned active-session listing and selected-session revocation.
+- Email verification and purpose-bound password recovery.
 
 ## API
 
 ```text
 POST   /auth/register
+POST   /auth/verification/request
+POST   /auth/verification/confirm
+POST   /auth/password-reset/request
+POST   /auth/password-reset/confirm
 POST   /auth/login
 POST   /auth/refresh
 POST   /auth/logout
@@ -37,8 +42,20 @@ DELETE /auth/sessions/:sessionId
   deletion inputs retain existing compatibility; older bcrypt hashes may still
   accept equivalent prefixes. Verified recovery under Plan 07 remains pending.
 - Login failures are generic; absent/deleted accounts receive a dummy bcrypt
-  comparison. Registration still distinguishes duplicate emails and issues a
-  session on success. Its anti-enumeration transition is explicitly pending Plan 07.
+  comparison. Registration returns the same accepted acknowledgement for new,
+  existing and pending emails, creates no session, and stores new profile data
+  in `PendingRegistration` until a purpose-bound verification token is confirmed.
+  The final password is set through that verified flow, preventing an
+  unverified registration from establishing usable credentials.
+- Email verification is required before organization lists, workspace access,
+  invitation acceptance, or any organization-scoped operation. Unverified users
+  may still sign in to reach resend and recovery screens. Existing users remain
+  unverified after the additive migration until they complete verification;
+  the migration does not silently grant mailbox ownership.
+- Verification and reset tokens are opaque random values, stored only as SHA-256
+  hashes, purpose-bound, expiring and single-use. A successful password reset
+  revokes every refresh session and outstanding reset token. No reset flow
+  auto-signs the user in.
 - Access tokens are short lived and contain a signed session ID (`sid`). Every
   authenticated request checks an active user and their unexpired, non-revoked
   session in PostgreSQL. Sessionless old JWTs are rejected; valid existing refresh
@@ -106,13 +123,16 @@ home link, Philippine Standard Time on wide screens, account access at every
 viewport size, and a sign-out action that announces pending state and prevents
 repeat activation. Session-bound authentication applies to these routes too.
 
-Login and registration share a neutral guest shell with a focused form, home
+Login, registration, verification and recovery share a neutral guest shell with a focused form, home
 navigation, and a quiet contextual panel on wide screens. Shared labeled inputs
 retain autocomplete and validation rules. Invalid submissions focus the first
 invalid field; pending submissions are announced and prevent repeat activation.
-Local invitation return paths, authenticated guest redirects, and safe fallback
-navigation are preserved. Session loading and failure states use the neutral
-visual system.
+Registration redirects to verification instead of creating a session. The
+verification, resend, forgot-password and reset-password routes use explicit
+POST actions and do not persist tokens in browser storage. Local invitation
+return paths, authenticated guest redirects, and safe fallback navigation are
+preserved. Unverified authenticated users see the resend screen rather than the
+workspace. Session loading and failure states use the neutral visual system.
 
 Account settings use shared neutral panels, explicit labeled fields, and consistent
 error/success notices. Invalid submissions focus the first invalid field and never
@@ -131,3 +151,9 @@ with alert-dialog semantics, initial password focus and protected pending
 dismissal. The form's initial action is outlined rather than solid red. Cancel
 does not call the API and restores focus; server rejections, including sole-owner
 restrictions, are shown without changing the backend's authorization rules.
+
+Automatic delivery of verification and reset messages is intentionally behind
+the Plan 07 provider/sender decision. The account-action API and frontend routes
+are in place, but the shared mail boundary, provider dependency and real message
+delivery are not enabled by this change; staging mailbox proof remains a release
+gate.

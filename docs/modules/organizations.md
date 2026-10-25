@@ -4,22 +4,39 @@
 
 ## Responsibilities
 
-- Create a concept-store organization.
 - List organizations available to the authenticated user.
 - Load one organization through membership-derived access.
 - Switch between accessible organization workspaces.
+- Rename an organization as its Owner.
+- Apply active/inactive tenant lifecycle state.
 
 ## API
 
 ```text
-POST /organizations
 GET  /organizations
 GET  /organizations/:organizationId
+PATCH /organizations/:organizationId
 ```
 
 ## Rules
 
-- Creating an organization also creates an `OWNER` membership for the creator.
+- Organizations are provisioned and activated only through the protected
+  server-side operator command. Ordinary users cannot create tenants through
+  the HTTP API.
+- Provisioning creates an inactive organization and an Owner membership only
+  after the selected Owner has a verified email. Operation IDs make lost
+  operator responses safely replayable; lifecycle events record the sanitized
+  operator identity, reason, target and status transition.
+- An inactive organization remains visible to authorized verified members for
+  read-only history, while organization-scoped writes are rejected server-side.
+  Reactivation does not recreate memberships or assignments.
+- Authoritative mutation services recheck the organization status inside their
+  write transaction and lock the organization row before changing tenant data.
+  Lifecycle deactivation therefore serializes with in-flight writes instead of
+  relying only on the HTTP guard. Idempotent retries may still return an
+  already committed command result without creating a new write.
+- Owners may rename their organization through the authenticated, tenant-scoped
+  PATCH route; renaming does not change its identity or history.
 - Organization access is derived from `OrganizationMembership`; possession of
   an organization UUID does not grant access.
 - An unavailable or foreign organization is returned as not found.
@@ -32,8 +49,10 @@ must enforce the global isolation rules in `AGENTS.md`.
 
 ## Frontend
 
-Authenticated users can create organizations, view their available
-organizations, switch workspaces, and load an organization-scoped shell.
+Authenticated verified users can view their available organizations, switch
+workspaces, and load an organization-scoped shell. Tenant creation is not shown
+in the chooser; empty state directs users to the platform operator or an
+invitation workflow.
 
 The organization shell uses a neutral canvas with a persistent desktop sidebar.
 Expanded and collapsed sidebar modes both provide organization switching; the
@@ -49,12 +68,9 @@ a destination or entering the desktop breakpoint closes the drawer.
 
 Organization selection uses a labeled search toolbar and divided workspace rows
 with visible role context. Loading, no memberships, no search matches, and failed
-requests have distinct feedback. Creation reuses the shared `FormDialog`, a scroll-contained native dialog
-with an explicit description, initial name-field focus, field validation, pending
-feedback, and disabled dismissal during submission. Successful creation closes
-the dialog and opens the new workspace overview; failure leaves it available for
-correction/retry. The original organization validation and creation contract are
-unchanged.
+requests have distinct feedback. Tenant creation is intentionally not available
+in this UI; the platform operator provisions the organization through the
+protected server-side command described above, then activates it separately.
 
 The overview links to existing branches and account settings for all members, and
 merchant profiles/products for owners, managers, and merchants. Members navigation
