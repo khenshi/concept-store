@@ -11,9 +11,7 @@ describe('persisted internal receipt', () => {
     expect(screen.getAllByText('Change')).toHaveLength(2);
     expect(screen.getAllByText('PHP 150.00')).toHaveLength(2);
     expect(screen.getAllByText(/Not a fiscal\/tax invoice/)).toHaveLength(2);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Print' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Print' }));
     expect(print).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('status')).toHaveTextContent(
       /checkout will not repeat/,
@@ -46,13 +44,9 @@ describe('persisted internal receipt', () => {
     expect(screen.getAllByText('Reference')).toHaveLength(2);
     expect(screen.getAllByText('SAVED-REF')).toHaveLength(2);
     expect(screen.getAllByText(/unverified by provider/)).toHaveLength(2);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Print' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Print' }));
     expect(screen.getByRole('status')).toHaveTextContent(/already completed/);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Print' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Print' }));
     expect(print).toHaveBeenCalledTimes(2);
   });
 });

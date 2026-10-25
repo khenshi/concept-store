@@ -1105,9 +1105,7 @@ function StaffRankings({
                 >
                   Gross sales
                 </th>
-                <th scope="col">
-                  Net recorded
-                </th>
+                <th scope="col">Net recorded</th>
                 <th scope="col" className="hidden xl:table-cell">
                   SKU / barcode
                 </th>
@@ -1140,12 +1138,8 @@ function StaffRankings({
                   <td className="max-w-48 break-words px-4 py-4">
                     {row.merchantName}
                   </td>
-                  <td className="px-4 py-4 tabular-nums">
-                    {row.unitsSold}
-                  </td>
-                  <td className="px-4 py-4 tabular-nums">
-                    {row.grossSales}
-                  </td>
+                  <td className="px-4 py-4 tabular-nums">{row.unitsSold}</td>
+                  <td className="px-4 py-4 tabular-nums">{row.grossSales}</td>
                   <td className="px-4 py-4 tabular-nums">
                     {row.netRecordedSales}
                   </td>

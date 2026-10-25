@@ -274,9 +274,7 @@ export function TransactionsTab({
                         {completedDate(item.completedAt)}
                       </td>
                       <td className="px-4 py-4 align-middle">
-                        <span
-                          className={`font-normal ${typeClass(item.type)}`}
-                        >
+                        <span className={`font-normal ${typeClass(item.type)}`}>
                           {typeLabel(item.type)}
                         </span>
                       </td>
@@ -317,7 +315,8 @@ export function TransactionsTab({
                             href={href}
                             className={buttonStyles({
                               variant: 'quiet',
-                              className: 'min-h-0 px-0 text-sm font-semibold text-ink',
+                              className:
+                                'min-h-0 px-0 text-sm font-semibold text-ink',
                             })}
                           >
                             View

@@ -381,12 +381,15 @@ export function RefundHistory({
                             className="text-sm text-ink"
                             dateTime={row.completedAt}
                           >
-                            {new Date(row.completedAt).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              timeZone: 'Asia/Manila',
-                            })}
+                            {new Date(row.completedAt).toLocaleDateString(
+                              'en-US',
+                              {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                timeZone: 'Asia/Manila',
+                              },
+                            )}
                           </time>
                         </div>
                         <div className="flex items-center justify-between gap-3 tabular-nums sm:block">

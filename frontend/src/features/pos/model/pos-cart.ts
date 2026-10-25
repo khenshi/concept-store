@@ -53,9 +53,7 @@ export function addPosProduct(
         `The price for ${product.name} changed. Remove it and add it again to review the current price.`,
       );
     if (existing.quantity >= product.quantity)
-      throw new Error(
-        `max quantity for ${product.name}`,
-      );
+      throw new Error(`max quantity for ${product.name}`);
     return lines.map((line) =>
       line === existing
         ? {

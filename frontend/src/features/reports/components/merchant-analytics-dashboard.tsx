@@ -250,9 +250,7 @@ function MerchantRankings({
                 >
                   Own gross
                 </th>
-                <th scope="col">
-                  Own net recorded
-                </th>
+                <th scope="col">Own net recorded</th>
                 <th scope="col" className="hidden xl:table-cell">
                   SKU / barcode
                 </th>
@@ -285,9 +283,7 @@ function MerchantRankings({
                   <td className="max-w-48 break-words px-4 py-4">
                     {row.merchantName}
                   </td>
-                  <td className="px-4 py-4 tabular-nums">
-                    {row.ownUnitsSold}
-                  </td>
+                  <td className="px-4 py-4 tabular-nums">{row.ownUnitsSold}</td>
                   <td className="px-4 py-4 tabular-nums">
                     {row.ownGrossSales}
                   </td>

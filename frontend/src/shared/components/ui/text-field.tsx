@@ -131,8 +131,7 @@ export function TextField({
 }
 
 function compactFieldError(message: string) {
-  if (/positive PHP price/i.test(message))
-    return 'Enter a valid price.';
+  if (/positive PHP price/i.test(message)) return 'Enter a valid price.';
   if (/positive whole number/i.test(message)) return 'Enter a whole number.';
   if (/must contain at least (\d+) characters?/i.test(message))
     return `Use at least ${message.match(/at least (\d+) characters?/i)?.[1]} characters.`;
