@@ -7,8 +7,8 @@ login/current-password compatibility; limit new passwords to 72 UTF-8 bytes.
 Reject sessionless access JWTs but allow valid refresh sessions to rotate into
 session-bound tokens. Session UI/API is required before pilot. Registration
 anti-enumeration ships jointly with 07; hosted proxy proof remains with 05.
-No deployment, application DB or new dependency authorized. Plan 02 edits remain
-uncommitted and must be preserved. Joint gates remain open: do not mark this plan
+No deployment, application DB or new dependency authorized. Plan 02 is completed
+and archived in commit `76fb3f8`. Joint gates remain open: do not mark this plan
 fully complete without the required 05/07 evidence.
 
 Priority: P0 security fixes before real pilot use. Session-management API/UI is
@@ -20,7 +20,7 @@ Independent scope implemented: new-password byte validation with legacy login
 compatibility, session-bound access tokens and current/selected session controls,
 post-auth account/IP throttling, dependency-safe 503 handling, direct socket trust,
 nested log redaction and production Swagger/SQL-parameter restrictions. No schema
-or dependency change. Plan 02 changes remain preserved and uncommitted.
+or dependency change. The implementation is committed in `638280a`.
 
 See [dated evidence](../validation/auth-security-2026-10-25.md) for actual local,
 PostgreSQL and review gates. Browser connection was unavailable; no visual or
