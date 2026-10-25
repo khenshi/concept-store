@@ -1,6 +1,11 @@
 import { spawn } from 'node:child_process';
+import { resolve } from 'node:path';
 
-const nextCommand = process.platform === 'win32' ? 'next.cmd' : 'next';
+const nextCommand = resolve(
+  process.cwd(),
+  'node_modules/.bin',
+  process.platform === 'win32' ? 'next.cmd' : 'next',
+);
 const port = process.env.PORT ?? '3001';
 const child = spawn(nextCommand, ['start', '-p', port], {
   env: process.env,
