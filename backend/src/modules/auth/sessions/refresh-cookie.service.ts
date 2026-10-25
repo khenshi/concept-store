@@ -12,9 +12,9 @@ export class RefreshCookieService {
 
   constructor(configService: ConfigService) {
     this.secure = configService.getOrThrow<string>('NODE_ENV') === 'production';
-    this.path = configService.getOrThrow<'/auth' | '/api/auth'>(
-      'REFRESH_COOKIE_PATH',
-    );
+    this.path =
+      configService.get<'/auth' | '/api/auth'>('REFRESH_COOKIE_PATH') ??
+      '/auth';
   }
 
   read(request: Request): string | undefined {

@@ -17,6 +17,9 @@ describe('RefreshCookieService', () => {
             getOrThrow: jest.fn((key: string) =>
               key === 'NODE_ENV' ? environment : path,
             ),
+            get: jest.fn((key: string) =>
+              key === 'REFRESH_COOKIE_PATH' ? path : undefined,
+            ),
           },
         },
       ],
