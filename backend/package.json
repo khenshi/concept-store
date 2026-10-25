@@ -28,6 +28,7 @@
     "prisma:seed:demo": "npm run build && node -r dotenv/config dist/prisma/seed.js --reset",
     "prisma:reset:demo": "npm run prisma:seed:demo",
     "prisma:migration:preflight": "npm run build && node -r dotenv/config dist/src/infrastructure/database/migration-preflight-cli.js",
+    "operator:organization": "npm run build && node -r dotenv/config dist/src/infrastructure/operator/controlled-access-cli.js",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate"

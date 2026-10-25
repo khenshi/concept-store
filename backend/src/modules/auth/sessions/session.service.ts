@@ -70,6 +70,7 @@ export class SessionService {
             lastName: true,
             phone: true,
             colorTheme: true,
+            emailVerifiedAt: true,
             deletedAt: true,
           },
         },
@@ -121,6 +122,9 @@ export class SessionService {
         lastName: session.user.lastName,
         phone: session.user.phone,
         colorTheme: session.user.colorTheme,
+        ...(session.user.emailVerifiedAt !== undefined
+          ? { emailVerified: Boolean(session.user.emailVerifiedAt) }
+          : {}),
       },
       refreshSession: {
         id: parsed.id,

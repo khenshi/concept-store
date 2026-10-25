@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { hash } from 'bcryptjs';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { AccountActionTokenService } from './account-action-token.service';
 import { AuthService } from './auth.service';
 import { SessionService } from './sessions/session.service';
 
@@ -25,7 +26,17 @@ describe('AuthService', () => {
     expiresAt: new Date('2026-09-22T00:00:00.000Z'),
   };
   const transaction = {
-    user: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+    user: {
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    pendingRegistration: {
+      upsert: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      delete: jest.fn(),
+    },
     userSession: { deleteMany: jest.fn(), updateMany: jest.fn() },
     organizationMembership: {
       findMany: jest.fn(),
@@ -39,6 +50,7 @@ describe('AuthService', () => {
       findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
     },
+    pendingRegistration: { findUnique: jest.fn() },
     userSession: { updateMany: jest.fn() },
   };
   const jwtService = { signAsync: jest.fn() };
@@ -46,6 +58,11 @@ describe('AuthService', () => {
     issue: jest.fn(),
     rotate: jest.fn(),
     revoke: jest.fn(),
+  };
+  const accountActionTokenService = {
+    issueForUser: jest.fn(),
+    issueForPendingRegistration: jest.fn(),
+    consume: jest.fn(),
   };
   let service: AuthService;
 
@@ -63,6 +80,10 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
         { provide: SessionService, useValue: sessionService },
+        {
+          provide: AccountActionTokenService,
+          useValue: accountActionTokenService,
+        },
       ],
     }).compile();
     service = moduleRef.get(AuthService);
@@ -72,43 +93,28 @@ describe('AuthService', () => {
     transaction.userSession.updateMany.mockResolvedValue({ count: 2 });
   });
 
-  it('registers the user and session atomically without returning password data', async () => {
-    transaction.user.create.mockImplementation(
-      ({
-        data,
-      }: {
-        data: {
-          email: string;
-          firstName: string;
-          lastName: string;
-          phone?: string;
-          passwordHash: string;
-        };
-      }) => {
-        expect(data.email).toBe(user.email);
-        expect(data.firstName).toBe(user.firstName);
-        expect(data.lastName).toBe(user.lastName);
-        expect(data.passwordHash).not.toBe('correct horse battery staple');
-        return user;
-      },
-    );
+  it('stores a pending registration without creating a session or password', async () => {
+    transaction.pendingRegistration.upsert.mockResolvedValue({
+      id: 'pending-id',
+    });
 
     const result = await service.register({
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      password: 'correct horse battery staple',
     });
 
-    expect(result).toEqual({
-      response: { accessToken: 'signed-token', user },
-      refreshSession,
-    });
-    expect(sessionService.issue).toHaveBeenCalledWith(user.id, transaction);
-    expect(jwtService.signAsync).toHaveBeenCalledWith(
-      { email: user.email, sid: refreshSession.id },
-      { subject: user.id },
+    expect(result).toEqual({ status: 'accepted' });
+    expect(transaction.pendingRegistration.upsert).toHaveBeenCalled();
+    expect(
+      accountActionTokenService.issueForPendingRegistration,
+    ).toHaveBeenCalledWith(
+      'pending-id',
+      'VERIFY_EMAIL',
+      expect.any(Number),
+      transaction,
     );
+    expect(sessionService.issue).not.toHaveBeenCalled();
   });
 
   it('logs in a user and creates a refresh session', async () => {
@@ -183,6 +189,7 @@ describe('AuthService', () => {
         lastName: true,
         phone: true,
         colorTheme: true,
+        emailVerifiedAt: true,
       },
     });
   });
@@ -212,6 +219,7 @@ describe('AuthService', () => {
         lastName: true,
         phone: true,
         colorTheme: true,
+        emailVerifiedAt: true,
       },
     });
   });
@@ -233,6 +241,7 @@ describe('AuthService', () => {
         lastName: true,
         phone: true,
         colorTheme: true,
+        emailVerifiedAt: true,
       },
     });
   });
@@ -360,15 +369,7 @@ describe('AuthService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('rejects oversized registration and replacement passwords even without DTO validation', async () => {
-    await expect(
-      service.register({
-        firstName: 'Test',
-        lastName: 'User',
-        email: user.email,
-        password: 'a'.repeat(73),
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+  it('rejects oversized replacement passwords even without DTO validation', async () => {
     await expect(
       service.changePassword(user.id, {
         currentPassword: 'old password',

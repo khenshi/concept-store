@@ -10,6 +10,7 @@ import { Client } from 'pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
+import { AccountActionTokenService } from '../src/modules/auth/account-action-token.service';
 import { AuthService } from '../src/modules/auth/auth.service';
 import { SessionService } from '../src/modules/auth/sessions/session.service';
 
@@ -35,7 +36,8 @@ const sessions = new SessionService(
   prisma,
   new ConfigService({ REFRESH_TOKEN_TTL_DAYS: 30 }),
 );
-const auth = new AuthService(prisma, jwt, sessions);
+const accountActions = new AccountActionTokenService(prisma);
+const auth = new AuthService(prisma, jwt, sessions, accountActions);
 const guard = new AuthGuard(jwt, prisma);
 const password = 'original secure password';
 let createdSchema = false;
@@ -48,12 +50,17 @@ function authorize(accessToken: string) {
 }
 
 async function account() {
-  return auth.register({
-    firstName: 'Test',
-    lastName: 'User',
-    email: `${randomUUID()}@example.test`,
-    password,
+  const email = `${randomUUID()}@example.test`;
+  await db.user.create({
+    data: {
+      firstName: 'Test',
+      lastName: 'User',
+      email,
+      passwordHash: await hash(password, 4),
+      emailVerifiedAt: new Date(),
+    },
   });
+  return auth.login({ email, password });
 }
 
 function deferred() {
@@ -251,7 +258,12 @@ describe('Auth session integrity (real PostgreSQL, explicitly selected target on
       },
       $transaction: db.$transaction.bind(db),
     } as unknown as PrismaService;
-    const delayedAuth = new AuthService(delayedPrisma, jwt, sessions);
+    const delayedAuth = new AuthService(
+      delayedPrisma,
+      jwt,
+      sessions,
+      accountActions,
+    );
     const login = delayedAuth.login({
       email: result.response.user.email,
       password,

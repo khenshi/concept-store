@@ -3,6 +3,7 @@ import type { ColorTheme } from '../../generated/prisma/client';
 export interface AuthenticatedPrincipal {
   id: string;
   email: string;
+  emailVerified?: boolean;
 }
 
 export interface AuthenticatedSessionPrincipal extends AuthenticatedPrincipal {
@@ -30,6 +31,10 @@ export interface RefreshSession {
 export interface AuthSessionResponse {
   response: AuthResponse;
   refreshSession: RefreshSession;
+}
+
+export interface RegistrationAcknowledgement {
+  status: 'accepted';
 }
 
 export interface AccessTokenPayload {

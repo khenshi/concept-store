@@ -5,6 +5,7 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNewPassword } from './new-password';
@@ -49,13 +50,14 @@ export class RegisterDto {
   @MaxLength(254)
   email!: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     format: 'password',
-    minLength: 12,
-    maxLength: 72,
-    description: 'At most 72 UTF-8 bytes',
+    maxLength: 128,
+    description: 'Ignored during registration; set after email verification',
   })
+  @ValidateIf((_, value: unknown) => value !== undefined)
   @IsString()
   @IsNewPassword()
-  password!: string;
+  @MaxLength(128)
+  password?: string;
 }

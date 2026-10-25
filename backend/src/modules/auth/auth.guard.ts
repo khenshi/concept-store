@@ -58,7 +58,7 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Access token is invalid or expired');
     }
 
-    let activeUser: { id: string } | null;
+    let activeUser: { id: string; emailVerifiedAt: Date | null } | null;
     try {
       activeUser = await this.prisma.user.findFirst({
         where: {
@@ -72,7 +72,7 @@ export class AuthGuard implements CanActivate {
             },
           },
         },
-        select: { id: true },
+        select: { id: true, emailVerifiedAt: true },
       });
     } catch {
       throw new ServiceUnavailableException(
@@ -85,6 +85,7 @@ export class AuthGuard implements CanActivate {
     request.user = {
       id: activeUser.id,
       email: payload.email,
+      emailVerified: activeUser.emailVerifiedAt !== null,
       sessionId: payload.sid.toLowerCase(),
     };
     return true;

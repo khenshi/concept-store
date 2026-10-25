@@ -20,7 +20,6 @@ import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCookieAuth,
-  ApiCreatedResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -35,6 +34,7 @@ import {
   AuthenticatedUserResponseDto,
   AuthResponseDto,
   ActiveSessionPageResponseDto,
+  AccountActionAcknowledgementResponseDto,
 } from '../../openapi/response.dto';
 import { AuthGuard } from './auth.guard';
 import {
@@ -48,6 +48,7 @@ import type {
   AuthenticatedUser,
   AuthenticatedSessionPrincipal,
   ActiveSessionPage,
+  RegistrationAcknowledgement,
 } from './auth.types';
 import { CurrentUser } from './current-user.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -58,6 +59,11 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateColorThemeDto } from './dto/update-color-theme.dto';
 import { RefreshCookieService } from './sessions/refresh-cookie.service';
 import { SessionPageQueryDto } from './dto/session-page-query.dto';
+import {
+  AccountActionEmailDto,
+  ConfirmPasswordResetDto,
+  VerifyEmailDto,
+} from './dto/account-action-token.dto';
 
 @ApiTags('authentication')
 @Controller('auth')
@@ -69,16 +75,53 @@ export class AuthController {
 
   @Post('register')
   @Throttle({ default: AUTH_RATE_LIMITS.register })
-  @ApiOperation({ summary: 'Register an account and start a session' })
-  @ApiCreatedResponse({ type: AuthResponseDto })
-  @ApiConflictResponse({ description: 'The email is already registered' })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Request account registration verification' })
+  @ApiOkResponse({ type: AccountActionAcknowledgementResponseDto })
   async register(
     @Body() dto: RegisterDto,
-    @Res({ passthrough: true }) response: Response,
-  ): Promise<AuthResponse> {
-    const result = await this.authService.register(dto);
-    this.refreshCookieService.write(response, result.refreshSession);
-    return result.response;
+  ): Promise<RegistrationAcknowledgement> {
+    return this.authService.register(dto);
+  }
+
+  @Post('verification/request')
+  @Throttle({ default: AUTH_RATE_LIMITS.register })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Request an email verification message' })
+  @ApiOkResponse({ type: AccountActionAcknowledgementResponseDto })
+  requestEmailVerification(
+    @Body() dto: AccountActionEmailDto,
+  ): Promise<RegistrationAcknowledgement> {
+    return this.authService.requestEmailVerification(dto);
+  }
+
+  @Post('verification/confirm')
+  @Throttle({ default: AUTH_RATE_LIMITS.register })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Confirm an email verification token' })
+  @ApiNoContentResponse()
+  confirmEmail(@Body() dto: VerifyEmailDto): Promise<void> {
+    return this.authService.confirmEmail(dto);
+  }
+
+  @Post('password-reset/request')
+  @Throttle({ default: AUTH_RATE_LIMITS.register })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Request a password reset message' })
+  @ApiOkResponse({ type: AccountActionAcknowledgementResponseDto })
+  requestPasswordReset(
+    @Body() dto: AccountActionEmailDto,
+  ): Promise<RegistrationAcknowledgement> {
+    return this.authService.requestPasswordReset(dto);
+  }
+
+  @Post('password-reset/confirm')
+  @Throttle({ default: AUTH_RATE_LIMITS.register })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Confirm a password reset token' })
+  @ApiNoContentResponse()
+  confirmPasswordReset(@Body() dto: ConfirmPasswordResetDto): Promise<void> {
+    return this.authService.confirmPasswordReset(dto);
   }
 
   @HttpCode(HttpStatus.OK)

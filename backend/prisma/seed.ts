@@ -83,6 +83,7 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
       lastName,
       email,
       passwordHash,
+      emailVerifiedAt: new Date(),
     })),
   });
 

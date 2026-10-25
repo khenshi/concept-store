@@ -12,6 +12,7 @@ import {
   InventoryMovementType,
   MerchantStatus,
   OrganizationRole,
+  OrganizationStatus,
   ProductStatus,
 } from '../generated/prisma/client';
 
@@ -23,6 +24,8 @@ export class AuthenticatedUserResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'email', example: 'owner@example.com' })
   email!: string;
+  @ApiProperty({ description: 'Whether the account email has been verified' })
+  emailVerified!: boolean;
   @ApiProperty({ example: 'Maria' }) firstName!: string;
   @ApiProperty({ example: 'Santos' }) lastName!: string;
   @ApiPropertyOptional({ nullable: true, example: '+63 917 123 4567' }) phone!:
@@ -36,6 +39,10 @@ export class AuthResponseDto {
   accessToken!: string;
   @ApiProperty({ type: AuthenticatedUserResponseDto })
   user!: AuthenticatedUserResponseDto;
+}
+
+export class AccountActionAcknowledgementResponseDto {
+  @ApiProperty({ enum: ['accepted'] }) status!: 'accepted';
 }
 
 export class ActiveSessionResponseDto {
@@ -57,6 +64,7 @@ export class ActiveSessionPageResponseDto {
 export class OrganizationAccessResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ example: 'Common Ground Concept Store' }) name!: string;
+  @ApiProperty({ enum: OrganizationStatus }) status!: OrganizationStatus;
   @ApiProperty({ enum: OrganizationRole }) role!: OrganizationRole;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;

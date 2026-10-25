@@ -42,14 +42,31 @@ describe('demo seed target safety', () => {
     ).toThrow('DEMO_DATABASE_URL');
   });
 
-  it('requires a loopback URL and exact database-name confirmation', () => {
+  it('requires a confirmed target and exact database-name confirmation', () => {
     expect(() =>
       getDemoSeedConnectionString(true, {
         ...baseEnvironment,
         DEMO_DATABASE_URL:
           'postgresql://demo:demo@db.example.test:5432/concept_store_demo',
       }),
-    ).toThrow('loopback');
+    ).toThrow('SEED_DEMO_ALLOW_REMOTE_RESET');
+    expect(() =>
+      getDemoSeedConnectionString(true, {
+        ...baseEnvironment,
+        DEMO_DATABASE_URL:
+          'postgresql://demo:demo@db.example.test:5432/concept_store_demo',
+        SEED_DEMO_ALLOW_REMOTE_RESET: 'I_UNDERSTAND_REMOTE_DEMO_RESET',
+      }),
+    ).toThrow('SEED_DEMO_REMOTE_HOST');
+    expect(
+      getDemoSeedConnectionString(true, {
+        ...baseEnvironment,
+        DEMO_DATABASE_URL:
+          'postgresql://demo:demo@db.example.test:5432/concept_store_demo',
+        SEED_DEMO_ALLOW_REMOTE_RESET: 'I_UNDERSTAND_REMOTE_DEMO_RESET',
+        SEED_DEMO_REMOTE_HOST: 'db.example.test',
+      }),
+    ).toBe('postgresql://demo:demo@db.example.test:5432/concept_store_demo');
     expect(() =>
       getDemoSeedConnectionString(true, {
         ...baseEnvironment,

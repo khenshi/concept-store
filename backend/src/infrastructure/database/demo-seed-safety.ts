@@ -1,4 +1,5 @@
 const DEMO_SEED_CONFIRMATION = 'I_UNDERSTAND_DISPOSABLE_DEMO_RESET';
+const REMOTE_DEMO_RESET_CONFIRMATION = 'I_UNDERSTAND_REMOTE_DEMO_RESET';
 
 type SeedEnvironment = Readonly<Record<string, string | undefined>>;
 
@@ -13,7 +14,11 @@ export type DemoSeedMigration = {
   rolledBackAt: Date | null;
 };
 
-function databaseNameFromUrl(connectionString: string): string {
+function databaseIdentityFromUrl(connectionString: string): {
+  databaseName: string;
+  hostname: string;
+  isLoopback: boolean;
+} {
   let url: URL;
   try {
     url = new URL(connectionString);
@@ -24,17 +29,17 @@ function databaseNameFromUrl(connectionString: string): string {
   if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
     throw new Error('DEMO_DATABASE_URL must use the PostgreSQL protocol.');
   }
-  if (!['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname)) {
-    throw new Error(
-      'Demo seed requires a loopback disposable database target.',
-    );
-  }
-
   const databaseName = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
   if (!databaseName || databaseName.includes('/')) {
     throw new Error('DEMO_DATABASE_URL must identify a database name.');
   }
-  return databaseName;
+  return {
+    databaseName,
+    hostname: url.hostname,
+    isLoopback: ['localhost', '127.0.0.1', '[::1]', '::1'].includes(
+      url.hostname,
+    ),
+  };
 }
 
 export function getDemoSeedConnectionString(
@@ -63,11 +68,27 @@ export function getDemoSeedConnectionString(
     );
   }
 
-  const databaseName = databaseNameFromUrl(connectionString);
-  if (environment.SEED_DEMO_DATABASE_NAME !== databaseName) {
+  const identity = databaseIdentityFromUrl(connectionString);
+  if (environment.SEED_DEMO_DATABASE_NAME !== identity.databaseName) {
     throw new Error(
       'SEED_DEMO_DATABASE_NAME must exactly match the selected disposable database.',
     );
+  }
+
+  if (!identity.isLoopback) {
+    if (
+      environment.SEED_DEMO_ALLOW_REMOTE_RESET !==
+      REMOTE_DEMO_RESET_CONFIRMATION
+    ) {
+      throw new Error(
+        `Remote demo reset requires SEED_DEMO_ALLOW_REMOTE_RESET=${REMOTE_DEMO_RESET_CONFIRMATION}.`,
+      );
+    }
+    if (environment.SEED_DEMO_REMOTE_HOST !== identity.hostname) {
+      throw new Error(
+        'SEED_DEMO_REMOTE_HOST must exactly match the selected remote database host.',
+      );
+    }
   }
 
   return connectionString;
@@ -82,7 +103,7 @@ export function assertDemoSeedDatabaseIdentity(
     identity.currentSchema !== 'public'
   ) {
     throw new Error(
-      'Demo seed target identity did not match the verified public disposable database.',
+      'Demo seed target identity did not match the verified public development database.',
     );
   }
 }

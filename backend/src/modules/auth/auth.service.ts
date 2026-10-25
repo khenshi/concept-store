@@ -2,19 +2,32 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
-import { Prisma, type ColorTheme } from '../../generated/prisma/client';
+import {
+  AccountActionTokenPurpose,
+  Prisma,
+  type ColorTheme,
+} from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { AccountActionTokenService } from './account-action-token.service';
+import { ACCOUNT_ACTION_ACKNOWLEDGEMENT } from './account-action.types';
 import type {
   AuthResponse,
   AuthenticatedUser,
   AuthSessionResponse,
   ActiveSessionPage,
+  RegistrationAcknowledgement,
 } from './auth.types';
+import type {
+  AccountActionEmailDto,
+  ConfirmPasswordResetDto,
+  VerifyEmailDto,
+} from './dto/account-action-token.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import type { ChangePasswordDto } from './dto/change-password.dto';
@@ -25,6 +38,8 @@ import { assertNewPassword } from './dto/new-password';
 const PASSWORD_HASH_ROUNDS = 12;
 const LOGIN_DUMMY_HASH =
   '$2b$12$X9nD9NBciwsB2qzEz/gPMul/FaLxQkrac4ys9p2AZS3ctsNhKQEOG';
+const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -32,56 +47,53 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
+    private readonly accountActionTokenService: AccountActionTokenService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthSessionResponse> {
-    assertNewPassword(dto.password);
-    const passwordHash = await hash(dto.password, PASSWORD_HASH_ROUNDS);
+  async register(dto: RegisterDto): Promise<RegistrationAcknowledgement> {
+    await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.user.findUnique({
+        where: { email: dto.email },
+        select: { id: true, emailVerifiedAt: true, deletedAt: true },
+      });
 
-    try {
-      const { user, refreshSession } = await this.prisma.$transaction(
-        async (transaction) => {
-          const user = await transaction.user.create({
-            data: {
-              firstName: dto.firstName,
-              lastName: dto.lastName,
-              phone: dto.phone,
-              email: dto.email,
-              passwordHash,
-            },
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              phone: true,
-              colorTheme: true,
-            },
-          });
-          const refreshSession = await this.sessionService.issue(
-            user.id,
+      if (existing && !existing.deletedAt) {
+        if (!existing.emailVerifiedAt) {
+          await this.accountActionTokenService.issueForUser(
+            existing.id,
+            AccountActionTokenPurpose.VERIFY_EMAIL,
+            VERIFICATION_TTL_MS,
             transaction,
           );
-          return { user, refreshSession };
-        },
-      );
-
-      return {
-        response: await this.createAuthResponse(user, refreshSession.id),
-        refreshSession,
-      };
-    } catch (error: unknown) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException(
-          'An account with this email already exists',
-        );
+        }
+        return;
       }
 
-      throw error;
-    }
+      const pending = await transaction.pendingRegistration.upsert({
+        where: { email: dto.email },
+        update: {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          phone: dto.phone ?? null,
+          updatedAt: new Date(),
+        },
+        create: {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          phone: dto.phone ?? null,
+          email: dto.email,
+        },
+        select: { id: true },
+      });
+      await this.accountActionTokenService.issueForPendingRegistration(
+        pending.id,
+        AccountActionTokenPurpose.VERIFY_EMAIL,
+        VERIFICATION_TTL_MS,
+        transaction,
+      );
+    });
+
+    return ACCOUNT_ACTION_ACKNOWLEDGEMENT;
   }
 
   async login(dto: LoginDto): Promise<AuthSessionResponse> {
@@ -94,6 +106,7 @@ export class AuthService {
         lastName: true,
         phone: true,
         colorTheme: true,
+        emailVerifiedAt: true,
         passwordHash: true,
         deletedAt: true,
       },
@@ -114,6 +127,9 @@ export class AuthService {
       lastName: user.lastName,
       phone: user.phone,
       colorTheme: user.colorTheme,
+      ...(user.emailVerifiedAt !== undefined
+        ? { emailVerified: Boolean(user.emailVerifiedAt) }
+        : {}),
     };
     const refreshSession = await this.prisma.$transaction(
       async (transaction) => {
@@ -167,7 +183,7 @@ export class AuthService {
   }
 
   async getCurrentUser(userId: string): Promise<AuthenticatedUser> {
-    return this.prisma.user.findUniqueOrThrow({
+    const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
         id: true,
@@ -176,15 +192,23 @@ export class AuthService {
         lastName: true,
         phone: true,
         colorTheme: true,
+        emailVerifiedAt: true,
       },
     });
+    const { emailVerifiedAt, ...response } = user;
+    return {
+      ...response,
+      ...(emailVerifiedAt !== undefined
+        ? { emailVerified: Boolean(emailVerifiedAt) }
+        : {}),
+    };
   }
 
   async updateCurrentUser(
     userId: string,
     dto: UpdateProfileDto,
   ): Promise<AuthenticatedUser> {
-    return this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
         firstName: dto.firstName,
@@ -198,15 +222,23 @@ export class AuthService {
         lastName: true,
         phone: true,
         colorTheme: true,
+        emailVerifiedAt: true,
       },
     });
+    const { emailVerifiedAt, ...response } = user;
+    return {
+      ...response,
+      ...(emailVerifiedAt !== undefined
+        ? { emailVerified: Boolean(emailVerifiedAt) }
+        : {}),
+    };
   }
 
   async updateColorTheme(
     userId: string,
     colorTheme: ColorTheme,
   ): Promise<AuthenticatedUser> {
-    return this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id: userId },
       data: { colorTheme },
       select: {
@@ -216,8 +248,148 @@ export class AuthService {
         lastName: true,
         phone: true,
         colorTheme: true,
+        emailVerifiedAt: true,
       },
     });
+    const { emailVerifiedAt, ...response } = user;
+    return {
+      ...response,
+      ...(emailVerifiedAt !== undefined
+        ? { emailVerified: Boolean(emailVerifiedAt) }
+        : {}),
+    };
+  }
+
+  async requestEmailVerification(
+    dto: AccountActionEmailDto,
+  ): Promise<RegistrationAcknowledgement> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true, emailVerifiedAt: true, deletedAt: true },
+    });
+    if (user && !user.deletedAt && !user.emailVerifiedAt) {
+      await this.accountActionTokenService.issueForUser(
+        user.id,
+        AccountActionTokenPurpose.VERIFY_EMAIL,
+        VERIFICATION_TTL_MS,
+      );
+    } else if (!user) {
+      const pending = await this.prisma.pendingRegistration.findUnique({
+        where: { email: dto.email },
+        select: { id: true },
+      });
+      if (pending) {
+        await this.accountActionTokenService.issueForPendingRegistration(
+          pending.id,
+          AccountActionTokenPurpose.VERIFY_EMAIL,
+          VERIFICATION_TTL_MS,
+        );
+      }
+    }
+    return ACCOUNT_ACTION_ACKNOWLEDGEMENT;
+  }
+
+  async confirmEmail(dto: VerifyEmailDto): Promise<void> {
+    const passwordHash = dto.password
+      ? await hash(dto.password, PASSWORD_HASH_ROUNDS)
+      : null;
+
+    await this.prisma.$transaction(
+      async (transaction) => {
+        const action = await this.accountActionTokenService.consume(
+          dto.token,
+          AccountActionTokenPurpose.VERIFY_EMAIL,
+          transaction,
+        );
+        const now = new Date();
+
+        if (action.pendingRegistrationId) {
+          if (!passwordHash) {
+            throw new BadRequestException(
+              'A new password is required to finish registration',
+            );
+          }
+          const pending =
+            await transaction.pendingRegistration.findUniqueOrThrow({
+              where: { id: action.pendingRegistrationId },
+            });
+          await transaction.user.create({
+            data: {
+              email: pending.email,
+              firstName: pending.firstName,
+              lastName: pending.lastName,
+              phone: pending.phone,
+              passwordHash,
+              emailVerifiedAt: now,
+            },
+          });
+          await transaction.pendingRegistration.delete({
+            where: { id: pending.id },
+          });
+          return;
+        }
+
+        if (!action.userId) throw new NotFoundException('Action unavailable');
+        const updated = await transaction.user.updateMany({
+          where: { id: action.userId, deletedAt: null },
+          data: { emailVerifiedAt: now },
+        });
+        if (updated.count !== 1)
+          throw new NotFoundException('Action unavailable');
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  async requestPasswordReset(
+    dto: AccountActionEmailDto,
+  ): Promise<RegistrationAcknowledgement> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true, deletedAt: true },
+    });
+    if (user && !user.deletedAt) {
+      await this.accountActionTokenService.issueForUser(
+        user.id,
+        AccountActionTokenPurpose.RESET_PASSWORD,
+        PASSWORD_RESET_TTL_MS,
+      );
+    }
+    return ACCOUNT_ACTION_ACKNOWLEDGEMENT;
+  }
+
+  async confirmPasswordReset(dto: ConfirmPasswordResetDto): Promise<void> {
+    assertNewPassword(dto.newPassword);
+    const passwordHash = await hash(dto.newPassword, PASSWORD_HASH_ROUNDS);
+    await this.prisma.$transaction(
+      async (transaction) => {
+        const action = await this.accountActionTokenService.consume(
+          dto.token,
+          AccountActionTokenPurpose.RESET_PASSWORD,
+          transaction,
+        );
+        if (!action.userId) throw new NotFoundException('Action unavailable');
+        const changed = await transaction.user.updateMany({
+          where: { id: action.userId, deletedAt: null },
+          data: { passwordHash },
+        });
+        if (changed.count !== 1)
+          throw new NotFoundException('Action unavailable');
+        await transaction.userSession.updateMany({
+          where: { userId: action.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        await transaction.accountActionToken.updateMany({
+          where: {
+            userId: action.userId,
+            purpose: AccountActionTokenPurpose.RESET_PASSWORD,
+            consumedAt: null,
+          },
+          data: { consumedAt: new Date() },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {

@@ -44,13 +44,17 @@ describe('AuthGuard', () => {
       email: 'owner@example.com',
       sid,
     });
-    prisma.user.findFirst.mockResolvedValue({ id: 'user-id' });
+    prisma.user.findFirst.mockResolvedValue({
+      id: 'user-id',
+      emailVerifiedAt: new Date('2026-10-25T00:00:00.000Z'),
+    });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.user).toEqual({
       id: 'user-id',
       email: 'owner@example.com',
       sessionId: sid,
+      emailVerified: true,
     });
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: {
@@ -64,7 +68,7 @@ describe('AuthGuard', () => {
           },
         },
       },
-      select: { id: true },
+      select: { id: true, emailVerifiedAt: true },
     });
   });
 
