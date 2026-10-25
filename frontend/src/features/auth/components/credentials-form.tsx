@@ -187,7 +187,11 @@ export function CredentialsForm({ mode }: { mode: FormMode }) {
           label="Password"
           type="password"
           autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          hint={mode === 'register' ? 'Use 12–128 characters.' : undefined}
+          hint={
+            mode === 'register'
+              ? 'Use at least 12 characters and no more than 72 UTF-8 bytes. Some characters use more than one byte.'
+              : undefined
+          }
           required
           error={fieldErrors.password}
         />

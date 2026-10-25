@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { newPasswordSchema } from '@/features/auth/model/auth.schemas';
 
 const philippinePhonePattern = /^(?:\+63|0)(?:9\d{9}|[2-8]\d{8})$/;
 
@@ -58,10 +59,7 @@ export const changePasswordSchema = z
       .string()
       .min(1, 'Enter your current password.')
       .max(128, 'Password must contain 128 characters or fewer.'),
-    newPassword: z
-      .string()
-      .min(12, 'New password must contain at least 12 characters.')
-      .max(128, 'New password must contain 128 characters or fewer.'),
+    newPassword: newPasswordSchema,
     confirmPassword: z.string().min(1, 'Confirm your new password.'),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {

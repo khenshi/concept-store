@@ -72,6 +72,34 @@ describe('delete account schema', () => {
 });
 
 describe('change password schema', () => {
+  it('limits only new passwords by UTF-8 bytes, preserving legacy current/deletion inputs', () => {
+    const currentPassword = 'é'.repeat(64);
+    const newPassword = '😀'.repeat(18);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword,
+        newPassword,
+        confirmPassword: newPassword,
+      }).success,
+    ).toBe(true);
+    expect(
+      deleteAccountSchema.safeParse({ password: currentPassword }).success,
+    ).toBe(true);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword,
+        newPassword: newPassword + 'a',
+        confirmPassword: newPassword + 'a',
+      }).success,
+    ).toBe(false);
+    expect(
+      changePasswordSchema.safeParse({
+        currentPassword: newPassword,
+        newPassword,
+        confirmPassword: newPassword,
+      }).success,
+    ).toBe(false);
+  });
   it('accepts a confirmed new password', () => {
     expect(
       changePasswordSchema.safeParse({

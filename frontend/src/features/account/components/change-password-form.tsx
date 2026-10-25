@@ -99,11 +99,10 @@ export function ChangePasswordForm({ className = '' }: { className?: string }) {
             label="New password"
             type="password"
             autoComplete="new-password"
-            maxLength={128}
             hint={
               fieldErrors.newPassword
                 ? undefined
-                : 'Use at least 12 characters.'
+                : 'Use at least 12 characters and no more than 72 UTF-8 bytes. Some characters use more than one byte.'
             }
             error={fieldErrors.newPassword}
             errorPosition="after"
@@ -116,7 +115,6 @@ export function ChangePasswordForm({ className = '' }: { className?: string }) {
             label="Confirm new password"
             type="password"
             autoComplete="new-password"
-            maxLength={128}
             error={fieldErrors.confirmPassword}
             errorPosition="after"
             showPasswordToggle

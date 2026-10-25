@@ -22,6 +22,7 @@ import {
 import { ChangePasswordForm } from './change-password-form';
 import { ColorThemePicker } from './color-theme-picker';
 import { DeleteAccountForm } from './delete-account-form';
+import { ActiveSessionsPanel } from './active-sessions-panel';
 
 type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'phone', string>>;
 type SectionId = 'profile' | 'appearance' | 'security';
@@ -258,6 +259,7 @@ export function AccountSettings() {
               <div className="mt-5 border-t border-hairline pt-5">
                 <ChangePasswordForm className="!mt-0 !bg-transparent" />
               </div>
+              <ActiveSessionsPanel className="!mt-5 !bg-transparent" />
               <DeleteAccountForm className="!mt-5 !bg-transparent" />
             </section>
           </div>

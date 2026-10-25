@@ -14,6 +14,7 @@ vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 const updateProfile = vi.fn();
 const changePassword = vi.fn();
 const deleteAccount = vi.fn();
+const listSessions = vi.fn();
 
 describe('AccountSettings', () => {
   beforeEach(() => {
@@ -21,6 +22,13 @@ describe('AccountSettings', () => {
     updateProfile.mockResolvedValue(undefined);
     changePassword.mockResolvedValue(undefined);
     deleteAccount.mockResolvedValue(undefined);
+    listSessions.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 15,
+      total: 0,
+      totalPages: 0,
+    });
     vi.mocked(useAuth).mockReturnValue({
       user: {
         firstName: 'Ari',
@@ -33,6 +41,8 @@ describe('AccountSettings', () => {
       updateProfile,
       changePassword,
       deleteAccount,
+      listSessions,
+      revokeSession: vi.fn(),
     } as unknown as ReturnType<typeof useAuth>);
   });
 
@@ -172,6 +182,39 @@ describe('AccountSettings', () => {
     ).not.toBeDisabled();
   });
 
+  it('rejects new passwords over 72 UTF-8 bytes without changing current-password compatibility', async () => {
+    render(<AccountSettings />);
+    const form = screen.getByRole('form', { name: 'Password' });
+    const currentPassword = 'é'.repeat(64);
+    fireEvent.change(within(form).getByLabelText('Current password'), {
+      target: { value: currentPassword },
+    });
+    fireEvent.change(within(form).getByLabelText('New password'), {
+      target: { value: 'é'.repeat(37) },
+    });
+    fireEvent.change(within(form).getByLabelText('Confirm new password'), {
+      target: { value: 'é'.repeat(37) },
+    });
+    fireEvent.submit(form);
+    expect(
+      within(form).getByLabelText('New password'),
+    ).toHaveAccessibleDescription(/72 UTF-8 bytes or fewer/);
+    expect(changePassword).not.toHaveBeenCalled();
+    fireEvent.change(within(form).getByLabelText('New password'), {
+      target: { value: 'é'.repeat(36) },
+    });
+    fireEvent.change(within(form).getByLabelText('Confirm new password'), {
+      target: { value: 'é'.repeat(36) },
+    });
+    fireEvent.submit(form);
+    await waitFor(() =>
+      expect(changePassword).toHaveBeenCalledWith({
+        currentPassword,
+        newPassword: 'é'.repeat(36),
+      }),
+    );
+  });
+
   it('only shows password success after the change request resolves', async () => {
     let resolve!: () => void;
     changePassword.mockReturnValueOnce(
@@ -191,7 +234,7 @@ describe('AccountSettings', () => {
       target: { value: 'new-secure-password' },
     });
     fireEvent.submit(form);
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(within(form).queryByRole('status')).not.toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Changing password…' }),
     ).toBeDisabled();

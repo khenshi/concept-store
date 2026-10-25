@@ -1,5 +1,43 @@
 import { z } from 'zod';
 
+export const newPasswordSchema = z
+  .string()
+  .refine(
+    (value) => Array.from(value).length >= 12,
+    'Password must contain at least 12 characters.',
+  )
+  .refine(
+    (value) => new TextEncoder().encode(value).byteLength <= 72,
+    'Password must be 72 UTF-8 bytes or fewer. Some characters use more than one byte.',
+  );
+
+export const activeSessionSchema = z.strictObject({
+  id: z.uuid(),
+  isCurrent: z.boolean(),
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+});
+
+export const activeSessionPageSchema = z
+  .strictObject({
+    items: z.array(activeSessionSchema).max(15),
+    page: z.number().int().min(1).max(1_000_000),
+    pageSize: z.literal(15),
+    total: z.number().int().nonnegative().safe(),
+    totalPages: z.number().int().nonnegative().safe(),
+  })
+  .refine(
+    (value) =>
+      value.totalPages === Math.ceil(value.total / value.pageSize) &&
+      value.items.length ===
+        Math.min(15, Math.max(0, value.total - (value.page - 1) * 15)) &&
+      new Set(value.items.map((item) => item.id)).size === value.items.length &&
+      value.items.filter((item) => item.isCurrent).length <= 1,
+  );
+
+export type ActiveSession = z.infer<typeof activeSessionSchema>;
+export type ActiveSessionPage = z.infer<typeof activeSessionPageSchema>;
+
 const email = z
   .email('Enter a valid email address.')
   .max(254, 'Email must be 254 characters or fewer.');
@@ -27,10 +65,7 @@ export const registrationSchema = z.object({
     .optional()
     .transform((value) => value || undefined),
   email,
-  password: z
-    .string()
-    .min(12, 'Password must contain at least 12 characters.')
-    .max(128, 'Password must contain 128 characters or fewer.'),
+  password: newPasswordSchema,
 });
 
 export type AuthFormValues = z.infer<typeof loginSchema>;

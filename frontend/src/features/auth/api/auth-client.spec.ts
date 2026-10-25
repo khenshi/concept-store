@@ -28,6 +28,178 @@ function jsonResponse(body: unknown, status = 200): Response {
 describe('AuthClient', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('serializes refresh across client instances with Web Locks while retaining single-flight', async () => {
+    let tail = Promise.resolve();
+    const lockRequest = vi.fn(
+      (_name: string, callback: () => Promise<unknown>) => {
+        const result = tail.then(callback);
+        tail = result.then(
+          () => undefined,
+          () => undefined,
+        );
+        return result;
+      },
+    );
+    vi.stubGlobal('navigator', { locks: { request: lockRequest } });
+    let finishFirst!: (response: Response) => void;
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(jsonResponse(rotatedSession));
+    const first = new AuthClient('http://localhost:3000');
+    const second = new AuthClient('http://localhost:3000');
+    const pending = first.restoreSession();
+    expect(first.restoreSession()).toBe(pending);
+    const other = second.restoreSession();
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    finishFirst(jsonResponse(firstSession));
+    await expect(Promise.all([pending, other])).resolves.toEqual([
+      firstSession,
+      rotatedSession,
+    ]);
+    expect(lockRequest.mock.calls.map(([name]) => name)).toEqual([
+      'kapwesto:auth-refresh:http://localhost:3000',
+      'kapwesto:auth-refresh:http://localhost:3000',
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps same-client single-flight when Web Locks is unavailable', async () => {
+    vi.stubGlobal('navigator', {});
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse(firstSession));
+    const client = new AuthClient('http://localhost:3000');
+    await Promise.all([client.restoreSession(), client.restoreSession()]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('does not bypass a rejected Web Lock with an unlocked refresh', async () => {
+    vi.stubGlobal('navigator', {
+      locks: {
+        request: vi.fn().mockRejectedValue(new Error('Lock unavailable')),
+      },
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    await expect(
+      new AuthClient('http://localhost:3000').restoreSession(),
+    ).rejects.toThrow('Lock unavailable');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('retains authentication on 503 without refreshing or retrying a mutation', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(firstSession))
+      .mockResolvedValueOnce(
+        jsonResponse({ message: 'Service unavailable' }, 503),
+      )
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    const client = new AuthClient('http://localhost:3000');
+    const listener = vi.fn();
+    client.subscribe(listener);
+    await client.login({
+      email: firstSession.user.email,
+      password: 'password',
+    });
+    await expect(
+      client.request('/protected', { method: 'POST' }),
+    ).rejects.toMatchObject({ status: 503 });
+    await client.request('/protected');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(
+      fetchMock.mock.calls.some(([url]) =>
+        String(url).endsWith('/auth/refresh'),
+      ),
+    ).toBe(false);
+    expect(
+      new Headers(fetchMock.mock.calls[2][1]?.headers).get('Authorization'),
+    ).toBe(`Bearer ${firstSession.accessToken}`);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it('retains authentication if refresh returns 503 and does not replay the original mutation', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(firstSession))
+      .mockResolvedValueOnce(jsonResponse({}, 401))
+      .mockResolvedValueOnce(jsonResponse({}, 503))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+    const client = new AuthClient('http://localhost:3000');
+    const listener = vi.fn();
+    client.subscribe(listener);
+    await client.login({
+      email: firstSession.user.email,
+      password: 'password',
+    });
+    await expect(
+      client.request('/protected', { method: 'POST' }),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(listener).toHaveBeenCalledOnce();
+    await client.request('/protected');
+    expect(
+      new Headers(fetchMock.mock.calls[3][1]?.headers).get('Authorization'),
+    ).toBe(`Bearer ${firstSession.accessToken}`);
+  });
+
+  it('lists only strictly parsed session pages with the requested page', async () => {
+    const page = { items: [], page: 2, pageSize: 15, total: 0, totalPages: 0 };
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(page))
+      .mockResolvedValueOnce(jsonResponse({ ...page, secret: 'private' }))
+      .mockResolvedValueOnce(jsonResponse({ ...page, page: 1 }));
+    const client = new AuthClient('http://localhost:3000');
+    await expect(client.listSessions(2)).resolves.toEqual(page);
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      'http://localhost:3000/auth/sessions?page=2',
+    );
+    await expect(client.listSessions(2)).rejects.toMatchObject({ status: 502 });
+    await expect(client.listSessions(2)).rejects.toMatchObject({ status: 502 });
+    await expect(client.listSessions(0)).rejects.toThrow(
+      'Invalid session page',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('clears the local session only after successful current-session revocation', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse(firstSession))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({}, 503))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    const client = new AuthClient('http://localhost:3000');
+    const listener = vi.fn();
+    client.subscribe(listener);
+    await client.login({
+      email: firstSession.user.email,
+      password: 'password',
+    });
+    await client.revokeSession('other-id', false);
+    expect(listener).toHaveBeenCalledOnce();
+    await expect(
+      client.revokeSession('current-id', true),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(listener).toHaveBeenCalledOnce();
+    await client.revokeSession('current-id', true);
+    expect(listener).toHaveBeenLastCalledWith(null);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'http://localhost:3000/auth/sessions/current-id',
+      expect.objectContaining({ method: 'DELETE', credentials: 'include' }),
+    );
   });
 
   it('logs in with credentials and keeps the access token in request memory', async () => {

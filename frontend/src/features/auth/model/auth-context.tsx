@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { authClient } from '../api/auth-client';
+import type { ActiveSessionPage } from './auth.schemas';
 import type {
   AuthenticatedUser,
   AuthStatus,
@@ -33,6 +34,8 @@ interface AuthContextValue {
   changePassword(input: ChangePasswordInput): Promise<void>;
   deleteAccount(input: DeleteAccountInput): Promise<void>;
   logout(): Promise<void>;
+  listSessions(page: number): Promise<ActiveSessionPage>;
+  revokeSession(sessionId: string, isCurrent: boolean): Promise<void>;
   request<T>(path: string, init?: RequestInit): Promise<T>;
 }
 
@@ -106,6 +109,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const listSessions = useCallback(
+    (page: number) => authClient.listSessions(page),
+    [],
+  );
+  const revokeSession = useCallback(
+    (sessionId: string, isCurrent: boolean) =>
+      authClient.revokeSession(sessionId, isCurrent),
+    [],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
@@ -119,6 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changePassword,
       deleteAccount,
       logout,
+      listSessions,
+      revokeSession,
       request,
     }),
     [
@@ -133,6 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       changePassword,
       deleteAccount,
       logout,
+      listSessions,
+      revokeSession,
       request,
     ],
   );

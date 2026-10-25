@@ -1,6 +1,10 @@
 import 'client-only';
 
 import { publicEnvironment } from '@/config/public-environment';
+import {
+  activeSessionPageSchema,
+  type ActiveSessionPage,
+} from '../model/auth.schemas';
 import type {
   AuthResponse,
   ColorTheme,
@@ -143,6 +147,32 @@ export class AuthClient {
     return this.refresh();
   }
 
+  async listSessions(page: number): Promise<ActiveSessionPage> {
+    if (!Number.isInteger(page) || page < 1 || page > 1_000_000) {
+      throw new Error('Invalid session page.');
+    }
+    const result = activeSessionPageSchema.safeParse(
+      await this.request<unknown>(`/auth/sessions?page=${page}`),
+    );
+    if (!result.success || result.data.page !== page) {
+      throw new ApiError(
+        502,
+        'Sessions could not be loaded. Please try again.',
+      );
+    }
+    return result.data;
+  }
+
+  async revokeSession(sessionId: string, isCurrent: boolean): Promise<void> {
+    await this.request<void>(
+      `/auth/sessions/${encodeURIComponent(sessionId)}`,
+      {
+        method: 'DELETE',
+      },
+    );
+    if (isCurrent) this.setSession(null);
+  }
+
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     let response = await this.authorizedFetch(path, init);
 
@@ -175,11 +205,21 @@ export class AuthClient {
 
   private refresh(): Promise<AuthResponse | null> {
     if (!this.refreshPromise) {
-      this.refreshPromise = this.performRefresh().finally(() => {
+      this.refreshPromise = this.serializeRefresh().finally(() => {
         this.refreshPromise = null;
       });
     }
     return this.refreshPromise;
+  }
+
+  private async serializeRefresh(): Promise<AuthResponse | null> {
+    if (typeof navigator !== 'undefined' && navigator.locks) {
+      return navigator.locks.request(
+        `kapwesto:auth-refresh:${this.apiUrl}`,
+        () => this.performRefresh(),
+      );
+    }
+    return this.performRefresh();
   }
 
   private async performRefresh(): Promise<AuthResponse | null> {
