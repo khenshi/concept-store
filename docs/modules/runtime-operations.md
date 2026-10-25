@@ -11,6 +11,12 @@ From `frontend/`, `npm run start` defaults to port 3001 and honors an assigned
 `PORT` without changing the development command. When same-origin routing is
 enabled, the server-only `NEXT_API_UPSTREAM_URL` must be a fixed origin and
 `NEXT_PUBLIC_API_URL` must be the public frontend origin plus `/api`.
+
+Repository CI runs separate frontend/backend verification plus a built Nest
+readiness and built Next `/api` proxy smoke. It uses Node 20.19.4, synthetic
+credentials and disposable PostgreSQL only; it does not deploy, seed or migrate
+an application database. See [CI verification](../development/ci-verification.md)
+for commands and current baseline limitations.
 Startup validates configuration and performs a bounded database connectivity probe
 using the existing Prisma adapter pool before serving HTTP. Failure exits nonzero
 with a generic `API startup failed` diagnostic, without raw configuration/error

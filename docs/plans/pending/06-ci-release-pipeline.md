@@ -2,11 +2,35 @@
 
 Date: October 24, 2026
 
-Status: Draft for review. Planning only; no workflow, branch protection,
-credentials, database operation or deployment changes authorized.
+Status: Approved for staged implementation October 25, 2026. The repository
+workflow and local verification commands are authorized; branch protection,
+credentials, database operations outside explicitly disposable targets and
+deployment changes remain unauthorized.
 
 Priority: P0 before real pilot transactions. Basic CI can be implemented before
 hosting is selected; hosted release automation waits for approved provider details.
+
+## Implementation progress — October 25
+
+Added a pinned GitHub Actions verification workflow with separate frontend,
+backend and built-runtime/proxy jobs plus a stable `Required checks` aggregate.
+It uses Node `20.19.4`, synthetic credentials, PostgreSQL 17 service containers,
+explicit disposable test URLs, no demo seed, no live secrets, no deployment and
+no migration against an application database. Backend now has named full
+test-source `typecheck` and CI runtime-smoke scripts. The frontend launcher
+resolves its local Next binary so direct CI invocation honors the assigned port.
+
+Local proof passed: frontend format check, 1,195 tests, lint with four existing
+Inventory warnings, typecheck and build; backend format/lint/typecheck/build,
+604 unit tests and 274 HTTP tests; built Nest readiness; and built Next
+`/api/health/live` proxy smoke against the disposable PostgreSQL service.
+
+The explicit PostgreSQL integration run remains red and is not hidden by the
+workflow: 311 tests passed, one was skipped and four existing fixture/contract
+failures remain in sales persistence pagination, inventory movement pagination,
+merchant-branch pagination and the space-types migration fixture. Branch
+protection settings, runner enforcement, hosted release, migration approval and
+provider credentials remain unverified/open. This plan is staged, not complete.
 
 ## 1. Goal, ownership and exclusions
 

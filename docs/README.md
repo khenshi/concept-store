@@ -58,3 +58,4 @@ do not authorize further implementation.
 ## Development
 
 - [Database seeding](development/database-seeding.md)
+- [CI verification](development/ci-verification.md)
