@@ -1,102 +1,28 @@
-# Plan 07: Controlled enrollment, activation and account recovery
+# Plan 08: Payment Account Management and Reporting
 
-Date: October 25, 2026
+Status: Approved for implementation by the user October 25, 2026.
 
-Status: Approved for staged implementation. This is the active implementation
-scope. Preserve the confirmed decisions below and the detailed design in
-[Plan 07](pending/07-controlled-access.md). Do not begin Plan 08 or later until
-this plan's implementation and acceptance evidence are complete.
+Implement the complete scope and acceptance contract in
+[Plan 08](pending/finance-reconciliation.md). This approval supersedes its
+planning-only status. Preserve existing Plan 07 work and unrelated edits.
 
-Local implementation checkpoint: schema, auth flows, operator lifecycle,
-HTTP-level and transaction-level inactive-state enforcement, explicit
-invitation acceptance and permanent removal are implemented and verified.
-Mail provider setup, real delivery, controlled operator staging and migration
-rollout evidence remain open release gates. See
-`docs/validation/plan07-implementation-2026-10-25.md`.
+Deliver Owner-managed tenant payment accounts, immutable system Cash, atomic
+branch assignment and availability enforcement, account-linked sale/refund
+snapshots, dynamic POS/refund/history selections, and exact account reporting
+with Received/Refunded/Net Received controls and a signed negative-net chart.
+One account per sale/refund; split payments and reconciliation remain excluded.
 
-## Objective
+Use currently applicable zero-value accounts plus all historically contributing
+accounts in reports; disabled zero-only accounts remain discoverable in Owner
+management. Return complete grouped account totals; paginate rendered tables
+at 15. No truncation of financial totals.
 
-Implement secure account verification and password recovery, controlled
-organization provisioning/activation, inactive-organization write protection,
-and reliable invitation delivery/acceptance without introducing a platform-admin
-web application, subscriptions, payouts, reconciliation or a general audit
-system.
+Prepare and rehearse the forward migration on an explicitly disposable local
+database. Do not reset deployed databases until their exact developmental target
+and replacement dataset are verified. Existing development reset authorization
+does not apply to an unexpected or real-data target.
 
-## Confirmed decisions
-
-- Organization provisioning and activation use a protected server-side operator
-  command. No platform-superadmin UI is added.
-- Verified email is required for workspace access. Unverified users may sign in
-  only to reach verification/resend and other explicitly safe account actions.
-- Existing organizations and users are preserved; rollout must not silently
-  grant verification, delete tenants or reset passwords.
-- Deactivated organizations retain authorized read-only history, while new
-  writes are blocked server-side. Controlled refund/correction exceptions are
-  not approved for this implementation.
-- Invitation acceptance requires an explicit Accept action. Page load, preview,
-  login or verification completion must not mutate membership.
-- Removed invitations are permanently deleted and their links become invalid;
-  accepted memberships and historical actor references remain.
-- Invitation email is attempted automatically after creation, with Copy link
-  retained. Provider, sender/domain and spending decisions remain an explicit
-  gate before real delivery.
-- Password reset is purpose-bound, single-use, does not auto-login, reuses the
-  approved 72 UTF-8-byte new-password limit and revokes all sessions atomically.
-
-## Required implementation scope
-
-1. Add additive verification/recovery state and purpose-bound token storage with
-   tenant-safe indexes, expiry, single-use consumption and hashed token values.
-2. Replace enumeration-prone registration behavior with the approved generic
-   acknowledgement and safe pending-registration credential-binding flow.
-3. Add verification and password-reset endpoints, forms, routes, safe return
-   paths, response schemas and log/referrer protections.
-4. Add protected idempotent operator provisioning and activation/deactivation,
-   including sanitized operator events and organization-state enforcement in
-   mutation transactions.
-5. Remove ordinary public organization creation and enforce inactive-organization
-   write blocking across relevant services and direct API paths.
-6. Add owner rename behavior using existing validation and tenant authorization.
-7. Add the shared mail boundary, automatic invitation delivery, resend token
-   rotation, explicit acceptance, permanent invitation removal and provider
-   failure handling.
-8. Update authentication, organization, invitation and runtime/module docs only
-   after behavior and tests are complete.
-
-## Explicit exclusions
-
-No automated billing, platform-admin UI, public tenant creation, payouts,
-settlements, reconciliation, MFA, OAuth/SSO, arbitrary email changes, Redis,
-queues/outbox, general ledger or general audit platform. Do not add a mail
-provider dependency or send real messages until the provider/sender decision is
-approved and the boundary is implemented with the existing project conventions.
-
-## Acceptance gates
-
-- Backend DTOs/services enforce token purpose, expiry, hashing, single-use and
-  organization/user ownership; foreign objects use equivalent not-found behavior.
-- Registration, verification, reset, invitation and activation races are safe and
-  idempotent; stale operation IDs cannot mutate a different target.
-- All relevant organization mutation paths recheck active state transactionally.
-- Existing Owners/memberships/history remain usable according to the rollout
-  policy; no automatic verification or destructive migration is performed.
-- Session revocation and 503 behavior remain compatible with Plan 03.
-- Frontend API schemas, token pages, explicit actions, loading/error/retry states
-  and accessible forms match backend contracts.
-- Unit, HTTP, test-source typecheck, build and disposable PostgreSQL concurrency
-  tests pass through the Plan 06 workflow. Hosted `/api` cookie/CSRF and real
-  mailbox/operator staging evidence remain separate release gates.
-
-## Execution rule
-
-Implement in additive phases: schema and migration, backend contracts and
-services, frontend flows, operator/inactive-state enforcement, invitations and
-documentation. Preserve rollback safety and do not perform destructive data
-changes. Stop at the first unresolved security or business-rule decision:
-pending-registration credential binding, mail provider/sender, operator
-identity/host execution, token expiry, existing-user rollout, and inactive-
-organization refund/correction exceptions must be resolved before enabling the
-corresponding production behavior.
-
-Detailed source review, API proposals, edge cases, rollout rules and test cases
-remain in [pending/07-controlled-access.md](pending/07-controlled-access.md).
+Completion requires backend/frontend contract parity, tenant and branch checks,
+Cash constraints, exact financial aggregates, replay/race coverage, updated
+module docs, relevant automated gates and separately recorded hosted/browser
+cutover evidence. Keep this plan active until required work is complete.

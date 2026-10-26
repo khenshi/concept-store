@@ -2,7 +2,8 @@
 
 Date: October 22, 2026; source-reviewed and updated October 24, 2026
 
-Status: Pending design; planning only. No implementation authorized.
+Status: Approved for implementation October 25, 2026. Active authority is
+recorded in `../current.md`. Development cutover requires exact-target checks.
 
 Priority: Required before real pilot use. Numbered delivery phases below are
 steps, not release-priority exemptions. This filename is retained to preserve
@@ -503,10 +504,10 @@ and remaining gates:
    reset. No historical GCash/Card backfill is needed for the disposable dataset.
 4. **Confirmed names:** fixed Cash label; unique normalized custom names per
    tenant. Multiple GCash/BPI accounts use distinct labels and stable account IDs.
-5. **Zero-row scope/volume:** proposed show currently assigned accounts plus every
-   account with historical activity, never hide historical amounts. Should Owners
-   also see all disabled zero-valued accounts by default? Confirm reasonable
-   configurable-account bounds or a complete paginated aggregation contract.
+5. **Zero-row scope/volume implementation choice:** show currently assigned
+   accounts plus every account with historical activity. Disabled zero-only
+   accounts remain available in Owner management. Return complete grouped totals;
+   paginate rendered table rows at 15 and never truncate financial aggregates.
 
 These decisions affect usability/compatibility, not authority to restore any
 removed reconciliation workflow.
@@ -550,7 +551,7 @@ legend contract before implementation rather than silently merging accounts into
 Other or requesting one query per account. Show zero currently applicable accounts
 and all historically contributing accounts by default; disabled zero-only accounts
 are discoverable through Owner management, not hidden amounts in financial totals.
-This conservative display proposal still awaits confirmation in section 13.
+This conservative display rule is recorded in the approved current scope.
 
 ### Rollout and rollback
 

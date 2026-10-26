@@ -191,7 +191,7 @@ change application behavior.
    fixed Cash/unique custom names are confirmed. Display bounds and exact reset
    target remain gates. Financial attribution, cutover and cross-plan
    contracts are documented; no feature or database change was implemented.
-   Plan 07 is [drafted](../pending/07-controlled-access.md). October 24 decisions:
+   Plan 07 is [drafted](07-controlled-access-2026-10-25.md). October 24 decisions:
    protected operator commands, read-only history while organizations are inactive,
    and verified email required for workspace access are confirmed. Provider,
    credential-binding/cutover and inactive-tenant refund exceptions remain gates.

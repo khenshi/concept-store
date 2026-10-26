@@ -2,17 +2,14 @@
 
 Date: October 24, 2026
 
-Status: Approved for staged implementation October 25, 2026. The active scope is
-summarized in `docs/plans/current.md`; this file remains the detailed design and
-test contract. Provider purchase, real mail delivery, production activation and
-business-data changes remain separately gated.
+Status: Completed and archived October 25, 2026. This file records the approved
+design, implementation contract and completed acceptance evidence.
 
-Implementation checkpoint October 25, 2026: local schema/auth/operator/access,
-transaction-level inactive mutation rechecks and invitation slices are
-implemented, and the disposable PostgreSQL integration suite passes. Provider
-delivery, staging operator proof, rollout of existing users and hosted
-verification remain open; do not archive this plan until those gates are
-evidenced.
+Implementation and hosted acceptance checkpoint October 25, 2026: schema,
+auth/operator/access, transaction-level inactive mutation rechecks, Resend
+delivery, automatic account/invitation email delivery, invitation resend,
+existing-user rollout, protected operator staging and hosted verification were
+validated. The plan is archived after the user-confirmed acceptance gates passed.
 
 Priority: Required before the first pilot organizations start, including email
 verification and forgot-password recovery. Manual support alone is insufficient.
@@ -34,14 +31,15 @@ Confirmed October 24:
   may authenticate to a verification/resend screen, not access tenant resources.
 
 Previously confirmed: manual fee collection; Owner-only organization renaming;
-automatic invitation emails plus Copy link; explicit Accept invitation action;
+automatic Resend invitation emails plus Copy link; explicit Accept invitation action;
 permanent deletion of every removed invitation without deleting accepted members.
 
 Excluded: subscriptions, payment collection, invoices, payouts/settlements,
 reconciliation, public tenant creation, a platform-superadmin role/UI, arbitrary
-email changes, general audit infrastructure or a new queue. Account registration
-does not create an organization. Preserve current chooser cards and report-period
-preferences. No new application dependencies without review/approval of need.
+email changes, general audit infrastructure, queues or outboxes. Account
+registration does not create an organization. Preserve current chooser cards and
+report-period preferences. No new application dependency was added; Resend uses
+the existing Node runtime fetch capability.
 
 ## 2. Current source evidence and weaknesses
 
@@ -197,7 +195,8 @@ preserve IDs/history. No unrelated branding or deletion feature.
 - After creation commits, automatically attempt delivery through one small
   feature-neutral mail boundary reused for verification/reset. Provider choice,
   sender/domain verification, free-tier permission/limits and any spending require
-  approval. No provider has been selected by this plan.
+  approval. Resend is the selected provider; sender/domain verification and
+  runtime credentials were configured and validated for the pilot.
 - Preserve Copy link and actual expiry. Owner UI distinguishes invitation saved
   from email accepted by provider; provider acceptance is not inbox delivery.
   Creation/mail failure never falsely reports a rolled-back invitation. Use bounded
@@ -263,13 +262,12 @@ links. Do not roll back to code that restores unrestricted tenant creation or
 ignores verification/inactive-state gates. Roll forward or restrict onboarding if
 mail/auth cutover fails; preserve financial data and saved outcomes.
 
-Open: mail provider/sender/domain/cost; token expiry approval; pending-registration
-credential-binding design; existing-user rollout timing; actual operator identity/
-host command restrictions; narrow event/token/mail retention with 13. Refund and
-correction exceptions for inactive organizations are not approved: the current
-proposed default is no new writes, authorized history/outcome lookup only. Resolve
-whether any exception is needed before enabling deactivation for real stores.
+Completed: Resend sender/domain and real delivery, token expiry behavior,
+pending-registration credential binding, existing-user rollout, operator
+identity/host restrictions and hosted verification were validated. Refund and
+correction exceptions for inactive organizations remain excluded; the implemented
+policy is no new writes with authorized history/outcome lookup only.
 
-These are implementation gates, not authorization to buy a domain, install mail
-packages, activate tenants or send emails. No deployment or business-data change
+These are implementation gates, not authorization to activate tenants or send
+emails to real store contacts. No deployment or business-data change
 occurred during planning.

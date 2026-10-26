@@ -8,7 +8,9 @@ This is an audit/checklist, not approval to implement new modules or deploy/rese
 databases. Continue using approved current plans for implementation.
 
 Planning sequence: [pending plans and implementation order](plans/pending/README.md).
-Plan 07 is the active staged implementation plan. Plans 03–06 also contain
+Plan 07 is completed and archived. Plan 08 Payment Accounts is the approved active
+implementation, with local evidence in
+[Plan 08 validation](validation/plan08-implementation-2026-10-25.md). Plans 03–06 also contain
 committed local implementation slices, documented in the [background-agent
 audit](validation/background-agent-audit-2026-10-25.md), but their hosted,
 provider and release gates are not certified here. Other feature plans remain
@@ -37,14 +39,14 @@ does not establish deployed security, database recovery or rendered correctness.
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Authentication/account settings                              | Registration/login, rotating sessions, profile/password/account deletion and Plan 03 session-bound controls implemented | Account recovery/onboarding policy; deployed cookies, proxy identity, rate limits and browser proof |
 | Organizations/branches                                       | Tenant memberships, controlled operator provisioning/activation and branch-scoped workflows implemented | Hosted operator access, pilot enrollment procedure and future manual paid activation/suspension are not an entitlement system |
-| Members/invitations                                          | Owner management, branch/merchant access, explicit acceptance and permanent invitation removal implemented | Real onboarding delivery and role-change smoke tests; provider-backed email sending is not present                         |
+| Members/invitations                                          | Owner management, branch/merchant access, explicit acceptance, permanent invitation removal and Resend delivery implemented | Configure verified sender/API key and prove real onboarding delivery and role-change smoke tests |
 | Merchants/branch participation                               | Profiles and affiliations implemented                                                 | Representative real data, access verification; no settlement/payout requirement                                                 |
 | Products/inventory                                           | Placements, prices, stock, immutable movements and stock-integrity checks implemented | Full regression, input/empty/loading QA and measured directory scale                                                            |
 | POS/Sales                                                    | Atomic completed sale, cash/manual GCash/card, receipts and replay implemented        | Required account configuration feature, printer QA and uncertain-outcome runbook                                                |
 | Returns/refunds                                              | Partial/full item returns, manual payout record, restock and history implemented      | Account attribution feature, real role/privacy checks and recovery QA                                                           |
 | Reports                                                      | Branch-scoped analytics, Transactions, Daily Data and Rankings implemented            | All Branches deferred plan; dynamic account amounts/toggle pending plan                                                         |
 | Spaces                                                       | Catalog/types, assignment/release and occupancy history implemented                   | Verify target migration parity and recent forms/calendar/history regressions                                                    |
-| Payment Accounts                                             | Pending proposal, not implemented                                                     | Implement approved account configuration, branch assignment, source snapshots and report aggregation                            |
+| Payment Accounts                                             | Local Plan 08 implementation and disposable verification complete; hosted cutover pending | Verify exact target, deploy matching API/frontend, and qualify account configuration, branch assignment, source snapshots and report aggregation |
 | All Branches Reports                                         | Deferred planning-only proposal, not implemented                                      | Implement and verify all-role authorized aggregation and detail navigation                                                      |
 | Merchant settlements/payouts                                 | Not implemented                                                                       | Explicitly excluded; do not build                                                                                               |
 | Automated billing/platform superadmin/general finance ledger | Not implemented                                                                       | Not automatically required. Manual activation needs a narrowly approved control, not an assumed admin platform                  |
@@ -188,12 +190,13 @@ database was queried, migrated, reset or seeded by the audit.
       regression assertion under Plan 01, approved October 23. Runtime pagination
       already uses 15; do not change behavior to match stale API metadata.
 
-- [ ] **Payment Account Management/Reporting:** resolve remaining policy gates,
-      promote an approved implementation phase, then deliver account registry, Cash
+- [ ] **Payment Account Management/Reporting:** local implementation and
+      disposable migration/seed verification are complete; qualify the hosted
+      account registry, Cash
       always-enabled/all-branches, configurable reference rules, selected/all branch
       availability, backend enforcement and immutable Sale/Refund account snapshots.
-      Source: [pending account plan](plans/pending/finance-reconciliation.md).
-- [ ] Deliver dynamic Received/Refunded/Net Received account report, correct actual
+      Hosted development cutover remains pending. Source: [account plan](plans/pending/finance-reconciliation.md).
+- [ ] Deliver and qualify the dynamic Received/Refunded/Net Received account report, correct actual
       refund-account attribution, exact breakdown table and signed-negative chart.
       Confirm Manager assigned-branch access and historical disabled-account visibility.
 - [ ] **Reports All Branches:** implement the [pending plan](plans/pending/09-reports-all-branches.md) after promotion/approval, preserving
@@ -216,8 +219,8 @@ database was queried, migrated, reset or seeded by the audit.
 - [x] Implement forgot-password recovery and email verification before the first
       pilot organizations start, as confirmed October 23. Token expiry/single use,
       abuse protection, secure token handling and recovery-session behavior are
-      implemented. Provider-backed delivery and hosted/browser proof remain open;
-      manual support is not a substitute. Never have support request plaintext
+      implemented and validated with Resend delivery, hosted/browser proof and
+      controlled mailbox verification. Never have support request plaintext
       passwords.
 - [ ] Plan server-side member search and 15-row default pagination (queue item 17),
       with bounded query validation, stable order and page/count metadata. Preserve
@@ -255,9 +258,9 @@ database was queried, migrated, reset or seeded by the audit.
       avoid registration email enumeration, add dedicated password-change/deletion
       rate limits, and use the documented outlined deletion confirmation. These are
       unimplemented requirements, not certification of current security behavior.
-- [ ] Plan automatic invitation email delivery with Copy link retained (Plan 07),
-      confirmed October 23. Reuse planned mail capability; define provider, failure
-      feedback and safe retry semantics. Current delivery is still manual.
+- [x] Implement automatic Resend invitation email delivery with Copy link retained
+      (Plan 07). Provider rejection/timeout leaves the saved invitation intact,
+      reports delivery status, and owner-only resend rotates the old link.
 - [x] Require an explicit Accept invitation button (Plan 07); opening a matching
       signed-in invitation link must not automatically create membership. Preserve
       expiry/single-use, matching-account, verification and duplicate-submit guards.
@@ -285,7 +288,7 @@ database was queried, migrated, reset or seeded by the audit.
       sessions at subsequent checks. Old sessionless tokens are rejected; valid
       refresh sessions can rotate into bound tokens. Legacy login is retained and
       new passwords are limited to 72 UTF-8 bytes. Plan 07 reset integration and
-      actual hosted/browser validation remain open; local tests do not waive them.
+      actual hosted/browser validation are complete.
 - [ ] Refresh cookies use HttpOnly, Secure in production and SameSite=Lax. Local
       code now supports direct Path=/auth and the reviewed local same-origin
       `/api/auth` proxy path, with issuance and clearing kept consistent. Select
