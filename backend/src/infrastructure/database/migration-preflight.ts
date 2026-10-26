@@ -13,6 +13,7 @@ export type MigrationFile = {
 export type MigrationRecord = {
   name: string;
   checksum: string;
+  startedAt: Date;
   finishedAt: Date | null;
   rolledBackAt: Date | null;
 };
@@ -81,16 +82,30 @@ export function inspectMigrationHistory(
     files.map((file) => [file.name, file.checksum]),
   );
 
-  records.forEach((record, index) => {
-    if (!record.finishedAt || record.rolledBackAt) {
-      issues.push(`migration ${record.name} is unfinished or rolled back`);
-    }
+  records.forEach((record) => {
     if (!expectedChecksums.has(record.name)) {
       issues.push(`migration ${record.name} is not in the repository`);
     } else if (expectedChecksums.get(record.name) !== record.checksum) {
       issues.push(
         `migration ${record.name} checksum differs from the repository`,
       );
+    }
+  });
+
+  const latestAttempts = new Map<string, MigrationRecord>();
+  for (const record of records) {
+    const previous = latestAttempts.get(record.name);
+    if (!previous || record.startedAt > previous.startedAt) {
+      latestAttempts.set(record.name, record);
+    }
+  }
+  const effectiveRecords = [...latestAttempts.values()].sort(
+    (left, right) => left.startedAt.getTime() - right.startedAt.getTime(),
+  );
+
+  effectiveRecords.forEach((record, index) => {
+    if (!record.finishedAt || record.rolledBackAt) {
+      issues.push(`migration ${record.name} is unfinished or rolled back`);
     }
     if (expectedNames[index] !== record.name) {
       issues.push(`migration history order diverges at ${record.name}`);
@@ -101,8 +116,8 @@ export function inspectMigrationHistory(
     return { state: 'unsafe', pendingMigrations: [], issues };
   }
 
-  const pendingMigrations = expectedNames.slice(records.length);
-  if (records.length === 0) {
+  const pendingMigrations = expectedNames.slice(effectiveRecords.length);
+  if (effectiveRecords.length === 0) {
     return { state: 'empty', pendingMigrations, issues };
   }
   if (pendingMigrations.length > 0) {

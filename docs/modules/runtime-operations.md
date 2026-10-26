@@ -1,7 +1,7 @@
 # Runtime operations
 
-Implemented October 25, 2026. Includes the provider-agnostic frontend runtime
-and same-origin API routing contract; no schema or provider deployment change.
+Implemented and validated October 25, 2026. Includes the provider-agnostic
+frontend runtime, same-origin API routing contract, and the Resend mail boundary.
 
 ## Build and startup
 
@@ -21,6 +21,17 @@ Startup validates configuration and performs a bounded database connectivity pro
 using the existing Prisma adapter pool before serving HTTP. Failure exits nonzero
 with a generic `API startup failed` diagnostic, without raw configuration/error
 details. Existing validated PORT, Helmet, CORS, DTO and shutdown behavior remain.
+
+## Email delivery
+
+Production requires `EMAIL_PROVIDER=resend`, a Resend API key in
+`RESEND_API_KEY`, and a verified sender in `EMAIL_FROM` such as
+`Kapwesto <no-reply@example.com>`. The backend sends verification, password-reset,
+and invitation messages directly to Resend with a bounded ten-second request
+timeout. Provider failures are recorded as sanitized warnings and do not roll
+back the already-saved account token or invitation. Development and tests may set
+`EMAIL_PROVIDER=disabled`; this intentionally returns Copy link/manual recovery
+behavior without sending messages.
 
 Do not boot against ambient application credentials for smoke tests. The opt-in
 `npm run test:runtime` requires a separately verified disposable localhost database
@@ -91,13 +102,32 @@ never route real traffic solely because `/health/ready` returns 200.
 The backend exposes a read-only `npm run prisma:migration:preflight` command for
 an explicitly supplied target. It verifies the target database/schema identity
 and compares Prisma migration names and checksums with repository files, stopping
-on failed, unknown, reordered or drifted history. It never falls back to runtime
-URLs, runs migrations, resets data or authorizes deployment. Empty and
-upgrade-needed states require a separate reviewed rehearsal and release gate.
+on an unresolved failed latest attempt, unknown, reordered or drifted history. A
+resolved failed attempt followed by a later successful attempt for the same
+migration is retained as history but evaluated by its latest attempt. The
+command never falls back to runtime URLs, runs migrations, resets data or
+authorizes deployment. Empty and upgrade-needed states require a separate
+reviewed rehearsal and release gate.
+
+Plan 08 adds a development-only account cutover boundary. Its forward migration
+must be applied through the normal migration chain on a verified disposable
+database and intentionally stops when Sale or Refund rows already exist. For a
+fresh development dataset, set `DIRECT_DATABASE_URL` to the exact disposable
+target for `npm run prisma:migrate:deploy`, then run the guarded seed with
+`DEMO_DATABASE_URL`, `SEED_DEMO_DATABASE_NAME`,
+`SEED_DEMO_CONFIRM=I_UNDERSTAND_DISPOSABLE_DEMO_RESET` and
+`NODE_ENV=development` or `test`. The seed never accepts the application
+`DATABASE_URL`, and remote reset requires separate explicit remote-target
+confirmation. Verify Cash/account counts and report totals before starting the
+matching API/frontend versions. Existing financial rows require a separately
+approved preservation migration; do not use the demo reset as one.
 
 ## Verification and limits
 
 See [October 25 runtime validation](../validation/production-runtime-2026-10-25.md).
 Actual hosted proxy behavior, monitoring/alerts, host polling/grace budgets,
 migration compatibility and transaction shutdown/recovery qualification remain
-with their pending plans. No provider, database migration or deployment performed.
+with their pending plans. The verified development Neon migration/reset/seed
+cutover and its remaining hosted qualification gates are recorded separately in
+the Plan 08 validation evidence. This is not production migration or recovery
+proof.

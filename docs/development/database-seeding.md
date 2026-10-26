@@ -53,7 +53,9 @@ confirmation value above. Loopback targets are accepted with the local
 confirmation alone. A remote development target additionally requires
 `SEED_DEMO_ALLOW_REMOTE_RESET=I_UNDERSTAND_REMOTE_DEMO_RESET` and an exact
 `SEED_DEMO_REMOTE_HOST` match. It refuses production execution, missing Prisma
-migration history, failed migrations and stale migration history.
+migration history, unresolved/failed migrations and stale migration history. A
+rolled-back attempt that was explicitly resolved and followed by a later
+successful attempt for the same migration is accepted.
 
 The command is destructive: it truncates only the verified public schema of the
 selected target. Remote reset is permitted only for an explicitly designated

@@ -15,8 +15,9 @@ function record(
   name: string,
   checksum: string,
   finishedAt: Date | null = new Date(),
+  startedAt = new Date(),
 ): MigrationRecord {
-  return { name, checksum, finishedAt, rolledBackAt: null };
+  return { name, checksum, startedAt, finishedAt, rolledBackAt: null };
 }
 
 describe('migration preflight', () => {
@@ -78,5 +79,34 @@ describe('migration preflight', () => {
       inspectMigrationHistory(files, [record(files[1].name, files[1].checksum)])
         .state,
     ).toBe('unsafe');
+  });
+
+  it('accepts a resolved failed attempt followed by a successful retry', () => {
+    const failedStart = new Date('2026-10-11T00:00:00.000Z');
+    const successfulStart = new Date('2026-10-11T00:02:00.000Z');
+    expect(
+      inspectMigrationHistory(files, [
+        record(
+          files[0].name,
+          files[0].checksum,
+          new Date(),
+          new Date('2026-10-10T00:00:00.000Z'),
+        ),
+        {
+          name: files[1].name,
+          checksum: files[1].checksum,
+          startedAt: failedStart,
+          finishedAt: null,
+          rolledBackAt: new Date('2026-10-11T00:01:00.000Z'),
+        },
+        {
+          name: files[1].name,
+          checksum: files[1].checksum,
+          startedAt: successfulStart,
+          finishedAt: new Date('2026-10-11T00:03:00.000Z'),
+          rolledBackAt: null,
+        },
+      ]).state,
+    ).toBe('current');
   });
 });

@@ -20,10 +20,13 @@ npm run prisma:migration:preflight
 
 The result is one of `empty`, `upgrade-needed`, `current` or `unsafe`. The
 preflight compares applied migration names and SHA-256 checksums with the
-repository files and stops on failed/rolled-back history, unknown migrations,
-checksum drift or reordered history. It reports only the database name, state,
-pending migration names and bounded issue text; it does not print a URL,
-credential, row data or migration logs.
+repository files and stops on an unresolved failed/rolled-back latest attempt,
+unknown migrations, checksum drift or reordered history. If Prisma history
+contains a failed attempt that was explicitly resolved and followed by a later
+successful attempt for the same migration, the latest successful attempt is
+used for state and ordering while every attempt is still checksum-checked. It
+reports only the database name, state, pending migration names and bounded issue
+text; it does not print a URL, credential, row data or migration logs.
 
 `empty` and `upgrade-needed` are rehearsal states, not permission to deploy.
 An `unsafe` result requires target-specific investigation and preserved evidence;

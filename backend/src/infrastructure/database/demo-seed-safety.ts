@@ -10,6 +10,7 @@ export type DemoSeedDatabaseIdentity = {
 
 export type DemoSeedMigration = {
   migrationName: string;
+  startedAt: Date;
   finishedAt: Date | null;
   rolledBackAt: Date | null;
 };
@@ -112,14 +113,25 @@ export function assertDemoSeedMigrationState(
   migrations: readonly DemoSeedMigration[],
   expectedLatestMigration: string,
 ): void {
-  const unfinished = migrations.some(
+  const latestAttempts = new Map<string, DemoSeedMigration>();
+  for (const migration of migrations) {
+    const previous = latestAttempts.get(migration.migrationName);
+    if (!previous || migration.startedAt > previous.startedAt) {
+      latestAttempts.set(migration.migrationName, migration);
+    }
+  }
+
+  const effectiveMigrations = [...latestAttempts.values()].sort(
+    (left, right) => left.startedAt.getTime() - right.startedAt.getTime(),
+  );
+  const unfinished = effectiveMigrations.some(
     (migration) => !migration.finishedAt || migration.rolledBackAt,
   );
   if (unfinished) {
     throw new Error('Demo seed requires a database without failed migrations.');
   }
 
-  if (migrations[0]?.migrationName !== expectedLatestMigration) {
+  if (effectiveMigrations.at(-1)?.migrationName !== expectedLatestMigration) {
     throw new Error(
       'Demo seed requires the disposable database to have the current migration history.',
     );

@@ -99,6 +99,7 @@ describe('demo seed target safety', () => {
         [
           {
             migrationName: '20261011010000_latest',
+            startedAt: new Date('2026-10-11T00:00:00.000Z'),
             finishedAt: null,
             rolledBackAt: null,
           },
@@ -111,6 +112,7 @@ describe('demo seed target safety', () => {
         [
           {
             migrationName: '20261010010000_old',
+            startedAt: new Date('2026-10-10T00:00:00.000Z'),
             finishedAt: new Date(),
             rolledBackAt: null,
           },
@@ -123,7 +125,30 @@ describe('demo seed target safety', () => {
         [
           {
             migrationName: '20261011010000_latest',
+            startedAt: new Date('2026-10-11T00:00:00.000Z'),
             finishedAt: new Date(),
+            rolledBackAt: null,
+          },
+        ],
+        '20261011010000_latest',
+      ),
+    ).not.toThrow();
+  });
+
+  it('accepts a rolled-back attempt superseded by a successful retry', () => {
+    expect(() =>
+      assertDemoSeedMigrationState(
+        [
+          {
+            migrationName: '20261011010000_latest',
+            startedAt: new Date('2026-10-11T00:00:00.000Z'),
+            finishedAt: null,
+            rolledBackAt: new Date('2026-10-11T00:01:00.000Z'),
+          },
+          {
+            migrationName: '20261011010000_latest',
+            startedAt: new Date('2026-10-11T00:02:00.000Z'),
+            finishedAt: new Date('2026-10-11T00:03:00.000Z'),
             rolledBackAt: null,
           },
         ],

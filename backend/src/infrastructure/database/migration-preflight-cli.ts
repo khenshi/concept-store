@@ -51,10 +51,11 @@ async function main(): Promise<void> {
       await client.query<{
         migration_name: string;
         checksum: string;
+        started_at: Date;
         finished_at: Date | null;
         rolled_back_at: Date | null;
       }>(
-        'SELECT migration_name, checksum, finished_at, rolled_back_at FROM public._prisma_migrations ORDER BY started_at, migration_name',
+        'SELECT migration_name, checksum, started_at, finished_at, rolled_back_at FROM public._prisma_migrations ORDER BY started_at, migration_name',
       )
     ).rows;
     const result = inspectMigrationHistory(
@@ -62,6 +63,7 @@ async function main(): Promise<void> {
       records.map((record) => ({
         name: record.migration_name,
         checksum: record.checksum,
+        startedAt: record.started_at,
         finishedAt: record.finished_at,
         rolledBackAt: record.rolled_back_at,
       })),
