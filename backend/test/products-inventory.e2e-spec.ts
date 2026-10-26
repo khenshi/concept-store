@@ -8,7 +8,10 @@ import {
   matchesActiveSession,
   sessionIdFor,
 } from './auth-session-fixtures';
-import { OrganizationRole } from '../src/generated/prisma/client';
+import {
+  OrganizationRole,
+  OrganizationStatus,
+} from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
@@ -103,7 +106,9 @@ describe('Products and inventory HTTP boundaries', () => {
           const context = where.organizationId_userId;
           const role = roles.get(context.userId);
           return Promise.resolve(
-            context.organizationId === org && role ? { role } : null,
+            context.organizationId === org && role
+              ? { role, organization: { status: OrganizationStatus.ACTIVE } }
+              : null,
           );
         },
       ),
@@ -397,7 +402,7 @@ describe('Products and inventory HTTP boundaries', () => {
     items: [
       { branchInventoryId: item, quantity: 1, expectedUnitPrice: '12.50' },
     ],
-    paymentMethod: 'CASH',
+    paymentAccountId: item,
     cashTender: '20.00',
   };
   it('requires authentication and rejects merchant checkout', async () => {
@@ -433,7 +438,6 @@ describe('Products and inventory HTTP boundaries', () => {
     { organizationId: org },
     { createdById: actor },
     { cashTender: 20 },
-    { paymentReference: 'cash cannot have reference' },
     { items: [saleCommand.items[0], saleCommand.items[0]] },
     { items: [{ ...saleCommand.items[0], unitPrice: '0.01' }] },
   ])('rejects untrusted HTTP checkout fields %j', async (extra) => {

@@ -15,6 +15,7 @@ import {
 import {
   MerchantStatus,
   OrganizationRole,
+  OrganizationStatus,
 } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
@@ -65,7 +66,9 @@ describe('Merchant profiles (e2e)', () => {
           const { organizationId, userId } = where.organizationId_userId;
           const role = roles.get(userId);
           return Promise.resolve(
-            organizationId === ORGANIZATION_ID && role ? { role } : null,
+            organizationId === ORGANIZATION_ID && role
+              ? { role, organization: { status: OrganizationStatus.ACTIVE } }
+              : null,
           );
         },
       ),

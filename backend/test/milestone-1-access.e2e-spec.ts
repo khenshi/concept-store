@@ -8,7 +8,10 @@ import {
   matchesActiveSession,
   sessionIdFor,
 } from './auth-session-fixtures';
-import { OrganizationRole } from '../src/generated/prisma/client';
+import {
+  OrganizationRole,
+  OrganizationStatus,
+} from '../src/generated/prisma/client';
 import { OPENAPI_JSON_PATH, setupSwagger } from '../src/config/swagger';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
@@ -65,15 +68,24 @@ describe('Milestone 1 organization access (e2e)', () => {
               userId: string;
             };
           };
-        }): Promise<{ role: OrganizationRole } | null> => {
+        }): Promise<{
+          role: OrganizationRole;
+          organization: { status: OrganizationStatus };
+        } | null> => {
           const { organizationId, userId } = where.organizationId_userId;
 
           if (organizationId !== ORGANIZATION_ID) return Promise.resolve(null);
           if (userId === OWNER_ID) {
-            return Promise.resolve({ role: OrganizationRole.OWNER });
+            return Promise.resolve({
+              role: OrganizationRole.OWNER,
+              organization: { status: OrganizationStatus.ACTIVE },
+            });
           }
           if (userId === CASHIER_ID) {
-            return Promise.resolve({ role: OrganizationRole.CASHIER });
+            return Promise.resolve({
+              role: OrganizationRole.CASHIER,
+              organization: { status: OrganizationStatus.ACTIVE },
+            });
           }
 
           return Promise.resolve(null);
@@ -281,6 +293,7 @@ describe('Milestone 1 organization access (e2e)', () => {
     ]) {
       prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
         role,
+        organization: { status: OrganizationStatus.ACTIVE },
       });
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       await request(app.getHttpServer())
@@ -318,6 +331,7 @@ describe('Milestone 1 organization access (e2e)', () => {
       ]) {
         prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
           role,
+          organization: { status: OrganizationStatus.ACTIVE },
         });
         // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         await request(app.getHttpServer())
@@ -344,6 +358,7 @@ describe('Milestone 1 organization access (e2e)', () => {
   it('reserves member listing and membership changes for owners', async () => {
     prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
       role: OrganizationRole.MANAGER,
+      organization: { status: OrganizationStatus.ACTIVE },
     });
     const token = accessToken(OWNER_ID, 'manager@example.com');
 
@@ -355,6 +370,7 @@ describe('Milestone 1 organization access (e2e)', () => {
 
     prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
       role: OrganizationRole.MANAGER,
+      organization: { status: OrganizationStatus.ACTIVE },
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument

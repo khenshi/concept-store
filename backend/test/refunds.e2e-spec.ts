@@ -19,6 +19,7 @@ import {
   RefundReadController,
 } from '../src/modules/organizations/refunds/refund-read.controller';
 import { RefundReadService } from '../src/modules/organizations/refunds/refund-read.service';
+import { OrganizationStatus } from '../src/generated/prisma/client';
 const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const sale = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
@@ -29,7 +30,7 @@ const valid = {
   requestId: actor,
   items: [{ saleItemId: actor, quantity: 2 }],
   reason: 'Returned goods',
-  paymentMethod: 'CASH',
+  paymentAccountId: actor,
   refundConfirmed: true,
 };
 describe('Refund command HTTP/OpenAPI boundaries', () => {
@@ -101,7 +102,9 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
         where: { organizationId_userId: { organizationId: string } };
       }) =>
         Promise.resolve(
-          where.organizationId_userId.organizationId === org ? { role } : null,
+          where.organizationId_userId.organizationId === org
+            ? { role, organization: { status: OrganizationStatus.ACTIVE } }
+            : null,
         ),
     );
     refunds.complete.mockResolvedValue({ scope: 'STAFF', total: '25.00' });
@@ -168,8 +171,8 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
   it.each([
     { q: 'x'.repeat(255) },
     { q: ['a', 'b'] },
-    { paymentMethod: 'OTHER' },
-    { paymentMethod: ['CASH', 'CARD'] },
+    { paymentAccountId: 'OTHER' },
+    { paymentAccountId: [actor, org] },
     { from: '2026-10-21T00:00:00Z' },
     { until: '2026-10-22T00:00:00Z' },
     { from: '2026-02-30T00:00:00Z', until: '2026-10-22T00:00:00Z' },
@@ -204,7 +207,7 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
       .get(branchPath)
       .query({
         q: ' RF%_\\ ',
-        paymentMethod: 'CARD',
+        paymentAccountId: actor,
         from: '0001-01-01T00:00:00Z',
         until: '9999-12-31T23:59:59.999Z',
         page: '2',
@@ -217,7 +220,7 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
       branch,
       expect.objectContaining({
         q: 'RF%_\\',
-        paymentMethod: 'CARD',
+        paymentAccountId: actor,
         page: 2,
         limit: 100,
         from: '0001-01-01T00:00:00Z',
@@ -257,14 +260,20 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
         'receiptCode',
         'refundCode',
         'completedAt',
-        'paymentMethod',
+        'paymentAccountId',
+        'paymentAccountName',
+        'paymentAccountIsCash',
+        'paymentAccountRequiresReference',
         'total',
       ].sort(),
     );
     expect(row).toMatchObject({
       properties: {
         total: { type: 'string' },
-        paymentMethod: { enum: ['CASH', 'GCASH', 'CARD'] },
+        paymentAccountId: { format: 'uuid' },
+        paymentAccountName: { type: 'string' },
+        paymentAccountIsCash: { type: 'boolean' },
+        paymentAccountRequiresReference: { type: 'boolean' },
       },
     });
     expect(document.components?.schemas?.BranchRefundPageDto).toMatchObject({
@@ -421,7 +430,7 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
     const own = document.components?.schemas?.MerchantRefundResponseDto;
     for (const field of [
       'total',
-      'paymentMethod',
+      'paymentAccountId',
       'paymentReference',
       'reason',
       'createdById',
@@ -461,15 +470,15 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
       );
     },
   );
-  it.each(['GCASH', 'CARD'])(
+  it.each([actor, org])(
     'accepts manually confirmed %s with trimmed reference/reason',
-    async (paymentMethod) => {
+    async (paymentAccountId) => {
       await http()
         .post(path)
         .auth(token(), { type: 'bearer' })
         .send({
           ...valid,
-          paymentMethod,
+          paymentAccountId,
           paymentReference: ' REF-123 ',
           reason: ' Returned goods ',
         })
@@ -534,12 +543,12 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
     { ...valid, refundConfirmed: false },
     { ...valid, refundConfirmed: undefined },
     { ...valid, refundConfirmed: 'true' },
-    { ...valid, paymentMethod: 'OTHER' },
+    { ...valid, paymentAccountId: 'OTHER' },
     { ...valid, paymentReference: null },
     { ...valid, cashTender: '25.00' },
-    { ...valid, paymentMethod: 'GCASH' },
-    { ...valid, paymentMethod: 'CARD', paymentReference: 'x' },
-    { ...valid, paymentMethod: 'CARD', paymentReference: 'x'.repeat(101) },
+    { ...valid, paymentAccountId: 'GCASH' },
+    { ...valid, paymentAccountId: actor, paymentReference: 'x' },
+    { ...valid, paymentAccountId: actor, paymentReference: 'x'.repeat(101) },
   ])('rejects invalid/unknown command fields %j', async (command) => {
     await http()
       .post(path)
@@ -594,7 +603,7 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
         'requestId',
         'items',
         'reason',
-        'paymentMethod',
+        'paymentAccountId',
         'refundConfirmed',
       ]) as unknown,
     });

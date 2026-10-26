@@ -9,7 +9,11 @@ import {
   matchesActiveSession,
   sessionIdFor,
 } from './auth-session-fixtures';
-import { OrganizationRole, Prisma } from '../src/generated/prisma/client';
+import {
+  OrganizationRole,
+  OrganizationStatus,
+  Prisma,
+} from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
@@ -87,7 +91,11 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       }) =>
         Promise.resolve(
           where.organizationId_userId.organizationId === org
-            ? { role, merchantId: role === 'MERCHANT' ? actor : null }
+            ? {
+                role,
+                merchantId: role === 'MERCHANT' ? actor : null,
+                organization: { status: OrganizationStatus.ACTIVE },
+              }
             : null,
         ),
     );
@@ -267,15 +275,18 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       10,
     );
     expect(schemas?.StaffSalesAnalyticsResponseDto).toHaveProperty(
-      'properties.netByPaymentMethod.minItems',
-      3,
+      'properties.paymentAccounts.type',
+      'array',
     );
-    expect(schemas?.StaffNetByPaymentMethodDto).toMatchObject({
+    expect(schemas?.ReportPaymentAccountDto).toMatchObject({
       properties: {
-        paymentMethod: { enum: ['CASH', 'GCASH', 'CARD'] },
-        netRecordedSales: {
+        accountId: { format: 'uuid' },
+        displayName: { type: 'string' },
+        received: { type: 'string', example: '1000.00' },
+        refunded: { type: 'string', example: '200.00' },
+        netReceived: {
           type: 'string',
-          pattern: '^-?(0|[1-9][0-9]*)\\.[0-9]{2}$',
+          example: '-200.00',
         },
       },
     });
@@ -298,7 +309,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       'properties.topMerchants',
     );
     expect(schemas?.MerchantSalesAnalyticsResponseDto).not.toHaveProperty(
-      'properties.netByPaymentMethod',
+      'properties.paymentAccounts',
     );
     expect(schemas?.MerchantSalesAnalyticsResponseDto).toHaveProperty(
       'properties.topProducts.maxItems',
@@ -327,7 +338,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       'properties.payments',
     );
     expect(schemas?.MerchantSalesReportResponseDto).not.toHaveProperty(
-      'properties.refundMethods',
+      'properties.paymentAccounts',
     );
     expect(schemas?.StaffSalesReportResponseDto).toMatchObject({
       properties: {
@@ -335,7 +346,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
         refundCount: { type: 'string' },
         returnedUnits: { type: 'string' },
         netRecordedSales: { type: 'string' },
-        refundMethods: { type: 'array' },
+        paymentAccounts: { type: 'array' },
       },
     });
     expect(
@@ -468,12 +479,6 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
           ? {}
           : {
               topMerchants: [],
-              netByPaymentMethod: ['CASH', 'GCASH', 'CARD'].map(
-                (paymentMethod) => ({
-                  paymentMethod,
-                  netRecordedSales: '0.00',
-                }),
-              ),
             }),
       });
     },
@@ -521,8 +526,15 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
             ? sql.sql.includes('GROUP BY')
               ? [
                   {
-                    paymentMethod: 'CARD',
-                    refundedAmount: '25.00',
+                    accountId: actor,
+                    displayName: 'Card',
+                    enabled: true,
+                    available: true,
+                    isCash: false,
+                    received: '0.00',
+                    refunded: '25.00',
+                    netReceived: '-25.00',
+                    transactionCount: '0',
                     refundCount: '1',
                   },
                 ]
@@ -558,20 +570,17 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
               refundCount: '1',
               returnedUnits: '2',
               netRecordedSales: '-25.00',
-              refundMethods: [
+              paymentAccounts: [
                 {
-                  paymentMethod: 'CASH',
-                  refundedAmount: '0.00',
-                  refundCount: '0',
-                },
-                {
-                  paymentMethod: 'GCASH',
-                  refundedAmount: '0.00',
-                  refundCount: '0',
-                },
-                {
-                  paymentMethod: 'CARD',
-                  refundedAmount: '25.00',
+                  accountId: actor,
+                  displayName: 'Card',
+                  enabled: true,
+                  available: true,
+                  isCash: false,
+                  received: '0.00',
+                  refunded: '25.00',
+                  netReceived: '-25.00',
+                  transactionCount: '0',
                   refundCount: '1',
                 },
               ],
@@ -580,7 +589,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
       if (current === 'MERCHANT')
         for (const field of [
           'payments',
-          'refundMethods',
+          'paymentAccounts',
           'refundedAmount',
           'refundCount',
           'returnedUnits',
