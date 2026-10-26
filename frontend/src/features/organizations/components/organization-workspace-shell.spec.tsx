@@ -124,6 +124,14 @@ describe('OrganizationWorkspaceShell', () => {
       );
       if (role === 'OWNER')
         expect(
+          sidebar.getByRole('link', { name: 'Payment Accounts' }),
+        ).toHaveAttribute('href', '/app/organizations/org/payment-accounts');
+      else
+        expect(
+          sidebar.queryByRole('link', { name: 'Payment Accounts' }),
+        ).not.toBeInTheDocument();
+      if (role === 'OWNER')
+        expect(
           sidebar.getByRole('link', { name: 'Members' }),
         ).toBeInTheDocument();
       else

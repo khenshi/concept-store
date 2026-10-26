@@ -9,6 +9,8 @@
 - Switch between accessible organization workspaces.
 - Rename an organization as its Owner.
 - Apply active/inactive tenant lifecycle state.
+- Provision the immutable system Cash payment account for each organization and
+  expose Owner-only Payment Account configuration in the workspace.
 
 ## API
 
@@ -73,7 +75,10 @@ in this UI; the platform operator provisions the organization through the
 protected server-side command described above, then activates it separately.
 
 The overview links to existing branches and account settings for all members, and
-merchant profiles/products for owners, managers, and merchants. Members navigation
+merchant profiles/products for owners, managers, and merchants. Owners also see
+the Payment Accounts destination for configuring custom accounts; the system Cash
+account is created with the organization and is always available to all branches.
+Members navigation
 is owner-only. The overview presents those role-aware destinations in a centered
 warm-neutral canvas with responsive rounded section cards. Catalog destinations use
 backend-filtered records, not a full-tenant catalog for nonowners. It shows the

@@ -202,6 +202,16 @@ export function OrganizationInvitationModal({
             readOnly
             onFocus={(event) => event.currentTarget.select()}
           />
+          <p
+            className={`text-sm leading-6 ${created.emailDelivery === 'accepted' ? 'text-success-ink' : 'text-danger'}`}
+            role="status"
+          >
+            {created.emailDelivery === 'accepted'
+              ? 'The invitation email was accepted by the email provider.'
+              : created.emailDelivery === 'disabled'
+                ? 'Email delivery is disabled. Share the link below manually.'
+                : 'The invitation was saved, but the email could not be sent. Share the link below manually.'}
+          </p>
           {copyStatus ? (
             <p className="text-sm text-muted" role="status">
               {copyStatus}

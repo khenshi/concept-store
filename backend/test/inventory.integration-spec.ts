@@ -11,6 +11,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Client } from 'pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
+import { EmailService } from '../src/infrastructure/email/email.service';
 import { InventoryStockService } from '../src/modules/organizations/inventory/inventory-stock.service';
 import { BranchInventoryService } from '../src/modules/organizations/inventory/branch-inventory.service';
 import { InventoryReconciliationService } from '../src/modules/organizations/inventory/inventory-reconciliation.service';
@@ -46,6 +47,9 @@ const products = new ProductsService(prisma as unknown as PrismaService);
 const memberships = new OrganizationMembershipsService(
   prisma as unknown as PrismaService,
 );
+const emails = {
+  sendInvitationEmail: () => Promise.resolve({ status: 'disabled' as const }),
+} as unknown as EmailService;
 let organizationId: string;
 let branchId: string;
 let otherBranchId: string;
@@ -72,6 +76,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
   it('rolls back membership and invitation claim when a branch grant insertion fails', async () => {
     const invites = new OrganizationInvitationsService(
       prisma as unknown as PrismaService,
+      emails,
     );
     const actor = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -233,6 +238,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
   it('creates one membership and grant set for simultaneous invitation acceptance', async () => {
     const invites = new OrganizationInvitationsService(
       prisma as unknown as PrismaService,
+      emails,
     );
     const actor = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -273,6 +279,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
   it('never both revokes and accepts a pending invitation concurrently', async () => {
     const invites = new OrganizationInvitationsService(
       prisma as unknown as PrismaService,
+      emails,
     );
     const actor = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -479,6 +486,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
   it('atomically accepts merchant invitation grants and rejects replay/revocation', async () => {
     const invites = new OrganizationInvitationsService(
       prisma as unknown as PrismaService,
+      emails,
     );
     const actor = await prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -525,6 +533,7 @@ describe('PostgreSQL inventory integrity and concurrency', () => {
   it('rolls back an invitation claim when membership creation fails', async () => {
     const invites = new OrganizationInvitationsService(
       prisma as unknown as PrismaService,
+      emails,
     );
     const actor = await prisma.user.findUniqueOrThrow({
       where: { id: userId },

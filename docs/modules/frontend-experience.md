@@ -394,9 +394,10 @@ visualizations use compact status rows when their series are zero-valued, so an
 empty period does not reserve a full chart or imply missing insight. Populated
 charts retain their exact accessible values. Operational
 cards/payment rows display exact gross recorded sales, transactions and units
-without numeric rounding. Strict staff contracts verify branch/range
-scope and three-method reconciliation; GCash/card remain explicitly manual and
-unverified. Loading, missing assignments, empty periods, failure and denied access
+without numeric rounding. Strict staff contracts verify branch/range scope and
+dynamic payment-account flow totals; configured account payments remain recorded
+POS events and are not provider-verified. Loading, missing assignments, empty
+periods, failure and denied access
 offer safe read/access refresh. Cashiers cannot fetch Reports; merchants use the
 separate own-only Reports view, and existing Sales/POS/Inventory is unchanged.
 All 532 frontend tests across 75 files, lint/typecheck, changed-source formatting
@@ -917,7 +918,7 @@ layout tests do not certify final rendered dimensions.
 ## POS payment and completion
 
 The shared native payment dialog presents a reviewed cart, cash tender/exact change
-estimate or explicitly manual/unverified GCash/card reference. Field validation
+estimate or a reference for the selected configured payment account. Field validation
 runs after 300 ms on input, on blur and on submit; received-payment confirmation
 is required. Pending and uncertain writes block unsafe edits/dismissal and new
 checkout. Focused organization/user-keyed memory retains the frozen unresolved

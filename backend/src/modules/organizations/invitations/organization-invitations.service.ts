@@ -8,6 +8,7 @@ import {
 import { createHash, randomBytes } from 'node:crypto';
 import { OrganizationRole, Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { EmailService } from '../../../infrastructure/email/email.service';
 import type { AuthenticatedPrincipal } from '../../auth/auth.types';
 import type { CreateOrganizationInvitationDto } from './dto/create-organization-invitation.dto';
 import type {
@@ -40,7 +41,10 @@ const invitationSelect = {
 
 @Injectable()
 export class OrganizationInvitationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async create(
     organizationId: string,
@@ -50,9 +54,16 @@ export class OrganizationInvitationsService {
     const token = randomBytes(32).toString('base64url');
     const tokenHash = this.hashToken(token);
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
+    let organizationName = '';
 
     const invitation = await this.prisma.$transaction(async (transaction) => {
       await assertActiveOrganization(transaction, organizationId);
+      const organization = await transaction.organization.findUnique({
+        where: { id: organizationId },
+        select: { name: true },
+      });
+      if (!organization) throw new NotFoundException('Organization not found');
+      organizationName = organization.name;
       if (
         dto.role !== OrganizationRole.MERCHANT &&
         dto.merchantId !== undefined
@@ -120,7 +131,79 @@ export class OrganizationInvitationsService {
       });
     });
 
-    return { invitation, token };
+    const emailDelivery = await this.emailService.sendInvitationEmail({
+      to: invitation.email,
+      role: invitation.role,
+      organizationName,
+      token,
+      expiresAt: invitation.expiresAt,
+    });
+    return { invitation, token, emailDelivery: emailDelivery.status };
+  }
+
+  async resend(
+    organizationId: string,
+    invitationId: string,
+  ): Promise<CreatedOrganizationInvitation> {
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = this.hashToken(token);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + INVITATION_TTL_MS);
+    let organizationName = '';
+
+    const invitation = await this.prisma.$transaction(async (transaction) => {
+      await assertActiveOrganization(transaction, organizationId);
+      const current = await transaction.organizationInvitation.findFirst({
+        where: {
+          id: invitationId,
+          organizationId,
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: now },
+        },
+        select: { email: true, role: true },
+      });
+      if (!current) {
+        throw new ConflictException(
+          'Only a pending, unexpired invitation can be resent',
+        );
+      }
+      const organization = await transaction.organization.findUnique({
+        where: { id: organizationId },
+        select: { name: true },
+      });
+      if (!organization) throw new NotFoundException('Organization not found');
+      organizationName = organization.name;
+
+      const updated = await transaction.organizationInvitation.updateMany({
+        where: {
+          id: invitationId,
+          organizationId,
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: { tokenHash, expiresAt },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictException(
+          'The invitation changed before it could be resent',
+        );
+      }
+      return transaction.organizationInvitation.findFirstOrThrow({
+        where: { id: invitationId, organizationId },
+        select: invitationSelect,
+      });
+    });
+
+    const emailDelivery = await this.emailService.sendInvitationEmail({
+      to: invitation.email,
+      role: invitation.role,
+      organizationName,
+      token,
+      expiresAt: invitation.expiresAt,
+    });
+    return { invitation, token, emailDelivery: emailDelivery.status };
   }
 
   findAll(organizationId: string): Promise<OrganizationInvitationView[]> {

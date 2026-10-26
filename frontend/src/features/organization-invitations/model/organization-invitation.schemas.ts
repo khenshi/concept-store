@@ -20,6 +20,7 @@ export const invitationResponseSchema = z.object({
 export const createdInvitationResponseSchema = z.object({
   invitation: invitationResponseSchema,
   token: z.string().min(1),
+  emailDelivery: z.enum(['accepted', 'failed', 'disabled']),
 });
 
 export const createOrganizationInvitationSchema = z

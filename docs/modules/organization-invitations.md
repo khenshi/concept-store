@@ -1,6 +1,6 @@
 # Organization Invitations
 
-**Status:** Implemented locally; provider delivery gate remains pending
+**Status:** Implemented and validated for the pilot release
 
 ## Responsibilities
 
@@ -10,12 +10,14 @@
   an explicit action.
 - Revoke a pending invitation.
 - Permanently remove any invitation and its access grants.
+- Automatically email invitations and resend a fresh single-use link.
 
 ## API
 
 ```text
 POST  /organizations/:organizationId/invitations
 GET   /organizations/:organizationId/invitations
+POST  /organizations/:organizationId/invitations/:invitationId/resend
 PATCH /organizations/:organizationId/invitations/:invitationId/revoke
 DELETE /organizations/:organizationId/invitations/:invitationId
 GET   /organization-invitations/:token
@@ -69,10 +71,13 @@ return 409 with retry guidance. Legacy unlinked MERCHANT invitations return 409
 with owner revoke/reinvite guidance before claiming the invitation.
 
 Grants are immutable after creation; revoke/reinvite to change them. The demo
-invitation's BGC grant is now applied on acceptance. Automatic email delivery is
-owned by the Plan 07 mail boundary. The current repository keeps Copy link and
-explicit acceptance, but provider/sender setup and real-mail verification remain
-a release gate; no raw token is logged or persisted for delivery retries.
+invitation's BGC grant is now applied on acceptance. After an invitation is
+committed, the shared email boundary attempts delivery through Resend. A failed
+or disabled provider does not roll back the invitation; the owner retains Copy
+link and can manually share it. The resend endpoint is owner-only, rotates the
+stored token hash and expiry atomically, invalidates the previous link, and
+returns the fresh link token once. Responses report `accepted`, `failed`, or
+`disabled` provider status; provider acceptance is not inbox-delivery proof.
 
 ### Verification
 
@@ -113,6 +118,9 @@ removing any other invitation permanently deletes its invitation record.
 Creation reuses the shared `FormDialog` with focus restoration, scroll containment,
 and pending dismissal protection. The created link shows the actual expiry date
 and supports clipboard copying with a manual-copy fallback.
+
+Pending invitations expose a Resend action. It refreshes the expiry, updates the
+row, reports provider status, and makes the new link available for manual copy.
 
 The token acceptance page shares the neutral guest shell with login and
 registration. It retains invitation preview/retry, explicit recipient and expiry,

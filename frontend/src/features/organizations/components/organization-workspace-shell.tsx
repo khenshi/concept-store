@@ -65,6 +65,7 @@ export function OrganizationWorkspaceShell({
       <OrganizationNavigation
         organizationId={organizationId}
         showMembers={organization.role === 'OWNER'}
+        showPaymentAccounts={organization.role === 'OWNER'}
         showMerchants={canManage}
         showProducts={canManage}
         showSales={organization.role === 'MERCHANT'}

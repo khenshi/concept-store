@@ -14,6 +14,7 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { AuthenticatedPrincipal } from '../../auth/auth.types';
 import type { OrganizationContext } from './organization-authorization.types';
 import { ORGANIZATION_ROLES_KEY } from './organization-roles.decorator';
+import { ALLOW_INACTIVE_REPLAY } from './allow-inactive-replay.decorator';
 
 type OrganizationRequest = Request & {
   user: AuthenticatedPrincipal;
@@ -72,7 +73,8 @@ export class OrganizationAccessGuard implements CanActivate {
 
     if (
       membership.organization.status === 'INACTIVE' &&
-      !['GET', 'HEAD', 'OPTIONS'].includes(request.method)
+      !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&
+      !this.reflector.get<boolean>(ALLOW_INACTIVE_REPLAY, context.getHandler())
     ) {
       throw new ForbiddenException(
         'This organization is inactive and currently read-only',

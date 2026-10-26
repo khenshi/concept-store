@@ -15,7 +15,7 @@ describe('OrganizationAccessGuard', () => {
   const prisma = {
     organizationMembership: { findUnique: jest.fn() },
   };
-  const reflector = { getAllAndOverride: jest.fn() };
+  const reflector = { getAllAndOverride: jest.fn(), get: jest.fn() };
   let guard: OrganizationAccessGuard;
 
   beforeEach(async () => {

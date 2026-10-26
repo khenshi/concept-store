@@ -1,4 +1,5 @@
 import type { OrganizationRole } from '../../../generated/prisma/client';
+import type { EmailDeliveryStatus } from '../../../infrastructure/email/email.service';
 
 export interface OrganizationInvitationView {
   id: string;
@@ -22,6 +23,7 @@ export interface OrganizationInvitationView {
 export interface CreatedOrganizationInvitation {
   invitation: OrganizationInvitationView;
   token: string;
+  emailDelivery: EmailDeliveryStatus;
 }
 
 export interface OrganizationInvitationPreview {

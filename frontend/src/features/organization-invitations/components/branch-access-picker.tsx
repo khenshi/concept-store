@@ -12,12 +12,14 @@ export function BranchAccessPicker({
   selectedIds,
   disabled = false,
   loading = false,
+  description = 'Staff can access only the branches selected here.',
   onChange,
 }: {
   branches: AccessBranch[];
   selectedIds: string[];
   disabled?: boolean;
   loading?: boolean;
+  description?: string;
   onChange(nextIds: string[]): void;
 }) {
   const [query, setQuery] = useState('');
@@ -82,9 +84,7 @@ export function BranchAccessPicker({
                 ? `${selectedCount} branch${selectedCount === 1 ? '' : 'es'} selected`
                 : 'No branches selected'}
             </p>
-            <p className="text-xs leading-5 text-muted">
-              Staff can access only the branches selected here.
-            </p>
+            <p className="text-xs leading-5 text-muted">{description}</p>
           </div>
         </div>
         <button

@@ -4,6 +4,7 @@ import {
   createOrganizationInvitation,
   listOrganizationInvitations,
   removeOrganizationInvitation,
+  resendOrganizationInvitation,
   previewOrganizationInvitation,
   revokeOrganizationInvitation,
 } from './organization-invitation-api';
@@ -28,7 +29,11 @@ describe('organization invitation API', () => {
 
   it('creates and lists invitations through the organization-scoped path', async () => {
     vi.mocked(request)
-      .mockResolvedValueOnce({ invitation, token: 'token' })
+      .mockResolvedValueOnce({
+        invitation,
+        token: 'token',
+        emailDelivery: 'accepted',
+      })
       .mockResolvedValueOnce([invitation]);
     const input = { email: 'manager@example.com', role: 'MANAGER' as const };
 
@@ -47,6 +52,25 @@ describe('organization invitation API', () => {
     expect(request).toHaveBeenNthCalledWith(
       2,
       '/organizations/organization%2Fid/invitations',
+    );
+  });
+
+  it('resends an invitation through the organization-scoped path', async () => {
+    vi.mocked(request).mockResolvedValue({
+      invitation,
+      token: 'fresh-token',
+      emailDelivery: 'accepted',
+    });
+
+    await resendOrganizationInvitation(
+      request,
+      'organization/id',
+      'invitation/id',
+    );
+
+    expect(request).toHaveBeenCalledWith(
+      '/organizations/organization%2Fid/invitations/invitation%2Fid/resend',
+      { method: 'POST' },
     );
   });
 

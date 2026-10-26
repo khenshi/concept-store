@@ -101,6 +101,7 @@ it('merchant invitations inherit profile branches without individual grants', as
   });
   vi.mocked(createOrganizationInvitation).mockResolvedValue({
     token: 'token',
+    emailDelivery: 'accepted',
     invitation: {
       id,
       organizationId: id,
@@ -313,6 +314,7 @@ it('blocks dismissal while creating and presents the normalized invitation link'
   });
   resolve({
     token: 'single-use-token',
+    emailDelivery: 'accepted',
     invitation: {
       id: 'invite',
       organizationId: 'org',

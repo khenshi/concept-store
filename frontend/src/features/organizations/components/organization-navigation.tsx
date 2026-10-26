@@ -15,6 +15,7 @@ export const organizationNavigationIcons: Record<string, IconName> = {
   inventory: 'box',
   spaces: 'layers',
   reports: 'chart',
+  paymentAccounts: 'card',
 };
 
 export function OrganizationNavigation({
@@ -27,6 +28,7 @@ export function OrganizationNavigation({
   showInventory = false,
   showSpaces = false,
   showReports = false,
+  showPaymentAccounts = false,
   collapsed = false,
   onNavigate,
 }: {
@@ -39,6 +41,7 @@ export function OrganizationNavigation({
   showInventory?: boolean;
   showSpaces?: boolean;
   showReports?: boolean;
+  showPaymentAccounts?: boolean;
   collapsed?: boolean;
   onNavigate?(): void;
 }) {
@@ -102,6 +105,12 @@ export function OrganizationNavigation({
   ];
   const organizationDestinations = [
     { key: 'overview', label: 'Overview', href: basePath, visible: true },
+    {
+      key: 'paymentAccounts',
+      label: 'Payment Accounts',
+      href: `${basePath}/payment-accounts`,
+      visible: showPaymentAccounts,
+    },
     {
       key: 'branches',
       label: 'Branches',

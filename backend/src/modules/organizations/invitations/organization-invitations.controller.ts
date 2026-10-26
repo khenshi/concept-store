@@ -80,6 +80,23 @@ export class OrganizationInvitationsController {
     return this.invitationsService.findAll(organization.organizationId);
   }
 
+  @Post(':invitationId/resend')
+  @ApiOperation({ summary: 'Resend a pending organization invitation' })
+  @ApiCreatedResponse({ type: CreatedOrganizationInvitationResponseDto })
+  @ApiConflictResponse({
+    description: 'The invitation is no longer pending or has expired',
+  })
+  resend(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Param('invitationId', new ParseUUIDPipe({ version: '4' }))
+    invitationId: string,
+  ): Promise<CreatedOrganizationInvitation> {
+    return this.invitationsService.resend(
+      organization.organizationId,
+      invitationId,
+    );
+  }
+
   @Patch(':invitationId/revoke')
   @ApiOperation({ summary: 'Revoke a pending organization invitation' })
   @ApiOkResponse({ type: OrganizationInvitationResponseDto })

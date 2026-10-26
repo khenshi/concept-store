@@ -4,6 +4,7 @@ import { MerchantBranchesController } from './merchant-branches/merchant-branche
 import { MerchantBranchesService } from './merchant-branches/merchant-branches.service';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { EmailModule } from '../../infrastructure/email/email.module';
 import { OrganizationAccessGuard } from './authorization/organization-access.guard';
 import { BranchesController } from './branches/branches.controller';
 import { BranchesService } from './branches/branches.service';
@@ -44,7 +45,7 @@ import { RefundReadService } from './refunds/refund-read.service';
 import { OrganizationLifecycleService } from './organization-lifecycle.service';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, EmailModule],
   controllers: [
     SpacesController,
     MerchantBranchesController,

@@ -8,6 +8,7 @@ import { Test } from '@nestjs/testing';
 import { createHash } from 'node:crypto';
 import { OrganizationRole } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
+import { EmailService } from '../../../infrastructure/email/email.service';
 import { OrganizationInvitationsService } from './organization-invitations.service';
 
 describe('OrganizationInvitationsService', () => {
@@ -28,6 +29,7 @@ describe('OrganizationInvitationsService', () => {
   };
   const transaction = {
     $queryRaw: jest.fn(),
+    organization: { findUnique: jest.fn() },
     merchant: { findUnique: jest.fn() },
     branch: { count: jest.fn() },
     organizationMembership: {
@@ -39,6 +41,7 @@ describe('OrganizationInvitationsService', () => {
       updateMany: jest.fn(),
       create: jest.fn(),
       findFirst: jest.fn(),
+      findFirstOrThrow: jest.fn(),
       deleteMany: jest.fn(),
     },
   };
@@ -51,6 +54,7 @@ describe('OrganizationInvitationsService', () => {
       findFirstOrThrow: jest.fn(),
     },
   };
+  const emailService = { sendInvitationEmail: jest.fn() };
   let service: OrganizationInvitationsService;
 
   beforeEach(async () => {
@@ -63,10 +67,13 @@ describe('OrganizationInvitationsService', () => {
     transaction.$queryRaw.mockResolvedValue([
       { id: organizationId, status: 'ACTIVE' },
     ]);
+    transaction.organization.findUnique.mockResolvedValue({ name: 'Store' });
+    emailService.sendInvitationEmail.mockResolvedValue({ status: 'disabled' });
     const moduleRef = await Test.createTestingModule({
       providers: [
         OrganizationInvitationsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: EmailService, useValue: emailService },
       ],
     }).compile();
     service = moduleRef.get(OrganizationInvitationsService);
@@ -119,6 +126,50 @@ describe('OrganizationInvitationsService', () => {
       ),
     );
     expect(transaction.organizationInvitation.create).not.toHaveBeenCalled();
+  });
+
+  it('rotates a pending invitation token and sends the fresh link', async () => {
+    transaction.organizationInvitation.findFirst.mockResolvedValue({
+      email: invitation.email,
+      role: invitation.role,
+    });
+    transaction.organizationInvitation.updateMany.mockResolvedValue({
+      count: 1,
+    });
+    transaction.organizationInvitation.findFirstOrThrow.mockResolvedValue(
+      invitation,
+    );
+
+    const result = await service.resend(organizationId, invitation.id);
+
+    expect(result.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(result.emailDelivery).toBe('disabled');
+    expect(transaction.organizationInvitation.updateMany).toHaveBeenCalled();
+    const updateCall = (
+      transaction.organizationInvitation.updateMany.mock
+        .calls as unknown as Array<
+        [
+          {
+            where: Record<string, unknown>;
+            data: { tokenHash?: unknown };
+          },
+        ]
+      >
+    )[0][0];
+    expect(updateCall.where).toMatchObject({
+      id: invitation.id,
+      organizationId,
+      acceptedAt: null,
+      revokedAt: null,
+    });
+    expect(typeof updateCall.data.tokenHash).toBe('string');
+    expect(emailService.sendInvitationEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: invitation.email,
+        organizationName: 'Store',
+        token: result.token,
+      }),
+    );
   });
 
   it('permanently removes a pending invitation and invalidates its link', async () => {

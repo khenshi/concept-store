@@ -22,6 +22,7 @@ export interface OrganizationInvitation {
 export interface CreatedOrganizationInvitation {
   invitation: OrganizationInvitation;
   token: string;
+  emailDelivery: 'accepted' | 'failed' | 'disabled';
 }
 
 export interface OrganizationInvitationPreview {

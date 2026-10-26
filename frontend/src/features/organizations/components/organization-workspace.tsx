@@ -66,6 +66,15 @@ export function OrganizationWorkspace({
     group: 'operations' | 'organization' | 'personal';
   }[] = [
     {
+      key: 'paymentAccounts',
+      label: 'Payment Accounts',
+      description: 'Receiving accounts and branch availability.',
+      href: `/app/organizations/${organizationId}/payment-accounts`,
+      visible: organization.role === 'OWNER',
+      icon: organizationNavigationIcons.paymentAccounts,
+      group: 'organization',
+    },
+    {
       key: 'reports',
       label: 'Reports',
       description: 'Sales, refunds, and performance.',

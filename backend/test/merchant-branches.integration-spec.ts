@@ -1,3 +1,8 @@
+import {
+  provisionPaymentFixtures,
+  testAccountId,
+  testAccountSnapshot,
+} from './payment-account-fixtures';
 import { randomUUID } from 'node:crypto';
 import { sessionIdFor } from './auth-session-fixtures';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -10,6 +15,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
+import { EmailService } from '../src/infrastructure/email/email.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
 import { MerchantBranchesController } from '../src/modules/organizations/merchant-branches/merchant-branches.controller';
@@ -48,6 +54,9 @@ const associations = new MerchantBranchesService(prisma),
   products = new ProductsService(prisma),
   checkout = new CheckoutService(prisma),
   members = new OrganizationMembershipsService(prisma);
+const emails = {
+  sendInvitationEmail: () => Promise.resolve({ status: 'disabled' as const }),
+} as unknown as EmailService;
 let context: OrganizationContext;
 let merchantId: string,
   otherMerchantId: string,
@@ -169,9 +178,17 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
           name !== '20261025010000_add_controlled_access',
       )
       .sort()) {
+      if (directory === '20261025020000_payment_accounts') continue;
       if (directory === '20261001020000_add_merchant_branches') {
+        await admin.query(
+          readFileSync(
+            join(root, '20261025020000_payment_accounts', 'migration.sql'),
+            'utf8',
+          ),
+        );
         const org = await db.organization.create({ data: { name: 'Legacy' } });
         legacyOrganization = org.id;
+        await provisionPaymentFixtures(db, org.id);
         const merchant = await db.merchant.create({
           data: merchantData(org.id, 'Legacy merchant'),
         });
@@ -220,7 +237,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
             createdById: staff.id,
             requestId: randomUUID(),
             receiptCode: randomUUID(),
-            paymentMethod: 'CASH',
+            ...testAccountSnapshot(org.id),
             cashTender: '12.50',
             cashChange: '0.00',
             total: '12.50',
@@ -310,6 +327,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
   });
   beforeEach(async () => {
     const org = await db.organization.create({ data: { name: randomUUID() } });
+    await provisionPaymentFixtures(db, org.id);
     const owner = await user();
     context = { organizationId: org.id, userId: owner.id, role: 'OWNER' };
     merchantId = (
@@ -416,7 +434,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
           expectedUnitPrice: '12.50',
         },
       ],
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(context.organizationId, 'CASH'),
       cashTender: '25.00',
     });
     expect(sale.total).toBe('25.00');
@@ -450,7 +468,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
           expectedUnitPrice: '12.50',
         },
       ],
-      paymentMethod: 'CASH' as const,
+      paymentAccountId: testAccountId(context.organizationId, 'CASH'),
       cashTender: '12.50',
     };
     const sale = await checkout.complete(context, branchId, command);
@@ -570,7 +588,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
           expectedUnitPrice: '12.50',
         },
       ],
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(context.organizationId, 'CASH'),
       cashTender: '12.50',
     });
     await associations.setStatus(context, merchantId, branchId, 'INACTIVE');
@@ -584,7 +602,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
           { saleItemId: sale.items[0].id, quantity: 1, restockQuantity: 1 },
         ],
         reason: 'Returned after participation ended',
-        paymentMethod: 'CASH',
+        paymentAccountId: testAccountId(context.organizationId, 'CASH'),
         refundConfirmed: true,
       },
     );
@@ -645,7 +663,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
                     expectedUnitPrice: '12.50',
                   },
                 ],
-                paymentMethod: 'CASH',
+                paymentAccountId: testAccountId(context.organizationId, 'CASH'),
                 cashTender: '12.50',
               });
       const result = pending.then(
@@ -881,7 +899,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
     ).toHaveLength(1);
   });
   it('merchant invitations reject grants and inherit profile affiliations on acceptance', async () => {
-    const invites = new OrganizationInvitationsService(prisma),
+    const invites = new OrganizationInvitationsService(prisma, emails),
       actor = await db.user.findUniqueOrThrow({
         where: { id: context.userId },
       }),

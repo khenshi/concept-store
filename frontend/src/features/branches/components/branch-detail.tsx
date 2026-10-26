@@ -455,7 +455,7 @@ function ScopedBranchDetail({
           <OperationalPanel
             className="mt-0"
             title="Point of sale"
-            description="Build a branch cart using SKU/barcode input or product search, then record cash or manual GCash/card payment."
+            description="Build a branch cart using SKU/barcode input or product search, then record payment through an account configured for this branch."
           >
             <div className="flex min-h-56 flex-col py-6">
               <Link

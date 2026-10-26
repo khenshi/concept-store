@@ -39,6 +39,19 @@ export async function listOrganizationInvitations(
     .parse(await request<unknown>(organizationPath(organizationId)));
 }
 
+export async function resendOrganizationInvitation(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  invitationId: string,
+): Promise<CreatedOrganizationInvitation> {
+  return createdInvitationResponseSchema.parse(
+    await request<unknown>(
+      `${organizationPath(organizationId)}/${encodeURIComponent(invitationId)}/resend`,
+      { method: 'POST' },
+    ),
+  );
+}
+
 export async function revokeOrganizationInvitation(
   request: AuthenticatedRequest,
   organizationId: string,
