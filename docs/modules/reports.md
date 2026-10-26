@@ -68,7 +68,9 @@ dates into the required half-open UTC range. The Reports period control uses
 the shared one-calendar date picker: the first selection is one Philippine day,
 the second selection extends it into an inclusive range, Apply period commits
 the selection without reading while the calendar is open, and Clear dates
-removes the pending selection.
+removes the pending selection. Calendar day cells use roving focus: Arrow keys
+move by day or week, Home and End move to the first or last day of the visible
+month, and crossing a month boundary updates the visible calendar.
 
 ## Period presets and long history
 

@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { buttonStyles } from './button';
 import { Icon } from './icon';
 
@@ -57,6 +63,19 @@ function shiftMonth(month: string, amount: number) {
   const date = monthDate(month);
   return monthValue(
     new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + amount, 1)),
+  );
+}
+
+function shiftDay(day: string, amount: number) {
+  const date = dayDate(day);
+  return dayValue(
+    new Date(
+      Date.UTC(
+        date.getUTCFullYear(),
+        date.getUTCMonth(),
+        date.getUTCDate() + amount,
+      ),
+    ),
   );
 }
 
@@ -138,6 +157,9 @@ export function DateRangePicker({
   const [visibleMonth, setVisibleMonth] = useState(() =>
     monthValue(dayDate(todayPhilippines())),
   );
+  const [focusedDay, setFocusedDay] = useState<string | null>(null);
+  const dayButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const focusAfterRender = useRef<string | null>(null);
   const days = useMemo(() => monthDays(visibleMonth), [visibleMonth]);
   const selectedLabel = value.fromDay ? selectionLabel(value) : emptyLabel;
   const monthLabel = monthFormatter.format(monthDate(visibleMonth));
@@ -146,6 +168,15 @@ export function DateRangePicker({
     throughDay: value.throughDay || value.fromDay,
   };
   const validationError = value.fromDay ? validate?.(appliedValue) : undefined;
+
+  useEffect(() => {
+    const day = focusAfterRender.current;
+    if (!open || !day) return;
+    const button = dayButtonRefs.current[day];
+    if (!button) return;
+    button.focus();
+    focusAfterRender.current = null;
+  }, [focusedDay, open, visibleMonth]);
 
   useEffect(() => {
     if (!open) return;
@@ -168,6 +199,7 @@ export function DateRangePicker({
   }, [open]);
 
   function selectDay(day: string) {
+    setFocusedDay(day);
     if (singleDay) {
       onChange({ fromDay: day, throughDay: day });
       setSelecting(false);
@@ -202,14 +234,53 @@ export function DateRangePicker({
 
   function toggleOpen() {
     if (!open) {
-      setVisibleMonth(
-        monthValue(
-          dayDate(value.fromDay || value.throughDay || todayPhilippines()),
-        ),
-      );
+      const initialDay =
+        value.fromDay || value.throughDay || todayPhilippines();
+      setVisibleMonth(monthValue(dayDate(initialDay)));
+      setFocusedDay(initialDay);
       setSelecting(false);
     }
     setOpen((current) => !current);
+  }
+
+  function moveVisibleMonth(amount: number) {
+    const nextMonth = shiftMonth(visibleMonth, amount);
+    setVisibleMonth(nextMonth);
+    const nextDay = `${nextMonth}-01`;
+    setFocusedDay(nextDay);
+  }
+
+  function moveFocusedDay(
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    day: string,
+  ) {
+    const amountByKey: Record<string, number> = {
+      ArrowLeft: -1,
+      ArrowRight: 1,
+      ArrowUp: -7,
+      ArrowDown: 7,
+    };
+    let nextDay: string | null = null;
+    const amount = amountByKey[event.key];
+    if (amount !== undefined) {
+      nextDay = shiftDay(day, amount);
+    } else if (event.key === 'Home') {
+      const date = dayDate(day);
+      nextDay = dayValue(
+        new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)),
+      );
+    } else if (event.key === 'End') {
+      const date = dayDate(day);
+      nextDay = dayValue(
+        new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)),
+      );
+    }
+    if (!nextDay) return;
+    event.preventDefault();
+    setFocusedDay(nextDay);
+    if (monthValue(dayDate(nextDay)) !== visibleMonth)
+      setVisibleMonth(monthValue(dayDate(nextDay)));
+    focusAfterRender.current = nextDay;
   }
 
   return (
@@ -260,9 +331,7 @@ export function DateRangePicker({
               type="button"
               className="grid size-9 shrink-0 place-items-center rounded-full text-ink hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
               aria-label="Previous month"
-              onClick={() =>
-                setVisibleMonth((current) => shiftMonth(current, -1))
-              }
+              onClick={() => moveVisibleMonth(-1)}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -284,9 +353,7 @@ export function DateRangePicker({
               type="button"
               className="grid size-9 shrink-0 place-items-center rounded-full text-ink hover:bg-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
               aria-label="Next month"
-              onClick={() =>
-                setVisibleMonth((current) => shiftMonth(current, 1))
-              }
+              onClick={() => moveVisibleMonth(1)}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -317,6 +384,11 @@ export function DateRangePicker({
             {days.map((day, index) => {
               if (!day)
                 return <span key={`empty-${index}`} aria-hidden="true" />;
+              const activeDay = days.includes(focusedDay ?? '')
+                ? focusedDay
+                : days.find((candidate): candidate is string =>
+                    Boolean(candidate),
+                  );
               const selected =
                 day === value.fromDay || day === value.throughDay;
               const rangeStart =
@@ -340,10 +412,15 @@ export function DateRangePicker({
                   key={day}
                   type="button"
                   role="gridcell"
+                  tabIndex={day === activeDay ? 0 : -1}
                   aria-label={longDayFormatter.format(dayDate(day))}
                   aria-selected={selected}
                   className={`grid aspect-square min-h-9 place-items-center rounded-compact text-sm tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus ${selected ? 'bg-action font-semibold text-surface' : inRange ? 'bg-selected text-ink' : 'text-ink hover:bg-subtle'}`}
                   onClick={() => selectDay(day)}
+                  onKeyDown={(event) => moveFocusedDay(event, day)}
+                  ref={(button) => {
+                    dayButtonRefs.current[day] = button;
+                  }}
                 >
                   {Number(day.slice(-2))}
                 </button>

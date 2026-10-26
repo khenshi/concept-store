@@ -254,6 +254,12 @@ that action simply `Apply`.
 Period and Report dates labels share muted extra-small, medium-weight typography
 and matching label-to-control spacing.
 
+The shared date-range picker exposes one tab stop for the active day. Arrow keys
+move by day or week, Home and End move to the first or last day of the visible
+month, and crossing a month boundary keeps focus on the corresponding day in
+the newly visible month. Enter or Space selects the focused day; Apply commits
+the pending selection and Clear dates removes it.
+
 Reports period controls provide Today, This month, Last 30 days, This year,
 Last 12 months, Last 2 years, All time and Custom dates, with Today initially
 selected. The shared custom preset dropdown and date selector share one row.
@@ -843,6 +849,14 @@ overview exposes only implemented workflows and preserves role-aware visibility.
 Account deletion retains password validation and an explicit modal confirmation
 with solid danger styling only at final confirmation.
 No backend, tenancy, API, or session behavior changes are introduced.
+
+Protected routes provide shared App Router recovery surfaces for unexpected
+render/navigation failures and protected not-found results. The fallback uses a
+safe concise explanation, a retry action where a read retry is valid, and a link
+back to the organization chooser. Root and root-layout fallbacks link back to
+the public home page. These boundaries do not display exception details, retry
+financial writes, or replace feature-level request errors and unknown
+checkout/refund recovery.
 
 Resting button/input borders use light stone outlines while keyboard focus remains
 strong. Organization selection and overview rows own their internal padding, so
