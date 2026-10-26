@@ -85,7 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const confirmEmail = useCallback(
-    (token: string, password?: string) => authClient.confirmEmail(token, password),
+    (token: string, password?: string) =>
+      authClient.confirmEmail(token, password),
     [],
   );
 
