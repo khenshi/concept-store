@@ -5,8 +5,8 @@ Date: October 27, 2026
 Candidate: application code at `7caf584` (`main`); qualification record committed
 as `9f7bac6`
 
-Status: Qualification in progress. Disposable local correctness and query
-evidence plus deployed health/proxy probes passed. Release qualification remains
+Status: Qualification in progress. Disposable local correctness/query evidence
+and current deployed browser/proxy checks passed. Release qualification remains
 blocked by unresolved dependency advisories and unmeasured multi-user HTTP
 capacity/security evidence.
 
@@ -117,6 +117,27 @@ or otherwise missing the Organizations Reports module. A repeated probe was
 stopped after the login throttle returned HTTP 429; no rate-limit bypass was
 attempted. No hosted writes were made.
 
+### Current redeployment browser verification
+
+After Render redeployed commit `044f257`, Chrome verified the current hosted
+release without changing data:
+
+- Owner sign-in succeeded and the organization workspace loaded.
+- Reports loaded through the Vercel same-origin `/api` path.
+- The Reports branch selector exposed `All branches`, `BGC Satellite (BGC)` and
+  `Makati Main (MAKATI)`.
+- The All branches Overview rendered the payment-account flow section with the
+  configured accounts and all four report tabs: Overview, Transactions, Daily
+  Data and Rankings.
+- Transactions, Daily Data and Rankings each rendered their table/empty state
+  and `1/1` pagination state for the seeded date.
+- Switching to `BGC Satellite (BGC)` navigated to the branch-scoped Rankings
+  route and completed its loading state.
+
+This supersedes the earlier stale-deployment 404 observation for the current
+deployment. It does not replace two-organization authorization, five-user
+capacity, dependency disposition or state-changing CSRF/Origin evidence.
+
 ## Dependency audit findings
 
 `npm audit --omit=dev --audit-level=high` reached the advisory service and
@@ -142,9 +163,8 @@ compatibility proof and redeployment before release sign-off.
   connection-pool wait or multi-instance pool evidence exists.
 - Inventory, Reports and refund measurements are service/integration paths, not
   authenticated requests through the deployed Next `/api` path.
-- The authenticated deployed Reports route probe returned 404 and must be
-  resolved by verifying the Render service root, build/release SHA, module
-  inclusion and redeployment before hosted qualification can continue.
+- The earlier authenticated Reports 404 was resolved by redeploying the current
+  Render build and is now superseded by the browser verification above.
 - Deployed authenticated two-organization/branch smoke, cookie refresh/logout,
   and state-changing cross-origin/CSRF probes remain open. SameSite and exact
   CORS behavior are not a substitute for an explicit CSRF/Origin decision.
