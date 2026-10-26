@@ -2,7 +2,8 @@
 
 Date: October 27, 2026
 
-Candidate: `7caf584` (`main`)
+Candidate: application code at `7caf584` (`main`); qualification record committed
+as `9f7bac6`
 
 Status: Qualification in progress. Disposable local correctness and query
 evidence plus deployed health/proxy probes passed. Release qualification remains
@@ -103,6 +104,19 @@ These probes establish deployed reachability and current middleware behavior;
 they do not prove authenticated two-organization access or CSRF resistance for
 state-changing commands.
 
+### Authenticated hosted route probe
+
+Using the documented seeded accounts and the configured API origin, Owner,
+Manager, Cashier and Merchant login responses were HTTP 200. Each account also
+reached `/auth/me` and `/organizations` successfully. The current Reports route
+`/organizations/{organizationId}/reports/sales/all` returned HTTP 404 for the
+Owner probe, and the same missing-route response was observed for the other
+roles. This is inconsistent with the current source and frontend API contract
+and indicates that the deployed API is stale, pointed at the wrong service/build,
+or otherwise missing the Organizations Reports module. A repeated probe was
+stopped after the login throttle returned HTTP 429; no rate-limit bypass was
+attempted. No hosted writes were made.
+
 ## Dependency audit findings
 
 `npm audit --omit=dev --audit-level=high` reached the advisory service and
@@ -128,6 +142,9 @@ compatibility proof and redeployment before release sign-off.
   connection-pool wait or multi-instance pool evidence exists.
 - Inventory, Reports and refund measurements are service/integration paths, not
   authenticated requests through the deployed Next `/api` path.
+- The authenticated deployed Reports route probe returned 404 and must be
+  resolved by verifying the Render service root, build/release SHA, module
+  inclusion and redeployment before hosted qualification can continue.
 - Deployed authenticated two-organization/branch smoke, cookie refresh/logout,
   and state-changing cross-origin/CSRF probes remain open. SameSite and exact
   CORS behavior are not a substitute for an explicit CSRF/Origin decision.
