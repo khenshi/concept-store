@@ -4,7 +4,8 @@
     "ci": "node scripts/run-ci.mjs all",
     "ci:backend": "node scripts/run-ci.mjs backend",
     "ci:frontend": "node scripts/run-ci.mjs frontend",
-    "ci:runtime": "node scripts/run-ci.mjs runtime"
+    "ci:runtime": "node scripts/run-ci.mjs runtime",
+    "ops:check": "node scripts/ops-check.mjs"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"
