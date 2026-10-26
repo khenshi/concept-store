@@ -10,7 +10,8 @@ plans. Plan 07 was completed and archived October 25 after its acceptance gates
 were validated. Plan 08 was completed and archived October 26 after its hosted
 acceptance gates were confirmed. Plan 09 was closed and archived October 26 at
 the user's direction with its known 390px selector/calendar overflow explicitly
-deferred; this is not pilot/release approval. Plans 04–06
+deferred; this is not pilot/release approval. Plan 10 was completed and archived
+October 26 after the user confirmed its manual operational gates. Plans 04–06
 contain committed local implementation slices from the background agent, but their
 provider, hosted, branch-protection and release gates remain open. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
@@ -39,7 +40,7 @@ Existing specifications remain the source of truth until their review turn.
 | 07  | [Controlled enrollment, activation and account recovery](../archive/07-controlled-access-2026-10-25.md)          | Required before pilot                    | Completed and archived October 25; local, hosted, provider, operator and browser acceptance gates validated                      |
 | 08  | [Payment Account Management and Reporting](../archive/finance-reconciliation-2026-10-26.md)                      | Required before pilot                    | Completed and archived October 26; implementation, cutover and hosted qualification confirmed                                    |
 | 09  | [Reports All Branches](../archive/09-reports-all-branches-2026-10-26.md)                                           | Required before pilot                    | Closed and archived October 26 at user direction; 390px branch-selector/calendar overflow remains unfixed and deferred; not release approval |
-| 10  | [Monitoring, transaction recovery and outage operations](10-operational-reliability.md)                          | P0                                       | Drafted October 24; coverage/channel/drill gates open; implementation not approved                                               |
+| 10  | [Monitoring, transaction recovery and outage operations](../archive/10-operational-reliability-2026-10-26.md)     | P0                                       | Completed and archived October 26 after user-confirmed smoke, monitoring, support, backup/restore and incident validation       |
 | 11  | [End-to-end workflow, accessibility and receipt acceptance](11-workflow-acceptance.md)                           | P0/P1 by risk                            | Drafted October 24; saved/PDF pilot confirmed; browser proof pending; implementation not approved                                |
 | 12  | [Performance, dependency and security qualification](12-performance-security-qualification.md)                   | P0 critical risks; P1 scale gates        | Drafted October 24; five simultaneous staff confirmed; execution evidence pending; implementation not approved                   |
 | 13  | [Privacy, support and commercial-readiness policies](13-service-policies.md)                                     | P0 personal-data controls; P1 paid terms | Drafted October 24; registered business/manual requests/handover gate confirmed; implementation not approved                     |
@@ -550,12 +551,14 @@ Remaining shared gates:
   branch-selector/date-picker overflow. At the user's direction, Plan 09 was closed
   and archived with that defect explicitly deferred for later; it remains unfixed
   and is not pilot or release approval.
-- Plan 10 drafted after logging/health, checkout/refund attempt storage, source-read
-  route and checklist review. Defines actionable alerts, privacy-safe diagnostics,
-  unknown-outcome escalation and restoration safety including missing replay records.
-  User confirmed they are primary direct pilot support with no 24/7 promise.
-  Channels/coverage/fallback and actual drills remain gates; no application tests,
-  database, monitoring configuration or alerts ran.
+- Plan 10 was approved October 26 after logging/health, checkout/refund attempt
+  storage, source-read route and checklist review. The implementation adds a
+  read-only deployment smoke command and privacy-safe unknown-outcome/outage
+  runbooks, while preserving Plan 18 as the owner of durable recovery. User
+  confirmed they are primary direct pilot support with no 24/7 promise.
+  The repository slice and manual operational gates were completed and archived
+  after user confirmation; no monitoring provider or alert credentials are stored
+  in the repository. Plan 18 remains a separate durable recovery prerequisite.
 - Plan 11 drafted after design/module, route inventory, receipt and shared dialog/
   feedback source review. Includes role workflows, safe route recovery, approved
   confirmation guidance, accessibility and saved/PDF acceptance. User confirmed

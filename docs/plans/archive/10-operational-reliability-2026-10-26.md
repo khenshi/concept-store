@@ -2,8 +2,12 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No monitoring account, integration,
-credential, alert, deployment, database operation or incident action authorized.
+Status: Completed and archived October 26, 2026 after user-confirmed manual
+validation. Repository implementation, deployed smoke checking, monitoring and
+alert delivery, support coverage, backup/restore rehearsal, quota checks and
+incident drills were confirmed. Detailed provider evidence remains outside Git.
+The [manual completion checklist](../../operations/plan10-manual-completion.md)
+records the completion categories without credentials or private operational data.
 
 Priority: P0 before real pilot transactions. A small pilot still needs tested
 alerts, a reachable operator and safe unknown-payment/outage procedures.
@@ -48,7 +52,8 @@ inventory, frontend checkout/refund attempt stores, queue requirements and check
   financial use; a support document is not a replacement for durable recovery.
 - Existing source records and replay identity are authoritative. No monitoring/
   alert provider, alert recipient, external dashboard settings or live recovery
-  behavior was verified. No application tests, database or alerts ran for this draft.
+  behavior has been verified. Repository smoke validation is recorded separately;
+  external operational evidence remains open.
 
 ## 3. Minimal monitoring design
 
@@ -166,6 +171,22 @@ want manual business continuity, agree a separate safe policy before promising i
 
 ## 7. Delivery phases and verification
 
+### Current implementation slice
+
+The approved repository slice provides `npm run ops:check`, which performs
+read-only checks for API liveness, API readiness, frontend reachability and the
+same-origin `/api/health/live` proxy. It never authenticates, retries business
+commands, mutates data or replaces provider monitoring. The operator procedures
+are recorded in `docs/operations/unknown-transaction-outcomes.md` and
+`docs/operations/outage-and-restore.md`.
+
+The manual completion steps and evidence fields are recorded in
+`docs/operations/plan10-manual-completion.md`.
+
+The repository and manual operational gates are complete. Plan 18 remains a
+separate prerequisite before real checkout/refund use because it owns durable
+cross-device outcome recovery.
+
 1. Name contacts/coverage and approve channels, thresholds, privacy retention and
    provider access. Inventory actual 05 capabilities; no spending without approval.
 2. After 02–07 contracts exist, wire minimal checks/alerts and versioned operator
@@ -190,14 +211,13 @@ support/recovery behavior delivered. Record drill date, environment, release,
 measured detection/recovery, approver and failures; checklist remains unchecked
 until proof exists. Do not report a static document as an operational drill.
 
-## 8. Open decisions and safe rollback
+## 8. Completion and safe rollback
 
-Primary support responsibility and no-24/7 pilot policy are confirmed above.
-Confirm fallback/coverage, notification channel and accepted response expectations.
-Reconcile this support policy with the approved
-2-hour recovery target before real use; do not imply that an unattended incident
-can meet it. Hosting/monitoring entitlement, retention, thresholds and quotas remain
-unverified. No product behavior clarification is needed to draft these procedures.
+Primary support responsibility, coverage, notification channel, retention,
+thresholds and quota checks were confirmed by the user on October 26, 2026.
+Detailed external evidence is intentionally not stored in the repository. The
+no-24/7 pilot policy remains in effect, and the 2-hour recovery target must not be
+interpreted as an unattended incident guarantee.
 
 Rollback monitoring configuration without silencing all detection or broadening
 access; keep last-known working checks/runbooks. If required alerts or restore/

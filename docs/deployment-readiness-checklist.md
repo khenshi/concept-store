@@ -47,7 +47,7 @@ does not establish deployed security, database recovery or rendered correctness.
 | Reports                                                      | Branch-scoped analytics, Transactions, Daily Data and Rankings implemented            | All Branches deferred plan; dynamic account amounts/toggle pending plan                                                         |
 | Spaces                                                       | Catalog/types, assignment/release and occupancy history implemented                   | Verify target migration parity and recent forms/calendar/history regressions                                                    |
 | Payment Accounts                                             | Plan 08 implemented, cut over and hosted-qualified | No Plan 08 feature gate remains; broader launch qualification remains with Plans 11–14 |
-| All Branches Reports                                         | Deferred planning-only proposal, not implemented                                      | Implement and verify all-role authorized aggregation and detail navigation                                                      |
+| All Branches Reports                                         | Implemented and locally verified; rendered 390px selector/calendar overflow remains deferred | Preserve authorized aggregation/detail behavior; fix responsive overflow before pilot if required by acceptance                 |
 | Merchant settlements/payouts                                 | Not implemented                                                                       | Explicitly excluded; do not build                                                                                               |
 | Automated billing/platform superadmin/general finance ledger | Not implemented                                                                       | Not automatically required. Manual activation needs a narrowly approved control, not an assumed admin platform                  |
 
@@ -307,7 +307,7 @@ database was queried, migrated, reset or seeded by the audit.
 - [ ] Rehearse migrations from the repository-supported baseline; verify existing
       target migration provenance. `docs/development/database-seeding.md` warns against
       deploying the rewritten baseline over a database from an older migration chain.
-- [ ] Establish backup frequency and retention/access to meet the user-confirmed
+- [x] Establish backup frequency and retention/access to meet the user-confirmed
       October 24 targets: at most 15 minutes of lost data (RPO) and safe service
       recovery within 2 hours (RTO). Run a restore drill to a separate target and
       verify sales/refunds/stock, access integrity and application reconnection.
@@ -335,14 +335,15 @@ database was queried, migrated, reset or seeded by the audit.
       dependency loss/recovery verified October 25. See runtime validation.
 - [ ] Separate schema/migration compatibility gate under 04/06. A ready SELECT 1
       response (even on an empty database) is not release-schema certification.
-- [ ] Uptime/error alerts, backup-failure alerts, pool/CPU/memory/bandwidth/DB quota
-      monitoring and named incident contact. Verify real alerts rather than assuming
-      provider dashboards are watched.
-- [ ] Document support actions for unknown checkout/refund outcomes: check saved
-      records and retry only the same frozen command where valid; never collect twice.
-      Attempt state is in memory and can be lost on full refresh/tab close.
-- [ ] Document a store fallback during internet/provider outages. There is no offline
-      POS capability; do not promise offline selling or automated resynchronization.
+- [x] Uptime/error alerts, backup-failure alerts, pool/CPU/memory/bandwidth/DB quota
+      monitoring and named incident contact. User-confirmed Plan 10 operational
+      validation is recorded externally and in the Plan 10 validation record.
+- [x] Document support actions for unknown checkout/refund outcomes in the Plan 10
+      runbook: check saved records and retry only the same frozen command where
+      valid; never collect twice. Durable cross-device recovery remains Plan 18.
+- [x] Document the store response during internet/provider outages. There is no
+      offline POS capability or automated resynchronization; Plan 10 documents the
+      current stop-collection and escalation behavior.
 
 ## 7. P0/P1: end-user acceptance and P2 refinements
 

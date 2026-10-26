@@ -34,6 +34,10 @@ Documentation is separated by purpose:
 - [Spaces and occupancy](modules/spaces.md)
 - [Frontend experience](modules/frontend-experience.md)
 
+## Operations
+
+- [Operational runbooks](operations/README.md)
+
 Branch and merchant access control is implemented across memberships, invitations,
 branches, merchant profiles, products, and inventory. Owners manage access;
 managers/cashiers require assignments, while linked merchants read only their own

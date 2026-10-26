@@ -1,7 +1,8 @@
 # Runtime operations
 
-Implemented and validated October 25, 2026. Includes the provider-agnostic
-frontend runtime, same-origin API routing contract, and the Resend mail boundary.
+Implemented and validated through the Plan 10 repository slice on October 26,
+2026. Includes the provider-agnostic frontend runtime, same-origin API routing
+contract, Resend mail boundary and read-only operational smoke/runbooks.
 
 ## Build and startup
 
@@ -125,8 +126,29 @@ approved preservation migration; do not use the demo reset as one.
 ## Verification and limits
 
 See [October 25 runtime validation](../validation/production-runtime-2026-10-25.md).
-Actual hosted proxy behavior, monitoring/alerts, host polling/grace budgets,
-migration compatibility and transaction shutdown/recovery qualification remain
-with their pending plans. The verified development Neon migration/reset/seed
-cutover and hosted qualification are recorded separately in the Plan 08
-validation evidence. This is not production migration or recovery proof.
+## Operational smoke and runbooks
+
+Plan 10 adds a read-only smoke command for the deployed API, frontend and
+same-origin proxy:
+
+```bash
+OPS_API_URL=https://api.example.com \
+OPS_FRONTEND_URL=https://app.example.com \
+npm run ops:check
+```
+
+The command checks `/health/live`, `/health/ready`, the frontend root and
+`/api/health/live`. It sends no credentials and performs no business writes. A
+passing result proves routing and bounded process/database readiness only; it does
+not prove migrations, financial correctness, backups or alert delivery.
+
+The Plan 10 operator procedures are in
+[unknown checkout/refund outcomes](../operations/unknown-transaction-outcomes.md)
+and [outage and database recovery](../operations/outage-and-restore.md).
+
+Actual hosted monitoring/alerts, host polling/grace budgets, migration
+compatibility, backup/restore drills, transaction shutdown/recovery qualification
+and named incident coverage remain open operational gates. The verified
+development Neon migration/reset/seed cutover and hosted qualification are
+recorded separately in the Plan 08 validation evidence. This is not production
+migration or recovery proof.
