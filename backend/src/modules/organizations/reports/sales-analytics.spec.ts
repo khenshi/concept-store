@@ -115,7 +115,8 @@ describe('Sales analytics', () => {
     );
     const [query] = raw.mock.calls[0] as [Prisma.Sql];
     expect(query.sql).not.toContain('JOIN "Sale"');
-    expect(query.sql).toContain('GROUP BY "paymentAccountId"');
+    expect(query.sql).toContain('GROUP BY sale."paymentAccountId"');
+    expect(query.sql).toContain('GROUP BY refund."paymentAccountId"');
     expect(query.sql).toContain('FROM "Refund"');
     expect(query.sql).not.toContain('LIMIT');
     expect(query.values).toEqual(

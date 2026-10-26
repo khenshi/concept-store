@@ -7,6 +7,10 @@ describe('sale detail report return target', () => {
     const href = `${target}?preset=CUSTOM&fromDay=2026-10-01&throughDay=2026-10-21&transactionQ=RCPT%20%2B%201&transactionType=SALE&transactionPage=3`;
     expect(reportReturnHref(href, scope)).toBe(href);
   });
+  it('accepts the same organization All Branches Transactions return target', () => {
+    const href = `/app/organizations/org/reports/all/transactions?preset=CUSTOM&fromDay=2026-10-01&throughDay=2026-10-21&transactionPage=3`;
+    expect(reportReturnHref(href, scope)).toBe(href);
+  });
   it.each([
     undefined,
     null,
@@ -20,6 +24,7 @@ describe('sale detail report return target', () => {
     `${target}\n`,
     `${target} `,
     '/app/organizations/other/branches/branch/reports/transactions',
+    '/app/organizations/other/reports/all/transactions',
     '/app/organizations/org/branches/other/reports/transactions',
     '/app/organizations/org/branches/branch/reports/overview',
     `${target}/`,

@@ -20,6 +20,8 @@ const branch = {
   name: 'Main',
   code: null,
 };
+const branchScope = { kind: 'branch' as const, branchId: branch.id };
+const allScope = { kind: 'all' as const };
 const range = {
   from: '2026-09-13T16:00:00.000Z',
   until: '2026-09-14T16:00:00.000Z',
@@ -33,13 +35,13 @@ describe('resolved report periods and daily pages', () => {
       hasActivity: true,
     });
     await expect(
-      resolveReportPeriod(request, 'org', branch.id, range.until, false),
+      resolveReportPeriod(request, 'org', branchScope, range.until, false),
     ).resolves.toMatchObject({ from: range.from });
     expect(request).toHaveBeenCalledWith(
       expect.stringContaining('mode=ALL_TIME&until='),
     );
     await expect(
-      resolveReportPeriod(request, 'org', branch.id, range.until, true),
+      resolveReportPeriod(request, 'org', branchScope, range.until, true),
     ).rejects.toThrow();
     request.mockResolvedValue({
       scope: 'STAFF',
@@ -49,7 +51,7 @@ describe('resolved report periods and daily pages', () => {
       hasActivity: false,
     });
     await expect(
-      resolveReportPeriod(request, 'org', branch.id, range.until, false),
+      resolveReportPeriod(request, 'org', branchScope, range.until, false),
     ).resolves.toMatchObject({ from: null, hasActivity: false });
     request.mockResolvedValue({
       scope: 'STAFF',
@@ -59,7 +61,7 @@ describe('resolved report periods and daily pages', () => {
       hasActivity: true,
     });
     await expect(
-      resolveReportPeriod(request, 'org', branch.id, range.until, false),
+      resolveReportPeriod(request, 'org', branchScope, range.until, false),
     ).rejects.toThrow();
   });
   it('checks daily rows against their exact scope, branch, range and page', async () => {
@@ -89,7 +91,7 @@ describe('resolved report periods and daily pages', () => {
       getReportDailyPage(
         request,
         'org',
-        branch.id,
+        branchScope,
         { ...range, page: 1 },
         false,
       ),
@@ -101,7 +103,7 @@ describe('resolved report periods and daily pages', () => {
       getReportDailyPage(
         request,
         'org',
-        branch.id,
+        branchScope,
         { ...range, page: 1 },
         true,
       ),
@@ -110,7 +112,7 @@ describe('resolved report periods and daily pages', () => {
       getReportDailyPage(
         request,
         'org',
-        '22222222-2222-4222-8222-222222222222',
+        { kind: 'branch', branchId: '22222222-2222-4222-8222-222222222222' },
         { ...range, page: 1 },
         false,
       ),
@@ -119,11 +121,84 @@ describe('resolved report periods and daily pages', () => {
       getReportDailyPage(
         request,
         'org',
-        branch.id,
+        branchScope,
         { ...range, page: 2 },
         false,
       ),
     ).rejects.toThrow();
+  });
+  it('resolves and paginates All Branches periods without fabricating a branch', async () => {
+    const periodRequest = vi.fn().mockResolvedValue({
+      scope: 'STAFF',
+      reportScope: 'ALL',
+      branchCount: 0,
+      from: null,
+      until: range.until,
+      hasActivity: false,
+    });
+    await expect(
+      resolveReportPeriod(periodRequest, 'org', allScope, range.until, false),
+    ).resolves.toMatchObject({
+      reportScope: 'ALL',
+      branchCount: 0,
+      from: null,
+      hasActivity: false,
+    });
+    expect(periodRequest).toHaveBeenCalledWith(
+      `/organizations/org/reports/sales/all/period?mode=ALL_TIME&until=${encodeURIComponent(range.until)}`,
+    );
+    const allDaily = {
+      scope: 'STAFF',
+      reportScope: 'ALL',
+      branchCount: 2,
+      ...range,
+      page: 1,
+      limit: 15,
+      total: 1,
+      totalPages: 1,
+      items: [
+        {
+          date: '2026-09-14',
+          grossSales: '0.00',
+          transactionCount: '0',
+          unitsSold: '0',
+          refundedAmount: '0.00',
+          refundCount: '0',
+          returnedUnits: '0',
+          netRecordedSales: '0.00',
+        },
+      ],
+    };
+    const dailyRequest = vi.fn().mockResolvedValue(allDaily);
+    await expect(
+      getReportDailyPage(
+        dailyRequest,
+        'org',
+        allScope,
+        { ...range, page: 1 },
+        false,
+      ),
+    ).resolves.toEqual(allDaily);
+    expect(dailyRequest).toHaveBeenCalledWith(
+      `/organizations/org/reports/sales/all/daily?${new URLSearchParams({ ...range, page: '1', limit: '15' })}`,
+    );
+    const { branch: _rankingBranch, ...rankingBase } = staffRanking;
+    void _rankingBranch;
+    const allRanking = {
+      ...rankingBase,
+      reportScope: 'ALL' as const,
+      branchCount: 2,
+    };
+    const rankingRequest = vi.fn().mockResolvedValue(allRanking);
+    await expect(
+      getStaffSalesRankings(rankingRequest, 'org', allScope, {
+        ...range,
+        page: 2,
+      }),
+    ).resolves.toEqual(allRanking);
+    expect(rankingRequest).toHaveBeenCalledWith(
+      `/organizations/org/reports/sales/all/rankings?${new URLSearchParams({ ...range, page: '2', sortBy: 'GROSS_SALES' })}`,
+    );
   });
 });
 const empty = {
@@ -286,6 +361,38 @@ const merchantTransactions = {
     },
   ],
 };
+const { branch: _emptyBranch, ...allEmptyBase } = empty;
+void _emptyBranch;
+const allEmpty = {
+  ...allEmptyBase,
+  reportScope: 'ALL' as const,
+  branchCount: 2,
+};
+const { branch: _analyticsBranch, ...allAnalyticsBase } = analyticsEmpty;
+void _analyticsBranch;
+const allAnalyticsEmpty = {
+  ...allAnalyticsBase,
+  reportScope: 'ALL' as const,
+  branchCount: 2,
+};
+const { branch: _transactionsBranch, ...allTransactionsBase } =
+  staffTransactions;
+void _transactionsBranch;
+const allStaffTransactions = {
+  ...allTransactionsBase,
+  reportScope: 'ALL' as const,
+  branchCount: 2,
+  items: staffTransactions.items.map((item) => ({ ...item, branch })),
+};
+const { branch: _merchantTransactionsBranch, ...allMerchantTransactionsBase } =
+  merchantTransactions;
+void _merchantTransactionsBranch;
+const allMerchantTransactions = {
+  ...allMerchantTransactionsBase,
+  reportScope: 'ALL' as const,
+  branchCount: 2,
+  items: merchantTransactions.items.map((item) => ({ ...item, branch })),
+};
 describe('report reads', () => {
   it('uses the identity-only Reports lookup and encodes tenant identifiers', async () => {
     const request = vi.fn().mockResolvedValue([branch]);
@@ -296,17 +403,68 @@ describe('report reads', () => {
   });
   it('reads and validates the exact selected branch and range without write options', async () => {
     const request = vi.fn().mockResolvedValue(empty);
-    expect(await getStaffSalesReport(request, 'org', branch.id, range)).toEqual(
-      empty,
-    );
+    expect(
+      await getStaffSalesReport(request, 'org', branchScope, range),
+    ).toEqual(empty);
     expect(request).toHaveBeenCalledWith(
       `/organizations/org/branches/${branch.id}/reports/sales?${new URLSearchParams(range)}`,
     );
   });
+  it('reads all-branch staff reports using explicit aggregate metadata and routes', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(allEmpty)
+      .mockResolvedValueOnce(allAnalyticsEmpty)
+      .mockResolvedValueOnce(allStaffTransactions);
+    await expect(
+      getStaffSalesReport(request, 'org', allScope, range),
+    ).resolves.toEqual(allEmpty);
+    await expect(
+      getStaffSalesAnalytics(request, 'org', allScope, range),
+    ).resolves.toEqual(allAnalyticsEmpty);
+    await expect(
+      getStaffTransactions(request, 'org', allScope, {
+        ...range,
+        page: 1,
+        limit: 15,
+      }),
+    ).resolves.toEqual(allStaffTransactions);
+    expect(request.mock.calls.map(([path]) => path)).toEqual([
+      `/organizations/org/reports/sales/all?${new URLSearchParams(range)}`,
+      `/organizations/org/reports/sales/all/analytics?${new URLSearchParams(range)}`,
+      `/organizations/org/reports/transactions/all?${new URLSearchParams({ ...range, page: '1', limit: '15' })}`,
+    ]);
+  });
+  it('rejects all-scope responses that omit count or transaction source branches', async () => {
+    await expect(
+      getStaffSalesReport(
+        vi.fn().mockResolvedValue({ ...allEmpty, branchCount: undefined }),
+        'org',
+        allScope,
+        range,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      getStaffTransactions(
+        vi.fn().mockResolvedValue({
+          ...allStaffTransactions,
+          items: allStaffTransactions.items.map(
+            ({ branch: source, ...item }) => {
+              expect(source).toEqual(branch);
+              return item;
+            },
+          ),
+        }),
+        'org',
+        allScope,
+        { ...range, page: 1, limit: 15 },
+      ),
+    ).rejects.toThrow();
+  });
   it('reads one strict staff analytics snapshot from the focused route', async () => {
     const request = vi.fn().mockResolvedValue(analyticsEmpty);
     expect(
-      await getStaffSalesAnalytics(request, 'org/path', branch.id, range),
+      await getStaffSalesAnalytics(request, 'org/path', branchScope, range),
     ).toEqual(analyticsEmpty);
     expect(request).toHaveBeenCalledExactlyOnceWith(
       `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/analytics?${new URLSearchParams(range)}`,
@@ -315,7 +473,7 @@ describe('report reads', () => {
   it('reads and validates a filtered staff transaction page', async () => {
     const request = vi.fn().mockResolvedValue(staffTransactions);
     expect(
-      await getStaffTransactions(request, 'org/path', branch.id, {
+      await getStaffTransactions(request, 'org/path', branchScope, {
         ...range,
         page: 1,
         limit: 15,
@@ -330,7 +488,7 @@ describe('report reads', () => {
   it('keeps merchant transaction responses reduced to own snapshots', async () => {
     const request = vi.fn().mockResolvedValue(merchantTransactions);
     await expect(
-      getMerchantTransactions(request, 'org', branch.id, {
+      getMerchantTransactions(request, 'org', branchScope, {
         ...range,
         page: 1,
         limit: 15,
@@ -338,6 +496,17 @@ describe('report reads', () => {
     ).resolves.toEqual(merchantTransactions);
     expect(request).toHaveBeenCalledWith(
       `/organizations/org/branches/${branch.id}/reports/transactions?${new URLSearchParams({ ...range, page: '1', limit: '15' })}`,
+    );
+    const allRequest = vi.fn().mockResolvedValue(allMerchantTransactions);
+    await expect(
+      getMerchantTransactions(allRequest, 'org', allScope, {
+        ...range,
+        page: 1,
+        limit: 15,
+      }),
+    ).resolves.toEqual(allMerchantTransactions);
+    expect(allRequest).toHaveBeenCalledWith(
+      `/organizations/org/reports/transactions/all?${new URLSearchParams({ ...range, page: '1', limit: '15' })}`,
     );
   });
   it.each([
@@ -356,7 +525,7 @@ describe('report reads', () => {
         getStaffSalesAnalytics(
           vi.fn().mockResolvedValue(response),
           'org',
-          branch.id,
+          branchScope,
           range,
         ),
       ).rejects.toThrow();
@@ -365,7 +534,7 @@ describe('report reads', () => {
   it('blocks invalid ranges before making any request', async () => {
     const request = vi.fn();
     await expect(
-      getStaffSalesReport(request, 'org', branch.id, {
+      getStaffSalesReport(request, 'org', branchScope, {
         ...range,
         until: range.from,
       }),
@@ -375,7 +544,7 @@ describe('report reads', () => {
   it('reads a server-paginated staff ranking page and validates its cursor', async () => {
     const request = vi.fn().mockResolvedValue(staffRanking);
     expect(
-      await getStaffSalesRankings(request, 'org/path', branch.id, {
+      await getStaffSalesRankings(request, 'org/path', branchScope, {
         ...range,
         page: 2,
       }),
@@ -384,7 +553,7 @@ describe('report reads', () => {
       `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/rankings?${new URLSearchParams({ ...range, page: '2', sortBy: 'GROSS_SALES' })}`,
     );
     await expect(
-      getStaffSalesRankings(request, 'org', branch.id, {
+      getStaffSalesRankings(request, 'org', branchScope, {
         ...range,
         page: 3,
       }),
@@ -400,7 +569,7 @@ describe('report reads', () => {
     };
     const request = vi.fn().mockResolvedValue(response);
     await expect(
-      getStaffSalesRankings(request, 'org', branch.id, {
+      getStaffSalesRankings(request, 'org', branchScope, {
         ...range,
         page: 1,
         sortBy: 'UNITS_SOLD',
@@ -414,7 +583,7 @@ describe('report reads', () => {
       getStaffSalesRankings(
         vi.fn().mockResolvedValue({ ...response, sortBy: 'GROSS_SALES' }),
         'org',
-        branch.id,
+        branchScope,
         { ...range, page: 1, sortBy: 'UNITS_SOLD', merchantId },
       ),
     ).rejects.toThrow();
@@ -434,7 +603,7 @@ describe('report reads', () => {
         getStaffSalesReport(
           vi.fn().mockResolvedValue(response),
           'org',
-          branch.id,
+          branchScope,
           range,
         ),
       ).rejects.toThrow();
@@ -487,7 +656,7 @@ describe('merchant Reports API', () => {
   it('uses only the reduced merchant analytics route and contract', async () => {
     const request = vi.fn().mockResolvedValue(ownAnalytics);
     expect(
-      await getMerchantSalesAnalytics(request, 'org/path', branch.id, range),
+      await getMerchantSalesAnalytics(request, 'org/path', branchScope, range),
     ).toEqual(ownAnalytics);
     expect(request).toHaveBeenCalledExactlyOnceWith(
       `/organizations/org%2Fpath/branches/${branch.id}/reports/sales/analytics?${new URLSearchParams(range)}`,
@@ -522,7 +691,7 @@ describe('merchant Reports API', () => {
         getMerchantSalesAnalytics(
           vi.fn().mockResolvedValue(response),
           'org',
-          branch.id,
+          branchScope,
           range,
         ),
       ).rejects.toThrow();
@@ -531,16 +700,66 @@ describe('merchant Reports API', () => {
   it('uses the same scoped read route without fetching staff history, profiles or payments', async () => {
     const request = vi.fn().mockResolvedValue(own);
     expect(
-      await getMerchantSalesReport(request, 'org/path', branch.id, range),
+      await getMerchantSalesReport(request, 'org/path', branchScope, range),
     ).toEqual(own);
     expect(request).toHaveBeenCalledExactlyOnceWith(
       `/organizations/org%2Fpath/branches/${branch.id}/reports/sales?${new URLSearchParams(range)}`,
     );
   });
+  it('uses the explicit all-branch endpoint while retaining the merchant-only projection', async () => {
+    const { branch: _branch, ...allOwnBase } = own;
+    void _branch;
+    const allOwn = {
+      ...allOwnBase,
+      reportScope: 'ALL' as const,
+      branchCount: 2,
+    };
+    const { branch: _analyticsBranch, ...allOwnAnalyticsBase } = ownAnalytics;
+    void _analyticsBranch;
+    const allOwnAnalytics = {
+      ...allOwnAnalyticsBase,
+      reportScope: 'ALL' as const,
+      branchCount: 2,
+    };
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(allOwn)
+      .mockResolvedValueOnce(allOwnAnalytics);
+    await expect(
+      getMerchantSalesReport(request, 'org', allScope, range),
+    ).resolves.toEqual(allOwn);
+    await expect(
+      getMerchantSalesAnalytics(request, 'org', allScope, range),
+    ).resolves.toEqual(allOwnAnalytics);
+    expect(request.mock.calls.map(([path]) => path)).toEqual([
+      `/organizations/org/reports/sales/all?${new URLSearchParams(range)}`,
+      `/organizations/org/reports/sales/all/analytics?${new URLSearchParams(range)}`,
+    ]);
+    const { branch: _transactionBranch, ...allMerchantPageBase } =
+      merchantTransactions;
+    void _transactionBranch;
+    const allMerchantPage = {
+      ...allMerchantPageBase,
+      reportScope: 'ALL' as const,
+      branchCount: 2,
+      items: merchantTransactions.items.map((item) => ({ ...item, branch })),
+    };
+    const transactionRequest = vi.fn().mockResolvedValue(allMerchantPage);
+    await expect(
+      getMerchantTransactions(transactionRequest, 'org', allScope, {
+        ...range,
+        page: 1,
+        limit: 15,
+      }),
+    ).resolves.toEqual(allMerchantPage);
+    expect(transactionRequest).toHaveBeenCalledWith(
+      `/organizations/org/reports/transactions/all?${new URLSearchParams({ ...range, page: '1', limit: '15' })}`,
+    );
+  });
   it('reads a merchant ranking page through the same scoped route', async () => {
     const request = vi.fn().mockResolvedValue(merchantRanking);
     expect(
-      await getMerchantSalesRankings(request, 'org/path', branch.id, {
+      await getMerchantSalesRankings(request, 'org/path', branchScope, {
         ...range,
         page: 1,
       }),
@@ -565,7 +784,7 @@ describe('merchant Reports API', () => {
         getMerchantSalesReport(
           vi.fn().mockResolvedValue(response),
           'org',
-          branch.id,
+          branchScope,
           range,
         ),
       ).rejects.toThrow();
@@ -574,7 +793,7 @@ describe('merchant Reports API', () => {
   it('does not read an invalid merchant period', async () => {
     const request = vi.fn();
     await expect(
-      getMerchantSalesReport(request, 'org', branch.id, {
+      getMerchantSalesReport(request, 'org', branchScope, {
         ...range,
         until: range.from,
       }),

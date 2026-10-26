@@ -2,18 +2,23 @@
 import { useId } from 'react';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import type { ReportBranch } from '../model/report.schemas';
+import type { ReportScope } from '../model/report-scope';
 
 export function ReportBranchPicker({
   branches,
   branchId = '',
+  allBranches = false,
+  allBranchesSelected = false,
   loading = branches === null,
   onChange,
   compact = false,
 }: {
   branches: ReportBranch[] | null;
   branchId?: string;
+  allBranches?: boolean;
+  allBranchesSelected?: boolean;
   loading?: boolean;
-  onChange(branchId: string): void;
+  onChange(scope: ReportScope): void;
   compact?: boolean;
 }) {
   const id = useId();
@@ -25,16 +30,22 @@ export function ReportBranchPicker({
       <SelectControl
         id={id}
         value={
-          branches?.some((branch) => branch.id === branchId) ? branchId : ''
+          allBranchesSelected
+            ? 'ALL'
+            : branches?.some((branch) => branch.id === branchId)
+              ? branchId
+              : ''
         }
-        disabled={!branches?.length}
+        disabled={loading || branches === null}
         onValueChange={(next) => {
-          if (
+          if (allBranches && next === 'ALL' && !allBranchesSelected) {
+            onChange({ kind: 'all' });
+          } else if (
             next &&
             next !== branchId &&
             branches?.some((branch) => branch.id === next)
           )
-            onChange(next);
+            onChange({ kind: 'branch', branchId: next });
         }}
       >
         <option value="" disabled>
@@ -44,6 +55,7 @@ export function ReportBranchPicker({
               ? 'Choose a branch'
               : 'Branches unavailable'}
         </option>
+        {allBranches ? <option value="ALL">All branches</option> : null}
         {(branches ?? []).map((branch) => (
           <option key={branch.id} value={branch.id}>
             {branch.name}

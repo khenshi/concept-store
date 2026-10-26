@@ -343,6 +343,28 @@ describe('PostgreSQL branch sales reporting', () => {
       );
       expect(daily.items).toHaveLength(15);
     }
+    const ownerAllYearly = await measure('staff-all-branches-yearly', () =>
+      measuredReports.analytics(context(), null, applied),
+    );
+    expect(ownerAllYearly).toMatchObject({
+      reportScope: 'ALL',
+      branchCount: 2,
+      transactionCount: '10001',
+      refundCount: '2001',
+      netRecordedSales: '225012.50',
+    });
+    const merchantAllYearly = await measure(
+      'merchant-all-branches-yearly',
+      () => measuredReports.analytics(context(merchantUserId), null, applied),
+    );
+    expect(merchantAllYearly).toMatchObject({
+      scope: 'MERCHANT',
+      reportScope: 'ALL',
+      branchCount: 2,
+      ownTransactionCount: '10001',
+      ownRefundCount: '2001',
+      ownNetRecordedSales: '225012.50',
+    });
     const maximum = await measure('maximum-supported-yearly', () =>
       measuredReports.analytics(context(), branchId, {
         from: '1899-12-31T16:00:00Z',
@@ -1600,6 +1622,27 @@ describe('PostgreSQL branch sales reporting', () => {
     });
     expect(await reports.branches(context(managerId))).toEqual([]);
     await expect(read(managerId)).rejects.toMatchObject({ status: 404 });
+    const all = await reports.allSales(context(managerId), range);
+    expect(all).toMatchObject({
+      scope: 'STAFF',
+      reportScope: 'ALL',
+      branchCount: 0,
+      grossSales: '0.00',
+      transactionCount: '0',
+      refundedAmount: '0.00',
+      netRecordedSales: '0.00',
+    });
+    expect(all).not.toHaveProperty('branch');
+    const period = await reports.period(context(managerId), null, {
+      mode: ReportPeriodMode.ALL_TIME,
+      until: range.until,
+    });
+    expect(period).toMatchObject({
+      reportScope: 'ALL',
+      branchCount: 0,
+      from: null,
+      hasActivity: false,
+    });
   });
   it.each(['removed', 'deleted'])(
     'denies reports after an account is %s',
@@ -1658,24 +1701,18 @@ describe('PostgreSQL branch sales reporting', () => {
   });
   it('excludes other-branch recorded sales from the selected branch report', async () => {
     await mixedSales();
-    const created = await fixtureProduct(
-      products,
-      prisma,
-      organizationId,
-      {
+    const mainPlacement = await prisma.branchInventory.findUniqueOrThrow({
+      where: { id: inventories[0] },
+    });
+    const placement = await prisma.branchInventory.create({
+      data: {
+        organizationId,
+        branchId: emptyBranchId,
         merchantId,
-        name: 'Other branch product',
-        requestId: randomUUID(),
-        initialInventory: {
-          branchId: emptyBranchId,
-          sellingPrice: '20.00',
-          quantity: 10,
-        },
+        productId: mainPlacement.productId,
+        sellingPrice: '20.00',
+        quantity: 10,
       },
-      ownerId,
-    );
-    const placement = await prisma.branchInventory.findFirstOrThrow({
-      where: { organizationId, productId: created.id },
     });
     const sale = await checkout.complete(context(), emptyBranchId, {
       requestId: randomUUID(),
@@ -1693,6 +1730,29 @@ describe('PostgreSQL branch sales reporting', () => {
       where: { id: sale.id },
       data: { completedAt: new Date('2026-09-01T18:00:00Z') },
     });
+    const refundResult = await refunds.complete(
+      context(),
+      emptyBranchId,
+      sale.id,
+      {
+        requestId: randomUUID(),
+        reason: 'Private cross-branch refund reason',
+        paymentAccountId: testAccountId(organizationId, 'GCASH'),
+        paymentReference: 'private-cross-branch-reference',
+        refundConfirmed: true,
+        items: [
+          {
+            saleItemId: sale.items[0].id,
+            quantity: 1,
+            restockQuantity: 0,
+          },
+        ],
+      },
+    );
+    await prisma.refund.update({
+      where: { id: refundResult.id },
+      data: { completedAt: new Date('2026-09-01T20:00:00Z') },
+    });
     expect(await read()).toMatchObject({
       grossSales: '72.53',
       transactionCount: '3',
@@ -1703,11 +1763,216 @@ describe('PostgreSQL branch sales reporting', () => {
       transactionCount: '1',
       unitsSold: '1',
     });
+    const ownerAll = await reports.allSales(context(), range);
+    expect(ownerAll).toMatchObject({
+      reportScope: 'ALL',
+      branchCount: 2,
+      grossSales: '92.53',
+      transactionCount: '4',
+      unitsSold: '14',
+      refundedAmount: '20.00',
+      refundCount: '1',
+      returnedUnits: '1',
+      netRecordedSales: '72.53',
+    });
+    const ownerPaymentAccounts =
+      'paymentAccounts' in ownerAll ? ownerAll.paymentAccounts : [];
+    expect(ownerPaymentAccounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          accountId: testAccountId(organizationId, 'CARD'),
+          received: '30.00',
+          refunded: '0.00',
+        }),
+        expect.objectContaining({
+          accountId: testAccountId(organizationId, 'GCASH'),
+          received: '17.50',
+          refunded: '20.00',
+          netReceived: '-2.50',
+        }),
+      ]),
+    );
+    const managerAll = await reports.allSales(context(managerId), range);
+    expect(managerAll).toMatchObject({
+      reportScope: 'ALL',
+      branchCount: 1,
+      grossSales: '72.53',
+      transactionCount: '3',
+      refundedAmount: '0.00',
+    });
+    const merchantAll = await reports.allSales(context(merchantUserId), range);
+    expect(merchantAll).toMatchObject({
+      scope: 'MERCHANT',
+      reportScope: 'ALL',
+      branchCount: 2,
+      ownGrossSales: '57.53',
+      ownTransactionCount: '3',
+      ownUnitsSold: '7',
+      ownRefundedAmount: '20.00',
+      ownNetRecordedSales: '37.53',
+    });
+    expect(merchantAll).not.toHaveProperty('paymentAccounts');
+
+    const ranking = await reports.rankings(context(), null, {
+      ...range,
+      page: 1,
+      sortBy: SalesRankingSortBy.GROSS_SALES,
+    });
+    const repeatedProduct = ranking.items.find(
+      (item) => item.productId === mainPlacement.productId,
+    );
+    expect(repeatedProduct).toMatchObject({
+      grossSales: '57.50',
+      unitsSold: '4',
+      refundedAmount: '20.00',
+      netRecordedSales: '37.50',
+    });
+    const allDaily = await reports.daily(context(), null, {
+      ...range,
+      page: 1,
+      limit: 15,
+    });
+    expect(allDaily).toMatchObject({
+      reportScope: 'ALL',
+      branchCount: 2,
+      total: 1,
+      items: [
+        {
+          date: '2026-09-02',
+          grossSales: '92.53',
+          transactionCount: '4',
+          refundedAmount: '20.00',
+          refundCount: '1',
+        },
+      ],
+    });
+    const allAnalytics = await reports.analytics(context(), null, range);
+    expect(allAnalytics).toMatchObject({
+      reportScope: 'ALL',
+      branchCount: 2,
+      grossSales: '92.53',
+      refundedAmount: '20.00',
+      dailyTrends: [
+        {
+          date: '2026-09-02',
+          grossSales: '92.53',
+          transactionCount: '4',
+          refundedAmount: '20.00',
+          refundCount: '1',
+        },
+      ],
+    });
+    expect(allAnalytics.topProducts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          productId: mainPlacement.productId,
+          grossSales: '57.50',
+          refundedAmount: '20.00',
+        }),
+      ]),
+    );
+    const merchantAnalytics = await reports.analytics(
+      context(merchantUserId),
+      null,
+      range,
+    );
+    expect(merchantAnalytics).toMatchObject({
+      scope: 'MERCHANT',
+      reportScope: 'ALL',
+      branchCount: 2,
+      ownGrossSales: '57.53',
+      ownRefundedAmount: '20.00',
+    });
+    expect(merchantAnalytics).not.toHaveProperty('paymentAccounts');
+    const allTransactions = await reports.transactions(context(), null, {
+      ...range,
+      page: 1,
+      limit: 15,
+    });
+    expect(allTransactions).toMatchObject({
+      reportScope: 'ALL',
+      branchCount: 2,
+      total: 5,
+    });
+    expect(allTransactions.items.map((item) => item.branch?.name)).toEqual(
+      expect.arrayContaining(['First', 'Empty']),
+    );
+    const managerTransactions = await reports.transactions(
+      context(managerId),
+      null,
+      { ...range, page: 1, limit: 15 },
+    );
+    expect(managerTransactions.items).toHaveLength(3);
+    expect(
+      managerTransactions.items.every((item) => item.branch?.id === branchId),
+    ).toBe(true);
+    const merchantTransactions = await reports.transactions(
+      context(merchantUserId),
+      null,
+      { ...range, page: 1, limit: 15 },
+    );
+    expect(merchantTransactions.items).toHaveLength(4);
+    expect(
+      merchantTransactions.items.every((item) => !('paymentAccountId' in item)),
+    ).toBe(true);
     expect(await read(merchantUserId)).toMatchObject({
       ownGrossSales: '37.53',
       ownTransactionCount: '2',
       ownUnitsSold: '6',
     });
+    for (let index = 0; index < 12; index++) {
+      const pagedSale = await checkout.complete(context(), branchId, {
+        requestId: randomUUID(),
+        items: [
+          {
+            branchInventoryId: inventories[0],
+            quantity: 1,
+            expectedUnitPrice: '12.50',
+          },
+        ],
+        paymentAccountId: testAccountId(organizationId, 'CASH'),
+        cashTender: '20.00',
+      });
+      await prisma.sale.update({
+        where: { id: pagedSale.id },
+        data: {
+          completedAt: new Date(Date.parse('2026-09-01T18:00:00Z') + index),
+        },
+      });
+    }
+    const firstPage = await reports.transactions(context(), null, {
+      ...range,
+      page: 1,
+      limit: 15,
+    });
+    const secondPage = await reports.transactions(context(), null, {
+      ...range,
+      page: 2,
+      limit: 15,
+    });
+    expect(firstPage).toMatchObject({ total: 17, totalPages: 2 });
+    expect(firstPage.items).toHaveLength(15);
+    expect(secondPage.items).toHaveLength(2);
+    expect(
+      new Set([...firstPage.items, ...secondPage.items].map((item) => item.id))
+        .size,
+    ).toBe(17);
+    const managerPage = await reports.transactions(context(managerId), null, {
+      ...range,
+      page: 1,
+      limit: 15,
+    });
+    expect(managerPage).toMatchObject({ total: 15, totalPages: 1 });
+    const merchantPage = await reports.transactions(
+      context(merchantUserId),
+      null,
+      { ...range, page: 2, limit: 15 },
+    );
+    expect(merchantPage).toMatchObject({ total: 16, totalPages: 2 });
+    expect(merchantPage.items).toHaveLength(1);
+    expect(
+      merchantPage.items.every((item) => !('paymentAccountId' in item)),
+    ).toBe(true);
   });
   it('preserves exact high-capacity PHP totals and quantities beyond 32-bit range', async () => {
     await prisma.branchInventory.updateMany({

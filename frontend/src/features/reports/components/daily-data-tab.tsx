@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { getReportDailyPage } from '../api/report-api';
+import type { ReportScope } from '../model/report-scope';
 import type {
   StaffDailyReportPage,
   MerchantDailyReportPage,
@@ -24,7 +25,7 @@ export function DailyDataTab({
   onPageChange,
 }: {
   organizationId: string;
-  branchId: string;
+  branchId: string | null;
   from: string;
   until: string;
   merchant: boolean;
@@ -39,12 +40,16 @@ export function DailyDataTab({
   >(null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const scope = useMemo<ReportScope>(
+    () => (branchId === null ? { kind: 'all' } : { kind: 'branch', branchId }),
+    [branchId],
+  );
   useEffect(() => {
     let active = true;
     void getReportDailyPage(
       request,
       organizationId,
-      branchId,
+      scope,
       { from, until, page, limit: 15 },
       merchant,
     )
@@ -62,16 +67,7 @@ export function DailyDataTab({
     return () => {
       active = false;
     };
-  }, [
-    request,
-    organizationId,
-    branchId,
-    from,
-    until,
-    merchant,
-    page,
-    revision,
-  ]);
+  }, [request, organizationId, scope, from, until, merchant, page, revision]);
   if (error)
     return (
       <RequestError

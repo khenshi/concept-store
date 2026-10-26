@@ -24,6 +24,8 @@ const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const actor = '11111111-1111-4111-8111-111111111111';
 const path = `/organizations/${org}/branches/${branch}/reports/sales`;
+const allPath = `/organizations/${org}/reports/sales/all`;
+const allTransactionsPath = `/organizations/${org}/reports/transactions/all`;
 const rankingPath = `${path}/rankings`;
 const lookup = `/organizations/${org}/reports/sales/branches`;
 const valid = { from: '2026-09-01T00:00:00Z', until: '2026-09-02T00:00:00Z' };
@@ -34,7 +36,7 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
   const prisma = {
     user: { findFirst: jest.fn() },
     organizationMembership: { findUnique: jest.fn() },
-    branch: { findFirst: jest.fn(), findMany: jest.fn() },
+    branch: { findFirst: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     merchant: { findFirst: jest.fn() },
     $queryRaw: jest.fn(),
     $transaction: jest.fn(),
@@ -107,13 +109,15 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
     prisma.branch.findMany.mockResolvedValue([
       { id: branch, name: 'Branch', code: null },
     ]);
+    prisma.branch.count.mockResolvedValue(1);
     prisma.merchant.findFirst.mockResolvedValue({ id: actor });
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof prisma) => unknown) => callback(prisma),
     );
     prisma.$queryRaw.mockImplementation((sql: Prisma.Sql) =>
       Promise.resolve(
-        sql.sql.includes('GROUP BY')
+        sql.sql.includes('FROM transaction_rows') ||
+          sql.sql.includes('GROUP BY')
           ? []
           : sql.sql.includes('"Refund"')
             ? [{ refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' }]
@@ -141,6 +145,92 @@ describe('Reports HTTP and OpenAPI boundaries', () => {
         .expect(200, [{ id: branch, name: 'Branch', code: null }]);
     },
   );
+  it.each(['OWNER', 'MANAGER', 'MERCHANT'] as const)(
+    'returns explicit all-branch scope to authorized %s users only',
+    async (current) => {
+      role = current;
+      const response = await http()
+        .get(allPath)
+        .auth(token(), { type: 'bearer' })
+        .query(valid)
+        .expect(200);
+      expect(response.body).toMatchObject({
+        scope: current === 'MERCHANT' ? 'MERCHANT' : 'STAFF',
+        reportScope: 'ALL',
+        branchCount: 1,
+      });
+      expect(response.body).not.toHaveProperty('branch');
+      expect(prisma.branch.count).toHaveBeenCalledTimes(1);
+      const rawQueryCalls = prisma.$queryRaw.mock.calls as unknown as [
+        Prisma.Sql,
+      ][];
+      const queries = rawQueryCalls.map(([sql]) => sql.sql);
+      expect(queries.join('\n')).toContain('authorized_branch');
+      if (current === 'MANAGER') {
+        expect(queries.join('\n')).toContain('BranchMembership');
+        expect(rawQueryCalls.flatMap(([sql]) => sql.values)).toContain(actor);
+      }
+      if (current === 'MERCHANT') {
+        expect(queries.join('\n')).toContain('MerchantBranch');
+        expect(response.body).not.toHaveProperty('paymentAccounts');
+      }
+    },
+  );
+  it.each([
+    { suffix: '/period', query: { mode: 'ALL_TIME', until: valid.until } },
+    { suffix: '/daily', query: { ...valid, page: 1, limit: 15 } },
+    { suffix: '/analytics', query: valid },
+    { suffix: '/rankings', query: { ...valid, page: 1 } },
+  ])(
+    'routes aggregate sales submodule $suffix with explicit scope metadata',
+    async ({ suffix, query }) => {
+      const response = await http()
+        .get(`${allPath}${suffix}`)
+        .auth(token(), { type: 'bearer' })
+        .query(query)
+        .expect(200);
+      expect(response.body).toMatchObject({
+        reportScope: 'ALL',
+        branchCount: 1,
+      });
+      expect(response.body).not.toHaveProperty('branch');
+    },
+  );
+  it('routes aggregate Transactions without a fabricated branch', async () => {
+    const response = await http()
+      .get(allTransactionsPath)
+      .auth(token(), { type: 'bearer' })
+      .query({ ...valid, page: 1, limit: 15 })
+      .expect(200);
+    expect(response.body).toMatchObject({
+      scope: 'STAFF',
+      reportScope: 'ALL',
+      branchCount: 1,
+      items: [],
+    });
+    expect(response.body).not.toHaveProperty('branch');
+  });
+  it('protects all-scope routes from cashier access and rejects unknown query overrides', async () => {
+    role = 'CASHIER';
+    await http()
+      .get(allPath)
+      .auth(token(), { type: 'bearer' })
+      .query(valid)
+      .expect(403);
+    await http()
+      .get(allTransactionsPath)
+      .auth(token(), { type: 'bearer' })
+      .query({ ...valid, branchId: branch })
+      .expect(403);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    role = 'OWNER';
+    await http()
+      .get(allTransactionsPath)
+      .auth(token(), { type: 'bearer' })
+      .query({ ...valid, branchId: branch })
+      .expect(400);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
   it.each([path, lookup, `${path}/analytics`])(
     'requires authentication and denies cashier on %s',
     async (url) => {

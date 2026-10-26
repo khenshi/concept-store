@@ -12,13 +12,16 @@ export function reportReturnHref(
     /[\\#\u0000-\u0020\u007f]/.test(value)
   )
     return undefined;
-  const expected = `/app/organizations/${encodeURIComponent(scope.organizationId)}/branches/${encodeURIComponent(scope.branchId)}/reports/transactions`;
+  const expected = [
+    `/app/organizations/${encodeURIComponent(scope.organizationId)}/branches/${encodeURIComponent(scope.branchId)}/reports/transactions`,
+    `/app/organizations/${encodeURIComponent(scope.organizationId)}/reports/all/transactions`,
+  ];
   try {
     const url = new URL(value, 'https://internal.invalid');
     if (
       url.origin !== 'https://internal.invalid' ||
-      url.pathname !== expected ||
-      value.split('?')[0] !== expected
+      !expected.includes(url.pathname) ||
+      value.split('?')[0] !== url.pathname
     )
       return undefined;
     return `${url.pathname}${url.search}`;

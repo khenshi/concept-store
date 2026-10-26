@@ -10,7 +10,7 @@ import { ReportsService, netRecordedSales } from './reports.service';
 describe('ReportsService', () => {
   const tx = {
     organizationMembership: { findUnique: jest.fn() },
-    branch: { findFirst: jest.fn(), findMany: jest.fn() },
+    branch: { findFirst: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     merchant: { findFirst: jest.fn() },
     $queryRaw: jest.fn(),
   };
@@ -37,6 +37,7 @@ describe('ReportsService', () => {
       code: null,
     });
     tx.branch.findMany.mockResolvedValue([]);
+    tx.branch.count.mockResolvedValue(2);
     tx.$queryRaw
       .mockResolvedValueOnce([
         { grossSales: '25.00', transactionCount: '1', unitsSold: '2' },
@@ -71,6 +72,96 @@ describe('ReportsService', () => {
     expect(sql.values).toContain('branch');
     expect(sql.sql).toContain('"completedAt" >=');
     expect(sql.sql).toContain('"completedAt" <');
+  });
+  it('returns all-branch scope metadata and derives authorization inside its SQL', async () => {
+    tx.$queryRaw
+      .mockReset()
+      .mockResolvedValueOnce([
+        { grossSales: '25.00', transactionCount: '1', unitsSold: '2' },
+      ])
+      .mockResolvedValueOnce([
+        { refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' },
+      ])
+      .mockResolvedValueOnce([]);
+    const report = await service.allSales(context, query);
+    expect(report).toMatchObject({
+      scope: 'STAFF',
+      reportScope: 'ALL',
+      branchCount: 2,
+      grossSales: '25.00',
+    });
+    expect(report).not.toHaveProperty('branch');
+    expect(tx.branch.findFirst).not.toHaveBeenCalled();
+    expect(tx.branch.count).toHaveBeenCalledWith({
+      where: { organizationId: 'org' },
+    });
+    const queries = tx.$queryRaw.mock.calls.map(([sql]: [Prisma.Sql]) => sql);
+    expect(queries[0].sql).toContain('authorized_branch');
+    expect(queries[0].sql).toContain('"branchId"');
+    expect(queries.every((sql) => sql.values.includes('org'))).toBe(true);
+    expect(queries[2].sql).toContain('PaymentAccount');
+  });
+  it('limits manager all-branch totals to their current branch grants', async () => {
+    tx.organizationMembership.findUnique.mockResolvedValue({
+      role: 'MANAGER',
+      merchantId: null,
+    });
+    tx.$queryRaw
+      .mockReset()
+      .mockResolvedValueOnce([
+        { grossSales: '0.00', transactionCount: '0', unitsSold: '0' },
+      ])
+      .mockResolvedValueOnce([
+        { refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' },
+      ])
+      .mockResolvedValueOnce([]);
+    await service.allSales(context, query);
+    expect(tx.branch.count).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'org',
+        memberships: { some: { organizationId: 'org', userId: 'actor' } },
+      },
+    });
+    const sql = tx.$queryRaw.mock.calls
+      .map(([query]: [Prisma.Sql]) => query.sql)
+      .join('\n');
+    expect(sql).toContain('BranchMembership');
+    expect(
+      tx.$queryRaw.mock.calls.flatMap(([query]: [Prisma.Sql]) => query.values),
+    ).toContain('actor');
+  });
+  it('keeps all-branch merchant summaries limited to the freshly linked profile', async () => {
+    tx.organizationMembership.findUnique.mockResolvedValue({
+      role: 'MERCHANT',
+      merchantId: 'linked',
+    });
+    tx.$queryRaw
+      .mockReset()
+      .mockResolvedValueOnce([
+        { grossSales: '12.00', transactionCount: '1', unitsSold: '1' },
+      ])
+      .mockResolvedValueOnce([
+        { refundedAmount: '2.00', refundCount: '1', returnedUnits: '1' },
+      ]);
+    const report = await service.allSales(context, query);
+    expect(report).toMatchObject({
+      scope: 'MERCHANT',
+      reportScope: 'ALL',
+      branchCount: 2,
+      ownGrossSales: '12.00',
+      ownRefundedAmount: '2.00',
+      ownNetRecordedSales: '10.00',
+    });
+    expect(report).not.toHaveProperty('paymentAccounts');
+    const sql = tx.$queryRaw.mock.calls
+      .map(([query]: [Prisma.Sql]) => query.sql)
+      .join('\n');
+    expect(sql).toContain('MerchantBranch');
+    expect(sql).toContain('historical_sale');
+    expect(sql).toContain('"merchantId"');
+    expect(
+      tx.$queryRaw.mock.calls.flatMap(([query]: [Prisma.Sql]) => query.values),
+    ).toContain('linked');
   });
   it('derives the current manager scope rather than trusting an earlier owner role', async () => {
     tx.organizationMembership.findUnique.mockResolvedValue({

@@ -111,6 +111,18 @@ export class ReportsController {
     return this.reports.period(context, branchId.toLowerCase(), query);
   }
 
+  @Get('reports/sales/all/period')
+  @ApiOperation({
+    summary: 'Resolve all-time within authorized Reports branches',
+  })
+  @ApiOkResponse({ type: ReportPeriodResponseDto })
+  allPeriod(
+    @CurrentOrganization() context: OrganizationContext,
+    @Query() query: ReportPeriodQueryDto,
+  ) {
+    return this.reports.period(context, null, query);
+  }
+
   @Get('branches/:branchId/reports/sales/daily')
   @ApiOperation({
     summary:
@@ -137,6 +149,32 @@ export class ReportsController {
     @Query() query: DailyReportQueryDto,
   ) {
     return this.reports.daily(context, branchId.toLowerCase(), query);
+  }
+
+  @Get('reports/sales/all/daily')
+  @ApiOperation({
+    summary: 'Read paginated daily data across authorized branches',
+  })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffDailyReportPageResponseDto) },
+        { $ref: getSchemaPath(MerchantDailyReportPageResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffDailyReportPageResponseDto),
+          MERCHANT: getSchemaPath(MerchantDailyReportPageResponseDto),
+        },
+      },
+    },
+  })
+  allDaily(
+    @CurrentOrganization() context: OrganizationContext,
+    @Query() query: DailyReportQueryDto,
+  ) {
+    return this.reports.daily(context, null, query);
   }
 
   @Get('branches/:branchId/reports/sales/analytics')
@@ -167,6 +205,30 @@ export class ReportsController {
     return this.reports.analytics(context, branchId.toLowerCase(), query);
   }
 
+  @Get('reports/sales/all/analytics')
+  @ApiOperation({ summary: 'Read sales analytics across authorized branches' })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffSalesAnalyticsResponseDto) },
+        { $ref: getSchemaPath(MerchantSalesAnalyticsResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffSalesAnalyticsResponseDto),
+          MERCHANT: getSchemaPath(MerchantSalesAnalyticsResponseDto),
+        },
+      },
+    },
+  })
+  allAnalytics(
+    @CurrentOrganization() context: OrganizationContext,
+    @Query() query: SalesReportQueryDto,
+  ) {
+    return this.reports.analytics(context, null, query);
+  }
+
   @Get('branches/:branchId/reports/sales/rankings')
   @ApiOperation({
     summary:
@@ -193,6 +255,30 @@ export class ReportsController {
     @Query() query: SalesRankingQueryDto,
   ) {
     return this.reports.rankings(context, branchId.toLowerCase(), query);
+  }
+
+  @Get('reports/sales/all/rankings')
+  @ApiOperation({ summary: 'Read product rankings across authorized branches' })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffSalesRankingPageResponseDto) },
+        { $ref: getSchemaPath(MerchantSalesRankingPageResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffSalesRankingPageResponseDto),
+          MERCHANT: getSchemaPath(MerchantSalesRankingPageResponseDto),
+        },
+      },
+    },
+  })
+  allRankings(
+    @CurrentOrganization() context: OrganizationContext,
+    @Query() query: SalesRankingQueryDto,
+  ) {
+    return this.reports.rankings(context, null, query);
   }
 
   @Get('reports/sales/branches')
@@ -237,6 +323,32 @@ export class ReportsController {
     return this.reports.sales(context, branchId.toLowerCase(), query);
   }
 
+  @Get('reports/sales/all')
+  @ApiOperation({
+    summary: 'Summarize all authorized-branch sales and refunds',
+  })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffSalesReportResponseDto) },
+        { $ref: getSchemaPath(MerchantSalesReportResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffSalesReportResponseDto),
+          MERCHANT: getSchemaPath(MerchantSalesReportResponseDto),
+        },
+      },
+    },
+  })
+  allSales(
+    @CurrentOrganization() context: OrganizationContext,
+    @Query() query: SalesReportQueryDto,
+  ) {
+    return this.reports.allSales(context, query);
+  }
+
   @Get('branches/:branchId/reports/transactions')
   @ApiOperation({
     summary:
@@ -263,5 +375,31 @@ export class ReportsController {
     @Query() query: TransactionsQueryDto,
   ) {
     return this.reports.transactions(context, branchId.toLowerCase(), query);
+  }
+
+  @Get('reports/transactions/all')
+  @ApiOperation({
+    summary: 'Read authorized transactions across all accessible branches',
+  })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(StaffTransactionsPageResponseDto) },
+        { $ref: getSchemaPath(MerchantTransactionsPageResponseDto) },
+      ],
+      discriminator: {
+        propertyName: 'scope',
+        mapping: {
+          STAFF: getSchemaPath(StaffTransactionsPageResponseDto),
+          MERCHANT: getSchemaPath(MerchantTransactionsPageResponseDto),
+        },
+      },
+    },
+  })
+  allTransactions(
+    @CurrentOrganization() context: OrganizationContext,
+    @Query() query: TransactionsQueryDto,
+  ) {
+    return this.reports.transactions(context, null, query);
   }
 }

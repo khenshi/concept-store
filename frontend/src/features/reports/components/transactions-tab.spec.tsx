@@ -142,6 +142,77 @@ describe('Reports inline refund details', () => {
     );
     expect(navigation.push).toHaveBeenCalledWith(href);
   });
+  it('uses each aggregate row branch for sale detail and preserves the All Branches return URL', () => {
+    const returnTo = `/app/organizations/${scope.organizationId}/reports/all/transactions?preset=CUSTOM&fromDay=2026-10-01&throughDay=2026-10-21&transactionPage=3`;
+    const { branch: _branch, ...allPageBase } = page;
+    void _branch;
+    const sourceBranch = {
+      id: scope.branchId,
+      name: 'Makati',
+      code: 'MKT',
+    };
+    const salePage: StaffTransactionsPage = {
+      ...allPageBase,
+      reportScope: 'ALL',
+      branchCount: 2,
+      items: [
+        {
+          ...page.items[0],
+          type: 'SALE',
+          refundId: null,
+          branch: sourceBranch,
+        },
+      ],
+    };
+    render(
+      <TransactionsTab
+        {...props}
+        branchId={null}
+        allBranches
+        page={salePage}
+        returnTo={returnTo}
+      />,
+    );
+    const link = screen.getByRole('link', { name: 'View' });
+    const href = link.getAttribute('href')!;
+    expect(href).toContain(
+      `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/sales/${completedSale.id}?`,
+    );
+    expect(new URL(href, 'http://localhost').searchParams.get('returnTo')).toBe(
+      returnTo,
+    );
+    fireEvent.click(
+      screen.getByRole('row', { name: `Open sale ${staffRefund.refundCode}` }),
+    );
+    expect(navigation.push).toHaveBeenCalledWith(href);
+  });
+  it('loads refund details through the aggregate row source branch', async () => {
+    const { branch: _branch, ...allPageBase } = page;
+    void _branch;
+    const sourceBranch = {
+      id: scope.branchId,
+      name: 'Makati',
+      code: 'MKT',
+    };
+    const allPage: StaffTransactionsPage = {
+      ...allPageBase,
+      reportScope: 'ALL',
+      branchCount: 2,
+      items: [{ ...page.items[0], branch: sourceBranch }],
+    };
+    render(
+      <TransactionsTab {...props} branchId={null} allBranches page={allPage} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+    expect(await screen.findByText(staffRefund.reason)).toBeInTheDocument();
+    expect(request.mock.calls.map(([path]) => path)).toEqual(
+      expect.arrayContaining([
+        `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales/${completedSale.id}`,
+        `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales/${completedSale.id}/refunds/${staffRefund.id}`,
+      ]),
+    );
+    expect(navigation.push).not.toHaveBeenCalled();
+  });
   it('uses only the reduced own-item projection for merchants', async () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { id: scope.organizationId, role: 'MERCHANT' },

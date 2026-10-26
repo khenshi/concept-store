@@ -9,6 +9,7 @@ import { RequestError } from '@/shared/components/ui/request-error';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { listReportBranches } from '../api/report-api';
 import type { ReportBranch } from '../model/report.schemas';
+import type { ReportScope } from '../model/report-scope';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
 import { MerchantReportGuidance } from './merchant-report-guidance';
@@ -51,7 +52,8 @@ function ScopedReportsEntry({
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
   const resumed = useRef<string | null>(null);
-  function navigate(branchId: string) {
+  function navigate(scope: ReportScope) {
+    const branchId = scope.kind === 'branch' ? scope.branchId : null;
     const checkout =
       user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
     const refund =
@@ -61,10 +63,12 @@ function ScopedReportsEntry({
       (refund && refund.state !== 'completed')
     )
       return;
-    const href = `/app/organizations/${organizationId}/branches/${branchId}/reports`;
+    const href = branchId
+      ? `/app/organizations/${organizationId}/branches/${branchId}/reports`
+      : `/app/organizations/${organizationId}/reports/all/overview`;
     if (!allowPosNavigation(href)) return;
-    resumed.current = branchId;
-    setSelectedBranchId(branchId);
+    resumed.current = branchId ?? 'ALL';
+    if (branchId) setSelectedBranchId(branchId);
     router.push(href);
   }
   useEffect(() => {
@@ -93,9 +97,9 @@ function ScopedReportsEntry({
       selectedBranchId &&
       branches?.some((branch) => branch.id === selectedBranchId) &&
       !error &&
-      resumed.current !== selectedBranchId
+      resumed.current === null
     )
-      navigate(selectedBranchId);
+      navigate({ kind: 'branch', branchId: selectedBranchId });
   });
   return (
     <OrganizationPageFrame wide>
@@ -103,13 +107,14 @@ function ScopedReportsEntry({
         title="Reports"
         description={
           merchant
-            ? 'Choose one branch to view your own gross recorded sales, matching transactions and units sold.'
-            : 'Choose one branch to view its gross recorded sales, transaction count, units sold and payment summary.'
+            ? 'Choose a branch or all accessible branches to view your own gross recorded sales, matching transactions and units sold.'
+            : 'Choose a branch or all accessible branches to view recorded sales, transaction counts, units sold and payment summaries.'
         }
         action={
           <ReportBranchPicker
             branches={branches}
             loading={branches === null && error === null}
+            allBranches
             onChange={navigate}
             compact
           />

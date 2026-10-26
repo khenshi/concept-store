@@ -43,6 +43,7 @@ import {
 import { netRecordedSales } from './report-money';
 export { netRecordedSales } from './report-money';
 import { readPaymentAccounts } from './payment-account-aggregates';
+import { reportSourceBranchPredicate } from './report-sql-scope';
 import type { SalesReport, TransactionsPage } from './reports.types';
 
 type Aggregate = {
@@ -69,7 +70,15 @@ type TransactionRow = {
   paymentAccountRequiresReference: boolean | null;
   actorName: string | null;
   merchantNames: string[];
+  branchId: string;
+  branchName: string;
+  branchCode: string | null;
   totalCount: number;
+};
+type ResolvedBranches = {
+  branch?: { id: string; name: string; code: string | null };
+  reportScope?: 'ALL';
+  branchCount?: number;
 };
 const identitySelect = { id: true, name: true, code: true } as const;
 
@@ -99,9 +108,13 @@ export class ReportsService {
     return this.read(context, branchId, query, false);
   }
 
+  async allSales(context: OrganizationContext, query: SalesReportQueryDto) {
+    return this.read(context, null, query, false);
+  }
+
   async period(
     context: OrganizationContext,
-    branchId: string,
+    branchId: string | null,
     query: ReportPeriodQueryDto,
   ): Promise<ReportPeriodResponseDto> {
     if (query.mode !== ReportPeriodMode.ALL_TIME)
@@ -110,22 +123,30 @@ export class ReportsService {
     return this.prisma.$transaction(
       async (tx) => {
         const current = await this.currentContext(tx, context);
-        const branch = await tx.branch.findFirst({
-          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
-          select: identitySelect,
-        });
-        if (!branch) throw new NotFoundException('Branch not found');
+        const resolved = await this.resolveBranches(tx, current, branchId);
         const own = current.role === 'MERCHANT';
+        const saleBranchFilter = reportSourceBranchPredicate(
+          current,
+          's',
+          branchId,
+        );
+        const refundBranchFilter = reportSourceBranchPredicate(
+          current,
+          'r',
+          branchId,
+        );
         const saleMerchantFilter = own
           ? Prisma.sql`AND EXISTS (
         SELECT 1 FROM "SaleItem" i WHERE i."organizationId" = ${current.organizationId}
-          AND i."branchId" = ${branchId} AND i."saleId" = s."id" AND i."merchantId" = ${current.merchantId}
+          AND i."branchId" = s."branchId"
+          AND i."saleId" = s."id" AND i."merchantId" = ${current.merchantId}
       )`
           : Prisma.empty;
         const refundMerchantFilter = own
           ? Prisma.sql`AND EXISTS (
         SELECT 1 FROM "RefundItem" i WHERE i."organizationId" = ${current.organizationId}
-          AND i."branchId" = ${branchId} AND i."refundId" = r."id" AND i."saleId" = r."saleId" AND i."merchantId" = ${current.merchantId}
+          AND i."branchId" = r."branchId"
+          AND i."refundId" = r."id" AND i."saleId" = r."saleId" AND i."merchantId" = ${current.merchantId}
       )`
           : Prisma.empty;
         const earliest =
@@ -135,12 +156,12 @@ export class ReportsService {
                 await tx.$queryRaw<{ earliest: Date | null }[]>(Prisma.sql`
         SELECT MIN(activity."completedAt") AS earliest FROM (
           (SELECT s."completedAt" FROM "Sale" s
-            WHERE s."organizationId" = ${current.organizationId} AND s."branchId" = ${branchId}
+            WHERE s."organizationId" = ${current.organizationId} ${saleBranchFilter}
               AND s."completedAt" < ${until} ${saleMerchantFilter}
             ORDER BY s."completedAt" ASC LIMIT 1)
           UNION ALL
           (SELECT r."completedAt" FROM "Refund" r
-            WHERE r."organizationId" = ${current.organizationId} AND r."branchId" = ${branchId}
+            WHERE r."organizationId" = ${current.organizationId} ${refundBranchFilter}
               AND r."completedAt" < ${until} ${refundMerchantFilter}
             ORDER BY r."completedAt" ASC LIMIT 1)
         ) activity
@@ -156,7 +177,7 @@ export class ReportsService {
         if (from) reportRange({ from, until: until.toISOString() });
         return {
           scope: own ? 'MERCHANT' : 'STAFF',
-          branch,
+          ...this.reportScopeMetadata(resolved),
           from,
           until: until.toISOString(),
           hasActivity: earliest !== null,
@@ -168,18 +189,14 @@ export class ReportsService {
 
   async daily(
     context: OrganizationContext,
-    branchId: string,
+    branchId: string | null,
     query: DailyReportQueryDto,
   ): Promise<DailyReportPage> {
     const { from, until } = reportRange(query);
     return this.prisma.$transaction(
       async (tx) => {
         const current = await this.currentContext(tx, context);
-        const branch = await tx.branch.findFirst({
-          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
-          select: identitySelect,
-        });
-        if (!branch) throw new NotFoundException('Branch not found');
+        const resolved = await this.resolveBranches(tx, current, branchId);
         const total =
           calendarDay(new Date(until.getTime() - 1)) - calendarDay(from) + 1;
         const dates = reportDates(
@@ -211,7 +228,7 @@ export class ReportsService {
           : [];
         return {
           scope: current.role === 'MERCHANT' ? 'MERCHANT' : 'STAFF',
-          branch,
+          ...this.reportScopeMetadata(resolved),
           from: from.toISOString(),
           until: until.toISOString(),
           items,
@@ -227,18 +244,24 @@ export class ReportsService {
 
   async transactions(
     context: OrganizationContext,
-    branchId: string,
+    branchId: string | null,
     query: TransactionsQueryDto,
   ): Promise<TransactionsPage> {
     const { from, until } = reportRange(query);
     return this.prisma.$transaction(
       async (tx) => {
         const current = await this.currentContext(tx, context);
-        const branch = await tx.branch.findFirst({
-          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
-          select: identitySelect,
-        });
-        if (!branch) throw new NotFoundException('Branch not found');
+        const resolved = await this.resolveBranches(tx, current, branchId);
+        const saleBranchFilter = reportSourceBranchPredicate(
+          current,
+          's',
+          branchId,
+        );
+        const refundBranchFilter = reportSourceBranchPredicate(
+          current,
+          'r',
+          branchId,
+        );
 
         const offset = (query.page - 1) * query.limit;
         const includeSale =
@@ -263,7 +286,7 @@ export class ReportsService {
               ? Prisma.sql`AND EXISTS (
                   SELECT 1 FROM "SaleItem" own_sale_item
                   WHERE own_sale_item."organizationId" = ${current.organizationId}
-                    AND own_sale_item."branchId" = ${branchId}
+                    AND own_sale_item."branchId" = s."branchId"
                     AND own_sale_item."saleId" = s."id"
                     AND own_sale_item."merchantId" = ${current.merchantId}
                 )`
@@ -275,7 +298,7 @@ export class ReportsService {
               ? Prisma.sql`AND EXISTS (
                   SELECT 1 FROM "RefundItem" own_refund_item
                   WHERE own_refund_item."organizationId" = ${current.organizationId}
-                    AND own_refund_item."branchId" = ${branchId}
+                    AND own_refund_item."branchId" = r."branchId"
                     AND own_refund_item."refundId" = r."id"
                     AND own_refund_item."saleId" = r."saleId"
                     AND own_refund_item."merchantId" = ${current.merchantId}
@@ -288,7 +311,7 @@ export class ReportsService {
                 SELECT COALESCE(SUM(own_sale_amount."lineTotal"), 0)::text
                 FROM "SaleItem" own_sale_amount
                 WHERE own_sale_amount."organizationId" = ${current.organizationId}
-                  AND own_sale_amount."branchId" = ${branchId}
+                  AND own_sale_amount."branchId" = s."branchId"
                   AND own_sale_amount."saleId" = s."id"
                   AND own_sale_amount."merchantId" = ${current.merchantId}
               )`
@@ -299,7 +322,7 @@ export class ReportsService {
                 SELECT COALESCE(SUM(own_refund_amount."lineTotal"), 0)::text
                 FROM "RefundItem" own_refund_amount
                 WHERE own_refund_amount."organizationId" = ${current.organizationId}
-                  AND own_refund_amount."branchId" = ${branchId}
+                  AND own_refund_amount."branchId" = r."branchId"
                   AND own_refund_amount."refundId" = r."id"
                   AND own_refund_amount."saleId" = r."saleId"
                   AND own_refund_amount."merchantId" = ${current.merchantId}
@@ -312,7 +335,7 @@ export class ReportsService {
                 SELECT ARRAY_AGG(DISTINCT sale_merchant."merchantName")
                 FROM "SaleItem" sale_merchant
                 WHERE sale_merchant."organizationId" = ${current.organizationId}
-                  AND sale_merchant."branchId" = ${branchId}
+                  AND sale_merchant."branchId" = s."branchId"
                   AND sale_merchant."saleId" = s."id"
               ), ARRAY[]::text[])`;
         const refundMerchantNames =
@@ -327,7 +350,7 @@ export class ReportsService {
                  AND refund_merchant."branchId" = refund_item."branchId"
                  AND refund_merchant."saleId" = refund_item."saleId"
                 WHERE refund_item."organizationId" = ${current.organizationId}
-                  AND refund_item."branchId" = ${branchId}
+                  AND refund_item."branchId" = r."branchId"
                   AND refund_item."refundId" = r."id"
                   AND refund_item."saleId" = r."saleId"
               ), ARRAY[]::text[])`;
@@ -362,10 +385,16 @@ export class ReportsService {
               ${current.role === 'MERCHANT' ? Prisma.sql`NULL::boolean` : Prisma.sql`s."paymentAccountIsCash"`} AS "paymentAccountIsCash",
               ${current.role === 'MERCHANT' ? Prisma.sql`NULL::boolean` : Prisma.sql`s."paymentAccountRequiresReference"`} AS "paymentAccountRequiresReference",
               ${current.role === 'MERCHANT' ? Prisma.sql`NULL::text` : Prisma.sql`s."cashierName"`} AS "actorName",
-              ${saleMerchantNames} AS "merchantNames"
+              ${saleMerchantNames} AS "merchantNames",
+              sale_branch."id" AS "branchId",
+              sale_branch."name" AS "branchName",
+              sale_branch."code" AS "branchCode"
             FROM "Sale" s
+            JOIN "Branch" sale_branch
+              ON sale_branch."id" = s."branchId"
+             AND sale_branch."organizationId" = s."organizationId"
             WHERE s."organizationId" = ${current.organizationId}
-              AND s."branchId" = ${branchId}
+              ${saleBranchFilter}
               AND s."completedAt" >= ${from}
               AND s."completedAt" < ${until}
               ${saleTypeFilter}
@@ -385,11 +414,17 @@ export class ReportsService {
               ${current.role === 'MERCHANT' ? Prisma.sql`NULL::boolean` : Prisma.sql`r."paymentAccountIsCash"`} AS "paymentAccountIsCash",
               ${current.role === 'MERCHANT' ? Prisma.sql`NULL::boolean` : Prisma.sql`r."paymentAccountRequiresReference"`} AS "paymentAccountRequiresReference",
               ${actorName} AS "actorName",
-              ${refundMerchantNames} AS "merchantNames"
+              ${refundMerchantNames} AS "merchantNames",
+              refund_branch."id" AS "branchId",
+              refund_branch."name" AS "branchName",
+              refund_branch."code" AS "branchCode"
             FROM "Refund" r
+            JOIN "Branch" refund_branch
+              ON refund_branch."id" = r."branchId"
+             AND refund_branch."organizationId" = r."organizationId"
             ${actorJoin}
             WHERE r."organizationId" = ${current.organizationId}
-              AND r."branchId" = ${branchId}
+              ${refundBranchFilter}
               AND r."completedAt" >= ${from}
               AND r."completedAt" < ${until}
               ${refundTypeFilter}
@@ -401,7 +436,7 @@ export class ReportsService {
           ${transactionCte}
           SELECT *, COUNT(*) OVER()::int AS "totalCount"
           FROM transaction_rows
-          ORDER BY "completedAt" DESC, "id" DESC
+          ORDER BY "completedAt" DESC, "type" ASC, "id" DESC
           LIMIT ${query.limit} OFFSET ${offset}
         `);
         let total = rows[0]?.totalCount ?? 0;
@@ -415,7 +450,7 @@ export class ReportsService {
           total = count?.totalCount ?? 0;
         }
         const base = {
-          branch,
+          ...this.reportScopeMetadata(resolved),
           from: from.toISOString(),
           until: until.toISOString(),
           page: query.page,
@@ -436,6 +471,9 @@ export class ReportsService {
                 completedAt,
                 reference,
                 amount,
+                branchId: sourceBranchId,
+                branchName,
+                branchCode,
               }) => ({
                 type,
                 id,
@@ -444,6 +482,15 @@ export class ReportsService {
                 completedAt,
                 reference,
                 amount,
+                ...(branchId === null
+                  ? {
+                      branch: {
+                        id: sourceBranchId,
+                        name: branchName,
+                        code: branchCode,
+                      },
+                    }
+                  : {}),
               }),
             ),
           };
@@ -465,6 +512,9 @@ export class ReportsService {
               paymentAccountRequiresReference,
               actorName,
               merchantNames,
+              branchId: sourceBranchId,
+              branchName,
+              branchCode,
             }) => ({
               type,
               id,
@@ -479,6 +529,15 @@ export class ReportsService {
               paymentAccountRequiresReference: paymentAccountRequiresReference!,
               actorName: actorName!,
               merchantNames,
+              ...(branchId === null
+                ? {
+                    branch: {
+                      id: sourceBranchId,
+                      name: branchName,
+                      code: branchCode,
+                    },
+                  }
+                : {}),
             }),
           ),
         };
@@ -489,7 +548,7 @@ export class ReportsService {
 
   async analytics(
     context: OrganizationContext,
-    branchId: string,
+    branchId: string | null,
     query: SalesReportQueryDto,
   ): Promise<SalesAnalytics> {
     return this.read(context, branchId, query, true) as Promise<SalesAnalytics>;
@@ -497,7 +556,7 @@ export class ReportsService {
 
   async rankings(
     context: OrganizationContext,
-    branchId: string,
+    branchId: string | null,
     query: SalesRankingQueryDto,
   ): Promise<SalesRankingPage> {
     const { from, until } = reportRange(query);
@@ -505,11 +564,7 @@ export class ReportsService {
     return this.prisma.$transaction(
       async (tx) => {
         const current = await this.currentContext(tx, context);
-        const branch = await tx.branch.findFirst({
-          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
-          select: identitySelect,
-        });
-        if (!branch) throw new NotFoundException('Branch not found');
+        const resolved = await this.resolveBranches(tx, current, branchId);
         const sortBy = query.sortBy ?? SalesRankingSortBy.GROSS_SALES;
         const merchantId = query.merchantId;
         if (current.role === 'MERCHANT' && merchantId) {
@@ -565,7 +620,7 @@ export class ReportsService {
               };
         });
         return {
-          branch,
+          ...this.reportScopeMetadata(resolved),
           from: from.toISOString(),
           until: until.toISOString(),
           sortBy,
@@ -592,7 +647,7 @@ export class ReportsService {
 
   private async read(
     context: OrganizationContext,
-    branchId: string,
+    branchId: string | null,
     query: SalesReportQueryDto,
     analytics: boolean,
   ) {
@@ -600,13 +655,9 @@ export class ReportsService {
     return this.prisma.$transaction(
       async (tx) => {
         const current = await this.currentContext(tx, context);
-        const branch = await tx.branch.findFirst({
-          where: { AND: [this.reportBranchScope(current), { id: branchId }] },
-          select: identitySelect,
-        });
-        if (!branch) throw new NotFoundException('Branch not found');
+        const resolved = await this.resolveBranches(tx, current, branchId);
         const range = {
-          branch,
+          ...this.reportScopeMetadata(resolved),
           from: from.toISOString(),
           until: until.toISOString(),
         };
@@ -619,9 +670,9 @@ export class ReportsService {
                  COALESCE(SUM(i."quantity"::numeric)::text, '0') AS "unitsSold"
           FROM "SaleItem" i JOIN "Sale" s
             ON s."id" = i."saleId" AND s."organizationId" = i."organizationId" AND s."branchId" = i."branchId"
-          WHERE i."organizationId" = ${current.organizationId} AND i."branchId" = ${branchId}
+          WHERE i."organizationId" = ${current.organizationId}
             AND i."merchantId" = ${current.merchantId}
-            AND s."organizationId" = ${current.organizationId} AND s."branchId" = ${branchId}
+            AND s."organizationId" = ${current.organizationId} ${reportSourceBranchPredicate(current, 's', branchId)}
             AND s."completedAt" >= ${from} AND s."completedAt" < ${until}
         `)
               )[0]
@@ -647,24 +698,26 @@ export class ReportsService {
         }
         const [summary] = await tx.$queryRaw<Aggregate[]>(Prisma.sql`
         WITH matched AS (
-          SELECT "id", "total" FROM "Sale"
-          WHERE "organizationId" = ${current.organizationId} AND "branchId" = ${branchId}
-            AND "completedAt" >= ${from} AND "completedAt" < ${until}
+          SELECT sale."id", sale."organizationId", sale."branchId", sale."total" FROM "Sale" sale
+          WHERE sale."organizationId" = ${current.organizationId} ${reportSourceBranchPredicate(current, 'sale', branchId)}
+            AND sale."completedAt" >= ${from} AND sale."completedAt" < ${until}
         )
-        SELECT COALESCE(SUM("total")::text, '0.00') AS "grossSales", COUNT(*)::text AS "transactionCount",
-          (SELECT COALESCE(SUM(i."quantity"::numeric)::text, '0') FROM "SaleItem" i JOIN matched s ON s."id" = i."saleId"
-           WHERE i."organizationId" = ${current.organizationId} AND i."branchId" = ${branchId}) AS "unitsSold"
+        SELECT COALESCE(SUM(matched."total")::text, '0.00') AS "grossSales", COUNT(*)::text AS "transactionCount",
+          (SELECT COALESCE(SUM(i."quantity"::numeric)::text, '0') FROM "SaleItem" i JOIN matched s
+            ON s."id" = i."saleId" AND s."organizationId" = i."organizationId" AND s."branchId" = i."branchId"
+           WHERE i."organizationId" = ${current.organizationId}) AS "unitsSold"
         FROM matched
       `);
         const [refunds] = await tx.$queryRaw<RefundAggregate[]>(Prisma.sql`
           WITH matched_refunds AS (
-            SELECT "id", "total" FROM "Refund"
-            WHERE "organizationId" = ${current.organizationId} AND "branchId" = ${branchId}
-              AND "completedAt" >= ${from} AND "completedAt" < ${until}
+            SELECT refund."id", refund."organizationId", refund."branchId", refund."total" FROM "Refund" refund
+            WHERE refund."organizationId" = ${current.organizationId} ${reportSourceBranchPredicate(current, 'refund', branchId)}
+              AND refund."completedAt" >= ${from} AND refund."completedAt" < ${until}
           )
-          SELECT COALESCE(SUM("total")::text, '0.00') AS "refundedAmount", COUNT(*)::text AS "refundCount",
-            (SELECT COALESCE(SUM(i."quantity"::numeric)::text, '0') FROM "RefundItem" i JOIN matched_refunds r ON r."id" = i."refundId"
-             WHERE i."organizationId" = ${current.organizationId} AND i."branchId" = ${branchId}) AS "returnedUnits"
+          SELECT COALESCE(SUM(matched_refunds."total")::text, '0.00') AS "refundedAmount", COUNT(*)::text AS "refundCount",
+            (SELECT COALESCE(SUM(i."quantity"::numeric)::text, '0') FROM "RefundItem" i JOIN matched_refunds r
+              ON r."id" = i."refundId" AND r."organizationId" = i."organizationId" AND r."branchId" = i."branchId"
+             WHERE i."organizationId" = ${current.organizationId}) AS "returnedUnits"
           FROM matched_refunds
         `);
         const paymentAccounts = await readPaymentAccounts(
@@ -696,7 +749,7 @@ export class ReportsService {
   private async ownRefunds(
     tx: Prisma.TransactionClient,
     context: OrganizationContext,
-    branchId: string,
+    branchId: string | null,
     from: Date,
     until: Date,
     gross: string,
@@ -709,8 +762,8 @@ export class ReportsService {
         COALESCE(SUM(i."quantity"::numeric)::text, '0') AS "returnedUnits"
       FROM "RefundItem" i JOIN "Refund" r
         ON r."id" = i."refundId" AND r."organizationId" = i."organizationId" AND r."branchId" = i."branchId" AND r."saleId" = i."saleId"
-      WHERE i."organizationId" = ${context.organizationId} AND i."branchId" = ${branchId} AND i."merchantId" = ${context.merchantId}
-        AND r."organizationId" = ${context.organizationId} AND r."branchId" = ${branchId}
+      WHERE i."organizationId" = ${context.organizationId} AND i."merchantId" = ${context.merchantId}
+        AND r."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 'r', branchId)}
         AND r."completedAt" >= ${from} AND r."completedAt" < ${until}
     `)
         )[0]
@@ -721,6 +774,33 @@ export class ReportsService {
       ownReturnedUnits: own.returnedUnits,
       ownNetRecordedSales: netRecordedSales(gross, own.refundedAmount),
     };
+  }
+
+  private async resolveBranches(
+    tx: Prisma.TransactionClient,
+    context: OrganizationContext,
+    branchId: string | null,
+  ): Promise<ResolvedBranches> {
+    const where = this.reportBranchScope(context);
+    if (branchId !== null) {
+      const branch = await tx.branch.findFirst({
+        where: { AND: [where, { id: branchId }] },
+        select: identitySelect,
+      });
+      if (!branch) throw new NotFoundException('Branch not found');
+      return { branch };
+    }
+    const branchCount = await tx.branch.count({ where });
+    return {
+      reportScope: 'ALL',
+      branchCount,
+    };
+  }
+
+  private reportScopeMetadata(resolved: ResolvedBranches) {
+    return resolved.reportScope === 'ALL'
+      ? { reportScope: resolved.reportScope, branchCount: resolved.branchCount }
+      : { branch: resolved.branch };
   }
 
   private async currentContext(

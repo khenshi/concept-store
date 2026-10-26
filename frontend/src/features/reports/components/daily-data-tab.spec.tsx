@@ -5,6 +5,7 @@ import type {
   MerchantDailyReportPage,
   StaffDailyReportPage,
 } from '../model/report.schemas';
+import type { ReportScope } from '../model/report-scope';
 import { DailyDataTab } from './daily-data-tab';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
@@ -19,6 +20,10 @@ const props = {
   from: '2023-12-31T16:00:00.000Z',
   until: '2024-01-30T16:00:00.000Z',
   merchant: false,
+};
+const branchScope: ReportScope = {
+  kind: 'branch',
+  branchId: props.branchId,
 };
 
 function staffPage(page = 1): StaffDailyReportPage {
@@ -77,7 +82,7 @@ it('requests fifteen server rows per page and clears old rows while navigating f
     1,
     request,
     props.organizationId,
-    props.branchId,
+    branchScope,
     { from: props.from, until: props.until, page: 1, limit: 15 },
     false,
   );
@@ -98,7 +103,7 @@ it('requests fifteen server rows per page and clears old rows while navigating f
     2,
     request,
     props.organizationId,
-    props.branchId,
+    branchScope,
     { from: props.from, until: props.until, page: 2, limit: 15 },
     false,
   );
@@ -113,7 +118,7 @@ it('requests fifteen server rows per page and clears old rows while navigating f
     3,
     request,
     props.organizationId,
-    props.branchId,
+    branchScope,
     { from: props.from, until: props.until, page: 1, limit: 15 },
     false,
   );
@@ -152,7 +157,7 @@ it.each([
       3,
       request,
       props.organizationId,
-      props.branchId,
+      branchScope,
       { from: props.from, until: props.until, page: 2, limit: 15 },
       false,
     );
@@ -207,7 +212,7 @@ it('discards a pending old-branch response while a new branch request is loading
   expect(getReportDailyPage).toHaveBeenLastCalledWith(
     request,
     props.organizationId,
-    branchId,
+    { kind: 'branch', branchId },
     { from: props.from, until: props.until, page: 1, limit: 15 },
     false,
   );
@@ -285,7 +290,7 @@ it('requests the merchant projection and renders only own-sales columns', async 
   expect(getReportDailyPage).toHaveBeenCalledWith(
     request,
     props.organizationId,
-    props.branchId,
+    branchScope,
     { from: props.from, until: props.until, page: 1, limit: 15 },
     true,
   );

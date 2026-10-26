@@ -9,10 +9,15 @@ export default async function ReportsLayout({
   params: Promise<{ organizationId: string; branchId: string }>;
   children: ReactNode;
 }) {
-  const scope = await params;
+  const paramsValue = await params;
   return (
     <Suspense fallback={<ListSkeleton label="Loading Reports workspace" />}>
-      <BranchReports {...scope}>{children}</BranchReports>
+      <BranchReports
+        organizationId={paramsValue.organizationId}
+        scope={{ kind: 'branch', branchId: paramsValue.branchId }}
+      >
+        {children}
+      </BranchReports>
     </Suspense>
   );
 }

@@ -132,6 +132,14 @@ const analyticsReport: StaffSalesAnalytics = {
     },
   ],
 };
+const { branch: _analyticsReportBranch, ...allAnalyticsReportBase } =
+  analyticsReport;
+void _analyticsReportBranch;
+const allAnalyticsReport: StaffSalesAnalytics = {
+  ...allAnalyticsReportBase,
+  reportScope: 'ALL',
+  branchCount: 2,
+};
 function analyticsFor(path: string): StaffSalesAnalytics {
   const query = new URLSearchParams(path.split('?')[1]);
   const from = query.get('from') ?? range.from;
@@ -375,6 +383,28 @@ describe('staff Reports workspace', () => {
     expect(request.mock.calls.at(-1)![0]).toContain(
       new URLSearchParams(range).toString(),
     );
+  });
+  it('loads the explicit All Branches route without changing the shared branch preference', async () => {
+    const original = request.getMockImplementation()!;
+    request.mockImplementation(async (path: string) =>
+      path.includes('/reports/sales/all/analytics')
+        ? {
+            ...allAnalyticsReport,
+            ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
+          }
+        : original(path),
+    );
+    render(<BranchReports organizationId="org" scope={{ kind: 'all' }} />);
+    expect((await screen.findAllByText('PHP 60.00'))[0]).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'Reports branch' }),
+    ).toHaveTextContent('All branches');
+    expect(request.mock.calls.map(([path]) => path)).toContainEqual(
+      expect.stringContaining(
+        '/organizations/org/reports/sales/all/analytics?',
+      ),
+    );
+    expect(setSelectedBranchId).not.toHaveBeenCalled();
   });
   it('does not resurrect a committed search draft when Back restores its old source query', async () => {
     navigationState.href = `/app/organizations/org/branches/${branch.id}/reports/transactions?preset=TODAY&fromDay=2026-09-14&throughDay=2026-09-14&transactionQ=OLD`;
@@ -645,7 +675,12 @@ describe('staff Reports workspace', () => {
     expect(
       await screen.findByText(/No accessible report branches/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeDisabled();
+    expect(screen.getByRole('combobox')).toBeEnabled();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
+    fireEvent.click(screen.getByRole('option', { name: 'All branches' }));
+    expect(push).toHaveBeenCalledWith(
+      '/app/organizations/org/reports/all/overview',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
     expect(refreshOrganization).toHaveBeenCalled();
   });
@@ -1017,6 +1052,24 @@ describe('staff Reports workspace', () => {
       `/branches/${second.id}/reports/sales/analytics?${new URLSearchParams({ from: '2026-09-12T16:00:00.000Z', until: '2026-09-13T16:00:00.000Z' })}`,
     );
   });
+  it('navigates to All Branches without overwriting the shared branch preference', async () => {
+    render(<BranchReports organizationId="org" branchId={branch.id} />);
+    await screen.findAllByText('PHP 60.00');
+    setSelectedBranchId.mockClear();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
+    fireEvent.click(screen.getByRole('option', { name: 'All branches' }));
+    expect(push).toHaveBeenLastCalledWith(
+      expect.stringMatching(
+        /^\/app\/organizations\/org\/reports\/all\/overview\?/,
+      ),
+    );
+    expect(
+      new URL(navigationState.href, 'http://localhost').searchParams.get(
+        'fromDay',
+      ),
+    ).toBe('2026-09-14');
+    expect(setSelectedBranchId).not.toHaveBeenCalled();
+  });
   it('ignores an old user response after the authenticated user changes', async () => {
     const old = deferred<StaffSalesAnalytics>();
     request.mockResolvedValueOnce([branch]).mockReturnValueOnce(old.promise);
@@ -1275,10 +1328,14 @@ describe('staff Reports workspace', () => {
       expect(await screen.findByRole('status')).toHaveTextContent(
         'No assigned or historical own-selling branches',
       );
-      expect(screen.getByRole('combobox')).toBeDisabled();
+      expect(screen.getByRole('combobox')).toBeEnabled();
+      fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
+      fireEvent.click(screen.getByRole('option', { name: 'All branches' }));
+      expect(push).toHaveBeenCalledWith(
+        '/app/organizations/org/reports/all/overview',
+      );
       fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
       expect(refreshOrganization).toHaveBeenCalled();
-      expect(push).not.toHaveBeenCalled();
     });
     it('keeps historical branch choices in an empty period and explains unlinked assigned zeros', async () => {
       request.mockImplementation(async (path: string) =>

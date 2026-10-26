@@ -148,8 +148,10 @@ export class MerchantSalesAnalyticsResponseDto extends MerchantSalesReportRespon
   @ApiProperty(integer) totalProducts!: string;
 }
 class SalesRankingPageResponseDto {
-  @ApiProperty({ type: BranchIdentityResponseDto })
-  branch!: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ type: BranchIdentityResponseDto })
+  branch?: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ enum: ['ALL'] }) reportScope?: 'ALL';
+  @ApiPropertyOptional({ type: 'integer', minimum: 0 }) branchCount?: number;
   @ApiProperty({ format: 'date-time' }) from!: string;
   @ApiProperty({ format: 'date-time' }) until!: string;
   @ApiProperty({ enum: SalesRankingSortBy })
@@ -185,8 +187,10 @@ export type SalesRankingPage =
   StaffSalesRankingPageResponseDto | MerchantSalesRankingPageResponseDto;
 
 class DailyReportPageResponseDto {
-  @ApiProperty({ type: BranchIdentityResponseDto })
-  branch!: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ type: BranchIdentityResponseDto })
+  branch?: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ enum: ['ALL'] }) reportScope?: 'ALL';
+  @ApiPropertyOptional({ type: 'integer', minimum: 0 }) branchCount?: number;
   @ApiProperty({ format: 'date-time' }) from!: string;
   @ApiProperty({ format: 'date-time' }) until!: string;
   @ApiProperty({ type: 'integer', minimum: 1 }) page!: number;

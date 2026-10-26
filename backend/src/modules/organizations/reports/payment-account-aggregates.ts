@@ -1,6 +1,10 @@
 import { Prisma } from '../../../generated/prisma/client';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { ApiProperty } from '@nestjs/swagger';
+import {
+  reportBranchAccessPredicate,
+  reportSourceBranchPredicate,
+} from './report-sql-scope';
 
 export class ReportPaymentAccountDto {
   @ApiProperty({ format: 'uuid' }) accountId!: string;
@@ -18,28 +22,43 @@ export class ReportPaymentAccountDto {
 export function readPaymentAccounts(
   tx: Prisma.TransactionClient,
   context: OrganizationContext,
-  branchId: string,
+  branchId: string | null,
   from: Date,
   until: Date,
 ) {
+  const availableBranchPredicate =
+    branchId === null
+      ? reportBranchAccessPredicate(context, 'available_branch')
+      : Prisma.sql`AND available_branch."id" = ${branchId}`;
   return tx.$queryRaw<ReportPaymentAccountDto[]>(Prisma.sql`
     WITH sales AS (
-      SELECT "paymentAccountId", SUM("total") AS received, COUNT(*) AS transactions
-      FROM "Sale"
-      WHERE "organizationId" = ${context.organizationId} AND "branchId" = ${branchId}
-        AND "completedAt" >= ${from} AND "completedAt" < ${until}
-      GROUP BY "paymentAccountId"
+      SELECT sale."paymentAccountId", SUM(sale."total") AS received, COUNT(*) AS transactions
+      FROM "Sale" sale
+      WHERE sale."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 'sale', branchId)}
+        AND sale."completedAt" >= ${from} AND sale."completedAt" < ${until}
+      GROUP BY sale."paymentAccountId"
     ), refunds AS (
-      SELECT "paymentAccountId", SUM("total") AS refunded, COUNT(*) AS refunds
-      FROM "Refund"
-      WHERE "organizationId" = ${context.organizationId} AND "branchId" = ${branchId}
-        AND "completedAt" >= ${from} AND "completedAt" < ${until}
-      GROUP BY "paymentAccountId"
+      SELECT refund."paymentAccountId", SUM(refund."total") AS refunded, COUNT(*) AS refunds
+      FROM "Refund" refund
+      WHERE refund."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 'refund', branchId)}
+        AND refund."completedAt" >= ${from} AND refund."completedAt" < ${until}
+      GROUP BY refund."paymentAccountId"
     ), accounts AS (
-      SELECT a.*, (a."enabled" AND (a."assignmentMode" = 'ALL' OR EXISTS (
-        SELECT 1 FROM "PaymentAccountBranch" b WHERE b."organizationId" = ${context.organizationId}
-          AND b."paymentAccountId" = a."id" AND b."branchId" = ${branchId}
-      ))) AS available
+      SELECT a.*, (a."enabled" AND (
+        (a."assignmentMode" = 'ALL' AND EXISTS (
+          SELECT 1 FROM "Branch" available_branch
+          WHERE available_branch."organizationId" = ${context.organizationId}
+            ${availableBranchPredicate}
+        )) OR EXISTS (
+          SELECT 1 FROM "PaymentAccountBranch" assignment
+          JOIN "Branch" available_branch
+            ON available_branch."id" = assignment."branchId"
+           AND available_branch."organizationId" = assignment."organizationId"
+          WHERE assignment."organizationId" = ${context.organizationId}
+            AND assignment."paymentAccountId" = a."id"
+            ${availableBranchPredicate}
+        )
+      )) AS available
       FROM "PaymentAccount" a WHERE a."organizationId" = ${context.organizationId}
     )
     SELECT a."id" AS "accountId", a."name" AS "displayName", a."enabled", a.available,

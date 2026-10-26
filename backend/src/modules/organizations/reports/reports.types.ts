@@ -1,10 +1,16 @@
 import { ReportPaymentAccountDto } from './payment-account-aggregates';
-import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
 
 class ReportScopeResponseDto {
-  @ApiProperty({ type: BranchIdentityResponseDto })
-  branch!: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ type: BranchIdentityResponseDto })
+  branch?: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ enum: ['ALL'] }) reportScope?: 'ALL';
+  @ApiPropertyOptional({ type: 'integer', minimum: 0 }) branchCount?: number;
   @ApiProperty({
     format: 'date-time',
     description: 'Applied inclusive UTC completion timestamp',
@@ -94,6 +100,8 @@ class TransactionResponseBaseDto {
   @ApiProperty({ format: 'date-time' }) completedAt!: Date;
   @ApiProperty({ description: 'Receipt or refund code' }) reference!: string;
   @ApiProperty({ example: '125.00' }) amount!: string;
+  @ApiPropertyOptional({ type: BranchIdentityResponseDto })
+  branch?: BranchIdentityResponseDto;
 }
 
 export class StaffSaleTransactionResponseDto extends TransactionResponseBaseDto {
@@ -127,8 +135,10 @@ export class MerchantRefundTransactionResponseDto extends TransactionResponseBas
 }
 
 class TransactionsPageResponseDto {
-  @ApiProperty({ type: BranchIdentityResponseDto })
-  branch!: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ type: BranchIdentityResponseDto })
+  branch?: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ enum: ['ALL'] }) reportScope?: 'ALL';
+  @ApiPropertyOptional({ type: 'integer', minimum: 0 }) branchCount?: number;
   @ApiProperty({ format: 'date-time' }) from!: string;
   @ApiProperty({ format: 'date-time' }) until!: string;
   @ApiProperty({ type: 'integer' }) page!: number;

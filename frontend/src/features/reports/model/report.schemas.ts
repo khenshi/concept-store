@@ -104,10 +104,34 @@ export const reportBranchesSchema = reportBranchSchema
       new Set(branches.map((branch) => branch.id)).size === branches.length,
     'Report branches must be distinct.',
   );
+const reportResponseScopeShape = {
+  branch: reportBranchSchema.optional(),
+  reportScope: z.literal('ALL').optional(),
+  branchCount: z.number().int().nonnegative().optional(),
+};
+type ReportResponseScope = {
+  branch?: ReportBranch;
+  reportScope?: 'ALL';
+  branchCount?: number;
+};
+function reportResponseScopeValid(
+  report: ReportResponseScope,
+  context: z.RefinementCtx,
+) {
+  if (
+    report.reportScope === 'ALL'
+      ? report.branch !== undefined || report.branchCount === undefined
+      : report.branch === undefined || report.branchCount !== undefined
+  )
+    context.addIssue({
+      code: 'custom',
+      message: 'Report branch scope metadata is inconsistent.',
+    });
+}
 export const staffSalesReportSchema = z
   .object({
     scope: z.literal('STAFF'),
-    branch: reportBranchSchema,
+    ...reportResponseScopeShape,
     from: utc,
     until: utc,
     grossSales: amount,
@@ -121,6 +145,7 @@ export const staffSalesReportSchema = z
   })
   .strict()
   .superRefine((report, context) => {
+    reportResponseScopeValid(report, context);
     if (
       !reportQuerySchema.safeParse({ from: report.from, until: report.until })
         .success
@@ -191,7 +216,7 @@ export type StaffSalesReport = z.infer<typeof staffSalesReportSchema>;
 export const merchantSalesReportSchema = z
   .object({
     scope: z.literal('MERCHANT'),
-    branch: reportBranchSchema,
+    ...reportResponseScopeShape,
     from: utc,
     until: utc,
     ownGrossSales: amount,
@@ -204,6 +229,7 @@ export const merchantSalesReportSchema = z
   })
   .strict()
   .superRefine((report, context) => {
+    reportResponseScopeValid(report, context);
     {
       const {
         ownRefundedAmount,
@@ -271,6 +297,7 @@ const transactionBase = z
     completedAt: utc,
     reference: z.string().min(1),
     amount,
+    branch: reportBranchSchema.optional(),
   })
   .strict();
 const staffSaleTransaction = transactionBase
@@ -299,7 +326,7 @@ const merchantRefundTransaction = transactionBase
   .strict();
 const transactionPageBase = z
   .object({
-    branch: reportBranchSchema,
+    ...reportResponseScopeShape,
     from: utc,
     until: utc,
     page: z.number().int().min(1),
@@ -308,6 +335,25 @@ const transactionPageBase = z
     totalPages: z.number().int().min(0),
   })
   .strict();
+function transactionPageScopeValid(
+  page: ReportResponseScope & {
+    items: { branch?: ReportBranch }[];
+  },
+  context: z.RefinementCtx,
+) {
+  reportResponseScopeValid(page, context);
+  if (
+    page.items.some((item) =>
+      page.reportScope === 'ALL'
+        ? item.branch === undefined
+        : item.branch !== undefined,
+    )
+  )
+    context.addIssue({
+      code: 'custom',
+      message: 'Transaction branch details do not match the report scope.',
+    });
+}
 export const staffTransactionsPageSchema = transactionPageBase
   .extend({
     scope: z.literal('STAFF'),
@@ -318,7 +364,8 @@ export const staffTransactionsPageSchema = transactionPageBase
       ])
       .array(),
   })
-  .strict();
+  .strict()
+  .superRefine(transactionPageScopeValid);
 export const merchantTransactionsPageSchema = transactionPageBase
   .extend({
     scope: z.literal('MERCHANT'),
@@ -329,7 +376,8 @@ export const merchantTransactionsPageSchema = transactionPageBase
       ])
       .array(),
   })
-  .strict();
+  .strict()
+  .superRefine(transactionPageScopeValid);
 export type ReportTransactionType = z.infer<typeof reportTransactionTypeSchema>;
 export type ReportTransactionQuery = z.input<
   typeof reportTransactionQuerySchema
@@ -665,7 +713,7 @@ function analyticsValid(
 export const staffSalesAnalyticsSchema = z
   .object({
     scope: z.literal('STAFF'),
-    branch: reportBranchSchema,
+    ...reportResponseScopeShape,
     from: utc,
     until: utc,
     grossSales: amount,
@@ -689,6 +737,8 @@ export const staffSalesAnalyticsSchema = z
       !staffSalesReportSchema.safeParse({
         scope: report.scope,
         branch: report.branch,
+        reportScope: report.reportScope,
+        branchCount: report.branchCount,
         from: report.from,
         until: report.until,
         grossSales: report.grossSales,
@@ -729,7 +779,7 @@ const merchantTopProduct = analyticsIdentity
   .strict();
 const rankingPageBase = z
   .object({
-    branch: reportBranchSchema,
+    ...reportResponseScopeShape,
     from: utc,
     until: utc,
     sortBy: reportRankingSortSchema,
@@ -746,13 +796,15 @@ export const staffSalesRankingPageSchema = rankingPageBase
     scope: z.literal('STAFF'),
     items: staffTopProduct.array().max(15),
   })
-  .strict();
+  .strict()
+  .superRefine(reportResponseScopeValid);
 export const merchantSalesRankingPageSchema = rankingPageBase
   .extend({
     scope: z.literal('MERCHANT'),
     items: merchantTopProduct.array().max(15),
   })
-  .strict();
+  .strict()
+  .superRefine(reportResponseScopeValid);
 export type StaffSalesRankingPage = z.infer<typeof staffSalesRankingPageSchema>;
 export type MerchantSalesRankingPage = z.infer<
   typeof merchantSalesRankingPageSchema
@@ -760,7 +812,7 @@ export type MerchantSalesRankingPage = z.infer<
 export const merchantSalesAnalyticsSchema = z
   .object({
     scope: z.literal('MERCHANT'),
-    branch: reportBranchSchema,
+    ...reportResponseScopeShape,
     from: utc,
     until: utc,
     ownGrossSales: amount,
@@ -777,10 +829,13 @@ export const merchantSalesAnalyticsSchema = z
   })
   .strict()
   .superRefine((report, context) => {
+    reportResponseScopeValid(report, context);
     if (
       !merchantSalesReportSchema.safeParse({
         scope: report.scope,
         branch: report.branch,
+        reportScope: report.reportScope,
+        branchCount: report.branchCount,
         from: report.from,
         until: report.until,
         ownGrossSales: report.ownGrossSales,
@@ -904,7 +959,10 @@ export const staffDailyReportPageSchema = transactionPageBase
     items: staffDailyTrend.array().max(100),
   })
   .strict()
-  .superRefine(dailyPageValid);
+  .superRefine((page, context) => {
+    reportResponseScopeValid(page, context);
+    dailyPageValid(page, context);
+  });
 
 export const merchantDailyReportPageSchema = transactionPageBase
   .extend({
@@ -912,7 +970,8 @@ export const merchantDailyReportPageSchema = transactionPageBase
     items: merchantDailyTrend.array().max(100),
   })
   .strict()
-  .superRefine((page, context) =>
+  .superRefine((page, context) => {
+    reportResponseScopeValid(page, context);
     dailyPageValid(
       {
         ...page,
@@ -928,8 +987,8 @@ export const merchantDailyReportPageSchema = transactionPageBase
         })),
       },
       context,
-    ),
-  );
+    );
+  });
 
 export type StaffDailyReportPage = z.infer<typeof staffDailyReportPageSchema>;
 export type MerchantDailyReportPage = z.infer<

@@ -50,6 +50,7 @@ import type {
   StaffTransactionsPage,
   MerchantTransactionsPage,
 } from '../model/report.schemas';
+import type { ReportScope } from '../model/report-scope';
 import { ReportAccess } from './report-access';
 import { ReportBranchPicker } from './report-branch-picker';
 import { ReportDateFilter } from './report-date-filter';
@@ -112,7 +113,7 @@ function ReportDailyContent({
 }: {
   report: StaffSalesAnalytics | MerchantSalesAnalytics;
   organizationId: string;
-  branchId: string;
+  branchId: string | null;
   page: number;
   onPageChange(page: number): void;
 }) {
@@ -234,20 +235,37 @@ function ReportContextBar({
   );
 }
 
-export function BranchReports(props: {
-  organizationId: string;
-  branchId: string;
-  children?: ReactNode;
-}) {
+type BranchReportsProps =
+  | {
+      organizationId: string;
+      scope: ReportScope;
+      children?: ReactNode;
+    }
+  | {
+      organizationId: string;
+      branchId: string;
+      children?: ReactNode;
+    };
+
+export function BranchReports(props: BranchReportsProps) {
+  const branchId =
+    'scope' in props
+      ? props.scope.kind === 'branch'
+        ? props.scope.branchId
+        : null
+      : props.branchId;
   return (
     <ReportAccess organizationId={props.organizationId}>
       {(scope, role) => (
         <PeriodBranchReports
-          key={scope}
-          {...props}
+          key={`${scope}:${branchId ?? 'ALL'}`}
+          organizationId={props.organizationId}
+          branchId={branchId}
           role={role}
           merchant={role === 'MERCHANT'}
-        />
+        >
+          {props.children}
+        </PeriodBranchReports>
       )}
     </ReportAccess>
   );
@@ -255,7 +273,7 @@ export function BranchReports(props: {
 type PeriodSelection = { dates: ReportDateRange; preset: ReportPreset };
 function PeriodBranchReports(props: {
   organizationId: string;
-  branchId: string;
+  branchId: string | null;
   merchant: boolean;
   role: 'OWNER' | 'MANAGER' | 'MERCHANT';
   children?: ReactNode;
@@ -284,7 +302,9 @@ function PeriodBranchReports(props: {
     )
       setReportPeriod?.(JSON.parse(appliedSelectionKey));
   }, [appliedSelectionKey, rememberedSelectionKey, params, setReportPeriod]);
-  const base = `/app/organizations/${props.organizationId}/branches/${props.branchId}/reports`;
+  const base = props.branchId
+    ? `/app/organizations/${props.organizationId}/branches/${props.branchId}/reports`
+    : `/app/organizations/${props.organizationId}/reports/all`;
   const makeHref = (
     tab: SalesReportTab,
     patch: Record<string, string | undefined> = {},
@@ -324,7 +344,7 @@ function PeriodBranchReports(props: {
   };
   return (
     <ScopedBranchReports
-      key={`${props.branchId}:${JSON.stringify(location.selection)}`}
+      key={`${props.branchId ?? 'ALL'}:${JSON.stringify(location.selection)}`}
       {...props}
       selection={location.selection}
       location={location}
@@ -366,7 +386,7 @@ function ScopedBranchReports({
   children,
 }: {
   organizationId: string;
-  branchId: string;
+  branchId: string | null;
   merchant: boolean;
   role: 'OWNER' | 'MANAGER' | 'MERCHANT';
   selection: PeriodSelection;
@@ -377,6 +397,10 @@ function ScopedBranchReports({
   tabHref(tab: SalesReportTab): string;
   children?: ReactNode;
 }) {
+  const reportScope = useMemo<ReportScope>(
+    () => (branchId === null ? { kind: 'all' } : { kind: 'branch', branchId }),
+    [branchId],
+  );
   const { request, user } = useAuth();
   const { refreshOrganization, setSelectedBranchId } =
     useOrganizationWorkspaceContext();
@@ -521,7 +545,7 @@ function ScopedBranchReports({
       try {
         const items = await listReportBranches(request, organizationId);
         if (!active || current !== generation.current) return;
-        if (!items.some((branch) => branch.id === branchId))
+        if (branchId && !items.some((branch) => branch.id === branchId))
           throw new ApiError(
             404,
             'This branch is no longer available to your Reports access.',
@@ -532,7 +556,7 @@ function ScopedBranchReports({
             const period = await resolveReportPeriod(
               request,
               organizationId,
-              branchId,
+              reportScope,
               query.until,
               merchant,
             );
@@ -540,7 +564,7 @@ function ScopedBranchReports({
             if (period.from === null) {
               setBranches(items);
               setEmptyAllTime(true);
-              setSelectedBranchId(branchId);
+              if (branchId) setSelectedBranchId(branchId);
               return;
             }
             allTimeRange.current = { from: period.from, until: period.until };
@@ -550,14 +574,14 @@ function ScopedBranchReports({
         }
         const result = await (
           merchant ? getMerchantSalesAnalytics : getStaffSalesAnalytics
-        )(request, organizationId, branchId, query);
+        )(request, organizationId, reportScope, query);
         if (!active || current !== generation.current) return;
         setBranches(items);
         setReport(result);
         setRanking(null);
         setRankingError(null);
         setRankingErrorPage(null);
-        setSelectedBranchId(branchId);
+        if (branchId) setSelectedBranchId(branchId);
       } catch (cause) {
         if (!active || current !== generation.current) return;
         setReport(null);
@@ -582,6 +606,7 @@ function ScopedBranchReports({
     request,
     organizationId,
     branchId,
+    reportScope,
     applied,
     appliedPreset,
     revision,
@@ -609,8 +634,8 @@ function ScopedBranchReports({
     };
     void (
       merchant
-        ? getMerchantTransactions(request, organizationId, branchId, query)
-        : getStaffTransactions(request, organizationId, branchId, query)
+        ? getMerchantTransactions(request, organizationId, reportScope, query)
+        : getStaffTransactions(request, organizationId, reportScope, query)
     )
       .then((result) => {
         if (
@@ -652,7 +677,7 @@ function ScopedBranchReports({
   }, [
     activeTab,
     applied,
-    branchId,
+    reportScope,
     debouncedTransactionSearch,
     merchant,
     organizationId,
@@ -726,13 +751,13 @@ function ScopedBranchReports({
           ? await getMerchantSalesRankings(
               request,
               organizationId,
-              branchId,
+              reportScope,
               query,
             )
           : await getStaffSalesRankings(
               request,
               organizationId,
-              branchId,
+              reportScope,
               query,
             );
         if (
@@ -786,7 +811,7 @@ function ScopedBranchReports({
       merchant,
       request,
       organizationId,
-      branchId,
+      reportScope,
     ],
   );
   useEffect(() => {
@@ -876,7 +901,7 @@ function ScopedBranchReports({
       <div className="card-surface p-6">
         <EmptyState
           title="No completed sales or refunds yet."
-          description="All-time sales, refunds and net recorded sales are PHP 0.00. Transactions and units are 0 for this branch and your current access."
+          description={`All-time sales, refunds and net recorded sales are PHP 0.00. Transactions and units are 0 for ${branchId ? 'this branch' : 'all branches in your authorized scope'}.`}
         />
       </div>
     ) : report ? (
@@ -885,6 +910,7 @@ function ScopedBranchReports({
           returnTo={tabHref('transactions')}
           organizationId={organizationId}
           branchId={branchId}
+          allBranches={!branchId}
           merchant={merchant}
           page={currentTransactions}
           loading={
@@ -930,7 +956,7 @@ function ScopedBranchReports({
         />
       ) : tab === 'daily' ? (
         <ReportDailyContent
-          key={`${report.scope}:${branchId}:${report.from}:${report.until}:${revision}`}
+          key={`${report.scope}:${branchId ?? 'ALL'}:${report.from}:${report.until}:${revision}`}
           report={report}
           organizationId={organizationId}
           branchId={branchId}
@@ -987,15 +1013,19 @@ function ScopedBranchReports({
         title={merchant ? 'Own-sales reports' : 'Sales reports'}
         description={
           merchant
-            ? 'Gross recorded sales of your own items only, not whole-branch sales. Transactions count distinct sales containing your items.'
-            : 'Recorded sales and refunds for one branch, with daily trends and top products. Net recorded sales is not profit or merchant payouts.'
+            ? `Gross recorded sales of your own items only, not whole-branch sales. Transactions count distinct sales containing your items${branchId ? ' in this branch' : ' across authorized branches'}.`
+            : `Recorded sales and refunds ${branchId ? 'for one branch' : 'across authorized branches'}, with daily trends and top products. Net recorded sales is not profit or merchant payouts.`
         }
         action={
           <ReportBranchPicker
             branches={branches}
             loading={loading}
-            branchId={branchId}
-            onChange={(next) => {
+            branchId={branchId ?? undefined}
+            allBranches
+            allBranchesSelected={!branchId}
+            onChange={(nextScope) => {
+              const next =
+                nextScope.kind === 'branch' ? nextScope.branchId : null;
               const checkout =
                 user &&
                 getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
@@ -1011,9 +1041,11 @@ function ScopedBranchReports({
                 dates: applied,
                 preset: appliedPreset,
               });
-              const href = `/app/organizations/${organizationId}/branches/${next}/reports/${reportTabPath(activeTab)}?${period}`;
+              const href = next
+                ? `/app/organizations/${organizationId}/branches/${next}/reports/${reportTabPath(activeTab)}?${period}`
+                : `/app/organizations/${organizationId}/reports/all/${reportTabPath(activeTab)}?${period}`;
               if (!allowPosNavigation(href)) return;
-              setSelectedBranchId(next);
+              if (next) setSelectedBranchId(next);
               invalidate();
               router.push(href);
             }}

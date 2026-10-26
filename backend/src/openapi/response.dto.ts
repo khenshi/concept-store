@@ -508,8 +508,10 @@ export class BranchIdentityResponseDto extends PickType(BranchResponseDto, [
 ] as const) {}
 export class ReportPeriodResponseDto {
   @ApiProperty({ enum: ['STAFF', 'MERCHANT'] }) scope!: 'STAFF' | 'MERCHANT';
-  @ApiProperty({ type: BranchIdentityResponseDto })
-  branch!: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ type: BranchIdentityResponseDto })
+  branch?: BranchIdentityResponseDto;
+  @ApiPropertyOptional({ enum: ['ALL'] }) reportScope?: 'ALL';
+  @ApiPropertyOptional({ type: 'integer', minimum: 0 }) branchCount?: number;
   @ApiProperty({
     type: String,
     format: 'date-time',

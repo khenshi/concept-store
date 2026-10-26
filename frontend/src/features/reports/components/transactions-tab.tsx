@@ -76,6 +76,7 @@ function TransactionsSkeleton() {
 export function TransactionsTab({
   organizationId,
   branchId,
+  allBranches = false,
   merchant,
   page,
   loading,
@@ -89,7 +90,8 @@ export function TransactionsTab({
   returnTo,
 }: {
   organizationId: string;
-  branchId: string;
+  branchId: string | null;
+  allBranches?: boolean;
   merchant: boolean;
   page: TransactionsPage | null;
   loading: boolean;
@@ -123,8 +125,8 @@ export function TransactionsTab({
         title={merchant ? 'Your transaction history' : 'Transaction history'}
         description={
           merchant
-            ? 'Your own completed sales and refunds in this branch.'
-            : 'Completed sales and refunds, newest first.'
+            ? `Your own completed sales and refunds ${allBranches ? 'across accessible branches' : 'in this branch'}.`
+            : `Completed sales and refunds${allBranches ? ' across accessible branches' : ''}, newest first.`
         }
         controlsPlacement="inline"
         controls={
@@ -211,13 +213,16 @@ export function TransactionsTab({
           ) : loading && !page ? (
             <TransactionsSkeleton />
           ) : page?.items.length ? (
-            <OperationalTable className="min-w-[62rem]">
+            <OperationalTable
+              className={allBranches ? 'min-w-[72rem]' : 'min-w-[62rem]'}
+            >
               <caption className="sr-only">
                 {merchant ? 'Own transaction history' : 'Transaction history'}
               </caption>
               <thead className="border-b border-hairline bg-surface text-xs uppercase tracking-[0.08em] text-muted [&_th]:font-normal">
                 <tr>
                   <th scope="col">Date</th>
+                  {allBranches ? <th scope="col">Branch</th> : null}
                   <th scope="col">Type</th>
                   <th scope="col">Reference</th>
                   <th scope="col">{merchant ? 'Context' : 'Merchant'}</th>
@@ -227,20 +232,24 @@ export function TransactionsTab({
               </thead>
               <tbody className="text-sm font-normal text-ink [&_th]:font-normal">
                 {page.items.map((item) => {
-                  const href = transactionHref(
-                    organizationId,
-                    branchId,
-                    item.saleId,
-                    returnTo,
-                  );
+                  const sourceBranchId = item.branch?.id ?? branchId;
+                  const href = sourceBranchId
+                    ? transactionHref(
+                        organizationId,
+                        sourceBranchId,
+                        item.saleId,
+                        returnTo,
+                      )
+                    : undefined;
                   const open = () => {
+                    if (!sourceBranchId || !href) return;
                     if (item.type === 'REFUND') {
                       setSelected({
                         saleId: item.saleId,
                         refundId: item.refundId,
                         page,
                         organizationId,
-                        branchId,
+                        branchId: sourceBranchId,
                         merchant,
                       });
                     } else router.push(href);
@@ -257,7 +266,7 @@ export function TransactionsTab({
                           event.target.closest('a,button')
                         )
                           return;
-                        open();
+                        if (href) open();
                       }}
                       onKeyDown={(event) => {
                         if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -267,12 +276,17 @@ export function TransactionsTab({
                         )
                           return;
                         event.preventDefault();
-                        open();
+                        if (href) open();
                       }}
                     >
                       <td className="whitespace-nowrap px-4 py-4 align-middle font-semibold tabular-nums">
                         {completedDate(item.completedAt)}
                       </td>
+                      {allBranches ? (
+                        <td className="px-4 py-4 align-middle text-ink">
+                          {item.branch?.name ?? 'Unknown branch'}
+                        </td>
+                      ) : null}
                       <td className="px-4 py-4 align-middle">
                         <span className={`font-normal ${typeClass(item.type)}`}>
                           {typeLabel(item.type)}
@@ -310,7 +324,7 @@ export function TransactionsTab({
                           >
                             View
                           </Button>
-                        ) : (
+                        ) : href ? (
                           <Link
                             href={href}
                             className={buttonStyles({
@@ -321,7 +335,7 @@ export function TransactionsTab({
                           >
                             View
                           </Link>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                   );
@@ -334,15 +348,18 @@ export function TransactionsTab({
       {selected &&
       selected.page === page &&
       selected.organizationId === organizationId &&
-      selected.branchId === branchId &&
       selected.merchant === merchant &&
       !loading &&
       !error ? (
         <SalesAccess organizationId={organizationId}>
           {(role, key) => (
             <RefundDetailsDialog
-              key={`${key}:${branchId}:${selected.refundId}`}
-              scope={{ organizationId, branchId, saleId: selected.saleId }}
+              key={`${key}:${selected.branchId}:${selected.refundId}`}
+              scope={{
+                organizationId,
+                branchId: selected.branchId,
+                saleId: selected.saleId,
+              }}
               role={role}
               refundId={selected.refundId}
               onClose={() => setSelected(null)}

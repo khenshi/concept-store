@@ -2,6 +2,7 @@ import { Prisma } from '../../../generated/prisma/client';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { SalesRankingSortBy } from './dto/sales-report-query.dto';
 import { netRecordedSales } from './report-money';
+import { reportSourceBranchPredicate } from './report-sql-scope';
 import {
   calendarDay,
   reportDates,
@@ -71,7 +72,7 @@ function metrics(row: Metrics, own: boolean) {
 export async function readProductRankings(
   tx: Prisma.TransactionClient,
   context: OrganizationContext,
-  branchId: string,
+  branchId: string | null,
   from: Date,
   until: Date,
   page: number,
@@ -90,7 +91,7 @@ export async function readProductRankings(
     WITH sale_items AS (
       SELECT i."productId", i."id", i."productName", i."sku", i."barcode", i."merchantName", i."lineTotal", i."quantity", s."completedAt" AS original_date
       FROM "SaleItem" i JOIN "Sale" s ON s."id" = i."saleId" AND s."organizationId" = i."organizationId" AND s."branchId" = i."branchId"
-      WHERE s."organizationId" = ${context.organizationId} AND s."branchId" = ${branchId}
+      WHERE s."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 's', branchId)}
         AND s."completedAt" >= ${from} AND s."completedAt" < ${until} ${merchantFilter}
     ), refund_items AS (
       SELECT source."productId", source."id", source."productName", source."sku", source."barcode", source."merchantName",
@@ -98,7 +99,7 @@ export async function readProductRankings(
       FROM "RefundItem" i JOIN "Refund" r ON r."id" = i."refundId" AND r."organizationId" = i."organizationId" AND r."branchId" = i."branchId" AND r."saleId" = i."saleId"
       JOIN "SaleItem" source ON source."id" = i."saleItemId" AND source."organizationId" = i."organizationId" AND source."branchId" = i."branchId" AND source."saleId" = i."saleId" AND source."merchantId" = i."merchantId"
       JOIN "Sale" s ON s."id" = source."saleId" AND s."organizationId" = source."organizationId" AND s."branchId" = source."branchId"
-      WHERE r."organizationId" = ${context.organizationId} AND r."branchId" = ${branchId}
+      WHERE r."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 'r', branchId)}
         AND r."completedAt" >= ${from} AND r."completedAt" < ${until} ${merchantFilter}
     ), identities AS (
       SELECT DISTINCT ON ("productId") * FROM (
@@ -141,7 +142,7 @@ export async function readProductRankings(
 export async function readTrends(
   tx: Prisma.TransactionClient,
   context: OrganizationContext,
-  branchId: string,
+  branchId: string | null,
   from: Date,
   until: Date,
   granularity: ReportGranularity,
@@ -159,7 +160,7 @@ export async function readTrends(
         SUM(i."lineTotal") AS gross, SUM(i."quantity"::numeric) AS units,
         COUNT(DISTINCT s."id") AS transactions
       FROM "Sale" s JOIN "SaleItem" i ON i."saleId" = s."id" AND i."organizationId" = s."organizationId" AND i."branchId" = s."branchId"
-      WHERE s."organizationId" = ${context.organizationId} AND s."branchId" = ${branchId}
+      WHERE s."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 's', branchId)}
         AND s."completedAt" >= ${from} AND s."completedAt" < ${until} ${merchantFilter}
       GROUP BY 1
     ), refunds AS (
@@ -167,7 +168,7 @@ export async function readTrends(
         SUM(i."lineTotal") AS refunded, SUM(i."quantity"::numeric) AS returned,
         COUNT(DISTINCT r."id") AS refunds
       FROM "Refund" r JOIN "RefundItem" i ON i."refundId" = r."id" AND i."organizationId" = r."organizationId" AND i."branchId" = r."branchId" AND i."saleId" = r."saleId"
-      WHERE r."organizationId" = ${context.organizationId} AND r."branchId" = ${branchId}
+      WHERE r."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 'r', branchId)}
         AND r."completedAt" >= ${from} AND r."completedAt" < ${until} ${merchantFilter}
       GROUP BY 1
     )
@@ -205,7 +206,7 @@ export async function readTrends(
 export async function readAnalytics(
   tx: Prisma.TransactionClient,
   context: OrganizationContext,
-  branchId: string,
+  branchId: string | null,
   from: Date,
   until: Date,
 ) {
@@ -228,7 +229,7 @@ export async function readAnalytics(
         SUM(i."lineTotal") AS gross, SUM(i."quantity"::numeric) AS units,
         COUNT(DISTINCT s."id") AS transactions
       FROM "Sale" s JOIN "SaleItem" i ON i."saleId" = s."id" AND i."organizationId" = s."organizationId" AND i."branchId" = s."branchId"
-      WHERE s."organizationId" = ${context.organizationId} AND s."branchId" = ${branchId}
+      WHERE s."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 's', branchId)}
         AND s."completedAt" >= ${from} AND s."completedAt" < ${until}
       GROUP BY 1
     ), refunds AS (
@@ -236,7 +237,7 @@ export async function readAnalytics(
         SUM(i."lineTotal") AS refunded, SUM(i."quantity"::numeric) AS returned,
         COUNT(DISTINCT r."id") AS refunds
       FROM "Refund" r JOIN "RefundItem" i ON i."refundId" = r."id" AND i."organizationId" = r."organizationId" AND i."branchId" = r."branchId" AND i."saleId" = r."saleId"
-      WHERE r."organizationId" = ${context.organizationId} AND r."branchId" = ${branchId}
+      WHERE r."organizationId" = ${context.organizationId} ${reportSourceBranchPredicate(context, 'r', branchId)}
         AND r."completedAt" >= ${from} AND r."completedAt" < ${until}
       GROUP BY 1
     )
@@ -268,9 +269,7 @@ export async function readAnalytics(
         AND s."organizationId" = i."organizationId"
         AND s."branchId" = i."branchId"
       WHERE i."organizationId" = ${context.organizationId}
-        AND i."branchId" = ${branchId}
-        AND s."organizationId" = ${context.organizationId}
-        AND s."branchId" = ${branchId}
+        ${reportSourceBranchPredicate(context, 's', branchId)}
         AND s."completedAt" >= ${from} AND s."completedAt" < ${until}
     ), sales AS (
       SELECT "merchantId", SUM("lineTotal") AS gross
