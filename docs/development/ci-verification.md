@@ -19,13 +19,45 @@ is skipped. Branch protection and required-check settings are repository-side
 controls and still need an owner to configure and verify them; this workflow
 file alone does not claim that enforcement exists.
 
-The October 25 disposable PostgreSQL run initially exposed four stale
-pagination/migration fixtures. The fixtures now match the current 15-row
-contracts and explicitly seed the legacy occupancy timestamp columns required
-before their later removal. The complete integration run now passes 315 tests
-with one intentional skip. Branch protection and required-check settings remain
-repository-side controls that need an owner to configure and verify.
+The disposable PostgreSQL integration run currently passes 329 tests with one
+intentional skip. The HTTP/e2e suite passes 273 tests across nine suites after
+its fixtures were updated for organization lifecycle status and Payment Account
+contracts. Branch protection and required-check settings remain repository-side
+controls that need an owner to configure and verify.
 
 For local verification, use the existing app commands from each package. Backend
 integration and runtime smoke commands require explicit disposable localhost
 targets; they never fall back to application URLs or run the demo seed.
+
+## One-command local CI
+
+The root command mirrors the required backend, frontend and built-runtime jobs:
+
+```bash
+npm run ci
+```
+
+The focused commands are available when iterating on one job:
+
+```bash
+npm run ci:backend
+npm run ci:frontend
+npm run ci:runtime
+```
+
+The runner requires the exact Node version in `.node-version` and Docker with
+Compose v2. It installs the locked dependencies with `npm ci`, starts a
+disposable PostgreSQL 17 container from `docker-compose.ci.yml`, runs the checks,
+and removes the container and its data on completion or failure. Use
+`npm run ci -- --skip-install` when both package lockfiles are already installed.
+
+The default PostgreSQL host port is `55439`; override it if that port is already
+occupied:
+
+```bash
+CI_POSTGRES_PORT=55440 npm run ci
+```
+
+The database is intentionally empty and uses CI-only credentials. The command
+must never be pointed at a development, staging, or deployed application
+database.

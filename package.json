@@ -1,6 +1,10 @@
 {
   "scripts": {
-    "dev": "code --reuse-window --command 'workbench.action.tasks.runTask' 'Dev'"
+    "dev": "code --reuse-window --command 'workbench.action.tasks.runTask' 'Dev'",
+    "ci": "node scripts/run-ci.mjs all",
+    "ci:backend": "node scripts/run-ci.mjs backend",
+    "ci:frontend": "node scripts/run-ci.mjs frontend",
+    "ci:runtime": "node scripts/run-ci.mjs runtime"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"
