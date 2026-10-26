@@ -128,6 +128,5 @@ See [October 25 runtime validation](../validation/production-runtime-2026-10-25.
 Actual hosted proxy behavior, monitoring/alerts, host polling/grace budgets,
 migration compatibility and transaction shutdown/recovery qualification remain
 with their pending plans. The verified development Neon migration/reset/seed
-cutover and its remaining hosted qualification gates are recorded separately in
-the Plan 08 validation evidence. This is not production migration or recovery
-proof.
+cutover and hosted qualification are recorded separately in the Plan 08
+validation evidence. This is not production migration or recovery proof.

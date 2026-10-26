@@ -8,8 +8,8 @@ This is an audit/checklist, not approval to implement new modules or deploy/rese
 databases. Continue using approved current plans for implementation.
 
 Planning sequence: [pending plans and implementation order](plans/pending/README.md).
-Plan 07 is completed and archived. Plan 08 Payment Accounts is the approved active
-implementation, with local evidence in
+Plans 07 and 08 are completed and archived. Plan 08 Payment Accounts has local,
+cutover and hosted evidence in
 [Plan 08 validation](validation/plan08-implementation-2026-10-25.md). Plans 03–06 also contain
 committed local implementation slices, documented in the [background-agent
 audit](validation/background-agent-audit-2026-10-25.md), but their hosted,
@@ -46,7 +46,7 @@ does not establish deployed security, database recovery or rendered correctness.
 | Returns/refunds                                              | Partial/full item returns, manual payout record, restock and history implemented      | Account attribution feature, real role/privacy checks and recovery QA                                                           |
 | Reports                                                      | Branch-scoped analytics, Transactions, Daily Data and Rankings implemented            | All Branches deferred plan; dynamic account amounts/toggle pending plan                                                         |
 | Spaces                                                       | Catalog/types, assignment/release and occupancy history implemented                   | Verify target migration parity and recent forms/calendar/history regressions                                                    |
-| Payment Accounts                                             | Local Plan 08 implementation and disposable verification complete; hosted cutover pending | Verify exact target, deploy matching API/frontend, and qualify account configuration, branch assignment, source snapshots and report aggregation |
+| Payment Accounts                                             | Plan 08 implemented, cut over and hosted-qualified | No Plan 08 feature gate remains; broader launch qualification remains with Plans 11–14 |
 | All Branches Reports                                         | Deferred planning-only proposal, not implemented                                      | Implement and verify all-role authorized aggregation and detail navigation                                                      |
 | Merchant settlements/payouts                                 | Not implemented                                                                       | Explicitly excluded; do not build                                                                                               |
 | Automated billing/platform superadmin/general finance ledger | Not implemented                                                                       | Not automatically required. Manual activation needs a narrowly approved control, not an assumed admin platform                  |
@@ -190,15 +190,13 @@ database was queried, migrated, reset or seeded by the audit.
       regression assertion under Plan 01, approved October 23. Runtime pagination
       already uses 15; do not change behavior to match stale API metadata.
 
-- [ ] **Payment Account Management/Reporting:** local implementation and
-      disposable migration/seed verification are complete; qualify the hosted
-      account registry, Cash
-      always-enabled/all-branches, configurable reference rules, selected/all branch
-      availability, backend enforcement and immutable Sale/Refund account snapshots.
-      Hosted development cutover remains pending. Source: [account plan](plans/pending/finance-reconciliation.md).
-- [ ] Deliver and qualify the dynamic Received/Refunded/Net Received account report, correct actual
-      refund-account attribution, exact breakdown table and signed-negative chart.
-      Confirm Manager assigned-branch access and historical disabled-account visibility.
+- [x] **Payment Account Management/Reporting:** Plan 08 implementation,
+      disposable migration/seed verification, matching deployment and hosted
+      account/report qualification are complete. Source: [account validation](validation/plan08-implementation-2026-10-25.md).
+- [x] Deliver and qualify the dynamic Received/Refunded/Net Received account
+      report, correct actual refund-account attribution, exact breakdown table
+      and signed-negative chart. Confirm Manager assigned-branch access and
+      historical disabled-account visibility under Plan 08.
 - [ ] **Reports All Branches:** implement the [pending plan](plans/pending/09-reports-all-branches.md) after promotion/approval, preserving
       Owner/Manager/Merchant scope, global counts/rankings/pagination, safe source branch
       links and All Time periods. No shared branch-preference sentinel in POS/Inventory.

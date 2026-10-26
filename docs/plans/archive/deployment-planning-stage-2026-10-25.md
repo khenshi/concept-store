@@ -85,7 +85,7 @@ change application behavior.
 - The former current All Branches plan is preserved, unimplemented, in
   [pending as queue item 09](../pending/09-reports-all-branches.md).
   Revalidate it at its turn and retain its approved business decisions. Payment
-  Accounts (`pending/finance-reconciliation.md`) is explicitly queued as item 08.
+  Accounts (`archive/finance-reconciliation-2026-10-26.md`) is explicitly queued as item 08.
   Both remain queued for implementation after this planning stage.
 - October 23 Branch Inventory review decisions: keep current behavior and correct
   outdated Manager visibility, eligible-product page-size, integrity-pagination
@@ -186,7 +186,7 @@ change application behavior.
    authorized historical scope, aggregate response/empty states, account integration
    and safe navigation are planned. Technical contracts and runtime/browser proof
    remain gates; no aggregate Reports behavior is implemented.
-   Plan 08 is [reviewed/updated](../pending/finance-reconciliation.md) October 24;
+   Plan 08 is [reviewed/updated](finance-reconciliation-2026-10-26.md) October 24;
    Owner sidebar placement, required-reference default with future-only edits and
    fixed Cash/unique custom names are confirmed. Display bounds and exact reset
    target remain gates. Financial attribution, cutover and cross-plan

@@ -2,9 +2,9 @@
 
 Date: October 26, 2026
 
-Status: Implementation and hosted development database cutover complete. Plan 08
-remains active until matching API/frontend deployment and browser/API
-qualification are recorded; this record does not certify that deployment gate.
+Status: Implementation, hosted development database cutover, matching deployment
+and hosted runtime/browser qualification complete. Plan 08 was accepted and
+archived October 26, 2026 after user confirmation of the deployment verification.
 
 ## Scope
 
@@ -61,10 +61,9 @@ split payments, reconciliation and payouts remain excluded.
 - The new forward migration deliberately refuses nonempty Sale/Refund tables.
   Existing real financial records require a preservation migration instead of
   this development-only cutover.
-- After cutover, still test hosted account availability, checkout, partial
-  cross-account refunds, history/replay, report totals and receipt printing
-  against matching API/frontend versions before closing the plan. Broader
-  launch qualification remains owned by Plans 11–14.
+- The matching hosted API/frontend deployment and runtime/proxy behavior were
+  verified by the user after the CI production-startup correction. Broader launch
+  qualification remains owned by Plans 11–14.
 
 ## Frontend regression gates
 

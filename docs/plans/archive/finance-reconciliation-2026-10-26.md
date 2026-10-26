@@ -2,8 +2,12 @@
 
 Date: October 22, 2026; source-reviewed and updated October 24, 2026
 
-Status: Approved for implementation October 25, 2026. Active authority is
-recorded in `../current.md`. Development cutover requires exact-target checks.
+Status: Completed and archived October 26, 2026. This file records the approved
+design, implementation contract and completed acceptance evidence.
+
+Implementation, disposable migration/seed verification, matching deployment and
+hosted runtime/browser qualification were completed and confirmed October 26,
+2026. The plan is archived after the user-confirmed acceptance gates passed.
 
 Priority: Required before real pilot use. Numbered delivery phases below are
 steps, not release-priority exemptions. This filename is retained to preserve
@@ -482,10 +486,10 @@ infrastructure/dependency is authorized. Do not replace current.md during this t
   recorded per-account flows are exact, current POS/refund/replay rules are preserved,
   and old payment-method terminology/configuration is removed from active contracts.
 
-Planning verification: reviewed existing plan and code; pending document only.
-Do not interpret documentation checks as implemented/runtime verification.
+Planning verification preceded implementation. Implementation and acceptance
+evidence are recorded in `docs/validation/plan08-implementation-2026-10-25.md`.
 
-## 13. Remaining clarification gates
+## 13. Confirmed implementation decisions
 
 Confirmed: one account per sale/refund now, Cash always enabled/all branches,
 signed bars for negative net, assigned-branch Manager access, Owner-configurable
@@ -567,10 +571,9 @@ writer, drop account columns or reset financial data as rollback. Retain a compa
 application/configuration or roll forward under 04/06; real database disaster
 recovery uses the tested 15-minute RPO / 2-hour RTO, not a code-deployment shortcut.
 
-Required completion evidence: deep security/financial/concurrency review during
-implementation; API/client contract parity; Cash/tenant constraints; independently
-computed fixture totals for cash-tender, cross-account and refund-only periods;
-queries with representative volumes; replay/race tests; 11/14 browser/printing
-acceptance. Update POS, sales, refunds, reports, organizations and a new
-`docs/modules/payment-accounts.md` only when implemented. Keep launch checklist
-items unchecked until their actual proof exists.
+Completion evidence includes the deep security/financial/concurrency review,
+API/client contract parity, Cash/tenant constraints, independently computed
+fixture totals, representative-volume queries, replay/race tests, and hosted
+browser/runtime acceptance. Implemented module documentation is current in
+POS, Sales, Refunds, Reports, Organizations, Runtime Operations and
+`docs/modules/payment-accounts.md`.

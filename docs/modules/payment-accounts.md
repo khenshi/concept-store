@@ -1,6 +1,7 @@
 # Payment Accounts
 
-**Status:** Implemented for the approved Plan 08 development cutover.
+**Status:** Implemented and deployed for the approved Plan 08 development
+cutover; hosted qualification confirmed October 26, 2026.
 
 ## Responsibilities and exclusions
 
@@ -113,7 +114,7 @@ privacy regressions are covered by focused tests. Disposable database and
 frontend build evidence is recorded in
 `docs/validation/plan08-implementation-2026-10-25.md`.
 
-The development database cutover remains a separate operational gate. The
-forward migration intentionally stops when existing Sale or Refund source rows
-are present; apply it only to the explicitly verified disposable replacement
-database, then reseed and reload matching API/frontend versions.
+The development database cutover was completed on the explicitly verified
+disposable replacement target. The forward migration intentionally stops when
+existing Sale or Refund source rows are present; real financial records require
+a separately approved preservation migration.
