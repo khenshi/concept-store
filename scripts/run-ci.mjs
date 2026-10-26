@@ -183,6 +183,10 @@ async function runProxySmoke() {
     ...baseBackendEnv,
     NODE_ENV: "production",
     PORT: "3100",
+    FRONTEND_ORIGIN: "http://127.0.0.1:3101",
+    EMAIL_PROVIDER: "resend",
+    RESEND_API_KEY: "re_runtime_test",
+    EMAIL_FROM: "CI <no-reply@example.com>",
   };
   const frontendEnv = {
     ...process.env,

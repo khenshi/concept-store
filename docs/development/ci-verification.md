@@ -14,6 +14,10 @@ starts the built Nest process against a disposable PostgreSQL service, checks
 liveness/readiness, then starts the built Next process and verifies the public
 `/api/health/live` proxy route.
 
+The runtime job supplies synthetic Resend configuration because production
+startup requires an enabled email provider. Its smoke checks do not send email
+or use live credentials.
+
 The stable `Required checks` job fails if any mandatory job fails, is cancelled or
 is skipped. Branch protection and required-check settings are repository-side
 controls and still need an owner to configure and verify them; this workflow
