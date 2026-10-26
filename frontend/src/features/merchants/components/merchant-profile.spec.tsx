@@ -151,7 +151,7 @@ describe('MerchantProfile', () => {
     expect(confirm).toHaveBeenCalledWith(
       expect.objectContaining({
         description: expect.stringContaining(
-          'All 2 occupied spaces across branches will be released.',
+          'releases all 2 occupied spaces across branches',
         ),
       }),
     );

@@ -213,8 +213,11 @@ include products owned by affiliated merchants in assigned branches, including p
   and non-decimal-string prices before rendering.
 
 The product profile uses the shared warm-neutral page frame and centered rounded
-panels for identity, lifecycle status, and branch placements. Loading, retry,
-status-confirmation, and edit-dialog behavior remain unchanged.
+panels for identity, lifecycle status, and branch placements. Lifecycle
+confirmations explain that inactive products cannot be sold, newly placed, or
+receive stock, while branch prices, quantities, and movement history remain
+preserved. Reactivation explains that selling is allowed again without changing
+those records. Loading, retry, and edit-dialog behavior remain unchanged.
 
 ## Merchant branch participation
 

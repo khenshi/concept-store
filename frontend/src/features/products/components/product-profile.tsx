@@ -132,7 +132,9 @@ function ScopedProductProfile({
         !(await confirm({
           title: `Make ${product.name} ${nextStatus.toLowerCase()}?`,
           description:
-            'This changes only product status. Branch prices, quantities, and movement history are preserved. Inactive products cannot receive new stock or placements.',
+            nextStatus === 'INACTIVE'
+              ? 'This stops selling the product and prevents new placements or stock receipts. Branch prices, quantities, and movement history are preserved.'
+              : 'This allows the product to be sold again. Branch prices, quantities, and movement history are preserved.',
           confirmLabel: 'Change status',
           tone: nextStatus === 'INACTIVE' ? 'danger' : 'primary',
         }))

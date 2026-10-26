@@ -116,7 +116,10 @@ function ScopedMerchantProfile({
           : await occupiedSpaceCount(request, organizationId, merchant.id);
       const accepted = await confirm({
         title: `Change ${merchant.name} to ${status.toLowerCase()}?`,
-        description: `This changes the merchant lifecycle state and preserves history.${status !== 'ACTIVE' ? ` All ${occupied} occupied spaces across branches will be released.` : ' Previous space assignments will not be restored.'}`,
+        description:
+          status !== 'ACTIVE'
+            ? `This stops new sales for this merchant, prevents new product placements and stock receipts, releases all ${occupied} occupied spaces across branches, and preserves existing products, balances, sales, and history.`
+            : 'This allows new sales, product placements, and stock receipts again. Previous space assignments will not be restored; existing products, balances, sales, and history remain.',
         confirmLabel: 'Change status',
         tone:
           status === 'ENDED' || status === 'SUSPENDED' ? 'danger' : 'primary',

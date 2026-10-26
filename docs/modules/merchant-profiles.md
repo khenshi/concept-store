@@ -126,8 +126,12 @@ controls retain visible focus rings; programmatically focused headings do not
 show an outline. Existing validation and lifecycle API behavior are unchanged.
 
 Merchant profiles use the shared warm-neutral page frame with separate rounded
-panels for editing, business identity, and lifecycle status. Role-aware contact
-visibility, confirmation behavior, and form validation remain unchanged.
+panels for editing, business identity, and lifecycle status. Lifecycle
+confirmations explain that non-active merchants cannot create new sales,
+placements, or stock receipts, that occupied spaces are released, and that
+existing products, balances, sales, and history remain. Reactivation explains
+that prior space assignments are not restored. Role-aware contact visibility
+and form validation remain unchanged.
 
 ## Verification
 

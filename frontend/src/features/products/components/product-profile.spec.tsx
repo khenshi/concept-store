@@ -98,7 +98,7 @@ describe('ProductProfile workflows', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
     fireEvent.click(screen.getByRole('button', { name: 'Change status' }));
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'Branch prices, quantities, and movement history are preserved',
+      'This stops selling the product and prevents new placements or stock receipts',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() =>

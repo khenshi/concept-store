@@ -173,6 +173,10 @@ with alert-dialog semantics, initial password focus and protected pending
 dismissal. The form's initial action is outlined rather than solid red. Cancel
 does not call the API and restores focus; server rejections, including sole-owner
 restrictions, are shown without changing the backend's authorization rules.
+The confirmation remains an accessible alert dialog with sole-owner protection
+from the backend, pending-write dismissal protection, and focus restoration to
+the trigger. A failed deletion stays visible in the dialog; no irreversible
+action is retried automatically.
 
 Automatic verification and reset delivery uses the shared Resend boundary after
 token persistence commits. Provider rejection or timeout leaves the generic
