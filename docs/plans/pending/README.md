@@ -2,7 +2,7 @@
 
 Date: October 22, 2026
 
-Queue updated: October 26, 2026
+Queue updated: October 27, 2026
 
 Status: Plans 01–02 completed and archived October 25. Plan 03 has a committed
 local implementation record with remaining release gates deferred to the owning
@@ -11,7 +11,10 @@ were validated. Plan 08 was completed and archived October 26 after its hosted
 acceptance gates were confirmed. Plan 09 was closed and archived October 26 at
 the user's direction with its known 390px selector/calendar overflow explicitly
 deferred; this is not pilot/release approval. Plan 10 was completed and archived
-October 26 after the user confirmed its manual operational gates. Plans 04–06
+October 26 after the user confirmed its manual operational gates. Plan 12 was
+closed and archived October 27 at the user's direction with all remaining
+qualification gates explicitly deferred; this is not pilot or paid-launch
+approval. Plans 04–06
 contain committed local implementation slices from the background agent, but their
 provider, hosted, branch-protection and release gates remain open. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
@@ -42,7 +45,7 @@ Existing specifications remain the source of truth until their review turn.
 | 09  | [Reports All Branches](../archive/09-reports-all-branches-2026-10-26.md)                                           | Required before pilot                    | Closed and archived October 26 at user direction; 390px branch-selector/calendar overflow remains unfixed and deferred; not release approval |
 | 10  | [Monitoring, transaction recovery and outage operations](../archive/10-operational-reliability-2026-10-26.md)     | P0                                       | Completed and archived October 26 after user-confirmed smoke, monitoring, support, backup/restore and incident validation       |
 | 11  | [End-to-end workflow, accessibility and receipt acceptance](11-workflow-acceptance.md)                           | P0/P1 by risk                            | Application slice and local automated gates committed October 27; browser/device/PDF evidence remains pending                    |
-| 12  | [Performance, dependency and security qualification](12-performance-security-qualification.md)                   | P0 critical risks; P1 scale gates        | Approved October 27; five simultaneous staff confirmed; bounded qualification execution active; no package/production changes authorized |
+| 12  | [Performance, dependency and security qualification](../archive/12-performance-security-qualification-2026-10-27.md) | P0 critical risks; P1 scale gates        | Closed and archived October 27 at user direction; passed evidence retained, all remaining capacity/dependency/hosted security gates deferred; not release approval |
 | 13  | [Privacy, support and commercial-readiness policies](13-service-policies.md)                                     | P0 personal-data controls; P1 paid terms | Drafted October 24; registered business/manual requests/handover gate confirmed; implementation not approved                     |
 | 14  | [Pilot release and paid-launch sign-off](14-release-signoff.md)                                                  | P0 pilot; P1 paid launch                 | Drafted October 24; no release approved; remaining batch/dependency review pending                                               |
 | 15  | [Optional interface and documentation refinements](15-optional-refinements.md)                                   | P2                                       | Drafted/classified October 24; explicitly nonblocking; implementation not approved                                               |

@@ -2,9 +2,10 @@
 
 Date: October 24, 2026
 
-Status: Approved for qualification October 27, 2026. Execution is limited to
-bounded disposable or explicitly approved targets; no package update or
-production change is authorized by this plan alone.
+Status: Closed October 27, 2026 at the user's direction with explicit deferral
+of all remaining qualification gates. Passed evidence is retained; this is not
+public paid-SaaS qualification. No package update or production change was
+authorized by this plan alone.
 
 Priority: P0 for security/data-integrity failures and essential pilot capacity;
 larger-scale qualification is P1 before expanding beyond the tested envelope.
@@ -222,3 +223,15 @@ agreed five-user capacity, all relevant dependency findings have dispositions,
 critical risks are resolved and evidence/limits are explicit. 14 owns real pilot
 and paid-launch approval. Passing local tests does not certify hosted capacity,
 restore targets, legal compliance or unlimited scale.
+
+### User-directed deferral
+
+On October 27, 2026, the user instructed that all remaining Plan 12 tests and
+gates be skipped for now. The following remain unqualified and are not treated
+as passed: five-user mixed HTTP capacity, p50/p95/p99 and resource evidence,
+two-organization hosted authorization, refresh/logout and state-changing
+CSRF/Origin probes, and dependency-advisory remediation/disposition.
+
+The plan is therefore closed administratively and archived as deferred, not
+qualified. Plan 14 must retain these items as explicit release risks if a pilot
+or paid launch is considered before they are rerun.

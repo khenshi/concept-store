@@ -5,10 +5,10 @@ Date: October 27, 2026
 Candidate: application code at `7caf584` (`main`); qualification record committed
 as `9f7bac6`
 
-Status: Qualification in progress. Disposable local correctness/query evidence
-and current deployed browser/proxy checks passed. Release qualification remains
-blocked by unresolved dependency advisories and unmeasured multi-user HTTP
-capacity/security evidence.
+Status: Closed October 27, 2026 at the user's direction. Disposable local
+correctness/query evidence and current deployed browser/proxy checks passed;
+all remaining qualification gates were explicitly deferred and are not treated
+as passed or as public paid-SaaS approval.
 
 ## Scope and safeguards
 
@@ -156,9 +156,9 @@ redeploy was performed because Plan 12 does not authorize package changes by
 itself. These findings require an approved bounded dependency-update slice,
 compatibility proof and redeployment before release sign-off.
 
-## Remaining qualification gates
+## Deferred qualification gates
 
-- No bounded five-user mixed workload across two organizations has been run.
+- No bounded five-user mixed workload across two organizations was run.
 - No p50/p95/p99, throughput, error-rate, cold-start, soak, CPU/memory,
   connection-pool wait or multi-instance pool evidence exists.
 - Inventory, Reports and refund measurements are service/integration paths, not
@@ -168,17 +168,14 @@ compatibility proof and redeployment before release sign-off.
 - Deployed authenticated two-organization/branch smoke, cookie refresh/logout,
   and state-changing cross-origin/CSRF probes remain open. SameSite and exact
   CORS behavior are not a substitute for an explicit CSRF/Origin decision.
-- A dependency disposition and approved update path are required for the
+- A dependency disposition and approved update path were not completed for the
   critical/high runtime advisories.
 - Pilot device/browser qualification remains deferred per user instruction.
 
-## Ownership and next action
+## Closure disposition
 
-Dependency remediation belongs in a bounded update/release slice with Plan 06
-CI and Plan 14 sign-off. Proxy/cookie/CSRF topology changes belong to Plan 05;
-auth behavior changes belong to Plan 03. Plan 12 should consume their evidence
-and rerun the security/capacity gates rather than silently changing those
-contracts.
-
-Until those findings have an approved disposition, Plan 12 is not complete and
-the system is not qualified for public paid-SaaS release.
+On October 27, 2026, the user instructed that all remaining Plan 12 tests and
+gates be skipped for now. This record is therefore retained as an explicit
+waiver/deferment record, not as evidence that the omitted tests passed. Plan 14
+must retain the deferred capacity, dependency and hosted security risks before
+any pilot or paid-launch approval.
