@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { GoneException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   AccountActionTokenPurpose,
@@ -15,6 +15,9 @@ export interface AccountActionTokenRecord {
   purpose: AccountActionTokenPurpose;
   expiresAt: Date;
 }
+
+type AccountActionTokenSubject =
+  { userId: string } | { pendingRegistrationId: string };
 
 @Injectable()
 export class AccountActionTokenService {
@@ -48,6 +51,28 @@ export class AccountActionTokenService {
     );
   }
 
+  async hasRecentActiveToken(
+    subject: AccountActionTokenSubject,
+    purpose: AccountActionTokenPurpose,
+    cooldownMs: number,
+    transaction: Prisma.TransactionClient = this.prisma,
+  ): Promise<boolean> {
+    const now = new Date();
+    const createdAfter = new Date(now.getTime() - cooldownMs);
+    const record = await transaction.accountActionToken.findFirst({
+      where: {
+        purpose,
+        consumedAt: null,
+        expiresAt: { gt: now },
+        createdAt: { gt: createdAfter },
+        ...subject,
+      },
+      select: { id: true },
+    });
+
+    return Boolean(record);
+  }
+
   async consume(
     token: string,
     purpose: AccountActionTokenPurpose,
@@ -72,7 +97,19 @@ export class AccountActionTokenService {
       },
     });
 
-    if (!record) this.throwUnavailable();
+    if (!record) {
+      const expired = await transaction.accountActionToken.findFirst({
+        where: {
+          tokenHash: this.hashToken(token),
+          purpose,
+          consumedAt: null,
+          expiresAt: { lte: now },
+        },
+        select: { id: true },
+      });
+      if (expired) this.throwExpired(purpose);
+      this.throwUnavailable();
+    }
 
     const claimed = await transaction.accountActionToken.updateMany({
       where: {
@@ -135,6 +172,14 @@ export class AccountActionTokenService {
   private throwUnavailable(): never {
     throw new NotFoundException(
       'The requested account action is invalid or unavailable',
+    );
+  }
+
+  private throwExpired(purpose: AccountActionTokenPurpose): never {
+    throw new GoneException(
+      purpose === AccountActionTokenPurpose.VERIFY_EMAIL
+        ? 'This verification link has expired. Request a new verification email.'
+        : 'This password-reset link has expired. Request a new one.',
     );
   }
 }

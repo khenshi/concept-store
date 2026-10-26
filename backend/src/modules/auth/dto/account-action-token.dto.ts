@@ -27,6 +27,9 @@ export class AccountActionEmailDto {
 
 export class VerifyEmailDto {
   @ApiProperty({ minLength: TOKEN_LENGTH, maxLength: TOKEN_LENGTH })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
   @Length(TOKEN_LENGTH, TOKEN_LENGTH)
   token!: string;

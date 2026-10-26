@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '../api/auth-client';
 import { useAuth } from '../model/auth-context';
 import { newPasswordSchema } from '../model/auth.schemas';
@@ -21,6 +21,8 @@ function safeReturnTo(value: string | undefined): string {
   return value?.startsWith('/') && !value.startsWith('//') ? value : '/app';
 }
 
+const VERIFICATION_RESEND_COOLDOWN_SECONDS = 60;
+
 export function VerifyEmailPage({
   token,
   email,
@@ -37,6 +39,17 @@ export function VerifyEmailPage({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(
+    token ? 0 : VERIFICATION_RESEND_COOLDOWN_SECONDS,
+  );
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,18 +61,23 @@ export function VerifyEmailPage({
       if (token) {
         const result = newPasswordSchema.safeParse(password);
         if (!result.success) {
-          setError(result.error.issues[0]?.message ?? 'Choose a valid password.');
+          setError(
+            result.error.issues[0]?.message ?? 'Choose a valid password.',
+          );
           return;
         }
         await confirmEmail(token, result.data);
-        router.replace(`/login?returnTo=${encodeURIComponent(safeReturnTo(returnTo))}`);
+        router.replace(
+          `/login?returnTo=${encodeURIComponent(safeReturnTo(returnTo))}`,
+        );
       } else {
         if (!emailDraft.trim()) {
           setError('Enter your email address.');
           return;
         }
         await requestEmailVerification(emailDraft.trim());
-        setMessage('If the account can receive mail, a new verification link is on its way.');
+        setMessage('a new verification link is on its way.');
+        setResendCooldown(VERIFICATION_RESEND_COOLDOWN_SECONDS);
       }
     } catch (cause: unknown) {
       setError(errorMessage(cause));
@@ -108,13 +126,21 @@ export function VerifyEmailPage({
           variant="accent"
           type="submit"
           pending={isSubmitting}
+          disabled={isSubmitting || (!token && resendCooldown > 0)}
           pendingLabel={token ? 'Confirming…' : 'Sending…'}
         >
-          {token ? 'Confirm email' : 'Send verification email'}
+          {token
+            ? 'Confirm email'
+            : resendCooldown > 0
+              ? `Try again in ${resendCooldown}s`
+              : 'Send verification email'}
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-muted">
-        <Link className="font-medium text-ink underline underline-offset-4" href="/login">
+        <Link
+          className="font-medium text-ink underline underline-offset-4"
+          href="/login"
+        >
           Return to sign in
         </Link>
       </p>
@@ -141,7 +167,9 @@ export function ForgotPasswordPage() {
     setIsSubmitting(true);
     try {
       await requestPasswordReset(email.trim());
-      setMessage('If the account can receive mail, a password-reset link is on its way.');
+      setMessage(
+        'If the account can receive mail, a password-reset link is on its way.',
+      );
     } catch (cause: unknown) {
       setError(errorMessage(cause));
     } finally {

@@ -20,6 +20,7 @@ import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCookieAuth,
+  ApiGoneResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -100,6 +101,7 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Confirm an email verification token' })
   @ApiNoContentResponse()
+  @ApiGoneResponse({ description: 'The verification link has expired' })
   confirmEmail(@Body() dto: VerifyEmailDto): Promise<void> {
     return this.authService.confirmEmail(dto);
   }
@@ -120,6 +122,7 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Confirm a password reset token' })
   @ApiNoContentResponse()
+  @ApiGoneResponse({ description: 'The password-reset link has expired' })
   confirmPasswordReset(@Body() dto: ConfirmPasswordResetDto): Promise<void> {
     return this.authService.confirmPasswordReset(dto);
   }

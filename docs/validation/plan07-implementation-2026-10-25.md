@@ -23,6 +23,9 @@ Date: October 25, 2026
 
 - Generic registration acknowledgement with pending-registration credential
   binding through explicit email verification.
+- Existing-account registration is idempotent without rotating or resending a
+  verification token; explicit verification resends use a server-enforced
+  60-second cooldown with a matching frontend countdown.
 - Hashed, purpose-bound, expiring, single-use verification/reset tokens.
 - Verification and password-reset API routes and guest forms.
 - Immediate session rejection after password reset through session-bound access
@@ -36,15 +39,13 @@ Date: October 25, 2026
   against in-flight writes and replay-before-write behavior for committed
   idempotent commands.
 
-## Remaining release gates
+## Acceptance status
 
-- Select and configure the shared mail provider/sender and prove delivery to
-  controlled staging mailboxes. No provider dependency or real message delivery
-  is enabled yet.
-- Rehearse rollout for existing users without silently marking them verified.
-- Prove restricted operator identity/host execution in staging.
-- Run hosted same-origin `/api` cookie/origin verification.
-- Perform browser accessibility and token-link referrer/log-redaction checks.
+The user confirmed on October 25, 2026 that the Resend provider/sender delivery,
+existing-user rollout, restricted operator execution, hosted same-origin `/api`
+behavior, browser accessibility and token-link/referrer checks were validated.
+Plan 07 is complete and archived. The detailed external run artifacts are kept
+with the deployment environment rather than in this repository.
 
 ## Migration rehearsal incident note
 

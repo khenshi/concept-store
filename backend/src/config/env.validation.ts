@@ -13,6 +13,9 @@ const envSchema = z
         (value) => ['http:', 'https:'].includes(new URL(value).protocol),
         'FRONTEND_ORIGIN must use HTTP or HTTPS',
       ),
+    EMAIL_PROVIDER: z.enum(['disabled', 'resend']).default('disabled'),
+    RESEND_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.string().trim().min(3).max(320).optional(),
     DATABASE_URL: z
       .string()
       .url()
@@ -73,6 +76,32 @@ const envSchema = z
   })
   .passthrough()
   .superRefine((environment, context) => {
+    if (environment.EMAIL_PROVIDER === 'resend') {
+      if (!environment.RESEND_API_KEY) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['RESEND_API_KEY'],
+          message: 'Required when EMAIL_PROVIDER is resend',
+        });
+      }
+      if (!environment.EMAIL_FROM) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['EMAIL_FROM'],
+          message: 'Required when EMAIL_PROVIDER is resend',
+        });
+      }
+    }
+    if (
+      environment.NODE_ENV === 'production' &&
+      environment.EMAIL_PROVIDER !== 'resend'
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['EMAIL_PROVIDER'],
+        message: 'Production must use the resend email provider',
+      });
+    }
     if (environment.NODE_ENV !== 'production') return;
     for (const key of ['SWAGGER_ENABLED', 'LOG_DB_QUERY_PARAMETERS'] as const) {
       if (environment[key]) {

@@ -14,6 +14,7 @@ import {
   type ColorTheme,
 } from '../../generated/prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { EmailService } from '../../infrastructure/email/email.service';
 import { AccountActionTokenService } from './account-action-token.service';
 import { ACCOUNT_ACTION_ACKNOWLEDGEMENT } from './account-action.types';
 import type {
@@ -39,6 +40,7 @@ const PASSWORD_HASH_ROUNDS = 12;
 const LOGIN_DUMMY_HASH =
   '$2b$12$X9nD9NBciwsB2qzEz/gPMul/FaLxQkrac4ys9p2AZS3ctsNhKQEOG';
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+const VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 
 @Injectable()
@@ -48,24 +50,24 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
     private readonly accountActionTokenService: AccountActionTokenService,
+    private readonly emailService: EmailService,
   ) {}
 
   async register(dto: RegisterDto): Promise<RegistrationAcknowledgement> {
+    let verificationEmail:
+      { to: string; firstName: string; token: string } | undefined;
     await this.prisma.$transaction(async (transaction) => {
       const existing = await transaction.user.findUnique({
         where: { email: dto.email },
-        select: { id: true, emailVerifiedAt: true, deletedAt: true },
+        select: {
+          id: true,
+          firstName: true,
+          emailVerifiedAt: true,
+          deletedAt: true,
+        },
       });
 
       if (existing && !existing.deletedAt) {
-        if (!existing.emailVerifiedAt) {
-          await this.accountActionTokenService.issueForUser(
-            existing.id,
-            AccountActionTokenPurpose.VERIFY_EMAIL,
-            VERIFICATION_TTL_MS,
-            transaction,
-          );
-        }
         return;
       }
 
@@ -85,13 +87,31 @@ export class AuthService {
         },
         select: { id: true },
       });
-      await this.accountActionTokenService.issueForPendingRegistration(
-        pending.id,
-        AccountActionTokenPurpose.VERIFY_EMAIL,
-        VERIFICATION_TTL_MS,
-        transaction,
-      );
+      const hasRecentToken =
+        await this.accountActionTokenService.hasRecentActiveToken(
+          { pendingRegistrationId: pending.id },
+          AccountActionTokenPurpose.VERIFY_EMAIL,
+          VERIFICATION_RESEND_COOLDOWN_MS,
+          transaction,
+        );
+      if (!hasRecentToken) {
+        const issued =
+          await this.accountActionTokenService.issueForPendingRegistration(
+            pending.id,
+            AccountActionTokenPurpose.VERIFY_EMAIL,
+            VERIFICATION_TTL_MS,
+            transaction,
+          );
+        verificationEmail = {
+          to: dto.email,
+          firstName: dto.firstName,
+          token: issued.token,
+        };
+      }
     });
+    if (verificationEmail) {
+      await this.emailService.sendVerificationEmail(verificationEmail);
+    }
 
     return ACCOUNT_ACTION_ACKNOWLEDGEMENT;
   }
@@ -265,26 +285,63 @@ export class AuthService {
   ): Promise<RegistrationAcknowledgement> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      select: { id: true, emailVerifiedAt: true, deletedAt: true },
+      select: {
+        id: true,
+        firstName: true,
+        emailVerifiedAt: true,
+        deletedAt: true,
+      },
     });
+    let verificationEmail:
+      { to: string; firstName: string; token: string } | undefined;
     if (user && !user.deletedAt && !user.emailVerifiedAt) {
-      await this.accountActionTokenService.issueForUser(
-        user.id,
-        AccountActionTokenPurpose.VERIFY_EMAIL,
-        VERIFICATION_TTL_MS,
-      );
-    } else if (!user) {
-      const pending = await this.prisma.pendingRegistration.findUnique({
-        where: { email: dto.email },
-        select: { id: true },
-      });
-      if (pending) {
-        await this.accountActionTokenService.issueForPendingRegistration(
-          pending.id,
+      const hasRecentToken =
+        await this.accountActionTokenService.hasRecentActiveToken(
+          { userId: user.id },
+          AccountActionTokenPurpose.VERIFY_EMAIL,
+          VERIFICATION_RESEND_COOLDOWN_MS,
+        );
+      if (!hasRecentToken) {
+        const issued = await this.accountActionTokenService.issueForUser(
+          user.id,
           AccountActionTokenPurpose.VERIFY_EMAIL,
           VERIFICATION_TTL_MS,
         );
+        verificationEmail = {
+          to: dto.email,
+          firstName: user.firstName,
+          token: issued.token,
+        };
       }
+    } else if (!user) {
+      const pending = await this.prisma.pendingRegistration.findUnique({
+        where: { email: dto.email },
+        select: { id: true, firstName: true },
+      });
+      if (pending) {
+        const hasRecentToken =
+          await this.accountActionTokenService.hasRecentActiveToken(
+            { pendingRegistrationId: pending.id },
+            AccountActionTokenPurpose.VERIFY_EMAIL,
+            VERIFICATION_RESEND_COOLDOWN_MS,
+          );
+        if (!hasRecentToken) {
+          const issued =
+            await this.accountActionTokenService.issueForPendingRegistration(
+              pending.id,
+              AccountActionTokenPurpose.VERIFY_EMAIL,
+              VERIFICATION_TTL_MS,
+            );
+          verificationEmail = {
+            to: dto.email,
+            firstName: pending.firstName,
+            token: issued.token,
+          };
+        }
+      }
+    }
+    if (verificationEmail) {
+      await this.emailService.sendVerificationEmail(verificationEmail);
     }
     return ACCOUNT_ACTION_ACKNOWLEDGEMENT;
   }
@@ -346,14 +403,19 @@ export class AuthService {
   ): Promise<RegistrationAcknowledgement> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
-      select: { id: true, deletedAt: true },
+      select: { id: true, firstName: true, deletedAt: true },
     });
     if (user && !user.deletedAt) {
-      await this.accountActionTokenService.issueForUser(
+      const issued = await this.accountActionTokenService.issueForUser(
         user.id,
         AccountActionTokenPurpose.RESET_PASSWORD,
         PASSWORD_RESET_TTL_MS,
       );
+      await this.emailService.sendPasswordResetEmail({
+        to: dto.email,
+        firstName: user.firstName,
+        token: issued.token,
+      });
     }
     return ACCOUNT_ACTION_ACKNOWLEDGEMENT;
   }

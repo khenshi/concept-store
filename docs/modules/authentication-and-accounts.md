@@ -1,6 +1,6 @@
 # Authentication and Accounts
 
-**Status:** Implemented locally; provider and rollout gates remain pending
+**Status:** Implemented and validated for the pilot release
 
 ## Responsibilities
 
@@ -13,6 +13,7 @@
 - Access-token issuance and refresh-session rotation.
 - Account-owned active-session listing and selected-session revocation.
 - Email verification and purpose-bound password recovery.
+- Provider-backed verification and password-reset email delivery through Resend.
 
 ## API
 
@@ -40,11 +41,13 @@ DELETE /auth/sessions/:sessionId
   at least 12 characters and at most 72 UTF-8 bytes, checked by DTOs and services.
   Secrets are never trimmed, normalized or truncated. Login/current-password and
   deletion inputs retain existing compatibility; older bcrypt hashes may still
-  accept equivalent prefixes. Verified recovery under Plan 07 remains pending.
+  accept equivalent prefixes. Verified recovery is implemented and validated.
 - Login failures are generic; absent/deleted accounts receive a dummy bcrypt
   comparison. Registration returns the same accepted acknowledgement for new,
   existing and pending emails, creates no session, and stores new profile data
   in `PendingRegistration` until a purpose-bound verification token is confirmed.
+  Re-registering an existing account never rotates or sends another verification
+  token; the explicit verification-request route is used for resends.
   The final password is set through that verified flow, preventing an
   unverified registration from establishing usable credentials.
 - Email verification is required before organization lists, workspace access,
@@ -55,7 +58,10 @@ DELETE /auth/sessions/:sessionId
 - Verification and reset tokens are opaque random values, stored only as SHA-256
   hashes, purpose-bound, expiring and single-use. A successful password reset
   revokes every refresh session and outstanding reset token. No reset flow
-  auto-signs the user in.
+  auto-signs the user in. Verification resends are limited to one accepted
+  message per account or pending registration every 60 seconds. The same
+  cooldown is enforced for duplicate registration requests, so a resend cannot
+  invalidate a link that was just issued.
 - Access tokens are short lived and contain a signed session ID (`sid`). Every
   authenticated request checks an active user and their unexpired, non-revoked
   session in PostgreSQL. Sessionless old JWTs are rejected; valid existing refresh
@@ -73,14 +79,22 @@ DELETE /auth/sessions/:sessionId
   memberships, and anonymizes credentials.
 - A sole organization owner cannot delete their account.
 - Authentication-sensitive routes use dedicated rate limits.
+- Verification and password-reset requests keep generic public acknowledgements.
+  When `EMAIL_PROVIDER=resend`, the backend sends the purpose-bound link through
+  Resend after the token transaction commits. Provider rejection or timeout is
+  logged with sanitized status context and does not reveal account existence or
+  roll back the saved token; the user can request a fresh token.
 - Password change/account deletion each allow 5 attempts/minute per socket IP
   and authenticated account. The account limiter runs after authentication and
   uses existing bounded, expiring process-local throttler storage. No unsigned
   claims, client account IDs or forwarded headers provide account authority.
 - Direct mode explicitly disables Express proxy trust. Hosted client-IP and
   cookie/proxy policies still require Plan 05; counters are not cluster-wide.
-- Invalid/expired/revoked credentials return 401. Authentication DB lookup failures
-  fail closed with a generic 503, not a false expired-session response.
+- Invalid or already-used account-action links return the generic unavailable
+  response. An unconsumed expired verification or password-reset link returns a
+  clear expired-link response so the user knows to request a fresh one.
+  Authentication DB lookup failures fail closed with a generic 503, not a false
+  expired-session response.
 - Authenticated users can select Graphite, Ocean, Forest, Plum, Star Admin,
   Sypher, Crextio, SBB, Wellness Teal, Stellar Dark, Corona Dark, or JustDo
   Dark. Older Pollux, Skydash, Azia, Purple, Plus Admin, and Breeze preferences
@@ -100,6 +114,14 @@ user's record.
 
 The frontend provides registration, login, authenticated route protection,
 logout, profile editing, password changing, and account deletion workflows.
+
+Registration verification, verification resend, and password recovery pages use
+links generated from the configured `FRONTEND_ORIGIN`. Verification pages show a
+60-second resend countdown after registration or resend, while the backend
+remains authoritative. Copied verification tokens are trimmed at the API
+boundary. The backend requires
+`EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM` in production;
+development and tests may use `EMAIL_PROVIDER=disabled`.
 
 Account Security lists active sessions in stable, server-paginated batches of 15.
 Responses contain only ID, creation/expiry and a server-derived current marker;
@@ -152,8 +174,7 @@ dismissal. The form's initial action is outlined rather than solid red. Cancel
 does not call the API and restores focus; server rejections, including sole-owner
 restrictions, are shown without changing the backend's authorization rules.
 
-Automatic delivery of verification and reset messages is intentionally behind
-the Plan 07 provider/sender decision. The account-action API and frontend routes
-are in place, but the shared mail boundary, provider dependency and real message
-delivery are not enabled by this change; staging mailbox proof remains a release
-gate.
+Automatic verification and reset delivery uses the shared Resend boundary after
+token persistence commits. Provider rejection or timeout leaves the generic
+account response unchanged and allows a fresh request. Sender/domain delivery,
+hosted verification and browser token-link behavior were validated for the pilot.

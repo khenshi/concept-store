@@ -7,6 +7,8 @@ import { buttonStyles } from '@/shared/components/ui/button';
 import { Notice } from '@/shared/components/ui/notice';
 import { useAuth } from '../model/auth-context';
 
+const VERIFICATION_RESEND_COOLDOWN_SECONDS = 60;
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { status, error, user } = useAuth();
@@ -66,7 +68,10 @@ export function GuestGate({ children }: { children: ReactNode }) {
     }
   }, [router, status, user?.emailVerified]);
 
-  if (status === 'loading' || (status === 'authenticated' && user?.emailVerified !== false)) {
+  if (
+    status === 'loading' ||
+    (status === 'authenticated' && user?.emailVerified !== false)
+  ) {
     return (
       <main
         className="grid min-h-dvh place-items-center bg-canvas px-5 py-8 text-muted"
@@ -86,6 +91,15 @@ function EmailVerificationRequired() {
   const { user, requestEmailVerification, logout } = useAuth();
   const [message, setMessage] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
 
   async function resend() {
     if (!user || isSending) return;
@@ -93,7 +107,8 @@ function EmailVerificationRequired() {
     setMessage(null);
     try {
       await requestEmailVerification(user.email);
-      setMessage('If the account can receive mail, a new verification link is on its way.');
+      setMessage('a new verification link is on its way.');
+      setResendCooldown(VERIFICATION_RESEND_COOLDOWN_SECONDS);
     } catch {
       setMessage('We could not send a new link. Please try again.');
     } finally {
@@ -112,15 +127,23 @@ function EmailVerificationRequired() {
           Check your inbox for the verification link. You can resend it if the
           first message has expired or did not arrive.
         </Notice>
-        {message ? <p className="text-sm text-muted" role="status">{message}</p> : null}
+        {message ? (
+          <p className="text-sm text-muted" role="status">
+            {message}
+          </p>
+        ) : null}
         <button
           className={buttonStyles({ variant: 'accent' })}
           type="button"
-          disabled={isSending}
+          disabled={isSending || resendCooldown > 0}
           aria-busy={isSending}
           onClick={() => void resend()}
         >
-          {isSending ? 'Sending…' : 'Resend verification email'}
+          {isSending
+            ? 'Sending…'
+            : resendCooldown > 0
+              ? `Resend available in ${resendCooldown}s`
+              : 'Resend verification email'}
         </button>
         <button
           className={buttonStyles({ variant: 'quiet' })}

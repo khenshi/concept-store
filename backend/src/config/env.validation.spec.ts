@@ -6,12 +6,20 @@ describe('validateEnvironment', () => {
     FRONTEND_ORIGIN: 'http://localhost:3001',
     JWT_SECRET: 'a-secure-test-secret-with-at-least-32-characters',
   };
+  const productionEnvironment = {
+    ...requiredEnvironment,
+    NODE_ENV: 'production',
+    EMAIL_PROVIDER: 'resend',
+    RESEND_API_KEY: 're_test',
+    EMAIL_FROM: 'Kapwesto <no-reply@example.com>',
+  };
 
   it('applies safe defaults and coerces environment values', () => {
     expect(
       validateEnvironment({ ...requiredEnvironment, PORT: '4000' }),
     ).toMatchObject({
       ...requiredEnvironment,
+      EMAIL_PROVIDER: 'disabled',
       NODE_ENV: 'development',
       PORT: 4000,
       JWT_ACCESS_TTL_MINUTES: 15,
@@ -44,12 +52,12 @@ describe('validateEnvironment', () => {
   });
 
   it('disables Swagger in production and rejects an unsafe override', () => {
-    expect(
-      validateEnvironment({ ...requiredEnvironment, NODE_ENV: 'production' }),
-    ).toMatchObject({ SWAGGER_ENABLED: false });
+    expect(validateEnvironment(productionEnvironment)).toMatchObject({
+      SWAGGER_ENABLED: false,
+    });
     expect(() =>
       validateEnvironment({
-        ...requiredEnvironment,
+        ...productionEnvironment,
         NODE_ENV: 'production',
         SWAGGER_ENABLED: 'true',
       }),
@@ -57,9 +65,7 @@ describe('validateEnvironment', () => {
   });
 
   it('uses quiet production logging defaults and supports explicit overrides', () => {
-    expect(
-      validateEnvironment({ ...requiredEnvironment, NODE_ENV: 'production' }),
-    ).toMatchObject({
+    expect(validateEnvironment(productionEnvironment)).toMatchObject({
       LOG_LEVEL: 'info',
       LOG_HTTP_REQUESTS: false,
       LOG_DB_QUERIES: false,
@@ -68,7 +74,7 @@ describe('validateEnvironment', () => {
 
     expect(
       validateEnvironment({
-        ...requiredEnvironment,
+        ...productionEnvironment,
         NODE_ENV: 'production',
         LOG_LEVEL: 'warn',
         LOG_HTTP_REQUESTS: 'true',
@@ -85,7 +91,7 @@ describe('validateEnvironment', () => {
   it('rejects SQL parameter logging in production while allowing local diagnostics', () => {
     expect(() =>
       validateEnvironment({
-        ...requiredEnvironment,
+        ...productionEnvironment,
         NODE_ENV: 'production',
         LOG_DB_QUERY_PARAMETERS: 'true',
       }),

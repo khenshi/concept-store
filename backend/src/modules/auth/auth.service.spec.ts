@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { hash } from 'bcryptjs';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { EmailService } from '../../infrastructure/email/email.service';
 import { AccountActionTokenService } from './account-action-token.service';
 import { AuthService } from './auth.service';
 import { SessionService } from './sessions/session.service';
@@ -62,7 +63,12 @@ describe('AuthService', () => {
   const accountActionTokenService = {
     issueForUser: jest.fn(),
     issueForPendingRegistration: jest.fn(),
+    hasRecentActiveToken: jest.fn(),
     consume: jest.fn(),
+  };
+  const emailService = {
+    sendVerificationEmail: jest.fn(),
+    sendPasswordResetEmail: jest.fn(),
   };
   let service: AuthService;
 
@@ -84,6 +90,7 @@ describe('AuthService', () => {
           provide: AccountActionTokenService,
           useValue: accountActionTokenService,
         },
+        { provide: EmailService, useValue: emailService },
       ],
     }).compile();
     service = moduleRef.get(AuthService);
@@ -91,6 +98,19 @@ describe('AuthService', () => {
     sessionService.issue.mockResolvedValue(refreshSession);
     transaction.user.updateMany.mockResolvedValue({ count: 1 });
     transaction.userSession.updateMany.mockResolvedValue({ count: 2 });
+    accountActionTokenService.issueForPendingRegistration.mockResolvedValue({
+      token: 'verification-token',
+    });
+    accountActionTokenService.issueForUser.mockResolvedValue({
+      token: 'action-token',
+    });
+    accountActionTokenService.hasRecentActiveToken.mockResolvedValue(false);
+    emailService.sendVerificationEmail.mockResolvedValue({
+      status: 'disabled',
+    });
+    emailService.sendPasswordResetEmail.mockResolvedValue({
+      status: 'disabled',
+    });
   });
 
   it('stores a pending registration without creating a session or password', async () => {
@@ -115,6 +135,46 @@ describe('AuthService', () => {
       transaction,
     );
     expect(sessionService.issue).not.toHaveBeenCalled();
+  });
+
+  it('does not issue another verification message for an existing account', async () => {
+    transaction.user.findUnique.mockResolvedValue({
+      id: user.id,
+      firstName: user.firstName,
+      emailVerifiedAt: null,
+      deletedAt: null,
+    });
+
+    await expect(
+      service.register({
+        firstName: 'Updated',
+        lastName: 'Name',
+        email: user.email,
+      }),
+    ).resolves.toEqual({ status: 'accepted' });
+
+    expect(accountActionTokenService.issueForUser).not.toHaveBeenCalled();
+    expect(
+      accountActionTokenService.issueForPendingRegistration,
+    ).not.toHaveBeenCalled();
+    expect(emailService.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('does not resend verification during the server cooldown', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: user.id,
+      firstName: user.firstName,
+      emailVerifiedAt: null,
+      deletedAt: null,
+    });
+    accountActionTokenService.hasRecentActiveToken.mockResolvedValue(true);
+
+    await expect(
+      service.requestEmailVerification({ email: user.email }),
+    ).resolves.toEqual({ status: 'accepted' });
+
+    expect(accountActionTokenService.issueForUser).not.toHaveBeenCalled();
+    expect(emailService.sendVerificationEmail).not.toHaveBeenCalled();
   });
 
   it('logs in a user and creates a refresh session', async () => {

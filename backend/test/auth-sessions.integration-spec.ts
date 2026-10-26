@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { Client } from 'pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
+import { EmailService } from '../src/infrastructure/email/email.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { AccountActionTokenService } from '../src/modules/auth/account-action-token.service';
 import { AuthService } from '../src/modules/auth/auth.service';
@@ -37,7 +38,12 @@ const sessions = new SessionService(
   new ConfigService({ REFRESH_TOKEN_TTL_DAYS: 30 }),
 );
 const accountActions = new AccountActionTokenService(prisma);
-const auth = new AuthService(prisma, jwt, sessions, accountActions);
+const emails = {
+  sendVerificationEmail: () => Promise.resolve({ status: 'disabled' as const }),
+  sendPasswordResetEmail: () =>
+    Promise.resolve({ status: 'disabled' as const }),
+} as unknown as EmailService;
+const auth = new AuthService(prisma, jwt, sessions, accountActions, emails);
 const guard = new AuthGuard(jwt, prisma);
 const password = 'original secure password';
 let createdSchema = false;
@@ -263,6 +269,7 @@ describe('Auth session integrity (real PostgreSQL, explicitly selected target on
       jwt,
       sessions,
       accountActions,
+      emails,
     );
     const login = delayedAuth.login({
       email: result.response.user.email,

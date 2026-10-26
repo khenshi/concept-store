@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { GoneException, NotFoundException } from '@nestjs/common';
 import { AccountActionTokenPurpose } from '../../generated/prisma/client';
 import { AccountActionTokenService } from './account-action-token.service';
 
@@ -20,6 +20,33 @@ describe('AccountActionTokenService', () => {
   const service = new AccountActionTokenService(prisma as never);
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('detects a recent active token for the same subject and purpose', async () => {
+    prisma.accountActionToken.findFirst.mockResolvedValue({
+      id: 'token-id',
+      userId: 'user-id',
+      pendingRegistrationId: null,
+      purpose: AccountActionTokenPurpose.VERIFY_EMAIL,
+      expiresAt: new Date(Date.now() + 30_000),
+    });
+
+    await expect(
+      service.hasRecentActiveToken(
+        { userId: 'user-id' },
+        AccountActionTokenPurpose.VERIFY_EMAIL,
+        60_000,
+      ),
+    ).resolves.toBe(true);
+    expect(prisma.accountActionToken.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'user-id',
+          purpose: AccountActionTokenPurpose.VERIFY_EMAIL,
+          consumedAt: null,
+        }) as unknown,
+      }),
+    );
+  });
 
   it('stores only a hash and invalidates active tokens for the same subject and purpose', async () => {
     prisma.accountActionToken.updateMany.mockResolvedValue({ count: 1 });
@@ -81,5 +108,25 @@ describe('AccountActionTokenService', () => {
     await expect(
       service.consume('b'.repeat(43), AccountActionTokenPurpose.VERIFY_EMAIL),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('reports an unconsumed expired verification token distinctly', async () => {
+    prisma.accountActionToken.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'expired-token',
+        userId: 'user-id',
+        pendingRegistrationId: null,
+        purpose: AccountActionTokenPurpose.VERIFY_EMAIL,
+        expiresAt: new Date(Date.now() - 30_000),
+      });
+
+    await expect(
+      service.consume('a'.repeat(43), AccountActionTokenPurpose.VERIFY_EMAIL),
+    ).rejects.toThrow(
+      new GoneException(
+        'This verification link has expired. Request a new verification email.',
+      ),
+    );
   });
 });
