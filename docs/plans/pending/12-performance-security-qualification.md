@@ -2,8 +2,9 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No load test, vulnerability scan, network
-audit, database operation, package update or production change authorized now.
+Status: Approved for qualification October 27, 2026. Execution is limited to
+bounded disposable or explicitly approved targets; no package update or
+production change is authorized by this plan alone.
 
 Priority: P0 for security/data-integrity failures and essential pilot capacity;
 larger-scale qualification is P1 before expanding beyond the tested envelope.
