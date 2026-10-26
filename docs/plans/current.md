@@ -1,13 +1,17 @@
-# No active implementation plan
-
-Plan 10, [Monitoring, transaction recovery and outage operations](archive/10-operational-reliability-2026-10-26.md),
-was completed and archived on October 26, 2026 after the user confirmed the
-deployed smoke check, monitoring/alerts, support coverage, backup/restore drill,
-quota checks and incident validation. Detailed provider evidence remains outside
-the repository. This does not complete the separate Plan 18 durable checkout and
-refund recovery requirement or approve a pilot/release by itself.
+# Current implementation plan
 
 Plan 11, [End-to-end workflow, accessibility and receipt acceptance](pending/11-workflow-acceptance.md),
-is the next drafted item in the planning queue, but it is not active or approved
-for implementation. Review and approve it before assigning it as the current
-implementation scope.
+is approved and active as of October 26, 2026.
+
+This implementation pass is limited to the plan's approved application slice:
+
+- add safe route-level error and not-found recovery surfaces without exposing
+  private exception details or retrying writes;
+- clarify the existing merchant and product lifecycle confirmations using the
+  rules already enforced by their services; and
+- preserve and verify the existing account-deletion confirmation workflow.
+
+Browser, accessibility, saved-receipt/PDF, device and printer qualification are
+acceptance evidence for this plan, not a reason to add a new browser framework or
+redesign existing operational screens. Financial recovery remains owned by Plan
+18, and release approval remains owned by Plan 14.

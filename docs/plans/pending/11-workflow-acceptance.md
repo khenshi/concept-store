@@ -2,8 +2,10 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No application edits, dependency additions,
-browser acceptance, printing, database operations or deployments performed.
+Status: Approved for implementation October 26, 2026. Application edits are
+limited to the narrow route-recovery and confirmation slice in this plan;
+browser acceptance, printing, database operations and deployments remain
+separate evidence activities.
 
 Priority: P0 for authorization, financial safety and blocked essential tasks before
 real pilot use. Qualify other usability defects by impact, not cosmetic preference.
@@ -213,4 +215,6 @@ Complete when essential authorized workflows pass, excluded roles remain denied,
 unknown outcomes survive recovery without duplicate effects, required accessibility
 and saved/PDF evidence is recorded, narrow UI changes are verified and documentation
 reflects reality. Unqualified printer support and chosen-browser limitations remain
-visible in the pilot handoff. No application feature is implemented by this draft.
+visible in the pilot handoff. The approved route-recovery and confirmation slice
+is implemented separately from the remaining browser, receipt/PDF and device
+acceptance evidence; this plan is not complete until those gates are recorded.
