@@ -34,7 +34,7 @@ describe('SalesReadService scoped history filters', () => {
     await service.findAll(context, 'branch', {
       q: 'SALE-001',
       cashierId: 'cashier',
-      paymentMethod: 'CARD',
+      paymentAccountId: 'CARD',
       from: '2026-09-12T16:00:00.000Z',
       until: '2026-09-13T16:00:00.000Z',
       page: 2,
@@ -45,7 +45,7 @@ describe('SalesReadService scoped history filters', () => {
       branchId: 'branch',
       receiptCode: { contains: 'SALE-001', mode: 'insensitive' },
       createdById: 'cashier',
-      paymentMethod: 'CARD',
+      paymentAccountId: 'CARD',
       completedAt: {
         gte: new Date('2026-09-12T16:00:00.000Z'),
         lt: new Date('2026-09-13T16:00:00.000Z'),

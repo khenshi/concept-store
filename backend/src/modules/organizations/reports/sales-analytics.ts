@@ -39,11 +39,6 @@ type MerchantSales = {
   merchantName: string;
   grossSales: string;
 };
-type NetPaymentMethodAggregate = {
-  paymentMethod: 'CASH' | 'GCASH' | 'CARD';
-  grossSales: string;
-  refundsAgainstSales: string;
-};
 const zero = {
   grossSales: '0.00',
   unitsSold: '0',
@@ -291,55 +286,6 @@ export async function readAnalytics(
     ORDER BY sales.gross DESC, sales."merchantId" ASC
     LIMIT 10
   `);
-  const netMethodRows: NetPaymentMethodAggregate[] = own
-    ? []
-    : await tx.$queryRaw<NetPaymentMethodAggregate[]>(Prisma.sql`
-    WITH sales AS (
-      SELECT "paymentMethod", SUM("total") AS gross
-      FROM "Sale"
-      WHERE "organizationId" = ${context.organizationId}
-        AND "branchId" = ${branchId}
-        AND "completedAt" >= ${from} AND "completedAt" < ${until}
-      GROUP BY "paymentMethod"
-    ), refunds AS (
-      SELECT source."paymentMethod", SUM(r."total") AS refunded
-      FROM "Refund" r
-      JOIN "Sale" source ON source."id" = r."saleId"
-        AND source."organizationId" = r."organizationId"
-        AND source."branchId" = r."branchId"
-      WHERE r."organizationId" = ${context.organizationId}
-        AND r."branchId" = ${branchId}
-        AND source."organizationId" = ${context.organizationId}
-        AND source."branchId" = ${branchId}
-        AND r."completedAt" >= ${from} AND r."completedAt" < ${until}
-      GROUP BY source."paymentMethod"
-    ), methods AS (
-      SELECT "paymentMethod" FROM sales
-      UNION
-      SELECT "paymentMethod" FROM refunds
-    )
-    SELECT methods."paymentMethod",
-      COALESCE(sales.gross, 0)::text AS "grossSales",
-      COALESCE(refunds.refunded, 0)::text AS "refundsAgainstSales"
-    FROM methods
-    LEFT JOIN sales USING ("paymentMethod")
-    LEFT JOIN refunds USING ("paymentMethod")
-  `);
-  const netMethodMap = new Map(
-    netMethodRows.map((row) => [row.paymentMethod, row]),
-  );
-  const netByPaymentMethod = (['CASH', 'GCASH', 'CARD'] as const).map(
-    (paymentMethod) => {
-      const row = netMethodMap.get(paymentMethod);
-      return {
-        paymentMethod,
-        netRecordedSales: netRecordedSales(
-          row?.grossSales ?? '0.00',
-          row?.refundsAgainstSales ?? '0.00',
-        ),
-      };
-    },
-  );
   const byHour = new Map(hourly.map((row) => [row.hour, row]));
   return {
     dailyTrends,
@@ -371,7 +317,6 @@ export async function readAnalytics(
       ...metrics(row, own),
     })),
     ...(!own ? { topMerchants } : {}),
-    ...(!own ? { netByPaymentMethod } : {}),
     totalProducts,
   };
 }

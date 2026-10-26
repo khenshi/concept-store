@@ -29,6 +29,7 @@ import {
 } from './dto/create-refund.dto';
 import { CompletedRefundResponseDto } from './refunds.types';
 import { RefundsService } from './refunds.service';
+import { AllowInactiveReplay } from '../authorization/allow-inactive-replay.decorator';
 @Controller(
   'organizations/:organizationId/branches/:branchId/sales/:saleId/refunds',
 )
@@ -53,6 +54,7 @@ import { RefundsService } from './refunds.service';
 export class RefundsController {
   constructor(private readonly refunds: RefundsService) {}
   @Post()
+  @AllowInactiveReplay()
   @ApiCreatedResponse({ type: CompletedRefundResponseDto })
   @ApiOperation({
     summary:

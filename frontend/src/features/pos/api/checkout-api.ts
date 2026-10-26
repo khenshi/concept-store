@@ -23,7 +23,7 @@ export async function completeCheckout(
   )
     throw new Error('Receipt scope is inconsistent.');
   if (
-    sale.paymentMethod !== command.paymentMethod ||
+    sale.paymentAccountId !== command.paymentAccountId ||
     sale.items.length !== command.items.length ||
     sale.items.some(
       (item) =>
@@ -34,9 +34,9 @@ export async function completeCheckout(
             line.expectedUnitPrice === item.unitPrice,
         ),
     ) ||
-    ('cashTender' in command
+    (command.cashTender !== undefined
       ? sale.cashTender !== command.cashTender
-      : sale.paymentReference !== command.paymentReference)
+      : sale.paymentReference !== (command.paymentReference ?? null))
   )
     throw new Error('Receipt does not match the checkout command.');
   return sale;

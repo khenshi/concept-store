@@ -18,10 +18,9 @@ payments or ledger history.
 No report entities, migration, analytics infrastructure or new indexes are added.
 The [manual refund API](refunds.md) records completed returns separately without
 editing original sales. Frontend cards display separate gross/refunded/net figures;
-staff analytics keeps gross sale payments and actual refund methods in separate
-response arrays.
-The staff analytics response also has a per-original-sale-method net breakdown;
-it does not change the actual refund-method totals.
+staff summary and analytics return a complete dynamic `paymentAccounts` array.
+Each account reports received sales, actual payout-account refunds and their net.
+No per-original-sale-method net attribution is used for payment-account flows.
 
 ## API
 
@@ -153,7 +152,7 @@ The server combines both streams before sorting newest completion first with a
 stable descending source ID tie-breaker, then applies pagination and returns
 `branch`, the applied range, `items`, `page`, `limit`, `total`, and `totalPages`.
 
-Owner and Manager rows expose the saved reference, amount, payment method, actor
+Owner and Manager rows expose the saved reference, amount, payment account, actor
 display name and saved merchant-name context. Merchant rows contain only the
 currently linked profile's own sale/refund amount and source identifiers; they
 omit payment, actor and other-merchant fields. Every row includes the source sale
@@ -199,24 +198,21 @@ totals. The separate lookup does not widen general branch/address/inventory rout
 ## Responses and aggregation
 
 Staff summary has `scope: STAFF`, `branch`, `from`, `until`, `grossSales`,
-`transactionCount`, `unitsSold`, `payments`, `refundedAmount`, `refundCount`,
-`returnedUnits`, `netRecordedSales` and `refundMethods`. A fixed CASH, GCASH, CARD array
-contains `paymentMethod`, `grossSales` and `transactionCount`; missing methods
-return zeros. GCash/card are manual, unverified payments. Cash amounts sum sale
-totals, not tender/change. Each sale contributes once, regardless of item count.
+`transactionCount`, `unitsSold`, `paymentAccounts`, `refundedAmount`, `refundCount`,
+`returnedUnits` and `netRecordedSales`. Each payment account includes `accountId`,
+`displayName`, `enabled`, `available`, `isCash`, `received`, `refunded`,
+`netReceived`, `transactionCount` and `refundCount`. Cash amounts sum sale totals,
+not tender/change. Each sale contributes once, regardless of item count.
 Units sum quantities from its tenant/branch-scoped items. Payment totals/counts
 reconcile to the staff summary within the same snapshot.
 
 Refunded amount sums each matching completed Refund total once. Refund count
 counts matching completed refunds; returned units sum all matching RefundItem
-quantities, regardless of restocking. A separate fixed CASH, GCASH, CARD
-refundMethods array contains paymentMethod, refundedAmount and refundCount,
-including explicit missing-method zeros. Those amounts/counts reconcile to the
-refund summary. Actual refund method may differ from original sale method. The
-summary's gross payment and actual refund method arrays remain independent;
-neither is presented as available cash or provider reconciliation. The staff
-analytics endpoint adds a separately labeled net breakdown attributed to original
-sale methods below.
+quantities, regardless of restocking. `paymentAccounts` groups each refund under
+its actual payout account, independently of the original sale's account. Those
+amounts/counts reconcile to the refund summary. The net for each account subtracts
+its actual refunds from its received sales; no available balance or provider
+reconciliation is claimed.
 Original transactionCount/unitsSold and gross payment breakdown are unchanged,
 not net counts/units.
 
@@ -258,13 +254,14 @@ with explicit STAFF/MERCHANT discriminator mappings.
 
 The analytics route accepts the same strict range, UUID and unknown-field rules.
 It returns the existing role-appropriate summary plus `dailyTrends`, `topProducts`
-and canonical integer-string `totalProducts`. STAFF also receives a fixed
-`netByPaymentMethod` array with signed per-method `netRecordedSales`. For each
-original sale method, it subtracts refunds processed in the selected period from
-sales completed in that period, attributing each refund to its linked Sale's
-payment method. The three amounts reconcile to summary `netRecordedSales`, may be
-negative, and are distinct from the actual refund-method array. MERCHANT responses
-do not include this field. Existing summary/lookup responses remain unchanged.
+and canonical integer-string `totalProducts`. STAFF receives dynamic
+`paymentAccounts` with signed `netReceived`. Sales and refunds are grouped
+independently by their actual account IDs and their own completion timestamps,
+then joined without multiplying item rows. Received minus refunded equals net
+for each account and across all account rows. MERCHANT responses do not include
+account totals. Current applicable accounts include zeros; unavailable accounts
+with in-scope activity remain visible. Renames change report labels while saved
+transaction details retain their original account-name snapshots.
 Fresh membership/user/role/link/grants, branch identity, summary,
 methods, daily aggregates, product count, ranking and saved labels share one
 REPEATABLE READ transaction. No client profile, role, ranking or limit overrides.
@@ -313,7 +310,7 @@ by original Sale.completedAt descending, then SaleItem.id descending; originals
 outside the range may contribute through matching refunds. Live renames, prices
 and inactive states do not rewrite those labels. Merchant aggregation and label
 selection are restricted to the current linked profile, never other mixed-sale
-items, private actors/commands, contacts or payment methods. Assigned unlinked
+items, private actors/commands, contacts or payment accounts. Assigned unlinked
 merchants receive zero-filled own days and empty products. Historical Reports
 access does not widen POS or Inventory.
 
@@ -365,8 +362,13 @@ for each date in accessible text, and shows a zero baseline so negative net valu
 remain clear. The plotted daily trend samples at most seven dates and labels every
 plotted point. When the selected period is one Manila calendar day, staff analytics
 also returns 24 zero-filled hourly rows and the trend switches to Philippine-hour
-points, while the accessible list retains every hour. The Payment Method donut shows gross sale totals by recorded method,
-with exact amounts and transaction counts. Manual GCash/card remain unverified.
+points, while the accessible list retains every hour. Payment Accounts offers
+Received, Refunded and Net Received controls using the same fetched data.
+Received and Refunded use donuts. Net Received uses a signed bar chart whenever
+any account is negative; zero periods show an explicit empty state. A breakdown
+table always includes all three amounts and exact totals, with 15-row pagination.
+These are recorded transaction flows, not verified account balances: opening
+balances, fees, withdrawals, expenses and transfers are excluded.
 Merchants use their separate own-only analytics response and view described below.
 
 Reports now use the shared warm-neutral page frame with a wide centered layout.
@@ -428,7 +430,7 @@ contains no rows.
 The refreshed owner/manager Overview layout puts the period summary first, then a
 full-width selectable daily trend as the primary reading surface. An `Explore the
 period` group follows with side-by-side Top Merchants and Top Products gross-sales
-bars, then a separated Average Sales by Weekday and gross Payment Method
+bars, then a separated Average Sales by Weekday and Payment Accounts
 breakdown. The two performance charts show up to the first five ranked results.
 At medium widths and above, the weekday chart spans two-thirds of its row and the
 payment donut one-third; they stack on narrow phones. Merchant bars use the
@@ -486,10 +488,10 @@ private fields. Aggregate values render as exact strings without number rounding
 
 Existing gross cards retain original sale counts/units. Separate cards show refunded
 amount, completed refund count, returned units and net recorded sales. Staff analytics
-response data retains actual refund methods separately from gross sale methods,
-plus a net breakdown attributed to original sale methods. The refreshed dashboard
-charts gross sale methods only; actual refund methods are not reclassified. No
-chart represents available cash or provider reconciliation.
+response data attributes received and refunded amounts to their actual account
+IDs. The dashboard switches between received, refunded and net account amounts;
+negative net uses a signed bar chart. No chart represents available cash or
+provider reconciliation.
 Date guidance explains
 sale completion versus refund processing dates, including older original sales and
 negative net periods. A refund-only period displays its refund/net values without
@@ -561,11 +563,11 @@ full date editor remains the single source of truth for changing the applied
 period.
 
 Strict runtime schemas validate identity-only distinct options, STAFF scope,
-branch/range correspondence, canonical exact money/integer strings, three distinct
-payment methods and summary reconciliation before rendering. Merchant/private,
+branch/range correspondence, canonical exact money/integer strings, distinct
+payment account IDs and summary reconciliation before rendering. Merchant/private,
 malformed or stale-scope responses are rejected. Aggregate values render without
 floating-point conversion or single-sale size limits. Empty periods still show
-zero gross/refund/net summaries and all three sale/refund-method rows, with explicit
+zero gross/refund/net summaries and applicable zero-valued account rows, with explicit
 no-activity feedback when both streams are empty.
 Labels distinguish gross recorded sales from profit/payouts and manual unverified
 GCash/card from payment-provider reconciliation.

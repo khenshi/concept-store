@@ -1,3 +1,4 @@
+import { walletSnapshot } from '@/features/pos/model/payment-account.test-fixtures';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { completedSale } from '../model/pos.test-fixtures';
 import { SaleReceipt } from './sale-receipt';
@@ -34,7 +35,7 @@ describe('persisted internal receipt', () => {
       <SaleReceipt
         sale={{
           ...completedSale,
-          paymentMethod: 'GCASH',
+          ...walletSnapshot,
           cashTender: null,
           cashChange: null,
           paymentReference: 'SAVED-REF',

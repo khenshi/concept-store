@@ -101,8 +101,8 @@ export class SalesReadService {
           ...(current.role !== 'MERCHANT' && query.cashierId
             ? { createdById: query.cashierId }
             : {}),
-          ...(current.role !== 'MERCHANT' && query.paymentMethod
-            ? { paymentMethod: query.paymentMethod }
+          ...(current.role !== 'MERCHANT' && query.paymentAccountId
+            ? { paymentAccountId: query.paymentAccountId }
             : {}),
           ...(query.from || query.until
             ? {
@@ -247,7 +247,7 @@ export class SalesReadService {
           organizationId: context.organizationId,
           userId: context.userId,
         },
-        user: { deletedAt: null },
+        user: { deletedAt: null, emailVerifiedAt: { not: null } },
       },
       select: { role: true, merchantId: true },
     });

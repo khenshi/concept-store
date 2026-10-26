@@ -15,8 +15,9 @@ import {
   type CheckoutCommand,
   type CompletedSale,
   type PaymentDraft,
-  type PaymentMethod,
 } from '../model/checkout';
+import { useBranchPaymentAccounts } from '../model/use-branch-payment-accounts';
+import { SelectControl } from '@/shared/components/ui/select-control';
 import { posCartTotal } from '../model/pos-cart';
 import type { PosCartLine, PosScope } from '../model/pos.types';
 import {
@@ -54,13 +55,25 @@ export function PaymentConfirmation({
   onIssue(issue: CheckoutIssue): void;
   onUnsafeChange(unsafe: boolean): void;
 }) {
+  const {
+    accounts,
+    error: accountsError,
+    refresh: refreshAccounts,
+  } = useBranchPaymentAccounts(
+    request,
+    scope.organizationId,
+    scope.branchId,
+    'SALE',
+    false,
+    open,
+  );
+  const initializedAccount = useRef(accounts !== null);
   const [initialAttempt] = useState(() => getCheckoutAttempt(attemptKey));
   const saved = initialAttempt?.command;
   const [draft, setDraft] = useState<PaymentDraft>({
-    method: saved?.paymentMethod ?? 'CASH',
-    tender: saved && 'cashTender' in saved ? saved.cashTender : '',
-    reference:
-      saved && 'paymentReference' in saved ? saved.paymentReference : '',
+    account: accounts?.find((account) => account.systemKey === 'CASH') ?? null,
+    tender: saved?.cashTender ?? '',
+    reference: saved?.paymentReference ?? '',
   });
   const [fieldError, setFieldError] = useState<string>();
   const [message, setMessage] = useState<string | undefined>(
@@ -78,8 +91,39 @@ export function PaymentConfirmation({
   );
   const mounted = useRef(true);
   const timer = useRef<number | undefined>(undefined);
+  const availableAccount = accounts?.find(
+    (account) => account.id === draft.account?.id,
+  );
+  const currentDraft = { ...draft, account: availableAccount ?? null };
+  useEffect(() => {
+    if (uncertain.current || busy.current || accounts === null) return;
+    if (!initializedAccount.current) {
+      initializedAccount.current = true;
+      void Promise.resolve().then(() =>
+        setDraft((current) => ({
+          ...current,
+          account:
+            accounts.find((account) => account.systemKey === 'CASH') ?? null,
+        })),
+      );
+      return;
+    }
+    if (
+      draft.account &&
+      !accounts.some((account) => account.id === draft.account?.id)
+    ) {
+      void Promise.resolve().then(() =>
+        setDraft((current) => ({
+          ...current,
+          account: null,
+          tender: '',
+          reference: '',
+        })),
+      );
+    }
+  }, [accounts, draft.account]);
   const total = posCartTotal(lines);
-  const estimatedChange = changeEstimate(draft, total);
+  const estimatedChange = changeEstimate(currentDraft, total);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -94,7 +138,18 @@ export function PaymentConfirmation({
     // A known rejected command may be replaced only when its content changes.
     window.clearTimeout(timer.current);
     if (!shouldValidate) return;
-    const validate = () => setFieldError(paymentError(next, total));
+    const validate = () =>
+      setFieldError(
+        paymentError(
+          {
+            ...next,
+            account:
+              accounts?.find((account) => account.id === next.account?.id) ??
+              null,
+          },
+          total,
+        ),
+      );
     if (immediate) validate();
     else timer.current = window.setTimeout(validate, 300);
   }
@@ -105,7 +160,7 @@ export function PaymentConfirmation({
     let attempt = command.current;
     if (!uncertain.current) {
       try {
-        const content = checkoutContent(lines, draft);
+        const content = checkoutContent(lines, currentDraft);
         const previous = attempt
           ? JSON.stringify(
               Object.fromEntries(
@@ -117,7 +172,7 @@ export function PaymentConfirmation({
           attempt = { ...content, requestId: crypto.randomUUID() };
         command.current = attempt;
       } catch (cause) {
-        setFieldError(paymentError(draft, total));
+        setFieldError(paymentError(currentDraft, total));
         setMessage(
           cause instanceof Error ? cause.message : 'Review payment details.',
         );
@@ -161,6 +216,7 @@ export function PaymentConfirmation({
           'INSUFFICIENT_STOCK',
           'PRODUCT_UNAVAILABLE',
           'CHECKOUT_RETRY',
+          'PAYMENT_ACCOUNT_UNAVAILABLE',
         ].includes(code ?? '');
       const knownRejected =
         !uncertain.current &&
@@ -181,6 +237,7 @@ export function PaymentConfirmation({
         );
       } else {
         setCheckoutAttempt(attemptKey, null);
+        if (code === 'PAYMENT_ACCOUNT_UNAVAILABLE') refreshAccounts();
         if (!mounted.current) return;
         onUnsafeChange(false);
         setMessage(
@@ -203,7 +260,7 @@ export function PaymentConfirmation({
   }
   const requestPending = pending || retained?.state === 'pending';
   const locked = requestPending || unknown;
-  const paymentValidationError = paymentError(draft, total);
+  const paymentValidationError = paymentError(currentDraft, total);
   function close() {
     if (busy.current || uncertain.current) return;
     onClose();
@@ -249,51 +306,60 @@ export function PaymentConfirmation({
             void submit();
           }}
         >
-          <fieldset disabled={locked} className="grid gap-3">
-            <legend className="mb-2 text-sm font-semibold">
-              Payment method
-            </legend>
-            <div className="flex flex-wrap gap-4">
-              {(['CASH', 'GCASH', 'CARD'] as PaymentMethod[]).map((method) => (
-                <label
-                  key={method}
-                  className="flex min-h-11 items-center gap-2 text-sm"
-                >
-                  <input
-                    className="peer sr-only"
-                    type="radio"
-                    name="payment-method"
-                    value={method}
-                    checked={draft.method === method}
-                    onChange={() => {
-                      setFieldError(undefined);
-                      edit(
-                        {
-                          method,
-                          tender: '',
-                          reference: '',
-                        },
-                        false,
-                        false,
-                      );
-                    }}
-                  />
-                  <span
-                    aria-hidden="true"
-                    className="grid size-5 shrink-0 place-items-center rounded-full border border-control-border bg-surface text-transparent transition-colors peer-checked:border-action peer-checked:bg-action peer-checked:text-action-foreground peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-focus peer-disabled:bg-subtle peer-disabled:opacity-60"
-                  >
-                    <span className="size-2 rounded-full bg-current" />
-                  </span>
-                  {method === 'GCASH'
-                    ? 'GCash'
-                    : method === 'CARD'
-                      ? 'Card'
-                      : 'Cash'}
-                </label>
+          <div className="grid gap-2">
+            <label
+              htmlFor="checkout-payment-account"
+              className="text-sm font-semibold"
+            >
+              Payment account
+            </label>
+            <SelectControl
+              id="checkout-payment-account"
+              value={availableAccount?.id ?? ''}
+              disabled={locked || accounts === null}
+              onValueChange={(id) => {
+                setFieldError(undefined);
+                edit(
+                  {
+                    account:
+                      accounts?.find((account) => account.id === id) ?? null,
+                    tender: '',
+                    reference: '',
+                  },
+                  false,
+                  false,
+                );
+              }}
+            >
+              <option value="">
+                {accounts === null
+                  ? 'Loading payment accounts…'
+                  : 'Choose payment account'}
+              </option>
+              {(accounts ?? []).map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
               ))}
-            </div>
-          </fieldset>
-          {draft.method === 'CASH' ? (
+            </SelectControl>
+            {locked && saved ? (
+              <p className="text-xs text-muted">
+                Locked account:{' '}
+                {draft.account?.id === saved.paymentAccountId
+                  ? (draft.account.name ?? 'Previously selected account')
+                  : 'Previously selected account'}
+              </p>
+            ) : null}
+            {accountsError ? (
+              <div role="alert">
+                <p>{accountsError}</p>
+                <Button variant="quiet" onClick={refreshAccounts}>
+                  Retry accounts
+                </Button>
+              </div>
+            ) : null}
+          </div>
+          {availableAccount?.systemKey === 'CASH' ? (
             <>
               <TextField
                 label="Cash tender (PHP)"
@@ -302,7 +368,7 @@ export function PaymentConfirmation({
                 maxLength={25}
                 placeholder="e.g. 500.00"
                 value={draft.tender}
-                disabled={locked}
+                disabled={locked || !availableAccount}
                 error={fieldError}
                 onChange={(event) => {
                   const value = event.target.value;
@@ -320,7 +386,7 @@ export function PaymentConfirmation({
           ) : (
             <>
               <TextField
-                label="Payment reference"
+                label="Account reference"
                 icon="pencil"
                 maxLength={100}
                 placeholder="e.g. GCASH-20261020-001"
@@ -333,7 +399,11 @@ export function PaymentConfirmation({
                   edit({ ...draft, reference: value });
                 }}
                 onBlur={() => edit(draft, true)}
-                hint="Use 2–100 characters."
+                hint={
+                  availableAccount?.requiresReference
+                    ? 'Required: use 2–100 characters.'
+                    : 'Optional: use 2–100 characters if supplied.'
+                }
               />
             </>
           )}

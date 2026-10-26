@@ -1,3 +1,7 @@
+import {
+  reportAccount,
+  mergeAccountFlows,
+} from '@/features/reports/model/report.test-fixtures';
 import { describe, expect, it } from 'vitest';
 import {
   reportQuerySchema,
@@ -5,7 +9,6 @@ import {
   staffDailyReportPageSchema,
   staffSalesAnalyticsSchema,
 } from './report.schemas';
-
 it('validates historical bounds without a 366-day limit', () => {
   expect(
     reportQuerySchema.safeParse({
@@ -20,7 +23,6 @@ it('validates historical bounds without a 366-day limit', () => {
     }).success,
   ).toBe(false);
 });
-
 it('matches backend daily pagination defaults and supported query bounds', () => {
   const range = { from: '1899-12-31T16:00:00Z', until: '9999-12-30T16:00:00Z' };
   expect(reportDailyQuerySchema.parse(range)).toEqual({
@@ -44,7 +46,6 @@ it('matches backend daily pagination defaults and supported query bounds', () =>
     reportDailyQuerySchema.safeParse({ ...range, limit: 101 }).success,
   ).toBe(false);
 });
-
 it.each(['MONTH', 'YEAR'] as const)(
   'reconciles complete %s buckets and rejects missing, mislabelled or altered buckets',
   (granularity) => {
@@ -100,7 +101,6 @@ it.each(['MONTH', 'YEAR'] as const)(
     ).toBe(false);
   },
 );
-
 it('validates server daily page offsets, totals and exact row arithmetic', () => {
   const page = {
     scope: 'STAFF',
@@ -134,7 +134,6 @@ it('validates server daily page offsets, totals and exact row arithmetic', () =>
       .success,
   ).toBe(true);
 });
-
 const branch = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Main',
@@ -152,45 +151,36 @@ const base = {
   refundCount: '1',
   returnedUnits: '1',
   netRecordedSales: '50.00',
-  payments: [
-    {
-      paymentMethod: 'CASH' as const,
-      grossSales: '60.00',
-      transactionCount: '3',
-    },
-    {
-      paymentMethod: 'GCASH' as const,
-      grossSales: '0.00',
-      transactionCount: '0',
-    },
-    {
-      paymentMethod: 'CARD' as const,
-      grossSales: '0.00',
-      transactionCount: '0',
-    },
-  ],
-  refundMethods: [
-    {
-      paymentMethod: 'CASH' as const,
-      refundedAmount: '10.00',
-      refundCount: '1',
-    },
-    {
-      paymentMethod: 'GCASH' as const,
-      refundedAmount: '0.00',
-      refundCount: '0',
-    },
-    {
-      paymentMethod: 'CARD' as const,
-      refundedAmount: '0.00',
-      refundCount: '0',
-    },
-  ],
-  netByPaymentMethod: [
-    { paymentMethod: 'CASH' as const, netRecordedSales: '50.00' },
-    { paymentMethod: 'GCASH' as const, netRecordedSales: '0.00' },
-    { paymentMethod: 'CARD' as const, netRecordedSales: '0.00' },
-  ],
+  paymentAccounts: mergeAccountFlows(
+    [
+      reportAccount('CASH' as const, {
+        received: '60.00',
+        transactionCount: '3',
+      }),
+      reportAccount('GCASH' as const, {
+        received: '0.00',
+        transactionCount: '0',
+      }),
+      reportAccount('CARD' as const, {
+        received: '0.00',
+        transactionCount: '0',
+      }),
+    ],
+    [
+      reportAccount('CASH' as const, {
+        refunded: '10.00',
+        refundCount: '1',
+      }),
+      reportAccount('GCASH' as const, {
+        refunded: '0.00',
+        refundCount: '0',
+      }),
+      reportAccount('CARD' as const, {
+        refunded: '0.00',
+        refundCount: '0',
+      }),
+    ],
+  ),
   dailyTrends: [
     {
       date: '2026-09-14',
@@ -247,11 +237,8 @@ describe('strict staff analytics contract', () => {
         ...base,
         grossSales: huge,
         netRecordedSales: hugeNet,
-        payments: base.payments.map((row, index) =>
-          index ? row : { ...row, grossSales: huge },
-        ),
-        netByPaymentMethod: base.netByPaymentMethod.map((row, index) =>
-          index ? row : { ...row, netRecordedSales: hugeNet },
+        paymentAccounts: base.paymentAccounts.map((row, index) =>
+          index ? row : { ...row, received: huge, netReceived: hugeNet },
         ),
         dailyTrends: base.dailyTrends.map((row, index) =>
           index ? row : { ...row, grossSales: huge, netRecordedSales: huge },
@@ -269,21 +256,21 @@ describe('strict staff analytics contract', () => {
   });
   it.each([
     { dailyTrends: base.dailyTrends.slice(1) },
-    { netByPaymentMethod: base.netByPaymentMethod.slice(1) },
+    { paymentAccounts: base.paymentAccounts.slice(1) },
     {
-      netByPaymentMethod: [
-        base.netByPaymentMethod[0],
-        base.netByPaymentMethod[0],
-        base.netByPaymentMethod[2],
+      paymentAccounts: [
+        base.paymentAccounts[0],
+        base.paymentAccounts[0],
+        base.paymentAccounts[2],
       ],
     },
     {
-      netByPaymentMethod: base.netByPaymentMethod.map((row, index) =>
-        index ? row : { ...row, netRecordedSales: '49.99' },
+      paymentAccounts: base.paymentAccounts.map((row, index) =>
+        index ? row : { ...row, netReceived: '49.99' },
       ),
     },
     {
-      netByPaymentMethod: base.netByPaymentMethod.map((row, index) =>
+      paymentAccounts: base.paymentAccounts.map((row, index) =>
         index ? row : { ...row, contactName: 'private' },
       ),
     },

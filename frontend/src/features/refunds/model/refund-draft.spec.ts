@@ -1,3 +1,8 @@
+import {
+  cashAccount,
+  walletAccount,
+  bankAccount,
+} from '@/features/pos/model/payment-account.test-fixtures';
 import { completedSale } from '@/features/pos/model/pos.test-fixtures';
 import { refundErrors, refundEstimate, type RefundDraft } from './refund-draft';
 import { remaining } from './refund.test-fixtures';
@@ -5,7 +10,7 @@ const id = remaining[0].saleItemId;
 const valid: RefundDraft = {
   lines: { [id]: { quantity: '1', restock: '0' } },
   reason: 'Damaged item',
-  method: 'CASH',
+  account: cashAccount,
   reference: '',
 };
 describe('live refund draft validation', () => {
@@ -46,7 +51,7 @@ describe('live refund draft validation', () => {
   it('requires a selected line, reason and actual noncash reference', () => {
     expect(
       refundErrors(
-        { ...valid, lines: {}, reason: ' ', method: 'GCASH' },
+        { ...valid, lines: {}, reason: ' ', account: walletAccount },
         remaining,
       ),
     ).toMatchObject({
@@ -56,7 +61,7 @@ describe('live refund draft validation', () => {
     });
     expect(
       refundErrors(
-        { ...valid, method: 'CARD', reference: 'manual-card-ref' },
+        { ...valid, account: bankAccount, reference: 'manual-card-ref' },
         remaining,
       ),
     ).toEqual({});

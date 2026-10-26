@@ -26,6 +26,7 @@ import { OrganizationRoles } from '../authorization/organization-roles.decorator
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { CheckoutService } from './checkout.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { AllowInactiveReplay } from '../authorization/allow-inactive-replay.decorator';
 
 @Controller('organizations/:organizationId/branches/:branchId/sales')
 @UseGuards(AuthGuard, OrganizationAccessGuard)
@@ -52,6 +53,7 @@ import { CheckoutDto } from './dto/checkout.dto';
 export class CheckoutController {
   constructor(private readonly checkout: CheckoutService) {}
   @Post()
+  @AllowInactiveReplay()
   @ApiOperation({
     summary:
       'Atomically complete checkout or replay the original actor’s identical command',

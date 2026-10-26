@@ -2,13 +2,13 @@ import {
   formatCents,
   moneyCents,
   type CompletedSale,
-  type PaymentMethod,
+  type PaymentAccountChoice,
 } from '@/features/pos/model/checkout';
 import type { RemainingItem } from './refund.schemas';
 export type RefundDraft = {
   lines: Record<string, { quantity: string; restock: string }>;
   reason: string;
-  method: PaymentMethod;
+  account: PaymentAccountChoice | null;
   reference: string;
 };
 export function refundErrors(draft: RefundDraft, remaining: RemainingItem[]) {
@@ -38,9 +38,13 @@ export function refundErrors(draft: RefundDraft, remaining: RemainingItem[]) {
   if (!selected) errors.items = 'Choose at least one whole item to return.';
   if (draft.reason.trim().length < 2 || draft.reason.trim().length > 500)
     errors.reason = '2–500 characters';
+  if (!draft.account) errors.account = 'Choose an available refund account.';
+  const reference = draft.reference.trim();
   if (
-    draft.method !== 'CASH' &&
-    (draft.reference.trim().length < 2 || draft.reference.trim().length > 100)
+    draft.account &&
+    draft.account.systemKey !== 'CASH' &&
+    ((!reference && draft.account.requiresReference) ||
+      (Boolean(reference) && (reference.length < 2 || reference.length > 100)))
   )
     errors.reference = '2–100 characters';
   return errors;

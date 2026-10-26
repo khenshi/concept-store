@@ -1,3 +1,7 @@
+import {
+  cashAccount,
+  cashSnapshot,
+} from '@/features/pos/model/payment-account.test-fixtures';
 import { completedSale } from '@/features/pos/model/pos.test-fixtures';
 import type {
   RefundCommand,
@@ -12,7 +16,7 @@ export const refundScope = {
 export const command: RefundCommand = {
   requestId: '44444444-4444-4444-8444-444444444444',
   reason: 'Damaged item',
-  paymentMethod: 'CASH',
+  paymentAccountId: cashAccount.id,
   refundConfirmed: true,
   items: [
     { saleItemId: completedSale.items[0].id, quantity: 1, restockQuantity: 0 },
@@ -27,7 +31,7 @@ export const staffRefund: StaffRefund = {
   refundCode: 'REFUND-SAVED-001',
   completedAt: '2026-09-14T05:00:00.000Z',
   reason: command.reason,
-  paymentMethod: 'CASH',
+  ...cashSnapshot,
   paymentReference: null,
   total: '850.00',
   items: [

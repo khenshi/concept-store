@@ -3,7 +3,6 @@ import {
   merchantDailyReportPageSchema,
   merchantSalesAnalyticsSchema,
 } from './report.schemas';
-
 it('validates own-only server daily rows and pagination', () => {
   const page = {
     scope: 'MERCHANT',
@@ -30,7 +29,6 @@ it('validates own-only server daily rows and pagination', () => {
     }).success,
   ).toBe(false);
 });
-
 it('reconciles monthly own-only buckets without exposing staff fields', () => {
   const dailyTrends = Array.from({ length: 25 }, (_, index) => ({
     ...base.dailyTrends[0],
@@ -68,7 +66,6 @@ it('reconciles monthly own-only buckets without exposing staff fields', () => {
     }).success,
   ).toBe(false);
 });
-
 const base = {
   scope: 'MERCHANT' as const,
   branch: {
@@ -210,8 +207,8 @@ describe('strict merchant analytics contract', () => {
   });
   it.each([
     { grossSales: '25.00' },
-    { payments: [] },
-    { refundMethods: [] },
+    { paymentAccounts: [] },
+    { paymentAccounts: [] },
     {
       dailyTrends: base.dailyTrends.map((row) => ({
         ...row,

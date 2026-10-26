@@ -1,4 +1,8 @@
 import {
+  reportAccount,
+  mergeAccountFlows,
+} from '@/features/reports/model/report.test-fixtures';
+import {
   act,
   fireEvent,
   render,
@@ -21,7 +25,6 @@ import type {
 } from '../model/report.schemas';
 import type { MerchantSalesReport } from '../model/report.schemas';
 import type { MerchantSalesAnalytics } from '../model/report.schemas';
-
 const navigationState = vi.hoisted(() => ({
   href: '',
   listeners: new Set<() => void>(),
@@ -78,24 +81,22 @@ const report: StaffSalesReport = {
   refundCount: '0',
   returnedUnits: '0',
   netRecordedSales: '60.00',
-  refundMethods: (['CASH', 'GCASH', 'CARD'] as const).map((paymentMethod) => ({
-    paymentMethod,
-    refundedAmount: '0.00',
-    refundCount: '0',
-  })),
-  payments: [
-    { paymentMethod: 'CASH', grossSales: '10.00', transactionCount: '1' },
-    { paymentMethod: 'GCASH', grossSales: '20.00', transactionCount: '1' },
-    { paymentMethod: 'CARD', grossSales: '30.00', transactionCount: '1' },
-  ],
+  paymentAccounts: mergeAccountFlows(
+    [
+      reportAccount('CASH', { received: '10.00', transactionCount: '1' }),
+      reportAccount('GCASH', { received: '20.00', transactionCount: '1' }),
+      reportAccount('CARD', { received: '30.00', transactionCount: '1' }),
+    ],
+    (['CASH', 'GCASH', 'CARD'] as const).map((paymentMethod) =>
+      reportAccount(paymentMethod, {
+        refunded: '0.00',
+        refundCount: '0',
+      }),
+    ),
+  ),
 };
 const analyticsReport: StaffSalesAnalytics = {
   ...report,
-  netByPaymentMethod: [
-    { paymentMethod: 'CASH', netRecordedSales: '10.00' },
-    { paymentMethod: 'GCASH', netRecordedSales: '20.00' },
-    { paymentMethod: 'CARD', netRecordedSales: '30.00' },
-  ],
   dailyTrends: [
     {
       date: '2026-09-14',
@@ -193,7 +194,10 @@ function transactionsFor(path: string) {
         completedAt: '2026-09-14T05:00:00.000Z',
         reference: 'RCPT-001',
         amount: '25.00',
-        paymentMethod: 'CASH' as const,
+        paymentAccountId: '77777777-7777-4777-8777-777777777777',
+        paymentAccountName: 'Cash',
+        paymentAccountIsCash: true,
+        paymentAccountRequiresReference: false,
         actorName: 'Cashier One',
         merchantNames: ['Local maker'],
       },
@@ -228,7 +232,6 @@ function deferred<T>() {
   });
   return { promise, resolve };
 }
-
 function chooseReportDates(...days: string[]) {
   fireEvent.click(screen.getByRole('button', { name: 'Report date filter' }));
   for (const day of days) {
@@ -241,7 +244,6 @@ function chooseReportDates(...days: string[]) {
     fireEvent.click(screen.getByRole('gridcell', { name: label }));
   }
 }
-
 describe('staff Reports workspace', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -304,7 +306,6 @@ describe('staff Reports workspace', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
-
   it('switches nested pages while retaining the same header and applied dates', async () => {
     render(
       <BranchReports organizationId="org" branchId={branch.id}>
@@ -604,7 +605,6 @@ describe('staff Reports workspace', () => {
       screen.queryByRole('table', { name: 'Transaction history' }),
     ).toBeNull();
   });
-
   it('requires explicit selection even for one branch and uses no summary/general branch read', async () => {
     request.mockResolvedValue([branch]);
     render(<ReportsEntry organizationId="org" />);
@@ -631,7 +631,7 @@ describe('staff Reports workspace', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(request).not.toHaveBeenCalled();
       expect(
-        screen.queryByRole('list', { name: 'Payment breakdown' }),
+        screen.queryByRole('table', { name: 'Exact payment account flows' }),
       ).not.toBeInTheDocument();
     },
   );
@@ -662,8 +662,8 @@ describe('staff Reports workspace', () => {
     expect(
       screen.getByRole('button', { name: 'Report date filter' }),
     ).toHaveTextContent('Sep 14, 2026');
-    expect(screen.getAllByText('GCash')).toHaveLength(1);
-    expect(screen.getAllByText('Card')).toHaveLength(1);
+    expect(screen.getAllByText('GCash Main')).toHaveLength(2);
+    expect(screen.getAllByText('BPI')).toHaveLength(2);
   });
   it('switches report tabs without leaving the section or changing the applied range', async () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
@@ -858,7 +858,7 @@ describe('staff Reports workspace', () => {
       'Reports access revoked',
     );
     expect(
-      screen.queryByRole('list', { name: 'Payment breakdown' }),
+      screen.queryByRole('table', { name: 'Exact payment account flows' }),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
     expect(refreshOrganization).toHaveBeenCalled();
@@ -878,8 +878,8 @@ describe('staff Reports workspace', () => {
       old.resolve({
         ...analyticsReport,
         grossSales: '99.00',
-        payments: report.payments.map((payment, i) =>
-          i ? payment : { ...payment, grossSales: '49.00' },
+        paymentAccounts: report.paymentAccounts.map((payment, i) =>
+          i ? payment : { ...payment, received: '49.00' },
         ),
       }),
     );
@@ -900,7 +900,7 @@ describe('staff Reports workspace', () => {
     context('OWNER', 'another-org');
     view.rerender(<BranchReports organizationId="org" branchId={branch.id} />);
     expect(
-      screen.queryByRole('list', { name: 'Payment breakdown' }),
+      screen.queryByRole('table', { name: 'Exact payment account flows' }),
     ).not.toBeInTheDocument();
     expect(request).toHaveBeenCalledTimes(2);
   });
@@ -1034,8 +1034,8 @@ describe('staff Reports workspace', () => {
       old.resolve({
         ...analyticsReport,
         grossSales: '99.00',
-        payments: report.payments.map((payment, i) =>
-          i ? payment : { ...payment, grossSales: '49.00' },
+        paymentAccounts: report.paymentAccounts.map((payment, i) =>
+          i ? payment : { ...payment, received: '49.00' },
         ),
       }),
     );
@@ -1056,7 +1056,7 @@ describe('staff Reports workspace', () => {
     await screen.findByRole('alert');
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('list', { name: 'Payment breakdown' }),
+      screen.queryByRole('table', { name: 'Exact payment account flows' }),
     ).not.toBeInTheDocument();
   });
   it('clears totals before branch navigation without a back button', async () => {
@@ -1085,7 +1085,7 @@ describe('staff Reports workspace', () => {
       />,
     );
     expect(
-      screen.getByText('PHP 999999999999999999999999999999.01'),
+      screen.getAllByText('PHP 999999999999999999999999999999.01')[0],
     ).toBeInTheDocument();
     expect(screen.getByText('9007199254740993')).toBeInTheDocument();
     view.rerender(
@@ -1096,25 +1096,26 @@ describe('staff Reports workspace', () => {
           netRecordedSales: '0.00',
           transactionCount: '0',
           unitsSold: '0',
-          payments: report.payments.map((p) => ({
+          paymentAccounts: report.paymentAccounts.map((p) => ({
             ...p,
-            grossSales: '0.00',
+            received: '0.00',
             transactionCount: '0',
           })),
         }}
       />,
     );
-    expect(screen.getByRole('status')).toHaveTextContent('No completed sales');
+    expect(screen.getAllByRole('status')[0]).toHaveTextContent(
+      'No completed sales',
+    );
     expect(
       within(
-        screen.getByRole('list', { name: 'Payment breakdown' }),
-      ).getAllByRole('listitem'),
-    ).toHaveLength(3);
+        screen.getByRole('table', { name: 'Exact payment account flows' }),
+      ).getAllByRole('row'),
+    ).toHaveLength(5);
     expect(
       screen.queryByRole('button', { name: /export|print/i }),
     ).not.toBeInTheDocument();
   });
-
   describe('merchant own-only workspace', () => {
     const own: MerchantSalesReport = {
       scope: 'MERCHANT',
@@ -1240,7 +1241,7 @@ describe('staff Reports workspace', () => {
         1,
       );
       expect(
-        screen.queryByRole('list', { name: 'Payment breakdown' }),
+        screen.queryByRole('table', { name: 'Exact payment account flows' }),
       ).not.toBeInTheDocument();
       expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
       expect(
@@ -1311,7 +1312,7 @@ describe('staff Reports workspace', () => {
         screen.getByRole('option', { name: 'South (MAIN)' }),
       ).toBeInTheDocument();
       expect(
-        screen.queryByRole('list', { name: 'Payment breakdown' }),
+        screen.queryByRole('table', { name: 'Exact payment account flows' }),
       ).not.toBeInTheDocument();
     });
     it.each(['STAFF', 'PRIVATE'])(
@@ -1322,13 +1323,15 @@ describe('staff Reports workspace', () => {
         request
           .mockResolvedValueOnce([branch])
           .mockResolvedValueOnce(
-            kind === 'STAFF' ? report : { ...own, payments: report.payments },
+            kind === 'STAFF'
+              ? report
+              : { ...own, paymentAccounts: report.paymentAccounts },
           );
         fireEvent.click(screen.getByRole('button', { name: 'Refresh Report' }));
         expect(screen.queryByText('PHP 25.00')).not.toBeInTheDocument();
         await screen.findByRole('alert');
         expect(
-          screen.queryByRole('list', { name: 'Payment breakdown' }),
+          screen.queryByRole('table', { name: 'Exact payment account flows' }),
         ).not.toBeInTheDocument();
         expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
       },
@@ -1385,7 +1388,7 @@ describe('staff Reports workspace', () => {
       expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
       expect(request.mock.calls[1][0]).not.toContain('/reports/sales?');
       expect(
-        screen.queryByRole('list', { name: 'Payment breakdown' }),
+        screen.queryByRole('table', { name: 'Exact payment account flows' }),
       ).not.toBeInTheDocument();
     });
     it('rejects an obsolete own response after applying a new period', async () => {

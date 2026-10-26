@@ -45,10 +45,10 @@ This dedicated cashier contract does not widen existing product, merchant,
 inventory/history, member-directory or stock-mutation permissions.
 
 Staff POS Sales History uses the existing scoped sales read and cashier-options
-routes. The history screen has server-backed receipt-code, cashier, payment-method
+routes. The history screen has server-backed receipt-code, cashier, payment-account
 and optional Manila calendar-date filters. Search is debounced by 300 ms; select
 changes reload immediately. The table uses a fixed 15-row page and shows Manila
-date/time, cashier, payment method, amount and a saved receipt action. It has no
+date/time, cashier, saved payment account, amount and a receipt action. It has no
 branch column because the active POS scope already identifies the branch.
 Merchant own-sales routes keep their reduced projections, separate UTC filter
 controls and the same 15-row page size; they never request the staff cashier
@@ -188,14 +188,17 @@ Rendered viewport QA was not run because no browser surface was available.
 ## Payment confirmation and recovery
 
 Review payment opens a native dialog showing the cart and estimated total. The
-payment-method controls use custom accessible controls.
+payment-account controls use custom accessible controls populated from the
+authorized branch account endpoint. Account configuration is authoritative for
+new choices; unavailable accounts are excluded and stale drafts are revalidated.
 Cash tender accepts only up to 22 whole digits and two decimal places; invalid
 characters are ignored, it must cover the total, and estimated change remains
-visible while editing. GCash/card are explicitly manual and provider-unverified,
-requiring a trimmed 2–100 character reference; overlong input is rejected. The
+visible while editing. Noncash payments are manual and provider-unverified.
+Account reference requirements come from the configured account; supplied
+references use a trimmed 2–100 character format. The
 reviewed item list has its own maximum height and scrolls independently. The
 Complete sale action stays disabled until the cash tender or manual payment
-reference is valid. Changing method clears its fields. Estimated change uses
+reference is valid. Changing account clears its fields. Estimated change uses
 integer cents;
 completion displays backend-persisted change.
 

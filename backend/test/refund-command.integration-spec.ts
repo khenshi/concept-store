@@ -1,3 +1,8 @@
+import {
+  provisionPaymentFixtures,
+  testAccountId,
+  testAccountSnapshot,
+} from './payment-account-fixtures';
 import { fixtureInventory } from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -67,7 +72,7 @@ const command = (quantity = 2, restockQuantity = 1): CreateRefundDto => ({
   requestId: randomUUID(),
   items: [{ saleItemId: saleItems[0], quantity, restockQuantity }],
   reason: 'Returned goods',
-  paymentMethod: 'CASH',
+  paymentAccountId: testAccountId(organizationId, 'CASH'),
   refundConfirmed: true,
 });
 async function actor(role: OrganizationContext['role']) {
@@ -77,6 +82,7 @@ async function actor(role: OrganizationContext['role']) {
       lastName: role,
       email: `${randomUUID()}@example.test`,
       passwordHash: 'unused',
+      emailVerifiedAt: new Date(),
     },
   });
   await prisma.organizationMembership.create({
@@ -141,6 +147,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
     organizationId = (
       await prisma.organization.create({ data: { name: randomUUID() } })
     ).id;
+    await provisionPaymentFixtures(prisma, organizationId);
     ownerId = await actor('OWNER');
     const base = {
       organizationId,
@@ -203,7 +210,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
         quantity: index ? 5 : 10,
         expectedUnitPrice: index ? '0.01' : '12.50',
       })),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '125.05',
     });
     saleId = sale.id;
@@ -271,18 +278,18 @@ describe('PostgreSQL refund commands and concurrency', () => {
   it('combines refund date, actual method and receipt/refund-code search across original sales', async () => {
     const first = await record({
       ...command(1, 0),
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       paymentReference: 'MANUAL',
     });
     const second = await record(command(1, 0));
     const third = await record({
       ...command(1, 0),
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       paymentReference: 'MANUAL',
     });
     const earlier = await record({
       ...command(1, 0),
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       paymentReference: 'MANUAL',
     });
     const from = '2026-10-20T16:00:00Z',
@@ -312,7 +319,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
     });
     const anotherSale = await checkout.complete(owner(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '12.50',
       items: [
         {
@@ -331,7 +338,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
           restockQuantity: 0,
         },
       ],
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       paymentReference: 'MANUAL',
     });
     await prisma.refund.update({
@@ -344,7 +351,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
         from,
         until,
         q,
-        paymentMethod: 'CARD',
+        paymentAccountId: testAccountId(organizationId, 'CARD'),
       });
       expect(page).toMatchObject({
         total: 1,
@@ -354,7 +361,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
             id: first.id,
             saleId,
             receiptCode: 'Old-Receipt',
-            paymentMethod: 'CARD',
+            paymentAccountId: testAccountId(organizationId, 'CARD'),
             total: '12.50',
           },
         ],
@@ -366,7 +373,10 @@ describe('PostgreSQL refund commands and concurrency', () => {
           'receiptCode',
           'refundCode',
           'completedAt',
-          'paymentMethod',
+          'paymentAccountId',
+          'paymentAccountName',
+          'paymentAccountIsCash',
+          'paymentAccountRequiresReference',
           'total',
         ].sort(),
       );
@@ -376,7 +386,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
         ...new ListBranchRefundsQueryDto(),
         from,
         until,
-        paymentMethod: 'CARD',
+        paymentAccountId: testAccountId(organizationId, 'CARD'),
       }),
     ).toMatchObject({ total: 2 });
     expect(
@@ -438,7 +448,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
   it('paginates tied completion times by descending ID without duplicates or lost totals', async () => {
     const sale = await checkout.complete(owner(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '250.00',
       items: [
         {
@@ -648,7 +658,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
     });
     const sale = await checkout.complete(owner(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '15.00',
       items: [
         {
@@ -669,12 +679,12 @@ describe('PostgreSQL refund commands and concurrency', () => {
       createdById: ownerId,
       completedAt: new Date(Date.UTC(2026, 9, 21, 0, 0, index)),
       reason: 'Returned goods',
-      paymentMethod: 'CASH' as const,
+      ...testAccountSnapshot(organizationId),
       total: '0.01',
       refundCommand: {
         items: [{ saleItemId: item.id, quantity: 1, restockQuantity: 0 }],
         reason: 'Returned goods',
-        paymentMethod: 'CASH',
+        paymentAccountId: testAccountId(organizationId, 'CASH'),
         refundConfirmed: true,
       },
     }));
@@ -708,7 +718,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
     const filtered = await reads.findBranchHistory(owner(), branchId, {
       ...new ListBranchRefundsQueryDto(),
       q: 'history-',
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       from: '2026-10-20T16:00:00Z',
       until: '2026-10-21T16:00:00Z',
     });
@@ -733,7 +743,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
   it('paginates beyond 50 refunds while remaining quantities cover every page', async () => {
     const sale = await checkout.complete(owner(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '750.00',
       items: [
         {
@@ -808,7 +818,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
   it('returns the exact saved staff result, never command/request/actor fields', async () => {
     const refund = await record({
       ...command(),
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       paymentReference: 'MANUAL-CARD',
     });
     const persisted = () =>
@@ -845,7 +855,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
     const merchant = await merchantActor();
     const mixed = await record({
       ...command(),
-      paymentMethod: 'GCASH',
+      paymentAccountId: testAccountId(organizationId, 'GCASH'),
       paymentReference: 'PRIVATE',
       reason: 'PRIVATE REASON',
       items: [
@@ -1080,7 +1090,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
     ).rejects.toThrow('Sale not found');
     const another = await checkout.complete(owner(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '12.50',
       items: [
         {
@@ -1188,7 +1198,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
       });
       const dto = {
         ...command(),
-        paymentMethod,
+        paymentAccountId: testAccountId(organizationId, paymentMethod),
         ...(paymentMethod === 'CASH' ? {} : { paymentReference: 'MANUAL-REF' }),
         items: [
           { saleItemId: saleItems[0], quantity: 2, restockQuantity: 1 },
@@ -1199,7 +1209,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
       expect(result).toMatchObject({
         scope: 'STAFF',
         total: '25.01',
-        paymentMethod,
+        paymentAccountId: testAccountId(organizationId, paymentMethod),
       });
       expect(result.items.map((item) => item.lineTotal).sort()).toEqual([
         '0.01',
@@ -1320,7 +1330,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
           expectedUnitPrice: '12.50',
         },
       ],
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '12.50',
     });
     await expect(
@@ -1376,7 +1386,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
       { ...dto, items: [{ ...dto.items[0], restockQuantity: 0 }] },
       {
         ...dto,
-        paymentMethod: 'GCASH' as const,
+        paymentAccountId: testAccountId(organizationId, 'GCASH'),
         paymentReference: 'MANUAL-REF',
       },
     ])
@@ -1524,7 +1534,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
           expectedUnitPrice: '12.50',
         },
       ],
-      paymentMethod: 'CASH' as const,
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '12.50',
     };
     const sell = async () => {
@@ -1633,7 +1643,7 @@ describe('PostgreSQL refund commands and concurrency', () => {
         quantity: 2147483647,
         expectedUnitPrice: '9999999999.99',
       })),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: total,
     });
     const result = await refunds.complete(owner(), branchId, sale.id, {

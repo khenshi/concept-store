@@ -1,3 +1,4 @@
+import { cashAccount } from '@/features/pos/model/payment-account.test-fixtures';
 import {
   checkoutAttemptKey,
   getCheckoutAttempt,
@@ -11,7 +12,7 @@ describe('focused memory-only checkout attempt state', () => {
     const lines = [{ product, quantity: 1, quantityInput: '1' }];
     const command = {
       ...checkoutContent(lines, {
-        method: 'CASH',
+        account: cashAccount,
         tender: '1000',
         reference: '',
       }),

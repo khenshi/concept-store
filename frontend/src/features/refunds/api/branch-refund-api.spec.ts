@@ -1,3 +1,7 @@
+import {
+  cashSnapshot,
+  cashAccount,
+} from '@/features/pos/model/payment-account.test-fixtures';
 import { scope } from '@/features/pos/model/pos.test-fixtures';
 import { staffRefund } from '../model/refund.test-fixtures';
 import { listBranchRefunds } from './branch-refund-api';
@@ -17,7 +21,7 @@ export const branchPage = {
       receiptCode: staffRefund.receiptCode,
       refundCode: staffRefund.refundCode,
       completedAt: staffRefund.completedAt,
-      paymentMethod: staffRefund.paymentMethod,
+      ...cashSnapshot,
       total: staffRefund.total,
     },
   ],
@@ -30,7 +34,9 @@ describe('branch refund contract', () => {
   });
   it('requests paginated history with literal search, actual method and independent refund dates', async () => {
     const location = refundLocation(
-      new URLSearchParams('q=REF%25&method=CASH&fromDay=2026-10-21'),
+      new URLSearchParams(
+        `q=REF%25&paymentAccountId=${cashAccount.id}&fromDay=2026-10-21`,
+      ),
     );
     await expect(
       listBranchRefunds(request, scope, 'MANAGER', location.query),
@@ -43,7 +49,7 @@ describe('branch refund contract', () => {
       page: '1',
       limit: '15',
       q: 'REF%',
-      paymentMethod: 'CASH',
+      paymentAccountId: cashAccount.id,
       from: '2026-10-20T16:00:00.000Z',
       until: '2026-10-21T16:00:00.000Z',
     });
@@ -107,7 +113,7 @@ describe('branch refund contract', () => {
       page: 1,
       limit: 15,
       q: undefined,
-      paymentMethod: undefined,
+      paymentAccountId: undefined,
     });
     expect(location.saleId).toBeUndefined();
     expect(location.refundId).toBeUndefined();

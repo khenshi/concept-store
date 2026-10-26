@@ -7,7 +7,6 @@ import {
   Equals,
   IsArray,
   IsBoolean,
-  IsEnum,
   IsInt,
   IsString,
   IsUUID,
@@ -21,7 +20,6 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { SalePaymentMethod } from '../../../../generated/prisma/client';
 import { trimRequiredString } from '../../products/dto/product-dto.transforms';
 const lowerUuid = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.toLowerCase() : value;
@@ -60,18 +58,6 @@ export class RefundLineDto {
   @Validate(RefundRestock)
   restockQuantity = 0;
 }
-@ValidatorConstraint({ name: 'refundPaymentFields', async: false })
-class RefundPaymentFields implements ValidatorConstraintInterface {
-  validate(_value: unknown, args: ValidationArguments) {
-    const dto = args.object as CreateRefundDto;
-    return dto.paymentMethod === 'CASH'
-      ? dto.paymentReference === undefined
-      : typeof dto.paymentReference === 'string';
-  }
-  defaultMessage() {
-    return 'CASH rejects paymentReference; manual GCASH/CARD require paymentReference';
-  }
-}
 export class CreateRefundDto {
   @ApiProperty({
     format: 'uuid',
@@ -94,19 +80,19 @@ export class CreateRefundDto {
   @Length(2, 500)
   reason!: string;
   @ApiProperty({
-    enum: SalePaymentMethod,
-    description:
-      'Actual manually issued refund method; may differ from original sale',
+    format: 'uuid',
+    description: 'Actual payout account; may differ from original sale',
   })
-  @IsEnum(SalePaymentMethod)
-  @Validate(RefundPaymentFields)
-  paymentMethod!: SalePaymentMethod;
+  @Transform(lowerUuid)
+  @IsUUID('4')
+  paymentAccountId!: string;
   @ApiPropertyOptional({
     minLength: 2,
     maxLength: 100,
-    description: 'Manual GCASH/CARD reference only, unverified',
+    description:
+      'According to account policy, manually recorded and unverified',
   })
-  @ValidateIf((dto: CreateRefundDto) => dto.paymentMethod !== 'CASH')
+  @ValidateIf((dto: CreateRefundDto) => dto.paymentReference !== undefined)
   @Transform(trimRequiredString)
   @IsString()
   @Length(2, 100)

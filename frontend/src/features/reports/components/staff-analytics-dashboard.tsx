@@ -1,3 +1,4 @@
+import { PaymentAccountBreakdown } from './payment-account-breakdown';
 import { useState, type ReactNode } from 'react';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { OperationalCollection } from '@/shared/components/ui/operational-page';
@@ -636,121 +637,6 @@ function HorizontalSalesBars({
   );
 }
 
-type PaymentMethod = StaffSalesAnalytics['payments'][number]['paymentMethod'];
-type PaymentMethodDonutRow = {
-  paymentMethod: PaymentMethod;
-  amount: string;
-  weight: bigint;
-  detail?: string;
-};
-
-function PaymentMethodDonut({
-  title,
-  description,
-  rows,
-  emptyMessage,
-}: {
-  title: string;
-  description: string;
-  rows: PaymentMethodDonutRow[];
-  emptyMessage: string;
-}) {
-  const colors = [
-    'var(--color-accent)',
-    'var(--color-success-ink)',
-    'var(--color-danger)',
-  ];
-  const labels: Record<PaymentMethod, string> = {
-    CASH: 'Cash',
-    GCASH: 'GCash',
-    CARD: 'Card',
-  };
-  const total = rows.reduce((sum, row) => sum + row.weight, BigInt(0));
-  const shares = rows.map((row) =>
-    total === BigInt(0) ? 0 : Number((row.weight * BigInt(1000000)) / total),
-  );
-  const lastPositive = shares.map((share) => share > 0).lastIndexOf(true);
-  const normalizedShares = shares.map((share, index) =>
-    index === lastPositive
-      ? 1000000 - shares.slice(0, index).reduce((sum, value) => sum + value, 0)
-      : share,
-  );
-  const slices = rows.map((row, index) => ({
-    ...row,
-    color: colors[['CASH', 'GCASH', 'CARD'].indexOf(row.paymentMethod)],
-    share: normalizedShares[index],
-    start: normalizedShares
-      .slice(0, index)
-      .reduce((sum, value) => sum + value, 0),
-  }));
-  return (
-    <section className="data-surface min-w-0">
-      {total === BigInt(0) ? (
-        <EmptyState className="m-5" title={title} description={emptyMessage} />
-      ) : (
-        <>
-          <header className="border-b border-hairline px-5 py-5 sm:px-6">
-            <h2 className="font-semibold">{title}</h2>
-            <p className="mt-1 text-sm text-muted">{description}</p>
-          </header>
-          <div className="grid justify-items-center gap-4 p-5 sm:px-6">
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 42 42"
-              className="h-32 w-32 max-w-full -rotate-90"
-            >
-              <circle
-                cx="21"
-                cy="21"
-                r="15.9155"
-                fill="none"
-                stroke="var(--color-hairline)"
-                strokeWidth="8"
-              />
-              {slices.map((segment) => (
-                <circle
-                  key={segment.paymentMethod}
-                  cx="21"
-                  cy="21"
-                  r="15.9155"
-                  fill="none"
-                  stroke={segment.color}
-                  strokeWidth="8"
-                  strokeDasharray={`${(segment.share / 1000000) * 100} ${100 - (segment.share / 1000000) * 100}`}
-                  strokeDashoffset={-(segment.start / 1000000) * 100}
-                />
-              ))}
-            </svg>
-            <dl aria-label={`${title} values`} className="m-0 w-full space-y-3">
-              {slices.map((row) => (
-                <div
-                  key={row.paymentMethod}
-                  className="flex items-start justify-between gap-3 text-sm"
-                >
-                  <dt className="flex min-w-0 items-start gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm"
-                      style={{ backgroundColor: row.color }}
-                    />
-                    <span>{labels[row.paymentMethod]}</span>
-                  </dt>
-                  <dd className="shrink-0 text-right tabular-nums">
-                    <span className="block">{row.amount}</span>
-                    {row.detail ? (
-                      <span className="text-xs text-muted">{row.detail}</span>
-                    ) : null}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
-
 export function StaffDailyData({
   rows,
   pagination,
@@ -1281,8 +1167,8 @@ export function StaffAnalyticsDashboard({
             </h2>
             <p className="mt-1 text-sm text-muted">
               {granularity === 'DAY'
-                ? 'Gross sales by merchant, product, weekday, and payment method.'
-                : 'Gross sales by merchant, product, and payment method.'}
+                ? 'Gross sales by merchant, product, weekday, and payment account.'
+                : 'Gross sales by merchant, product, and payment account.'}
             </p>
           </div>
           <div
@@ -1318,8 +1204,8 @@ export function StaffAnalyticsDashboard({
             role="group"
             aria-label={
               granularity === 'DAY'
-                ? 'Weekday and payment method charts'
-                : 'Payment method chart'
+                ? 'Weekday and payment account charts'
+                : 'Payment account chart'
             }
             className={`mt-8 grid gap-6 border-t border-hairline pt-8 ${granularity === 'DAY' ? 'md:grid-cols-3' : ''}`}
           >
@@ -1329,17 +1215,7 @@ export function StaffAnalyticsDashboard({
               </div>
             )}
             <div className="min-w-0 md:col-span-1">
-              <PaymentMethodDonut
-                title="Gross sales by payment method"
-                description="Gross sales by method. GCash and card are manual."
-                rows={report.payments.map((row) => ({
-                  paymentMethod: row.paymentMethod,
-                  amount: money(row.grossSales),
-                  weight: cents(row.grossSales),
-                  detail: `${row.transactionCount} transactions`,
-                }))}
-                emptyMessage="No gross sales by payment method in this period."
-              />
+              <PaymentAccountBreakdown report={report} />
             </div>
           </div>
         </section>

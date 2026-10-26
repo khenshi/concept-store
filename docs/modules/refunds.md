@@ -40,7 +40,8 @@ Manager branch grants, count and rows share a REPEATABLE READ snapshot.
 The list defaults to page 1 and 15 rows, with a limit cap of 100 and stable
 completion-time/ID descending order. Optional `q` (maximum 254 characters) matches
 literal case-insensitive substrings in saved refund or receipt codes; SQL
-wildcards are escaped. Optional `paymentMethod` filters the actual refund method.
+wildcards are escaped. Optional `paymentAccountId` filters the actual refund
+account, including authorized historical unavailable accounts.
 Optional UTC `from`/`until` must appear together and be ordered within years
 0001–9999; `from` is inclusive and `until` exclusive. Unknown fields are rejected.
 No dates means all authorized history with bounded pagination.
@@ -159,12 +160,14 @@ Backend fresh object authorization remains authoritative.
 
 Refund references its original organization/branch/sale and actor. It stores a
 completion timestamp, tenant-unique refund code and UUID request ID, trimmed
-2–500 character reason, actual manual CASH/GCASH/CARD method, applicable reference,
-Decimal(24,2) total and private object-shaped refundCommand. It reuses the existing
-payment-method enum without tying refund method to the original payment.
+2–500 character reason, actual payout payment account, applicable reference,
+Decimal(24,2) total and private object-shaped refundCommand. Account ID, display
+name, cash behavior and reference policy are immutable snapshots. The actual
+refund account is independent of the original sale account.
 
 Cash has no reference, tender or change fields. Noncash requires a trimmed 2–100
-character reference; references are not unique or verified. Database checks reject
+character reference when the account policy requires one; supplied optional
+references use the same format. References are not unique or verified. Database checks reject
 zero/negative/nonfinite totals, invalid codes/reasons/commands and invalid reference
 combinations. Generated Prisma types retain Decimal values, not floating-point
 amounts. No customer/payment-provider entities are introduced.
@@ -224,8 +227,8 @@ organization and branch scope; another sale's item cannot be substituted.
 
 The command accepts UUID v4 requestId, 1–100 distinct original sale-item lines,
 positive integer quantity, optional restockQuantity (default zero), trimmed
-2–500 character reason, actual CASH/GCASH/CARD paymentMethod and
-refundConfirmed: true. Noncash requires a trimmed 2–100 character paymentReference;
+2–500 character reason, actual payout paymentAccountId and
+refundConfirmed: true. Noncash validates paymentReference against account policy;
 CASH rejects that field, including null. UUIDs normalize to lowercase. Nested
 unknown fields, arbitrary prices/totals/placement/merchant IDs and all query
 parameters are rejected. JSON strings are not coerced into quantities or booleans.
@@ -314,7 +317,7 @@ original items and refunds containing own items. Restocking is not subtracted a
 second time from returnable quantities.
 
 Staff list/detail rows use the immutable create-response STAFF contract, including
-exact total, actual payment method/reference and reason, but no actor/request/
+exact total, actual payment account/reference and reason, but no actor/request/
 private command. Merchant rows use a separate MERCHANT contract: refund/sale IDs,
 receipt/refund code, completion time, saved branch ID/name/code, only matching own
 item snapshots with return/restock quantities and exact ownItemsSubtotal. They

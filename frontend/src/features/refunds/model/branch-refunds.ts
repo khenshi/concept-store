@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { paymentMethod } from '@/features/pos/model/checkout';
+import { paymentAccountSnapshot } from '@/features/pos/model/checkout';
 import { salesQuerySchema } from '@/features/sales/model/sales.schemas';
 import {
   salesDateRangeSchema,
@@ -8,7 +8,7 @@ import {
 
 const {
   q,
-  paymentMethod: methodQuery,
+  paymentAccountId: accountQuery,
   from,
   until,
   page: pageQuery,
@@ -17,7 +17,7 @@ const {
 export const branchRefundQuerySchema = z
   .object({
     q,
-    paymentMethod: methodQuery,
+    paymentAccountId: accountQuery,
     from,
     until,
     page: pageQuery,
@@ -71,7 +71,7 @@ export const branchRefundPageSchema = z
             receiptCode: z.string().min(1),
             refundCode: z.string().min(1),
             completedAt: z.string().datetime(),
-            paymentMethod,
+            ...paymentAccountSnapshot,
             total: z
               .string()
               .regex(/^(?:0|[1-9]\d{0,21})\.\d{2}$/)
@@ -117,7 +117,7 @@ export function refundLocation(params: URLSearchParams) {
           throughDay: range.data.throughDay || range.data.fromDay,
         }
       : { fromDay: '', throughDay: '' };
-  const method = paymentMethod.safeParse(params.get('method'));
+  const account = z.uuidv4().safeParse(params.get('paymentAccountId'));
   const sale = z.uuidv4().safeParse(params.get('sale'));
   const refund = z.uuidv4().safeParse(params.get('refund'));
   return {
@@ -125,7 +125,7 @@ export function refundLocation(params: URLSearchParams) {
       page: Number.isInteger(page) && page >= 1 && page <= 21474836 ? page : 1,
       limit: 15,
       q: (params.get('q') ?? '').trim().slice(0, 254) || undefined,
-      paymentMethod: method.success ? method.data : undefined,
+      paymentAccountId: account.success ? account.data : undefined,
       ...salesUtcRange(dates),
     }),
     dates,

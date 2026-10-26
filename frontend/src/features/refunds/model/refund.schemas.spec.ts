@@ -1,3 +1,4 @@
+import { walletSnapshot } from '@/features/pos/model/payment-account.test-fixtures';
 import {
   merchantRefundSchema,
   staffRefundSchema,
@@ -22,7 +23,7 @@ describe('strict refund contracts', () => {
   it.each([
     'reason',
     'total',
-    'paymentMethod',
+    'paymentAccountId',
     'paymentReference',
     'createdById',
     'requestId',
@@ -103,7 +104,7 @@ describe('strict refund contracts', () => {
     expect(
       staffRefundSchema.safeParse({
         ...staffRefund,
-        paymentMethod: 'CARD',
+        ...walletSnapshot,
         paymentReference: 'manual-ref',
       }).success,
     ).toBe(true);

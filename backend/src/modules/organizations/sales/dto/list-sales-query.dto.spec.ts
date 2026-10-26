@@ -14,7 +14,7 @@ describe('Sales directory query validation', () => {
       validate({
         q: '  SALE-001  ',
         cashierId: '11111111-1111-4111-8111-111111111111',
-        paymentMethod: 'GCASH',
+        paymentAccountId: '22222222-2222-4222-8222-222222222222',
         page: '2',
         limit: '100',
         from: '2026-09-13T00:00:00Z',
@@ -23,7 +23,7 @@ describe('Sales directory query validation', () => {
     ).resolves.toMatchObject({
       q: 'SALE-001',
       cashierId: '11111111-1111-4111-8111-111111111111',
-      paymentMethod: 'GCASH',
+      paymentAccountId: '22222222-2222-4222-8222-222222222222',
       page: 2,
       limit: 100,
     });
@@ -33,7 +33,7 @@ describe('Sales directory query validation', () => {
     { q: 'x'.repeat(255) },
     { cashierId: '11111111-1111-5111-8111-111111111111' },
     { cashierId: 'not-a-uuid' },
-    { paymentMethod: 'BANK_TRANSFER' },
+    { paymentAccountId: 'BANK_TRANSFER' },
     { page: '0' },
     { page: '1.5' },
     { page: '1e2' },

@@ -28,7 +28,9 @@ export async function listSales(
     limit: String(query.limit),
     ...(query.q ? { q: query.q } : {}),
     ...(query.cashierId ? { cashierId: query.cashierId } : {}),
-    ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
+    ...(query.paymentAccountId
+      ? { paymentAccountId: query.paymentAccountId }
+      : {}),
     ...(query.from ? { from: query.from } : {}),
     ...(query.until ? { until: query.until } : {}),
   });

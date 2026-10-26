@@ -1,3 +1,11 @@
+import { paymentAccounts } from '@/features/pos/model/payment-account.test-fixtures';
+vi.mock('@/features/pos/model/use-branch-payment-accounts', () => ({
+  useBranchPaymentAccounts: () => ({
+    accounts: paymentAccounts,
+    refresh: vi.fn(),
+  }),
+  paymentAccountHistoryLabel: (account: { name: string }) => account.name,
+}));
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -250,9 +258,10 @@ describe('Persistent route-backed POS workspace', () => {
     const view = render(<PosWorkspace {...scope}>{null}</PosWorkspace>);
     await addProduct();
     fireEvent.click(screen.getByRole('button', { name: 'Review payment' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'GCash' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Payment account' }));
+    fireEvent.click(screen.getByRole('option', { name: 'GCash Main' }));
     fireEvent.change(
-      screen.getByRole('textbox', { name: 'Payment reference' }),
+      screen.getByRole('textbox', { name: 'Account reference' }),
       { target: { value: 'GCASH-REFERENCE' } },
     );
     fireEvent.click(screen.getByRole('button', { name: 'Return to cart' }));
@@ -265,9 +274,11 @@ describe('Persistent route-backed POS workspace', () => {
     view.rerender(<PosWorkspace {...scope}>{null}</PosWorkspace>);
     await readyCart();
     fireEvent.click(screen.getByRole('button', { name: 'Review payment' }));
-    expect(screen.getByRole('radio', { name: 'GCash' })).toBeChecked();
     expect(
-      screen.getByRole('textbox', { name: 'Payment reference' }),
+      screen.getByRole('combobox', { name: 'Payment account' }),
+    ).toHaveTextContent('GCash Main');
+    expect(
+      screen.getByRole('textbox', { name: 'Account reference' }),
     ).toHaveValue('GCASH-REFERENCE');
     expect(completeCheckout).not.toHaveBeenCalled();
   });

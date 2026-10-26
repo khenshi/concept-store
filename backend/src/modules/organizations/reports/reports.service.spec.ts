@@ -42,14 +42,11 @@ describe('ReportsService', () => {
         { grossSales: '25.00', transactionCount: '1', unitsSold: '2' },
       ])
       .mockResolvedValueOnce([
-        { paymentMethod: 'CASH', grossSales: '25.00', transactionCount: '1' },
-      ])
-      .mockResolvedValueOnce([
         { refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' },
       ])
       .mockResolvedValueOnce([]);
   });
-  it('uses one repeatable-read snapshot and zero-fills a fixed payment breakdown', async () => {
+  it('uses one repeatable-read snapshot and returns complete configured account flows', async () => {
     await expect(
       service.sales(context, 'branch', query),
     ).resolves.toMatchObject({
@@ -57,11 +54,7 @@ describe('ReportsService', () => {
       grossSales: '25.00',
       transactionCount: '1',
       unitsSold: '2',
-      payments: [
-        { paymentMethod: 'CASH', grossSales: '25.00', transactionCount: '1' },
-        { paymentMethod: 'GCASH', grossSales: '0.00', transactionCount: '0' },
-        { paymentMethod: 'CARD', grossSales: '0.00', transactionCount: '0' },
-      ],
+      paymentAccounts: [],
     });
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: 'RepeatableRead',
@@ -69,7 +62,7 @@ describe('ReportsService', () => {
     expect(tx.organizationMembership.findUnique).toHaveBeenCalledWith({
       where: {
         organizationId_userId: { organizationId: 'org', userId: 'actor' },
-        user: { deletedAt: null },
+        user: { deletedAt: null, emailVerifiedAt: { not: null } },
       },
       select: { role: true, merchantId: true },
     });
@@ -178,7 +171,6 @@ describe('ReportsService', () => {
           unitsSold: '18446744073709551616',
         },
       ])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         { refundedAmount: '0.00', refundCount: '0', returnedUnits: '0' },
       ])
@@ -399,13 +391,15 @@ describe('ReportsService', () => {
         { grossSales: '25.00', transactionCount: '1', unitsSold: '2' },
       ])
       .mockResolvedValueOnce([
-        { paymentMethod: 'CASH', grossSales: '25.00', transactionCount: '1' },
-      ])
-      .mockResolvedValueOnce([
         { refundedAmount: '37.50', refundCount: '2', returnedUnits: '3' },
       ])
       .mockResolvedValueOnce([
-        { paymentMethod: 'CARD', refundedAmount: '37.50', refundCount: '2' },
+        {
+          accountId: 'CARD',
+          received: '0.00',
+          refunded: '37.50',
+          netReceived: '-37.50',
+        },
       ]);
     expect(await service.sales(context, 'branch', query)).toMatchObject({
       grossSales: '25.00',
@@ -413,13 +407,16 @@ describe('ReportsService', () => {
       refundCount: '2',
       returnedUnits: '3',
       netRecordedSales: '-12.50',
-      refundMethods: [
-        { paymentMethod: 'CASH', refundedAmount: '0.00', refundCount: '0' },
-        { paymentMethod: 'GCASH', refundedAmount: '0.00', refundCount: '0' },
-        { paymentMethod: 'CARD', refundedAmount: '37.50', refundCount: '2' },
+      paymentAccounts: [
+        {
+          accountId: 'CARD',
+          received: '0.00',
+          refunded: '37.50',
+          netReceived: '-37.50',
+        },
       ],
     });
-    const refundSql = (tx.$queryRaw.mock.calls[2] as [Prisma.Sql])[0];
+    const refundSql = (tx.$queryRaw.mock.calls[1] as [Prisma.Sql])[0];
     expect(refundSql.values).toContain('org');
     expect(refundSql.values).toContain('branch');
     expect(refundSql.sql).not.toContain('JOIN "Sale"');
@@ -572,7 +569,10 @@ describe('ReportsService', () => {
         completedAt: new Date('2026-09-01T12:00:00.000Z'),
         reference: 'REF-001',
         amount: '25.00',
-        paymentMethod: 'CASH',
+        paymentAccountId: 'cash',
+        paymentAccountName: 'Cash',
+        paymentAccountIsCash: true,
+        paymentAccountRequiresReference: false,
         actorName: 'Alex Staff',
         merchantNames: ['Maker'],
         totalCount: 2,
@@ -604,7 +604,10 @@ describe('ReportsService', () => {
           completedAt: new Date('2026-09-01T12:00:00.000Z'),
           reference: 'REF-001',
           amount: '25.00',
-          paymentMethod: 'CASH',
+          paymentAccountId: 'cash',
+          paymentAccountName: 'Cash',
+          paymentAccountIsCash: true,
+          paymentAccountRequiresReference: false,
           actorName: 'Alex Staff',
           merchantNames: ['Maker'],
         },

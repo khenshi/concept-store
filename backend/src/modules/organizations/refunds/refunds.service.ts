@@ -17,6 +17,10 @@ import {
   completedRefundSelect,
 } from './refunds.types';
 import { assertActiveOrganization } from '../organization-state';
+import {
+  lockAvailablePaymentAccount,
+  paymentSnapshot,
+} from '../payment-accounts/payment-account-availability';
 const Exact = Prisma.Decimal.clone({ precision: 40 });
 const originalSelect = {
   ...completedRefundSelect,
@@ -52,11 +56,11 @@ export class RefundsService {
     const command: Prisma.InputJsonObject = {
       items: items.sort((a, b) => a.saleItemId.localeCompare(b.saleItemId)),
       reason: dto.reason.trim(),
-      paymentMethod: dto.paymentMethod,
+      paymentAccountId: dto.paymentAccountId,
       refundConfirmed: true,
-      ...(dto.paymentMethod === 'CASH'
-        ? {}
-        : { paymentReference: dto.paymentReference!.trim() }),
+      ...(dto.paymentReference !== undefined
+        ? { paymentReference: dto.paymentReference.trim() }
+        : {}),
     };
     const requestId = dto.requestId.toLowerCase();
     try {
@@ -71,6 +75,13 @@ export class RefundsService {
           if (original)
             return this.replay(original, context, branchId, saleId, command);
           await assertActiveOrganization(tx, context.organizationId);
+          const account = await lockAvailablePaymentAccount(
+            tx,
+            context.organizationId,
+            branchId,
+            dto.paymentAccountId,
+          );
+          const snapshot = paymentSnapshot(account, dto, true);
           // Serialize refunds of one sale; SSI also rejects a waiter’s stale snapshot.
           const locked = await tx.$queryRaw<{ id: string }[]>(
             Prisma.sql`SELECT "id" FROM "Sale" WHERE "organizationId" = ${context.organizationId} AND "branchId" = ${branchId} AND "id" = ${saleId} FOR UPDATE`,
@@ -139,11 +150,8 @@ export class RefundsService {
               requestId,
               refundCode: `REFUND-${randomUUID().toUpperCase()}`,
               reason: dto.reason.trim(),
-              paymentMethod: dto.paymentMethod,
-              paymentReference:
-                dto.paymentMethod === 'CASH'
-                  ? null
-                  : dto.paymentReference!.trim(),
+              ...snapshot,
+              paymentReference: dto.paymentReference ?? null,
               total: priced.reduce(
                 (sum, item) => sum.plus(item.lineTotal),
                 new Exact(0),
@@ -262,7 +270,7 @@ export class RefundsService {
           organizationId: context.organizationId,
           userId: context.userId,
         },
-        user: { deletedAt: null },
+        user: { deletedAt: null, emailVerifiedAt: { not: null } },
       },
       select: { role: true },
     });

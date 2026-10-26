@@ -1,3 +1,7 @@
+import {
+  reportAccount,
+  mergeAccountFlows,
+} from '@/features/reports/model/report.test-fixtures';
 import { render, screen, within } from '@testing-library/react';
 import { StaffReportSummary } from './staff-report-summary';
 import { MerchantReportSummary } from './merchant-report-summary';
@@ -26,31 +30,34 @@ describe('refund-aware report presentation', () => {
       refundCount: '1',
       returnedUnits: '1',
       netRecordedSales: '-850.00',
-      payments: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-        paymentMethod,
-        grossSales: '0.00',
-        transactionCount: '0',
-      })),
-      refundMethods: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-        paymentMethod,
-        refundedAmount: paymentMethod === 'GCASH' ? '850.00' : '0.00',
-        refundCount: paymentMethod === 'GCASH' ? '1' : '0',
-      })),
+      paymentAccounts: mergeAccountFlows(
+        ['CASH', 'GCASH', 'CARD'].map((paymentMethod) =>
+          reportAccount(paymentMethod, {
+            received: '0.00',
+            transactionCount: '0',
+          }),
+        ),
+        ['CASH', 'GCASH', 'CARD'].map((paymentMethod) =>
+          reportAccount(paymentMethod, {
+            refunded: paymentMethod === 'GCASH' ? '850.00' : '0.00',
+            refundCount: paymentMethod === 'GCASH' ? '1' : '0',
+          }),
+        ),
+      ),
     });
     render(<StaffReportSummary report={report} />);
     expect(screen.getByLabelText('Refund and net summary')).toHaveTextContent(
       'PHP -850.00',
     );
+    const table = screen.getByRole('table', {
+      name: 'Exact payment account flows',
+    });
+    const wallet = within(table).getByRole('row', { name: /GCash Main/ });
     expect(
-      within(
-        screen.getByRole('list', { name: 'Payment breakdown' }),
-      ).queryByText(/850.00/),
-    ).not.toBeInTheDocument();
-    expect(
-      within(
-        screen.getByRole('list', { name: 'Refund method breakdown' }),
-      ).getByText('Refunded: PHP 850.00'),
-    ).toBeInTheDocument();
+      within(wallet)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent),
+    ).toEqual(['0.00', '850.00', '-850.00']);
     expect(screen.queryByText(/No completed sales/)).not.toBeInTheDocument();
     expect(
       screen.getByText(/Refunds use refund processing dates/),

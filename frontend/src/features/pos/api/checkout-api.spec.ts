@@ -1,9 +1,10 @@
+import { cashAccount } from '@/features/pos/model/payment-account.test-fixtures';
 import { completeCheckout } from './checkout-api';
 import { checkoutContent } from '../model/checkout';
 import { scope, product, completedSale } from '../model/pos.test-fixtures';
 const command = {
   ...checkoutContent([{ product, quantity: 1, quantityInput: '1' }], {
-    method: 'CASH',
+    account: cashAccount,
     tender: '1000',
     reference: '',
   }),

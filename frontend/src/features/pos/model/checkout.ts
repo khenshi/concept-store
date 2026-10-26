@@ -3,10 +3,33 @@ import { posCartTotal, quantityError } from './pos-cart';
 import type { PosCartLine } from './pos.types';
 
 export const money = z.string().regex(/^\d{1,22}\.\d{2}$/);
-export const paymentMethod = z.enum(['CASH', 'GCASH', 'CARD']);
-export type PaymentMethod = z.infer<typeof paymentMethod>;
+export type PaymentAccountChoice = {
+  id: string;
+  name?: string;
+  systemKey: 'CASH' | null;
+  requiresReference: boolean;
+};
+export const paymentAccountSnapshot = {
+  paymentAccountId: z.uuidv4(),
+  paymentAccountName: z.string().trim().min(1).max(100),
+  paymentAccountIsCash: z.boolean(),
+  paymentAccountRequiresReference: z.boolean(),
+};
+export function validAccountReference(
+  isCash: boolean,
+  required: boolean,
+  reference: string | null,
+) {
+  if (isCash) return !required && reference === null;
+  if (reference === null) return !required;
+  return (
+    reference === reference.trim() &&
+    reference.length >= 2 &&
+    reference.length <= 100
+  );
+}
 export type PaymentDraft = {
-  method: PaymentMethod;
+  account: PaymentAccountChoice | null;
   tender: string;
   reference: string;
 };
@@ -21,9 +44,11 @@ export function paymentError(
   draft: PaymentDraft,
   total: string,
 ): string | undefined {
-  if (draft.method !== 'CASH') {
+  if (!draft.account) return 'Choose an available payment account.';
+  if (draft.account.systemKey !== 'CASH') {
     const reference = draft.reference.trim();
-    return reference.length < 2 || reference.length > 100
+    return (!reference && draft.account.requiresReference) ||
+      (Boolean(reference) && (reference.length < 2 || reference.length > 100))
       ? 'Use 2–100 characters.'
       : undefined;
   }
@@ -34,7 +59,7 @@ export function paymentError(
     : undefined;
 }
 export function changeEstimate(draft: PaymentDraft, total: string) {
-  return draft.method === 'CASH' && !paymentError(draft, total)
+  return draft.account?.systemKey === 'CASH' && !paymentError(draft, total)
     ? formatCents(moneyCents(draft.tender.trim()) - moneyCents(total))
     : null;
 }
@@ -59,13 +84,23 @@ export function checkoutContent(lines: PosCartLine[], draft: PaymentDraft) {
         expectedUnitPrice: line.product.sellingPrice,
       }))
       .sort((a, b) => a.branchInventoryId.localeCompare(b.branchInventoryId)),
-    paymentMethod: draft.method,
-    ...(draft.method === 'CASH'
+    paymentAccountId: draft.account!.id,
+    ...(draft.account?.systemKey === 'CASH'
       ? { cashTender: formatCents(moneyCents(draft.tender.trim())) }
-      : { paymentReference: draft.reference.trim() }),
+      : draft.reference.trim()
+        ? { paymentReference: draft.reference.trim() }
+        : {}),
   };
 }
-export type CheckoutCommand = ReturnType<typeof checkoutContent> & {
+export type CheckoutCommand = {
+  items: {
+    branchInventoryId: string;
+    quantity: number;
+    expectedUnitPrice: string;
+  }[];
+  paymentAccountId: string;
+  cashTender?: string;
+  paymentReference?: string;
   requestId: string;
 };
 const receiptItem = z.object({
@@ -92,7 +127,7 @@ export const completedSaleSchema = z
     branchName: z.string().min(1),
     branchCode: z.string().nullable(),
     cashierName: z.string().min(1),
-    paymentMethod,
+    ...paymentAccountSnapshot,
     paymentReference: z.string().nullable(),
     total: money,
     cashTender: money.nullable(),
@@ -137,7 +172,15 @@ export const completedSaleSchema = z
       ) !== moneyCents(sale.total)
     )
       fail();
-    if (sale.paymentMethod === 'CASH') {
+    if (
+      !validAccountReference(
+        sale.paymentAccountIsCash,
+        sale.paymentAccountRequiresReference,
+        sale.paymentReference,
+      )
+    )
+      fail();
+    if (sale.paymentAccountIsCash) {
       if (
         sale.cashTender === null ||
         sale.cashChange === null ||
@@ -147,13 +190,6 @@ export const completedSaleSchema = z
           moneyCents(sale.cashChange)
       )
         fail();
-    } else if (
-      sale.cashTender !== null ||
-      sale.cashChange !== null ||
-      !sale.paymentReference ||
-      sale.paymentReference.trim().length < 2 ||
-      sale.paymentReference.length > 100
-    )
-      fail();
+    } else if (sale.cashTender !== null || sale.cashChange !== null) fail();
   });
 export type CompletedSale = z.infer<typeof completedSaleSchema>;

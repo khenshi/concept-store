@@ -56,8 +56,8 @@ export class RefundReadService {
           organizationId: current.organizationId,
           branchId,
           ...(completedAt ? { completedAt } : {}),
-          ...(query.paymentMethod
-            ? { paymentMethod: query.paymentMethod }
+          ...(query.paymentAccountId
+            ? { paymentAccountId: query.paymentAccountId }
             : {}),
           ...(search
             ? {
@@ -201,7 +201,7 @@ export class RefundReadService {
           organizationId: context.organizationId,
           userId: context.userId,
         },
-        user: { deletedAt: null },
+        user: { deletedAt: null, emailVerifiedAt: { not: null } },
       },
       select: { role: true, merchantId: true },
     });

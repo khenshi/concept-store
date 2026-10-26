@@ -8,7 +8,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, SalePaymentMethod } from '../../../generated/prisma/client';
+import { Prisma } from '../../../generated/prisma/client';
+import {
+  lockAvailablePaymentAccount,
+  paymentSnapshot,
+  paymentWriteConflict,
+} from '../payment-accounts/payment-account-availability';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { branchScope } from '../authorization/resource-access';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
@@ -53,6 +58,13 @@ export class CheckoutService {
           if (original)
             return this.replay(original, context, branchId, command);
           await assertActiveOrganization(tx, context.organizationId);
+          const account = await lockAvailablePaymentAccount(
+            tx,
+            context.organizationId,
+            branchId,
+            dto.paymentAccountId,
+          );
+          const snapshot = paymentSnapshot(account, dto);
           const lines = await tx.branchInventory.findMany({
             where: {
               organizationId: context.organizationId,
@@ -126,10 +138,9 @@ export class CheckoutService {
             (sum, item) => sum.plus(item.lineTotal),
             new ExactDecimal(0),
           );
-          const cashTender =
-            dto.paymentMethod === SalePaymentMethod.CASH
-              ? new ExactDecimal(dto.cashTender!)
-              : null;
+          const cashTender = snapshot.paymentAccountIsCash
+            ? new ExactDecimal(dto.cashTender!)
+            : null;
           if (cashTender && cashTender.lessThan(total))
             throw new BadRequestException(
               'Cash tender must cover the sale total',
@@ -150,14 +161,11 @@ export class CheckoutService {
               branchName: branch.name,
               branchCode: branch.code,
               cashierName: `${cashier.firstName} ${cashier.lastName}`,
-              paymentMethod: dto.paymentMethod,
+              ...snapshot,
               total,
               cashTender,
               cashChange: cashTender?.minus(total) ?? null,
-              paymentReference:
-                dto.paymentMethod === SalePaymentMethod.CASH
-                  ? null
-                  : dto.paymentReference!,
+              paymentReference: dto.paymentReference ?? null,
               checkoutCommand: command,
             },
           });
@@ -237,30 +245,37 @@ export class CheckoutService {
         },
       );
     } catch (error: unknown) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        ['P2002', 'P2034'].includes(error.code)
-      ) {
+      if (paymentWriteConflict(error)) {
         // The rejected transaction is fully rolled back. A fresh snapshot checks
         // permissions before resolving a simultaneously committed original.
-        return this.prisma.$transaction(
-          async (tx) => {
-            await this.authorize(tx, context, branchId);
-            const original = await this.original(
-              tx,
-              context.organizationId,
-              dto.requestId,
-            );
-            if (original)
-              return this.replay(original, context, branchId, command);
+        try {
+          return await this.prisma.$transaction(
+            async (tx) => {
+              await this.authorize(tx, context, branchId);
+              const original = await this.original(
+                tx,
+                context.organizationId,
+                dto.requestId,
+              );
+              if (original)
+                return this.replay(original, context, branchId, command);
+              throw new ConflictException({
+                message:
+                  'Concurrent checkout conflict; retry the unchanged command',
+                code: 'CHECKOUT_RETRY',
+              });
+            },
+            { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+          );
+        } catch (recovery) {
+          if (paymentWriteConflict(recovery))
             throw new ConflictException({
               message:
                 'Concurrent checkout conflict; retry the unchanged command',
               code: 'CHECKOUT_RETRY',
             });
-          },
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-        );
+          throw recovery;
+        }
       }
       throw error;
     }
@@ -277,7 +292,7 @@ export class CheckoutService {
           organizationId: context.organizationId,
           userId: context.userId,
         },
-        user: { deletedAt: null },
+        user: { deletedAt: null, emailVerifiedAt: { not: null } },
       },
       select: { role: true },
     });
@@ -310,10 +325,13 @@ export class CheckoutService {
             2,
           ),
         })),
-      paymentMethod: dto.paymentMethod,
-      ...(dto.paymentMethod === SalePaymentMethod.CASH
-        ? { cashTender: new ExactDecimal(dto.cashTender!).toFixed(2) }
-        : { paymentReference: dto.paymentReference! }),
+      paymentAccountId: dto.paymentAccountId,
+      ...(dto.cashTender !== undefined
+        ? { cashTender: new ExactDecimal(dto.cashTender).toFixed(2) }
+        : {}),
+      ...(dto.paymentReference !== undefined
+        ? { paymentReference: dto.paymentReference }
+        : {}),
     };
   }
   private original(

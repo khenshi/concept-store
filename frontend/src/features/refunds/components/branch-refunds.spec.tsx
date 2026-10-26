@@ -1,3 +1,12 @@
+import { paymentAccounts } from '@/features/pos/model/payment-account.test-fixtures';
+vi.mock('@/features/pos/model/use-branch-payment-accounts', () => ({
+  useBranchPaymentAccounts: () => ({
+    accounts: paymentAccounts,
+    refresh: vi.fn(),
+  }),
+  paymentAccountHistoryLabel: (account: { name: string }) => account.name,
+}));
+import { cashSnapshot } from '@/features/pos/model/payment-account.test-fixtures';
 import {
   act,
   fireEvent,
@@ -44,7 +53,7 @@ const branchPage = {
       receiptCode: completedSale.receiptCode,
       refundCode: staffRefund.refundCode,
       completedAt: staffRefund.completedAt,
-      paymentMethod: 'CASH',
+      ...cashSnapshot,
       total: staffRefund.total,
     },
   ],

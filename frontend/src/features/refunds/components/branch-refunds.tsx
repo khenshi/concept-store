@@ -8,6 +8,11 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { SalesAccess } from '@/features/sales/components/sales-access';
 import { getSale, listSales } from '@/features/sales/api/sales-api';
 import type { PosScope } from '@/features/pos/model/pos.types';
+import {
+  useBranchPaymentAccounts,
+  paymentAccountHistoryLabel,
+} from '@/features/pos/model/use-branch-payment-accounts';
+import type { PaymentAccount } from '@/features/payment-accounts/model/payment-account';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
 import { Button } from '@/shared/components/ui/button';
 import { InputControl } from '@/shared/components/ui/input-control';
@@ -101,6 +106,13 @@ function ScopedRefunds({ scope, role }: { scope: PosScope; role: StaffRole }) {
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const { organizationId, branchId } = scope;
+  const accountOptions = useBranchPaymentAccounts(
+    request,
+    organizationId,
+    branchId,
+    'REFUND',
+    true,
+  );
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(async () => {
@@ -219,13 +231,21 @@ function ScopedRefunds({ scope, role }: { scope: PosScope; role: StaffRole }) {
           }
           controls={
             <RefundFilters
-              key={`${location.query.q}:${location.query.paymentMethod}:${location.dates.fromDay}:${location.dates.throughDay}`}
+              key={`${location.query.q}:${location.query.paymentAccountId}:${location.dates.fromDay}:${location.dates.throughDay}`}
+              accounts={accountOptions.accounts ?? []}
               location={location}
               navigate={navigate}
               locked={locked}
             />
           }
         >
+          {accountOptions.error ? (
+            <RequestError
+              className="p-5"
+              message={accountOptions.error}
+              onRetry={accountOptions.refresh}
+            />
+          ) : null}
           {error ? (
             <RequestError
               className="p-5"
@@ -247,7 +267,7 @@ function ScopedRefunds({ scope, role }: { scope: PosScope; role: StaffRole }) {
                         ? 'No refunds on this page.'
                         : location.query.q ||
                             location.query.from ||
-                            location.query.paymentMethod
+                            location.query.paymentAccountId
                           ? 'No matching refunds.'
                           : 'No refunds recorded yet.'
                     }
@@ -278,7 +298,7 @@ function ScopedRefunds({ scope, role }: { scope: PosScope; role: StaffRole }) {
                       'Refund code',
                       'Original receipt',
                       'Refunded at',
-                      'Method',
+                      'Account',
                       'Amount',
                       'Action',
                     ].map((label) => (
@@ -298,7 +318,7 @@ function ScopedRefunds({ scope, role }: { scope: PosScope; role: StaffRole }) {
                           {date(row.completedAt)}
                         </time>
                       </td>
-                      <td>{row.paymentMethod}</td>
+                      <td>{row.paymentAccountName}</td>
                       <td className="font-semibold tabular-nums">
                         PHP {row.total}
                       </td>
@@ -326,10 +346,12 @@ function ScopedRefunds({ scope, role }: { scope: PosScope; role: StaffRole }) {
 }
 
 function RefundFilters({
+  accounts,
   location,
   navigate,
   locked,
 }: {
+  accounts: PaymentAccount[];
   location: ReturnType<typeof refundLocation>;
   navigate: Navigate;
   locked: boolean;
@@ -389,21 +411,31 @@ function RefundFilters({
       />
       <label
         className="grid gap-2 text-xs font-medium text-muted"
-        htmlFor="refund-method"
+        htmlFor="refund-account"
       >
-        Refund method
+        Refund account
         <SelectControl
-          id="refund-method"
-          value={location.query.paymentMethod ?? ''}
+          id="refund-account"
+          value={location.query.paymentAccountId ?? ''}
           disabled={locked}
           onValueChange={(value) =>
-            navigate({ method: value, page: undefined })
+            navigate({ paymentAccountId: value, page: undefined })
           }
         >
-          <option value="">All methods</option>
-          <option value="CASH">Cash</option>
-          <option value="GCASH">GCash</option>
-          <option value="CARD">Card</option>
+          <option value="">All accounts</option>
+          {accounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {paymentAccountHistoryLabel(account)}
+            </option>
+          ))}
+          {location.query.paymentAccountId &&
+          !accounts.some(
+            (account) => account.id === location.query.paymentAccountId,
+          ) ? (
+            <option value={location.query.paymentAccountId}>
+              Historical account
+            </option>
+          ) : null}
         </SelectControl>
       </label>
     </div>

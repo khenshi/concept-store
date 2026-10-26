@@ -1,25 +1,6 @@
+import { ReportPaymentAccountDto } from './payment-account-aggregates';
 import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { BranchIdentityResponseDto } from '../../../openapi/response.dto';
-
-export class ReportPaymentResponseDto {
-  @ApiProperty({
-    enum: ['CASH', 'GCASH', 'CARD'],
-    description:
-      'Original gross sale method; GCASH and CARD are manual, unverified payments',
-  })
-  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
-  @ApiProperty({
-    example: '125.00',
-    description: 'Exact two-decimal PHP gross recorded sales; not cash tender',
-  })
-  grossSales!: string;
-  @ApiProperty({
-    example: '2',
-    pattern: '^\\d+$',
-    description: 'Nonnegative integer string',
-  })
-  transactionCount!: string;
-}
 
 class ReportScopeResponseDto {
   @ApiProperty({ type: BranchIdentityResponseDto })
@@ -36,17 +17,6 @@ class ReportScopeResponseDto {
   until!: string;
 }
 
-export class ReportRefundMethodResponseDto {
-  @ApiProperty({
-    enum: ['CASH', 'GCASH', 'CARD'],
-    description:
-      'Actual manual refund method, independent of original sale method',
-  })
-  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
-  @ApiProperty({ example: '25.00' }) refundedAmount!: string;
-  @ApiProperty({ example: '1', pattern: '^\\d+$' }) refundCount!: string;
-}
-
 export class StaffSalesReportResponseDto extends ReportScopeResponseDto {
   @ApiProperty({ enum: ['STAFF'] })
   scope!: 'STAFF';
@@ -61,14 +31,11 @@ export class StaffSalesReportResponseDto extends ReportScopeResponseDto {
   @ApiProperty({ example: '4', pattern: '^\\d+$' })
   unitsSold!: string;
   @ApiProperty({
-    type: ReportPaymentResponseDto,
+    type: [ReportPaymentAccountDto],
     description:
-      'Gross sale payments only; never netted against refund methods',
-    isArray: true,
-    minItems: 3,
-    maxItems: 3,
+      'Complete account flows; no truncation or account balance claim',
   })
-  payments!: ReportPaymentResponseDto[];
+  paymentAccounts!: ReportPaymentAccountDto[];
   @ApiProperty({
     example: '25.00',
     description:
@@ -83,14 +50,6 @@ export class StaffSalesReportResponseDto extends ReportScopeResponseDto {
       'Exact signed gross minus refunds; may be negative, not profit or available cash',
   })
   netRecordedSales!: string;
-  @ApiProperty({
-    type: [ReportRefundMethodResponseDto],
-    description:
-      'Separate actual refund methods, not available cash or provider reconciliation',
-    minItems: 3,
-    maxItems: 3,
-  })
-  refundMethods!: ReportRefundMethodResponseDto[];
 }
 
 export class MerchantSalesReportResponseDto extends ReportScopeResponseDto {
@@ -139,8 +98,10 @@ class TransactionResponseBaseDto {
 
 export class StaffSaleTransactionResponseDto extends TransactionResponseBaseDto {
   @ApiProperty({ enum: ['SALE'] }) type!: 'SALE';
-  @ApiProperty({ enum: ['CASH', 'GCASH', 'CARD'] })
-  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
+  @ApiProperty({ format: 'uuid' }) paymentAccountId!: string;
+  @ApiProperty() paymentAccountName!: string;
+  @ApiProperty() paymentAccountIsCash!: boolean;
+  @ApiProperty() paymentAccountRequiresReference!: boolean;
   @ApiProperty({ description: 'Saved cashier display name' })
   actorName!: string;
   @ApiProperty({ type: [String] }) merchantNames!: string[];
@@ -148,8 +109,10 @@ export class StaffSaleTransactionResponseDto extends TransactionResponseBaseDto 
 
 export class StaffRefundTransactionResponseDto extends TransactionResponseBaseDto {
   @ApiProperty({ enum: ['REFUND'] }) type!: 'REFUND';
-  @ApiProperty({ enum: ['CASH', 'GCASH', 'CARD'] })
-  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
+  @ApiProperty({ format: 'uuid' }) paymentAccountId!: string;
+  @ApiProperty() paymentAccountName!: string;
+  @ApiProperty() paymentAccountIsCash!: boolean;
+  @ApiProperty() paymentAccountRequiresReference!: boolean;
   @ApiProperty({ description: 'Saved refund actor display name' })
   actorName!: string;
   @ApiProperty({ type: [String] }) merchantNames!: string[];

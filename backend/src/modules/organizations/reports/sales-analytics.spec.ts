@@ -1,3 +1,4 @@
+import { readPaymentAccounts } from './payment-account-aggregates';
 import { Prisma } from '../../../generated/prisma/client';
 import {
   intersectingManilaDates,
@@ -101,48 +102,22 @@ describe('Sales analytics', () => {
       expect.arrayContaining([PRODUCT_RANKING_PAGE_SIZE, 0]),
     );
   });
-  it('attributes completed refunds to the original sale method with tenant, branch and date filters', async () => {
+  it('groups actual refund accounts independently from sales without a source-sale join', async () => {
     const from = new Date('2026-09-01T16:00:00Z');
     const until = new Date('2026-09-02T16:00:00Z');
-    const raw = jest
-      .fn()
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          paymentMethod: 'CASH',
-          grossSales: '25.00',
-          refundsAgainstSales: '40.00',
-        },
-        {
-          paymentMethod: 'GCASH',
-          grossSales: '10.00',
-          refundsAgainstSales: '2.50',
-        },
-      ]);
-    const result = await readAnalytics(
+    const raw = jest.fn().mockResolvedValue([]);
+    await readPaymentAccounts(
       { $queryRaw: raw } as unknown as Prisma.TransactionClient,
-      {
-        organizationId: 'org',
-        userId: 'owner',
-        role: 'OWNER',
-      },
+      { organizationId: 'org', userId: 'owner', role: 'OWNER' },
       'branch',
       from,
       until,
     );
-    expect(result.netByPaymentMethod).toEqual([
-      { paymentMethod: 'CASH', netRecordedSales: '-15.00' },
-      { paymentMethod: 'GCASH', netRecordedSales: '7.50' },
-      { paymentMethod: 'CARD', netRecordedSales: '0.00' },
-    ]);
-    const [query] = raw.mock.calls[4] as [Prisma.Sql];
-    expect(query.sql).toContain('JOIN "Sale" source');
-    expect(query.sql).toContain('source."organizationId" =');
-    expect(query.sql).toContain('source."branchId" =');
-    expect(query.sql).toContain('r."completedAt" >=');
+    const [query] = raw.mock.calls[0] as [Prisma.Sql];
+    expect(query.sql).not.toContain('JOIN "Sale"');
+    expect(query.sql).toContain('GROUP BY "paymentAccountId"');
+    expect(query.sql).toContain('FROM "Refund"');
+    expect(query.sql).not.toContain('LIMIT');
     expect(query.values).toEqual(
       expect.arrayContaining(['org', 'branch', from, until]),
     );

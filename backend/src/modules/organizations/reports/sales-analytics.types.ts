@@ -97,19 +97,6 @@ export class StaffTopMerchantDto {
   })
   grossSales!: string;
 }
-export class StaffNetByPaymentMethodDto {
-  @ApiProperty({
-    enum: ['CASH', 'GCASH', 'CARD'],
-    description: 'Original sale payment method for matching net sales',
-  })
-  paymentMethod!: 'CASH' | 'GCASH' | 'CARD';
-  @ApiProperty({
-    ...signed,
-    description:
-      'Gross sales less refunds processed in the selected period, attributed to the original sale method',
-  })
-  netRecordedSales!: string;
-}
 export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto {
   @ApiPropertyOptional({
     enum: ['DAY', 'MONTH', 'YEAR'],
@@ -146,14 +133,6 @@ export class StaffSalesAnalyticsResponseDto extends StaffSalesReportResponseDto 
       'Gross descending, merchant ID ascending; grouped by saved merchant ID',
   })
   topMerchants!: StaffTopMerchantDto[];
-  @ApiProperty({
-    type: [StaffNetByPaymentMethodDto],
-    minItems: 3,
-    maxItems: 3,
-    description:
-      'Fixed method totals; refunds are attributed to the original sale payment method and amounts reconcile to netRecordedSales',
-  })
-  netByPaymentMethod!: StaffNetByPaymentMethodDto[];
 }
 export class MerchantSalesAnalyticsResponseDto extends MerchantSalesReportResponseDto {
   @ApiPropertyOptional({

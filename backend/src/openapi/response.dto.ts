@@ -15,6 +15,7 @@ import {
   OrganizationStatus,
   ProductStatus,
 } from '../generated/prisma/client';
+import type { EmailDeliveryStatus } from '../infrastructure/email/email.service';
 
 export class StatusResponseDto {
   @ApiProperty({ example: 'ok' }) status!: string;
@@ -129,6 +130,8 @@ export class CreatedOrganizationInvitationResponseDto {
     description: 'Single-use invitation token returned only once',
   })
   token!: string;
+  @ApiProperty({ enum: ['accepted', 'failed', 'disabled'] })
+  emailDelivery!: EmailDeliveryStatus;
 }
 
 export class OrganizationInvitationPreviewResponseDto {
@@ -316,7 +319,10 @@ export class CompletedSaleResponseDto {
   @ApiProperty() branchName!: string;
   @ApiProperty({ type: String, nullable: true }) branchCode!: string | null;
   @ApiProperty() cashierName!: string;
-  @ApiProperty({ enum: ['CASH', 'GCASH', 'CARD'] }) paymentMethod!: string;
+  @ApiProperty({ format: 'uuid' }) paymentAccountId!: string;
+  @ApiProperty() paymentAccountName!: string;
+  @ApiProperty() paymentAccountIsCash!: boolean;
+  @ApiProperty() paymentAccountRequiresReference!: boolean;
   @ApiProperty({ type: String, nullable: true, example: '1000.00' })
   cashTender!: string | null;
   @ApiProperty({ type: String, nullable: true, example: '150.00' })

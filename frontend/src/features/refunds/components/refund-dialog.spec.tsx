@@ -1,3 +1,15 @@
+import { paymentAccounts } from '@/features/pos/model/payment-account.test-fixtures';
+vi.mock('@/features/pos/model/use-branch-payment-accounts', () => ({
+  useBranchPaymentAccounts: () => ({
+    accounts: paymentAccounts,
+    refresh: vi.fn(),
+  }),
+  paymentAccountHistoryLabel: (account: { name: string }) => account.name,
+}));
+import {
+  cashAccount,
+  walletSnapshot,
+} from '@/features/pos/model/payment-account.test-fixtures';
 import {
   act,
   fireEvent,
@@ -158,12 +170,16 @@ describe('manual refund dialog and frozen recovery', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Returnable' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Cash' })).toHaveClass('sr-only');
     expect(
-      screen.getByRole('textbox', { name: 'Refund reference' }),
+      screen.getByRole('combobox', { name: 'Refund account' }),
+    ).toHaveTextContent('Cash');
+    expect(
+      screen.getByRole('textbox', { name: 'Account reference' }),
     ).toBeDisabled();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Cash' })).toBeChecked();
+    expect(
+      screen.getByRole('combobox', { name: 'Refund account' }),
+    ).toHaveTextContent('Cash');
     expect(screen.getByRole('textbox', { name: /Return units/ })).toHaveValue(
       '',
     );
@@ -184,7 +200,7 @@ describe('manual refund dialog and frozen recovery', () => {
     const body = JSON.parse(request.mock.calls[0][1].body);
     expect(body).toMatchObject({
       refundConfirmed: true,
-      paymentMethod: 'CASH',
+      paymentAccountId: cashAccount.id,
       reason: 'Damaged item',
       items: [
         {
@@ -201,16 +217,17 @@ describe('manual refund dialog and frozen recovery', () => {
   it('switching actual method clears reference; noncash stays available', async () => {
     request.mockResolvedValue({
       ...staffRefund,
-      paymentMethod: 'GCASH',
+      ...walletSnapshot,
       paymentReference: 'manual-ref',
     });
     mount();
     fill();
-    fireEvent.click(screen.getByRole('radio', { name: 'GCash' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Refund account' }));
+    fireEvent.click(screen.getByRole('option', { name: 'GCash Main' }));
     submit();
     expect(request).not.toHaveBeenCalled();
     fireEvent.change(
-      screen.getByRole('textbox', { name: 'Refund reference' }),
+      screen.getByRole('textbox', { name: 'Account reference' }),
       { target: { value: 'manual-ref' } },
     );
     submit();
@@ -221,12 +238,13 @@ describe('manual refund dialog and frozen recovery', () => {
   });
   it('does not validate untouched fields when selecting a refund method', () => {
     mount();
-    fireEvent.click(screen.getByRole('radio', { name: 'GCash' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Refund account' }));
+    fireEvent.click(screen.getByRole('option', { name: 'GCash Main' }));
     expect(
       screen.getByRole('textbox', { name: 'Refund reason' }),
     ).not.toHaveAttribute('aria-invalid', 'true');
     expect(
-      screen.getByRole('textbox', { name: 'Refund reference' }),
+      screen.getByRole('textbox', { name: 'Account reference' }),
     ).not.toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByText('2–500 characters')).not.toBeInTheDocument();
   });

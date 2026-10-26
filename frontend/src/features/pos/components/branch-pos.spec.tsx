@@ -1,3 +1,11 @@
+import { paymentAccounts } from '@/features/pos/model/payment-account.test-fixtures';
+vi.mock('@/features/pos/model/use-branch-payment-accounts', () => ({
+  useBranchPaymentAccounts: () => ({
+    accounts: paymentAccounts,
+    refresh: vi.fn(),
+  }),
+  paymentAccountHistoryLabel: (account: { name: string }) => account.name,
+}));
 import {
   act,
   fireEvent,

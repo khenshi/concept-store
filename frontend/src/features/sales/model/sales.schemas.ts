@@ -3,7 +3,6 @@ import {
   completedSaleSchema,
   money,
   moneyCents,
-  paymentMethod,
 } from '@/features/pos/model/checkout';
 
 const uuid = z.string().uuid();
@@ -122,7 +121,7 @@ export const salesQuerySchema = z
       .transform((value) => value || undefined)
       .optional(),
     cashierId: z.uuidv4().optional(),
-    paymentMethod: paymentMethod.optional(),
+    paymentAccountId: z.uuidv4().optional(),
     from: utc.optional(),
     until: utc.optional(),
     page: z.number().int().min(1).max(21474836),

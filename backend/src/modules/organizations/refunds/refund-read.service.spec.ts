@@ -45,7 +45,7 @@ describe('RefundReadService scopes and snapshots', () => {
         saleId: 'sale',
         refundCode: 'RF-1',
         completedAt: new Date('2026-10-21T00:00:00Z'),
-        paymentMethod: 'GCASH',
+        paymentAccountId: 'GCASH',
         total: new Prisma.Decimal('1234567890123456789012.34'),
         sale: { receiptCode: 'RC-1' },
       },
@@ -70,7 +70,7 @@ describe('RefundReadService scopes and snapshots', () => {
           refundCode: 'RF-1',
           receiptCode: 'RC-1',
           completedAt: new Date('2026-10-21T00:00:00Z'),
-          paymentMethod: 'GCASH',
+          paymentAccountId: 'GCASH',
           total: '1234567890123456789012.34',
         },
       ],
@@ -89,7 +89,7 @@ describe('RefundReadService scopes and snapshots', () => {
       expect.objectContaining({
         where: {
           organizationId_userId: { organizationId: 'org', userId: 'user' },
-          user: { deletedAt: null },
+          user: { deletedAt: null, emailVerifiedAt: { not: null } },
         },
       }),
     );
@@ -102,14 +102,14 @@ describe('RefundReadService scopes and snapshots', () => {
       page: 2,
       limit: 100,
       q: 'a%_\\b',
-      paymentMethod: 'CARD',
+      paymentAccountId: 'CARD',
       from: '0001-01-01T00:00:00Z',
       until: '9999-12-31T23:59:59.999Z',
     });
     const where = {
       organizationId: 'org',
       branchId: 'branch',
-      paymentMethod: 'CARD',
+      paymentAccountId: 'CARD',
       completedAt: {
         gte: new Date('0001-01-01T00:00:00Z'),
         lt: new Date('9999-12-31T23:59:59.999Z'),
@@ -373,7 +373,7 @@ describe('RefundReadService scopes and snapshots', () => {
     for (const key of [
       'total',
       'reason',
-      'paymentMethod',
+      'paymentAccountId',
       'paymentReference',
       'createdById',
       'refundCommand',

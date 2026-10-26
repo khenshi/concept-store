@@ -1,4 +1,10 @@
 import {
+  cashAccount,
+  walletAccount,
+  bankAccount,
+  walletSnapshot,
+} from '@/features/pos/model/payment-account.test-fixtures';
+import {
   checkoutContent,
   paymentError,
   changeEstimate,
@@ -6,7 +12,7 @@ import {
 } from './checkout';
 import { completedSale, product } from './pos.test-fixtures';
 const cash = {
-  method: 'CASH' as const,
+  account: cashAccount,
   tender: ' 1000.0 ',
   reference: '',
 };
@@ -34,7 +40,7 @@ describe('checkout client validation and exact amounts', () => {
           expectedUnitPrice: '850.00',
         },
       ],
-      paymentMethod: 'CASH',
+      paymentAccountId: cashAccount.id,
       cashTender: '1000.00',
     });
   });
@@ -48,20 +54,34 @@ describe('checkout client validation and exact amounts', () => {
     ).toBe('0.01');
     expect(changeEstimate({ ...cash, tender: '0.02' }, '0.03')).toBeNull();
   });
-  it.each(['GCASH', 'CARD'] as const)(
-    'emits only the trimmed manual reference for %s',
-    (method) => {
+  it.each([walletAccount, bankAccount])(
+    'emits only the trimmed manual reference for $name',
+    (account) => {
       expect(
-        checkoutContent(lines, { ...cash, method, reference: ' ref-001 ' }),
-      ).toMatchObject({ paymentMethod: method, paymentReference: 'ref-001' });
+        checkoutContent(lines, {
+          ...cash,
+          account,
+          reference: ' ref-001 ',
+        }),
+      ).toMatchObject({
+        paymentAccountId: account.id,
+        paymentReference: 'ref-001',
+      });
       expect(
-        checkoutContent(lines, { ...cash, method, reference: ' ref-001 ' }),
+        checkoutContent(lines, {
+          ...cash,
+          account,
+          reference: ' ref-001 ',
+        }),
       ).not.toHaveProperty('cashTender');
       expect(
-        paymentError({ ...cash, method, reference: ' a ' }, '850.00'),
+        paymentError({ ...cash, account, reference: ' a ' }, '850.00'),
       ).toBeDefined();
       expect(
-        paymentError({ ...cash, method, reference: 'a'.repeat(101) }, '850.00'),
+        paymentError(
+          { ...cash, account, reference: 'a'.repeat(101) },
+          '850.00',
+        ),
       ).toBeDefined();
     },
   );
@@ -82,7 +102,7 @@ describe('checkout client validation and exact amounts', () => {
     { total: 850 },
     { total: '1e3' },
     { cashTender: '-1000.00' },
-    { paymentMethod: 'GCASH' },
+    { ...walletSnapshot },
     { completedAt: 'invalid' },
   ])('rejects malformed/inconsistent receipts %j', (changes) => {
     expect(

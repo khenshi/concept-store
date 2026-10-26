@@ -5,7 +5,7 @@ const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const command = {
   requestId: id,
   items: [{ branchInventoryId: id, quantity: 1, expectedUnitPrice: '12.50' }],
-  paymentMethod: 'CASH',
+  paymentAccountId: id,
   cashTender: '20.00',
 };
 const pipe = new ValidationPipe({
@@ -27,13 +27,13 @@ describe('Checkout command validation', () => {
   });
   it.each(['GCASH', 'CARD'])(
     'accepts a trimmed manual %s reference',
-    async (paymentMethod) => {
+    async () => {
       const { cashTender, ...noncash } = command;
       expect(cashTender).toBe('20.00');
       await expect(
         validate({
           ...noncash,
-          paymentMethod,
+          paymentAccountId: id,
           paymentReference: ' reference ',
         }),
       ).resolves.toMatchObject({ paymentReference: 'reference' });
@@ -47,7 +47,7 @@ describe('Checkout command validation', () => {
     { cashTender: '1.001' },
     { cashTender: '1'.repeat(23) },
     { paymentReference: null },
-    { paymentReference: 'unwanted' },
+    { paymentReference: '' },
     { total: '12.50' },
     { createdById: id },
     { requestId: 'bad' },
@@ -74,26 +74,26 @@ describe('Checkout command validation', () => {
   ])('rejects invalid/untrusted command %j', async (extra) => {
     await expect(validate({ ...command, ...extra })).rejects.toThrow();
   });
-  it.each([undefined, null, '', 'x', 'x'.repeat(101), 123])(
+  it.each([null, '', 'x', 'x'.repeat(101), 123])(
     'rejects invalid noncash reference %j',
     async (paymentReference) => {
       await expect(
         validate({
           requestId: id,
           items: command.items,
-          paymentMethod: 'GCASH',
+          paymentAccountId: id,
           paymentReference,
         }),
       ).rejects.toThrow();
     },
   );
-  it.each([null, '20.00'])(
-    'rejects noncash tender even if %j',
+  it.each([null, '1e3'])(
+    'rejects malformed tender even if %j',
     async (cashTender) => {
       await expect(
         validate({
           ...command,
-          paymentMethod: 'CARD',
+          paymentAccountId: id,
           paymentReference: 'reference',
           cashTender,
         }),

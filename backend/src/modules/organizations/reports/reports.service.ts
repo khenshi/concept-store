@@ -42,12 +42,8 @@ import {
 } from './report-period';
 import { netRecordedSales } from './report-money';
 export { netRecordedSales } from './report-money';
-import type {
-  ReportPaymentResponseDto,
-  ReportRefundMethodResponseDto,
-  SalesReport,
-  TransactionsPage,
-} from './reports.types';
+import { readPaymentAccounts } from './payment-account-aggregates';
+import type { SalesReport, TransactionsPage } from './reports.types';
 
 type Aggregate = {
   grossSales: string;
@@ -67,7 +63,10 @@ type TransactionRow = {
   completedAt: Date;
   reference: string;
   amount: string;
-  paymentMethod: 'CASH' | 'GCASH' | 'CARD' | null;
+  paymentAccountId: string | null;
+  paymentAccountName: string | null;
+  paymentAccountIsCash: boolean | null;
+  paymentAccountRequiresReference: boolean | null;
   actorName: string | null;
   merchantNames: string[];
   totalCount: number;
@@ -336,14 +335,14 @@ export class ReportsService {
           current.role === 'MERCHANT'
             ? Prisma.sql`NULL::text`
             : Prisma.sql`CONCAT(actor."firstName", ' ', actor."lastName")`;
-        const salePaymentMethod =
+        const salePaymentAccountId =
           current.role === 'MERCHANT'
             ? Prisma.sql`NULL::text`
-            : Prisma.sql`s."paymentMethod"::text`;
-        const refundPaymentMethod =
+            : Prisma.sql`s."paymentAccountId"::text`;
+        const refundPaymentAccountId =
           current.role === 'MERCHANT'
             ? Prisma.sql`NULL::text`
-            : Prisma.sql`r."paymentMethod"::text`;
+            : Prisma.sql`r."paymentAccountId"::text`;
         const actorJoin =
           current.role === 'MERCHANT'
             ? Prisma.empty
@@ -358,7 +357,10 @@ export class ReportsService {
               s."completedAt" AS "completedAt",
               s."receiptCode" AS "reference",
               ${saleAmount} AS "amount",
-              ${salePaymentMethod} AS "paymentMethod",
+              ${salePaymentAccountId} AS "paymentAccountId",
+              ${current.role === 'MERCHANT' ? Prisma.sql`NULL::text` : Prisma.sql`s."paymentAccountName"`} AS "paymentAccountName",
+              ${current.role === 'MERCHANT' ? Prisma.sql`NULL::boolean` : Prisma.sql`s."paymentAccountIsCash"`} AS "paymentAccountIsCash",
+              ${current.role === 'MERCHANT' ? Prisma.sql`NULL::boolean` : Prisma.sql`s."paymentAccountRequiresReference"`} AS "paymentAccountRequiresReference",
               ${current.role === 'MERCHANT' ? Prisma.sql`NULL::text` : Prisma.sql`s."cashierName"`} AS "actorName",
               ${saleMerchantNames} AS "merchantNames"
             FROM "Sale" s
@@ -378,7 +380,10 @@ export class ReportsService {
               r."completedAt" AS "completedAt",
               r."refundCode" AS "reference",
               ${refundAmount} AS "amount",
-              ${refundPaymentMethod} AS "paymentMethod",
+              ${refundPaymentAccountId} AS "paymentAccountId",
+              ${current.role === 'MERCHANT' ? Prisma.sql`NULL::text` : Prisma.sql`r."paymentAccountName"`} AS "paymentAccountName",
+              ${current.role === 'MERCHANT' ? Prisma.sql`NULL::boolean` : Prisma.sql`r."paymentAccountIsCash"`} AS "paymentAccountIsCash",
+              ${current.role === 'MERCHANT' ? Prisma.sql`NULL::boolean` : Prisma.sql`r."paymentAccountRequiresReference"`} AS "paymentAccountRequiresReference",
               ${actorName} AS "actorName",
               ${refundMerchantNames} AS "merchantNames"
             FROM "Refund" r
@@ -454,7 +459,10 @@ export class ReportsService {
               completedAt,
               reference,
               amount,
-              paymentMethod,
+              paymentAccountId,
+              paymentAccountName,
+              paymentAccountIsCash,
+              paymentAccountRequiresReference,
               actorName,
               merchantNames,
             }) => ({
@@ -465,7 +473,10 @@ export class ReportsService {
               completedAt,
               reference,
               amount,
-              paymentMethod: paymentMethod!,
+              paymentAccountId: paymentAccountId!,
+              paymentAccountName: paymentAccountName!,
+              paymentAccountIsCash: paymentAccountIsCash!,
+              paymentAccountRequiresReference: paymentAccountRequiresReference!,
               actorName: actorName!,
               merchantNames,
             }),
@@ -645,22 +656,6 @@ export class ReportsService {
            WHERE i."organizationId" = ${current.organizationId} AND i."branchId" = ${branchId}) AS "unitsSold"
         FROM matched
       `);
-        const paymentRows = await tx.$queryRaw<
-          ReportPaymentResponseDto[]
-        >(Prisma.sql`
-        SELECT "paymentMethod", SUM("total")::text AS "grossSales", COUNT(*)::text AS "transactionCount"
-        FROM "Sale" WHERE "organizationId" = ${current.organizationId} AND "branchId" = ${branchId}
-          AND "completedAt" >= ${from} AND "completedAt" < ${until}
-        GROUP BY "paymentMethod"
-      `);
-        const payments = (['CASH', 'GCASH', 'CARD'] as const).map(
-          (paymentMethod) =>
-            paymentRows.find((row) => row.paymentMethod === paymentMethod) ?? {
-              paymentMethod,
-              grossSales: '0.00',
-              transactionCount: '0',
-            },
-        );
         const [refunds] = await tx.$queryRaw<RefundAggregate[]>(Prisma.sql`
           WITH matched_refunds AS (
             SELECT "id", "total" FROM "Refund"
@@ -672,33 +667,23 @@ export class ReportsService {
              WHERE i."organizationId" = ${current.organizationId} AND i."branchId" = ${branchId}) AS "returnedUnits"
           FROM matched_refunds
         `);
-        const refundRows = await tx.$queryRaw<
-          ReportRefundMethodResponseDto[]
-        >(Prisma.sql`
-          SELECT "paymentMethod", SUM("total")::text AS "refundedAmount", COUNT(*)::text AS "refundCount"
-          FROM "Refund" WHERE "organizationId" = ${current.organizationId} AND "branchId" = ${branchId}
-            AND "completedAt" >= ${from} AND "completedAt" < ${until}
-          GROUP BY "paymentMethod"
-        `);
-        const refundMethods = (['CASH', 'GCASH', 'CARD'] as const).map(
-          (paymentMethod) =>
-            refundRows.find((row) => row.paymentMethod === paymentMethod) ?? {
-              paymentMethod,
-              refundedAmount: '0.00',
-              refundCount: '0',
-            },
+        const paymentAccounts = await readPaymentAccounts(
+          tx,
+          current,
+          branchId,
+          from,
+          until,
         );
         return {
           ...range,
           scope: 'STAFF' as const,
           ...summary,
-          payments,
+          paymentAccounts,
           ...refunds,
           netRecordedSales: netRecordedSales(
             summary.grossSales,
             refunds.refundedAmount,
           ),
-          refundMethods,
           ...(analytics
             ? await readAnalytics(tx, current, branchId, from, until)
             : {}),
@@ -748,7 +733,7 @@ export class ReportsService {
           organizationId: context.organizationId,
           userId: context.userId,
         },
-        user: { deletedAt: null },
+        user: { deletedAt: null, emailVerifiedAt: { not: null } },
       },
       select: { role: true, merchantId: true },
     });

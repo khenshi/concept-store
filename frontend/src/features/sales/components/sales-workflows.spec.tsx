@@ -1,3 +1,11 @@
+import { paymentAccounts } from '@/features/pos/model/payment-account.test-fixtures';
+vi.mock('@/features/pos/model/use-branch-payment-accounts', () => ({
+  useBranchPaymentAccounts: () => ({
+    accounts: paymentAccounts,
+    refresh: vi.fn(),
+  }),
+  paymentAccountHistoryLabel: (account: { name: string }) => account.name,
+}));
 import {
   act,
   fireEvent,
@@ -235,7 +243,7 @@ describe('read-only scoped sales workflows', () => {
     expect(
       request.mock.calls.some(([path]) => path.endsWith('page=1&limit=15')),
     ).toBe(true);
-    expect(screen.getByText('Payment Method')).toBeInTheDocument();
+    expect(screen.getByText('Payment Account')).toBeInTheDocument();
     expect(
       screen.queryByText('Branch', { exact: true }),
     ).not.toBeInTheDocument();

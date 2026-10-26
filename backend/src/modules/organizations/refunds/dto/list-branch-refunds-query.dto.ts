@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
-  IsEnum,
+  IsUUID,
   IsOptional,
   IsString,
   MaxLength,
@@ -10,7 +10,6 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { SalePaymentMethod } from '../../../../generated/prisma/client';
 import {
   trimOptionalString,
   trimRequiredString,
@@ -51,10 +50,10 @@ export class ListBranchRefundsQueryDto extends ListRefundsQueryDto {
   @MaxLength(254)
   q?: string;
 
-  @ApiPropertyOptional({ enum: SalePaymentMethod })
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
-  @IsEnum(SalePaymentMethod)
-  paymentMethod?: SalePaymentMethod;
+  @IsUUID('4')
+  paymentAccountId?: string;
 
   @ApiPropertyOptional({
     format: 'date-time',

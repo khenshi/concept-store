@@ -22,7 +22,7 @@ export async function listBranchRefunds(
     page: String(query.page),
     limit: String(query.limit),
   });
-  for (const field of ['q', 'from', 'until', 'paymentMethod'] as const)
+  for (const field of ['q', 'from', 'until', 'paymentAccountId'] as const)
     if (query[field]) params.set(field, query[field]);
   const result = branchRefundPageSchema.parse(
     await request<unknown>(

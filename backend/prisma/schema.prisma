@@ -141,6 +141,7 @@ model Organization {
   refunds         Refund[]
   spaceTypes      SpaceType[]
   lifecycleEvents OrganizationLifecycleEvent[]
+  paymentAccounts PaymentAccount[]
 }
 
 model OrganizationLifecycleEvent {
@@ -210,6 +211,7 @@ model Branch {
   invitationGrants InvitationBranch[]
   sales            Sale[]
   refunds          Refund[]
+  paymentAccounts PaymentAccountBranch[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, name])
@@ -331,7 +333,10 @@ model Sale {
   receiptCode      String
   createdById      String
   requestId        String
-  paymentMethod    SalePaymentMethod
+  paymentAccountId String
+  paymentAccountName String @db.VarChar(100)
+  paymentAccountIsCash Boolean
+  paymentAccountRequiresReference Boolean
   cashTender       Decimal?          @db.Decimal(24, 2)
   cashChange       Decimal?          @db.Decimal(24, 2)
   paymentReference String?
@@ -348,12 +353,14 @@ model Sale {
   createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
   items        SaleItem[]
   refunds      Refund[]
+  paymentAccount PaymentAccount @relation(fields: [paymentAccountId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([organizationId, receiptCode])
   @@unique([organizationId, requestId])
   @@unique([id, organizationId, branchId])
   @@index([organizationId, branchId, completedAt, id], map: "Sale_branch_history_idx")
   @@index([organizationId, branchId, createdById, completedAt, id], map: "Sale_cashier_history_idx")
+  @@index([organizationId, branchId, paymentAccountId, completedAt])
 }
 
 /// Snapshot amounts/quantity checks are defined in SQL. No item mutation API.
@@ -397,7 +404,10 @@ model Refund {
   createdById      String
   completedAt      DateTime          @default(now())
   reason           String
-  paymentMethod    SalePaymentMethod
+  paymentAccountId String
+  paymentAccountName String @db.VarChar(100)
+  paymentAccountIsCash Boolean
+  paymentAccountRequiresReference Boolean
   paymentReference String?
   total            Decimal           @db.Decimal(24, 2)
   refundCommand    Json              @db.JsonB
@@ -407,12 +417,14 @@ model Refund {
   sale         Sale         @relation(fields: [saleId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict, onUpdate: Restrict, map: "Refund_sale_scope_fkey")
   createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
   items        RefundItem[]
+  paymentAccount PaymentAccount @relation(fields: [paymentAccountId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([organizationId, refundCode])
   @@unique([organizationId, requestId])
   @@unique([id, organizationId, branchId, saleId], map: "Refund_sale_scope_key")
   @@index([organizationId, branchId, saleId, completedAt, id], map: "Refund_sale_history_idx")
   @@index([organizationId, branchId, completedAt, id], map: "Refund_branch_reports_idx")
+  @@index([organizationId, branchId, paymentAccountId, completedAt])
 }
 
 /// Original source price and placement are enforced by a composite foreign key.
@@ -537,10 +549,43 @@ enum InventoryMovementType {
   RETURN
 }
 
-enum SalePaymentMethod {
-  CASH
-  GCASH
-  CARD
+enum PaymentAccountAssignmentMode {
+  ALL
+  SELECTED
+}
+
+model PaymentAccount {
+  id String @id @default(uuid())
+  organizationId String
+  name String @db.VarChar(100)
+  normalizedName String @db.VarChar(100)
+  enabled Boolean @default(true)
+  assignmentMode PaymentAccountAssignmentMode
+  systemKey String? @db.VarChar(4)
+  requiresReference Boolean @default(true)
+  version Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branches PaymentAccountBranch[]
+  sales Sale[]
+  refunds Refund[]
+
+  @@unique([id, organizationId])
+  @@unique([organizationId, normalizedName])
+  @@unique([organizationId, systemKey])
+  @@index([organizationId, enabled, name])
+}
+
+model PaymentAccountBranch {
+  organizationId String
+  paymentAccountId String
+  branchId String
+  paymentAccount PaymentAccount @relation(fields: [paymentAccountId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
+  branch Branch @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([paymentAccountId, branchId])
+  @@index([organizationId, branchId, paymentAccountId])
 }
 
 enum SpaceStatus {

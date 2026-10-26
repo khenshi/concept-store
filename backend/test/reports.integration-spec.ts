@@ -1,3 +1,7 @@
+import {
+  provisionPaymentFixtures,
+  testAccountId,
+} from './payment-account-fixtures';
 import { fixtureProduct } from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -44,7 +48,7 @@ async function refund(
   const result = await refunds.complete(context(), branchId, sale.id, {
     requestId: randomUUID(),
     reason: 'Private return reason',
-    paymentMethod: method,
+    paymentAccountId: testAccountId(organizationId, method),
     refundConfirmed: true,
     ...(method === 'CASH'
       ? {}
@@ -91,6 +95,7 @@ async function actor(role: OrganizationContext['role'], link?: string) {
       lastName: role,
       email: `${randomUUID()}@example.test`,
       passwordHash: 'unused',
+      emailVerifiedAt: new Date(),
     },
   });
   await prisma.organizationMembership.create({
@@ -110,7 +115,7 @@ async function complete(
       quantity,
       expectedUnitPrice: ['12.50', '0.01', '5.00'][index],
     })),
-    paymentMethod: method,
+    paymentAccountId: testAccountId(organizationId, method),
     ...(method === 'CASH'
       ? { cashTender: '100.00' }
       : { paymentReference: 'manual-test-reference' }),
@@ -136,7 +141,52 @@ async function mixedSales() {
   ];
 }
 async function read(userId = ownerId) {
-  return reports.sales(context(userId), branchId, range);
+  const result = await reports.sales(context(userId), branchId, range);
+  if (result.scope === 'STAFF') {
+    expect(result.paymentAccounts.map((row) => row.accountId).sort()).toEqual(
+      ['CASH', 'GCASH', 'CARD']
+        .map((label) => testAccountId(organizationId, label))
+        .sort(),
+    );
+    expect(
+      new Set(result.paymentAccounts.map((row) => row.accountId)).size,
+    ).toBe(result.paymentAccounts.length);
+    for (const [field, total] of [
+      ['received', result.grossSales],
+      ['refunded', result.refundedAmount],
+      ['netReceived', result.netRecordedSales],
+      ['transactionCount', result.transactionCount],
+      ['refundCount', result.refundCount],
+    ] as const) {
+      expect(
+        result.paymentAccounts.reduce(
+          (sum, row) => sum + BigInt(row[field].replace('.', '')),
+          0n,
+        ),
+      ).toBe(BigInt(total.replace('.', '')));
+    }
+    for (const row of result.paymentAccounts) {
+      expect(
+        BigInt(row.received.replace('.', '')) -
+          BigInt(row.refunded.replace('.', '')),
+      ).toBe(BigInt(row.netReceived.replace('.', '')));
+      expect(Object.keys(row).sort()).toEqual(
+        [
+          'accountId',
+          'displayName',
+          'enabled',
+          'available',
+          'isCash',
+          'received',
+          'refunded',
+          'netReceived',
+          'transactionCount',
+          'refundCount',
+        ].sort(),
+      );
+    }
+  }
+  return result;
 }
 
 describe('PostgreSQL branch sales reporting', () => {
@@ -169,21 +219,30 @@ describe('PostgreSQL branch sales reporting', () => {
       page: 3,
     });
     expect(first.items).toEqual([
-      expect.objectContaining({ date: '1954-04-11', grossSales: '0.00' }),
+      expect.objectContaining({
+        date: '1954-04-11',
+        grossSales: '0.00',
+      }) as Record<string, unknown>,
     ]);
     expect(second.items).toEqual([
-      expect.objectContaining({ date: '1954-04-12', grossSales: '25.00' }),
+      expect.objectContaining({
+        date: '1954-04-12',
+        grossSales: '25.00',
+      }) as Record<string, unknown>,
     ]);
     expect(third.items).toEqual([
-      expect.objectContaining({ date: '1954-04-13', grossSales: '0.00' }),
+      expect.objectContaining({
+        date: '1954-04-13',
+        grossSales: '0.00',
+      }) as Record<string, unknown>,
     ]);
   });
   it('measures bounded multi-year report queries on 10001 sales and 2001 refunds using existing indexes', async () => {
     const sale = await complete('CASH', [[0, 2]]);
     const returned = await refund(sale, [[0, 1]], 'CARD');
     await prisma.$executeRaw(Prisma.sql`
-      INSERT INTO "Sale" ("id", "organizationId", "branchId", "receiptCode", "createdById", "requestId", "paymentMethod", "cashTender", "cashChange", "paymentReference", "total", "completedAt", "organizationName", "branchName", "branchCode", "cashierName", "checkoutCommand")
-      SELECT md5(s."id" || n::text)::uuid::text, s."organizationId", s."branchId", 'PERF-' || n::text, s."createdById", md5(s."requestId" || n::text)::uuid::text, s."paymentMethod", s."cashTender", s."cashChange", s."paymentReference", s."total", TIMESTAMP '2010-01-01 00:00:00' + (n % 5844) * INTERVAL '1 day', s."organizationName", s."branchName", s."branchCode", s."cashierName", s."checkoutCommand"
+      INSERT INTO "Sale" ("id", "organizationId", "branchId", "receiptCode", "createdById", "requestId", "paymentAccountId", "paymentAccountName", "paymentAccountIsCash", "paymentAccountRequiresReference", "cashTender", "cashChange", "paymentReference", "total", "completedAt", "organizationName", "branchName", "branchCode", "cashierName", "checkoutCommand")
+      SELECT md5(s."id" || n::text)::uuid::text, s."organizationId", s."branchId", 'PERF-' || n::text, s."createdById", md5(s."requestId" || n::text)::uuid::text, s."paymentAccountId", s."paymentAccountName", s."paymentAccountIsCash", s."paymentAccountRequiresReference", s."cashTender", s."cashChange", s."paymentReference", s."total", TIMESTAMP '2010-01-01 00:00:00' + (n % 5844) * INTERVAL '1 day', s."organizationName", s."branchName", s."branchCode", s."cashierName", s."checkoutCommand"
       FROM "Sale" s CROSS JOIN generate_series(1, 10000) n WHERE s."id" = ${sale.id}
     `);
     await prisma.$executeRaw(Prisma.sql`
@@ -192,8 +251,8 @@ describe('PostgreSQL branch sales reporting', () => {
       FROM "SaleItem" i CROSS JOIN generate_series(1, 10000) n WHERE i."saleId" = ${sale.id}
     `);
     await prisma.$executeRaw(Prisma.sql`
-      INSERT INTO "Refund" ("id", "organizationId", "branchId", "saleId", "refundCode", "requestId", "createdById", "completedAt", "reason", "paymentMethod", "paymentReference", "total", "refundCommand")
-      SELECT md5(r."id" || n::text)::uuid::text, r."organizationId", r."branchId", md5(r."saleId" || n::text)::uuid::text, 'PERF-REF-' || n::text, md5(r."requestId"::text || n::text)::uuid, r."createdById", TIMESTAMP '2010-01-02 00:00:00' + (n % 5844) * INTERVAL '1 day', r."reason", r."paymentMethod", r."paymentReference", r."total", r."refundCommand"
+      INSERT INTO "Refund" ("id", "organizationId", "branchId", "saleId", "refundCode", "requestId", "createdById", "completedAt", "reason", "paymentAccountId", "paymentAccountName", "paymentAccountIsCash", "paymentAccountRequiresReference", "paymentReference", "total", "refundCommand")
+      SELECT md5(r."id" || n::text)::uuid::text, r."organizationId", r."branchId", md5(r."saleId" || n::text)::uuid::text, 'PERF-REF-' || n::text, md5(r."requestId"::text || n::text)::uuid, r."createdById", TIMESTAMP '2010-01-02 00:00:00' + (n % 5844) * INTERVAL '1 day', r."reason", r."paymentAccountId", r."paymentAccountName", r."paymentAccountIsCash", r."paymentAccountRequiresReference", r."paymentReference", r."total", r."refundCommand"
       FROM "Refund" r CROSS JOIN generate_series(1, 2000) n WHERE r."id" = ${returned.id}
     `);
     await prisma.$executeRaw(Prisma.sql`
@@ -515,7 +574,7 @@ describe('PostgreSQL branch sales reporting', () => {
       type: ReportTransactionType.REFUND,
       saleId: sale.id,
       amount: '12.50',
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       merchantNames: ['Own merchant'],
     });
     expect(refundItem.refundId).toEqual(expect.any(String));
@@ -550,10 +609,19 @@ describe('PostgreSQL branch sales reporting', () => {
     expect(merchantPage.items).toHaveLength(3);
     expect(merchantPage.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: 'SALE', amount: '25.03' }),
-        expect.objectContaining({ type: 'SALE', amount: '12.50' }),
-        expect.objectContaining({ type: 'REFUND', amount: '12.50' }),
-      ]),
+        expect.objectContaining({ type: 'SALE', amount: '25.03' }) as Record<
+          string,
+          unknown
+        >,
+        expect.objectContaining({ type: 'SALE', amount: '12.50' }) as Record<
+          string,
+          unknown
+        >,
+        expect.objectContaining({ type: 'REFUND', amount: '12.50' }) as Record<
+          string,
+          unknown
+        >,
+      ]) as unknown,
     );
     expect(merchantPage.items.every((item) => !('paymentMethod' in item))).toBe(
       true,
@@ -622,19 +690,21 @@ describe('PostgreSQL branch sales reporting', () => {
       ['Product 1', '0.03', '3', '0.02', '2', '0.01'],
     ]);
     expect(result.totalProducts).toBe('3');
-    expect(result.netByPaymentMethod).toEqual([
-      { paymentMethod: 'CASH', netRecordedSales: '27.51' },
-      { paymentMethod: 'GCASH', netRecordedSales: '17.50' },
-      { paymentMethod: 'CARD', netRecordedSales: '10.00' },
-    ]);
-    expect(result.refundMethods).toEqual([
-      { paymentMethod: 'CASH', refundedAmount: '0.00', refundCount: '0' },
-      { paymentMethod: 'GCASH', refundedAmount: '0.00', refundCount: '0' },
-      { paymentMethod: 'CARD', refundedAmount: '17.52', refundCount: '1' },
+    expect(
+      result.paymentAccounts.map((row) => [
+        row.displayName,
+        row.received,
+        row.refunded,
+        row.netReceived,
+      ]),
+    ).toEqual([
+      ['CARD', '10.00', '17.52', '-7.52'],
+      ['Cash', '45.03', '0.00', '45.03'],
+      ['GCASH', '17.50', '0.00', '17.50'],
     ]);
     expect(
-      result.netByPaymentMethod.reduce(
-        (sum, row) => sum + BigInt(row.netRecordedSales.replace('.', '')),
+      result.paymentAccounts.reduce(
+        (sum, row) => sum + BigInt(row.netReceived.replace('.', '')),
         BigInt(0),
       ),
     ).toBe(BigInt(result.netRecordedSales.replace('.', '')));
@@ -647,11 +717,28 @@ describe('PostgreSQL branch sales reporting', () => {
       grossSales: '0.00',
       refundedAmount: '17.52',
       netRecordedSales: '-17.52',
-      netByPaymentMethod: [
-        { paymentMethod: 'CASH', netRecordedSales: '-17.52' },
-        { paymentMethod: 'GCASH', netRecordedSales: '0.00' },
-        { paymentMethod: 'CARD', netRecordedSales: '0.00' },
-      ],
+      paymentAccounts: expect.arrayContaining([
+        ...[
+          {
+            paymentAccountId: testAccountId(organizationId, 'CASH'),
+            netRecordedSales: '0.00',
+          },
+          {
+            paymentAccountId: testAccountId(organizationId, 'GCASH'),
+            netRecordedSales: '0.00',
+          },
+          {
+            paymentAccountId: testAccountId(organizationId, 'CARD'),
+            netRecordedSales: '-17.52',
+          },
+        ].map(
+          (row) =>
+            expect.objectContaining({
+              accountId: row.paymentAccountId,
+              netReceived: row.netRecordedSales,
+            }) as Record<string, unknown>,
+        ),
+      ]) as unknown,
     });
     expect(result.topMerchants).toEqual([
       {
@@ -787,7 +874,7 @@ describe('PostgreSQL branch sales reporting', () => {
     });
     const otherBranchSale = await checkout.complete(context(), emptyBranchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '2.00',
       items: [
         {
@@ -805,12 +892,14 @@ describe('PostgreSQL branch sales reporting', () => {
     const foreignOrganization = await prisma.organization.create({
       data: { name: randomUUID() },
     });
+    await provisionPaymentFixtures(prisma, foreignOrganization.id);
     const foreignOwner = await prisma.user.create({
       data: {
         firstName: 'Foreign',
         lastName: 'Owner',
         email: `${randomUUID()}@example.test`,
         passwordHash: 'unused',
+        emailVerifiedAt: new Date(),
       },
     });
     await prisma.organizationMembership.create({
@@ -869,7 +958,7 @@ describe('PostgreSQL branch sales reporting', () => {
       foreignBranch.id,
       {
         requestId: randomUUID(),
-        paymentMethod: 'CASH',
+        paymentAccountId: testAccountId(foreignOrganization.id, 'CASH'),
         cashTender: '3.00',
         items: [
           {
@@ -926,7 +1015,7 @@ describe('PostgreSQL branch sales reporting', () => {
     }
     const sale = await checkout.complete(context(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '12.00',
       items: merchants.map((merchant) => ({
         branchInventoryId: merchant.inventoryId,
@@ -948,7 +1037,7 @@ describe('PostgreSQL branch sales reporting', () => {
     });
     const latestSale = await checkout.complete(context(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '1.00',
       items: [
         {
@@ -1009,7 +1098,7 @@ describe('PostgreSQL branch sales reporting', () => {
     }
     const first = await checkout.complete(context(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '100.00',
       items: placements.map((branchInventoryId) => ({
         branchInventoryId,
@@ -1034,7 +1123,7 @@ describe('PostgreSQL branch sales reporting', () => {
     });
     const second = await checkout.complete(context(), branchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '100.00',
       items: [
         {
@@ -1202,6 +1291,7 @@ describe('PostgreSQL branch sales reporting', () => {
     organizationId = (
       await prisma.organization.create({ data: { name: randomUUID() } })
     ).id;
+    await provisionPaymentFixtures(prisma, organizationId);
     ownerId = await actor('OWNER');
     const merchantData = {
       organizationId,
@@ -1272,7 +1362,8 @@ describe('PostgreSQL branch sales reporting', () => {
   });
 
   it('returns explicit zero totals and all three zero staff payment rows for an empty authorized period', async () => {
-    expect(await read()).toMatchObject({
+    const result = await read();
+    expect(result).toMatchObject({
       scope: 'STAFF',
       grossSales: '0.00',
       transactionCount: '0',
@@ -1281,17 +1372,23 @@ describe('PostgreSQL branch sales reporting', () => {
       refundCount: '0',
       returnedUnits: '0',
       netRecordedSales: '0.00',
-      refundMethods: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-        paymentMethod,
-        refundedAmount: '0.00',
-        refundCount: '0',
-      })),
-      payments: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-        paymentMethod,
-        grossSales: '0.00',
-        transactionCount: '0',
-      })),
     });
+    if (result.scope !== 'STAFF') throw new Error('Expected staff report');
+    const expectedIds = ['CASH', 'GCASH', 'CARD']
+      .map((label) => testAccountId(organizationId, label))
+      .sort();
+    expect(result.paymentAccounts.map((row) => row.accountId).sort()).toEqual(
+      expectedIds,
+    );
+    expect(result.paymentAccounts).toHaveLength(expectedIds.length);
+    for (const row of result.paymentAccounts)
+      expect(row).toMatchObject({
+        received: '0.00',
+        refunded: '0.00',
+        netReceived: '0.00',
+        transactionCount: '0',
+        refundCount: '0',
+      });
   });
   it('sums each completed sale once and reconciles all payment methods instead of tender', async () => {
     await mixedSales();
@@ -1300,11 +1397,32 @@ describe('PostgreSQL branch sales reporting', () => {
       grossSales: '72.53',
       transactionCount: '3',
       unitsSold: '13',
-      payments: [
-        { paymentMethod: 'CASH', grossSales: '45.03', transactionCount: '1' },
-        { paymentMethod: 'GCASH', grossSales: '17.50', transactionCount: '1' },
-        { paymentMethod: 'CARD', grossSales: '10.00', transactionCount: '1' },
-      ],
+      paymentAccounts: expect.arrayContaining([
+        ...[
+          {
+            paymentAccountId: testAccountId(organizationId, 'CASH'),
+            grossSales: '45.03',
+            transactionCount: '1',
+          },
+          {
+            paymentAccountId: testAccountId(organizationId, 'GCASH'),
+            grossSales: '17.50',
+            transactionCount: '1',
+          },
+          {
+            paymentAccountId: testAccountId(organizationId, 'CARD'),
+            grossSales: '10.00',
+            transactionCount: '1',
+          },
+        ].map(
+          (row) =>
+            expect.objectContaining({
+              accountId: row.paymentAccountId,
+              received: row.grossSales,
+              transactionCount: row.transactionCount,
+            }) as Record<string, unknown>,
+        ),
+      ]) as unknown,
     });
     expect(await read(managerId)).toEqual(await read());
   });
@@ -1568,7 +1686,7 @@ describe('PostgreSQL branch sales reporting', () => {
           expectedUnitPrice: '20.00',
         },
       ],
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       paymentReference: 'manual-other-branch',
     });
     await prisma.sale.update({
@@ -1603,7 +1721,7 @@ describe('PostgreSQL branch sales reporting', () => {
         quantity: 2147483647,
         expectedUnitPrice: '9999999999.99',
       })),
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       paymentReference: 'manual-high-capacity',
     });
     await prisma.sale.update({
@@ -1793,11 +1911,32 @@ describe('PostgreSQL branch sales reporting', () => {
         grossSales: '12.50',
         transactionCount: '1',
         unitsSold: '1',
-        payments: [
-          { paymentMethod: 'CASH', grossSales: '12.50', transactionCount: '1' },
-          { paymentMethod: 'GCASH', grossSales: '0.00', transactionCount: '0' },
-          { paymentMethod: 'CARD', grossSales: '0.00', transactionCount: '0' },
-        ],
+        paymentAccounts: expect.arrayContaining([
+          ...[
+            {
+              paymentAccountId: testAccountId(organizationId, 'CASH'),
+              grossSales: '12.50',
+              transactionCount: '1',
+            },
+            {
+              paymentAccountId: testAccountId(organizationId, 'GCASH'),
+              grossSales: '0.00',
+              transactionCount: '0',
+            },
+            {
+              paymentAccountId: testAccountId(organizationId, 'CARD'),
+              grossSales: '0.00',
+              transactionCount: '0',
+            },
+          ].map(
+            (row) =>
+              expect.objectContaining({
+                accountId: row.paymentAccountId,
+                received: row.grossSales,
+                transactionCount: row.transactionCount,
+              }) as Record<string, unknown>,
+          ),
+        ]) as unknown,
       });
       expect(await read()).toMatchObject({
         grossSales: '25.00',
@@ -1826,11 +1965,22 @@ describe('PostgreSQL branch sales reporting', () => {
         refundCount: '1',
         returnedUnits: '5',
         netRecordedSales: '50.01',
-        refundMethods: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-          paymentMethod,
-          refundedAmount: paymentMethod === method ? '22.52' : '0.00',
-          refundCount: paymentMethod === method ? '1' : '0',
-        })),
+        paymentAccounts: expect.arrayContaining([
+          ...['CASH', 'GCASH', 'CARD']
+            .map((paymentMethod) => ({
+              paymentAccountId: testAccountId(organizationId, paymentMethod),
+              refundedAmount: paymentMethod === method ? '22.52' : '0.00',
+              refundCount: paymentMethod === method ? '1' : '0',
+            }))
+            .map(
+              (row) =>
+                expect.objectContaining({
+                  accountId: row.paymentAccountId,
+                  refunded: row.refundedAmount,
+                  refundCount: row.refundCount,
+                }) as Record<string, unknown>,
+            ),
+        ]) as unknown,
       });
       expect(await read(managerId)).toEqual(await read());
       expect(await read(merchantUserId)).toMatchObject({
@@ -2076,7 +2226,7 @@ describe('PostgreSQL branch sales reporting', () => {
     });
     const sale = await checkout.complete(context(), emptyBranchId, {
       requestId: randomUUID(),
-      paymentMethod: 'CASH',
+      paymentAccountId: testAccountId(organizationId, 'CASH'),
       cashTender: '20.00',
       items: [
         {
@@ -2089,7 +2239,7 @@ describe('PostgreSQL branch sales reporting', () => {
     const returned = await refunds.complete(context(), emptyBranchId, sale.id, {
       requestId: randomUUID(),
       reason: 'Returned',
-      paymentMethod: 'CARD',
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       paymentReference: 'PRIVATE',
       refundConfirmed: true,
       items: [
@@ -2276,23 +2426,32 @@ describe('PostgreSQL branch sales reporting', () => {
               refundedAmount: '12.50',
               refundCount: '1',
               netRecordedSales: '25.00',
-              refundMethods: [
-                {
-                  paymentMethod: 'CASH',
-                  refundedAmount: '12.50',
-                  refundCount: '1',
-                },
-                {
-                  paymentMethod: 'GCASH',
-                  refundedAmount: '0.00',
-                  refundCount: '0',
-                },
-                {
-                  paymentMethod: 'CARD',
-                  refundedAmount: '0.00',
-                  refundCount: '0',
-                },
-              ],
+              paymentAccounts: expect.arrayContaining([
+                ...[
+                  {
+                    paymentAccountId: testAccountId(organizationId, 'CASH'),
+                    refundedAmount: '12.50',
+                    refundCount: '1',
+                  },
+                  {
+                    paymentAccountId: testAccountId(organizationId, 'GCASH'),
+                    refundedAmount: '0.00',
+                    refundCount: '0',
+                  },
+                  {
+                    paymentAccountId: testAccountId(organizationId, 'CARD'),
+                    refundedAmount: '0.00',
+                    refundCount: '0',
+                  },
+                ].map(
+                  (row) =>
+                    expect.objectContaining({
+                      accountId: row.paymentAccountId,
+                      refunded: row.refundedAmount,
+                      refundCount: row.refundCount,
+                    }) as Record<string, unknown>,
+                ),
+              ]) as unknown,
             }
           : {
               ownGrossSales: '37.50',

@@ -1,3 +1,4 @@
+import { bankAccount } from '@/features/pos/model/payment-account.test-fixtures';
 import {
   listCashiers,
   listSales,
@@ -31,13 +32,13 @@ describe('scoped role-specific sales read API', () => {
         limit: 15,
         q: 'SALE-001',
         cashierId,
-        paymentMethod: 'CARD',
+        paymentAccountId: bankAccount.id,
         from: '2026-09-12T16:00:00.000Z',
         until: '2026-09-13T16:00:00.000Z',
       }),
     ).resolves.toEqual({ kind: 'staff', page: staffPage });
     expect(request.mock.calls[0][0]).toBe(
-      `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=15&q=SALE-001&cashierId=${cashierId}&paymentMethod=CARD&from=2026-09-12T16%3A00%3A00.000Z&until=2026-09-13T16%3A00%3A00.000Z`,
+      `/organizations/${scope.organizationId}/branches/${scope.branchId}/sales?page=1&limit=15&q=SALE-001&cashierId=${cashierId}&paymentAccountId=${bankAccount.id}&from=2026-09-12T16%3A00%3A00.000Z&until=2026-09-13T16%3A00%3A00.000Z`,
     );
     await expect(listCashiers(request, scope)).resolves.toEqual([
       { id: cashierId, name: 'A Cashier' },
@@ -112,7 +113,7 @@ describe('scoped role-specific sales read API', () => {
   it.each([
     'total',
     'cashierName',
-    'paymentMethod',
+    'paymentAccountId',
     'paymentReference',
     'cashTender',
     'cashChange',

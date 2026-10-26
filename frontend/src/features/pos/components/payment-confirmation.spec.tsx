@@ -1,3 +1,11 @@
+import { paymentAccounts } from '@/features/pos/model/payment-account.test-fixtures';
+vi.mock('@/features/pos/model/use-branch-payment-accounts', () => ({
+  useBranchPaymentAccounts: () => ({
+    accounts: paymentAccounts,
+    refresh: vi.fn(),
+  }),
+  paymentAccountHistoryLabel: (account: { name: string }) => account.name,
+}));
 import {
   act,
   fireEvent,
@@ -70,9 +78,10 @@ describe('payment confirmation', () => {
   it('does not show payment errors for an untouched method input', () => {
     vi.useFakeTimers();
     render(<PaymentConfirmation {...props} />);
-    fireEvent.click(screen.getByRole('radio', { name: 'GCash' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Payment account' }));
+    fireEvent.click(screen.getByRole('option', { name: 'GCash Main' }));
     const reference = screen.getByRole('textbox', {
-      name: 'Payment reference',
+      name: 'Account reference',
     });
     act(() => {
       vi.advanceTimersByTime(300);
@@ -230,17 +239,22 @@ describe('payment confirmation', () => {
       expect(completeCheckout).toHaveBeenCalledTimes(1);
     },
   );
-  it.each(['GCash', 'Card'])(
+  it.each(['GCash Main', 'BPI'])(
     'records %s without cash fields when the reference is valid',
     async (label) => {
       render(<PaymentConfirmation {...props} />);
-      fireEvent.click(screen.getByRole('radio', { name: label }));
-      expect(screen.getByText('Use 2–100 characters.')).toBeInTheDocument();
+      fireEvent.click(
+        screen.getByRole('combobox', { name: 'Payment account' }),
+      );
+      fireEvent.click(screen.getByRole('option', { name: label }));
+      expect(
+        screen.getByText('Required: use 2–100 characters.'),
+      ).toBeInTheDocument();
       expect(
         screen.getByRole('button', { name: 'Complete sale' }),
       ).toBeDisabled();
       fireEvent.change(
-        screen.getByRole('textbox', { name: 'Payment reference' }),
+        screen.getByRole('textbox', { name: 'Account reference' }),
         { target: { value: ' ref-001 ' } },
       );
       fireEvent.click(screen.getByRole('button', { name: 'Complete sale' }));

@@ -17,7 +17,7 @@ const context = {
 const dto: CreateRefundDto = {
   requestId,
   reason: 'Returned goods',
-  paymentMethod: 'CASH',
+  paymentAccountId: 'CASH',
   refundConfirmed: true,
   items: [{ saleItemId: item, quantity: 2, restockQuantity: 1 }],
 };
@@ -29,7 +29,10 @@ const saved = {
   refundCode: 'REFUND-TEST',
   completedAt: new Date(),
   reason: dto.reason,
-  paymentMethod: 'CASH',
+  paymentAccountId: 'CASH',
+  paymentAccountName: 'Cash',
+  paymentAccountIsCash: true,
+  paymentAccountRequiresReference: false,
   paymentReference: null,
   total: new Prisma.Decimal('25.00'),
   sale: { receiptCode: 'SALE-TEST' },
@@ -66,6 +69,7 @@ describe('RefundsService', () => {
     },
     branchInventory: { updateMany: jest.fn(), findUniqueOrThrow: jest.fn() },
     inventoryMovement: { create: jest.fn() },
+    paymentAccount: { findFirst: jest.fn() },
     $queryRaw: jest.fn(),
   };
   const prisma = { $transaction: jest.fn() };
@@ -80,6 +84,15 @@ describe('RefundsService', () => {
     tx.$queryRaw
       .mockResolvedValueOnce([{ id: org, status: 'ACTIVE' }])
       .mockResolvedValue([{ id: sale }]);
+    tx.paymentAccount.findFirst.mockResolvedValue({
+      id: 'CASH',
+      name: 'Cash',
+      systemKey: 'CASH',
+      enabled: true,
+      assignmentMode: 'ALL',
+      requiresReference: false,
+      branches: [],
+    });
     tx.refund.findUnique.mockResolvedValue(null);
     tx.saleItem.findMany.mockResolvedValue([
       {
@@ -204,7 +217,7 @@ describe('RefundsService', () => {
     refundCommand: {
       items: dto.items,
       reason: dto.reason,
-      paymentMethod: 'CASH',
+      paymentAccountId: 'CASH',
       refundConfirmed: true,
     },
   });

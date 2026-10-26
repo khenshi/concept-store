@@ -76,16 +76,10 @@ function ReceiptContent({ sale }: { sale: CompletedSale }) {
           <h4 className="font-semibold">Payment</h4>
           <dl className="mt-3 grid gap-2 text-sm">
             <div className="flex flex-wrap justify-between gap-x-4">
-              <dt className="text-muted">Method</dt>
-              <dd className="font-medium">
-                {sale.paymentMethod === 'GCASH'
-                  ? 'GCash'
-                  : sale.paymentMethod === 'CARD'
-                    ? 'Card'
-                    : 'Cash'}
-              </dd>
+              <dt className="text-muted">Payment account</dt>
+              <dd className="font-medium">{sale.paymentAccountName}</dd>
             </div>
-            {sale.paymentMethod === 'CASH' ? (
+            {sale.paymentAccountIsCash ? (
               <>
                 <div className="flex flex-wrap justify-between gap-x-4">
                   <dt className="text-muted">Cash tender</dt>
@@ -101,7 +95,7 @@ function ReceiptContent({ sale }: { sale: CompletedSale }) {
                 <div className="flex flex-wrap justify-between gap-x-4">
                   <dt className="text-muted">Reference</dt>
                   <dd className="break-words text-right">
-                    {sale.paymentReference}
+                    {sale.paymentReference ?? '—'}
                   </dd>
                 </div>
                 <div className="text-xs text-muted">

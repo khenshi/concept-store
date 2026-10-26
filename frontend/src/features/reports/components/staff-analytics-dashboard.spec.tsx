@@ -1,3 +1,7 @@
+import {
+  reportAccount,
+  mergeAccountFlows,
+} from '@/features/reports/model/report.test-fixtures';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import {
   RankingControls,
@@ -5,7 +9,6 @@ import {
   StaffDailyData,
 } from './staff-analytics-dashboard';
 import { staffSalesAnalyticsSchema } from '../model/report.schemas';
-
 it('renders server daily rows with the supplied pagination footer', () => {
   render(
     <StaffDailyData
@@ -20,7 +23,6 @@ it('renders server daily rows with the supplied pagination footer', () => {
   expect(screen.getByText('2026-09-14')).toBeInTheDocument();
   expect(screen.getByText('2026-09-15')).toBeInTheDocument();
 });
-
 const report = staffSalesAnalyticsSchema.parse({
   scope: 'STAFF',
   branch: {
@@ -37,21 +39,18 @@ const report = staffSalesAnalyticsSchema.parse({
   refundCount: '1',
   returnedUnits: '1',
   netRecordedSales: '-5.00',
-  payments: [
-    { paymentMethod: 'CASH', grossSales: '5.00', transactionCount: '1' },
-    { paymentMethod: 'GCASH', grossSales: '0.00', transactionCount: '0' },
-    { paymentMethod: 'CARD', grossSales: '0.00', transactionCount: '0' },
-  ],
-  refundMethods: [
-    { paymentMethod: 'CASH', refundedAmount: '0.00', refundCount: '0' },
-    { paymentMethod: 'GCASH', refundedAmount: '10.00', refundCount: '1' },
-    { paymentMethod: 'CARD', refundedAmount: '0.00', refundCount: '0' },
-  ],
-  netByPaymentMethod: [
-    { paymentMethod: 'CASH', netRecordedSales: '-5.00' },
-    { paymentMethod: 'GCASH', netRecordedSales: '0.00' },
-    { paymentMethod: 'CARD', netRecordedSales: '0.00' },
-  ],
+  paymentAccounts: mergeAccountFlows(
+    [
+      reportAccount('CASH', { received: '5.00', transactionCount: '1' }),
+      reportAccount('GCASH', { received: '0.00', transactionCount: '0' }),
+      reportAccount('CARD', { received: '0.00', transactionCount: '0' }),
+    ],
+    [
+      reportAccount('CASH', { refunded: '0.00', refundCount: '0' }),
+      reportAccount('GCASH', { refunded: '10.00', refundCount: '1' }),
+      reportAccount('CARD', { refunded: '0.00', refundCount: '0' }),
+    ],
+  ),
   dailyTrends: [
     {
       date: '2026-09-14',
@@ -109,7 +108,6 @@ const report = staffSalesAnalyticsSchema.parse({
     },
   ],
 });
-
 function grossOnlyReport({
   dates,
   salesByDate,
@@ -139,9 +137,7 @@ function grossOnlyReport({
     (total, row) => total + BigInt(row.grossSales.replace('.', '')),
     BigInt(0),
   );
-  const grossSales = `${totalCents / BigInt(100)}.${(totalCents % BigInt(100))
-    .toString()
-    .padStart(2, '0')}`;
+  const grossSales = `${totalCents / BigInt(100)}.${(totalCents % BigInt(100)).toString().padStart(2, '0')}`;
   const transactionCount = dailyTrends.filter(
     (row) => row.transactionCount === '1',
   ).length;
@@ -161,7 +157,6 @@ function grossOnlyReport({
   const topMerchants = hasSales
     ? [{ ...report.topMerchants[0], grossSales }]
     : [];
-
   return staffSalesAnalyticsSchema.parse({
     ...report,
     from,
@@ -173,31 +168,27 @@ function grossOnlyReport({
     refundCount: '0',
     returnedUnits: '0',
     netRecordedSales: grossSales,
-    payments: [
-      {
-        paymentMethod: 'CASH',
-        grossSales,
-        transactionCount: String(transactionCount),
-      },
-      { paymentMethod: 'GCASH', grossSales: '0.00', transactionCount: '0' },
-      { paymentMethod: 'CARD', grossSales: '0.00', transactionCount: '0' },
-    ],
-    refundMethods: report.refundMethods.map((row) => ({
-      ...row,
-      refundedAmount: '0.00',
-      refundCount: '0',
-    })),
-    netByPaymentMethod: report.netByPaymentMethod.map((row) => ({
-      ...row,
-      netRecordedSales: row.paymentMethod === 'CASH' ? grossSales : '0.00',
-    })),
+    paymentAccounts: mergeAccountFlows(
+      [
+        reportAccount('CASH', {
+          received: grossSales,
+          transactionCount: String(transactionCount),
+        }),
+        reportAccount('GCASH', { received: '0.00', transactionCount: '0' }),
+        reportAccount('CARD', { received: '0.00', transactionCount: '0' }),
+      ],
+      report.paymentAccounts.map((row) => ({
+        ...row,
+        refunded: '0.00',
+        refundCount: '0',
+      })),
+    ),
     dailyTrends,
     topProducts,
     totalProducts: hasSales ? '1' : '0',
     topMerchants,
   });
 }
-
 describe('staff analytics dashboard', () => {
   it('labels grouped trends and hides weekday averages', () => {
     const { rerender } = render(
@@ -244,9 +235,12 @@ describe('staff analytics dashboard', () => {
     const { container, rerender } = render(
       <StaffAnalyticsDashboard report={report} />,
     );
-    expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(
-      2,
-    );
+    expect(
+      screen.getByRole('img', { name: /Received by payment account donut/ }),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelectorAll('svg[aria-hidden="true"]').length,
+    ).toBeGreaterThanOrEqual(2);
     rerender(<StaffAnalyticsDashboard report={report} activeTab="daily" />);
     const daily = screen.getByRole('table', {
       name: 'Daily sales data in Asia/Manila',
@@ -372,7 +366,6 @@ describe('staff analytics dashboard', () => {
     expect(
       within(netValues).getByText('2026-09-15: PHP -10.00'),
     ).toBeInTheDocument();
-
     fireEvent.click(
       within(metricGroup).getByRole('radio', { name: 'Gross Sales' }),
     );
@@ -390,7 +383,6 @@ describe('staff analytics dashboard', () => {
     expect(
       within(grossValues).getByText('2026-09-15: PHP 0.00'),
     ).toBeInTheDocument();
-
     fireEvent.click(
       within(metricGroup).getByRole('radio', { name: 'Refunds' }),
     );
@@ -404,7 +396,6 @@ describe('staff analytics dashboard', () => {
       within(refundValues).getByText('2026-09-14: PHP 0.00'),
     ).toBeInTheDocument();
   });
-
   it('shows top-five performance bars, gross payment values and responsive chart proportions', () => {
     const topProducts = Array.from({ length: 6 }, (_, index) => ({
       ...report.topProducts[0],
@@ -428,7 +419,6 @@ describe('staff analytics dashboard', () => {
       topMerchants,
     });
     const { rerender } = render(<StaffAnalyticsDashboard report={ranked} />);
-
     const performance = screen.getByRole('group', {
       name: 'Performance charts',
     });
@@ -449,9 +439,8 @@ describe('staff analytics dashboard', () => {
       within(productsBySales).queryByText('Product 6'),
     ).not.toBeInTheDocument();
     expect(productsBySales.closest('section')).toBeInTheDocument();
-
     const weekdayRow = screen.getByRole('group', {
-      name: 'Weekday and payment method charts',
+      name: 'Weekday and payment account charts',
     });
     expect(weekdayRow).toHaveClass('md:grid-cols-3');
     expect(weekdayRow.children[0]).toHaveClass('md:col-span-2');
@@ -460,15 +449,17 @@ describe('staff analytics dashboard', () => {
       screen.getByRole('heading', { name: 'Average sales by weekday' }),
     ).toBeInTheDocument();
     const paymentChart = screen
-      .getByRole('heading', { name: 'Gross sales by payment method' })
+      .getByRole('heading', { name: 'Payment Accounts' })
       .closest('section');
-    expect(within(paymentChart!).getByText('Cash')).toBeInTheDocument();
-    expect(within(paymentChart!).getByText('PHP 5.00')).toBeInTheDocument();
+    expect(within(paymentChart!).getAllByText('Cash')[0]).toBeInTheDocument();
+    expect(within(paymentChart!).getAllByText('5.00')[0]).toBeInTheDocument();
     expect(
-      within(paymentChart!).getByText('1 transactions'),
+      within(paymentChart!).getByRole('columnheader', { name: 'Received' }),
     ).toBeInTheDocument();
-    expect(within(paymentChart!).getByText('GCash')).toBeInTheDocument();
-    expect(within(paymentChart!).getByText('Card')).toBeInTheDocument();
+    expect(
+      within(paymentChart!).getAllByText('GCash Main')[0],
+    ).toBeInTheDocument();
+    expect(within(paymentChart!).getAllByText('BPI')[0]).toBeInTheDocument();
     rerender(<StaffAnalyticsDashboard report={ranked} activeTab="rankings" />);
     const productTable = screen.getByRole('table', {
       name: 'Top products by gross sales',
@@ -481,7 +472,6 @@ describe('staff analytics dashboard', () => {
     expect(productTable).toHaveClass('min-w-[46rem]', 'xl:min-w-[62rem]');
     expect(within(productTable).getAllByText(/SKU/)).toHaveLength(7);
   });
-
   it('averages gross sales over every weekday date in partial weeks and rounds half cents up', () => {
     const dates = Array.from({ length: 8 }, (_, index) =>
       new Date(Date.UTC(2026, 8, 14 + index)).toISOString().slice(0, 10),
@@ -513,7 +503,6 @@ describe('staff analytics dashboard', () => {
       }),
     ).toBeInTheDocument();
   });
-
   it('labels weekdays absent from a one-day range without dividing by zero', () => {
     const oneDay = grossOnlyReport({
       dates: ['2026-09-14'],
@@ -537,7 +526,6 @@ describe('staff analytics dashboard', () => {
     ).toBeInTheDocument();
     expect(within(weekdayValues).getAllByText('No dates')).toHaveLength(6);
   });
-
   it('uses hourly points for a one-day period while keeping the axis readable', () => {
     const oneDay = grossOnlyReport({
       dates: ['2026-09-14'],
@@ -575,7 +563,6 @@ describe('staff analytics dashboard', () => {
       ).getByText('9 AM: PHP 5.00'),
     ).toBeInTheDocument();
   });
-
   it('keeps a one-cent negative net value signed in the selectable line chart', () => {
     const tinyNet = staffSalesAnalyticsSchema.parse({
       ...report,
@@ -584,20 +571,17 @@ describe('staff analytics dashboard', () => {
       unitsSold: '1',
       refundedAmount: '10.01',
       netRecordedSales: '-0.01',
-      payments: report.payments.map((row) =>
-        row.paymentMethod === 'CASH'
-          ? { ...row, grossSales: '10.00', transactionCount: '1' }
-          : { ...row, grossSales: '0.00', transactionCount: '0' },
-      ),
-      refundMethods: report.refundMethods.map((row) =>
-        row.paymentMethod === 'CARD'
-          ? { ...row, refundedAmount: '10.01', refundCount: '1' }
-          : { ...row, refundedAmount: '0.00', refundCount: '0' },
-      ),
-      netByPaymentMethod: report.netByPaymentMethod.map((row) =>
-        row.paymentMethod === 'CASH'
-          ? { ...row, netRecordedSales: '-0.01' }
-          : { ...row, netRecordedSales: '0.00' },
+      paymentAccounts: mergeAccountFlows(
+        report.paymentAccounts.map((row) =>
+          row.isCash
+            ? { ...row, received: '10.00', transactionCount: '1' }
+            : { ...row, received: '0.00', transactionCount: '0' },
+        ),
+        report.paymentAccounts.map((row) =>
+          row.displayName === 'BPI'
+            ? { ...row, refunded: '10.01', refundCount: '1' }
+            : { ...row, refunded: '0.00', refundCount: '0' },
+        ),
       ),
       dailyTrends: report.dailyTrends.map((row) => ({
         ...row,
@@ -646,24 +630,22 @@ describe('staff analytics dashboard', () => {
       grossSales: '0.00',
       transactionCount: '0',
       unitsSold: '0',
-      payments: report.payments.map((row) => ({
-        ...row,
-        grossSales: '0.00',
-        transactionCount: '0',
-      })),
+      paymentAccounts: mergeAccountFlows(
+        report.paymentAccounts.map((row) => ({
+          ...row,
+          received: '0.00',
+          transactionCount: '0',
+        })),
+        report.paymentAccounts.map((row) => ({
+          ...row,
+          refunded: '0.00',
+          refundCount: '0',
+        })),
+      ),
       refundedAmount: '0.00',
       refundCount: '0',
       returnedUnits: '0',
       netRecordedSales: '0.00',
-      refundMethods: report.refundMethods.map((row) => ({
-        ...row,
-        refundedAmount: '0.00',
-        refundCount: '0',
-      })),
-      netByPaymentMethod: report.netByPaymentMethod.map((row) => ({
-        ...row,
-        netRecordedSales: '0.00',
-      })),
       dailyTrends: report.dailyTrends.map((row) => ({
         ...row,
         grossSales: '0.00',
@@ -681,9 +663,7 @@ describe('staff analytics dashboard', () => {
     const { container } = render(
       <StaffAnalyticsDashboard report={emptyReport} />,
     );
-    expect(
-      screen.getByText('No gross sales by payment method in this period.'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('No received in this period.')).toBeInTheDocument();
     expect(
       screen.getByText('Net sales are zero on every date in this period.'),
     ).toBeInTheDocument();
@@ -701,8 +681,8 @@ describe('staff analytics dashboard', () => {
         name: 'Average gross sales by weekday values',
       }),
     ).not.toBeInTheDocument();
-    expect(container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(
-      0,
-    );
+    expect(
+      container.querySelectorAll('svg circle, svg polyline, svg rect'),
+    ).toHaveLength(0);
   });
 });

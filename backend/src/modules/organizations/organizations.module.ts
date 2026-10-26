@@ -43,10 +43,17 @@ import {
 } from './refunds/refund-read.controller';
 import { RefundReadService } from './refunds/refund-read.service';
 import { OrganizationLifecycleService } from './organization-lifecycle.service';
+import {
+  PaymentAccountsController,
+  BranchPaymentAccountsController,
+} from './payment-accounts/payment-accounts.controller';
+import { PaymentAccountsService } from './payment-accounts/payment-accounts.service';
 
 @Module({
   imports: [AuthModule, EmailModule],
   controllers: [
+    PaymentAccountsController,
+    BranchPaymentAccountsController,
     SpacesController,
     MerchantBranchesController,
     RefundReadController,
@@ -67,6 +74,7 @@ import { OrganizationLifecycleService } from './organization-lifecycle.service';
     MerchantSalesBranchesController,
   ],
   providers: [
+    PaymentAccountsService,
     SpacesService,
     MerchantBranchesService,
     RefundReadService,

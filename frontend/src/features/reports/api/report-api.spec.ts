@@ -1,4 +1,8 @@
 import {
+  reportAccount,
+  mergeAccountFlows,
+} from '@/features/reports/model/report.test-fixtures';
+import {
   getStaffSalesReport,
   getStaffSalesAnalytics,
   getMerchantSalesReport,
@@ -11,7 +15,6 @@ import {
   resolveReportPeriod,
   getReportDailyPage,
 } from './report-api';
-
 const branch = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Main',
@@ -21,7 +24,6 @@ const range = {
   from: '2026-09-13T16:00:00.000Z',
   until: '2026-09-14T16:00:00.000Z',
 };
-
 describe('resolved report periods and daily pages', () => {
   it('requires explicit All time mode and checks scope and concrete bounds', async () => {
     const request = vi.fn().mockResolvedValue({
@@ -135,23 +137,28 @@ const empty = {
   refundCount: '0',
   returnedUnits: '0',
   netRecordedSales: '0.00',
-  refundMethods: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-    paymentMethod,
-    refundedAmount: '0.00',
-    refundCount: '0',
-  })),
-  payments: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-    paymentMethod,
-    grossSales: '0.00',
-    transactionCount: '0',
-  })),
+  paymentAccounts: mergeAccountFlows(
+    ['CASH', 'GCASH', 'CARD'].map((paymentMethod) =>
+      reportAccount(paymentMethod, {
+        received: '0.00',
+        transactionCount: '0',
+      }),
+    ),
+    ['CASH', 'GCASH', 'CARD'].map((paymentMethod) =>
+      reportAccount(paymentMethod, {
+        refunded: '0.00',
+        refundCount: '0',
+      }),
+    ),
+  ),
 };
 const analyticsEmpty = {
   ...empty,
-  netByPaymentMethod: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-    paymentMethod,
-    netRecordedSales: '0.00',
-  })),
+  paymentAccounts: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) =>
+    reportAccount(paymentMethod, {
+      netReceived: '0.00',
+    }),
+  ),
   dailyTrends: [
     {
       date: '2026-09-14',
@@ -235,7 +242,10 @@ const staffTransactions = {
       completedAt: '2026-09-14T05:00:00.000Z',
       reference: 'RCPT-001',
       amount: '25.00',
-      paymentMethod: 'CASH' as const,
+      paymentAccountId: '77777777-7777-4777-8777-777777777777',
+      paymentAccountName: 'Cash',
+      paymentAccountIsCash: true,
+      paymentAccountRequiresReference: false,
       actorName: 'Cashier One',
       merchantNames: ['Maker'],
     },
@@ -247,7 +257,10 @@ const staffTransactions = {
       completedAt: '2026-09-14T06:00:00.000Z',
       reference: 'REF-001',
       amount: '5.00',
-      paymentMethod: 'CASH' as const,
+      paymentAccountId: '77777777-7777-4777-8777-777777777777',
+      paymentAccountName: 'Cash',
+      paymentAccountIsCash: true,
+      paymentAccountRequiresReference: false,
       actorName: 'Manager One',
       merchantNames: ['Maker'],
     },
@@ -273,7 +286,6 @@ const merchantTransactions = {
     },
   ],
 };
-
 describe('report reads', () => {
   it('uses the identity-only Reports lookup and encodes tenant identifiers', async () => {
     const request = vi.fn().mockResolvedValue([branch]);
@@ -429,7 +441,6 @@ describe('report reads', () => {
     },
   );
 });
-
 describe('merchant Reports API', () => {
   const own = {
     scope: 'MERCHANT',
@@ -484,7 +495,7 @@ describe('merchant Reports API', () => {
   });
   it.each([
     analyticsEmpty,
-    { ...ownAnalytics, payments: [] },
+    { ...ownAnalytics, paymentAccounts: [] },
     {
       ...ownAnalytics,
       dailyTrends: ownAnalytics.dailyTrends.map((row) => ({
@@ -540,7 +551,7 @@ describe('merchant Reports API', () => {
   });
   it.each([
     empty,
-    { ...own, payments: [] },
+    { ...own, paymentAccounts: [] },
     { ...own, ownGrossSales: '25.0' },
     {
       ...own,

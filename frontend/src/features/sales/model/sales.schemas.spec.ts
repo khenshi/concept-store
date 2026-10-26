@@ -1,3 +1,4 @@
+import { cashAccount } from '@/features/pos/model/payment-account.test-fixtures';
 import {
   cashierOptionsSchema,
   merchantSaleSchema,
@@ -88,14 +89,14 @@ describe('historical own-sale schema invariants', () => {
       salesQuerySchema.parse({
         q: '  SALE-001 ',
         cashierId: '44444444-4444-4444-8444-444444444444',
-        paymentMethod: 'CASH',
+        paymentAccountId: cashAccount.id,
         page: 1,
         limit: 10,
       }),
     ).toMatchObject({
       q: 'SALE-001',
       cashierId: '44444444-4444-4444-8444-444444444444',
-      paymentMethod: 'CASH',
+      paymentAccountId: cashAccount.id,
     });
     expect(
       cashierOptionsSchema.safeParse([

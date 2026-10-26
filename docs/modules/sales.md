@@ -34,7 +34,7 @@ Sales History or merchant branch-sales fallback; no browser-history guess is use
 ### Saved sale records
 
 `Sale` stores a completed transaction with organization/branch scope, creator,
-organization-unique receipt code and request ID, completion time, payment method,
+organization-unique receipt code and request ID, completion time, payment account,
 precise total, and payment fields. Organization, branch and cashier display names
 are snapshots. A private JSON object stores the canonical checkout command for
 idempotent checkout comparison; this data is never returned in checkout responses.
@@ -44,9 +44,13 @@ and line total. It retains product ownership and the specific branch placement.
 Composite foreign keys enforce organization, branch, placement, product and
 merchant consistency. A sale cannot repeat a placement.
 
-- Payment methods are CASH, GCASH and CARD. Cash requires tender covering total
-  and exact change, with no reference. Manual noncash requires a trimmed 2–100
-  character reference and no cash fields; references are not unique or verified.
+- Each sale uses one configured payment account. Cash requires tender covering
+  total and exact change, with no reference. A noncash account rejects cash fields
+  and requires a trimmed 2–100 character reference only when its policy requires
+  one. Supplied optional references follow the same format; references are not
+  unique or provider-verified. The saved account ID, name, cash behavior and
+  reference policy are immutable snapshots. New commands use `paymentAccountId`;
+  obsolete `paymentMethod` commands are rejected.
 - Quantities are positive PostgreSQL integers. Unit prices use Decimal(12,2),
   line totals Decimal(22,2), and sale/tender/change Decimal(24,2), supporting the
   approved quantity/price bounds and 100-line total capacity without floating point.
@@ -80,14 +84,15 @@ and foreign branches/placements return 404 before any checkout writes.
 
 The strict command accepts requestId (UUID v4), 1–100 distinct placement lines
 (UUID v4, positive integer quantity up to 2147483647, reviewed expectedUnitPrice),
-paymentMethod and only its applicable payment field. Unknown top-level/nested
+paymentAccountId and only its applicable payment field. Unknown top-level/nested
 fields and duplicate placements are rejected. UUID command identifiers normalize
 to lowercase. Prices/tender are trimmed decimal strings, not numeric JSON,
 scientific notation or values with more than two fractional digits. Reviewed
 prices are positive and bounded by existing branch prices; tender supports up to
 22 integer digits. Cash requires tender covering total and rejects references
-(including null); noncash requires a trimmed 2–100 character reference and rejects
-tender (including null). Manual references remain unverified and reusable.
+(including null); noncash applies the account's reference policy and rejects
+tender (including null). Supplied references must be trimmed 2–100 character
+strings and remain unverified and reusable.
 
 Only active products of active merchants can be sold. Actual prices and ownership
 come from the authorized branch placements, not frontend totals or overrides.
@@ -138,7 +143,7 @@ GET /organizations/:organizationId/sales/branches
 ```
 
 The staff list also accepts `q` (case-insensitive receipt-code search),
-`cashierId`, and `paymentMethod` (`CASH`, `GCASH`, or `CARD`). These predicates
+`cashierId`, and `paymentAccountId` (an authorized historical account UUID). These predicates
 are applied inside the same repeatable-read transaction as the permitted sale
 scope, before the matching count and page query. The cashier-options route is
 staff-only and returns distinct `{ id, name }` snapshots from the permitted
@@ -168,7 +173,7 @@ receipt code/time, snapshot branch ID/name/code, and only own item ID/product ID
 product/SKU/barcode/merchant-name snapshots, quantity, unit price and line total.
 `ownItemsSubtotal` is the exact two-decimal sum of those selected items, calculated
 with 40-digit decimal arithmetic. The full-sale total, other items/item counts,
-cashier/member identity, payment method/reference/tender/change, organization
+cashier/member identity, payment account/reference/tender/change, organization
 receipt identity, request IDs and canonical command are never selected or returned.
 This remains a reduced view even for a sale containing only one merchant;
 there is no alternate full-receipt endpoint for merchants.
@@ -241,9 +246,9 @@ is archived.
 
 Branch details expose sales history for owners/managers/cashiers and own sales for
 merchants. POS completion links to its saved receipt within History. Staff lists
-show separate Date, Sale Code, Cashier, Payment Method, Amount and Action columns,
+show separate Date, Sale Code, Cashier, Payment Account, Amount and Action columns,
 with completion time under the Manila date. Saved branch identity, exact total and
-saved cashier/payment method remain authoritative in the response. Cashier copy
+saved cashier/payment account remain authoritative in the response. Cashier copy
 describes only their own sales; backend filtering remains authoritative. Staff
 detail renders immutable receipt snapshots and offers
 internal browser printing, never a checkout or sale mutation. Refresh/print retries
@@ -322,9 +327,10 @@ includes role/tenant/branch/actor isolation, historical ownership, shared/relink
 unlinked profiles, exact merchant projection keys/subtotals, stable filtered
 pagination and UTC boundaries. Expanded PostgreSQL races cover receiving,
 opposite multi-line carts, second-line movement rollback and lock-controlled
-price/lifecycle changes. The destructive development seed adds three
-completed examples with CASH/GCASH/CARD and a mixed-merchant sale, inserting items,
-stock deductions and movements atomically. It is not the application checkout API.
+price/lifecycle changes. The destructive development seed includes Cash and
+configured shared/selected accounts, a renamed historical account, a disabled
+account and a cross-account partial refund, inserting stock effects atomically.
+It is not the application checkout API.
 
 ## Merchant branch participation
 

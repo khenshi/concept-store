@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
 import type { CompletedSale } from '@/features/pos/model/checkout';
+import { useBranchPaymentAccounts } from '@/features/pos/model/use-branch-payment-accounts';
+import { SelectControl } from '@/shared/components/ui/select-control';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { Button } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
@@ -81,6 +83,17 @@ export function RefundDialog({
   onCompleted(): void;
   onIssue(message: string, denied: boolean): void;
 }) {
+  const {
+    accounts,
+    error: accountsError,
+    refresh: refreshAccounts,
+  } = useBranchPaymentAccounts(
+    request,
+    scope.organizationId,
+    scope.branchId,
+    'REFUND',
+  );
+  const initializedAccount = useRef(accounts !== null);
   const retained = useRefundAttempt(attemptKey);
   const [initial] = useState(() => getRefundAttempt(attemptKey));
   const [draft, setDraft] = useState<RefundDraft>(() => ({
@@ -99,7 +112,8 @@ export function RefundDialog({
       }),
     ),
     reason: initial?.command.reason ?? '',
-    method: initial?.command.paymentMethod ?? sale.paymentMethod,
+    account:
+      accounts?.find((account) => account.id === sale.paymentAccountId) ?? null,
     reference: initial?.command.paymentReference ?? '',
   }));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -117,6 +131,33 @@ export function RefundDialog({
   const mounted = useRef(true);
   const timer = useRef<number | undefined>(undefined);
   const form = useRef<HTMLFormElement>(null);
+  const availableAccount = accounts?.find(
+    (account) => account.id === draft.account?.id,
+  );
+  const currentDraft = { ...draft, account: availableAccount ?? null };
+  useEffect(() => {
+    if (uncertain.current || busy.current || accounts === null) return;
+    if (!initializedAccount.current) {
+      initializedAccount.current = true;
+      void Promise.resolve().then(() =>
+        setDraft((current) => ({
+          ...current,
+          account:
+            accounts.find((account) => account.id === sale.paymentAccountId) ??
+            null,
+        })),
+      );
+      return;
+    }
+    if (
+      draft.account &&
+      !accounts.some((account) => account.id === draft.account?.id)
+    ) {
+      void Promise.resolve().then(() =>
+        setDraft((current) => ({ ...current, account: null, reference: '' })),
+      );
+    }
+  }, [accounts, draft.account, sale.paymentAccountId]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -144,7 +185,18 @@ export function RefundDialog({
     setMessage(null);
     window.clearTimeout(timer.current);
     if (!shouldValidate) return;
-    const run = () => setErrors(refundErrors(next, remaining));
+    const run = () =>
+      setErrors(
+        refundErrors(
+          {
+            ...next,
+            account:
+              accounts?.find((account) => account.id === next.account?.id) ??
+              null,
+          },
+          remaining,
+        ),
+      );
     if (immediate) run();
     else timer.current = window.setTimeout(run, 300);
   }
@@ -154,7 +206,7 @@ export function RefundDialog({
     window.clearTimeout(timer.current);
     let submitted = command.current;
     if (!uncertain.current) {
-      const invalid = refundErrors(draft, remaining);
+      const invalid = refundErrors(currentDraft, remaining);
       setErrors(invalid);
       if (Object.keys(invalid).length) {
         if (form.current) focusFirstInvalidField(form.current);
@@ -162,10 +214,10 @@ export function RefundDialog({
       }
       const content = {
         reason: draft.reason.trim(),
-        paymentMethod: draft.method,
-        ...(draft.method === 'CASH'
-          ? {}
-          : { paymentReference: draft.reference.trim() }),
+        paymentAccountId: availableAccount!.id,
+        ...(availableAccount?.systemKey !== 'CASH' && draft.reference.trim()
+          ? { paymentReference: draft.reference.trim() }
+          : {}),
         refundConfirmed: true as const,
         items: Object.entries(draft.lines)
           .filter(([, line]) => Number(line.quantity) > 0)
@@ -212,11 +264,15 @@ export function RefundDialog({
         api &&
         ([400, 401, 403, 404, 429].includes(api.status) ||
           (api.status === 409 &&
-            ['RETURN_QUANTITY_EXCEEDED', 'STOCK_OVERFLOW'].includes(
-              api.details?.code ?? '',
-            )));
+            [
+              'RETURN_QUANTITY_EXCEEDED',
+              'STOCK_OVERFLOW',
+              'PAYMENT_ACCOUNT_UNAVAILABLE',
+            ].includes(api.details?.code ?? '')));
       if (known) {
         setRefundAttempt(attemptKey, null);
+        if (api.details?.code === 'PAYMENT_ACCOUNT_UNAVAILABLE')
+          refreshAccounts();
         if (!mounted.current) return;
         if ([401, 403, 404].includes(api.status) || api.status === 409) {
           onIssue(
@@ -253,7 +309,7 @@ export function RefundDialog({
   const requestPending = pending || retained?.state === 'pending';
   const unresolved = unknown || retained?.state === 'unknown';
   const hasValidationErrors =
-    Object.keys(refundErrors(draft, remaining)).length > 0;
+    Object.keys(refundErrors(currentDraft, remaining)).length > 0;
   return (
     <FormDialog
       title="Return items and record refund"
@@ -403,60 +459,85 @@ export function RefundDialog({
               }
               onBlur={() => edit(draft, true)}
             />
-            <fieldset disabled={locked} className="grid min-w-0 gap-3">
-              <legend className="text-label font-semibold">
-                Refund method
-              </legend>
-              <div className="flex flex-wrap gap-2">
-                {(['CASH', 'GCASH', 'CARD'] as const).map((method) => (
-                  <label
-                    key={method}
-                    className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-sm transition-colors hover:bg-selected focus-within:bg-selected"
-                  >
-                    <input
-                      className="peer sr-only"
-                      type="radio"
-                      name="refund-method"
-                      checked={draft.method === method}
-                      onChange={() => {
-                        setErrors((current) => {
-                          const next = { ...current };
-                          delete next.reference;
-                          return next;
-                        });
-                        edit(
-                          {
-                            ...draft,
-                            method,
-                            reference: '',
-                          },
-                          false,
-                          false,
-                        );
-                      }}
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="grid size-5 shrink-0 place-items-center rounded-full border border-control-border bg-surface text-transparent transition-colors peer-checked:border-action peer-checked:bg-action peer-checked:text-action-foreground peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-focus peer-disabled:bg-subtle peer-disabled:opacity-60"
-                    >
-                      <span className="size-2 rounded-full bg-current" />
-                    </span>
-                    {method === 'CASH'
-                      ? 'Cash'
-                      : method === 'GCASH'
-                        ? 'GCash'
-                        : 'Card'}
-                  </label>
+            <div className="grid gap-2">
+              <label
+                htmlFor="refund-payment-account"
+                className="text-label font-semibold"
+              >
+                Refund account
+              </label>
+              <SelectControl
+                id="refund-payment-account"
+                value={availableAccount?.id ?? ''}
+                disabled={locked || accounts === null}
+                onValueChange={(id) => {
+                  setErrors({});
+                  edit(
+                    {
+                      ...draft,
+                      account:
+                        accounts?.find((account) => account.id === id) ?? null,
+                      reference: '',
+                    },
+                    false,
+                    false,
+                  );
+                }}
+              >
+                <option value="">
+                  {accounts === null
+                    ? 'Loading payment accounts…'
+                    : 'Choose refund account'}
+                </option>
+                {(accounts ?? []).map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
                 ))}
-              </div>
-            </fieldset>
+              </SelectControl>
+              {errors.account ? (
+                <p role="alert" className="text-sm text-danger">
+                  {errors.account}
+                </p>
+              ) : null}
+              {initial ? (
+                <p className="text-xs text-muted">
+                  Locked account:{' '}
+                  {draft.account?.id === initial.command.paymentAccountId
+                    ? (draft.account.name ?? 'Previously selected account')
+                    : 'Previously selected account'}
+                </p>
+              ) : null}
+              {accountsError ? (
+                <div role="alert">
+                  <p>{accountsError}</p>
+                  <Button variant="quiet" onClick={refreshAccounts}>
+                    Retry accounts
+                  </Button>
+                </div>
+              ) : null}
+            </div>
             <TextField
-              label="Refund reference"
+              label="Account reference"
               placeholder="e.g. GCASH-20261020-001"
               value={draft.reference}
-              disabled={locked || draft.method === 'CASH'}
-              error={draft.method === 'CASH' ? undefined : errors.reference}
-              hint="Required for GCash or Card; not used for Cash."
+              disabled={
+                locked ||
+                !availableAccount ||
+                availableAccount?.systemKey === 'CASH'
+              }
+              error={
+                availableAccount?.systemKey === 'CASH'
+                  ? undefined
+                  : errors.reference
+              }
+              hint={
+                availableAccount?.systemKey === 'CASH'
+                  ? 'Not used for Cash.'
+                  : availableAccount?.requiresReference
+                    ? 'Required: use 2–100 characters.'
+                    : 'Optional: use 2–100 characters if supplied.'
+              }
               onChange={(event) =>
                 edit({ ...draft, reference: event.target.value })
               }

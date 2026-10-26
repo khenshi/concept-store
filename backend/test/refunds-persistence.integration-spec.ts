@@ -1,3 +1,8 @@
+import {
+  provisionPaymentFixtures,
+  testAccountId,
+  testAccountSnapshot,
+} from './payment-account-fixtures';
 import { fixtureInventory } from './merchant-branch-fixtures';
 import { randomUUID } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -114,23 +119,38 @@ async function fixture(legacySchema = false) {
           quantity: 3,
         },
       });
-  const sale = await prisma.sale.create({
-    data: {
-      organizationId: organization.id,
-      branchId: branch.id,
-      createdById: user.id,
-      receiptCode: randomUUID(),
-      requestId: randomUUID(),
-      paymentMethod: 'CASH',
-      cashTender: '125.00',
-      cashChange: '0.00',
-      total: '125.00',
-      organizationName: 'Original store',
-      branchName: 'Original',
-      cashierName: 'Original actor',
-      checkoutCommand: {},
-    },
-  });
+  if (!legacySchema) await provisionPaymentFixtures(prisma, organization.id);
+  const sale = legacySchema
+    ? (
+        await admin.query<Prisma.SaleGetPayload<Prisma.SaleDefaultArgs>>(
+          `INSERT INTO "Sale" ("id","organizationId","branchId","createdById","receiptCode","requestId","paymentMethod","cashTender","cashChange","total","organizationName","branchName","cashierName","checkoutCommand") VALUES ($1,$2,$3,$4,$5,$6,'CASH',125,0,125,'Original store','Original','Original actor','{}') RETURNING *`,
+          [
+            randomUUID(),
+            organization.id,
+            branch.id,
+            user.id,
+            randomUUID(),
+            randomUUID(),
+          ],
+        )
+      ).rows[0]
+    : await prisma.sale.create({
+        data: {
+          organizationId: organization.id,
+          branchId: branch.id,
+          createdById: user.id,
+          receiptCode: randomUUID(),
+          requestId: randomUUID(),
+          ...testAccountSnapshot(organization.id),
+          cashTender: '125.00',
+          cashChange: '0.00',
+          total: '125.00',
+          organizationName: 'Original store',
+          branchName: 'Original',
+          cashierName: 'Original actor',
+          checkoutCommand: {},
+        },
+      });
   const item = await prisma.saleItem.create({
     data: {
       organizationId: organization.id,
@@ -160,6 +180,17 @@ async function fixture(legacySchema = false) {
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 let current: Fixture;
 let legacy: Fixture;
+let legacyProof: {
+  sale: unknown;
+  item: unknown;
+  movements: {
+    refundItemId: string | null;
+    saleItemId: string | null;
+    type: string;
+  }[];
+  refunds: number;
+  quantity: number;
+};
 const refundData = (
   extra: Partial<Prisma.RefundUncheckedCreateInput> = {},
 ): Prisma.RefundUncheckedCreateInput => ({
@@ -170,7 +201,7 @@ const refundData = (
   requestId: randomUUID(),
   createdById: current.user.id,
   reason: 'Returned goods',
-  paymentMethod: 'CASH',
+  ...testAccountSnapshot(current.organization.id),
   total: '25.00',
   refundCommand: {
     items: [{ saleItemId: current.item.id, quantity: 2, restockQuantity: 1 }],
@@ -264,6 +295,43 @@ describe('PostgreSQL refund persistence', () => {
             ],
           );
       }
+      if (directory === '20261025020000_payment_accounts') {
+        legacyProof = {
+          sale: (
+            await admin.query('SELECT * FROM "Sale" WHERE "id"=$1', [
+              legacy.sale.id,
+            ])
+          ).rows[0] as unknown,
+          item: await prisma.saleItem.findUniqueOrThrow({
+            where: { id: legacy.item.id },
+          }),
+          movements: await prisma.inventoryMovement.findMany({
+            where: { branchInventoryId: legacy.inventory.id },
+          }),
+          refunds: await prisma.refund.count({
+            where: { organizationId: legacy.organization.id },
+          }),
+          quantity: (
+            await prisma.branchInventory.findUniqueOrThrow({
+              where: { id: legacy.inventory.id },
+            })
+          ).quantity,
+        };
+        await expect(
+          admin.query(
+            readFileSync(join(migrations, directory, 'migration.sql'), 'utf8'),
+          ),
+        ).rejects.toThrow('requires empty Sale and Refund');
+        await admin.query('ROLLBACK');
+        await admin.query(
+          'DELETE FROM "InventoryMovement" WHERE "saleItemId"=$1',
+          [legacy.item.id],
+        );
+        await admin.query('DELETE FROM "SaleItem" WHERE "id"=$1', [
+          legacy.item.id,
+        ]);
+        await admin.query('DELETE FROM "Sale" WHERE "id"=$1', [legacy.sale.id]);
+      }
       await admin.query(
         readFileSync(
           join(migrations, directory, 'migration.sql'),
@@ -281,18 +349,10 @@ describe('PostgreSQL refund persistence', () => {
     current = await fixture();
   });
 
-  it('upgrades existing sales/stock history without changing records or creating refunds', async () => {
-    expect(
-      await prisma.sale.findUniqueOrThrow({ where: { id: legacy.sale.id } }),
-    ).toEqual(legacy.sale);
-    expect(
-      await prisma.saleItem.findUniqueOrThrow({
-        where: { id: legacy.item.id },
-      }),
-    ).toEqual(legacy.item);
-    const movements = await prisma.inventoryMovement.findMany({
-      where: { branchInventoryId: legacy.inventory.id },
-    });
+  it('upgrades existing sales/stock history without changing records or creating refunds', () => {
+    expect(legacyProof.sale).toEqual(legacy.sale);
+    expect(legacyProof.item).toEqual(legacy.item);
+    const movements = legacyProof.movements;
     expect(movements).toHaveLength(2);
     expect(movements.every((movement) => movement.refundItemId === null)).toBe(
       true,
@@ -300,18 +360,8 @@ describe('PostgreSQL refund persistence', () => {
     expect(
       movements.find((movement) => movement.type === 'SALE')?.saleItemId,
     ).toBe(legacy.item.id);
-    expect(
-      await prisma.refund.count({
-        where: { organizationId: legacy.organization.id },
-      }),
-    ).toBe(0);
-    expect(
-      (
-        await prisma.branchInventory.findUniqueOrThrow({
-          where: { id: legacy.inventory.id },
-        })
-      ).quantity,
-    ).toBe(3);
+    expect(legacyProof.refunds).toBe(0);
+    expect(legacyProof.quantity).toBe(3);
   });
 
   it.each(['CASH', 'GCASH', 'CARD'] as const)(
@@ -319,7 +369,11 @@ describe('PostgreSQL refund persistence', () => {
     async (paymentMethod) => {
       const refund = await prisma.refund.create({
         data: refundData({
-          paymentMethod,
+          ...testAccountSnapshot(current.organization.id, paymentMethod),
+          paymentAccountId: testAccountId(
+            current.organization.id,
+            paymentMethod,
+          ),
           paymentReference: paymentMethod === 'CASH' ? null : 'MANUAL-REF',
         }),
       });
@@ -328,14 +382,16 @@ describe('PostgreSQL refund persistence', () => {
       });
       expect(refund.total.toFixed(2)).toBe('25.00');
       expect(item.lineTotal.toFixed(2)).toBe('25.00');
-      expect(refund.paymentMethod).toBe(paymentMethod);
+      expect(refund.paymentAccountId).toBe(
+        testAccountId(current.organization.id, paymentMethod),
+      );
       expect(
         (
           await prisma.sale.findUniqueOrThrow({
             where: { id: current.sale.id },
           })
-        ).paymentMethod,
-      ).toBe('CASH');
+        ).paymentAccountId,
+      ).toBe(testAccountId(current.organization.id));
     },
   );
   it.each([
@@ -349,13 +405,35 @@ describe('PostgreSQL refund persistence', () => {
     { reason: ' reason ' },
     { refundCommand: [] },
     { paymentReference: 'CASH-REFERENCE' },
-    { paymentMethod: 'GCASH' as const, paymentReference: null },
-    { paymentMethod: 'CARD' as const, paymentReference: 'x' },
-    { paymentMethod: 'CARD' as const, paymentReference: 'x'.repeat(101) },
-    { paymentMethod: 'GCASH' as const, paymentReference: ' REF ' },
+    {
+      paymentAccountId: 'GCASH',
+      paymentReference: null,
+    },
+    {
+      paymentAccountId: 'CARD',
+      paymentReference: 'x',
+    },
+    {
+      paymentAccountId: 'CARD',
+      paymentReference: 'x'.repeat(101),
+    },
+    {
+      paymentAccountId: 'GCASH',
+      paymentReference: ' REF ',
+    },
   ])('rejects invalid refund fields %j', async (extra) => {
     await expect(
-      prisma.refund.create({ data: refundData(extra) }),
+      prisma.refund.create({
+        data: refundData({
+          ...extra,
+          ...('paymentAccountId' in extra
+            ? testAccountSnapshot(
+                current.organization.id,
+                extra.paymentAccountId,
+              )
+            : {}),
+        }),
+      }),
     ).rejects.toThrow();
   });
   it.each([
@@ -425,6 +503,7 @@ describe('PostgreSQL refund persistence', () => {
         organizationId: foreign.organization.id,
         branchId: foreign.branch.id,
         saleId: foreign.sale.id,
+        ...testAccountSnapshot(foreign.organization.id),
       },
     });
   });

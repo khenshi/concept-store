@@ -1,3 +1,4 @@
+import { cashSnapshot } from '@/features/pos/model/payment-account.test-fixtures';
 import type { PosProduct } from './pos.types';
 import type { CompletedSale } from './checkout';
 export const scope = {
@@ -35,7 +36,7 @@ export const completedSale: CompletedSale = {
   branchName: 'Saved Makati',
   branchCode: 'MKT',
   cashierName: 'Saved Cashier',
-  paymentMethod: 'CASH',
+  ...cashSnapshot,
   cashTender: '1000.00',
   cashChange: '150.00',
   paymentReference: null,

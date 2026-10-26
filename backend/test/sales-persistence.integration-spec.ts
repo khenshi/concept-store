@@ -1,4 +1,9 @@
 import {
+  provisionPaymentFixtures,
+  testAccountId,
+  testAccountSnapshot,
+} from './payment-account-fixtures';
+import {
   fixtureInventory,
   fixtureInventoryMany,
 } from './merchant-branch-fixtures';
@@ -49,7 +54,7 @@ const saleData = (
   receiptCode: randomUUID(),
   requestId: randomUUID(),
   createdById: userId,
-  paymentMethod: 'CASH',
+  ...testAccountSnapshot(organizationId),
   cashTender: '30.00',
   cashChange: '5.00',
   total: '25.00',
@@ -65,7 +70,7 @@ const saleData = (
         expectedUnitPrice: '12.50',
       },
     ],
-    paymentMethod: 'CASH',
+    paymentAccountId: testAccountId(organizationId, 'CASH'),
     cashTender: '30.00',
   },
   ...extra,
@@ -118,6 +123,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         lastName: 'Member',
         email: `${randomUUID()}@example.test`,
         passwordHash: 'unused',
+        emailVerifiedAt: new Date(),
       },
     });
     await prisma.organizationMembership.create({
@@ -417,7 +423,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         expectedUnitPrice: '12.50',
       },
     ],
-    paymentMethod: 'CASH',
+    paymentAccountId: testAccountId(organizationId, 'CASH'),
     cashTender: '50.00',
     ...extra,
   });
@@ -429,7 +435,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         paymentMethod === 'CASH'
           ? {}
           : {
-              paymentMethod,
+              ...testAccountSnapshot(organizationId, paymentMethod),
               cashTender: undefined,
               paymentReference: 'manual-reference',
             },
@@ -437,7 +443,7 @@ describe('PostgreSQL sale persistence integrity', () => {
       const result = await checkout.complete(context, branchId, command);
       expect(result).toMatchObject({
         total: '25.00',
-        paymentMethod,
+        paymentAccountId: testAccountId(organizationId, paymentMethod),
         organizationName: (
           await prisma.organization.findUniqueOrThrow({
             where: { id: organizationId },
@@ -554,6 +560,7 @@ describe('PostgreSQL sale persistence integrity', () => {
         lastName: 'Owner',
         email: `${randomUUID()}@example.test`,
         passwordHash: 'unused',
+        emailVerifiedAt: new Date(),
       },
     });
     await prisma.organizationMembership.create({
@@ -777,7 +784,7 @@ describe('PostgreSQL sale persistence integrity', () => {
   it('allows separate manual checkouts to reuse the same entered payment reference', async () => {
     const context = await checkoutSetup();
     const payment = {
-      paymentMethod: 'GCASH' as const,
+      paymentAccountId: testAccountId(organizationId, 'GCASH'),
       cashTender: undefined,
       paymentReference: 'same-manual-reference',
     };
@@ -1372,6 +1379,7 @@ describe('PostgreSQL sale persistence integrity', () => {
     organizationId = (
       await prisma.organization.create({ data: { name: randomUUID() } })
     ).id;
+    await provisionPaymentFixtures(prisma, organizationId);
     userId = (
       await prisma.user.create({
         data: {
@@ -1379,6 +1387,7 @@ describe('PostgreSQL sale persistence integrity', () => {
           lastName: 'actor',
           email: `${randomUUID()}@example.test`,
           passwordHash: 'unused',
+          emailVerifiedAt: new Date(),
         },
       })
     ).id;
@@ -1457,7 +1466,7 @@ describe('PostgreSQL sale persistence integrity', () => {
           paymentMethod === 'CASH'
             ? {}
             : {
-                paymentMethod,
+                ...testAccountSnapshot(organizationId, paymentMethod),
                 cashTender: null,
                 cashChange: null,
                 paymentReference: 'TEST-REFERENCE',
@@ -1467,7 +1476,9 @@ describe('PostgreSQL sale persistence integrity', () => {
       const item = await prisma.saleItem.create({ data: itemData(sale.id) });
       expect(sale.total.toFixed(2)).toBe('25.00');
       expect(item.lineTotal.toFixed(2)).toBe('25.00');
-      expect(sale.paymentMethod).toBe(paymentMethod);
+      expect(sale.paymentAccountId).toBe(
+        testAccountId(organizationId, paymentMethod),
+      );
     },
   );
   it.each([
@@ -1483,30 +1494,33 @@ describe('PostgreSQL sale persistence integrity', () => {
     { checkoutCommand: [] },
     { receiptCode: ' ' },
     {
-      paymentMethod: 'GCASH' as const,
+      paymentAccountId: testAccountId(organizationId, 'GCASH'),
       cashTender: null,
       cashChange: null,
       paymentReference: null,
     },
     {
-      paymentMethod: 'CARD' as const,
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       cashTender: null,
       cashChange: null,
       paymentReference: 'x',
     },
     {
-      paymentMethod: 'CARD' as const,
+      paymentAccountId: testAccountId(organizationId, 'CARD'),
       cashTender: null,
       cashChange: null,
       paymentReference: 'x'.repeat(101),
     },
     {
-      paymentMethod: 'GCASH' as const,
+      paymentAccountId: testAccountId(organizationId, 'GCASH'),
       cashTender: null,
       cashChange: null,
       paymentReference: ' REF ',
     },
-    { paymentMethod: 'GCASH' as const, paymentReference: 'REF' },
+    {
+      paymentAccountId: testAccountId(organizationId, 'GCASH'),
+      paymentReference: 'REF',
+    },
   ])('rejects invalid payment/amount/command fields %j', async (extra) => {
     await expect(
       prisma.sale.create({ data: saleData(extra) }),
@@ -1560,7 +1574,7 @@ describe('PostgreSQL sale persistence integrity', () => {
     for (let i = 0; i < 2; i++)
       await prisma.sale.create({
         data: saleData({
-          paymentMethod: 'GCASH',
+          ...testAccountSnapshot(organizationId, 'GCASH'),
           cashTender: null,
           cashChange: null,
           paymentReference: 'REUSED-REF',

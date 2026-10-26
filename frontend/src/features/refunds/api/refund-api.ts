@@ -126,7 +126,7 @@ export async function completeRefund(
   checkOriginal(result, sale);
   if (
     result.reason !== command.reason ||
-    result.paymentMethod !== command.paymentMethod ||
+    result.paymentAccountId !== command.paymentAccountId ||
     result.paymentReference !== (command.paymentReference ?? null) ||
     result.items.length !== command.items.length ||
     result.items.some((line) => {

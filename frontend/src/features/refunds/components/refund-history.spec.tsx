@@ -1,3 +1,11 @@
+import { paymentAccounts } from '@/features/pos/model/payment-account.test-fixtures';
+vi.mock('@/features/pos/model/use-branch-payment-accounts', () => ({
+  useBranchPaymentAccounts: () => ({
+    accounts: paymentAccounts,
+    refresh: vi.fn(),
+  }),
+  paymentAccountHistoryLabel: (account: { name: string }) => account.name,
+}));
 import {
   act,
   fireEvent,
@@ -122,14 +130,14 @@ describe('saved refund history and role privacy', () => {
       const dialog = await screen.findByRole('dialog');
       await within(dialog).findByText(command.reason);
       expect(
-        within(dialog).getByText('Actual refund method'),
+        within(dialog).getByText('Actual refund account'),
       ).toBeInTheDocument();
       expect(within(dialog).getByText('Date')).toBeInTheDocument();
       expect(within(dialog).getByText('Status')).toBeInTheDocument();
       expect(
         within(dialog).getByText('Completed', { exact: true }),
       ).toHaveClass('text-success-ink');
-      expect(within(dialog).getByText('CASH')).toBeInTheDocument();
+      expect(within(dialog).getByText('Cash')).toBeInTheDocument();
       expect(within(dialog).getByText('Refund total')).toBeInTheDocument();
       expect(within(dialog).getByText('Returned items')).toBeInTheDocument();
       expect(within(dialog).getByRole('table')).toBeInTheDocument();

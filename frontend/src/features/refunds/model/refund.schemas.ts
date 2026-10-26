@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { moneyCents, paymentMethod } from '@/features/pos/model/checkout';
+import {
+  moneyCents,
+  paymentAccountSnapshot,
+  validAccountReference,
+} from '@/features/pos/model/checkout';
 const uuid = z.uuidv4();
 const money = z.string().regex(/^(?:0|[1-9]\d{0,21})\.\d{2}$/);
 const unitPrice = z.string().regex(/^(?:0|[1-9]\d{0,9})\.\d{2}$/);
@@ -71,7 +75,7 @@ export const staffRefundSchema = z
     scope: z.literal('STAFF'),
     organizationId: uuid,
     reason: z.string().trim().min(2).max(500),
-    paymentMethod,
+    ...paymentAccountSnapshot,
     paymentReference: z.string().nullable(),
     total: money,
     items: staffItem.array().min(1).max(100),
@@ -80,12 +84,11 @@ export const staffRefundSchema = z
   .superRefine((refund, context) => {
     reconcile(refund.items, refund.total, context);
     if (
-      refund.paymentMethod === 'CASH'
-        ? refund.paymentReference !== null
-        : !refund.paymentReference ||
-          refund.paymentReference !== refund.paymentReference.trim() ||
-          refund.paymentReference.length < 2 ||
-          refund.paymentReference.length > 100
+      !validAccountReference(
+        refund.paymentAccountIsCash,
+        refund.paymentAccountRequiresReference,
+        refund.paymentReference,
+      )
     )
       context.addIssue({
         code: 'custom',
@@ -167,7 +170,7 @@ export const refundCommandSchema = z
   .object({
     requestId: uuid,
     reason: z.string().trim().min(2).max(500),
-    paymentMethod,
+    paymentAccountId: uuid,
     paymentReference: z.string().trim().min(2).max(100).optional(),
     refundConfirmed: z.literal(true),
     items: z
@@ -182,10 +185,7 @@ export const refundCommandSchema = z
     (command) =>
       new Set(command.items.map((item) => item.saleItemId)).size ===
         command.items.length &&
-      command.items.every((item) => item.restockQuantity <= item.quantity) &&
-      (command.paymentMethod === 'CASH'
-        ? command.paymentReference === undefined
-        : command.paymentReference !== undefined),
+      command.items.every((item) => item.restockQuantity <= item.quantity),
     'Review refund lines and payment fields.',
   );
 export type RefundCommand = z.infer<typeof refundCommandSchema>;

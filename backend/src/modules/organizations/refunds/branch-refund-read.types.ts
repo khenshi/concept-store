@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Prisma, SalePaymentMethod } from '../../../generated/prisma/client';
+import { Prisma } from '../../../generated/prisma/client';
 
 export class BranchRefundSummaryDto {
   @ApiProperty() id!: string;
@@ -7,7 +7,10 @@ export class BranchRefundSummaryDto {
   @ApiProperty() receiptCode!: string;
   @ApiProperty() refundCode!: string;
   @ApiProperty({ type: String, format: 'date-time' }) completedAt!: Date;
-  @ApiProperty({ enum: SalePaymentMethod }) paymentMethod!: SalePaymentMethod;
+  @ApiProperty({ format: 'uuid' }) paymentAccountId!: string;
+  @ApiProperty() paymentAccountName!: string;
+  @ApiProperty() paymentAccountIsCash!: boolean;
+  @ApiProperty() paymentAccountRequiresReference!: boolean;
   @ApiProperty({ example: '25.00' }) total!: string;
 }
 
@@ -28,7 +31,10 @@ export const branchRefundSummarySelect = {
   saleId: true,
   refundCode: true,
   completedAt: true,
-  paymentMethod: true,
+  paymentAccountId: true,
+  paymentAccountName: true,
+  paymentAccountIsCash: true,
+  paymentAccountRequiresReference: true,
   total: true,
   sale: { select: { receiptCode: true } },
 } satisfies Prisma.RefundSelect;
@@ -42,7 +48,10 @@ export function branchRefundSummaryResponse(
     receiptCode: refund.sale.receiptCode,
     refundCode: refund.refundCode,
     completedAt: refund.completedAt,
-    paymentMethod: refund.paymentMethod,
+    paymentAccountId: refund.paymentAccountId,
+    paymentAccountName: refund.paymentAccountName,
+    paymentAccountIsCash: refund.paymentAccountIsCash,
+    paymentAccountRequiresReference: refund.paymentAccountRequiresReference,
     total: refund.total.toFixed(2),
   };
 }

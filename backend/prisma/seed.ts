@@ -11,7 +11,6 @@ import {
   PrismaClient,
   ProductStatus,
   Prisma,
-  SalePaymentMethod,
 } from '../src/generated/prisma/client';
 import {
   assertDemoSeedDatabaseIdentity,
@@ -241,408 +240,481 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
 }
 
 async function seedProductInventory(prisma: PrismaClient): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.product.createMany({
-      data: [
-        {
-          id: ids.products.vase,
-          organizationId: ids.organization,
-          merchantId: ids.merchants.active,
-          name: 'Amihan Ceramic Vase',
-          sku: 'AMIHAN-VASE',
-          barcode: '0001234567890',
-        },
-        {
-          id: ids.products.tray,
-          organizationId: ids.organization,
-          merchantId: ids.merchants.active,
-          name: 'Amihan Woven Tray',
-          sku: 'AMIHAN-TRAY',
-        },
-        {
-          id: ids.products.inactive,
-          organizationId: ids.organization,
-          merchantId: ids.merchants.active,
-          name: 'Amihan Retired Planter',
-          status: ProductStatus.INACTIVE,
-        },
-        {
-          id: ids.products.pouch,
-          organizationId: ids.organization,
-          merchantId: ids.merchants.secondActive,
-          name: 'Luntian Cotton Pouch',
-          sku: 'LUNTIAN-POUCH',
-        },
-      ],
-    });
-    await tx.merchantBranch.createMany({
-      data: [
-        {
-          organizationId: ids.organization,
-          merchantId: ids.merchants.active,
-          branchId: ids.branches.makati,
-        },
-        {
-          organizationId: ids.organization,
-          merchantId: ids.merchants.active,
-          branchId: ids.branches.bgc,
-        },
-        {
-          organizationId: ids.organization,
-          merchantId: ids.merchants.secondActive,
-          branchId: ids.branches.makati,
-        },
-      ],
-    });
-    await tx.branchInventory.createMany({
-      data: [
-        {
-          id: ids.inventory.makatiVase,
-          organizationId: ids.organization,
-          branchId: ids.branches.makati,
-          productId: ids.products.vase,
-          merchantId: ids.merchants.active,
-          sellingPrice: '850.00',
-        },
-        {
-          id: ids.inventory.bgcVase,
-          organizationId: ids.organization,
-          branchId: ids.branches.bgc,
-          productId: ids.products.vase,
-          merchantId: ids.merchants.active,
-          sellingPrice: '925.50',
-        },
-        {
-          id: ids.inventory.makatiTray,
-          organizationId: ids.organization,
-          branchId: ids.branches.makati,
-          productId: ids.products.tray,
-          merchantId: ids.merchants.active,
-          sellingPrice: '450.00',
-        },
-        {
-          id: ids.inventory.inactive,
-          organizationId: ids.organization,
-          branchId: ids.branches.makati,
-          productId: ids.products.inactive,
-          merchantId: ids.merchants.active,
-          sellingPrice: '600.00',
-        },
-        {
-          id: ids.inventory.pouch,
-          organizationId: ids.organization,
-          branchId: ids.branches.makati,
-          productId: ids.products.pouch,
-          merchantId: ids.merchants.secondActive,
-          sellingPrice: '250.00',
-        },
-      ],
-    });
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.product.createMany({
+        data: [
+          {
+            id: ids.products.vase,
+            organizationId: ids.organization,
+            merchantId: ids.merchants.active,
+            name: 'Amihan Ceramic Vase',
+            sku: 'AMIHAN-VASE',
+            barcode: '0001234567890',
+          },
+          {
+            id: ids.products.tray,
+            organizationId: ids.organization,
+            merchantId: ids.merchants.active,
+            name: 'Amihan Woven Tray',
+            sku: 'AMIHAN-TRAY',
+          },
+          {
+            id: ids.products.inactive,
+            organizationId: ids.organization,
+            merchantId: ids.merchants.active,
+            name: 'Amihan Retired Planter',
+            status: ProductStatus.INACTIVE,
+          },
+          {
+            id: ids.products.pouch,
+            organizationId: ids.organization,
+            merchantId: ids.merchants.secondActive,
+            name: 'Luntian Cotton Pouch',
+            sku: 'LUNTIAN-POUCH',
+          },
+        ],
+      });
+      await tx.merchantBranch.createMany({
+        data: [
+          {
+            organizationId: ids.organization,
+            merchantId: ids.merchants.active,
+            branchId: ids.branches.makati,
+          },
+          {
+            organizationId: ids.organization,
+            merchantId: ids.merchants.active,
+            branchId: ids.branches.bgc,
+          },
+          {
+            organizationId: ids.organization,
+            merchantId: ids.merchants.secondActive,
+            branchId: ids.branches.makati,
+          },
+        ],
+      });
+      await tx.branchInventory.createMany({
+        data: [
+          {
+            id: ids.inventory.makatiVase,
+            organizationId: ids.organization,
+            branchId: ids.branches.makati,
+            productId: ids.products.vase,
+            merchantId: ids.merchants.active,
+            sellingPrice: '850.00',
+          },
+          {
+            id: ids.inventory.bgcVase,
+            organizationId: ids.organization,
+            branchId: ids.branches.bgc,
+            productId: ids.products.vase,
+            merchantId: ids.merchants.active,
+            sellingPrice: '925.50',
+          },
+          {
+            id: ids.inventory.makatiTray,
+            organizationId: ids.organization,
+            branchId: ids.branches.makati,
+            productId: ids.products.tray,
+            merchantId: ids.merchants.active,
+            sellingPrice: '450.00',
+          },
+          {
+            id: ids.inventory.inactive,
+            organizationId: ids.organization,
+            branchId: ids.branches.makati,
+            productId: ids.products.inactive,
+            merchantId: ids.merchants.active,
+            sellingPrice: '600.00',
+          },
+          {
+            id: ids.inventory.pouch,
+            organizationId: ids.organization,
+            branchId: ids.branches.makati,
+            productId: ids.products.pouch,
+            merchantId: ids.merchants.secondActive,
+            sellingPrice: '250.00',
+          },
+        ],
+      });
 
-    const movements = [
-      {
-        id: '00000000-0000-4000-8000-000000000071',
-        requestId: '00000000-0000-4000-8000-000000000081',
-        inventoryId: ids.inventory.makatiVase,
-        branchId: ids.branches.makati,
-        type: InventoryMovementType.RECEIPT,
-        delta: 12,
-        reason: 'Initial demo stock received',
-        createdAt: new Date('2026-09-12T00:00:00.000Z'),
-      },
-      {
-        id: '00000000-0000-4000-8000-000000000072',
-        requestId: '00000000-0000-4000-8000-000000000082',
-        inventoryId: ids.inventory.bgcVase,
-        branchId: ids.branches.bgc,
-        type: InventoryMovementType.RECEIPT,
-        delta: 8,
-        reason: 'Independent BGC demo stock received',
-        createdAt: new Date('2026-09-12T00:01:00.000Z'),
-      },
-      {
-        id: '00000000-0000-4000-8000-000000000073',
-        requestId: '00000000-0000-4000-8000-000000000083',
-        inventoryId: ids.inventory.makatiVase,
-        branchId: ids.branches.makati,
-        type: InventoryMovementType.ADJUSTMENT,
-        delta: -2,
-        reason: 'Two damaged demo units removed',
-        createdAt: new Date('2026-09-12T00:02:00.000Z'),
-      },
-    ];
-    for (const movement of movements) {
-      const inventory = await tx.branchInventory.update({
-        where: {
-          id: movement.inventoryId,
-          organizationId: ids.organization,
-          branchId: movement.branchId,
+      const movements = [
+        {
+          id: '00000000-0000-4000-8000-000000000071',
+          requestId: '00000000-0000-4000-8000-000000000081',
+          inventoryId: ids.inventory.makatiVase,
+          branchId: ids.branches.makati,
+          type: InventoryMovementType.RECEIPT,
+          delta: 12,
+          reason: 'Initial demo stock received',
+          createdAt: new Date('2026-09-12T00:00:00.000Z'),
         },
-        data: { quantity: { increment: movement.delta } },
-      });
-      await tx.inventoryMovement.create({
-        data: {
-          id: movement.id,
-          organizationId: ids.organization,
-          branchId: movement.branchId,
-          branchInventoryId: inventory.id,
-          type: movement.type,
-          quantityChange: movement.delta,
-          quantityAfter: inventory.quantity,
-          reason: movement.reason,
-          createdById: ids.users.owner,
-          requestId: movement.requestId,
-          createdAt: movement.createdAt,
+        {
+          id: '00000000-0000-4000-8000-000000000072',
+          requestId: '00000000-0000-4000-8000-000000000082',
+          inventoryId: ids.inventory.bgcVase,
+          branchId: ids.branches.bgc,
+          type: InventoryMovementType.RECEIPT,
+          delta: 8,
+          reason: 'Independent BGC demo stock received',
+          createdAt: new Date('2026-09-12T00:01:00.000Z'),
         },
-      });
-    }
-  });
+        {
+          id: '00000000-0000-4000-8000-000000000073',
+          requestId: '00000000-0000-4000-8000-000000000083',
+          inventoryId: ids.inventory.makatiVase,
+          branchId: ids.branches.makati,
+          type: InventoryMovementType.ADJUSTMENT,
+          delta: -2,
+          reason: 'Two damaged demo units removed',
+          createdAt: new Date('2026-09-12T00:02:00.000Z'),
+        },
+      ];
+      for (const movement of movements) {
+        const inventory = await tx.branchInventory.update({
+          where: {
+            id: movement.inventoryId,
+            organizationId: ids.organization,
+            branchId: movement.branchId,
+          },
+          data: { quantity: { increment: movement.delta } },
+        });
+        await tx.inventoryMovement.create({
+          data: {
+            id: movement.id,
+            organizationId: ids.organization,
+            branchId: movement.branchId,
+            branchInventoryId: inventory.id,
+            type: movement.type,
+            quantityChange: movement.delta,
+            quantityAfter: inventory.quantity,
+            reason: movement.reason,
+            createdById: ids.users.owner,
+            requestId: movement.requestId,
+            createdAt: movement.createdAt,
+          },
+        });
+      }
+    },
+    { timeout: 30_000 },
+  );
 }
 
 // Persistence examples only: no application checkout API/service is implemented here.
 async function seedSales(prisma: PrismaClient): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    for (const [inventoryId, quantity] of [
-      [ids.inventory.makatiTray, 5],
-      [ids.inventory.pouch, 6],
-    ] as const) {
-      const placement = await tx.branchInventory.update({
-        where: {
-          id: inventoryId,
-          organizationId: ids.organization,
-          branchId: ids.branches.makati,
-        },
-        data: { quantity: { increment: quantity } },
-      });
-      await tx.inventoryMovement.create({
-        data: {
-          organizationId: ids.organization,
-          branchId: placement.branchId,
-          branchInventoryId: placement.id,
-          type: InventoryMovementType.RECEIPT,
-          quantityChange: quantity,
-          quantityAfter: placement.quantity,
-          reason: 'Demo sale stock received',
-          createdById: ids.users.owner,
-          requestId: randomUUID(),
-          createdAt: new Date('2026-09-13T00:00:00Z'),
-        },
-      });
-    }
-    const examples = [
-      {
-        id: '00000000-0000-4000-8000-000000000091',
-        method: SalePaymentMethod.CASH,
-        branchId: ids.branches.makati,
-        actor: ids.users.cashier,
-        tender: '1000.00',
-        reference: null,
-        lines: [{ id: ids.inventory.makatiVase, quantity: 1 }],
-      },
-      {
-        id: '00000000-0000-4000-8000-000000000092',
-        method: SalePaymentMethod.GCASH,
-        branchId: ids.branches.makati,
-        actor: ids.users.cashier,
-        tender: null,
-        reference: 'DEMO-GCASH-0001',
-        lines: [
-          { id: ids.inventory.makatiTray, quantity: 1 },
-          { id: ids.inventory.pouch, quantity: 2 },
-        ],
-      },
-      {
-        id: '00000000-0000-4000-8000-000000000093',
-        method: SalePaymentMethod.CARD,
-        branchId: ids.branches.bgc,
-        actor: ids.users.owner,
-        tender: null,
-        reference: 'DEMO-CARD-0001',
-        lines: [{ id: ids.inventory.bgcVase, quantity: 1 }],
-      },
-    ];
-    for (const [index, example] of examples.entries()) {
-      const branch = await tx.branch.findUniqueOrThrow({
-        where: { id: example.branchId, organizationId: ids.organization },
-      });
-      const actor = await tx.user.findUniqueOrThrow({
-        where: { id: example.actor },
-      });
-      const lines = await Promise.all(
-        example.lines.map(async (line) => ({
-          quantity: line.quantity,
-          placement: await tx.branchInventory.findUniqueOrThrow({
-            where: {
-              id: line.id,
-              organizationId: ids.organization,
-              branchId: example.branchId,
-            },
-            include: { product: { include: { merchant: true } } },
-          }),
-        })),
-      );
-      const total = lines.reduce(
-        (sum, line) =>
-          sum.plus(line.placement.sellingPrice.times(line.quantity)),
-        new Prisma.Decimal(0),
-      );
-      const completedAt = new Date(`2026-09-13T00:0${index + 1}:00Z`);
-      const sale = await tx.sale.create({
-        data: {
-          id: example.id,
-          organizationId: ids.organization,
-          branchId: branch.id,
-          receiptCode: `DEMO-SALE-${index + 1}`,
-          createdById: actor.id,
-          requestId: example.id,
-          paymentMethod: example.method,
-          total,
-          completedAt,
-          cashTender: example.tender,
-          cashChange: example.tender
-            ? new Prisma.Decimal(example.tender).minus(total)
-            : null,
-          paymentReference: example.reference,
-          organizationName: 'Kapwesto Demo Store',
-          branchName: branch.name,
-          branchCode: branch.code,
-          cashierName: `${actor.firstName} ${actor.lastName}`,
-          checkoutCommand: {
-            items: lines.map(({ placement, quantity }) => ({
-              branchInventoryId: placement.id,
-              quantity,
-              expectedUnitPrice: placement.sellingPrice.toFixed(2),
-            })),
-            paymentMethod: example.method,
-            ...(example.tender
-              ? { cashTender: example.tender }
-              : { paymentReference: example.reference }),
-          },
-        },
-      });
-      for (const { placement, quantity } of lines) {
-        const item = await tx.saleItem.create({
-          data: {
-            organizationId: ids.organization,
-            branchId: branch.id,
-            saleId: sale.id,
-            branchInventoryId: placement.id,
-            productId: placement.productId,
-            merchantId: placement.product.merchantId,
-            quantity,
-            productName: placement.product.name,
-            sku: placement.product.sku,
-            barcode: placement.product.barcode,
-            merchantName: placement.product.merchant.name,
-            unitPrice: placement.sellingPrice,
-            lineTotal: placement.sellingPrice.times(quantity),
-          },
-        });
-        const updated = await tx.branchInventory.update({
+  await prisma.$transaction(
+    async (tx) => {
+      for (const [inventoryId, quantity] of [
+        [ids.inventory.makatiTray, 5],
+        [ids.inventory.pouch, 6],
+      ] as const) {
+        const placement = await tx.branchInventory.update({
           where: {
-            id: placement.id,
+            id: inventoryId,
             organizationId: ids.organization,
-            branchId: branch.id,
+            branchId: ids.branches.makati,
           },
-          data: { quantity: { decrement: quantity } },
+          data: { quantity: { increment: quantity } },
         });
         await tx.inventoryMovement.create({
           data: {
             organizationId: ids.organization,
-            branchId: branch.id,
+            branchId: placement.branchId,
             branchInventoryId: placement.id,
-            saleItemId: item.id,
-            type: InventoryMovementType.SALE,
-            quantityChange: -quantity,
-            quantityAfter: updated.quantity,
-            reason: 'Point-of-sale checkout',
-            createdById: actor.id,
+            type: InventoryMovementType.RECEIPT,
+            quantityChange: quantity,
+            quantityAfter: placement.quantity,
+            reason: 'Demo sale stock received',
+            createdById: ids.users.owner,
             requestId: randomUUID(),
-            createdAt: completedAt,
+            createdAt: new Date('2026-09-13T00:00:00Z'),
           },
         });
       }
-    }
+      const cashAccount = await tx.paymentAccount.findUniqueOrThrow({
+        where: {
+          organizationId_systemKey: {
+            organizationId: ids.organization,
+            systemKey: 'CASH',
+          },
+        },
+      });
+      const walletAccount = await tx.paymentAccount.create({
+        data: {
+          id: '00000000-0000-4000-8000-0000000000b1',
+          organizationId: ids.organization,
+          name: 'GCash Main',
+          normalizedName: 'gcash main',
+          assignmentMode: 'ALL',
+          requiresReference: true,
+        },
+      });
+      const bankAccount = await tx.paymentAccount.create({
+        data: {
+          id: '00000000-0000-4000-8000-0000000000b2',
+          organizationId: ids.organization,
+          name: 'BPI Makati',
+          normalizedName: 'bpi makati',
+          assignmentMode: 'SELECTED',
+          requiresReference: false,
+        },
+      });
+      await tx.paymentAccountBranch.createMany({
+        data: [ids.branches.makati, ids.branches.bgc].map((branchId) => ({
+          organizationId: ids.organization,
+          paymentAccountId: bankAccount.id,
+          branchId,
+        })),
+      });
+      await tx.paymentAccount.create({
+        data: {
+          id: '00000000-0000-4000-8000-0000000000b3',
+          organizationId: ids.organization,
+          name: 'Maya Backup',
+          normalizedName: 'maya backup',
+          assignmentMode: 'ALL',
+          enabled: false,
+        },
+      });
+      const accounts = {
+        cash: cashAccount,
+        wallet: walletAccount,
+        bank: bankAccount,
+      };
+      const examples = [
+        {
+          id: '00000000-0000-4000-8000-000000000091',
+          account: 'cash',
+          branchId: ids.branches.makati,
+          actor: ids.users.cashier,
+          tender: '1000.00',
+          reference: null,
+          lines: [{ id: ids.inventory.makatiVase, quantity: 1 }],
+        },
+        {
+          id: '00000000-0000-4000-8000-000000000092',
+          account: 'wallet',
+          branchId: ids.branches.makati,
+          actor: ids.users.cashier,
+          tender: null,
+          reference: 'DEMO-GCASH-0001',
+          lines: [
+            { id: ids.inventory.makatiTray, quantity: 1 },
+            { id: ids.inventory.pouch, quantity: 2 },
+          ],
+        },
+        {
+          id: '00000000-0000-4000-8000-000000000093',
+          account: 'bank',
+          branchId: ids.branches.bgc,
+          actor: ids.users.owner,
+          tender: null,
+          reference: 'DEMO-CARD-0001',
+          lines: [{ id: ids.inventory.bgcVase, quantity: 1 }],
+        },
+      ];
+      for (const [index, example] of examples.entries()) {
+        const account = accounts[example.account as keyof typeof accounts];
+        const branch = await tx.branch.findUniqueOrThrow({
+          where: { id: example.branchId, organizationId: ids.organization },
+        });
+        const actor = await tx.user.findUniqueOrThrow({
+          where: { id: example.actor },
+        });
+        const lines = await Promise.all(
+          example.lines.map(async (line) => ({
+            quantity: line.quantity,
+            placement: await tx.branchInventory.findUniqueOrThrow({
+              where: {
+                id: line.id,
+                organizationId: ids.organization,
+                branchId: example.branchId,
+              },
+              include: { product: { include: { merchant: true } } },
+            }),
+          })),
+        );
+        const total = lines.reduce(
+          (sum, line) =>
+            sum.plus(line.placement.sellingPrice.times(line.quantity)),
+          new Prisma.Decimal(0),
+        );
+        const completedAt = new Date(`2026-09-13T00:0${index + 1}:00Z`);
+        const sale = await tx.sale.create({
+          data: {
+            id: example.id,
+            organizationId: ids.organization,
+            branchId: branch.id,
+            receiptCode: `DEMO-SALE-${index + 1}`,
+            createdById: actor.id,
+            requestId: example.id,
+            paymentAccountId: account.id,
+            paymentAccountName: account.name,
+            paymentAccountIsCash: account.systemKey === 'CASH',
+            paymentAccountRequiresReference: account.requiresReference,
+            total,
+            completedAt,
+            cashTender: example.tender,
+            cashChange: example.tender
+              ? new Prisma.Decimal(example.tender).minus(total)
+              : null,
+            paymentReference: example.reference,
+            organizationName: 'Kapwesto Demo Store',
+            branchName: branch.name,
+            branchCode: branch.code,
+            cashierName: `${actor.firstName} ${actor.lastName}`,
+            checkoutCommand: {
+              items: lines.map(({ placement, quantity }) => ({
+                branchInventoryId: placement.id,
+                quantity,
+                expectedUnitPrice: placement.sellingPrice.toFixed(2),
+              })),
+              paymentAccountId: account.id,
+              ...(example.tender
+                ? { cashTender: example.tender }
+                : { paymentReference: example.reference }),
+            },
+          },
+        });
+        for (const { placement, quantity } of lines) {
+          const item = await tx.saleItem.create({
+            data: {
+              organizationId: ids.organization,
+              branchId: branch.id,
+              saleId: sale.id,
+              branchInventoryId: placement.id,
+              productId: placement.productId,
+              merchantId: placement.product.merchantId,
+              quantity,
+              productName: placement.product.name,
+              sku: placement.product.sku,
+              barcode: placement.product.barcode,
+              merchantName: placement.product.merchant.name,
+              unitPrice: placement.sellingPrice,
+              lineTotal: placement.sellingPrice.times(quantity),
+            },
+          });
+          const updated = await tx.branchInventory.update({
+            where: {
+              id: placement.id,
+              organizationId: ids.organization,
+              branchId: branch.id,
+            },
+            data: { quantity: { decrement: quantity } },
+          });
+          await tx.inventoryMovement.create({
+            data: {
+              organizationId: ids.organization,
+              branchId: branch.id,
+              branchInventoryId: placement.id,
+              saleItemId: item.id,
+              type: InventoryMovementType.SALE,
+              quantityChange: -quantity,
+              quantityAfter: updated.quantity,
+              reason: 'Point-of-sale checkout',
+              createdById: actor.id,
+              requestId: randomUUID(),
+              createdAt: completedAt,
+            },
+          });
+        }
+      }
 
-    const refundSaleId = '00000000-0000-4000-8000-000000000092';
-    const refundRequestId = '00000000-0000-4000-8000-0000000000a1';
-    const saleItem = await tx.saleItem.findUniqueOrThrow({
-      where: {
-        saleId_branchInventoryId: {
+      const refundSaleId = '00000000-0000-4000-8000-000000000092';
+      const refundRequestId = '00000000-0000-4000-8000-0000000000a1';
+      const saleItem = await tx.saleItem.findUniqueOrThrow({
+        where: {
+          saleId_branchInventoryId: {
+            saleId: refundSaleId,
+            branchInventoryId: ids.inventory.makatiTray,
+          },
+        },
+        select: {
+          id: true,
+          branchInventoryId: true,
+          merchantId: true,
+          unitPrice: true,
+        },
+      });
+      await tx.paymentAccount.update({
+        where: { id: walletAccount.id },
+        data: {
+          name: 'GCash Main Renamed',
+          normalizedName: 'gcash main renamed',
+          version: { increment: 1 },
+        },
+      });
+      const refund = await tx.refund.create({
+        data: {
+          id: '00000000-0000-4000-8000-0000000000a2',
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
           saleId: refundSaleId,
-          branchInventoryId: ids.inventory.makatiTray,
-        },
-      },
-      select: {
-        id: true,
-        branchInventoryId: true,
-        merchantId: true,
-        unitPrice: true,
-      },
-    });
-    const refund = await tx.refund.create({
-      data: {
-        id: '00000000-0000-4000-8000-0000000000a2',
-        organizationId: ids.organization,
-        branchId: ids.branches.makati,
-        saleId: refundSaleId,
-        refundCode: 'DEMO-REFUND-1',
-        requestId: refundRequestId,
-        createdById: ids.users.owner,
-        completedAt: new Date('2026-09-13T00:10:00.000Z'),
-        reason: 'Demo customer return',
-        paymentMethod: SalePaymentMethod.CASH,
-        paymentReference: null,
-        total: saleItem.unitPrice,
-        refundCommand: {
-          items: [{ saleItemId: saleItem.id, quantity: 1, restockQuantity: 1 }],
+          refundCode: 'DEMO-REFUND-1',
+          requestId: refundRequestId,
+          createdById: ids.users.owner,
+          completedAt: new Date('2026-09-13T00:10:00.000Z'),
           reason: 'Demo customer return',
-          paymentMethod: SalePaymentMethod.CASH,
-          refundConfirmed: true,
+          paymentAccountId: cashAccount.id,
+          paymentAccountName: cashAccount.name,
+          paymentAccountIsCash: true,
+          paymentAccountRequiresReference: false,
+          paymentReference: null,
+          total: saleItem.unitPrice,
+          refundCommand: {
+            items: [
+              { saleItemId: saleItem.id, quantity: 1, restockQuantity: 1 },
+            ],
+            reason: 'Demo customer return',
+            paymentAccountId: cashAccount.id,
+            refundConfirmed: true,
+          },
         },
-      },
-    });
-    const refundItem = await tx.refundItem.create({
-      data: {
-        id: '00000000-0000-4000-8000-0000000000a3',
-        organizationId: ids.organization,
-        branchId: ids.branches.makati,
-        saleId: refundSaleId,
-        refundId: refund.id,
-        saleItemId: saleItem.id,
-        branchInventoryId: saleItem.branchInventoryId,
-        merchantId: saleItem.merchantId,
-        quantity: 1,
-        restockQuantity: 1,
-        unitPrice: saleItem.unitPrice,
-        lineTotal: saleItem.unitPrice,
-      },
-    });
-    const restored = await tx.branchInventory.update({
-      where: {
-        id: saleItem.branchInventoryId,
-        organizationId: ids.organization,
-        branchId: ids.branches.makati,
-      },
-      data: { quantity: { increment: refundItem.restockQuantity } },
-    });
-    await tx.inventoryMovement.create({
-      data: {
-        id: '00000000-0000-4000-8000-0000000000a4',
-        organizationId: ids.organization,
-        branchId: ids.branches.makati,
-        branchInventoryId: saleItem.branchInventoryId,
-        refundItemId: refundItem.id,
-        type: InventoryMovementType.RETURN,
-        quantityChange: refundItem.restockQuantity,
-        quantityAfter: restored.quantity,
-        reason: 'Returned goods restocked',
-        createdById: ids.users.owner,
-        requestId: '00000000-0000-4000-8000-0000000000a5',
-        createdAt: refund.completedAt,
-      },
-    });
-  });
+      });
+      const refundItem = await tx.refundItem.create({
+        data: {
+          id: '00000000-0000-4000-8000-0000000000a3',
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
+          saleId: refundSaleId,
+          refundId: refund.id,
+          saleItemId: saleItem.id,
+          branchInventoryId: saleItem.branchInventoryId,
+          merchantId: saleItem.merchantId,
+          quantity: 1,
+          restockQuantity: 1,
+          unitPrice: saleItem.unitPrice,
+          lineTotal: saleItem.unitPrice,
+        },
+      });
+      const restored = await tx.branchInventory.update({
+        where: {
+          id: saleItem.branchInventoryId,
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
+        },
+        data: { quantity: { increment: refundItem.restockQuantity } },
+      });
+      await tx.inventoryMovement.create({
+        data: {
+          id: '00000000-0000-4000-8000-0000000000a4',
+          organizationId: ids.organization,
+          branchId: ids.branches.makati,
+          branchInventoryId: saleItem.branchInventoryId,
+          refundItemId: refundItem.id,
+          type: InventoryMovementType.RETURN,
+          quantityChange: refundItem.restockQuantity,
+          quantityAfter: restored.quantity,
+          reason: 'Returned goods restocked',
+          createdById: ids.users.owner,
+          requestId: '00000000-0000-4000-8000-0000000000a5',
+          createdAt: refund.completedAt,
+        },
+      });
+    },
+    { timeout: 30_000 },
+  );
 }
 
 async function main(): Promise<void> {
@@ -682,10 +754,11 @@ async function main(): Promise<void> {
     const migrations = await prisma.$queryRaw<
       Array<{
         migration_name: string;
+        started_at: Date;
         finished_at: Date | null;
         rolled_back_at: Date | null;
       }>
-    >`SELECT migration_name, finished_at, rolled_back_at
+    >`SELECT migration_name, started_at, finished_at, rolled_back_at
        FROM public._prisma_migrations
        ORDER BY finished_at DESC NULLS LAST, started_at DESC`;
     const migrationDirectories = readdirSync(
@@ -702,6 +775,7 @@ async function main(): Promise<void> {
     assertDemoSeedMigrationState(
       migrations.map((migration) => ({
         migrationName: migration.migration_name,
+        startedAt: migration.started_at,
         finishedAt: migration.finished_at,
         rolledBackAt: migration.rolled_back_at,
       })),

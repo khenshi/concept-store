@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Prisma, SalePaymentMethod } from '../../../generated/prisma/client';
+import { Prisma } from '../../../generated/prisma/client';
 export class RefundItemResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() saleItemId!: string;
@@ -25,7 +25,10 @@ export class CompletedRefundResponseDto {
   @ApiProperty() refundCode!: string;
   @ApiProperty({ type: String, format: 'date-time' }) completedAt!: Date;
   @ApiProperty() reason!: string;
-  @ApiProperty({ enum: SalePaymentMethod }) paymentMethod!: SalePaymentMethod;
+  @ApiProperty({ format: 'uuid' }) paymentAccountId!: string;
+  @ApiProperty() paymentAccountName!: string;
+  @ApiProperty() paymentAccountIsCash!: boolean;
+  @ApiProperty() paymentAccountRequiresReference!: boolean;
   @ApiProperty({ type: String, nullable: true }) paymentReference!:
     string | null;
   @ApiProperty({ example: '25.00' }) total!: string;
@@ -40,7 +43,10 @@ export const completedRefundSelect = {
   refundCode: true,
   completedAt: true,
   reason: true,
-  paymentMethod: true,
+  paymentAccountId: true,
+  paymentAccountName: true,
+  paymentAccountIsCash: true,
+  paymentAccountRequiresReference: true,
   paymentReference: true,
   total: true,
   sale: { select: { receiptCode: true } },
@@ -80,7 +86,10 @@ export function completedRefundResponse(
     refundCode: refund.refundCode,
     completedAt: refund.completedAt,
     reason: refund.reason,
-    paymentMethod: refund.paymentMethod,
+    paymentAccountId: refund.paymentAccountId,
+    paymentAccountName: refund.paymentAccountName,
+    paymentAccountIsCash: refund.paymentAccountIsCash,
+    paymentAccountRequiresReference: refund.paymentAccountRequiresReference,
     paymentReference: refund.paymentReference,
     total: refund.total.toFixed(2),
     items: refund.items.map((item) => ({

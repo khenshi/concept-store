@@ -2,7 +2,6 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsInt,
-  IsEnum,
   IsISO8601,
   IsOptional,
   IsString,
@@ -12,7 +11,6 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { SalePaymentMethod } from '../../../../generated/prisma/client';
 import {
   trimOptionalString,
   trimRequiredString,
@@ -37,10 +35,10 @@ export class ListSalesQueryDto {
   @IsUUID('4')
   cashierId?: string;
 
-  @ApiPropertyOptional({ enum: SalePaymentMethod })
+  @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
-  @IsEnum(SalePaymentMethod)
-  paymentMethod?: SalePaymentMethod;
+  @IsUUID('4')
+  paymentAccountId?: string;
 
   @ApiPropertyOptional({
     format: 'date-time',

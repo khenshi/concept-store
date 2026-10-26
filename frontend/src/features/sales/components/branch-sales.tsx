@@ -22,6 +22,10 @@ import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import type { PosScope } from '@/features/pos/model/pos.types';
+import {
+  useBranchPaymentAccounts,
+  paymentAccountHistoryLabel,
+} from '@/features/pos/model/use-branch-payment-accounts';
 import { listCashiers, listSales } from '../api/sales-api';
 import {
   salesQuerySchema,
@@ -110,6 +114,18 @@ function StaffBranchSales({
     Awaited<ReturnType<typeof listSales>>,
     { kind: 'staff' }
   > | null>(null);
+  const {
+    accounts,
+    error: accountsError,
+    refresh: refreshAccounts,
+  } = useBranchPaymentAccounts(
+    request,
+    organizationId,
+    branchId,
+    'SALE',
+    true,
+    visible,
+  );
   const [cashiers, setCashiers] = useState<CashierOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
@@ -117,8 +133,8 @@ function StaffBranchSales({
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [cashierId, setCashierId] = useState('');
-  const [paymentMethod, setPaymentMethod] =
-    useState<SalesQuery['paymentMethod']>();
+  const [paymentAccountId, setPaymentAccountId] =
+    useState<SalesQuery['paymentAccountId']>();
   const [fromDay, setFromDay] = useState('');
   const [throughDay, setThroughDay] = useState('');
   const [filterError, setFilterError] = useState<string>();
@@ -210,7 +226,7 @@ function StaffBranchSales({
   const hasFilters = Boolean(
     debouncedSearch.trim() ||
     query.cashierId ||
-    query.paymentMethod ||
+    query.paymentAccountId ||
     query.from ||
     query.until,
   );
@@ -341,27 +357,43 @@ function StaffBranchSales({
             <div className="min-w-0">
               <label
                 className="block text-xs font-medium text-muted"
-                htmlFor="sales-payment-method"
+                htmlFor="sales-payment-account"
               >
-                Payment method
+                Payment account
               </label>
               <SelectControl
-                id="sales-payment-method"
-                aria-label="Payment method"
+                id="sales-payment-account"
+                aria-label="Payment account"
                 className="rounded-full bg-surface px-4 text-sm font-medium mt-1"
-                value={paymentMethod ?? ''}
+                value={paymentAccountId ?? ''}
                 onValueChange={(value) => {
                   const next = (value ||
-                    undefined) as SalesQuery['paymentMethod'];
-                  setPaymentMethod(next);
-                  updateQuery({ paymentMethod: next });
+                    undefined) as SalesQuery['paymentAccountId'];
+                  setPaymentAccountId(next);
+                  updateQuery({ paymentAccountId: next });
                 }}
               >
-                <option value="">All payment methods</option>
-                <option value="CASH">Cash</option>
-                <option value="GCASH">GCash</option>
-                <option value="CARD">Card</option>
+                <option value="">All payment accounts</option>
+                {(accounts ?? []).map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {paymentAccountHistoryLabel(account)}
+                  </option>
+                ))}
+                {paymentAccountId &&
+                !accounts?.some(
+                  (account) => account.id === paymentAccountId,
+                ) ? (
+                  <option value={paymentAccountId}>Historical account</option>
+                ) : null}
               </SelectControl>
+              {accountsError ? (
+                <div role="alert">
+                  <p>{accountsError}</p>
+                  <Button variant="quiet" onClick={refreshAccounts}>
+                    Retry accounts
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
           {filterError ? (
@@ -402,7 +434,7 @@ function StaffBranchSales({
               <span>Date</span>
               <span>Sale Code</span>
               <span>Cashier</span>
-              <span>Payment Method</span>
+              <span>Payment Account</span>
               <span>Amount</span>
               <span>Action</span>
             </li>
@@ -428,9 +460,7 @@ function StaffBranchSales({
                 <span className="min-w-0 break-words text-sm">
                   {sale.cashierName}
                 </span>
-                <span className="text-sm">
-                  {paymentLabel(sale.paymentMethod)}
-                </span>
+                <span className="text-sm">{sale.paymentAccountName}</span>
                 <span className="text-sm font-semibold tabular-nums">
                   {embedded ? 'PHP' : 'Total: PHP'} {sale.total}
                 </span>
@@ -448,8 +478,7 @@ function StaffBranchSales({
                   <span className="sr-only"> {sale.receiptCode}</span>
                 </Link>
                 <span className="sr-only">
-                  Cashier: {sale.cashierName} ·{' '}
-                  {paymentLabel(sale.paymentMethod)}
+                  Cashier: {sale.cashierName} · {sale.paymentAccountName}
                 </span>
               </li>
             ))}
@@ -721,7 +750,3 @@ const manilaTimeFormatter = new Intl.DateTimeFormat('en-US', {
   hour12: true,
   timeZone: 'Asia/Manila',
 });
-
-function paymentLabel(method: 'CASH' | 'GCASH' | 'CARD') {
-  return method === 'CASH' ? 'Cash' : method === 'GCASH' ? 'GCash' : 'Card';
-}

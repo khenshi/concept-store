@@ -1,16 +1,52 @@
 import { z } from 'zod';
-import { moneyCents } from '@/features/pos/model/checkout';
+import {
+  moneyCents,
+  paymentAccountSnapshot,
+} from '@/features/pos/model/checkout';
 
 const amount = z.string().regex(/^(?:0|[1-9]\d*)\.\d{2}$/);
 const integer = z.string().regex(/^(?:0|[1-9]\d*)$/);
 const signedAmount = z.string().regex(/^(?!-0\.00$)-?(?:0|[1-9]\d*)\.\d{2}$/);
-const refundMethodSchema = z
+export const reportPaymentAccountSchema = z
   .object({
-    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
-    refundedAmount: amount,
+    accountId: z.uuidv4(),
+    displayName: z.string().trim().min(1).max(100),
+    enabled: z.boolean(),
+    available: z.boolean(),
+    isCash: z.boolean(),
+    received: amount,
+    refunded: amount,
+    netReceived: signedAmount,
+    transactionCount: integer,
     refundCount: integer,
   })
-  .strict();
+  .strict()
+  .superRefine((row, context) => {
+    if (
+      ![row.received, row.refunded].every(
+        (value) => amount.safeParse(value).success,
+      ) ||
+      !signedAmount.safeParse(row.netReceived).success ||
+      ![row.transactionCount, row.refundCount].every(
+        (value) => integer.safeParse(value).success,
+      )
+    )
+      return;
+    if (
+      BigInt(row.netReceived.replace('.', '')) !==
+        moneyCents(row.received) - moneyCents(row.refunded) ||
+      (BigInt(row.transactionCount) === BigInt(0)) !==
+        (moneyCents(row.received) === BigInt(0)) ||
+      (BigInt(row.refundCount) === BigInt(0)) !==
+        (moneyCents(row.refunded) === BigInt(0)) ||
+      (row.available && !row.enabled) ||
+      (row.isCash && (!row.available || !row.enabled))
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'Payment account flows do not reconcile.',
+      });
+  });
 function validRefunds(
   gross: string,
   refunded: string,
@@ -68,13 +104,6 @@ export const reportBranchesSchema = reportBranchSchema
       new Set(branches.map((branch) => branch.id)).size === branches.length,
     'Report branches must be distinct.',
   );
-const paymentSchema = z
-  .object({
-    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
-    grossSales: amount,
-    transactionCount: integer,
-  })
-  .strict();
 export const staffSalesReportSchema = z
   .object({
     scope: z.literal('STAFF'),
@@ -84,101 +113,69 @@ export const staffSalesReportSchema = z
     grossSales: amount,
     transactionCount: integer,
     unitsSold: integer,
-    payments: paymentSchema.array().length(3),
+    paymentAccounts: reportPaymentAccountSchema.array(),
     refundedAmount: amount,
     refundCount: integer,
     returnedUnits: integer,
     netRecordedSales: signedAmount,
-    refundMethods: refundMethodSchema.array().length(3),
   })
   .strict()
   .superRefine((report, context) => {
-    {
-      const {
-        refundedAmount,
-        refundCount,
-        returnedUnits,
-        netRecordedSales,
-        refundMethods,
-      } = report;
-      if (
-        !validRefunds(
-          report.grossSales,
-          refundedAmount,
-          refundCount,
-          returnedUnits,
-          netRecordedSales,
-        ) ||
-        refundMethods.some(
-          (row) =>
-            !amount.safeParse(row.refundedAmount).success ||
-            !integer.safeParse(row.refundCount).success,
-        ) ||
-        new Set(refundMethods.map((row) => row.paymentMethod)).size !== 3 ||
-        refundMethods.reduce(
-          (sum, row) => sum + moneyCents(row.refundedAmount),
-          BigInt(0),
-        ) !== moneyCents(refundedAmount) ||
-        refundMethods.reduce(
-          (sum, row) => sum + BigInt(row.refundCount),
-          BigInt(0),
-        ) !== BigInt(refundCount) ||
-        refundMethods.some(
-          (row) =>
-            (BigInt(row.refundCount) === BigInt(0)) !==
-            (moneyCents(row.refundedAmount) === BigInt(0)),
-        )
-      )
-        context.addIssue({
-          code: 'custom',
-          message:
-            'Refund totals, methods and net recorded sales do not reconcile.',
-        });
-    }
     if (
       !reportQuerySchema.safeParse({ from: report.from, until: report.until })
         .success
     )
       context.addIssue({ code: 'custom', message: 'Invalid report range.' });
-    // Invalid child fields must not be passed to BigInt.
     if (
-      !amount.safeParse(report.grossSales).success ||
-      !integer.safeParse(report.transactionCount).success ||
-      !integer.safeParse(report.unitsSold).success ||
-      report.payments.some(
-        (payment) =>
-          !amount.safeParse(payment.grossSales).success ||
-          !integer.safeParse(payment.transactionCount).success,
+      ![report.grossSales, report.refundedAmount].every(
+        (value) => amount.safeParse(value).success,
+      ) ||
+      !signedAmount.safeParse(report.netRecordedSales).success ||
+      ![
+        report.transactionCount,
+        report.unitsSold,
+        report.refundCount,
+        report.returnedUnits,
+      ].every((value) => integer.safeParse(value).success) ||
+      report.paymentAccounts.some(
+        (row) => !reportPaymentAccountSchema.safeParse(row).success,
       )
     )
       return;
+    const sum = (field: 'received' | 'refunded' | 'netReceived') =>
+      report.paymentAccounts.reduce(
+        (total, row) => total + BigInt(row[field].replace('.', '')),
+        BigInt(0),
+      );
+    const count = (field: 'transactionCount' | 'refundCount') =>
+      report.paymentAccounts.reduce(
+        (total, row) => total + BigInt(row[field]),
+        BigInt(0),
+      );
     if (
-      new Set(report.payments.map((payment) => payment.paymentMethod)).size !==
-        3 ||
-      report.payments.reduce(
-        (total, payment) => total + moneyCents(payment.grossSales),
-        BigInt(0),
-      ) !== moneyCents(report.grossSales) ||
-      report.payments.reduce(
-        (total, payment) => total + BigInt(payment.transactionCount),
-        BigInt(0),
-      ) !== BigInt(report.transactionCount) ||
+      !validRefunds(
+        report.grossSales,
+        report.refundedAmount,
+        report.refundCount,
+        report.returnedUnits,
+        report.netRecordedSales,
+      ) ||
+      new Set(report.paymentAccounts.map((row) => row.accountId)).size !==
+        report.paymentAccounts.length ||
+      sum('received') !== moneyCents(report.grossSales) ||
+      sum('refunded') !== moneyCents(report.refundedAmount) ||
+      sum('netReceived') !== BigInt(report.netRecordedSales.replace('.', '')) ||
+      count('transactionCount') !== BigInt(report.transactionCount) ||
+      count('refundCount') !== BigInt(report.refundCount) ||
       (BigInt(report.transactionCount) === BigInt(0)
-        ? moneyCents(report.grossSales) !== BigInt(0) ||
-          BigInt(report.unitsSold) !== BigInt(0)
+        ? report.grossSales !== '0.00' || report.unitsSold !== '0'
         : moneyCents(report.grossSales) <= BigInt(0) ||
-          BigInt(report.unitsSold) < BigInt(report.transactionCount)) ||
-      report.payments.some(
-        (payment) =>
-          (BigInt(payment.transactionCount) === BigInt(0)) !==
-          (moneyCents(payment.grossSales) === BigInt(0)),
-      )
-    ) {
+          BigInt(report.unitsSold) < BigInt(report.transactionCount))
+    )
       context.addIssue({
         code: 'custom',
-        message: 'Sales report totals and payment counts do not reconcile.',
+        message: 'Sales report totals and account flows do not reconcile.',
       });
-    }
   });
 export type ReportBranch = z.infer<typeof reportBranchSchema>;
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
@@ -280,7 +277,7 @@ const staffSaleTransaction = transactionBase
   .extend({
     type: z.literal('SALE'),
     refundId: z.null(),
-    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
+    ...paymentAccountSnapshot,
     actorName: z.string().min(1),
     merchantNames: z.string().min(1).array(),
   })
@@ -289,7 +286,7 @@ const staffRefundTransaction = transactionBase
   .extend({
     type: z.literal('REFUND'),
     refundId: z.uuidv4(),
-    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
+    ...paymentAccountSnapshot,
     actorName: z.string().min(1),
     merchantNames: z.string().min(1).array(),
   })
@@ -394,13 +391,6 @@ const staffTopMerchant = z
     grossSales: amount,
   })
   .strict();
-const staffNetPaymentMethod = z
-  .object({
-    paymentMethod: z.enum(['CASH', 'GCASH', 'CARD']),
-    netRecordedSales: signedAmount,
-  })
-  .strict();
-
 function manilaDay(date: Date) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila',
@@ -481,7 +471,6 @@ function analyticsValid(
     dailyTrends: z.infer<typeof staffDailyTrend>[];
     topProducts: z.infer<typeof staffTopProduct>[];
     topMerchants?: z.infer<typeof staffTopMerchant>[];
-    netByPaymentMethod?: z.infer<typeof staffNetPaymentMethod>[];
     hourlyTrends?: z.infer<typeof staffHourlyTrend>[];
     totalProducts: string;
   },
@@ -535,24 +524,6 @@ function analyticsValid(
     const parsed = staffTopMerchant.safeParse(row);
     return (
       sum + (parsed.success ? moneyCents(parsed.data.grossSales) : BigInt(0))
-    );
-  }, BigInt(0));
-  const netByPaymentMethod = Array.isArray(report.netByPaymentMethod)
-    ? report.netByPaymentMethod
-    : [];
-  const netMethodRowsValid = netByPaymentMethod.every(
-    (row) => staffNetPaymentMethod.safeParse(row).success,
-  );
-  const netMethodIds = netByPaymentMethod.map(
-    (row) => row?.paymentMethod ?? '',
-  );
-  const netMethodTotal = netByPaymentMethod.reduce((sum, row) => {
-    const parsed = staffNetPaymentMethod.safeParse(row);
-    return (
-      sum +
-      (parsed.success
-        ? BigInt(parsed.data.netRecordedSales.replace('.', ''))
-        : BigInt(0))
     );
   }, BigInt(0));
   const reportNet = signedAmount.safeParse(report.netRecordedSales);
@@ -674,14 +645,6 @@ function analyticsValid(
     new Set(productIds).size !== productIds.length ||
     !productsValid ||
     !hourlyRowsValid ||
-    (report.netByPaymentMethod !== undefined &&
-      (!netMethodRowsValid ||
-        new Set(netMethodIds).size !== 3 ||
-        !reportNet.success ||
-        netMethodTotal !==
-          (reportNet.success
-            ? BigInt(reportNet.data.replace('.', ''))
-            : BigInt(0)))) ||
     (report.topMerchants !== undefined &&
       (topMerchants.length > 10 ||
         new Set(merchantIds).size !== merchantIds.length ||
@@ -708,18 +671,16 @@ export const staffSalesAnalyticsSchema = z
     grossSales: amount,
     transactionCount: integer,
     unitsSold: integer,
-    payments: paymentSchema.array().length(3),
+    paymentAccounts: reportPaymentAccountSchema.array(),
     refundedAmount: amount,
     refundCount: integer,
     returnedUnits: integer,
     netRecordedSales: signedAmount,
-    refundMethods: refundMethodSchema.array().length(3),
     granularity: reportGranularitySchema.optional(),
     dailyTrends: staffDailyTrend.array().min(1).max(8100),
     topProducts: staffTopProduct.array().max(15),
     totalProducts: integer,
     topMerchants: staffTopMerchant.array().max(10),
-    netByPaymentMethod: staffNetPaymentMethod.array().length(3),
     hourlyTrends: staffHourlyTrend.array().length(24).optional(),
   })
   .strict()
@@ -733,12 +694,11 @@ export const staffSalesAnalyticsSchema = z
         grossSales: report.grossSales,
         transactionCount: report.transactionCount,
         unitsSold: report.unitsSold,
-        payments: report.payments,
+        paymentAccounts: report.paymentAccounts,
         refundedAmount: report.refundedAmount,
         refundCount: report.refundCount,
         returnedUnits: report.returnedUnits,
         netRecordedSales: report.netRecordedSales,
-        refundMethods: report.refundMethods,
       }).success
     )
       context.addIssue({ code: 'custom', message: 'Invalid staff summary.' });

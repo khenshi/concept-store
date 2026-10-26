@@ -1,4 +1,4 @@
-import { OperationalPanel } from '@/shared/components/ui/operational-page';
+import { PaymentAccountBreakdown } from './payment-account-breakdown';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import type { StaffSalesReport } from '../model/report.schemas';
 
@@ -62,76 +62,7 @@ export function StaffReportSummary({ report }: { report: StaffSalesReport }) {
         negative; it is not profit or available cash. Sale counts and units sold
         remain gross.
       </p>
-      <OperationalPanel
-        variant="open"
-        className="data-surface"
-        title="Gross sale payments"
-        description="Recorded sale totals, not cash tender, available cash or provider reconciliation. GCash and card payments are manual and unverified."
-      >
-        <ul aria-label="Payment breakdown" className="m-0 list-none p-0">
-          <li
-            role="presentation"
-            className="data-column-header hidden grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)] gap-x-6 gap-y-3 sm:grid"
-          >
-            <span>Method</span>
-            <span>Recorded amount</span>
-          </li>
-          {report.payments.map((payment) => (
-            <li
-              key={payment.paymentMethod}
-              className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,1fr)] sm:items-center"
-            >
-              <strong className="text-sm font-semibold">
-                {payment.paymentMethod === 'CASH'
-                  ? 'Cash'
-                  : payment.paymentMethod === 'GCASH'
-                    ? 'GCash (manual, unverified)'
-                    : 'Card (manual, unverified)'}
-              </strong>
-              <div className="min-w-0 break-all text-sm tabular-nums">
-                <p>Gross sales: PHP {payment.grossSales}</p>
-                <p className="mt-1 text-muted">
-                  Transactions: {payment.transactionCount}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </OperationalPanel>
-      <OperationalPanel
-        variant="open"
-        className="data-surface"
-        title="Actual refund methods"
-        description="Separate manual refund amounts, not netted against sale payments. The refund method may differ from the original payment. No provider processing or verification."
-      >
-        <ul aria-label="Refund method breakdown" className="m-0 list-none p-0">
-          <li
-            role="presentation"
-            className="data-column-header hidden grid-cols-2 gap-x-6 gap-y-3 sm:grid"
-          >
-            <span>Method</span>
-            <span>Recorded amount</span>
-          </li>
-          {report.refundMethods.map((row) => (
-            <li
-              key={row.paymentMethod}
-              className="data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:grid-cols-2 sm:items-center"
-            >
-              <strong>
-                {row.paymentMethod === 'CASH'
-                  ? 'Cash refunds'
-                  : row.paymentMethod === 'GCASH'
-                    ? 'GCash refunds'
-                    : 'Card refunds'}
-              </strong>
-              <div className="min-w-0 break-all text-sm tabular-nums">
-                <p>Refunded: PHP {row.refundedAmount}</p>
-                <p>Refunds: {row.refundCount}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </OperationalPanel>
+      <PaymentAccountBreakdown report={report} />
     </>
   );
 }

@@ -154,9 +154,11 @@ export function RefundDetailsDialog({
                 </div>
                 <div>
                   <dt className="text-xs font-medium uppercase tracking-[0.06em] text-muted">
-                    Actual refund method
+                    Actual refund account
                   </dt>
-                  <dd className="mt-1 font-medium">{detail.paymentMethod}</dd>
+                  <dd className="mt-1 font-medium">
+                    {detail.paymentAccountName}
+                  </dd>
                 </div>
                 {detail.paymentReference ? (
                   <div>

@@ -16,7 +16,6 @@ import {
 } from '@/features/refunds/model/refund.test-fixtures';
 import type { StaffTransactionsPage } from '../model/report.schemas';
 import { TransactionsTab } from './transactions-tab';
-
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => navigation }));
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -42,7 +41,10 @@ const page: StaffTransactionsPage = {
       reference: staffRefund.refundCode,
       completedAt: staffRefund.completedAt,
       amount: staffRefund.total,
-      paymentMethod: 'CASH',
+      paymentAccountId: '77777777-7777-4777-8777-777777777777',
+      paymentAccountName: 'Cash',
+      paymentAccountIsCash: true,
+      paymentAccountRequiresReference: false,
       actorName: 'Saved Cashier',
       merchantNames: ['Amihan Home'],
     },
@@ -61,7 +63,6 @@ const props = {
   onRetry: vi.fn(),
   onPageChange: vi.fn(),
 };
-
 describe('Reports inline refund details', () => {
   const request = vi.fn();
   beforeEach(() => {
@@ -148,8 +149,19 @@ describe('Reports inline refund details', () => {
     request.mockImplementation(async (path: string) =>
       path.endsWith(`/refunds/${staffRefund.id}`) ? merchantRefund : ownSale,
     );
-    const { paymentMethod, actorName, merchantNames, ...item } = page.items[0];
-    void paymentMethod;
+    const {
+      paymentAccountId,
+      paymentAccountName,
+      paymentAccountIsCash,
+      paymentAccountRequiresReference,
+      actorName,
+      merchantNames,
+      ...item
+    } = page.items[0];
+    void paymentAccountId;
+    void paymentAccountName;
+    void paymentAccountIsCash;
+    void paymentAccountRequiresReference;
     void actorName;
     void merchantNames;
     render(

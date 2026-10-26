@@ -1,10 +1,13 @@
 import {
+  reportAccount,
+  mergeAccountFlows,
+} from '@/features/reports/model/report.test-fixtures';
+import {
   reportBranchesSchema,
   reportQuerySchema,
   staffSalesReportSchema,
   merchantSalesReportSchema,
 } from './report.schemas';
-
 export const branch = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Main',
@@ -25,30 +28,29 @@ export const report = {
   refundCount: '0',
   returnedUnits: '0',
   netRecordedSales: '60.00',
-  refundMethods: ['CASH', 'GCASH', 'CARD'].map((paymentMethod) => ({
-    paymentMethod,
-    refundedAmount: '0.00',
-    refundCount: '0',
-  })),
-  payments: [
-    {
-      paymentMethod: 'CASH' as const,
-      grossSales: '10.00',
-      transactionCount: '1',
-    },
-    {
-      paymentMethod: 'GCASH' as const,
-      grossSales: '20.00',
-      transactionCount: '1',
-    },
-    {
-      paymentMethod: 'CARD' as const,
-      grossSales: '30.00',
-      transactionCount: '1',
-    },
-  ],
+  paymentAccounts: mergeAccountFlows(
+    [
+      reportAccount('CASH' as const, {
+        received: '10.00',
+        transactionCount: '1',
+      }),
+      reportAccount('GCASH' as const, {
+        received: '20.00',
+        transactionCount: '1',
+      }),
+      reportAccount('CARD' as const, {
+        received: '30.00',
+        transactionCount: '1',
+      }),
+    ],
+    ['CASH', 'GCASH', 'CARD'].map((paymentMethod) =>
+      reportAccount(paymentMethod, {
+        refunded: '0.00',
+        refundCount: '0',
+      }),
+    ),
+  ),
 };
-
 describe('strict staff report contracts', () => {
   it('requires the complete refund group rather than pretending legacy gross-only data has zeros', () => {
     const legacy = Object.fromEntries(
@@ -59,7 +61,7 @@ describe('strict staff report contracts', () => {
             'refundCount',
             'returnedUnits',
             'netRecordedSales',
-            'refundMethods',
+            'paymentAccounts',
           ].includes(key),
       ),
     );
@@ -74,9 +76,10 @@ describe('strict staff report contracts', () => {
         transactionCount: '0',
         unitsSold: '0',
         netRecordedSales: '0.00',
-        payments: report.payments.map((p) => ({
+        paymentAccounts: report.paymentAccounts.map((p) => ({
           ...p,
-          grossSales: '0.00',
+          received: '0.00',
+          netReceived: '0.00',
           transactionCount: '0',
         })),
       }).success,
@@ -91,9 +94,10 @@ describe('strict staff report contracts', () => {
       netRecordedSales: grossSales,
       transactionCount,
       unitsSold: transactionCount,
-      payments: report.payments.map((p, i) => ({
+      paymentAccounts: report.paymentAccounts.map((p, i) => ({
         ...p,
-        grossSales: i ? '0.00' : grossSales,
+        received: i ? '0.00' : grossSales,
+        netReceived: i ? '0.00' : grossSales,
         transactionCount: i ? '0' : transactionCount,
       })),
     };
@@ -123,9 +127,13 @@ describe('strict staff report contracts', () => {
       { ...report, unitsSold: '2' },
       {
         ...report,
-        payments: [report.payments[0], report.payments[0], report.payments[2]],
+        paymentAccounts: [
+          report.paymentAccounts[0],
+          report.paymentAccounts[0],
+          report.paymentAccounts[2],
+        ],
       },
-      { ...report, payments: report.payments.slice(1) },
+      { ...report, paymentAccounts: report.paymentAccounts.slice(1) },
     ])
       expect(staffSalesReportSchema.safeParse(invalid).success).toBe(false);
   });
@@ -141,7 +149,10 @@ describe('strict staff report contracts', () => {
     expect(
       staffSalesReportSchema.safeParse({
         ...report,
-        payments: report.payments.map((p) => ({ ...p, reference: 'private' })),
+        paymentAccounts: report.paymentAccounts.map((p) => ({
+          ...p,
+          reference: 'private',
+        })),
       }).success,
     ).toBe(false);
   });
@@ -170,7 +181,6 @@ describe('strict staff report contracts', () => {
     ).toBe(false);
   });
 });
-
 describe('strict merchant own-sales contracts', () => {
   const own = {
     scope: 'MERCHANT',
@@ -249,7 +259,6 @@ describe('strict merchant own-sales contracts', () => {
       expect(merchantSalesReportSchema.safeParse(invalid).success).toBe(false);
   });
 });
-
 describe('expanded refund-aware report compatibility', () => {
   const refunded = {
     ...report,
@@ -257,11 +266,11 @@ describe('expanded refund-aware report compatibility', () => {
     refundCount: '2',
     returnedUnits: '3',
     netRecordedSales: '-10.01',
-    refundMethods: [
-      { paymentMethod: 'CASH', refundedAmount: '0.00', refundCount: '0' },
-      { paymentMethod: 'GCASH', refundedAmount: '10.00', refundCount: '1' },
-      { paymentMethod: 'CARD', refundedAmount: '60.01', refundCount: '1' },
-    ],
+    paymentAccounts: mergeAccountFlows(report.paymentAccounts, [
+      reportAccount('CASH', { refunded: '0.00', refundCount: '0' }),
+      reportAccount('GCASH', { refunded: '10.00', refundCount: '1' }),
+      reportAccount('CARD', { refunded: '60.01', refundCount: '1' }),
+    ]),
   };
   const own = {
     scope: 'MERCHANT',
@@ -287,11 +296,14 @@ describe('expanded refund-aware report compatibility', () => {
         refundCount: '0',
         returnedUnits: '0',
         netRecordedSales: '60.00',
-        refundMethods: refunded.refundMethods.map((row) => ({
-          ...row,
-          refundedAmount: '0.00',
-          refundCount: '0',
-        })),
+        paymentAccounts: mergeAccountFlows(
+          report.paymentAccounts,
+          refunded.paymentAccounts.map((row) => ({
+            ...row,
+            refunded: '0.00',
+            refundCount: '0',
+          })),
+        ),
       }).success,
     ).toBe(true);
     expect(
@@ -309,7 +321,7 @@ describe('expanded refund-aware report compatibility', () => {
     'refundCount',
     'returnedUnits',
     'netRecordedSales',
-    'refundMethods',
+    'paymentAccounts',
   ])('rejects incomplete staff refund groups without %s', (key) => {
     expect(
       staffSalesReportSchema.safeParse({ ...refunded, [key]: undefined })
@@ -346,25 +358,25 @@ describe('expanded refund-aware report compatibility', () => {
       { ...refunded, refundCount: '3' },
       { ...refunded, returnedUnits: '1' },
       { ...refunded, refundedAmount: '-70.01' },
-      { ...refunded, refundMethods: refunded.refundMethods.slice(1) },
+      { ...refunded, paymentAccounts: refunded.paymentAccounts.slice(0, 2) },
       {
         ...refunded,
-        refundMethods: [
-          refunded.refundMethods[0],
-          refunded.refundMethods[1],
-          refunded.refundMethods[1],
+        paymentAccounts: [
+          refunded.paymentAccounts[0],
+          refunded.paymentAccounts[1],
+          refunded.paymentAccounts[1],
         ],
       },
       {
         ...refunded,
-        refundMethods: refunded.refundMethods.map((row) => ({
+        paymentAccounts: refunded.paymentAccounts.map((row) => ({
           ...row,
-          refundedAmount: 'NaN',
+          refunded: 'NaN',
         })),
       },
       {
         ...refunded,
-        refundMethods: refunded.refundMethods.map((row) => ({
+        paymentAccounts: refunded.paymentAccounts.map((row) => ({
           ...row,
           refundCount: '1e1',
         })),
@@ -386,20 +398,22 @@ describe('expanded refund-aware report compatibility', () => {
     const huge = {
       ...report,
       grossSales: gross,
-      payments: report.payments.map((row, i) => ({
-        ...row,
-        grossSales: i ? '0.00' : gross,
-        transactionCount: i ? '0' : '3',
-      })),
+      paymentAccounts: mergeAccountFlows(
+        report.paymentAccounts.map((row, i) => ({
+          ...row,
+          received: i ? '0.00' : gross,
+          transactionCount: i ? '0' : '3',
+        })),
+        refunded.paymentAccounts.map((row, i) => ({
+          ...row,
+          refunded: i ? '0.00' : refund,
+          refundCount: i ? '0' : '1',
+        })),
+      ),
       refundedAmount: refund,
       refundCount: '1',
       returnedUnits: '1',
       netRecordedSales: '0.01',
-      refundMethods: refunded.refundMethods.map((row, i) => ({
-        ...row,
-        refundedAmount: i ? '0.00' : refund,
-        refundCount: i ? '0' : '1',
-      })),
     };
     expect(staffSalesReportSchema.parse(huge).netRecordedSales).toBe('0.01');
     expect(
@@ -415,7 +429,7 @@ describe('expanded refund-aware report compatibility', () => {
   });
   it('does not permit staff refund data or private metadata in own responses', () => {
     for (const field of [
-      'refundMethods',
+      'paymentAccounts',
       'refundedAmount',
       'refundCount',
       'returnedUnits',
@@ -431,7 +445,7 @@ describe('expanded refund-aware report compatibility', () => {
     expect(
       staffSalesReportSchema.safeParse({
         ...refunded,
-        refundMethods: refunded.refundMethods.map((row) => ({
+        paymentAccounts: refunded.paymentAccounts.map((row) => ({
           ...row,
           paymentReference: 'PRIVATE',
         })),
