@@ -1,8 +1,10 @@
 # Sales Reports
 
-**Status:** Refund-aware backend API, owner/manager/merchant report cards and the
-read-only Transactions tab are implemented. Focused backend/frontend checks pass;
-full rendered Reports QA remains separately documented.
+**Status:** Refund-aware branch and All Branches reports, owner/manager/merchant
+views, and read-only Transactions are implemented. Backend/frontend tests,
+disposable PostgreSQL integration checks, typechecks, lint and production builds
+pass. Rendered All Branches browser QA remains open; see the
+[Plan 09 verification record](../validation/plan09-implementation-2026-10-26.md).
 
 ## Responsibilities and exclusions
 
@@ -26,6 +28,12 @@ No per-original-sale-method net attribution is used for payment-account flows.
 
 ```text
 GET /organizations/:organizationId/reports/sales/branches
+GET /organizations/:organizationId/reports/sales/all/period?mode=ALL_TIME&until=
+GET /organizations/:organizationId/reports/sales/all?from=&until=
+GET /organizations/:organizationId/reports/sales/all/analytics?from=&until=
+GET /organizations/:organizationId/reports/sales/all/daily?from=&until=&page=&limit=
+GET /organizations/:organizationId/reports/sales/all/rankings?from=&until=&page=&sortBy=&merchantId=
+GET /organizations/:organizationId/reports/transactions/all?from=&until=&page=&limit=&type=&q=
 GET /organizations/:organizationId/branches/:branchId/reports/sales?from=&until=
 GET /organizations/:organizationId/branches/:branchId/reports/sales/analytics?from=&until=
 GET /organizations/:organizationId/branches/:branchId/reports/sales/rankings?from=&until=&page=&sortBy=&merchantId=
@@ -42,6 +50,17 @@ timestamps ending in Z with at most millisecond precision. `from < until` and
 the supported range is Manila dates 1900-01-01 through 9999-12-30. Applied
 ranges return normalized UTC timestamps. Long periods use bounded grouped
 analytics rather than unbounded daily arrays.
+All Branches is an explicit Reports-only scope. OWNER reads all organization
+branches; MANAGER reads currently assigned branches; MERCHANT reads own-item
+activity across assigned and historical own-selling branches. CASHIER remains
+denied. All-scope responses use `reportScope: "ALL"` and an authorized
+`branchCount`; they omit the single-branch `branch` field. This metadata contains
+no inaccessible branch identities. Fresh membership/link/grants are checked in
+the same repeatable-read transaction as each aggregate. Database predicates scope
+source rows directly; no client branch lists or unbounded branch-ID arrays are
+trusted. An authorized empty scope returns zero/empty data (including
+`branchCount: 0`); it is not treated as a denial. Single-branch routes and response
+shapes remain compatible.
 Branch lookup accepts no query parameters. The backend does not infer a local
 calendar day for summary reads. Analytics labels dates in Asia/Manila after exact
 UTC filtering. The frontend converts inclusive Philippines calendar
@@ -61,12 +80,16 @@ and include through today. Month/year-to-date presets start on the first day.
 Custom dates may exceed 366 days. The preset selector uses the shared custom
 dropdown beside the calendar in one row. Presets apply immediately without an
 adjacent Apply button; calendar edits require Apply and display actual inclusive dates. Refresh retains applied
-concrete bounds. Every tab uses the same range; changing branch preserves the
-selected period and clears old results before loading.
+concrete bounds. Every tab uses the same range; changing branch or switching to/from
+All Branches preserves the selected period and clears old results before loading.
+All Time re-resolves earliest activity across the new authorized scope;
+bounded/custom dates remain selected.
 
 ```text
 GET /organizations/:organizationId/branches/:branchId/reports/sales/period?mode=ALL_TIME&until=
 GET /organizations/:organizationId/branches/:branchId/reports/sales/daily?from=&until=&page=&limit=
+GET /organizations/:organizationId/reports/sales/all/period?mode=ALL_TIME&until=
+GET /organizations/:organizationId/reports/sales/all/daily?from=&until=&page=&limit=
 ```
 
 The explicit All time resolver accepts only mode and a frozen exclusive upper
@@ -148,21 +171,26 @@ labelled ranking controls.
 Transactions and Rankings use the shared inline collection header so their
 title and sort/filter controls remain vertically aligned in the same card row;
 daily report tables use the same shared collection shell without controls.
-The server combines both streams before sorting newest completion first with a
-stable descending source ID tie-breaker, then applies pagination and returns
-`branch`, the applied range, `items`, `page`, `limit`, `total`, and `totalPages`.
+The server combines both streams before sorting newest completion first with
+stable type/ID tie-breakers, then applies pagination. A branch-scoped page returns
+`branch`; an All Branches page instead returns `reportScope: "ALL"`, the authorized
+`branchCount`, and a safe source `branch: {id,name,code}` on each transaction row.
+Both include the applied range, `items`, `page`, `limit`, `total`, and `totalPages`.
+The Branch column appears only in the All Branches view.
 
 Owner and Manager rows expose the saved reference, amount, payment account, actor
 display name and saved merchant-name context. Merchant rows contain only the
 currently linked profile's own sale/refund amount and source identifiers; they
 omit payment, actor and other-merchant fields. Every row includes the source sale
 ID so sale navigation and refund-detail reads retain the authorized sale context.
-Sale rows are keyboard-focusable and open that same branch-scoped sale-detail
-route on click, Enter or Space; the explicit View link remains available.
+Sale rows are keyboard-focusable and open the source branch's sale-detail route on
+click, Enter or Space; the explicit View link remains available. Aggregate actions
+always use the row's real branch ID, never an All-scope sentinel.
 Their links retain the complete current Transactions URL in a validated
 `returnTo` parameter. It survives the staff POS redirect, and sale detail shows
 `Back to transactions` to restore the applied dates, filters and page. Only the
-same organization/branch's Transactions destination is permitted.
+same-organization branch Transactions route or same-organization All Branches
+Transactions route is permitted; external and arbitrary destinations are rejected.
 Refund rows and their View button open the shared read-only refund-details modal
 within Reports, after loading the authorized source sale and validating the
 refund's saved item snapshots. Merchant details remain reduced to own items.
@@ -511,25 +539,28 @@ instead of Branches:
 
 The organization entry reads only the Reports identity lookup and reuses the shared
 POS/Inventory/Reports branch if that lookup grants access. With no remembered choice,
-it requires explicit branch selection, even with one accessible branch. An
-inaccessible choice shows access feedback and the picker without selecting an
-alternative or discarding another feature's valid preference. There is no All branches
-total or silent fallback. The branch workspace rechecks the lookup before its
-summary read and offers a labeled branch dropdown without a back button. Cashiers
-cannot mount report reads. Merchants use the separate own-only view below;
-existing merchant Sales remains unchanged.
+it requires explicit selection. The Reports-only picker also offers All branches,
+including when the authorized lookup is empty. An inaccessible remembered branch
+shows access feedback without selecting an alternative or discarding another
+feature's valid preference. Selecting All branches navigates to the explicit
+`/reports/all/...` route and does not write a sentinel or clear/replace the shared
+branch preference. Selecting a real branch retains the existing preference behavior.
+The workspace rechecks access before each read. Cashiers cannot mount report reads.
+Merchants use the separate own-only view below; existing merchant Sales remains
+unchanged.
 
-Authorized explicit Reports URLs override the remembered choice after their scoped
-report read succeeds. Reports dropdown changes update the common workspace branch
-only after pending/unknown checkout/refund and programmatic navigation guards permit
-the transition. Organization/user/role changes clear selection; same-role access
-refresh revalidates it. Reports historical merchant choices never grant Inventory
-or POS access. Only branch identity is remembered in memory; applied date reset
-rules and report contracts are unchanged. The Reports branch dropdown is in the
-page-header action area on both the entry and scoped dashboard, retaining its
-explicit label and existing access checks. Frontend checks pass with 702 tests
-across 83 files; new rendered navigation/dropdown/focus QA remains pending final
-delivery, independently of earlier Reports/refund QA waivers.
+Authorized explicit branch Reports URLs override the remembered choice after their
+scoped report read succeeds. All-scope URLs do not alter that remembered branch.
+Reports dropdown changes update the common workspace branch only for a real branch
+and only after pending/unknown checkout/refund and programmatic navigation guards
+permit the transition. Organization/user/role changes clear selection; same-role
+access refresh revalidates it. Reports historical merchant choices never grant
+Inventory or POS access. Applied period, active tab and dates are retained when
+switching between branch and All scopes; list pagination and scope-specific filters
+reset as appropriate. The labeled Reports dropdown is in the page-header action
+area on both the entry and workspace. The aggregate selector is not added to POS,
+Inventory or other pages. Rendered All-scope navigation/dropdown/focus QA remains
+separate from earlier Reports/refund QA waivers.
 
 Final shared-branch frontend checks were rerun successfully: changed-file
 formatting, lint/type checking, 702 tests across 83 files and production build.
@@ -549,16 +580,16 @@ charts; longer periods use grouped charts. Calendar selection does not fetch;
 Apply period sets a new period, while
 Clear dates removes the pending period selection.
 Refresh/retry read the visibly labeled applied period, never write, and are blocked
-while the draft dates are invalid. Branch changes retain the selected preset or
-custom period; All time resolves again within the new authorized branch. There
-are no persistent report drafts.
+while the draft dates are invalid. Branch and All-scope changes retain the selected
+preset or custom period; All time resolves again within the new authorized scope.
+There are no persistent report drafts.
 The branch report period heading, calendar trigger and Apply period action share
 a row at desktop widths and wrap responsively on narrower screens. The calendar
 control and actions form a compact group at the row's right edge. The applied
-branch is repeated in a compact sticky Report context bar below the date editor.
-The bar keeps Overview/Daily Data/Rankings at the left, centers the branch name,
-and keeps Refresh Report at the right while the report scrolls. It stacks the
-navigation, branch name and refresh action responsively on narrow screens. The
+branch or All Branches scope is repeated in a compact Report context bar below the
+date editor. The bar keeps view navigation at the left, centers the scope label,
+and keeps Refresh Report at the right. It stacks navigation, scope and refresh
+action responsively on narrow screens. The
 full date editor remains the single source of truth for changing the applied
 period.
 
@@ -572,9 +603,9 @@ no-activity feedback when both streams are empty.
 Labels distinguish gross recorded sales from profit/payouts and manual unverified
 GCash/card from payment-provider reconciliation.
 
-Apply, branch changes and refresh clear old totals/options; failed or revoked reads
+Apply, scope changes and refresh clear old totals/options; failed or revoked reads
 cannot retain stale summary/payment rows. Generation/unmount guards ignore late
-responses after period, branch, organization, role or user changes. Access refresh
+responses after period, scope, organization, role or user changes. Access refresh
 uses organization context; unavailable branches never cause automatic navigation.
 Loading, no assigned branches, empty period, failure and denied access have distinct
 feedback and safe read-only retry/access-refresh actions.
@@ -587,7 +618,8 @@ require explicit selection when no usable choice exists, and use
 the Reports identity lookup, not general branch/address/inventory or profile
 directory reads. Assigned and historical own-selling branches remain selectable
 regardless of the applied period; an empty period does not remove historical
-access. There is no profile selector or combined branch total.
+access. All Branches combines only the merchant's own authorized item activity and
+never returns a whole-branch total. There is no profile selector.
 
 Separate strict MERCHANT analytics validation and own-only cards display Own gross
 recorded sales, Transactions with own items and Own units sold. Matching

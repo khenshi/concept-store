@@ -2,12 +2,15 @@
 
 Date: October 22, 2026
 
-Queue updated: October 25, 2026
+Queue updated: October 26, 2026
 
 Status: Plans 01–02 completed and archived October 25. Plan 03 has a committed
 local implementation record with remaining release gates deferred to the owning
 plans. Plan 07 was completed and archived October 25 after its acceptance gates
-were validated. Plan 08 is now approved and active in `../current.md`. Plans 04–06
+were validated. Plan 08 was completed and archived October 26 after its hosted
+acceptance gates were confirmed. Plan 09 was closed and archived October 26 at
+the user's direction with its known 390px selector/calendar overflow explicitly
+deferred; this is not pilot/release approval. Plans 04–06
 contain committed local implementation slices from the background agent, but their
 provider, hosted, branch-protection and release gates remain open. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
@@ -25,23 +28,23 @@ plan without approval or treat archived specifications as active requirements.
 IDs are stable; filenames in code formatting are planned files, not broken links.
 Existing specifications remain the source of truth until their review turn.
 
-| ID  | Plan / intended file                                                                              | Priority                                 | Draft status                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 01  | [Regression baseline and test-contract recovery](../archive/01-regression-baseline-2026-10-25.md) | P0                                       | Completed October 25; local gates and 72 affected PostgreSQL tests passed                                      |
-| 02  | [Production startup, logging and readiness](../archive/02-production-runtime-2026-10-25.md)       | P0                                       | Completed October 25; local/deep review/disposable-process gates passed                                        |
-| 03  | [Authentication and request-boundary hardening](../archive/03-authentication-and-request-boundary-2026-10-25.md) | P0 | Local implementation committed; hosted/browser and dependent acceptance gates remain with Plans 05, 07, 11, 14 and 18 |
-| 04  | [Database migration, isolation and recovery safety](04-database-safety.md)                        | P0                                       | Approved for staged implementation October 25; migration and synthetic restore evidence recorded; provider/RPO/RTO proof pending |
-| 05  | [Hosting selection and secure session topology](05-hosting-session-topology.md)                   | P0                                       | Approved staged implementation October 25; provider/budget/deployed qualification remain open                 |
-| 06  | [CI and repeatable release pipeline](06-ci-release-pipeline.md)                                   | P0                                       | Approved staged implementation October 25; workflow and integration gates green; branch enforcement remains open |
-| 07  | [Controlled enrollment, activation and account recovery](../archive/07-controlled-access-2026-10-25.md) | Required before pilot                    | Completed and archived October 25; local, hosted, provider, operator and browser acceptance gates validated |
-| 08  | [Payment Account Management and Reporting — finance-reconciliation.md](finance-reconciliation.md) | Required before pilot                    | Approved October 25; local implementation and disposable verification complete; exact-target hosted development cutover remains gated |
-| 09  | [Reports All Branches — 09-reports-all-branches.md](09-reports-all-branches.md)                   | Required before pilot                    | Source-reviewed/updated October 24; technical contracts/proof pending; implementation not approved             |
-| 10  | [Monitoring, transaction recovery and outage operations](10-operational-reliability.md)           | P0                                       | Drafted October 24; coverage/channel/drill gates open; implementation not approved                             |
-| 11  | [End-to-end workflow, accessibility and receipt acceptance](11-workflow-acceptance.md)            | P0/P1 by risk                            | Drafted October 24; saved/PDF pilot confirmed; browser proof pending; implementation not approved              |
-| 12  | [Performance, dependency and security qualification](12-performance-security-qualification.md)    | P0 critical risks; P1 scale gates        | Drafted October 24; five simultaneous staff confirmed; execution evidence pending; implementation not approved |
-| 13  | [Privacy, support and commercial-readiness policies](13-service-policies.md)                      | P0 personal-data controls; P1 paid terms | Drafted October 24; registered business/manual requests/handover gate confirmed; implementation not approved   |
-| 14  | [Pilot release and paid-launch sign-off](14-release-signoff.md)                                   | P0 pilot; P1 paid launch                 | Drafted October 24; no release approved; remaining batch/dependency review pending                             |
-| 15  | [Optional interface and documentation refinements](15-optional-refinements.md)                    | P2                                       | Drafted/classified October 24; explicitly nonblocking; implementation not approved                             |
+| ID  | Plan / intended file                                                                                             | Priority                                 | Draft status                                                                                                                     |
+| --- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 01  | [Regression baseline and test-contract recovery](../archive/01-regression-baseline-2026-10-25.md)                | P0                                       | Completed October 25; local gates and 72 affected PostgreSQL tests passed                                                        |
+| 02  | [Production startup, logging and readiness](../archive/02-production-runtime-2026-10-25.md)                      | P0                                       | Completed October 25; local/deep review/disposable-process gates passed                                                          |
+| 03  | [Authentication and request-boundary hardening](../archive/03-authentication-and-request-boundary-2026-10-25.md) | P0                                       | Local implementation committed; hosted/browser and dependent acceptance gates remain with Plans 05, 07, 11, 14 and 18            |
+| 04  | [Database migration, isolation and recovery safety](04-database-safety.md)                                       | P0                                       | Approved for staged implementation October 25; migration and synthetic restore evidence recorded; provider/RPO/RTO proof pending |
+| 05  | [Hosting selection and secure session topology](05-hosting-session-topology.md)                                  | P0                                       | Approved staged implementation October 25; provider/budget/deployed qualification remain open                                    |
+| 06  | [CI and repeatable release pipeline](06-ci-release-pipeline.md)                                                  | P0                                       | Approved staged implementation October 25; workflow and integration gates green; branch enforcement remains open                 |
+| 07  | [Controlled enrollment, activation and account recovery](../archive/07-controlled-access-2026-10-25.md)          | Required before pilot                    | Completed and archived October 25; local, hosted, provider, operator and browser acceptance gates validated                      |
+| 08  | [Payment Account Management and Reporting](../archive/finance-reconciliation-2026-10-26.md)                      | Required before pilot                    | Completed and archived October 26; implementation, cutover and hosted qualification confirmed                                    |
+| 09  | [Reports All Branches](../archive/09-reports-all-branches-2026-10-26.md)                                           | Required before pilot                    | Closed and archived October 26 at user direction; 390px branch-selector/calendar overflow remains unfixed and deferred; not release approval |
+| 10  | [Monitoring, transaction recovery and outage operations](10-operational-reliability.md)                          | P0                                       | Drafted October 24; coverage/channel/drill gates open; implementation not approved                                               |
+| 11  | [End-to-end workflow, accessibility and receipt acceptance](11-workflow-acceptance.md)                           | P0/P1 by risk                            | Drafted October 24; saved/PDF pilot confirmed; browser proof pending; implementation not approved                                |
+| 12  | [Performance, dependency and security qualification](12-performance-security-qualification.md)                   | P0 critical risks; P1 scale gates        | Drafted October 24; five simultaneous staff confirmed; execution evidence pending; implementation not approved                   |
+| 13  | [Privacy, support and commercial-readiness policies](13-service-policies.md)                                     | P0 personal-data controls; P1 paid terms | Drafted October 24; registered business/manual requests/handover gate confirmed; implementation not approved                     |
+| 14  | [Pilot release and paid-launch sign-off](14-release-signoff.md)                                                  | P0 pilot; P1 paid launch                 | Drafted October 24; no release approved; remaining batch/dependency review pending                                               |
+| 15  | [Optional interface and documentation refinements](15-optional-refinements.md)                                   | P2                                       | Drafted/classified October 24; explicitly nonblocking; implementation not approved                                               |
 
 ### Added during module verification
 
@@ -89,9 +92,9 @@ before final workflow/release qualification (11/14), not after release sign-off.
 Plan 15 remains optional. Plan 16 must coordinate with Payment Accounts (08) and
 operational recovery (10) without duplicating their rules.
 
-`finance-reconciliation.md` now describes Payment Accounts, not reconciliation.
-Keep its existing link stable during initial staging. No reconciliation workflows,
-settlements, payout engine or automated subscription billing belong in this batch.
+The archived `finance-reconciliation-2026-10-26.md` file describes Payment
+Accounts, not reconciliation. No reconciliation workflows, settlements, payout
+engine or automated subscription billing belong in this batch.
 
 ## 2. Implementation order and dependencies
 
@@ -539,11 +542,14 @@ Remaining shared gates:
   sidebar placement, references required by default with future-only edits, and
   fixed Cash/unique custom names. Display bounds and exact reset target remain
   gates. No new application tests, database or browser checks ran.
-- Plan 09 reviewed/updated after Reports routes, service authorization, analytics,
-  frontend selector/entry and source route inspection. Preserves merchant historical
-  branch union and defines aggregate identity, empty states, per-request consistency,
-  Payment Accounts integration and rollback/navigation safety. No new application
-  tests, database or browser checks ran; runtime acceptance remains pending.
+- Plan 09 implemented with explicit Reports-only scope, server-derived
+  Owner/Manager/Merchant branch predicates, aggregate routes, global pagination and
+  source-branch detail links. Focused frontend, backend HTTP and disposable PostgreSQL
+  tests, typechecks, lint and builds pass; a deep review found no actionable access
+  or aggregation issues. Rendered browser qualification found a 390px
+  branch-selector/date-picker overflow. At the user's direction, Plan 09 was closed
+  and archived with that defect explicitly deferred for later; it remains unfixed
+  and is not pilot or release approval.
 - Plan 10 drafted after logging/health, checkout/refund attempt storage, source-read
   route and checklist review. Defines actionable alerts, privacy-safe diagnostics,
   unknown-outcome escalation and restoration safety including missing replay records.

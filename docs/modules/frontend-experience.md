@@ -378,7 +378,12 @@ Transactions. Existing access and calculation contracts remain unchanged; see
 Owners/managers now have Reports in sidebar/mobile navigation, with both Reports
 routes active under that entry rather than Branches. The entry requires explicit
 selection from the identity-only authorized Reports branch lookup, even with one
-branch. The branch workspace offers a labeled dropdown, inclusive Philippines
+branch, and offers an explicit All branches option only within Reports. Owners see
+organization branches, Managers their assigned branches, and Merchants receive
+their own accessible activity across authorized branches. All Branches is held in
+the Reports route and does not overwrite the shared preferred branch used by other
+features; selecting a real branch keeps the existing preference behavior. The
+branch workspace offers a labeled dropdown, inclusive Philippines
 From/Through dates and separate Apply/Refresh actions, with no back button.
 Dates default to Philippines today independently of browser timezone; validation
 is debounced 300 ms per input, immediate on blur and final on Apply with invalid
@@ -419,7 +424,7 @@ table, and rank/product columns remain fixed during horizontal metric scrolling.
 Merchant-option loading is announced beside its reserved filter width without
 blocking the Rank by control.
 
-The applied branch is also shown in a compact sticky Report context bar below
+The applied branch or All Branches scope is also shown in a compact sticky Report context bar below
 the global workspace header. The tab navigation uses a compact row with modest
 top breathing room and a fine active underline, flowing directly into the
 content without an extra divider. Report tabs stay at the left and Refresh

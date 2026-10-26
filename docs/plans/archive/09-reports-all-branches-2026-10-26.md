@@ -1,19 +1,21 @@
 # Plan 09: Sales Reports All Branches
 
-Moved from the deferred archive to pending on October 23, 2026. This feature is
-not completed or cancelled. Review this specification at planning queue item 09;
-implementation remains deferred until the planning batch is finished and the
-specific scope is approved. See [planning sequence](README.md).
+Moved from the deferred archive to pending on October 23, 2026, and approved for
+implementation by the user October 26, 2026. It was later closed at the user's
+direction as described below. See the [planning sequence](../pending/README.md).
 
 ## Sales Reports: All Branches
 
 Date: October 22, 2026; source-reviewed and updated October 24, 2026
 
-Status: Planning only. User requested a plan first; implementation is not authorized.
+Status: Implementation and local verification complete. Closed and archived on
+October 26, 2026, at the user's direction. Browser QA found the Reports branch
+selector and date calendar clipped at a 390px viewport; the responsive defect is
+explicitly deferred for later and remains unfixed. Closure is not a passing
+responsive qualification or pilot/release approval.
 
-Priority: Required before real pilot use. Plan 08 owns Payment Accounts and must
-coordinate its account-aware reporting contract before launch. No application or
-database change is authorized by drafting this plan.
+Priority: Required before real pilot use. Plan 08 Payment Accounts is implemented
+and archived; this plan reuses its account-aware reporting contract.
 
 ### 1. Goal and confirmed scope
 
@@ -212,14 +214,19 @@ pages' selectors and behavior are unchanged.
 
 Prior current plan/UI follow-up notes are preserved in
 `archive/superseded-current-pos-refunds-and-ui-followups-2026-10-22.md`.
-Outstanding rendered QA remains pending; supersession is not completion.
+Rendered QA found a known responsive issue; the user elected to defer its fix and
+close this plan. Supersession or closure does not mean the issue passed QA.
 
 All existing Reports roles within their scope is user-confirmed. Existing default
 selection is preserved; global product ranking and aggregate Branch column are
 proposed consistent behavior. Confirm any material contract ambiguity before edits.
 
-Plan checks: repository/module inspection and document whitespace checks only.
-No runtime implementation or acceptance tests performed for this proposal.
+Plan checks: implementation and automated/local checks are recorded in
+`../../validation/plan09-implementation-2026-10-26.md`. Rendered browser findings,
+including the 390px responsive overflow and remaining role/accessibility coverage,
+are recorded in `../../validation/plan09-browser-qa-2026-10-26.md`. By explicit
+user direction, the defect is deferred and this plan is closed without responsive
+requalification. Keep the QA result visible; it is not pilot or release approval.
 
 ### 9. October 24 source review and cross-plan contracts
 

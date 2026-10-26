@@ -1,28 +1,14 @@
-# Plan 08: Payment Account Management and Reporting
+# No active implementation plan
 
-Status: Approved for implementation by the user October 25, 2026.
+Plan 09, [Sales Reports All Branches](archive/09-reports-all-branches-2026-10-26.md),
+was closed and archived on October 26, 2026, at the user's direction. Its
+implementation and local verification are complete. The rendered browser check
+found a 390px viewport overflow in the branch selector and report-date picker;
+that responsive issue is explicitly deferred for later and remains unfixed.
+Closing the plan does not mark the failed responsive check as passed or approve a
+pilot/release.
 
-Implement the complete scope and acceptance contract in
-[Plan 08](pending/finance-reconciliation.md). This approval supersedes its
-planning-only status. Preserve existing Plan 07 work and unrelated edits.
-
-Deliver Owner-managed tenant payment accounts, immutable system Cash, atomic
-branch assignment and availability enforcement, account-linked sale/refund
-snapshots, dynamic POS/refund/history selections, and exact account reporting
-with Received/Refunded/Net Received controls and a signed negative-net chart.
-One account per sale/refund; split payments and reconciliation remain excluded.
-
-Use currently applicable zero-value accounts plus all historically contributing
-accounts in reports; disabled zero-only accounts remain discoverable in Owner
-management. Return complete grouped account totals; paginate rendered tables
-at 15. No truncation of financial totals.
-
-Prepare and rehearse the forward migration on an explicitly disposable local
-database. Do not reset deployed databases until their exact developmental target
-and replacement dataset are verified. Existing development reset authorization
-does not apply to an unexpected or real-data target.
-
-Completion requires backend/frontend contract parity, tenant and branch checks,
-Cash constraints, exact financial aggregates, replay/race coverage, updated
-module docs, relevant automated gates and separately recorded hosted/browser
-cutover evidence. Keep this plan active until required work is complete.
+Plan 10, [Monitoring, transaction recovery and outage operations](pending/10-operational-reliability.md),
+is the next drafted item in the planning queue, but it is not active or approved
+for implementation. Review and approve a plan before assigning it as the current
+implementation scope.
