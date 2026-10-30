@@ -2,8 +2,10 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No published legal terms, data collection,
-deletion, export, provider contract, registration or production change authorized.
+Status: Approved for planning/review October 30, 2026. Implementation remains
+blocked on the open business, retention, provider and qualified-review decisions.
+No published legal terms, data collection, deletion, export, provider contract,
+registration or production change is authorized by this plan alone.
 
 Priority: P0 privacy/data handling, pilot terms, support and offboarding before
 real personal/business data; P1 paid-commercial terms before collecting SaaS fees.
