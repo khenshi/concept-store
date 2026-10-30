@@ -9,8 +9,9 @@ communications and provider-responsibility decisions needed before real pilot
 data. It does not authorize publishing legal terms or implementing data
 deletion/export/acceptance behavior until the unresolved business and qualified
 review decisions are confirmed. The currently confirmed service identity is
-Kapwesto, with `kapwesto@gmail.com` as the pilot contact and a one-month initial
-pilot duration.
+Kapwesto, with `kapwesto@gmail.com` as the pilot and interim privacy contact,
+and a one-month initial pilot duration. This contact designation does not replace
+qualified privacy/legal review.
 
 Plan 12 was closed and archived at the user's direction with capacity,
 dependency and hosted-security gates deferred; that is not public paid-SaaS

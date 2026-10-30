@@ -23,6 +23,9 @@ Confirmed October 30:
 
 - Public service identity: Kapwesto.
 - Pilot/support contact: `kapwesto@gmail.com`.
+- Interim privacy contact: the Kapwesto project owner/operator, reachable at
+  `kapwesto@gmail.com`. This is an accountable pilot contact, not a claim of
+  formal DPO appointment, legal advice or completed privacy review.
 - Initial controlled pilot duration: one month, followed by an explicit review
   before continuation or expansion.
 
