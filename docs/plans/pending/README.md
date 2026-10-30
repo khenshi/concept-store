@@ -14,9 +14,10 @@ deferred; this is not pilot/release approval. Plan 10 was completed and archived
 October 26 after the user confirmed its manual operational gates. Plan 12 was
 closed and archived October 27 at the user's direction with all remaining
 qualification gates explicitly deferred; this is not pilot or paid-launch
-approval. Plan 13 is active for planning/review as of October 30; its
-implementation is blocked on the open identity, retention, provider and
-qualified-review decisions. Plans 04–06
+approval. Plan 13 was closed and archived October 30 at the user's direction
+with legal, privacy and commercial work deferred. Plan 14 is active for
+technical deployment-readiness planning; this is not public paid-launch
+approval. Plans 04–06
 contain committed local implementation slices from the background agent, but their
 provider, hosted, branch-protection and release gates remain open. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
@@ -48,8 +49,8 @@ Existing specifications remain the source of truth until their review turn.
 | 10  | [Monitoring, transaction recovery and outage operations](../archive/10-operational-reliability-2026-10-26.md)     | P0                                       | Completed and archived October 26 after user-confirmed smoke, monitoring, support, backup/restore and incident validation       |
 | 11  | [End-to-end workflow, accessibility and receipt acceptance](11-workflow-acceptance.md)                           | P0/P1 by risk                            | Application slice and local automated gates committed October 27; browser/device/PDF evidence remains pending                    |
 | 12  | [Performance, dependency and security qualification](../archive/12-performance-security-qualification-2026-10-27.md) | P0 critical risks; P1 scale gates        | Closed and archived October 27 at user direction; passed evidence retained, all remaining capacity/dependency/hosted security gates deferred; not release approval |
-| 13  | [Privacy, support and commercial-readiness policies](13-service-policies.md)                                     | P0 personal-data controls; P1 paid terms | Active for planning/review October 30; manual handover confirmed; implementation gated by identity, retention, provider and qualified-review decisions |
-| 14  | [Pilot release and paid-launch sign-off](14-release-signoff.md)                                                  | P0 pilot; P1 paid launch                 | Drafted October 24; no release approved; remaining batch/dependency review pending                                               |
+| 13  | [Privacy, support and commercial-readiness policies](../archive/13-service-policies-2026-10-30.md)              | P0 personal-data controls; P1 paid terms | Closed and archived October 30 at user direction; legal/privacy/commercial work deferred; not compliance or release approval       |
+| 14  | [Pilot release and paid-launch sign-off](14-release-signoff.md)                                                  | P0 pilot; P1 paid launch                 | Active for technical deployment-readiness planning October 30; Plan 13 legal gates deferred; no release approved                 |
 | 15  | [Optional interface and documentation refinements](15-optional-refinements.md)                                   | P2                                       | Drafted/classified October 24; explicitly nonblocking; implementation not approved                                               |
 
 ### Added during module verification

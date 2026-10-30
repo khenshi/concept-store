@@ -2,9 +2,10 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. This is not a release approval. No code,
-checklist completion, deployment, activation, purchase or real-data onboarding
-is authorized by this document.
+Status: Approved for technical deployment-readiness planning October 30, 2026.
+Legal, privacy and commercial gates from Plan 13 are explicitly deferred at the
+user's direction. This is not a release approval and does not authorize public
+paid SaaS, legal claims or production data onboarding by itself.
 
 Priority: P0 before real pilot use; repeat paid-launch qualification before fees
 or a broader public commercial launch. Free testing does not waive data safety.
@@ -21,6 +22,11 @@ technical gates pass. A drafted plan, archived plan, green build, demonstration,
 historical waiver or accepted product scope is not deployment permission.
 Finish the planning batch and dependency review first, then promote a bounded
 implementation plan into current.md. Do not archive unfinished scopes as complete.
+
+For this active technical slice, evaluate deployment and controlled real-time
+pilot readiness while carrying Plan 13's deferred legal/privacy/commercial work
+as an explicit exclusion. Passing the technical slice must not be described as
+privacy compliance or public paid-launch approval.
 
 ## 2. Confirmed release envelope
 

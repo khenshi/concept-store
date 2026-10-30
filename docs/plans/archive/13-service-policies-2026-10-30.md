@@ -2,10 +2,10 @@
 
 Date: October 24, 2026
 
-Status: Approved for planning/review October 30, 2026. Implementation remains
-blocked on the open business, retention, provider and qualified-review decisions.
-No published legal terms, data collection, deletion, export, provider contract,
-registration or production change is authorized by this plan alone.
+Status: Closed and deferred October 30, 2026 at the user's direction. Legal,
+privacy and commercial-readiness work is intentionally postponed. No published
+legal terms, data collection, deletion, export, provider contract, registration
+or production change was authorized by this plan.
 
 Priority: P0 privacy/data handling, pilot terms, support and offboarding before
 real personal/business data; P1 paid-commercial terms before collecting SaaS fees.
@@ -250,3 +250,11 @@ disposal stages; qualified reviewer; provider region/terms; support coverage ver
 recovery targets; pilot duration/exit and eventual commercial terms. No unknown is
 an implicit approval to collect more data, retain forever, publish legal claims,
 export tenant records or delete history.
+
+## 10. User-directed deferral
+
+On October 30, 2026, the user instructed that legal matters be skipped for now
+so technical deployment work can continue. The legal entity, privacy notice,
+retention schedule, qualified review, formal handover procedure, incident-policy
+publication and commercial terms remain deferred. This closure does not certify
+legal compliance, privacy compliance, or authorization for a public paid launch.

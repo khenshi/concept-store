@@ -1,19 +1,14 @@
 # Current implementation plan
 
-Plan 13, [Privacy, support and commercial-readiness policies](pending/13-service-policies.md),
-is approved and active for planning/review as of October 30, 2026.
+Plan 14, [Pilot release and paid-launch sign-off](pending/14-release-signoff.md),
+is approved and active for technical deployment-readiness planning as of
+October 30, 2026.
 
-The scope covers the minimum privacy notice, pilot terms, support/contact,
-retention inventory, verified Owner handover/offboarding, incident
-communications and provider-responsibility decisions needed before real pilot
-data. It does not authorize publishing legal terms or implementing data
-deletion/export/acceptance behavior until the unresolved business and qualified
-review decisions are confirmed. The currently confirmed service identity is
-Kapwesto, with `kapwesto@gmail.com` as the pilot and interim privacy contact,
-and a one-month initial pilot duration. This contact designation does not replace
-qualified privacy/legal review.
+The active scope is limited to technical deployment, runtime, database,
+authentication/session, release, operational and controlled real-time pilot
+readiness. Plan 13's legal, privacy and commercial matters are explicitly
+deferred at the user's direction. This scope does not certify compliance or
+authorize a public paid SaaS launch.
 
-Plan 12 was closed and archived at the user's direction with capacity,
-dependency and hosted-security gates deferred; that is not public paid-SaaS
-qualification. Kapwesto is currently confirmed only as the service/product name,
-not the registered legal entity. Plan 14 remains the release decision owner.
+Plan 12 was closed and archived with capacity, dependency and hosted-security
+gates deferred. Those risks remain visible in the Plan 14 sign-off record.
