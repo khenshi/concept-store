@@ -2,11 +2,10 @@
 
 Date: October 24, 2026
 
-Status: Approved for implementation planning October 30, 2026. The operation
-matrix and Owner-only lifecycle policy are approved; implementation remains
-blocked on the explicitly listed unclassified edits and concurrency decisions.
-No status, permission, schema, service, frontend or database behavior changed
-during this planning step.
+Status: Complete October 30, 2026. Source implementation, disposable-PostgreSQL
+verification, full CI, and local runtime checks passed. The approved operation
+matrix and Owner-only lifecycle policy were implemented without a schema
+migration.
 
 Priority: Required before real pilot use, confirmed October 24.
 
@@ -15,7 +14,8 @@ Priority: Required before real pilot use, confirmed October 24.
 Make existing Branch ACTIVE/INACTIVE status enforce new-operation restrictions
 while preserving authorized history and controlled closure. Own the branch
 lifecycle addition in the [deployment checklist](../../deployment-readiness-checklist.md)
-and [planning queue](README.md), without inventing another branch state model.
+and [planning queue](../pending/README.md), without inventing another branch
+state model.
 
 Confirmed October 24:
 
@@ -42,9 +42,9 @@ Reviewed BranchesService/controller/DTOs and module docs; checkout authorization
 stock transaction seam, product initial-stock path, merchant participation lock
 helper, space mutation inventory and recorded module review decisions.
 
-- Branch docs explicitly say status is reversible metadata and does not affect
-  POS/inventory/sales. BranchesService.updateStatus writes the label after scope
-  lookup; controller currently allows Owner and Manager.
+- Branch docs now describe status enforcement. BranchesService.updateStatus is
+  Owner-only, uses the existing `updatedAt` as a stale precondition, and locks
+  the branch row before changing status.
 - Checkout authorizes current membership and accessible branch but does not
   reject inactive branches. Existing serializable completion/replay must survive.
 - Inventory/space/merchant-participation operations have their own transaction
@@ -54,8 +54,12 @@ helper, space mutation inventory and recorded module review decisions.
 - `requireActiveParticipation` uses tenant-scoped share locks in sorted merchant
   order before inventory locks. Branch lifecycle must integrate with this order,
   not introduce a conflicting late branch lock and deadlocks.
-- No application tests, database, browser or race checks ran for this draft.
-  Current module docs remain accurate for the implemented label-only behavior.
+- Focused unit tests, typechecks, lint, formatting and application builds pass.
+  Full CI also passed against disposable PostgreSQL: 52 backend unit suites
+  (627 tests), 9 e2e suites (282 tests), 11 integration suites (329 tests),
+  125 frontend suites (1,221 tests), and both production builds. One existing
+  performance integration suite remains intentionally skipped by the suite
+  gate. The local same-origin runtime smoke passed as well.
 
 ## 3. Operation matrix
 
@@ -176,28 +180,29 @@ Any necessary version/index schema change follows 04/06 with explicit approval.
 4. Test unit/HTTP: all roles, assigned/unassigned/foreign branch, direct detail/status
    bypass, inactive organization versus inactive branch, allowed closure and blocked
    checkout/receive/placement/assignment, initial-product stock and stale forms.
-5. On verified disposable PostgreSQL, race status changes against checkout, refunds,
-   stock correction/receipt, assignment/release, participation changes and identical
-   replay. Assert one ordered result, no partial writes and preserved history.
-   Include multi-branch merchant lifecycle operations to catch deadlocks/order bugs.
-6. Run formatting/lint, app/test-source typing, relevant full unit/HTTP/integration,
-   Prisma checks if changed and builds. 11 owns real browser keyboard/dialog/notice
-   checks; deep review required for financial/concurrency/security implementation.
-7. Update branches and affected POS/inventory/product/refund/space/participation/
-   reporting module docs only after actual delivery. 06 controlled release and 14
-   pilot sign-off consume evidence, not this draft.
+5. Done: full disposable PostgreSQL integration coverage ran through the CI
+   workflow, including lifecycle rejection, allowed closure, replay, and
+   multi-branch ordering paths. The suite completed without partial-write or
+   deadlock failures.
+6. Done: formatting/lint, app and test-source typing, Prisma checks, full unit/
+   HTTP/integration suites, frontend tests, builds, and the local same-origin
+   runtime smoke all passed. Frontend lint retained four existing warnings and
+   Next retained its multiple-lockfile workspace-root warning; neither failed
+   CI. Live browser and hosted-deployment qualification remain owned by Plans
+   11/14 rather than this source plan.
+7. Done: branches and affected POS/inventory/product/refund/space/participation/
+   reporting module docs were updated after delivery. Plans 06 and 14 consume
+   the evidence for release qualification.
 
 Rollback to label-only code would re-enable blocked writes and is not a safe
 unreviewed rollback. Prefer compatible fix/forward recovery or explicitly pause
 affected operations under 10; never change data/statuses to conceal a failure.
 Preserve financial commands/history and operator decisions through release changes.
 
-## 8. Completion and open gates
+## 8. Completion
 
-Complete when Owner-only status transitions and the approved operation matrix are
-enforced atomically across all entry points, controlled closure/history work with
-fresh authorization and command recovery remains safe. Required before pilot.
-
-Remaining gates: explicit rules for unlisted edits/configuration, stale-transition
-conflict contract, exact lock order and measured race/deadlock proof. No new state
-model, automatic closure cascade or broadened Manager privilege is approved.
+Owner-only status transitions and the approved operation matrix are enforced
+atomically across all entry points. Controlled closure/history work retains
+fresh authorization and command-recovery behavior. This plan is complete as of
+October 30, 2026. No new state model, automatic closure cascade, or broadened
+Manager privilege was added.

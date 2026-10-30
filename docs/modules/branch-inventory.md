@@ -1,5 +1,9 @@
 # Branch Inventory
 
+Inactive branches preserve authorized stock and movement reads and allow
+existing-stock adjustments, but reject new placements, receipts, price edits,
+and threshold edits with `BRANCH_INACTIVE`.
+
 Inventory tabs have nested routes: `/inventory/stock`, `/inventory/movements`
 and `/inventory/integrity`. A persistent tab layout retains the header, branch
 selector and stock filters while navigating; browser back/forward selects tabs.

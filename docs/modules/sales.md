@@ -1,5 +1,9 @@
 # Sales
 
+New checkout returns `BRANCH_INACTIVE` for inactive branches; saved checkout
+commands still replay after fresh authorization. Historical sales and reports
+remain readable within the existing organization and branch scope.
+
 Separate read-only [Sales Reports](reports.md) aggregate permitted completed
 branch sales. They do not change these history/checkout routes or cashier access;
 merchant reports remain own-item-only and never expose payment/whole-sale totals.

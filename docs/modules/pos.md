@@ -1,5 +1,8 @@
 # Branch POS
 
+Checkout is unavailable for inactive branches. Saved command replays remain
+safe after fresh authorization, while historical receipts stay readable.
+
 ## Refund history navigation
 
 Owner and Manager POS navigation includes `Refund history` beside Cart and

@@ -1,5 +1,9 @@
 # Organization Invitations
 
+Branch access grants in new invitations and invitation acceptance are checked
+inside the transaction. Inactive branches cannot receive a new invitation grant
+and pending invitations cannot be accepted for an inactive branch.
+
 **Status:** Implemented and validated for the pilot release
 
 ## Responsibilities

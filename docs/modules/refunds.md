@@ -1,5 +1,9 @@
 # Item Returns and Manual Refunds
 
+Authorized refunds of existing sales remain available for inactive branches,
+including permitted restocking and payout-account validation. New refund writes
+still require an active organization and lock/recheck the branch transactionally.
+
 **Status:** Persistence, create/replay API, staff/merchant history/detail with
 remaining quantities, refund-aware Reports API/cards and sale-detail refund UI
 implemented. Final automated checks passed; rendered refund QA explicitly waived

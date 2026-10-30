@@ -57,8 +57,19 @@ Cashiers cannot use Reports and retain their existing branch/POS access.
 lines, city, province, optional postal code, and a two-letter country code.
 
 Branches also have an explicit `status` of `ACTIVE` or `INACTIVE`. New branches
-default to `ACTIVE`; changing status is reversible metadata for the directory
-and does not remove branch access or change POS, inventory, or sales behavior.
+default to `ACTIVE`. Only Owners may change status, and the status request must
+include the branch `updatedAt` value read before the confirmation dialog. A
+stale transition returns `BRANCH_STATUS_STALE` without writing. Status changes
+are reversible and do not remove branch access or historical records.
+
+Inactive branches preserve authorized history and reads, but reject new
+checkout, receipts, placements, price/threshold edits, space creation or
+assignment, merchant participation assignment/reactivation, staff/invitation
+branch grants, and payment-account assignment additions. Existing authorized
+refunds, inventory adjustments, occupancy releases, participation deactivation,
+assignment removals, and other documented closure actions remain available.
+Every branch-scoped write locks and rechecks the branch in its transaction and
+returns `BRANCH_INACTIVE` when blocked.
 
 - Name and non-null code are independently unique within an organization.
 - Codes are normalized to uppercase.
@@ -96,13 +107,16 @@ GET   /organizations/:organizationId/branches/directory?q=&status=&page=
 PATCH /organizations/:organizationId/branches/:branchId/status
 ```
 
+The status body is `{ status, expectedUpdatedAt }` so concurrent Owner dialogs
+cannot silently overwrite a newer lifecycle change.
+
 The directory is limited to 15 rows per page, searches branch name, code, city,
 province, and address, and returns the filtered total, page metadata, an
 unfiltered accessible summary of total/active/inactive counts, and each row's
 active merchant count. The count includes all active merchant–branch associations,
-including merchants without placements. Owners and assigned managers may change
-branch status after confirming the transition; cashiers may read it but cannot
-change it. The original branch list and merchant identity-only projection
+including merchants without placements. Owners may change branch status after
+confirming the transition; assigned managers and cashiers may read it but
+cannot change it. The original branch list and merchant identity-only projection
 remain available to branch selectors and merchant workflows.
 
 The staff directory keeps the page header on the neutral `#F2F2F2` canvas, then presents a
@@ -117,7 +131,8 @@ branch count at left while the current/available page indicator remains
 between the previous and next controls. Search and status changes reset to page
 one. Empty, filtered-empty, loading, and request-error states
 remain distinct. Owners alone can add branches; managers can edit assigned
-branches and change their status, while cashiers remain read-only.
+branch details but cannot change lifecycle status, while cashiers remain
+read-only.
 Add branch appears in the Store locations panel header, consistent with other
 directories. The Branches page title has no organization-name eyebrow above it.
 
@@ -161,5 +176,7 @@ and placement-derived merchant branch visibility described in earlier milestones
 
 See [Branch space occupancy](spaces.md) for named space management, dated
 assignments, authorization, and automatic release. Branch details show owner
-controls and scoped manager/merchant reads. A branch can have no configured spaces;
-its lifecycle status remains metadata and does not release space occupancy.
+controls and scoped manager/merchant reads. A branch can have no configured
+spaces. Deactivation does not release space occupancy automatically; an
+authorized operator must use the controlled release action when closing a
+branch.

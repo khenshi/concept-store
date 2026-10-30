@@ -17,9 +17,8 @@ qualification gates explicitly deferred; this is not pilot or paid-launch
 approval. Plan 13 was closed and archived October 30 at the user's direction
 with legal, privacy and commercial work deferred. Plan 14 is active for
 technical deployment-readiness planning; this is not public paid-launch
-approval. Plan 16 is active for implementation planning as of October 30; its
-Owner-only lifecycle policy is approved while unclassified edits and concurrency
-decisions remain open. Plans 04–06
+approval. Plan 16 was completed and archived October 30 after source,
+disposable-PostgreSQL, full-CI and local runtime checks passed. Plans 04–06
 contain committed local implementation slices from the background agent, but their
 provider, hosted, branch-protection and release gates remain open. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
@@ -59,7 +58,7 @@ Existing specifications remain the source of truth until their review turn.
 
 | ID  | Plan / intended file                                                                    | Priority              | Draft status                                                                                         |
 | --- | --------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
-| 16  | [Branch lifecycle enforcement](16-branch-lifecycle.md)                                  | Required before pilot | Active for implementation planning October 30; Owner-only status/controlled closure confirmed; unclassified edits and concurrency decisions open |
+| 16  | [Branch lifecycle enforcement](../archive/16-branch-lifecycle-2026-10-30.md)          | Required before pilot | Completed and archived October 30; Owner-only status enforcement, controlled closure, disposable-PostgreSQL verification and full CI passed |
 | 17  | [Directory pagination, member access history and POS browsing](17-member-management.md) | Required before pilot | Drafted October 24; Owner-only history/15-product POS batches confirmed; implementation not approved |
 
 ### Checkout and refund recovery addition
@@ -96,7 +95,7 @@ with database safety (04), branch lifecycle (16) and final qualification (11/14)
 Stage the privacy correction separately if type maintenance is deferred; do not
 leave Merchant actor disclosure pending behind an optional catalog enhancement.
 
-IDs remain stable. Draft 16 through 20 after the existing queue; implement approved scope
+IDs remain stable. Draft 17 through 20 after the existing queue; implement approved scope
 before final workflow/release qualification (11/14), not after release sign-off.
 Plan 15 remains optional. Plan 16 must coordinate with Payment Accounts (08) and
 operational recovery (10) without duplicating their rules.

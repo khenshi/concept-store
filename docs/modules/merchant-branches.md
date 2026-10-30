@@ -1,5 +1,9 @@
 # Merchant–branch relationships
 
+Inactive branches retain relationship history. New participation and
+reactivation return `BRANCH_INACTIVE`; authorized participation deactivation
+remains available and releases current occupancy through the existing workflow.
+
 **Status:** Implemented
 
 ## Model and ownership

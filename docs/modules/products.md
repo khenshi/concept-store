@@ -1,5 +1,8 @@
 # Products
 
+Product creation with initial branch inventory locks and rechecks the branch;
+inactive branches reject that opening placement with `BRANCH_INACTIVE`.
+
 **Status:** Implemented; rendered visual/accessibility QA explicitly waived
 
 ## Responsibilities

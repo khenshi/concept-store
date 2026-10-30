@@ -1,5 +1,9 @@
 # Organization Memberships
 
+Staff branch access grants return `BRANCH_INACTIVE` for inactive branches while
+assignment removals remain available. This lifecycle check is enforced in the
+backend transaction, not only by workspace controls.
+
 **Status:** Implemented
 
 ## Responsibilities

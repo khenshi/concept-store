@@ -1,5 +1,9 @@
 # Branch space occupancy
 
+Inactive branches preserve space and occupancy history, reject new space,
+archive/reactivation, and assignment writes, and allow authorized release of
+current occupancy. Deactivation never auto-releases spaces.
+
 Space Overview content uses responsive side padding matching the card header.
 
 Occupancy history's Search Merchant and Occupancy Dates labels both use xs,
@@ -49,7 +53,7 @@ Intervals are `[startedAt, endedAt)`. An omitted end means current occupancy. Ow
 
 Assignment requires an active space, active merchant profile, and active existing merchant–branch participation, including when recording past occupancy. It never creates or reactivates participation. A database partial unique index prevents multiple open occupancies; CHECK constraints protect interval and release metadata. Transactions lock the merchant, association, and space, then check every potentially overlapping interval before insert. This enforces historical exclusivity through the application write boundary without a new PostgreSQL extension.
 
-Manual release closes the selected open occupancy at the supplied past time or action time. A second release returns 409 and does not rewrite history. Changing participation to `INACTIVE` closes all that merchant's open occupancies in that branch with `PARTICIPATION_INACTIVE`. Changing the merchant profile to `INACTIVE`, `SUSPENDED`, or `ENDED` closes all its open occupancies across the organization with the corresponding `MERCHANT_*` reason. Status change and release commit atomically. The acting owner and release timestamp are retained; repeating status changes leaves closed records untouched. Reactivation never restores assignments. Branch `INACTIVE` remains directory metadata and does not release occupancy.
+Manual release closes the selected open occupancy at the supplied past time or action time. A second release returns 409 and does not rewrite history. Changing participation to `INACTIVE` closes all that merchant's open occupancies in that branch with `PARTICIPATION_INACTIVE`. Changing the merchant profile to `INACTIVE`, `SUSPENDED`, or `ENDED` closes all its open occupancies across the organization with the corresponding `MERCHANT_*` reason. Status change and release commit atomically. The acting owner and release timestamp are retained; repeating status changes leaves closed records untouched. Reactivation never restores assignments. Branch `INACTIVE` does not auto-release occupancy; authorized operators must use the controlled release action.
 
 Owner writes reload and lock current membership. Assignment and both automatic release paths share merchant-first locking; spaces are locked in ID order for bulk releases. Serializable transaction conflicts return 409 for refresh/retry. Archive locks the space and rechecks for an open occupant. No combined move action is offered; owners release and assign explicitly.
 
