@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import type { OrganizationContext } from '../authorization/organization-authoriz
 import { branchScope } from '../authorization/resource-access';
 import { BranchStatus } from '../../../generated/prisma/client';
 import { assertActiveOrganization } from '../organization-state';
+import { lockBranch } from '../branch-lifecycle';
 
 const BRANCH_DIRECTORY_PAGE_SIZE = 15;
 
@@ -177,10 +179,33 @@ export class BranchesService {
     return this.prisma.$transaction(
       async (transaction) => {
         await assertActiveOrganization(transaction, organizationId);
-        const branch = await transaction.branch.findFirst({
-          where: { AND: [branchScope(context), { id: branchId }] },
+        const membership = await transaction.organizationMembership.findUnique({
+          where: {
+            organizationId_userId: {
+              organizationId,
+              userId: context.userId,
+            },
+            user: { deletedAt: null, emailVerifiedAt: { not: null } },
+          },
+          select: { role: true },
         });
-        if (!branch) throw new NotFoundException('Branch not found');
+        if (!membership) throw new NotFoundException('Organization not found');
+        if (membership.role !== 'OWNER')
+          throw new ForbiddenException('Only Owners can change branch status');
+
+        const branch = await lockBranch(transaction, organizationId, branchId);
+        if (
+          branch.updatedAt.getTime() !==
+          new Date(dto.expectedUpdatedAt).getTime()
+        )
+          throw new ConflictException({
+            message: 'Branch status changed; reload before trying again',
+            code: 'BRANCH_STATUS_STALE',
+          });
+        if (branch.status === dto.status)
+          return transaction.branch.findUniqueOrThrow({
+            where: { id: branchId, organizationId },
+          });
         return transaction.branch.update({
           where: { id: branchId, organizationId },
           data: { status: dto.status },

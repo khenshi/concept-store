@@ -548,6 +548,7 @@ describe('BranchDetail', () => {
         'org',
         'branch-id',
         'INACTIVE',
+        timestamp,
       ),
     );
     expect(upsertBranch).toHaveBeenCalledWith(saved);
@@ -555,6 +556,31 @@ describe('BranchDetail', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Makati Main is now inactive.',
     );
+  });
+
+  it('refreshes a stale status dialog instead of retrying the old timestamp', async () => {
+    vi.mocked(updateBranchStatus).mockRejectedValueOnce(
+      new ApiError(409, 'Branch status changed', {
+        code: 'BRANCH_STATUS_STALE',
+      }),
+    );
+    render(<BranchDetail organizationId="org" branchId="branch-id" />);
+    await screen.findByRole('heading', { name: 'Makati Main' });
+    fireEvent.click(screen.getByRole('button', { name: 'Mark inactive' }));
+    const confirmation = await screen.findByRole('alertdialog', {
+      name: 'Mark Makati Main inactive?',
+    });
+    fireEvent.click(
+      within(confirmation).getByRole('button', { name: 'Mark inactive' }),
+    );
+
+    await waitFor(() => expect(getBranch).toHaveBeenCalledTimes(2));
+    expect(
+      screen.getByText(
+        'The branch status changed elsewhere. The latest details were loaded; confirm the new status before trying again.',
+      ),
+    ).toBeInTheDocument();
+    expect(updateBranchStatus).toHaveBeenCalledTimes(1);
   });
 
   it('preserves update normalization and null clearing, updates cache, and announces success', async () => {

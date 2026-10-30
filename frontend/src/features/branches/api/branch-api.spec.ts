@@ -142,13 +142,17 @@ describe('branch API', () => {
       'organization/id',
       'branch/id',
       'INACTIVE',
+      '2026-09-01T00:00:00.000Z',
     );
 
     expect(request).toHaveBeenCalledWith(
       '/organizations/organization%2Fid/branches/branch%2Fid/status',
       expect.objectContaining({
         method: 'PATCH',
-        body: JSON.stringify({ status: 'INACTIVE' }),
+        body: JSON.stringify({
+          status: 'INACTIVE',
+          expectedUpdatedAt: '2026-09-01T00:00:00.000Z',
+        }),
       }),
     );
   });

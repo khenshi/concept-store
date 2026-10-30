@@ -154,12 +154,15 @@ export class BranchesController {
     );
   }
 
-  @OrganizationRoles(OrganizationRole.OWNER, OrganizationRole.MANAGER)
+  @OrganizationRoles(OrganizationRole.OWNER)
   @Patch(':branchId/status')
   @ApiOperation({ summary: 'Change a branch lifecycle status' })
   @ApiOkResponse({ type: BranchResponseDto })
   @ApiForbiddenResponse({
     description: 'The organization role cannot change branch status',
+  })
+  @ApiConflictResponse({
+    description: 'The branch status changed since the dialog was opened',
   })
   updateStatus(
     @CurrentOrganization() organization: OrganizationContext,

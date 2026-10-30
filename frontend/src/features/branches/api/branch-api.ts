@@ -107,6 +107,7 @@ export async function updateBranchStatus(
   organizationId: string,
   branchId: string,
   status: BranchStatus,
+  expectedUpdatedAt: string,
 ): Promise<Branch> {
   return branchResponseSchema.parse(
     await request<unknown>(
@@ -114,7 +115,7 @@ export async function updateBranchStatus(
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, expectedUpdatedAt }),
       },
     ),
   );

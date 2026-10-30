@@ -44,8 +44,12 @@ describe('BranchesService', () => {
       create: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
+    },
+    organizationMembership: {
+      findUnique: jest.fn(),
     },
     $queryRaw: jest.fn(),
     $transaction: jest.fn(),
@@ -66,6 +70,10 @@ describe('BranchesService', () => {
     prisma.$queryRaw.mockResolvedValue([
       { id: organizationId, status: 'ACTIVE' },
     ]);
+    prisma.branch.findUnique.mockResolvedValue(branch);
+    prisma.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.OWNER,
+    });
     const moduleRef = await Test.createTestingModule({
       providers: [
         BranchesService,
@@ -217,8 +225,7 @@ describe('BranchesService', () => {
     expect(findManyArgs.skip).toBe(15);
   });
 
-  it('changes status only inside the authorized branch scope', async () => {
-    prisma.branch.findFirst.mockResolvedValue(branch);
+  it('changes status only for a current owner with a fresh branch timestamp', async () => {
     prisma.branch.update.mockResolvedValue({
       ...branch,
       status: BranchStatus.INACTIVE,
@@ -230,11 +237,14 @@ describe('BranchesService', () => {
         branchId,
         {
           organizationId,
-          userId: 'manager-id',
-          role: OrganizationRole.MANAGER,
+          userId: 'owner-id',
+          role: OrganizationRole.OWNER,
           merchantId: null,
         },
-        { status: BranchStatus.INACTIVE },
+        {
+          status: BranchStatus.INACTIVE,
+          expectedUpdatedAt: branch.updatedAt.toISOString(),
+        },
       ),
     ).resolves.toMatchObject({ status: BranchStatus.INACTIVE });
     expect(prisma.branch.update).toHaveBeenCalledWith({
@@ -243,8 +253,8 @@ describe('BranchesService', () => {
     });
   });
 
-  it('does not change status for an unassigned or foreign branch', async () => {
-    prisma.branch.findFirst.mockResolvedValue(null);
+  it('does not change status for a missing branch', async () => {
+    prisma.branch.findUnique.mockResolvedValue(null);
 
     await expect(
       service.updateStatus(
@@ -252,13 +262,60 @@ describe('BranchesService', () => {
         branchId,
         {
           organizationId,
-          userId: 'manager-id',
-          role: OrganizationRole.MANAGER,
+          userId: 'owner-id',
+          role: OrganizationRole.OWNER,
           merchantId: null,
         },
-        { status: BranchStatus.INACTIVE },
+        {
+          status: BranchStatus.INACTIVE,
+          expectedUpdatedAt: branch.updatedAt.toISOString(),
+        },
       ),
     ).rejects.toThrow(new NotFoundException('Branch not found'));
+    expect(prisma.branch.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale lifecycle dialog before writing', async () => {
+    await expect(
+      service.updateStatus(
+        organizationId,
+        branchId,
+        {
+          organizationId,
+          userId: 'owner-id',
+          role: OrganizationRole.OWNER,
+          merchantId: null,
+        },
+        {
+          status: BranchStatus.INACTIVE,
+          expectedUpdatedAt: '2026-09-01T00:00:00.000Z',
+        },
+      ),
+    ).rejects.toMatchObject({ response: { code: 'BRANCH_STATUS_STALE' } });
+    expect(prisma.branch.update).not.toHaveBeenCalled();
+  });
+
+  it('rechecks current owner membership instead of trusting the request context', async () => {
+    prisma.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.MANAGER,
+    });
+
+    await expect(
+      service.updateStatus(
+        organizationId,
+        branchId,
+        {
+          organizationId,
+          userId: 'owner-id',
+          role: OrganizationRole.OWNER,
+          merchantId: null,
+        },
+        {
+          status: BranchStatus.INACTIVE,
+          expectedUpdatedAt: branch.updatedAt.toISOString(),
+        },
+      ),
+    ).rejects.toThrow('Only Owners can change branch status');
     expect(prisma.branch.update).not.toHaveBeenCalled();
   });
 });

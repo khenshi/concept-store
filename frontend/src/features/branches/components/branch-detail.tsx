@@ -13,6 +13,7 @@ import { OperationalPanel } from '@/shared/components/ui/operational-page';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { useAuth } from '@/features/auth/model/auth-context';
+import { ApiError } from '@/features/auth/api/auth-client';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { getBranch, updateBranchStatus } from '../api/branch-api';
@@ -183,7 +184,7 @@ function ScopedBranchDetail({
 
   const canManage =
     organization.role === 'OWNER' || organization.role === 'MANAGER';
-  const canChangeStatus = canManage && 'status' in branch;
+  const canChangeStatus = organization.role === 'OWNER' && 'status' in branch;
   const availableTabs = branchDetailTabs.filter(({ value }) => {
     if (value === 'inventory') return canViewInventory;
     if (value === 'pos') return organization.role !== 'MERCHANT';
@@ -211,13 +212,39 @@ function ScopedBranchDetail({
         organizationId,
         branchId,
         nextStatus,
+        branch.updatedAt,
       );
       setBranch(saved);
       upsertBranch(saved);
       setSuccess(
         `${saved.name} is now ${saved.status === 'ACTIVE' ? 'active' : 'inactive'}.`,
       );
-    } catch {
+    } catch (cause: unknown) {
+      if (
+        cause instanceof ApiError &&
+        cause.details?.code === 'BRANCH_STATUS_STALE'
+      ) {
+        try {
+          const latest = await getBranch(
+            request,
+            organizationId,
+            branchId,
+            organization?.role,
+          );
+          if (!('status' in latest))
+            throw new Error('Full branch details required');
+          setBranch(latest);
+          upsertBranch(latest);
+          setStatusError(
+            'The branch status changed elsewhere. The latest details were loaded; confirm the new status before trying again.',
+          );
+        } catch {
+          setStatusError(
+            'The branch status changed elsewhere. Reload the branch details before trying again.',
+          );
+        }
+        return;
+      }
       setStatusError('The branch status could not be changed. Try again.');
     } finally {
       setStatusPending(false);
@@ -270,6 +297,13 @@ function ScopedBranchDetail({
           ) : undefined
         }
       />
+      {'status' in branch && branch.status === 'INACTIVE' ? (
+        <Notice className="mt-4" tone="warning">
+          This branch is inactive. Historical data remains available; new sales,
+          stock receipts, placements, assignments, and similar operations are
+          unavailable until it is reactivated.
+        </Notice>
+      ) : null}
       <nav
         aria-label="Branch detail views"
         className="sticky top-17 z-20 -mx-4 mt-4 overflow-x-auto border-b border-hairline bg-canvas px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10"
