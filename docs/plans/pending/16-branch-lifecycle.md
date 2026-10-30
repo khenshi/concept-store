@@ -2,8 +2,11 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No status, permission, schema, service,
-frontend or database behavior changed during this task.
+Status: Approved for implementation planning October 30, 2026. The operation
+matrix and Owner-only lifecycle policy are approved; implementation remains
+blocked on the explicitly listed unclassified edits and concurrency decisions.
+No status, permission, schema, service, frontend or database behavior changed
+during this planning step.
 
 Priority: Required before real pilot use, confirmed October 24.
 

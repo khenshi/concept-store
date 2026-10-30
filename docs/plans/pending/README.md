@@ -17,7 +17,9 @@ qualification gates explicitly deferred; this is not pilot or paid-launch
 approval. Plan 13 was closed and archived October 30 at the user's direction
 with legal, privacy and commercial work deferred. Plan 14 is active for
 technical deployment-readiness planning; this is not public paid-launch
-approval. Plans 04–06
+approval. Plan 16 is active for implementation planning as of October 30; its
+Owner-only lifecycle policy is approved while unclassified edits and concurrency
+decisions remain open. Plans 04–06
 contain committed local implementation slices from the background agent, but their
 provider, hosted, branch-protection and release gates remain open. Other numbered plans remain
 pending, not implementation authority. Final batch review remains outstanding;
@@ -57,7 +59,7 @@ Existing specifications remain the source of truth until their review turn.
 
 | ID  | Plan / intended file                                                                    | Priority              | Draft status                                                                                         |
 | --- | --------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
-| 16  | [Branch lifecycle enforcement](16-branch-lifecycle.md)                                  | Required before pilot | Drafted October 24; Owner-only status/controlled closure confirmed; implementation not approved      |
+| 16  | [Branch lifecycle enforcement](16-branch-lifecycle.md)                                  | Required before pilot | Active for implementation planning October 30; Owner-only status/controlled closure confirmed; unclassified edits and concurrency decisions open |
 | 17  | [Directory pagination, member access history and POS browsing](17-member-management.md) | Required before pilot | Drafted October 24; Owner-only history/15-product POS batches confirmed; implementation not approved |
 
 ### Checkout and refund recovery addition

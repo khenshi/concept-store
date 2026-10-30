@@ -1,14 +1,11 @@
 # Current implementation plan
 
-Plan 14, [Pilot release and paid-launch sign-off](pending/14-release-signoff.md),
-is approved and active for technical deployment-readiness planning as of
-October 30, 2026.
+Plan 16, [Branch lifecycle enforcement](pending/16-branch-lifecycle.md), is
+approved and active for implementation planning as of October 30, 2026.
 
-The active scope is limited to technical deployment, runtime, database,
-authentication/session, release, operational and controlled real-time pilot
-readiness. Plan 13's legal, privacy and commercial matters are explicitly
-deferred at the user's direction. This scope does not certify compliance or
-authorize a public paid SaaS launch.
-
-Plan 12 was closed and archived with capacity, dependency and hosted-security
-gates deferred. Those risks remain visible in the Plan 14 sign-off record.
+The scope is Owner-only branch activation/deactivation with atomic enforcement
+of the approved inactive-branch operation matrix, preserving authorized history
+and controlled closure. It must protect checkout, refunds, inventory, spaces and
+merchant participation across every write path. Plan 14 remains the STAGING-ONLY
+release record; Plan 13 legal/privacy/commercial work and Plan 12 deferred gates
+remain excluded.
