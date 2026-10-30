@@ -19,6 +19,13 @@ Confirmed October 24:
 - A tested tenant-scoped manual handover process is required before launch,
   independently of optional Sales Reports CSV exports in Plan 19.
 
+Confirmed October 30:
+
+- Public service identity: Kapwesto.
+- Pilot/support contact: `kapwesto@gmail.com`.
+- Initial controlled pilot duration: one month, followed by an explicit review
+  before continuation or expansion.
+
 ## 1. Goal and scope
 
 Define honest pilot/service boundaries and implement only the minimum supporting
