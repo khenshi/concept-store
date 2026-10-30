@@ -22,12 +22,18 @@ Confirmed October 24:
 Confirmed October 30:
 
 - Public service identity: Kapwesto.
+- Kapwesto is the product/service name; the registered legal entity name is
+  still unconfirmed and must not be invented in published notices.
 - Pilot/support contact: `kapwesto@gmail.com`.
 - Interim privacy contact: the Kapwesto project owner/operator, reachable at
   `kapwesto@gmail.com`. This is an accountable pilot contact, not a claim of
   formal DPO appointment, legal advice or completed privacy review.
 - Initial controlled pilot duration: one month, followed by an explicit review
   before continuation or expansion.
+- Manual handover scope: organization settings, branches, members and access,
+  products, inventory, spaces and occupancy, sales, refunds, payment accounts
+  and exact totals. Exclude passwords, action tokens, logs, other tenants and
+  unnecessary personal fields.
 
 ## 1. Goal and scope
 

@@ -15,4 +15,5 @@ qualified privacy/legal review.
 
 Plan 12 was closed and archived at the user's direction with capacity,
 dependency and hosted-security gates deferred; that is not public paid-SaaS
-qualification. Plan 14 remains the release decision owner.
+qualification. Kapwesto is currently confirmed only as the service/product name,
+not the registered legal entity. Plan 14 remains the release decision owner.
