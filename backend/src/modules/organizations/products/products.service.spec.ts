@@ -12,6 +12,7 @@ describe('ProductsService', () => {
   const prisma = {
     $transaction: jest.fn(),
     $queryRaw: jest.fn(),
+    branch: { findUnique: jest.fn() },
     merchant: { findUnique: jest.fn() },
     product: {
       create: jest.fn(),
@@ -28,6 +29,11 @@ describe('ProductsService', () => {
       (operation: (client: typeof prisma) => unknown) => operation(prisma),
     );
     prisma.$queryRaw.mockResolvedValue([{ id: 'org', status: 'ACTIVE' }]);
+    prisma.branch.findUnique.mockResolvedValue({
+      id: 'branch',
+      status: 'ACTIVE',
+      updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
     prisma.merchant.findUnique.mockResolvedValue({ status: 'ACTIVE' });
     prisma.product.findUnique.mockResolvedValue({
       id: 'product',

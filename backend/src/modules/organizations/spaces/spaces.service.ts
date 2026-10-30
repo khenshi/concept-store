@@ -21,6 +21,7 @@ import type {
   UpdateSpaceDto,
 } from './dto/space.dto';
 import { lockSpaceMerchant, rethrowSpaceConflict } from './space-occupancy';
+import { assertBranchWriteAllowed } from '../branch-lifecycle';
 
 const SPACE_PAGE_SIZE = 15;
 
@@ -369,6 +370,7 @@ export class SpacesService {
   ) {
     return this.transaction(context, true, async (tx, current) => {
       await this.branch(tx, current, branchId);
+      await assertBranchWriteAllowed(tx, current.organizationId, branchId);
       return tx.space.create({
         data: { organizationId: current.organizationId, branchId, ...dto },
       });
@@ -384,6 +386,7 @@ export class SpacesService {
       throw new BadRequestException('At least one space field is required');
     return this.transaction(context, true, async (tx, current) => {
       await this.branch(tx, current, branchId);
+      await assertBranchWriteAllowed(tx, current.organizationId, branchId);
       await this.lockSpace(tx, current.organizationId, branchId, id);
       if (
         'status' in dto &&
@@ -438,6 +441,7 @@ export class SpacesService {
   ) {
     return this.transaction(context, true, async (tx, current) => {
       await this.branch(tx, current, branchId);
+      await assertBranchWriteAllowed(tx, current.organizationId, branchId);
       const merchant = await lockSpaceMerchant(
         tx,
         current.organizationId,
@@ -507,6 +511,9 @@ export class SpacesService {
   ) {
     return this.transaction(context, true, async (tx, current) => {
       await this.branch(tx, current, branchId);
+      await assertBranchWriteAllowed(tx, current.organizationId, branchId, {
+        allowInactive: true,
+      });
       const where = {
         id: occupancyId,
         organizationId: current.organizationId,

@@ -20,6 +20,7 @@ import type { OrganizationContext } from '../authorization/organization-authoriz
 import type { CheckoutDto } from './dto/checkout.dto';
 import { completedSaleResponse, completedSaleSelect } from './sales.types';
 import { assertActiveOrganization } from '../organization-state';
+import { assertBranchWriteAllowed } from '../branch-lifecycle';
 
 const ExactDecimal = Prisma.Decimal.clone({ precision: 40 });
 const originalSelect = {
@@ -58,6 +59,7 @@ export class CheckoutService {
           if (original)
             return this.replay(original, context, branchId, command);
           await assertActiveOrganization(tx, context.organizationId);
+          await assertBranchWriteAllowed(tx, context.organizationId, branchId);
           const account = await lockAvailablePaymentAccount(
             tx,
             context.organizationId,
@@ -259,6 +261,12 @@ export class CheckoutService {
               );
               if (original)
                 return this.replay(original, context, branchId, command);
+              await assertActiveOrganization(tx, context.organizationId);
+              await assertBranchWriteAllowed(
+                tx,
+                context.organizationId,
+                branchId,
+              );
               throw new ConflictException({
                 message:
                   'Concurrent checkout conflict; retry the unchanged command',

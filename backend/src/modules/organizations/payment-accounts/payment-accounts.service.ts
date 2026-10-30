@@ -17,6 +17,7 @@ import {
   UpdatePaymentAccountDto,
 } from './payment-account.dto';
 import { paymentWriteConflict } from './payment-account-availability';
+import { assertBranchesActive, lockBranches } from '../branch-lifecycle';
 
 @Injectable()
 export class PaymentAccountsService {
@@ -73,12 +74,16 @@ export class PaymentAccountsService {
         async (tx) => {
           await this.current(tx, context);
           await assertActiveOrganization(tx, context.organizationId);
+          let original: Prisma.PaymentAccountGetPayload<{
+            include: { branches: { select: { branchId: true } } };
+          }> | null = null;
           if (id) {
             await tx.$queryRaw(
               Prisma.sql`SELECT "id" FROM "PaymentAccount" WHERE "organizationId" = ${context.organizationId} AND "id" = ${id} FOR UPDATE`,
             );
-            const original = await tx.paymentAccount.findFirst({
+            original = await tx.paymentAccount.findFirst({
               where: { id, organizationId: context.organizationId },
+              include: { branches: { select: { branchId: true } } },
             });
             if (!original)
               throw new NotFoundException('Payment account not found');
@@ -113,6 +118,36 @@ export class PaymentAccountsService {
           });
           if (count !== branchIds.length)
             throw new NotFoundException('Branch not found');
+          const needsAllBranches =
+            dto.assignmentMode === 'ALL' || original?.assignmentMode === 'ALL';
+          const allBranchIds = needsAllBranches
+            ? (
+                await tx.branch.findMany({
+                  where: { organizationId: context.organizationId },
+                  select: { id: true },
+                  orderBy: { id: 'asc' },
+                })
+              ).map(({ id: branchId }) => branchId)
+            : [];
+          const previousBranchIds = original
+            ? original.assignmentMode === 'ALL'
+              ? allBranchIds
+              : original.branches.map(({ branchId }) => branchId)
+            : [];
+          const nextBranchIds =
+            dto.assignmentMode === 'ALL' ? allBranchIds : branchIds;
+          const previous = new Set(previousBranchIds);
+          const additions = nextBranchIds.filter(
+            (branchId) => !previous.has(branchId),
+          );
+          const lockedBranches = await lockBranches(
+            tx,
+            context.organizationId,
+            [...previousBranchIds, ...nextBranchIds],
+          );
+          if (additions.length) assertBranchesActive(lockedBranches, additions);
+          if (dto.enabled && !original?.enabled)
+            assertBranchesActive(lockedBranches, nextBranchIds);
           const data = {
             name,
             normalizedName,
@@ -185,10 +220,19 @@ export class PaymentAccountsService {
           );
         const branch = await tx.branch.findFirst({
           where: { AND: [branchScope(current), { id: branchId }] },
-          select: { id: true, organization: { select: { status: true } } },
+          select: {
+            id: true,
+            status: true,
+            organization: { select: { status: true } },
+          },
         });
         if (!branch) throw new NotFoundException('Branch not found');
-        if (!query.history && branch.organization.status !== 'ACTIVE')
+        if (branch.organization.status !== 'ACTIVE') return [];
+        if (
+          !query.history &&
+          query.operation === PaymentAccountOperation.SALE &&
+          branch.status !== 'ACTIVE'
+        )
           return [];
         const applicable: Prisma.PaymentAccountWhereInput = {
           enabled: true,

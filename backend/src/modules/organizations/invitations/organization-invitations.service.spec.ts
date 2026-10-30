@@ -31,7 +31,7 @@ describe('OrganizationInvitationsService', () => {
     $queryRaw: jest.fn(),
     organization: { findUnique: jest.fn() },
     merchant: { findUnique: jest.fn() },
-    branch: { count: jest.fn() },
+    branch: { count: jest.fn(), findUnique: jest.fn() },
     organizationMembership: {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
@@ -68,6 +68,11 @@ describe('OrganizationInvitationsService', () => {
       { id: organizationId, status: 'ACTIVE' },
     ]);
     transaction.organization.findUnique.mockResolvedValue({ name: 'Store' });
+    transaction.branch.findUnique.mockResolvedValue({
+      id: 'branch-id',
+      status: 'ACTIVE',
+      updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
     emailService.sendInvitationEmail.mockResolvedValue({ status: 'disabled' });
     const moduleRef = await Test.createTestingModule({
       providers: [

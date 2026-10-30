@@ -25,6 +25,7 @@ import type { OrganizationContext } from '../authorization/organization-authoriz
 import { inventoryScope, productScope } from '../authorization/resource-access';
 import { deriveInventoryStockStatus } from '../inventory/inventory.types';
 import { assertActiveOrganization } from '../organization-state';
+import { assertBranchWriteAllowed } from '../branch-lifecycle';
 
 @Injectable()
 export class ProductsService {
@@ -279,6 +280,11 @@ export class ProductsService {
           const existing = await replay(tx);
           if (existing) return existing;
           await assertActiveOrganization(tx, organizationId);
+          await assertBranchWriteAllowed(
+            tx,
+            organizationId,
+            command.initialInventory.branchId,
+          );
           const merchant = await tx.merchant.findUnique({
             where: { id: command.merchantId, organizationId },
             select: { status: true },

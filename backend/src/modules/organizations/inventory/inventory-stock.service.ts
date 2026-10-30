@@ -21,6 +21,7 @@ import {
   type InventoryMovementRecord,
 } from './inventory.types';
 import { assertActiveOrganization } from '../organization-state';
+import { assertBranchWriteAllowed } from '../branch-lifecycle';
 
 interface StockCommand {
   organizationId: string;
@@ -116,6 +117,9 @@ export class InventoryStockService {
           });
           if (original) return this.resolveReplay(original, command);
           await assertActiveOrganization(tx, organizationId);
+          await assertBranchWriteAllowed(tx, organizationId, branchId, {
+            allowInactive: command.type === InventoryMovementType.ADJUSTMENT,
+          });
           if (command.type === InventoryMovementType.RECEIPT)
             await requireActiveParticipation(tx, organizationId, branchId, [
               inventory.merchantId,

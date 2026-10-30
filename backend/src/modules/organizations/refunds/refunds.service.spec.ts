@@ -59,7 +59,7 @@ const saved = {
 describe('RefundsService', () => {
   const tx = {
     organizationMembership: { findUnique: jest.fn() },
-    branch: { findFirst: jest.fn() },
+    branch: { findFirst: jest.fn(), findUnique: jest.fn() },
     saleItem: { findMany: jest.fn() },
     refundItem: { groupBy: jest.fn(), create: jest.fn() },
     refund: {
@@ -81,6 +81,11 @@ describe('RefundsService', () => {
     );
     tx.organizationMembership.findUnique.mockResolvedValue({ role: 'OWNER' });
     tx.branch.findFirst.mockResolvedValue({ id: branch });
+    tx.branch.findUnique.mockResolvedValue({
+      id: branch,
+      status: 'ACTIVE',
+      updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
     tx.$queryRaw
       .mockResolvedValueOnce([{ id: org, status: 'ACTIVE' }])
       .mockResolvedValue([{ id: sale }]);

@@ -64,13 +64,12 @@ export class PosCatalogService {
     if (!['OWNER', 'MANAGER', 'CASHIER'].includes(context.role))
       throw new ForbiddenException('Your organization role cannot access POS');
     const scope = branchScope(context);
-    if (
-      !(await this.prisma.branch.findFirst({
-        where: { AND: [scope, { id: branchId }] },
-        select: { id: true },
-      }))
-    )
-      throw new NotFoundException('Branch not found');
+    const branch = await this.prisma.branch.findFirst({
+      where: { AND: [scope, { id: branchId }] },
+      select: { id: true, status: true },
+    });
+    if (!branch) throw new NotFoundException('Branch not found');
+    if (branch.status === 'INACTIVE') return [];
     const rows = await this.prisma.branchInventory.findMany({
       where: {
         organizationId: context.organizationId,

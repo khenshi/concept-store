@@ -18,6 +18,7 @@ import type {
   OrganizationInvitationView,
 } from './organization-invitations.types';
 import { assertActiveOrganization } from '../organization-state';
+import { assertBranchesActive, lockBranches } from '../branch-lifecycle';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -87,11 +88,16 @@ export class OrganizationInvitationsService {
         if (!merchant) throw new NotFoundException('Merchant not found');
       }
       if (dto.branchIds?.length) {
+        const branchIds = [...new Set(dto.branchIds)].sort();
         const branches = await transaction.branch.count({
           where: { organizationId, id: { in: dto.branchIds } },
         });
         if (branches !== dto.branchIds.length)
           throw new NotFoundException('Branch not found');
+        assertBranchesActive(
+          await lockBranches(transaction, organizationId, branchIds),
+          branchIds,
+        );
       }
       const existingMembership =
         await transaction.organizationMembership.findFirst({
@@ -345,6 +351,16 @@ export class OrganizationInvitationsService {
             data: { acceptedAt: new Date(), acceptedById: user.id },
           });
           if (claimed.count !== 1) this.throwUnavailable();
+
+          const branchIds = invitation.branches.map(({ branchId }) => branchId);
+          assertBranchesActive(
+            await lockBranches(
+              transaction,
+              invitation.organizationId,
+              branchIds,
+            ),
+            branchIds,
+          );
 
           await transaction.organizationMembership.create({
             data: {

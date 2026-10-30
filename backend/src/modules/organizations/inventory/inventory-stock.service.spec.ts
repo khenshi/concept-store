@@ -24,6 +24,7 @@ describe('InventoryStockService', () => {
   };
   const tx = {
     $queryRaw: jest.fn(),
+    branch: { findUnique: jest.fn() },
     branchInventory: {
       findUnique: jest.fn(),
       updateMany: jest.fn(),
@@ -44,6 +45,11 @@ describe('InventoryStockService', () => {
     tx.$queryRaw.mockResolvedValue([
       { merchantId: 'merchant', status: 'ACTIVE' },
     ]);
+    tx.branch.findUnique.mockResolvedValue({
+      id: 'branch',
+      status: 'ACTIVE',
+      updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    });
     prisma.$transaction.mockImplementation(
       (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
     );

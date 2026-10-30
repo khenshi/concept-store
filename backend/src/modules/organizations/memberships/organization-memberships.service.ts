@@ -9,6 +9,7 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
 import type { OrganizationMember } from './organization-memberships.types';
 import { assertActiveOrganization } from '../organization-state';
+import { assertBranchWriteAllowed } from '../branch-lifecycle';
 
 @Injectable()
 export class OrganizationMembershipsService {
@@ -56,11 +57,9 @@ export class OrganizationMembershipsService {
         throw new ConflictException(
           'Owners have implicit access to all branches',
         );
-      const branch = await tx.branch.findUnique({
-        where: { id_organizationId: { id: branchId, organizationId } },
-        select: { id: true },
+      await assertBranchWriteAllowed(tx, organizationId, branchId, {
+        allowInactive: !grant,
       });
-      if (!branch) throw new NotFoundException('Branch not found');
       const key = { organizationId, userId, branchId };
       if (grant) {
         await tx.branchMembership.upsert({

@@ -14,6 +14,7 @@ import { branchScope, merchantScope } from '../authorization/resource-access';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import type { ListMerchantBranchesDto } from './dto/merchant-branch.dto';
 import { assertActiveOrganization } from '../organization-state';
+import { assertBranchWriteAllowed } from '../branch-lifecycle';
 
 export const merchantBranchSelect = {
   id: true,
@@ -137,6 +138,7 @@ export class MerchantBranchesService {
   ) {
     return this.mutate(context, async (tx) => {
       const organizationId = context.organizationId;
+      await assertBranchWriteAllowed(tx, organizationId, branchId);
       if (
         !(await tx.merchant.findUnique({
           where: { id_organizationId: { id: merchantId, organizationId } },
@@ -174,6 +176,9 @@ export class MerchantBranchesService {
   ) {
     return this.mutate(context, async (tx) => {
       const organizationId = context.organizationId;
+      await assertBranchWriteAllowed(tx, organizationId, branchId, {
+        allowInactive: status === MerchantBranchStatus.INACTIVE,
+      });
       await lockSpaceMerchant(tx, organizationId, merchantId);
       const locked = await tx.$queryRaw<
         { id: string }[]

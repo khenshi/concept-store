@@ -21,6 +21,7 @@ import {
   lockAvailablePaymentAccount,
   paymentSnapshot,
 } from '../payment-accounts/payment-account-availability';
+import { assertBranchWriteAllowed } from '../branch-lifecycle';
 const Exact = Prisma.Decimal.clone({ precision: 40 });
 const originalSelect = {
   ...completedRefundSelect,
@@ -75,6 +76,9 @@ export class RefundsService {
           if (original)
             return this.replay(original, context, branchId, saleId, command);
           await assertActiveOrganization(tx, context.organizationId);
+          await assertBranchWriteAllowed(tx, context.organizationId, branchId, {
+            allowInactive: true,
+          });
           const account = await lockAvailablePaymentAccount(
             tx,
             context.organizationId,
@@ -249,6 +253,13 @@ export class RefundsService {
             );
             if (original)
               return this.replay(original, context, branchId, saleId, command);
+            await assertActiveOrganization(tx, context.organizationId);
+            await assertBranchWriteAllowed(
+              tx,
+              context.organizationId,
+              branchId,
+              { allowInactive: true },
+            );
             throw this.retry();
           },
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

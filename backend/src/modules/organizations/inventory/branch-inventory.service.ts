@@ -45,6 +45,7 @@ import {
   inventoryMovementRecordsSelect,
 } from './inventory.types';
 import { assertActiveOrganization } from '../organization-state';
+import { assertBranchWriteAllowed } from '../branch-lifecycle';
 
 @Injectable()
 export class BranchInventoryService {
@@ -78,6 +79,7 @@ export class BranchInventoryService {
       const inventory = await this.prisma.$transaction(
         async (tx) => {
           await assertActiveOrganization(tx, organizationId);
+          await assertBranchWriteAllowed(tx, organizationId, branchId);
           await requireActiveParticipation(tx, organizationId, branchId, [
             product.merchantId,
           ]);
@@ -479,6 +481,7 @@ export class BranchInventoryService {
       const inventory = await this.prisma.$transaction(
         async (tx) => {
           await assertActiveOrganization(tx, organizationId);
+          await assertBranchWriteAllowed(tx, organizationId, branchId);
           const updated = await tx.branchInventory.update({
             where: { id: inventoryId, organizationId, branchId },
             data: { sellingPrice: new Prisma.Decimal(dto.sellingPrice) },
@@ -507,6 +510,7 @@ export class BranchInventoryService {
       const inventory = await this.prisma.$transaction(
         async (tx) => {
           await assertActiveOrganization(tx, organizationId);
+          await assertBranchWriteAllowed(tx, organizationId, branchId);
           const updated = await tx.branchInventory.update({
             where: { id: inventoryId, organizationId, branchId },
             data: { lowStockThreshold: dto.lowStockThreshold },
