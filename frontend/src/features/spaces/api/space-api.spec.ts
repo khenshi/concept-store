@@ -139,24 +139,48 @@ describe('Space API contracts', () => {
 });
 
 it('validates tenant ownership of shared type reads and creates', async () => {
-  const request = vi
-    .fn()
-    .mockResolvedValue([{ id: spaceId, organizationId: org, name: 'Rack' }]);
+  const request = vi.fn().mockResolvedValue([
+    {
+      id: spaceId,
+      organizationId: org,
+      name: 'Rack',
+      archived: false,
+      version: 1,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
   expect(await listSpaceTypes(request, org)).toHaveLength(1);
   expect(request).toHaveBeenCalledWith(`/organizations/${org}/space-types`);
-  request.mockResolvedValue({ id: spaceId, organizationId: org, name: 'Rack' });
+  request.mockResolvedValue({
+    id: spaceId,
+    organizationId: org,
+    name: 'Rack',
+    archived: false,
+    version: 1,
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  });
   await createSpaceType(request, org, 'Rack');
   expect(JSON.parse(request.mock.calls.at(-1)![1].body)).toEqual({
     name: 'Rack',
   });
   request.mockResolvedValue([
-    { id: spaceId, organizationId: merchant, name: 'Private' },
+    {
+      id: spaceId,
+      organizationId: merchant,
+      name: 'Private',
+      archived: false,
+      version: 1,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
   ]);
   await expect(listSpaceTypes(request, org)).rejects.toThrow('scope mismatch');
   request.mockResolvedValue({
     id: spaceId,
     organizationId: merchant,
     name: 'Private',
+    archived: false,
+    version: 1,
+    updatedAt: '2026-01-01T00:00:00.000Z',
   });
   await expect(createSpaceType(request, org, 'Private')).rejects.toThrow(
     'scope mismatch',

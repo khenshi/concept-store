@@ -80,8 +80,22 @@ beforeEach(() => {
   });
   confirm.mockResolvedValue(true);
   vi.mocked(listSpaceTypes).mockResolvedValue([
-    { id: space.id, organizationId: org, name: 'Shelf' },
-    { id: merchant, organizationId: org, name: 'Rack' },
+    {
+      id: space.id,
+      organizationId: org,
+      name: 'Shelf',
+      archived: false,
+      version: 1,
+      updatedAt: timestamp,
+    },
+    {
+      id: merchant,
+      organizationId: org,
+      name: 'Rack',
+      archived: false,
+      version: 1,
+      updatedAt: timestamp,
+    },
   ]);
   vi.mocked(listSpaces).mockResolvedValue(page([space]));
   vi.mocked(listOccupancies).mockResolvedValue(page([occupancy]));
@@ -254,7 +268,9 @@ describe('Space management', () => {
       'date',
     );
     await waitFor(() =>
-      expect(within(dialog).getByLabelText('Merchant')).toBeEnabled(),
+      expect(
+        within(dialog).getByRole('combobox', { name: 'Merchant' }),
+      ).toBeEnabled(),
     );
     fireEvent.click(within(dialog).getByRole('combobox', { name: 'Merchant' }));
     fireEvent.click(within(dialog).getByRole('option', { name: 'Amihan' }));
@@ -314,7 +330,7 @@ describe('Space management', () => {
       request,
       org,
       { kind: 'merchant', id: merchant },
-      { page: 1, view: 'HISTORY' },
+      { page: 1, projection: 'staff', view: 'HISTORY' },
     );
   });
   it.each(['MANAGER', 'MERCHANT'])('keeps %s views read-only', async (role) => {
@@ -396,7 +412,9 @@ describe('Space management', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Assign' }));
     const dialog = screen.getByRole('dialog');
     await waitFor(() =>
-      expect(within(dialog).getByLabelText('Merchant')).toBeEnabled(),
+      expect(
+        within(dialog).getByRole('combobox', { name: 'Merchant' }),
+      ).toBeEnabled(),
     );
     fireEvent.click(within(dialog).getByRole('combobox', { name: 'Merchant' }));
     fireEvent.click(within(dialog).getByRole('option', { name: 'Amihan' }));
@@ -507,7 +525,14 @@ it('creates a missing type inline, preserves the space draft, and selects the ne
   ).toBeInTheDocument();
   fireEvent.blur(screen.getByLabelText('New type name'));
   expect(screen.getByText('Enter a type name.')).toBeInTheDocument();
-  const created = { id: merchant, organizationId: org, name: 'Display' };
+  const created = {
+    id: merchant,
+    organizationId: org,
+    name: 'Display',
+    archived: false,
+    version: 1,
+    updatedAt: timestamp,
+  };
   vi.mocked(createSpaceType).mockImplementation(async () => {
     vi.mocked(listSpaceTypes).mockResolvedValue([created]);
     return created;

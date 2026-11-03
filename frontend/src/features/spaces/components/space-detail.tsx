@@ -30,7 +30,9 @@ import { getSpace, listOccupancies, setSpaceStatus } from '../api/space-api';
 import type { AssociationScope } from '@/features/merchant-branches/api/merchant-branch-api';
 import {
   releaseLabels,
+  type MerchantOccupancy,
   type Occupancy,
+  type MerchantOccupancyPage,
   type OccupancyPage,
   type Space,
   type SpaceListItem,
@@ -82,7 +84,13 @@ function SpaceDetailSkeleton() {
   );
 }
 
-function HistoryList({ data }: { data: OccupancyPage }) {
+function HistoryList({
+  data,
+  showReleaseActor,
+}: {
+  data: OccupancyPage | MerchantOccupancyPage;
+  showReleaseActor: boolean;
+}) {
   if (!data.items.length) return null;
 
   return (
@@ -91,7 +99,7 @@ function HistoryList({ data }: { data: OccupancyPage }) {
         <span>Merchant</span>
         <span>From date</span>
         <span>Until date</span>
-        <span>Released by</span>
+        {showReleaseActor ? <span>Released by</span> : null}
       </div>
       <ol className="m-0 list-none p-0">
         {data.items.map((row) => (
@@ -111,14 +119,18 @@ function HistoryList({ data }: { data: OccupancyPage }) {
             <div className="text-sm sm:justify-self-start">
               <p>{row.endedAt ? date(row.endedAt) : '—'}</p>
             </div>
-            <div className="text-sm sm:justify-self-start">
-              <p>{row.releasedBy?.name ?? '—'}</p>
-              <p className="mt-1 text-muted">
-                {row.releaseReason
-                  ? releaseLabels[row.releaseReason]
-                  : 'Not released'}
-              </p>
-            </div>
+            {showReleaseActor ? (
+              <div className="text-sm sm:justify-self-start">
+                <p>
+                  {'releasedBy' in row ? (row.releasedBy?.name ?? '—') : '—'}
+                </p>
+                <p className="mt-1 text-muted">
+                  {row.releaseReason
+                    ? releaseLabels[row.releaseReason]
+                    : 'Not released'}
+                </p>
+              </div>
+            ) : null}
           </li>
         ))}
       </ol>
@@ -164,8 +176,12 @@ function ScopedSpaceDetail({
     organization?.role ?? '',
   );
   const [space, setSpace] = useState<Space | null>(null);
-  const [current, setCurrent] = useState<Occupancy | null>(null);
-  const [history, setHistory] = useState<OccupancyPage | null>(null);
+  const [current, setCurrent] = useState<Occupancy | MerchantOccupancy | null>(
+    null,
+  );
+  const [history, setHistory] = useState<
+    (OccupancyPage | MerchantOccupancyPage) | null
+  >(null);
   const [branchName, setBranchName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +238,11 @@ function ScopedSpaceDetail({
             request,
             organizationId,
             { kind: 'space', id: spaceId, branchId },
-            { view: 'CURRENT' },
+            {
+              view: 'CURRENT',
+              projection:
+                organization?.role === 'MERCHANT' ? 'merchant' : 'staff',
+            },
           ),
           listOccupancies(
             request,
@@ -238,6 +258,8 @@ function ScopedSpaceDetail({
               dateTo: historyUntil
                 ? historyDateBoundary(historyUntil, true)
                 : undefined,
+              projection:
+                organization?.role === 'MERCHANT' ? 'merchant' : 'staff',
             },
           ),
         ]);
@@ -489,7 +511,7 @@ function ScopedSpaceDetail({
                       type="button"
                       className={buttonStyles({ variant: 'secondary' })}
                       disabled={pending}
-                      onClick={() => setRelease(current)}
+                      onClick={() => setRelease(current as Occupancy)}
                     >
                       Release space
                     </button>
@@ -622,7 +644,10 @@ function ScopedSpaceDetail({
                   ))}
                 </div>
               ) : (
-                <HistoryList data={history} />
+                <HistoryList
+                  data={history}
+                  showReleaseActor={organization?.role !== 'MERCHANT'}
+                />
               )}
             </OperationalTableFrame>
           </div>

@@ -16,7 +16,7 @@ const db = new PrismaClient({
     { schema },
   ),
 });
-const migration = '20261010010000_add_space_types';
+const migration = '20261103010000_space_type_maintenance';
 beforeAll(async () => {
   await sql.connect();
   await sql.query(`CREATE SCHEMA "${schema}"`);
@@ -123,8 +123,8 @@ it('backfills existing active/archived labels without losing spaces or occupancy
   });
   const occupancyId = randomUUID();
   await sql.query(
-    `INSERT INTO "SpaceOccupancy" ("id", "organizationId", "branchId", "spaceId", "merchantId", "startedAt", "assignedById", "createdAt", "updatedAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    `INSERT INTO "SpaceOccupancy" ("id", "organizationId", "branchId", "spaceId", "merchantId", "startedAt", "assignedById")
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       occupancyId,
       org.id,
@@ -151,28 +151,35 @@ it('backfills existing active/archived labels without losing spaces or occupancy
   ).toEqual(before);
   expect(
     (await db.space.findUniqueOrThrow({ where: { id: space.id } })).type,
-  ).toBe('Rack');
+  ).toBe('rack');
   expect(
     (await db.space.findUniqueOrThrow({ where: { id: archived.id } })).status,
   ).toBe('ARCHIVED');
-  const added = await db.space.create({
-    data: {
-      organizationId: org.id,
-      branchId: branch.id,
-      name: 'Legacy',
-      type: ' shelf ',
-    },
+  const type = await db.spaceType.findFirstOrThrow({
+    where: { organizationId: org.id },
   });
-  expect(added.type).toBe('shelf');
-  expect(
-    await db.spaceType.count({
-      where: { organizationId: org.id, name: 'shelf' },
+  expect(type.version).toBe(1);
+  expect(type.archivedAt).toBeNull();
+  await expect(
+    db.space.create({
+      data: {
+        organizationId: org.id,
+        branchId: branch.id,
+        name: 'Legacy writer',
+        type: ' shelf ',
+      },
     }),
-  ).toBe(1);
-  await db.space.update({ where: { id: added.id }, data: { type: 'SHELF' } });
+  ).rejects.toBeDefined();
+  await db.spaceType.update({
+    where: { id: type.id },
+    data: { name: 'Shelf', version: { increment: 1 } },
+  });
   expect(
-    (await db.space.findUniqueOrThrow({ where: { id: added.id } })).type,
-  ).toBe('shelf');
+    (await db.space.findUniqueOrThrow({ where: { id: space.id } })).type,
+  ).toBe('Shelf');
+  expect(
+    (await db.space.findUniqueOrThrow({ where: { id: archived.id } })).type,
+  ).toBe('Shelf');
   await expect(
     db.spaceType.create({ data: { organizationId: org.id, name: 'SHELF' } }),
   ).rejects.toBeDefined();
@@ -192,9 +199,9 @@ it('backfills existing active/archived labels without losing spaces or occupancy
     }),
   ).toBe(0);
   await sql.query(
-    'ALTER TABLE "Space" DROP CONSTRAINT "Space_organizationId_type_fkey"; DROP TRIGGER "Space_register_type" ON "Space"; DROP FUNCTION register_space_type(); DROP TABLE "SpaceType";',
+    'ALTER TABLE "Space" DROP CONSTRAINT "Space_organizationId_type_fkey"; DROP TABLE "SpaceType";',
   );
-  expect(await db.space.count()).toBe(4);
+  expect(await db.space.count()).toBe(3);
   expect(
     await db.spaceOccupancy.findUniqueOrThrow({ where: { id: occupancyId } }),
   ).toEqual(before);

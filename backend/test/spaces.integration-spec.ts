@@ -165,6 +165,12 @@ beforeEach(async () => {
       },
     })
   ).id;
+  await db.spaceType.createMany({
+    data: [
+      { organizationId: org.id, name: 'Shelf' },
+      { organizationId: org.id, name: 'Rack' },
+    ],
+  });
   const contexts: OrganizationContext[] = [];
   for (const role of [
     'OWNER',
@@ -223,6 +229,12 @@ describe('Optional branch spaces and occupancy', () => {
     await expect(create('rack a1')).rejects.toMatchObject({ status: 409 });
     expect((await create('Rack A1', secondBranch)).type).toBe('Shelf');
     const s = await create();
+    await db.spaceType.create({
+      data: {
+        organizationId: context.organizationId,
+        name: 'Handmade display',
+      },
+    });
     expect(
       (
         await spaces.update(context, branchId, s.id, {
@@ -233,6 +245,46 @@ describe('Optional branch spaces and occupancy', () => {
     await expect(
       spaces.update(context, branchId, s.id, {}),
     ).rejects.toMatchObject({ status: 400 });
+  });
+  it('renames, archives, and reactivates types without losing existing spaces', async () => {
+    const type = await db.spaceType.findFirstOrThrow({
+      where: { organizationId: context.organizationId, name: 'Shelf' },
+    });
+    const created = await spaces.create(context, branchId, {
+      name: 'Display A',
+      type: 'Shelf',
+    });
+    const renamed = await spaces.updateType(context, type.id, {
+      name: 'Display',
+      expectedVersion: type.version,
+    });
+    expect(renamed.name).toBe('Display');
+    expect(
+      (await db.space.findUniqueOrThrow({ where: { id: created.id } })).type,
+    ).toBe('Display');
+    const archived = await spaces.updateType(context, type.id, {
+      archived: true,
+      expectedVersion: renamed.version,
+    });
+    expect(archived.archived).toBe(true);
+    await expect(
+      spaces.create(context, branchId, {
+        name: 'New display',
+        type: 'Display',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      spaces.updateType(context, type.id, {
+        archived: false,
+        expectedVersion: renamed.version,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    const active = await spaces.updateType(context, type.id, {
+      archived: false,
+      expectedVersion: archived.version,
+    });
+    expect(active.archived).toBe(false);
+    await spaces.update(context, branchId, created.id, { type: 'Display' });
   });
   it('permits multiple spaces per merchant but prevents exclusive occupancy conflicts', async () => {
     const a = await create(),
@@ -326,7 +378,7 @@ describe('Optional branch spaces and occupancy', () => {
       branchId,
     );
     expect(history.total).toBe(1);
-    expect(history.items[0].releasedBy).toEqual({
+    expect((history.items[0] as { releasedBy?: unknown }).releasedBy).toEqual({
       id: context.userId,
       name: 'Test User',
     });
@@ -548,6 +600,11 @@ describe('Optional branch spaces and occupancy', () => {
         (row) => row.id,
       ),
     ).toEqual([a.id]);
+    expect(
+      JSON.stringify(
+        (await spaces.list(merchant, branchId, { page: 1 })).items,
+      ),
+    ).not.toMatch(/releasedBy|assignedBy/);
     await expect(
       spaces.findOne(merchant, branchId, b.id),
     ).rejects.toMatchObject({ status: 404 });
@@ -907,8 +964,9 @@ it('enforces occupancy query validation, role scope, and branch isolation', asyn
 });
 
 it('shares types across branches, canonicalizes legacy labels, and rolls back failed implicit additions', async () => {
-  const created = await spaces.createType(context, { name: ' Rack ' });
-  expect(created.name).toBe('Rack');
+  const created = await db.spaceType.findFirstOrThrow({
+    where: { organizationId: context.organizationId, name: 'Rack' },
+  });
   const a = await spaces.create(context, branchId, { name: 'A', type: 'rack' });
   const b = await spaces.create(context, secondBranch, {
     name: 'B',
@@ -918,17 +976,19 @@ it('shares types across branches, canonicalizes legacy labels, and rolls back fa
   expect(b.type).toBe('Rack');
   expect((await spaces.listTypes(manager)).map((row) => row.name)).toEqual([
     'Rack',
+    'Shelf',
   ]);
   await expect(
     spaces.createType(context, { name: 'rAcK' }),
   ).rejects.toMatchObject({ status: 409 });
   await expect(
     spaces.create(context, branchId, { name: 'A', type: 'Failed type' }),
-  ).rejects.toMatchObject({ status: 409 });
+  ).rejects.toMatchObject({ status: 400 });
   expect(
     (await spaces.listTypes(context)).some((row) => row.name === 'Failed type'),
   ).toBe(false);
   await spaces.createType(context, { name: 'Unused' });
+  await spaces.createType(context, { name: 'Private type' });
   await spaces.create(context, secondBranch, {
     name: 'Private',
     type: 'Private type',
@@ -995,12 +1055,12 @@ it('validates type HTTP commands and enforces current membership roles', async (
   await http()
     .post(typePath)
     .auth(token(), { type: 'bearer' })
-    .send({ name: 'Shelf' })
+    .send({ name: 'New shelf' })
     .expect(201);
   await http()
     .post(typePath)
     .auth(token(), { type: 'bearer' })
-    .send({ name: 'shelf' })
+    .send({ name: 'new shelf' })
     .expect(409);
   await db.organizationMembership.update({
     where: {
@@ -1022,7 +1082,9 @@ it('allows only one concurrent case-insensitive type creation', async () => {
     spaces.createType(owner2, { name: 'DISPLAY' }),
   ]);
   expect(results.filter((row) => row.status === 'fulfilled')).toHaveLength(1);
-  expect(await spaces.listTypes(context)).toHaveLength(1);
+  expect(
+    (await spaces.listTypes(context)).filter((row) => row.name === 'Display'),
+  ).toHaveLength(1);
   expect(results.find((row) => row.status === 'rejected')).toMatchObject({
     reason: { status: 409 },
   });

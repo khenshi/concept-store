@@ -14,12 +14,14 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiProperty,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import {
   SpaceStatus,
@@ -34,10 +36,12 @@ import {
   AssignSpaceDto,
   CreateSpaceDto,
   CreateSpaceTypeDto,
+  ListSpaceTypesDto,
   ListOccupanciesDto,
   ListSpacesDto,
   ReleaseSpaceDto,
   SpaceStatusDto,
+  UpdateSpaceTypeDto,
   UpdateSpaceDto,
 } from './dto/space.dto';
 import { SpacesService } from './spaces.service';
@@ -46,6 +50,9 @@ export class SpaceTypeResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ format: 'uuid' }) organizationId!: string;
   @ApiProperty() name!: string;
+  @ApiProperty() archived!: boolean;
+  @ApiProperty() version!: number;
+  @ApiProperty({ type: String, format: 'date-time' }) updatedAt!: Date;
 }
 class SpaceIdentityDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
@@ -79,6 +86,21 @@ export class SpaceOccupancyResponseDto {
   @ApiProperty({ type: OccupancyIdentityDto }) branch!: OccupancyIdentityDto;
   @ApiProperty({ type: OccupancyIdentityDto }) merchant!: OccupancyIdentityDto;
 }
+export class MerchantSpaceOccupancyResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'uuid' }) organizationId!: string;
+  @ApiProperty({ format: 'uuid' }) branchId!: string;
+  @ApiProperty({ format: 'uuid' }) spaceId!: string;
+  @ApiProperty({ format: 'uuid' }) merchantId!: string;
+  @ApiProperty({ type: String, format: 'date-time' }) startedAt!: Date;
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  endedAt!: Date | null;
+  @ApiProperty({ enum: SpaceReleaseReason, nullable: true })
+  releaseReason!: SpaceReleaseReason | null;
+  @ApiProperty({ type: SpaceIdentityDto }) space!: SpaceIdentityDto;
+  @ApiProperty({ type: OccupancyIdentityDto }) branch!: OccupancyIdentityDto;
+  @ApiProperty({ type: OccupancyIdentityDto }) merchant!: OccupancyIdentityDto;
+}
 export class SpaceResponseDto extends SpaceIdentityDto {
   @ApiProperty({ format: 'uuid' }) organizationId!: string;
   @ApiProperty({ format: 'uuid' }) branchId!: string;
@@ -89,9 +111,13 @@ class SpaceListItemDto extends SpaceResponseDto {
   @ApiProperty({ type: SpaceOccupancyResponseDto, nullable: true })
   currentOccupancy!: SpaceOccupancyResponseDto | null;
 }
+class MerchantSpaceListItemDto extends SpaceResponseDto {
+  @ApiProperty({ type: MerchantSpaceOccupancyResponseDto, nullable: true })
+  currentOccupancy!: MerchantSpaceOccupancyResponseDto | null;
+}
 class PageDto {
   @ApiProperty() page!: number;
-  @ApiProperty({ enum: [10] }) limit!: number;
+  @ApiProperty({ enum: [15] }) limit!: number;
   @ApiProperty() total!: number;
   @ApiProperty() totalPages!: number;
   @ApiProperty() hasNext!: boolean;
@@ -99,9 +125,17 @@ class PageDto {
 export class SpacePageDto extends PageDto {
   @ApiProperty({ type: [SpaceListItemDto] }) items!: SpaceListItemDto[];
 }
+export class MerchantSpacePageDto extends PageDto {
+  @ApiProperty({ type: [MerchantSpaceListItemDto] })
+  items!: MerchantSpaceListItemDto[];
+}
 export class OccupancyPageDto extends PageDto {
   @ApiProperty({ type: [SpaceOccupancyResponseDto] })
   items!: SpaceOccupancyResponseDto[];
+}
+export class MerchantOccupancyPageDto extends PageDto {
+  @ApiProperty({ type: [MerchantSpaceOccupancyResponseDto] })
+  items!: MerchantSpaceOccupancyResponseDto[];
 }
 const uuid = () => new ParseUUIDPipe({ version: '4' });
 @Controller('organizations/:organizationId')
@@ -109,6 +143,12 @@ const uuid = () => new ParseUUIDPipe({ version: '4' });
 @OrganizationRoles('OWNER', 'MANAGER', 'MERCHANT')
 @ApiTags('spaces')
 @ApiBearerAuth('access-token')
+@ApiExtraModels(
+  SpacePageDto,
+  MerchantSpacePageDto,
+  OccupancyPageDto,
+  MerchantOccupancyPageDto,
+)
 @ApiBadRequestResponse({ description: 'Invalid command, timestamp, or query' })
 @ApiForbiddenResponse({
   description: 'Current role cannot perform this action',
@@ -126,8 +166,11 @@ export class SpacesController {
       'List shared organization space types; merchants see only types used by their own accessible spaces',
   })
   @ApiOkResponse({ type: [SpaceTypeResponseDto] })
-  types(@CurrentOrganization() c: OrganizationContext) {
-    return this.service.listTypes(c);
+  types(
+    @CurrentOrganization() c: OrganizationContext,
+    @Query() q: ListSpaceTypesDto,
+  ) {
+    return this.service.listTypes(c, q);
   }
   @Post('space-types')
   @OrganizationRoles('OWNER')
@@ -139,13 +182,31 @@ export class SpacesController {
   ) {
     return this.service.createType(c, dto);
   }
+  @Patch('space-types/:typeId')
+  @OrganizationRoles('OWNER')
+  @ApiOperation({ summary: 'Rename, archive, or reactivate a space type' })
+  @ApiOkResponse({ type: SpaceTypeResponseDto })
+  updateType(
+    @CurrentOrganization() c: OrganizationContext,
+    @Param('typeId', uuid()) id: string,
+    @Body() dto: UpdateSpaceTypeDto,
+  ) {
+    return this.service.updateType(c, id, dto);
+  }
 
   @Get('branches/:branchId/spaces')
   @ApiOperation({
     summary:
       'List accessible branch spaces; merchants receive only their own spaces',
   })
-  @ApiOkResponse({ type: SpacePageDto })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(SpacePageDto) },
+        { $ref: getSchemaPath(MerchantSpacePageDto) },
+      ],
+    },
+  })
   list(
     @CurrentOrganization() c: OrganizationContext,
     @Param('branchId', uuid()) branch: string,
@@ -203,7 +264,14 @@ export class SpacesController {
     summary:
       'Read current or historical occupancy; merchants receive only their own',
   })
-  @ApiOkResponse({ type: OccupancyPageDto })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(OccupancyPageDto) },
+        { $ref: getSchemaPath(MerchantOccupancyPageDto) },
+      ],
+    },
+  })
   history(
     @CurrentOrganization() c: OrganizationContext,
     @Param('branchId', uuid()) branch: string,
@@ -241,7 +309,14 @@ export class SpacesController {
   @ApiOperation({
     summary: 'Read merchant occupancy across accessible affiliated branches',
   })
-  @ApiOkResponse({ type: OccupancyPageDto })
+  @ApiOkResponse({
+    schema: {
+      oneOf: [
+        { $ref: getSchemaPath(OccupancyPageDto) },
+        { $ref: getSchemaPath(MerchantOccupancyPageDto) },
+      ],
+    },
+  })
   merchant(
     @CurrentOrganization() c: OrganizationContext,
     @Param('merchantId', uuid()) id: string,

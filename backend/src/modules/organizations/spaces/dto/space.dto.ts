@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -23,6 +24,40 @@ export class CreateSpaceTypeDto {
   @MinLength(1)
   @MaxLength(80)
   name!: string;
+}
+export class UpdateSpaceTypeDto {
+  @ApiPropertyOptional({ maxLength: 80 })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  archived?: boolean;
+
+  @ApiProperty({ minimum: 1 })
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number;
+}
+export class ListSpaceTypesDto {
+  @ApiPropertyOptional({ default: false })
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
+  )
+  @IsBoolean()
+  includeArchived = false;
+
+  @ApiPropertyOptional({ maxLength: 80 })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  currentName?: string;
 }
 export class CreateSpaceDto {
   @ApiProperty({ maxLength: 120 })

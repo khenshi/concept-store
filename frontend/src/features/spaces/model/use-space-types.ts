@@ -8,8 +8,11 @@ export function useSpaceTypes(
   organizationId: string,
   revision = 0,
   enabled = true,
+  options: { includeArchived?: boolean; currentName?: string } = {},
 ) {
   const { request } = useAuth();
+  const includeArchived = options.includeArchived ?? false;
+  const currentName = options.currentName;
   const [result, setResult] = useState<{
     types: SpaceType[] | null;
     error: string | null;
@@ -22,7 +25,10 @@ export function useSpaceTypes(
       if (!active) return;
       setResult({ types: null, error: null });
       try {
-        const types = await listSpaceTypes(request, organizationId);
+        const types = await listSpaceTypes(request, organizationId, {
+          includeArchived,
+          currentName,
+        });
         if (active) setResult({ types, error: null });
       } catch (cause) {
         if (active)
@@ -38,6 +44,14 @@ export function useSpaceTypes(
     return () => {
       active = false;
     };
-  }, [request, organizationId, retry, revision, enabled]);
+  }, [
+    request,
+    organizationId,
+    retry,
+    revision,
+    enabled,
+    includeArchived,
+    currentName,
+  ]);
   return { ...result, reload: () => setRetry((value) => value + 1) };
 }

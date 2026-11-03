@@ -44,6 +44,36 @@ export const occupancySchema = z
           Date.parse(row.endedAt) > Date.parse(row.startedAt)),
     'Occupancy identity or dates mismatch',
   );
+export const merchantOccupancySchema = z
+  .object({
+    id: z.uuidv4(),
+    organizationId: z.uuidv4(),
+    branchId: z.uuidv4(),
+    spaceId: z.uuidv4(),
+    merchantId: z.uuidv4(),
+    startedAt: z.iso.datetime(),
+    endedAt: z.iso.datetime().nullable(),
+    releaseReason: releaseReasonSchema.nullable(),
+    space: z.object({
+      id: z.uuidv4(),
+      name: z.string(),
+      type: z.string(),
+      status: spaceStatusSchema,
+    }),
+    branch: identity,
+    merchant: identity,
+  })
+  .refine(
+    (row) =>
+      row.space.id === row.spaceId &&
+      row.branch.id === row.branchId &&
+      row.merchant.id === row.merchantId &&
+      (row.endedAt === null
+        ? row.releaseReason === null
+        : row.releaseReason !== null &&
+          Date.parse(row.endedAt) > Date.parse(row.startedAt)),
+    'Occupancy identity or dates mismatch',
+  );
 export const spaceSchema = z.object({
   id: z.uuidv4(),
   organizationId: z.uuidv4(),
@@ -54,17 +84,24 @@ export const spaceSchema = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
-export const spaceListItemSchema = spaceSchema
-  .extend({ currentOccupancy: occupancySchema.nullable() })
-  .refine(
-    (row) =>
-      row.currentOccupancy === null ||
-      (row.currentOccupancy.spaceId === row.id &&
-        row.currentOccupancy.organizationId === row.organizationId &&
-        row.currentOccupancy.branchId === row.branchId &&
-        row.currentOccupancy.endedAt === null),
-    'Current occupancy scope mismatch',
-  );
+const spaceListItemChecks = (
+  schema: typeof occupancySchema | typeof merchantOccupancySchema,
+) =>
+  z
+    .object({ ...spaceSchema.shape, currentOccupancy: schema.nullable() })
+    .refine(
+      (row) =>
+        row.currentOccupancy === null ||
+        (row.currentOccupancy.spaceId === row.id &&
+          row.currentOccupancy.organizationId === row.organizationId &&
+          row.currentOccupancy.branchId === row.branchId &&
+          row.currentOccupancy.endedAt === null),
+      'Current occupancy scope mismatch',
+    );
+export const spaceListItemSchema = spaceListItemChecks(occupancySchema);
+export const merchantSpaceListItemSchema = spaceListItemChecks(
+  merchantOccupancySchema,
+);
 const pageShape = {
   page: z.number().int().min(1),
   limit: z.literal(15),
@@ -88,8 +125,14 @@ function validPage(page: {
 export const spacePageSchema = z
   .object({ ...pageShape, items: z.array(spaceListItemSchema).max(15) })
   .refine(validPage, 'Invalid space pagination');
+export const merchantSpacePageSchema = z
+  .object({ ...pageShape, items: z.array(merchantSpaceListItemSchema).max(15) })
+  .refine(validPage, 'Invalid space pagination');
 export const occupancyPageSchema = z
   .object({ ...pageShape, items: z.array(occupancySchema).max(15) })
+  .refine(validPage, 'Invalid occupancy pagination');
+export const merchantOccupancyPageSchema = z
+  .object({ ...pageShape, items: z.array(merchantOccupancySchema).max(15) })
   .refine(validPage, 'Invalid occupancy pagination');
 export const spaceFormSchema = z.object({
   name: z.string().trim().min(1, 'Enter a space name.').max(120),
@@ -125,10 +168,17 @@ export function occupancyDates(start: string, end: string, now = Date.now()) {
   };
 }
 export type Space = z.infer<typeof spaceSchema>;
-export type SpaceListItem = z.infer<typeof spaceListItemSchema>;
-export type Occupancy = z.infer<typeof occupancySchema>;
-export type SpacePage = z.infer<typeof spacePageSchema>;
+export type SpaceListItem =
+  | z.infer<typeof spaceListItemSchema>
+  | z.infer<typeof merchantSpaceListItemSchema>;
+export type StaffOccupancy = z.infer<typeof occupancySchema>;
+export type Occupancy = StaffOccupancy;
+export type MerchantOccupancy = z.infer<typeof merchantOccupancySchema>;
+export type SpacePage =
+  z.infer<typeof spacePageSchema> | z.infer<typeof merchantSpacePageSchema>;
+export type MerchantSpacePage = z.infer<typeof merchantSpacePageSchema>;
 export type OccupancyPage = z.infer<typeof occupancyPageSchema>;
+export type MerchantOccupancyPage = z.infer<typeof merchantOccupancyPageSchema>;
 export const releaseLabels: Record<
   z.infer<typeof releaseReasonSchema>,
   string
@@ -144,5 +194,8 @@ export const spaceTypeSchema = z.object({
   id: z.uuidv4(),
   organizationId: z.uuidv4(),
   name: z.string().trim().min(1).max(80),
+  archived: z.boolean(),
+  version: z.number().int().min(1),
+  updatedAt: z.iso.datetime(),
 });
 export type SpaceType = z.infer<typeof spaceTypeSchema>;

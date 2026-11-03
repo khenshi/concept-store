@@ -1,11 +1,14 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
 import {
   occupancyPageSchema,
+  merchantOccupancyPageSchema,
+  merchantSpacePageSchema,
   occupancySchema,
   spacePageSchema,
   spaceSchema,
   spaceTypeSchema,
   type Occupancy,
+  type MerchantOccupancy,
   type Space,
 } from '../model/space.schemas';
 const root = (org: string) => `/organizations/${encodeURIComponent(org)}`;
@@ -16,7 +19,7 @@ const command = (method: string, body: unknown) => ({
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(body),
 });
-function check<T extends Space | Occupancy>(
+function check<T extends Space | Occupancy | MerchantOccupancy>(
   row: T,
   org: string,
   branch?: string,
@@ -41,14 +44,17 @@ export async function listSpaces(
     status?: string;
     merchantId?: string;
     occupancy?: 'OCCUPIED' | 'VACANT';
+    projection?: 'staff' | 'merchant';
   } = {},
 ) {
   const query = new URLSearchParams({ page: String(filters.page ?? 1) });
   for (const key of ['q', 'type', 'status', 'merchantId', 'occupancy'] as const)
     if (filters[key]) query.set(key, filters[key]);
-  const page = spacePageSchema.parse(
-    await request<unknown>(`${spaceRoot(org, branch)}?${query}`),
-  );
+  const page = (
+    filters.projection === 'merchant'
+      ? merchantSpacePageSchema
+      : spacePageSchema
+  ).parse(await request<unknown>(`${spaceRoot(org, branch)}?${query}`));
   page.items.forEach((row) => check(row, org, branch));
   return page;
 }
@@ -82,6 +88,7 @@ export async function listOccupancies(
     q?: string;
     dateFrom?: string;
     dateTo?: string;
+    projection?: 'staff' | 'merchant';
   } = {},
 ) {
   const path =
@@ -95,9 +102,11 @@ export async function listOccupancies(
   if (filters.dateTo) query.set('dateTo', filters.dateTo);
   if (scope.kind === 'merchant' && scope.branchId)
     query.set('branchId', scope.branchId);
-  const page = occupancyPageSchema.parse(
-    await request<unknown>(`${path}?${query}`),
-  );
+  const page = (
+    filters.projection === 'merchant'
+      ? merchantOccupancyPageSchema
+      : occupancyPageSchema
+  ).parse(await request<unknown>(`${path}?${query}`));
   page.items.forEach((row) => {
     check(
       row,
@@ -207,10 +216,18 @@ export async function releaseSpace(
 export async function listSpaceTypes(
   request: AuthenticatedRequest,
   org: string,
+  options: { includeArchived?: boolean; currentName?: string } = {},
 ) {
+  const query = new URLSearchParams();
+  if (options.includeArchived) query.set('includeArchived', 'true');
+  if (options.currentName) query.set('currentName', options.currentName);
   const rows = spaceTypeSchema
     .array()
-    .parse(await request<unknown>(`${root(org)}/space-types`));
+    .parse(
+      await request<unknown>(
+        `${root(org)}/space-types${query.size ? `?${query}` : ''}`,
+      ),
+    );
   if (rows.some((row) => row.organizationId !== org))
     throw new Error('Space type response scope mismatch');
   return rows;
@@ -227,6 +244,22 @@ export async function createSpaceType(
     ),
   );
   if (row.organizationId !== org)
+    throw new Error('Space type response scope mismatch');
+  return row;
+}
+export async function updateSpaceType(
+  request: AuthenticatedRequest,
+  org: string,
+  id: string,
+  body: { name?: string; archived?: boolean; expectedVersion: number },
+) {
+  const row = spaceTypeSchema.parse(
+    await request<unknown>(
+      `${root(org)}/space-types/${encodeURIComponent(id)}`,
+      command('PATCH', body),
+    ),
+  );
+  if (row.organizationId !== org || row.id !== id)
     throw new Error('Space type response scope mismatch');
   return row;
 }

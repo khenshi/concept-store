@@ -7,7 +7,10 @@ import {
 } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listBranches } from '@/features/branches/api/branch-api';
+import {
+  getBranch,
+  listBranchOptions,
+} from '@/features/branches/api/branch-api';
 import { listSpaceTypes, createSpaceType } from '../api/space-api';
 import { org, space } from '../model/space.test-fixtures';
 import { SpacesWorkspace } from './spaces-workspace';
@@ -19,7 +22,8 @@ vi.mock(
   () => ({ useOrganizationWorkspaceContext: vi.fn() }),
 );
 vi.mock('@/features/branches/api/branch-api', () => ({
-  listBranches: vi.fn(),
+  getBranch: vi.fn(),
+  listBranchOptions: vi.fn(),
 }));
 vi.mock('../api/space-api', () => ({
   listSpaceTypes: vi.fn(),
@@ -46,9 +50,20 @@ beforeEach(() => {
     request: vi.fn(),
     user: { id: 'user' },
   } as never);
-  vi.mocked(listBranches).mockResolvedValue([main] as never);
+  vi.mocked(getBranch).mockResolvedValue(main as never);
+  vi.mocked(listBranchOptions).mockResolvedValue({
+    items: [{ id: main.id, label: main.name }],
+    hasNext: false,
+  });
   vi.mocked(listSpaceTypes).mockResolvedValue([
-    { id: space.id, organizationId: org, name: 'Shelf' },
+    {
+      id: space.id,
+      organizationId: org,
+      name: 'Shelf',
+      archived: false,
+      version: 1,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
   ]);
   context();
 });
@@ -56,13 +71,13 @@ it('denies cashiers before making branch or spaces requests', () => {
   context('CASHIER');
   render(<SpacesWorkspace organizationId="org" branchId="main" />);
   expect(screen.getByRole('alert')).toHaveTextContent('cannot view');
-  expect(listBranches).not.toHaveBeenCalled();
+  expect(getBranch).not.toHaveBeenCalled();
   expect(manage).not.toHaveBeenCalled();
 });
 it('waits for branch access and gives the URL precedence over remembered selection', async () => {
   context('OWNER', 'other');
   let resolve!: (value: never) => void;
-  vi.mocked(listBranches).mockReturnValue(
+  vi.mocked(getBranch).mockReturnValue(
     new Promise((done) => {
       resolve = done;
     }),
@@ -72,15 +87,17 @@ it('waits for branch access and gives the URL precedence over remembered selecti
   expect(
     screen.getByRole('status', { name: 'Loading spaces' }),
   ).toBeInTheDocument();
-  await act(async () => resolve([main] as never));
+  await act(async () => resolve(main as never));
   expect(await screen.findByText('Space rows')).toBeInTheDocument();
   expect(remember).toHaveBeenCalledWith('main');
   expect(push).not.toHaveBeenCalled();
 });
 it('does not request spaces for inaccessible branches and allows another choice', async () => {
+  vi.mocked(getBranch).mockRejectedValue({ status: 404 });
   render(<SpacesWorkspace organizationId="org" branchId="foreign" />);
   expect(await screen.findByRole('alert')).toHaveTextContent('unavailable');
   expect(manage).not.toHaveBeenCalled();
+  await waitFor(() => expect(listBranchOptions).toHaveBeenCalled());
   fireEvent.click(screen.getByRole('combobox', { name: 'Spaces branch' }));
   fireEvent.click(screen.getByRole('option', { name: 'Main' }));
   expect(push).toHaveBeenCalledWith(
@@ -98,6 +115,7 @@ it('resumes only an accessible remembered branch', async () => {
 });
 it('explains unavailable remembered branches without arbitrary navigation', async () => {
   context('MERCHANT', 'foreign');
+  vi.mocked(getBranch).mockRejectedValue({ status: 404 });
   render(<SpacesWorkspace organizationId="org" />);
   expect(
     await screen.findByText(/selected branch is unavailable/),
@@ -106,7 +124,7 @@ it('explains unavailable remembered branches without arbitrary navigation', asyn
   expect(push).not.toHaveBeenCalled();
 });
 it('retries failed branch reads', async () => {
-  vi.mocked(listBranches).mockRejectedValueOnce(new Error('Offline'));
+  vi.mocked(getBranch).mockRejectedValueOnce(new Error('Offline'));
   render(<SpacesWorkspace organizationId="org" branchId="main" />);
   expect(
     await screen.findByText('Accessible spaces branches could not be loaded.'),
@@ -157,9 +175,19 @@ it('lets owners add organization types and shows managers a read-only catalog', 
     id: space.id,
     organizationId: org,
     name: 'Display',
+    archived: false,
+    version: 1,
+    updatedAt: '2026-01-01T00:00:00.000Z',
   });
   vi.mocked(listSpaceTypes).mockResolvedValue([
-    { id: space.id, organizationId: org, name: 'Display' },
+    {
+      id: space.id,
+      organizationId: org,
+      name: 'Display',
+      archived: false,
+      version: 1,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
   ]);
   fireEvent.change(typeInput, {
     target: { value: ' Display ' },

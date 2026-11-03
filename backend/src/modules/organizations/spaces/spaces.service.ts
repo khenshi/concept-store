@@ -14,10 +14,12 @@ import type {
   AssignSpaceDto,
   CreateSpaceDto,
   CreateSpaceTypeDto,
+  ListSpaceTypesDto,
   ListOccupanciesDto,
   ListSpacesDto,
   ReleaseSpaceDto,
   SpaceStatusDto,
+  UpdateSpaceTypeDto,
   UpdateSpaceDto,
 } from './dto/space.dto';
 import { lockSpaceMerchant, rethrowSpaceConflict } from './space-occupancy';
@@ -25,7 +27,7 @@ import { assertBranchWriteAllowed } from '../branch-lifecycle';
 
 const SPACE_PAGE_SIZE = 15;
 
-export const occupancySelect = {
+const occupancySharedSelect = {
   id: true,
   organizationId: true,
   branchId: true,
@@ -34,9 +36,6 @@ export const occupancySelect = {
   startedAt: true,
   endedAt: true,
   releaseReason: true,
-  releasedBy: {
-    select: { id: true, firstName: true, lastName: true },
-  },
   space: { select: { id: true, name: true, type: true, status: true } },
   merchantBranch: {
     select: {
@@ -45,10 +44,23 @@ export const occupancySelect = {
     },
   },
 } satisfies Prisma.SpaceOccupancySelect;
+export const occupancySelect = {
+  ...occupancySharedSelect,
+  releasedBy: {
+    select: { id: true, firstName: true, lastName: true },
+  },
+} satisfies Prisma.SpaceOccupancySelect;
+export const merchantOccupancySelect =
+  occupancySharedSelect satisfies Prisma.SpaceOccupancySelect;
 function projectOccupancy(
-  row: Prisma.SpaceOccupancyGetPayload<{ select: typeof occupancySelect }>,
+  row:
+    | Prisma.SpaceOccupancyGetPayload<{ select: typeof occupancySelect }>
+    | Prisma.SpaceOccupancyGetPayload<{
+        select: typeof merchantOccupancySelect;
+      }>,
 ) {
-  const { merchantBranch, releasedBy, ...rest } = row;
+  const { merchantBranch, ...rest } = row;
+  const releasedBy = 'releasedBy' in row ? row.releasedBy : null;
   return {
     ...rest,
     ...merchantBranch,
@@ -58,6 +70,31 @@ function projectOccupancy(
           name: `${releasedBy.firstName} ${releasedBy.lastName}`.trim(),
         }
       : null,
+  };
+}
+function projectMerchantOccupancy(
+  row: Prisma.SpaceOccupancyGetPayload<{
+    select: typeof merchantOccupancySelect;
+  }>,
+) {
+  const { merchantBranch, ...rest } = row;
+  return { ...rest, ...merchantBranch };
+}
+function projectType(row: {
+  id: string;
+  organizationId: string;
+  name: string;
+  archivedAt: Date | null;
+  version: number;
+  updatedAt: Date;
+}) {
+  return {
+    id: row.id,
+    organizationId: row.organizationId,
+    name: row.name,
+    archived: row.archivedAt !== null,
+    version: row.version,
+    updatedAt: row.updatedAt,
   };
 }
 function pageResult<T>(items: T[], total: number, page: number) {
@@ -169,11 +206,34 @@ export class SpacesService {
       rethrowSpaceConflict(error);
     }
   }
-  async listTypes(context: OrganizationContext) {
-    return this.transaction(context, false, async (tx, current) =>
-      tx.spaceType.findMany({
+  async listTypes(
+    context: OrganizationContext,
+    query: Partial<ListSpaceTypesDto> = {},
+  ) {
+    return this.transaction(context, false, async (tx, current) => {
+      const includeArchived =
+        current.role === 'OWNER' && query.includeArchived === true;
+      const currentName = query.currentName?.trim();
+      const rows = await tx.spaceType.findMany({
         where: {
           organizationId: current.organizationId,
+          ...(!includeArchived
+            ? {
+                OR: [
+                  { archivedAt: null },
+                  ...(currentName
+                    ? [
+                        {
+                          name: {
+                            equals: currentName,
+                            mode: 'insensitive' as const,
+                          },
+                        },
+                      ]
+                    : []),
+                ],
+              }
+            : {}),
           ...(current.role === 'MERCHANT'
             ? {
                 spaces: {
@@ -192,9 +252,17 @@ export class SpacesService {
             : {}),
         },
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        select: { id: true, organizationId: true, name: true },
-      }),
-    );
+        select: {
+          id: true,
+          organizationId: true,
+          name: true,
+          archivedAt: true,
+          version: true,
+          updatedAt: true,
+        },
+      });
+      return rows.map(projectType);
+    });
   }
   async createType(context: OrganizationContext, dto: CreateSpaceTypeDto) {
     return this.transaction(context, true, async (tx, current) => {
@@ -212,11 +280,110 @@ export class SpacesService {
         throw new ConflictException(
           'A space type with this name already exists.',
         );
-      return tx.spaceType.create({
-        data: { organizationId: current.organizationId, name },
-        select: { id: true, organizationId: true, name: true },
-      });
+      return projectType(
+        await tx.spaceType.create({
+          data: { organizationId: current.organizationId, name },
+          select: {
+            id: true,
+            organizationId: true,
+            name: true,
+            archivedAt: true,
+            version: true,
+            updatedAt: true,
+          },
+        }),
+      );
     });
+  }
+  async updateType(
+    context: OrganizationContext,
+    id: string,
+    dto: UpdateSpaceTypeDto,
+  ) {
+    return this.transaction(context, true, async (tx, current) => {
+      const rows = await tx.$queryRaw<
+        { id: string; name: string; archivedAt: Date | null; version: number }[]
+      >`SELECT "id", "name", "archivedAt", "version" FROM "SpaceType" WHERE "organizationId" = ${current.organizationId} AND "id" = ${id} FOR UPDATE`;
+      const existing = rows[0];
+      if (!existing) throw new NotFoundException('Space type not found');
+      if (existing.version !== dto.expectedVersion)
+        throw new ConflictException(
+          'This space type changed. Refresh the type catalog and try again.',
+        );
+      const nextName = dto.name?.trim() ?? existing.name;
+      const nextArchived = dto.archived ?? existing.archivedAt !== null;
+      if (!nextName || nextName.length > 80)
+        throw new BadRequestException('Type name must contain 1–80 characters');
+      if (nextName.toLocaleLowerCase() !== existing.name.toLocaleLowerCase()) {
+        const conflict = await tx.spaceType.findFirst({
+          where: {
+            organizationId: current.organizationId,
+            name: { equals: nextName, mode: 'insensitive' },
+            NOT: { id },
+          },
+          select: { id: true },
+        });
+        if (conflict)
+          throw new ConflictException(
+            'A space type with this name already exists.',
+          );
+      }
+      if (
+        nextName === existing.name &&
+        nextArchived === (existing.archivedAt !== null)
+      )
+        return projectType(
+          await tx.spaceType.findUniqueOrThrow({
+            where: { id },
+            select: {
+              id: true,
+              organizationId: true,
+              name: true,
+              archivedAt: true,
+              version: true,
+              updatedAt: true,
+            },
+          }),
+        );
+      return projectType(
+        await tx.spaceType.update({
+          where: { id },
+          data: {
+            name: nextName,
+            archivedAt: nextArchived ? new Date() : null,
+            version: { increment: 1 },
+          },
+          select: {
+            id: true,
+            organizationId: true,
+            name: true,
+            archivedAt: true,
+            version: true,
+            updatedAt: true,
+          },
+        }),
+      );
+    });
+  }
+  private async resolveActiveType(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    rawName: string,
+  ) {
+    const name = rawName.trim();
+    const rows = await tx.$queryRaw<
+      { name: string; archivedAt: Date | null }[]
+    >`SELECT "name", "archivedAt" FROM "SpaceType" WHERE "organizationId" = ${organizationId} AND lower("name") = lower(${name}) FOR UPDATE`;
+    const type = rows[0];
+    if (!type)
+      throw new BadRequestException(
+        'Choose an existing space type before saving the space.',
+      );
+    if (type.archivedAt)
+      throw new ConflictException(
+        'This space type is archived. Reactivate it before using it.',
+      );
+    return type.name;
   }
   async list(
     context: OrganizationContext,
@@ -279,7 +446,10 @@ export class SpacesService {
                 ? { merchantId: current.merchantId ?? '' }
                 : {}),
             },
-            select: occupancySelect,
+            select:
+              current.role === 'MERCHANT'
+                ? merchantOccupancySelect
+                : occupancySelect,
             take: 1,
           },
         },
@@ -288,7 +458,9 @@ export class SpacesService {
         rows.map(({ occupancies, ...space }) => ({
           ...space,
           currentOccupancy: occupancies[0]
-            ? projectOccupancy(occupancies[0])
+            ? current.role === 'MERCHANT'
+              ? projectMerchantOccupancy(occupancies[0])
+              : projectOccupancy(occupancies[0])
             : null,
         })),
         total,
@@ -355,12 +527,23 @@ export class SpacesService {
       const total = await tx.spaceOccupancy.count({ where });
       const rows = await tx.spaceOccupancy.findMany({
         where,
-        select: occupancySelect,
+        select:
+          current.role === 'MERCHANT'
+            ? merchantOccupancySelect
+            : occupancySelect,
         orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
         skip: (query.page - 1) * SPACE_PAGE_SIZE,
         take: SPACE_PAGE_SIZE,
       });
-      return pageResult(rows.map(projectOccupancy), total, query.page);
+      return pageResult(
+        rows.map((row) =>
+          current.role === 'MERCHANT'
+            ? projectMerchantOccupancy(row)
+            : projectOccupancy(row),
+        ),
+        total,
+        query.page,
+      );
     });
   }
   async create(
@@ -371,8 +554,18 @@ export class SpacesService {
     return this.transaction(context, true, async (tx, current) => {
       await this.branch(tx, current, branchId);
       await assertBranchWriteAllowed(tx, current.organizationId, branchId);
+      const type = await this.resolveActiveType(
+        tx,
+        current.organizationId,
+        dto.type,
+      );
       return tx.space.create({
-        data: { organizationId: current.organizationId, branchId, ...dto },
+        data: {
+          organizationId: current.organizationId,
+          branchId,
+          ...dto,
+          type,
+        },
       });
     });
   }
@@ -387,7 +580,12 @@ export class SpacesService {
     return this.transaction(context, true, async (tx, current) => {
       await this.branch(tx, current, branchId);
       await assertBranchWriteAllowed(tx, current.organizationId, branchId);
-      await this.lockSpace(tx, current.organizationId, branchId, id);
+      const existing = await this.lockSpace(
+        tx,
+        current.organizationId,
+        branchId,
+        id,
+      );
       if (
         'status' in dto &&
         dto.status === 'ARCHIVED' &&
@@ -403,9 +601,24 @@ export class SpacesService {
         throw new ConflictException(
           'Release the occupied space before archiving it',
         );
+      const data =
+        'status' in dto || dto.type === undefined
+          ? dto
+          : {
+              ...dto,
+              type:
+                dto.type.trim().toLocaleLowerCase() ===
+                existing.type.toLocaleLowerCase()
+                  ? existing.type
+                  : await this.resolveActiveType(
+                      tx,
+                      current.organizationId,
+                      dto.type,
+                    ),
+            };
       return tx.space.update({
         where: { id, organizationId: current.organizationId, branchId },
-        data: dto,
+        data,
       });
     });
   }
@@ -416,8 +629,8 @@ export class SpacesService {
     id: string,
   ) {
     const rows = await tx.$queryRaw<
-      { id: string; status: string }[]
-    >`SELECT "id", "status" FROM "Space" WHERE "organizationId" = ${organizationId} AND "branchId" = ${branchId} AND "id" = ${id} FOR UPDATE`;
+      { id: string; status: string; type: string }[]
+    >`SELECT "id", "status", "type" FROM "Space" WHERE "organizationId" = ${organizationId} AND "branchId" = ${branchId} AND "id" = ${id} FOR UPDATE`;
     if (!rows.length) throw new NotFoundException('Space not found');
     return rows[0];
   }

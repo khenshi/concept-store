@@ -1,11 +1,12 @@
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import {
   listAssociations,
   type AssociationScope,
 } from '@/features/merchant-branches/api/merchant-branch-api';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import { PagedOptionSelect } from '@/shared/components/ui/paged-option-select';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { InputControl } from '@/shared/components/ui/input-control';
 import { TextField } from '@/shared/components/ui/text-field';
@@ -98,7 +99,9 @@ export function SpaceForm({
     types,
     error: typesError,
     reload: reloadTypes,
-  } = useSpaceTypes(organizationId);
+  } = useSpaceTypes(organizationId, 0, true, {
+    currentName: space?.type,
+  });
   const [addingType, setAddingType] = useState(false);
   const [typePending, setTypePending] = useState(false);
   const [typeDraftDirty, setTypeDraftDirty] = useState(false);
@@ -349,9 +352,6 @@ export function AssignmentForm({
   onStateChange?(state: { dirty: boolean; pending: boolean }): void;
 }) {
   const { request } = useAuth();
-  const [choices, setChoices] = useState<{ id: string; name: string }[] | null>(
-    null,
-  );
   const [relatedId, setRelatedId] = useState(''),
     [spaceId, setSpaceId] = useState(space?.id ?? '');
   const [spaces, setSpaces] = useState<SpaceListItem[] | null>(
@@ -373,46 +373,29 @@ export function AssignmentForm({
   }, [relatedId, start, end, historical, historyOnly, pending, onStateChange]);
   const branchId = scope.kind === 'branch' ? scope.id : relatedId;
   const merchantId = scope.kind === 'merchant' ? scope.id : relatedId;
-  useEffect(() => {
-    let active = true;
-    void Promise.resolve()
-      .then(async () => {
-        setChoices(null);
-        setReadError(null);
-        const rows: { id: string; name: string }[] = [];
-        let page = 1;
-        while (active) {
-          const data = await listAssociations(
-            request,
-            {
-              organizationId: scope.organizationId,
-              kind: scope.kind,
-              id: scope.id,
-            },
-            {
-              page,
-              status: 'ACTIVE',
-            },
-          );
-          rows.push(
-            ...data.items
-              .filter((row) => row.merchant.status === 'ACTIVE')
-              .map((row) =>
-                scope.kind === 'branch' ? row.merchant : row.branch,
-              ),
-          );
-          if (!data.hasNext) break;
-          page++;
-        }
-        if (active) setChoices(rows);
-      })
-      .catch((cause) => {
-        if (active) setReadError(message(cause));
-      });
-    return () => {
-      active = false;
-    };
-  }, [request, scope.organizationId, scope.kind, scope.id, retry]);
+  const loadRelatedPage = useCallback(
+    async (query: string, page: number) => {
+      const data = await listAssociations(
+        request,
+        {
+          organizationId: scope.organizationId,
+          kind: scope.kind,
+          id: scope.id,
+        },
+        { page, status: 'ACTIVE', q: query || undefined },
+      );
+      return {
+        items: data.items
+          .filter((row) => row.merchant.status === 'ACTIVE')
+          .map((row) => {
+            const option = scope.kind === 'branch' ? row.merchant : row.branch;
+            return { id: option.id, label: option.name };
+          }),
+        hasNext: data.hasNext,
+      };
+    },
+    [request, scope.id, scope.kind, scope.organizationId],
+  );
   useEffect(() => {
     if (space || !branchId) return;
     let active = true;
@@ -455,14 +438,7 @@ export function AssignmentForm({
         className="mt-5 grid gap-5"
         onSubmit={(event) => {
           event.preventDefault();
-          if (
-            lock.current ||
-            !spaceId ||
-            !merchantId ||
-            !branchId ||
-            !choices ||
-            readError
-          )
+          if (lock.current || !spaceId || !merchantId || !branchId || readError)
             return;
           try {
             const dates = occupancyDates(start, historical ? end : '');
@@ -525,26 +501,24 @@ export function AssignmentForm({
         <div className="grid gap-5 md:grid-cols-2">
           <label className="grid gap-2 text-sm font-semibold">
             {scope.kind === 'branch' ? 'Merchant' : 'Branch'}
-            <SelectControl
-              aria-label={scope.kind === 'branch' ? 'Merchant' : 'Branch'}
-              className={control}
+            <PagedOptionSelect
+              id="assignment-related"
               value={relatedId}
-              required
-              disabled={pending || !choices || !!readError}
+              placeholder={`Choose a ${scope.kind === 'branch' ? 'merchant' : 'branch'}`}
+              searchPlaceholder={`Search ${scope.kind === 'branch' ? 'merchants' : 'branches'}`}
+              aria-label={scope.kind === 'branch' ? 'Merchant' : 'Branch'}
+              emptyMessage={
+                scope.kind === 'branch'
+                  ? 'No active merchant participation is available.'
+                  : 'No active branches are available.'
+              }
+              loadPage={loadRelatedPage}
+              disabled={pending || !!readError}
               onValueChange={(value) => {
                 setRelatedId(value);
                 if (!space) setSpaceId('');
               }}
-            >
-              <option value="">
-                {choices ? 'Choose one' : 'Loading choices…'}
-              </option>
-              {choices?.map((choice) => (
-                <option key={choice.id} value={choice.id}>
-                  {choice.name}
-                </option>
-              ))}
-            </SelectControl>
+            />
           </label>
           {space ? (
             <div className="grid content-end gap-2 text-sm">
@@ -581,12 +555,6 @@ export function AssignmentForm({
             </label>
           )}
         </div>
-        {choices && !choices.length && (
-          <p className="text-sm text-muted">
-            No active merchant participation is available. Configure it in the
-            Branches or Merchants section first.
-          </p>
-        )}
         {spaces && !spaces.length && (
           <p className="text-sm text-muted">
             This branch has no active spaces. Add a space from its branch detail
@@ -632,11 +600,7 @@ export function AssignmentForm({
         <Actions
           pending={pending}
           disabled={
-            !choices ||
-            !!readError ||
-            !relatedId ||
-            !spaceId ||
-            (!space && !spaces)
+            !!readError || !relatedId || !spaceId || (!space && !spaces)
           }
           onClose={onClose}
           feedback={error}

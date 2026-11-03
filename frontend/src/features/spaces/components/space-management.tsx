@@ -17,6 +17,8 @@ import { FloatingNotice } from '@/shared/components/ui/floating-notice';
 import { listOccupancies, listSpaces, setSpaceStatus } from '../api/space-api';
 import {
   releaseLabels,
+  type MerchantOccupancy,
+  type MerchantOccupancyPage,
   type Occupancy,
   type OccupancyPage,
   type SpaceListItem,
@@ -51,7 +53,7 @@ function OccupancyRows({
   owner,
   onRelease,
 }: {
-  rows: Occupancy[];
+  rows: (Occupancy | MerchantOccupancy)[];
   owner: boolean;
   onRelease?(row: Occupancy): void;
 }) {
@@ -86,7 +88,7 @@ function OccupancyRows({
             <button
               className={`${quiet} self-start`}
               type="button"
-              onClick={() => onRelease(row)}
+              onClick={() => onRelease(row as Occupancy)}
             >
               Release space
             </button>
@@ -128,7 +130,9 @@ function ScopedSpaces(
   const owner = organization?.role === 'OWNER',
     own = organization?.role === 'MERCHANT';
   const [spaces, setSpaces] = useState<SpacePage | null>(null),
-    [occupancies, setOccupancies] = useState<OccupancyPage | null>(null);
+    [occupancies, setOccupancies] = useState<
+      (OccupancyPage | MerchantOccupancyPage) | null
+    >(null);
   const [page, setPage] = useState(1),
     [q, setQ] = useState(''),
     [type, setType] = useState(''),
@@ -183,7 +187,14 @@ function ScopedSpaces(
             request,
             scope.organizationId,
             scope.id,
-            { page, q, type, status, occupancy: occupancy || undefined },
+            {
+              page,
+              q,
+              type,
+              status,
+              occupancy: occupancy || undefined,
+              projection: own ? 'merchant' : 'staff',
+            },
           );
           if (read === generation.current) setSpaces(rows);
         } else {
@@ -191,7 +202,7 @@ function ScopedSpaces(
             request,
             scope.organizationId,
             { kind: 'merchant', id: scope.id },
-            { page, view },
+            { page, view, projection: own ? 'merchant' : 'staff' },
           );
           if (read === generation.current) setOccupancies(rows);
         }
