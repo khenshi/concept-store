@@ -590,6 +590,7 @@ function MerchantBranchSales({
               <SalesBranchSelector
                 organizationId={organizationId}
                 branchId={branchId}
+                branchLabel={branchName}
               />
             }
           />

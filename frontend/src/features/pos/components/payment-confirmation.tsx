@@ -7,10 +7,14 @@ import { Button } from '@/shared/components/ui/button';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { TextField } from '@/shared/components/ui/text-field';
-import { completeCheckout } from '../api/checkout-api';
+import {
+  prepareCommandRecovery,
+  submitCommandRecovery,
+} from '@/features/command-recovery/api/command-recovery-api';
 import {
   changeEstimate,
   checkoutContent,
+  completedSaleSchema,
   paymentError,
   type CheckoutCommand,
   type CompletedSale,
@@ -184,25 +188,56 @@ export function PaymentConfirmation({
     setPending(true);
     setMessage(undefined);
     onUnsafeChange(true);
+    const retainedAttempt = getCheckoutAttempt(attemptKey);
     setCheckoutAttempt(attemptKey, {
       scope,
       lines,
       command: attempt,
+      recoveryId: retainedAttempt?.recoveryId,
       state: 'pending',
     });
     try {
-      const sale = await completeCheckout(request, scope, attempt);
+      const recovery = retainedAttempt?.recoveryId
+        ? { id: retainedAttempt.recoveryId }
+        : await prepareCommandRecovery(request, scope.organizationId, {
+            kind: 'CHECKOUT',
+            branchId: scope.branchId,
+            command: attempt,
+          });
+      setCheckoutAttempt(attemptKey, {
+        scope,
+        lines,
+        command: attempt,
+        recoveryId: recovery.id,
+        state: 'pending',
+      });
+      const saved = await submitCommandRecovery(
+        request,
+        scope.organizationId,
+        recovery.id,
+      );
+      if (saved.state !== 'COMPLETED' || saved.result === null)
+        throw new Error('Checkout outcome is not confirmed.');
+      const sale = completedSaleSchema.parse(saved.result);
       if (!mounted.current) {
         setCheckoutAttempt(attemptKey, {
           scope,
           lines,
           command: attempt,
+          recoveryId: recovery.id,
           state: 'completed',
           sale,
         });
         return;
       }
-      setCheckoutAttempt(attemptKey, null);
+      setCheckoutAttempt(attemptKey, {
+        scope,
+        lines,
+        command: attempt,
+        recoveryId: recovery.id,
+        state: 'completed',
+        sale,
+      });
       uncertain.current = false;
       onUnsafeChange(false);
       onCompleted(sale);
@@ -217,6 +252,7 @@ export function PaymentConfirmation({
           'PRODUCT_UNAVAILABLE',
           'CHECKOUT_RETRY',
           'PAYMENT_ACCOUNT_UNAVAILABLE',
+          'COMMAND_RECOVERY_BLOCKED',
         ].includes(code ?? '');
       const knownRejected =
         !uncertain.current &&
@@ -227,6 +263,7 @@ export function PaymentConfirmation({
           scope,
           lines,
           command: attempt,
+          recoveryId: getCheckoutAttempt(attemptKey)?.recoveryId,
           state: 'unknown',
         });
         uncertain.current = true;

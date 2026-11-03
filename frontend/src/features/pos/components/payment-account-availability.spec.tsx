@@ -14,6 +14,61 @@ import {
 } from '../model/payment-account.test-fixtures';
 import { completedSale, product, scope } from '../model/pos.test-fixtures';
 
+const recoveryMocks = vi.hoisted(() => {
+  let command: Record<string, unknown> | null = null;
+  const prepareCommandRecovery = vi.fn();
+  const submitCommandRecovery = vi.fn();
+  const response = (state: 'PREPARED' | 'COMPLETED', result: unknown) => ({
+    id: '11111111-1111-4111-8111-111111111111',
+    kind: 'CHECKOUT' as const,
+    state,
+    requestId: String(command?.requestId),
+    branchId: scope.branchId,
+    saleId: null,
+    command: command ?? {},
+    sourceId:
+      state === 'COMPLETED' && result && typeof result === 'object'
+        ? completedSale.id
+        : null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    submittedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    completedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    acknowledgedAt: null,
+    closedAt: null,
+    result,
+  });
+  const reset = () => {
+    command = null;
+    prepareCommandRecovery.mockImplementation(
+      async (
+        _request: unknown,
+        _organizationId: string,
+        input: { command: Record<string, unknown> },
+      ) => {
+        command = input.command;
+        return response('PREPARED', null);
+      },
+    );
+    submitCommandRecovery.mockImplementation(
+      async (
+        request: (path: string, init?: RequestInit) => Promise<unknown>,
+        organizationId: string,
+      ) => {
+        const result = await request(`/organizations/${organizationId}/sales`, {
+          method: 'POST',
+          body: JSON.stringify(command),
+        });
+        return response('COMPLETED', result);
+      },
+    );
+  };
+  return { prepareCommandRecovery, submitCommandRecovery, reset };
+});
+vi.mock('@/features/command-recovery/api/command-recovery-api', () => ({
+  prepareCommandRecovery: recoveryMocks.prepareCommandRecovery,
+  submitCommandRecovery: recoveryMocks.submitCommandRecovery,
+}));
+
 const key = 'dynamic-account-availability';
 const callbacks = {
   onClose: vi.fn(),
@@ -34,6 +89,7 @@ function chooseWallet() {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  recoveryMocks.reset();
   setCheckoutAttempt(key, null);
 });
 afterEach(() => setCheckoutAttempt(key, null));

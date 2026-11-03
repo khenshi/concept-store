@@ -14,6 +14,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiProperty,
   ApiTags,
   ApiUnauthorizedResponse,
   getSchemaPath,
@@ -32,7 +33,28 @@ import { CurrentOrganization } from '../authorization/organization-context.decor
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { ListSalesQueryDto } from './dto/list-sales-query.dto';
+import { ListSellingBranchesQueryDto } from './dto/list-selling-branches-query.dto';
 import { SalesReadService } from './sales-read.service';
+
+class SellingBranchDirectoryResponseDto {
+  @ApiProperty({ type: [BranchIdentityResponseDto] })
+  items!: BranchIdentityResponseDto[];
+
+  @ApiProperty()
+  page!: number;
+
+  @ApiProperty()
+  limit!: number;
+
+  @ApiProperty()
+  total!: number;
+
+  @ApiProperty()
+  totalPages!: number;
+
+  @ApiProperty()
+  hasNext!: boolean;
+}
 
 export class SalesIdentityQueryDto {}
 
@@ -129,6 +151,18 @@ export class SalesReadController {
 })
 export class MerchantSalesBranchesController {
   constructor(private readonly sales: SalesReadService) {}
+  @Get('directory')
+  @ApiOperation({
+    summary: 'Search and page historical selling branch identities',
+  })
+  @ApiOkResponse({ type: SellingBranchDirectoryResponseDto })
+  findDirectory(
+    @CurrentOrganization() context: OrganizationContext,
+    @Query() query: ListSellingBranchesQueryDto,
+  ) {
+    return this.sales.sellingBranchDirectory(context, query);
+  }
+
   @Get()
   @ApiOperation({
     summary:

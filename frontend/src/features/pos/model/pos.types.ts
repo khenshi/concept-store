@@ -6,6 +6,9 @@ export interface PosScope {
   branchId: string;
 }
 export type PosProduct = z.infer<typeof posProductSchema>;
+export type PosCatalogPage = z.infer<
+  typeof import('./pos.schemas').posCatalogPageSchema
+>;
 export interface PosCartLine {
   product: PosProduct;
   quantity: number;

@@ -184,6 +184,11 @@ function ScopedSaleDetail({
               <SalesBranchSelector
                 organizationId={organizationId}
                 branchId={branchId}
+                branchLabel={
+                  result?.kind === 'merchant'
+                    ? result.sale.branchName
+                    : undefined
+                }
               />
             ) : undefined
           }

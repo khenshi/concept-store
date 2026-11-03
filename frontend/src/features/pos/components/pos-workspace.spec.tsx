@@ -15,6 +15,7 @@ import { SaleDetail } from '@/features/sales/components/sale-detail';
 import { staffPage } from '@/features/sales/model/sales.test-fixtures';
 import {
   getPosBranch,
+  listPosBranchOptions,
   listPosBranches,
   lookupPosCode,
   searchPosProducts,
@@ -43,6 +44,61 @@ import {
   WorkspaceChromeProvider,
 } from '@/features/app-shell/components/workspace-chrome-context';
 
+const recoveryMocks = vi.hoisted(() => {
+  let preparedCommand: Record<string, unknown> | null = null;
+  const completeCheckout = vi.fn();
+  const prepareCommandRecovery = vi.fn();
+  const submitCommandRecovery = vi.fn();
+  const response = (state: 'PREPARED' | 'COMPLETED', result: unknown) => ({
+    id: '11111111-1111-4111-8111-111111111111',
+    kind: 'CHECKOUT' as const,
+    state,
+    requestId: String(preparedCommand?.requestId),
+    branchId: scope.branchId,
+    saleId: null,
+    command: preparedCommand ?? {},
+    sourceId:
+      state === 'COMPLETED' && result && typeof result === 'object'
+        ? completedSale.id
+        : null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    submittedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    completedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    acknowledgedAt: null,
+    closedAt: null,
+    result,
+  });
+  const reset = () => {
+    preparedCommand = null;
+    prepareCommandRecovery.mockImplementation(
+      async (
+        _request: unknown,
+        _organizationId: string,
+        input: { command: Record<string, unknown> },
+      ) => {
+        preparedCommand = input.command;
+        return response('PREPARED', null);
+      },
+    );
+    submitCommandRecovery.mockImplementation(
+      async (request: unknown, organizationId: string) => {
+        const result = await completeCheckout(
+          request,
+          organizationId,
+          preparedCommand,
+        );
+        return response('COMPLETED', result);
+      },
+    );
+  };
+  return {
+    completeCheckout,
+    prepareCommandRecovery,
+    submitCommandRecovery,
+    reset,
+  };
+});
+
 vi.mock('next/navigation', () => ({
   usePathname: vi.fn(),
   useRouter: () => ({ push: vi.fn() }),
@@ -54,11 +110,34 @@ vi.mock(
 );
 vi.mock('../api/pos-api', () => ({
   getPosBranch: vi.fn(),
+  listPosBranchOptions: vi.fn(),
   listPosBranches: vi.fn(),
   lookupPosCode: vi.fn(),
   searchPosProducts: vi.fn(),
 }));
-vi.mock('../api/checkout-api', () => ({ completeCheckout: vi.fn() }));
+vi.mock('../api/checkout-api', () => ({
+  completeCheckout: recoveryMocks.completeCheckout,
+}));
+vi.mock('@/features/command-recovery/api/command-recovery-api', () => ({
+  prepareCommandRecovery: recoveryMocks.prepareCommandRecovery,
+  submitCommandRecovery: recoveryMocks.submitCommandRecovery,
+}));
+vi.mock('@/features/command-recovery/model/use-command-recoveries', () => ({
+  useCommandRecoveries: () => ({
+    items: [],
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
+vi.mock('@/features/command-recovery/model/use-command-recoveries', () => ({
+  useCommandRecoveries: () => ({
+    items: [],
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
 
 function ChromeStatus() {
   const { posFullscreen } = useWorkspaceChrome();
@@ -350,6 +429,7 @@ describe('Persistent route-backed POS workspace', () => {
   };
   beforeEach(() => {
     vi.resetAllMocks();
+    recoveryMocks.reset();
     workspace();
     vi.mocked(usePathname).mockReturnValue(base);
     vi.mocked(getPosBranch).mockImplementation(async (_request, selected) => ({
@@ -361,7 +441,18 @@ describe('Persistent route-backed POS workspace', () => {
       { id: scope.branchId, name: 'Makati', code: 'MKT' },
       { id: secondProduct.branchInventoryId, name: 'BGC', code: 'BGC' },
     ]);
-    vi.mocked(searchPosProducts).mockResolvedValue([product]);
+    vi.mocked(listPosBranchOptions).mockResolvedValue({
+      items: [
+        { id: scope.branchId, label: 'Makati (MKT)' },
+        { id: secondProduct.branchInventoryId, label: 'BGC (BGC)' },
+      ],
+      hasNext: false,
+    });
+    vi.mocked(searchPosProducts).mockResolvedValue({
+      items: [product],
+      nextCursor: null,
+      hasMore: false,
+    });
     vi.mocked(lookupPosCode).mockResolvedValue([product]);
     request.mockResolvedValue(staffPage);
   });
@@ -424,7 +515,7 @@ describe('Persistent route-backed POS workspace', () => {
     expect(
       screen.getByRole('textbox', { name: 'Cash tender (PHP)' }),
     ).toHaveValue('1000.00');
-    expect(getPosBranch).toHaveBeenCalledTimes(3);
+    expect(getPosBranch).toHaveBeenCalledTimes(6);
     expect(
       vi.mocked(searchPosProducts).mock.calls.length,
     ).toBeGreaterThanOrEqual(2);

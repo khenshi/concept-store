@@ -13,14 +13,20 @@ import { RequestError } from '@/shared/components/ui/request-error';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { listRefunds, type RefundScope } from '../api/refund-api';
+import { acknowledgeCommandRecovery } from '@/features/command-recovery/api/command-recovery-api';
+import { useCommandRecoveries } from '@/features/command-recovery/model/use-command-recoveries';
 import {
-  getRefundAttempt,
   refundAttemptKey,
   setRefundAttempt,
   useRefundAttempt,
 } from '../model/refund-attempt';
 import { RefundDetailsDialog } from './refund-details-dialog';
 import { RefundDialog } from './refund-dialog';
+import {
+  refundCommandSchema,
+  staffRefundSchema,
+  type StaffRefund,
+} from '../model/refund.schemas';
 export function RefundHistory({
   scope,
   sale,
@@ -44,14 +50,39 @@ export function RefundHistory({
   const { organizationId, branchId, saleId } = scope;
   const key = refundAttemptKey(scope.organizationId, user?.id ?? '');
   const attempt = useRefundAttempt(key);
+  const { items: savedRecoveries, refresh: refreshRecoveries } =
+    useCommandRecoveries(
+      request,
+      scope.organizationId,
+      'REFUND',
+      role === 'OWNER' || role === 'MANAGER',
+    );
+  useEffect(() => {
+    if (attempt || !savedRecoveries.length) return;
+    const saved = savedRecoveries[0];
+    const command = refundCommandSchema.safeParse(saved.command);
+    if (!command.success || !saved.saleId) return;
+    const refund =
+      saved.result === null
+        ? undefined
+        : staffRefundSchema.safeParse(saved.result);
+    const completedRefund = refund?.success ? refund.data : undefined;
+    setRefundAttempt(key, {
+      scope: {
+        organizationId: scope.organizationId,
+        branchId: saved.branchId,
+        saleId: saved.saleId,
+      },
+      command: command.data,
+      recoveryId: saved.id,
+      state: completedRefund ? 'completed' : 'unknown',
+      ...(completedRefund ? { refund: completedRefund } : {}),
+    });
+  }, [attempt, key, savedRecoveries, scope.branchId, scope.organizationId]);
   const belongs =
     attempt?.scope.branchId === scope.branchId &&
     attempt?.scope.saleId === scope.saleId;
   const unresolved = Boolean(attempt && attempt.state !== 'completed');
-  const completedId =
-    belongs && attempt?.state === 'completed'
-      ? (attempt.refund?.id ?? null)
-      : null;
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof listRefunds>
   > | null>(null);
@@ -71,6 +102,7 @@ export function RefundHistory({
     let active = true;
     void Promise.resolve().then(async () => {
       if (!active || role === 'CASHIER') return;
+      if (attempt?.state === 'pending') return;
       setResult(null);
       setError(null);
       try {
@@ -86,12 +118,6 @@ export function RefundHistory({
         );
         if (active) {
           setResult(response);
-          if (
-            completedId &&
-            getRefundAttempt(key)?.state === 'completed' &&
-            getRefundAttempt(key)?.refund?.id === completedId
-          )
-            setRefundAttempt(key, null);
         }
       } catch (cause) {
         if (!active) return;
@@ -117,11 +143,25 @@ export function RefundHistory({
     page,
     revision,
     key,
-    completedId,
+    attempt?.state,
   ]);
   const staff = role === 'OWNER' || role === 'MANAGER';
   if (role === 'CASHIER') return null;
   const recovering = staff && belongs && attempt?.state === 'unknown';
+  async function acknowledgeRecordedRefund() {
+    const recoveryId = attempt?.recoveryId;
+    if (recoveryId) {
+      try {
+        await acknowledgeCommandRecovery(request, organizationId, recoveryId);
+        refreshRecoveries();
+      } catch {
+        setNotice('The saved refund is still awaiting acknowledgement.');
+        return;
+      }
+    }
+    setRefundAttempt(key, null);
+    onEntryClose?.();
+  }
   const showDialog =
     staff &&
     (!attempt || belongs) &&
@@ -142,6 +182,19 @@ export function RefundHistory({
       {entry ? (
         <div className="p-5 sm:p-6">
           <p className="font-semibold">Original receipt: {sale.receiptCode}</p>
+          {attempt?.state === 'completed' && belongs ? (
+            <p role="status" className="mt-3 text-sm">
+              Refund recorded. Refresh remaining quantities before another
+              return; do not refund money again.{' '}
+              <Button
+                variant="quiet"
+                className="ml-2 px-0 text-sm font-semibold"
+                onClick={() => void acknowledgeRecordedRefund()}
+              >
+                Acknowledge
+              </Button>
+            </p>
+          ) : null}
           {notice ? (
             <p role="status" className="mt-3 text-sm">
               {notice}
@@ -205,7 +258,14 @@ export function RefundHistory({
           {attempt?.state === 'completed' && belongs ? (
             <p role="status" className="p-5 text-sm">
               Refund recorded. Refresh remaining quantities before another
-              return; do not refund money again.
+              return; do not refund money again.{' '}
+              <Button
+                variant="quiet"
+                className="ml-2 px-0 text-sm font-semibold"
+                onClick={() => void acknowledgeRecordedRefund()}
+              >
+                Acknowledge
+              </Button>
             </p>
           ) : null}
           {attempt?.state === 'completed' && !belongs && staff ? (
@@ -451,8 +511,7 @@ export function RefundHistory({
             setOpen(false);
             onEntryClose?.();
           }}
-          onCompleted={() => {
-            const recorded = getRefundAttempt(key)?.refund;
+          onCompleted={(recorded: StaffRefund) => {
             setOpen(false);
             setSelected(null);
             setResult(null);

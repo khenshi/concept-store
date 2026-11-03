@@ -1,8 +1,12 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
-import { getBranch, listBranches } from '@/features/branches/api/branch-api';
+import {
+  getBranch,
+  listBranches,
+  listBranchOptions,
+} from '@/features/branches/api/branch-api';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import {
-  posCatalogSchema,
+  posCatalogPageSchema,
   posCodeMatchesSchema,
   posCodeSchema,
 } from '../model/pos.schemas';
@@ -25,6 +29,16 @@ export async function listPosBranches(
       throw new Error('Branch scope is inconsistent.');
     return { id: branch.id, name: branch.name, code: branch.code };
   });
+}
+
+export async function listPosBranchOptions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  role: OrganizationRole,
+  query: { search?: string; page?: number } = {},
+) {
+  if (role === 'MERCHANT') throw new Error('Merchants cannot access POS.');
+  return listBranchOptions(request, organizationId, query);
 }
 export async function getPosBranch(
   request: AuthenticatedRequest,
@@ -49,14 +63,17 @@ export async function searchPosProducts(
   request: AuthenticatedRequest,
   scope: PosScope,
   search = '',
+  cursor?: string,
 ) {
   const q = search.trim();
   if (q.length > 254)
     throw new Error('Search must contain 254 characters or fewer.');
-  return posCatalogSchema.parse(
-    await request<unknown>(
-      `${path(scope)}${q ? `?${new URLSearchParams({ q })}` : ''}`,
-    ),
+  const query = new URLSearchParams();
+  if (q) query.set('q', q);
+  if (cursor) query.set('cursor', cursor);
+  const suffix = query.size ? `?${query}` : '';
+  return posCatalogPageSchema.parse(
+    await request<unknown>(`${path(scope)}${suffix}`),
   );
 }
 export async function lookupPosCode(

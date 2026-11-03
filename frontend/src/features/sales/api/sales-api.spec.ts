@@ -4,6 +4,7 @@ import {
   listSales,
   getSale,
   listSellingBranches,
+  listSellingBranchOptions,
 } from './sales-api';
 import {
   scope,
@@ -108,6 +109,34 @@ describe('scoped role-specific sales read API', () => {
     );
     expect(request.mock.calls[2][0]).toBe(
       `/organizations/${scope.organizationId}/sales/branches`,
+    );
+  });
+
+  it('pages historical selling branch options', async () => {
+    const request = vi.fn().mockResolvedValue({
+      items: [sellingBranches[0]],
+      page: 2,
+      limit: 15,
+      total: 16,
+      totalPages: 2,
+      hasNext: false,
+    });
+    await expect(
+      listSellingBranchOptions(request, scope.organizationId, {
+        search: 'Makati',
+        page: 2,
+      }),
+    ).resolves.toEqual({
+      items: [
+        {
+          id: sellingBranches[0].id,
+          label: `${sellingBranches[0].name} (${sellingBranches[0].code})`,
+        },
+      ],
+      hasNext: false,
+    });
+    expect(request).toHaveBeenCalledWith(
+      `/organizations/${scope.organizationId}/sales/branches/directory?page=2&q=Makati`,
     );
   });
   it.each([

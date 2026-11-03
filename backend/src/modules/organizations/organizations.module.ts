@@ -48,6 +48,8 @@ import {
   BranchPaymentAccountsController,
 } from './payment-accounts/payment-accounts.controller';
 import { PaymentAccountsService } from './payment-accounts/payment-accounts.service';
+import { CommandRecoveryController } from './recovery/command-recovery.controller';
+import { CommandRecoveryService } from './recovery/command-recovery.service';
 
 @Module({
   imports: [AuthModule, EmailModule],
@@ -72,6 +74,7 @@ import { PaymentAccountsService } from './payment-accounts/payment-accounts.serv
     CheckoutController,
     SalesReadController,
     MerchantSalesBranchesController,
+    CommandRecoveryController,
   ],
   providers: [
     PaymentAccountsService,
@@ -95,6 +98,7 @@ import { PaymentAccountsService } from './payment-accounts/payment-accounts.serv
     PosCatalogService,
     CheckoutService,
     SalesReadService,
+    CommandRecoveryService,
   ],
   exports: [OrganizationAccessGuard, OrganizationLifecycleService],
 })

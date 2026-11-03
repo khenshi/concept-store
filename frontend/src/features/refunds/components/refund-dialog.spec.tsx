@@ -26,6 +26,60 @@ import {
   refundScope,
 } from '../model/refund.test-fixtures';
 import { RefundDialog } from './refund-dialog';
+const recoveryMocks = vi.hoisted(() => {
+  let command: Record<string, unknown> | null = null;
+  const prepareCommandRecovery = vi.fn();
+  const submitCommandRecovery = vi.fn();
+  const response = (state: 'PREPARED' | 'COMPLETED', result: unknown) => ({
+    id: '11111111-1111-4111-8111-111111111111',
+    kind: 'REFUND' as const,
+    state,
+    requestId: String(command?.requestId),
+    branchId: refundScope.branchId,
+    saleId: refundScope.saleId,
+    command: command ?? {},
+    sourceId:
+      state === 'COMPLETED' && result && typeof result === 'object'
+        ? staffRefund.id
+        : null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    submittedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    completedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    acknowledgedAt: null,
+    closedAt: null,
+    result,
+  });
+  const reset = () => {
+    command = null;
+    prepareCommandRecovery.mockImplementation(
+      async (
+        _request: unknown,
+        _organizationId: string,
+        input: { command: Record<string, unknown> },
+      ) => {
+        command = input.command;
+        return response('PREPARED', null);
+      },
+    );
+    submitCommandRecovery.mockImplementation(
+      async (
+        request: (path: string, init?: RequestInit) => Promise<unknown>,
+        organizationId: string,
+      ) => {
+        const result = await request(
+          `/organizations/${organizationId}/refunds`,
+          { method: 'POST', body: JSON.stringify(command) },
+        );
+        return response('COMPLETED', result);
+      },
+    );
+  };
+  return { prepareCommandRecovery, submitCommandRecovery, reset };
+});
+vi.mock('@/features/command-recovery/api/command-recovery-api', () => ({
+  prepareCommandRecovery: recoveryMocks.prepareCommandRecovery,
+  submitCommandRecovery: recoveryMocks.submitCommandRecovery,
+}));
 describe('manual refund dialog and frozen recovery', () => {
   const request = vi.fn();
   const onClose = vi.fn();
@@ -59,6 +113,7 @@ describe('manual refund dialog and frozen recovery', () => {
   }
   beforeEach(() => {
     vi.resetAllMocks();
+    recoveryMocks.reset();
     setRefundAttempt(key, null);
   });
   afterEach(() => {
@@ -124,7 +179,7 @@ describe('manual refund dialog and frozen recovery', () => {
       false,
     );
     expect(getRefundAttempt(key)).toBeNull();
-    expect(request).toHaveBeenCalledOnce();
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
   });
   it('validates each input after 300ms and disables incomplete submissions', async () => {
     vi.useFakeTimers();
@@ -262,7 +317,7 @@ describe('manual refund dialog and frozen recovery', () => {
       screen.getByRole('dialog'),
       new Event('cancel', { bubbles: true, cancelable: true }),
     );
-    expect(request).toHaveBeenCalledOnce();
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
     expect(onClose).not.toHaveBeenCalled();
   });
   it.each([

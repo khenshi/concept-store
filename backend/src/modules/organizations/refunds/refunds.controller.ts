@@ -28,8 +28,9 @@ import {
   RefundCommandQueryDto,
 } from './dto/create-refund.dto';
 import { CompletedRefundResponseDto } from './refunds.types';
-import { RefundsService } from './refunds.service';
 import { AllowInactiveReplay } from '../authorization/allow-inactive-replay.decorator';
+import { CommandRecoveryKind } from '../../../generated/prisma/client';
+import { CommandRecoveryService } from '../recovery/command-recovery.service';
 @Controller(
   'organizations/:organizationId/branches/:branchId/sales/:saleId/refunds',
 )
@@ -52,7 +53,7 @@ import { AllowInactiveReplay } from '../authorization/allow-inactive-replay.deco
     'RETURN_QUANTITY_EXCEEDED, STOCK_OVERFLOW, REQUEST_ID_CONFLICT or REFUND_RETRY; no partial writes',
 })
 export class RefundsController {
-  constructor(private readonly refunds: RefundsService) {}
+  constructor(private readonly recovery: CommandRecoveryService) {}
   @Post()
   @AllowInactiveReplay()
   @ApiCreatedResponse({ type: CompletedRefundResponseDto })
@@ -68,11 +69,12 @@ export class RefundsController {
     @Query() _query: RefundCommandQueryDto,
   ) {
     void _query;
-    return this.refunds.complete(
+    return this.recovery.submitLegacy(
       context,
+      CommandRecoveryKind.REFUND,
       branchId.toLowerCase(),
-      saleId.toLowerCase(),
       dto,
+      saleId.toLowerCase(),
     );
   }
 }

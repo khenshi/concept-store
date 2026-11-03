@@ -14,12 +14,16 @@ import { AuthGuard } from '../src/modules/auth/auth.guard';
 import { OrganizationAccessGuard } from '../src/modules/organizations/authorization/organization-access.guard';
 import { RefundsController } from '../src/modules/organizations/refunds/refunds.controller';
 import { RefundsService } from '../src/modules/organizations/refunds/refunds.service';
+import { CommandRecoveryService } from '../src/modules/organizations/recovery/command-recovery.service';
 import {
   BranchRefundReadController,
   RefundReadController,
 } from '../src/modules/organizations/refunds/refund-read.controller';
 import { RefundReadService } from '../src/modules/organizations/refunds/refund-read.service';
-import { OrganizationStatus } from '../src/generated/prisma/client';
+import {
+  CommandRecoveryKind,
+  OrganizationStatus,
+} from '../src/generated/prisma/client';
 const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const sale = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
@@ -38,6 +42,7 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
   let jwt: JwtService;
   let role = 'OWNER';
   const refunds = { complete: jest.fn() };
+  const recovery = { submitLegacy: jest.fn() };
   const reads = {
     findAll: jest.fn(),
     findOne: jest.fn(),
@@ -68,6 +73,7 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
         Reflector,
         { provide: PrismaService, useValue: prisma },
         { provide: RefundsService, useValue: refunds },
+        { provide: CommandRecoveryService, useValue: recovery },
         { provide: RefundReadService, useValue: reads },
       ],
     }).compile();
@@ -108,6 +114,21 @@ describe('Refund command HTTP/OpenAPI boundaries', () => {
         ),
     );
     refunds.complete.mockResolvedValue({ scope: 'STAFF', total: '25.00' });
+    recovery.submitLegacy.mockImplementation(
+      (
+        context: unknown,
+        kind: CommandRecoveryKind,
+        branchId: string,
+        command: unknown,
+        saleId: string,
+      ) => {
+        if (kind !== CommandRecoveryKind.REFUND)
+          throw new Error('Unexpected recovery kind');
+        return Promise.resolve(
+          refunds.complete(context, branchId, saleId, command),
+        ) as Promise<unknown>;
+      },
+    );
     reads.findAll.mockResolvedValue({
       scope: 'STAFF',
       items: [],

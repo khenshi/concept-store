@@ -10,6 +10,7 @@ import {
   staffSalesPageSchema,
   cashierOptionsSchema,
   sellingBranchesSchema,
+  sellingBranchPageSchema,
   salesQuerySchema,
   type SalesQuery,
 } from '../model/sales.schemas';
@@ -93,4 +94,25 @@ export async function listSellingBranches(
       `/organizations/${encodeURIComponent(organizationId)}/sales/branches`,
     ),
   );
+}
+
+export async function listSellingBranchOptions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  query: { search?: string; page?: number } = {},
+) {
+  const params = new URLSearchParams({ page: String(query.page ?? 1) });
+  if (query.search) params.set('q', query.search);
+  const page = sellingBranchPageSchema.parse(
+    await request<unknown>(
+      `/organizations/${encodeURIComponent(organizationId)}/sales/branches/directory?${params}`,
+    ),
+  );
+  return {
+    items: page.items.map(({ id, name, code }) => ({
+      id,
+      label: code ? `${name} (${code})` : name,
+    })),
+    hasNext: page.hasNext,
+  };
 }

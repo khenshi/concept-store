@@ -5,7 +5,11 @@ import { SalesReadService } from './sales-read.service';
 describe('SalesReadService scoped history filters', () => {
   const tx = {
     organizationMembership: { findUnique: jest.fn() },
-    branch: { findFirst: jest.fn() },
+    branch: {
+      findFirst: jest.fn(),
+      count: jest.fn(),
+      findMany: jest.fn(),
+    },
     sale: { count: jest.fn(), findMany: jest.fn() },
   };
   const prisma = { $transaction: jest.fn() };
@@ -28,6 +32,8 @@ describe('SalesReadService scoped history filters', () => {
     tx.branch.findFirst.mockResolvedValue({ id: 'branch' });
     tx.sale.count.mockResolvedValue(0);
     tx.sale.findMany.mockResolvedValue([]);
+    tx.branch.count.mockResolvedValue(0);
+    tx.branch.findMany.mockResolvedValue([]);
   });
 
   it('applies combined staff filters before count and pagination', async () => {
@@ -142,5 +148,50 @@ describe('SalesReadService scoped history filters', () => {
         limit: 10,
       }),
     ).rejects.toThrow('from must precede until');
+  });
+
+  it('pages only the merchant historical branches and applies search', async () => {
+    tx.organizationMembership.findUnique.mockResolvedValue({
+      role: 'MERCHANT',
+      merchantId: 'merchant',
+    });
+    tx.branch.count.mockResolvedValue(16);
+    tx.branch.findMany.mockResolvedValue([
+      { id: 'branch-2', name: 'Cebu', code: 'CEB' },
+    ]);
+
+    await expect(
+      service.sellingBranchDirectory(
+        { ...context, role: 'MERCHANT' },
+        { q: 'Cebu', page: 2 },
+      ),
+    ).resolves.toEqual({
+      items: [{ id: 'branch-2', name: 'Cebu', code: 'CEB' }],
+      page: 2,
+      limit: 15,
+      total: 16,
+      totalPages: 2,
+      hasNext: false,
+    });
+    expect(tx.branch.count).toHaveBeenCalledWith({
+      where: {
+        organizationId: 'org',
+        sales: {
+          some: {
+            organizationId: 'org',
+            items: {
+              some: { organizationId: 'org', merchantId: 'merchant' },
+            },
+          },
+        },
+        OR: [
+          { name: { contains: 'Cebu', mode: 'insensitive' } },
+          { code: { contains: 'Cebu', mode: 'insensitive' } },
+        ],
+      },
+    });
+    expect(tx.branch.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 15, take: 15 }),
+    );
   });
 });

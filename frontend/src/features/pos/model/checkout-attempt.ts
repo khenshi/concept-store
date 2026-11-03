@@ -7,6 +7,7 @@ export type CheckoutAttempt = {
   scope: PosScope;
   lines: PosCartLine[];
   command: CheckoutCommand;
+  recoveryId?: string;
   state: 'pending' | 'unknown' | 'completed';
   sale?: CompletedSale;
 };

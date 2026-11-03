@@ -18,7 +18,67 @@ import { completeCheckout } from '../api/checkout-api';
 import { product, scope, completedSale } from '../model/pos.test-fixtures';
 import { PaymentConfirmation } from './payment-confirmation';
 import { setCheckoutAttempt } from '../model/checkout-attempt';
-vi.mock('../api/checkout-api', () => ({ completeCheckout: vi.fn() }));
+const recoveryMocks = vi.hoisted(() => {
+  let preparedCommand: Record<string, unknown> | null = null;
+  const completeCheckout = vi.fn();
+  const prepareCommandRecovery = vi.fn();
+  const submitCommandRecovery = vi.fn();
+  const response = (state: 'PREPARED' | 'COMPLETED', result: unknown) => ({
+    id: '11111111-1111-4111-8111-111111111111',
+    kind: 'CHECKOUT' as const,
+    state,
+    requestId: String(preparedCommand?.requestId),
+    branchId: scope.branchId,
+    saleId: null,
+    command: preparedCommand ?? {},
+    sourceId:
+      state === 'COMPLETED' && result && typeof result === 'object'
+        ? completedSale.id
+        : null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    submittedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    completedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    acknowledgedAt: null,
+    closedAt: null,
+    result,
+  });
+  const reset = () => {
+    preparedCommand = null;
+    prepareCommandRecovery.mockImplementation(
+      async (
+        _request: unknown,
+        _organizationId: string,
+        input: { command: Record<string, unknown> },
+      ) => {
+        preparedCommand = input.command;
+        return response('PREPARED', null);
+      },
+    );
+    submitCommandRecovery.mockImplementation(
+      async (request: unknown, organizationId: string) => {
+        const result = await completeCheckout(
+          request,
+          organizationId,
+          preparedCommand,
+        );
+        return response('COMPLETED', result);
+      },
+    );
+  };
+  return {
+    completeCheckout,
+    prepareCommandRecovery,
+    submitCommandRecovery,
+    reset,
+  };
+});
+vi.mock('../api/checkout-api', () => ({
+  completeCheckout: recoveryMocks.completeCheckout,
+}));
+vi.mock('@/features/command-recovery/api/command-recovery-api', () => ({
+  prepareCommandRecovery: recoveryMocks.prepareCommandRecovery,
+  submitCommandRecovery: recoveryMocks.submitCommandRecovery,
+}));
 describe('payment confirmation', () => {
   const callbacks = {
     onClose: vi.fn(),
@@ -44,6 +104,7 @@ describe('payment confirmation', () => {
   beforeEach(() => {
     setCheckoutAttempt('payment-test', null);
     vi.resetAllMocks();
+    recoveryMocks.reset();
     vi.mocked(completeCheckout).mockResolvedValue(completedSale);
   });
   afterEach(() => {
@@ -115,7 +176,7 @@ describe('payment confirmation', () => {
       new Event('cancel', { cancelable: true }),
     );
     expect(callbacks.onClose).not.toHaveBeenCalled();
-    expect(completeCheckout).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(completeCheckout).toHaveBeenCalledTimes(1));
     await act(async () => {
       resolve(completedSale);
     });

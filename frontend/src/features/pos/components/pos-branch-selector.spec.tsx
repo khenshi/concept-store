@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
-import { listPosBranches } from '../api/pos-api';
+import { ApiError } from '@/features/auth/api/auth-client';
+import { getPosBranch, listPosBranchOptions } from '../api/pos-api';
 import { PosBranchSelector } from './pos-branch-selector';
 import { completedSale, scope } from '../model/pos.test-fixtures';
 import { setCheckoutAttempt } from '../model/checkout-attempt';
@@ -8,7 +9,10 @@ import { setCheckoutAttempt } from '../model/checkout-attempt';
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
-vi.mock('../api/pos-api', () => ({ listPosBranches: vi.fn() }));
+vi.mock('../api/pos-api', () => ({
+  getPosBranch: vi.fn(),
+  listPosBranchOptions: vi.fn(),
+}));
 describe('POS branch selection', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -16,9 +20,15 @@ describe('POS branch selection', () => {
       request: vi.fn(),
       user: { id: 'actor' },
     } as never);
-    vi.mocked(listPosBranches).mockResolvedValue([
-      { id: 'branch', name: 'Makati', code: 'MKT' },
-    ]);
+    vi.mocked(getPosBranch).mockResolvedValue({
+      id: 'branch',
+      name: 'Makati',
+      code: 'MKT',
+    });
+    vi.mocked(listPosBranchOptions).mockResolvedValue({
+      items: [{ id: 'branch', label: 'Makati (MKT)' }],
+      hasNext: false,
+    });
   });
   afterEach(() => {
     setCheckoutAttempt('org:actor', null);
@@ -40,8 +50,8 @@ describe('POS branch selection', () => {
     },
   );
   it('ignores a response after the selector unmounts', async () => {
-    let finish!: (value: Awaited<ReturnType<typeof listPosBranches>>) => void;
-    vi.mocked(listPosBranches).mockReturnValue(
+    let finish!: (value: Awaited<ReturnType<typeof getPosBranch>>) => void;
+    vi.mocked(getPosBranch).mockReturnValue(
       new Promise((resolve) => {
         finish = resolve;
       }),
@@ -56,7 +66,7 @@ describe('POS branch selection', () => {
       />,
     );
     view.unmount();
-    finish([]);
+    finish({ id: 'branch', name: 'Makati', code: 'MKT' });
     await Promise.resolve();
     expect(denied).not.toHaveBeenCalled();
   });
@@ -72,7 +82,10 @@ describe('POS branch selection', () => {
     );
   });
   it('handles unassigned members without choosing a branch', async () => {
-    vi.mocked(listPosBranches).mockResolvedValue([]);
+    vi.mocked(listPosBranchOptions).mockResolvedValue({
+      items: [],
+      hasNext: false,
+    });
     render(<PosBranchSelector organizationId="org" role="MANAGER" />);
     expect(await screen.findByRole('status')).toHaveTextContent(
       'No accessible branches',
@@ -82,7 +95,7 @@ describe('POS branch selection', () => {
   });
   it('reports revoked current branch access', async () => {
     const denied = vi.fn();
-    vi.mocked(listPosBranches).mockResolvedValue([]);
+    vi.mocked(getPosBranch).mockRejectedValue(new ApiError(404, 'revoked'));
     render(
       <PosBranchSelector
         organizationId="org"
@@ -91,11 +104,10 @@ describe('POS branch selection', () => {
         onAccessDenied={denied}
       />,
     );
-    await screen.findByRole('status');
-    expect(denied).toHaveBeenCalledOnce();
+    await waitFor(() => expect(denied).toHaveBeenCalledOnce());
   });
   it('retries a failed read without navigation', async () => {
-    vi.mocked(listPosBranches).mockRejectedValueOnce(new Error('offline'));
+    vi.mocked(listPosBranchOptions).mockRejectedValueOnce(new Error('offline'));
     render(<PosBranchSelector organizationId="org" role="OWNER" />);
     await screen.findByRole('alert');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));

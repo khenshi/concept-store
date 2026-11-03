@@ -23,6 +23,16 @@ export class PosCatalogQueryDto {
   @IsString()
   @MaxLength(254)
   q?: string;
+
+  @ApiPropertyOptional({
+    maxLength: 512,
+    description: 'Opaque continuation cursor returned by the previous page',
+  })
+  @Transform(trimOptionalString)
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  cursor?: string;
 }
 
 export class PosCodeQueryDto {

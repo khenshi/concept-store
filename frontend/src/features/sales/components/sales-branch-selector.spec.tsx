@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listSellingBranches } from '../api/sales-api';
+import { listSellingBranchOptions } from '../api/sales-api';
 import { sellingBranches } from '../model/sales.test-fixtures';
 import { SalesBranchSelector } from './sales-branch-selector';
 
@@ -12,7 +12,7 @@ vi.mock(
   '@/features/organizations/components/organization-workspace-context',
   () => ({ useOrganizationWorkspaceContext: vi.fn() }),
 );
-vi.mock('../api/sales-api', () => ({ listSellingBranches: vi.fn() }));
+vi.mock('../api/sales-api', () => ({ listSellingBranchOptions: vi.fn() }));
 
 describe('SalesBranchSelector', () => {
   const organizationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -34,13 +34,20 @@ describe('SalesBranchSelector', () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       setSelectedBranchId: remember,
     } as never);
-    vi.mocked(listSellingBranches).mockResolvedValue(branches);
+    vi.mocked(listSellingBranchOptions).mockResolvedValue({
+      items: branches.map(({ id, name, code }) => ({
+        id,
+        label: code ? `${name} (${code})` : name,
+      })),
+      hasNext: false,
+    });
   });
   it('validates and remembers the current own-selling branch', async () => {
     render(
       <SalesBranchSelector
         organizationId={organizationId}
         branchId={branches[0].id}
+        branchLabel={branches[0].name}
       />,
     );
     await waitFor(() => expect(remember).toHaveBeenCalledWith(branches[0].id));
@@ -53,6 +60,7 @@ describe('SalesBranchSelector', () => {
       <SalesBranchSelector
         organizationId={organizationId}
         branchId={branches[0].id}
+        branchLabel={branches[0].name}
       />,
     );
     const picker = await screen.findByRole('combobox', {

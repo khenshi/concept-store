@@ -1,13 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
-import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { SelectControl } from '@/shared/components/ui/select-control';
-import { RequestError } from '@/shared/components/ui/request-error';
-import { usePageHeaderRequestError } from '@/shared/components/ui/page-header';
+import { PagedOptionSelect } from '@/shared/components/ui/paged-option-select';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
 import {
   checkoutAttemptKey,
@@ -17,62 +14,51 @@ import {
   getRefundAttempt,
   refundAttemptKey,
 } from '@/features/refunds/model/refund-attempt';
-import { listSellingBranches } from '../api/sales-api';
+import { listSellingBranchOptions } from '../api/sales-api';
 
 export function SalesBranchSelector({
   organizationId,
   branchId,
+  branchLabel,
 }: {
   organizationId: string;
   branchId: string;
+  branchLabel?: string;
 }) {
   const { request, user } = useAuth();
   const { setSelectedBranchId } = useOrganizationWorkspaceContext();
   const router = useRouter();
   const id = useId();
-  const [branches, setBranches] = useState<Awaited<
-    ReturnType<typeof listSellingBranches>
-  > | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [revision, setRevision] = useState(0);
+  const routerRef = useRef(router);
   useEffect(() => {
-    let active = true;
-    listSellingBranches(request, organizationId)
-      .then((items) => {
-        if (!active) return;
-        setBranches(items);
-        if (items.some((branch) => branch.id === branchId))
-          setSelectedBranchId(branchId);
-      })
-      .catch((cause) => {
-        if (active)
-          setError(
-            cause instanceof ApiError
-              ? cause.message
-              : 'Sales branches could not be loaded.',
-          );
-      });
-    return () => {
-      active = false;
-    };
-  }, [request, organizationId, branchId, revision, setSelectedBranchId]);
-  const retry = useCallback(() => {
-    setError(null);
-    setBranches(null);
-    setRevision((value) => value + 1);
-  }, []);
-  const pageHeaderError = usePageHeaderRequestError(error, retry);
+    routerRef.current = router;
+  }, [router]);
+  useEffect(() => {
+    setSelectedBranchId(branchId);
+  }, [branchId, setSelectedBranchId]);
+  const loadBranchPage = useCallback(
+    (query: string, page: number) =>
+      listSellingBranchOptions(request, organizationId, {
+        search: query,
+        page,
+      }),
+    [organizationId, request],
+  );
   return (
     <div className="w-full min-w-56 max-w-sm">
       <label htmlFor={id} className="mb-2 block text-sm font-medium text-ink">
         Sales branch
       </label>
-      <SelectControl
+      <PagedOptionSelect
         id={id}
-        value={
-          branches?.some((branch) => branch.id === branchId) ? branchId : ''
-        }
-        disabled={!branches?.length || Boolean(error)}
+        value={branchId}
+        selectedOption={{
+          id: branchId,
+          label: branchLabel ?? 'Current branch',
+        }}
+        placeholder="Choose a branch"
+        emptyMessage="No historical selling branches are available."
+        loadPage={loadBranchPage}
         onValueChange={(next) => {
           if (!next || next === branchId) return;
           const checkout =
@@ -88,22 +74,9 @@ export function SalesBranchSelector({
           const href = `/app/organizations/${organizationId}/branches/${next}/sales`;
           if (!allowPosNavigation(href)) return;
           setSelectedBranchId(next);
-          router.push(href);
+          routerRef.current.push(href);
         }}
-      >
-        <option value="" disabled>
-          {branches ? 'Choose a branch' : 'Loading branches…'}
-        </option>
-        {(branches ?? []).map((branch) => (
-          <option key={branch.id} value={branch.id}>
-            {branch.name}
-            {branch.code ? ` (${branch.code})` : ''}
-          </option>
-        ))}
-      </SelectControl>
-      {error && !pageHeaderError ? (
-        <RequestError message={error} onRetry={retry} />
-      ) : null}
+      />
     </div>
   );
 }

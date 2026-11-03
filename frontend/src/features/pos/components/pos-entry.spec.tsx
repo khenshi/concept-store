@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listPosBranches } from '../api/pos-api';
+import { listPosBranchOptions, listPosBranches } from '../api/pos-api';
 import { PosEntry } from './pos-entry';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -9,7 +9,10 @@ vi.mock(
   '@/features/organizations/components/organization-workspace-context',
   () => ({ useOrganizationWorkspaceContext: vi.fn() }),
 );
-vi.mock('../api/pos-api', () => ({ listPosBranches: vi.fn() }));
+vi.mock('../api/pos-api', () => ({
+  listPosBranchOptions: vi.fn(),
+  listPosBranches: vi.fn(),
+}));
 describe('POS organization entry', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -22,12 +25,16 @@ describe('POS organization entry', () => {
       organizationStatus: 'ready',
     } as never);
     vi.mocked(listPosBranches).mockResolvedValue([]);
+    vi.mocked(listPosBranchOptions).mockResolvedValue({
+      items: [],
+      hasNext: false,
+    });
   });
   it('offers authorized branch selection', async () => {
     render(<PosEntry organizationId="org" />);
     expect(screen.getByRole('heading', { name: 'POS' })).toBeInTheDocument();
     await screen.findByRole('status');
-    expect(listPosBranches).toHaveBeenCalled();
+    expect(listPosBranchOptions).toHaveBeenCalled();
   });
   it('keeps the header visible while access loads without reading branches', () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({

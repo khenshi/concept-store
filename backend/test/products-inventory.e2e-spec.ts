@@ -11,6 +11,7 @@ import {
 import {
   OrganizationRole,
   OrganizationStatus,
+  CommandRecoveryKind,
 } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { AuthGuard } from '../src/modules/auth/auth.guard';
@@ -25,6 +26,7 @@ import { PosCatalogController } from '../src/modules/organizations/pos/pos-catal
 import { PosCatalogService } from '../src/modules/organizations/pos/pos-catalog.service';
 import { CheckoutController } from '../src/modules/organizations/sales/checkout.controller';
 import { CheckoutService } from '../src/modules/organizations/sales/checkout.service';
+import { CommandRecoveryService } from '../src/modules/organizations/recovery/command-recovery.service';
 import {
   SalesReadController,
   MerchantSalesBranchesController,
@@ -72,6 +74,7 @@ describe('Products and inventory HTTP boundaries', () => {
   const stock = { receive: jest.fn(), adjust: jest.fn() };
   const reconciliation = { reconcile: jest.fn() };
   const checkout = { complete: jest.fn() };
+  const recovery = { submitLegacy: jest.fn() };
   const sales = {
     findAll: jest.fn(),
     findOne: jest.fn(),
@@ -147,6 +150,7 @@ describe('Products and inventory HTTP boundaries', () => {
         { provide: InventoryReconciliationService, useValue: reconciliation },
         PosCatalogService,
         { provide: CheckoutService, useValue: checkout },
+        { provide: CommandRecoveryService, useValue: recovery },
         { provide: SalesReadService, useValue: sales },
       ],
     }).compile();
@@ -175,11 +179,26 @@ describe('Products and inventory HTTP boundaries', () => {
       stock,
       reconciliation,
       checkout,
+      recovery,
       sales,
     ]) {
       for (const method of Object.values(service))
         method.mockResolvedValue({ id: item });
     }
+    recovery.submitLegacy.mockImplementation(
+      (
+        context: unknown,
+        kind: CommandRecoveryKind,
+        branchId: string,
+        command: unknown,
+      ) => {
+        if (kind !== CommandRecoveryKind.CHECKOUT)
+          throw new Error('Unexpected recovery kind');
+        return Promise.resolve(
+          checkout.complete(context, branchId, command),
+        ) as Promise<unknown>;
+      },
+    );
   });
 
   const reads = [
@@ -479,7 +498,7 @@ describe('Products and inventory HTTP boundaries', () => {
       await http()
         .get(posPath)
         .auth(token(userId), { type: 'bearer' })
-        .expect(200, []);
+        .expect(200, { items: [], hasMore: false, nextCursor: null });
       await http()
         .get(posPath + '/code?code=%20001Ab%20')
         .auth(token(userId), { type: 'bearer' })

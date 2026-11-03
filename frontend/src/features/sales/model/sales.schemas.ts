@@ -96,6 +96,30 @@ export const sellingBranchesSchema = z
     (rows) => new Set(rows.map((row) => row.id)).size === rows.length,
     'Selling branches must be distinct.',
   );
+export const sellingBranchPageSchema = z
+  .object({
+    items: sellingBranchesSchema,
+    page: z.number().int().min(1),
+    limit: z.number().int().min(1).max(100),
+    total: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
+    hasNext: z.boolean(),
+  })
+  .superRefine((page, ctx) => {
+    if (
+      page.items.length > page.limit ||
+      page.totalPages !== Math.ceil(page.total / page.limit) ||
+      page.items.length !==
+        Math.max(
+          0,
+          Math.min(page.limit, page.total - (page.page - 1) * page.limit),
+        )
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Selling branch pagination is inconsistent.',
+      });
+  });
 export const cashierOptionSchema = z
   .object({ id: z.uuidv4(), name: z.string().min(1) })
   .strict();

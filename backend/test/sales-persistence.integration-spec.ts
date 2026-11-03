@@ -1298,10 +1298,10 @@ describe('PostgreSQL sale persistence integrity', () => {
     });
     expect(
       await service.findAll({ ...owner, role: 'CASHIER' }, branchId),
-    ).toEqual(matches);
+    ).toEqual({ items: matches, hasMore: false, nextCursor: null });
     expect(
       await service.findAll({ ...owner, role: 'MANAGER' }, branchId),
-    ).toEqual(matches);
+    ).toEqual({ items: matches, hasMore: false, nextCursor: null });
     await expect(
       service.findAll({ ...owner, role: 'CASHIER' }, otherBranchId),
     ).rejects.toThrow('Branch not found');
@@ -1320,7 +1320,9 @@ describe('PostgreSQL sale persistence integrity', () => {
     expect(await service.findByCode(owner, otherBranchId, 'ORIGINAL')).toEqual(
       [],
     );
-    expect(await service.findAll(owner, branchId, 'original')).toHaveLength(1);
+    expect(
+      (await service.findAll(owner, branchId, 'original')).items,
+    ).toHaveLength(1);
     await prisma.product.update({
       where: { id: second.id },
       data: { barcode: 'OTHER' },
@@ -1343,7 +1345,7 @@ describe('PostgreSQL sale persistence integrity', () => {
       where: { id: otherMerchantId },
       data: { status: 'ENDED' },
     });
-    expect(await service.findAll(owner, branchId)).toEqual([]);
+    expect((await service.findAll(owner, branchId)).items).toEqual([]);
     await expect(
       service.findAll({ ...owner, role: 'CASHIER' }, branchId),
     ).rejects.toThrow('Branch not found');

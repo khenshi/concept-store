@@ -7,9 +7,9 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { usePageHeaderRequestError } from '@/shared/components/ui/page-header';
-import { SelectControl } from '@/shared/components/ui/select-control';
-import { listPosBranches } from '../api/pos-api';
+import { getPosBranch, listPosBranchOptions } from '../api/pos-api';
 import { allowPosNavigation } from '../model/pos-navigation';
+import { PagedOptionSelect } from '@/shared/components/ui/paged-option-select';
 import {
   checkoutAttemptKey,
   getCheckoutAttempt,
@@ -40,32 +40,52 @@ export function PosBranchSelector({
 }) {
   const { request, user } = useAuth();
   const router = useRouter();
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
   const id = useId();
-  const [branches, setBranches] = useState<Awaited<
-    ReturnType<typeof listPosBranches>
-  > | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [preferredUnavailable, setPreferredUnavailable] = useState(false);
   const [revision, setRevision] = useState(0);
+  const lookupKey = useRef<string | null>(null);
   const resumed = useRef<string | null>(null);
   useEffect(() => {
     let active = true;
-    listPosBranches(request, organizationId, role)
+    const target = branchId || preferredBranchId;
+    if (!target) return () => {};
+    const key = `${organizationId}:${role}:${target}:${revision}`;
+    if (lookupKey.current === key) return () => {};
+    lookupKey.current = key;
+    setPreferredUnavailable(false);
+    getPosBranch(request, { organizationId, branchId: target }, role)
       .then((result) => {
         if (!active) return;
-        setBranches(result);
-        if (branchId && result.some((branch) => branch.id === branchId))
-          rememberBranch?.(branchId);
-        if (branchId && !result.some((branch) => branch.id === branchId))
-          onAccessDenied?.();
+        const option = {
+          id: result.id,
+          label: result.code ? `${result.name} (${result.code})` : result.name,
+        };
+        setSelectedBranch(option);
+        if (branchId) rememberBranch?.(branchId);
       })
       .catch((error) => {
         if (!active) return;
-        setError('Authorized POS branches could not be loaded.');
+        if (!branchId && preferredBranchId) {
+          setPreferredUnavailable(true);
+          return;
+        }
         if (
           error instanceof ApiError &&
           (error.status === 403 || error.status === 404)
-        )
+        ) {
           onAccessDenied?.();
+          return;
+        }
+        setError('Authorized POS branches could not be loaded.');
       });
     return () => {
       active = false;
@@ -75,49 +95,58 @@ export function PosBranchSelector({
     organizationId,
     role,
     branchId,
+    preferredBranchId,
+    disabled,
     revision,
     onAccessDenied,
     rememberBranch,
   ]);
-  function navigate(next: string) {
-    if (disabled) return false;
-    const attempt =
-      user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
-    const refund =
-      user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
-    if (
-      (attempt && attempt.state !== 'completed') ||
-      (refund && refund.state !== 'completed')
-    )
-      return false;
-    const href = `/app/organizations/${organizationId}/branches/${next}/pos`;
-    if (!allowPosNavigation(href)) return false;
-    resumed.current = next;
-    rememberBranch?.(next);
-    router.push(href);
-    return true;
-  }
+  const navigate = useCallback(
+    (next: string) => {
+      if (disabled) return false;
+      const attempt =
+        user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
+      const refund =
+        user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
+      if (
+        (attempt && attempt.state !== 'completed') ||
+        (refund && refund.state !== 'completed')
+      )
+        return false;
+      const href = `/app/organizations/${organizationId}/branches/${next}/pos`;
+      if (!allowPosNavigation(href)) return false;
+      resumed.current = next;
+      rememberBranch?.(next);
+      routerRef.current.push(href);
+      return true;
+    },
+    [disabled, organizationId, rememberBranch, user],
+  );
   useEffect(() => {
     if (
       branchId ||
       !preferredBranchId ||
-      !branches ||
-      error ||
+      !selectedBranch ||
+      selectedBranch.id !== preferredBranchId ||
       disabled ||
       resumed.current === preferredBranchId
     )
       return;
-    if (
-      branches.some((branch) => branch.id === preferredBranchId) &&
-      navigate(preferredBranchId)
-    )
-      resumed.current = preferredBranchId;
-  });
+    if (navigate(preferredBranchId)) resumed.current = preferredBranchId;
+  }, [branchId, disabled, navigate, preferredBranchId, selectedBranch]);
   const retry = useCallback(() => {
     setError(null);
-    setBranches(null);
+    setSelectedBranch(null);
     setRevision((value) => value + 1);
   }, []);
+  const loadBranchPage = useCallback(
+    (query: string, page: number) =>
+      listPosBranchOptions(request, organizationId, role, {
+        search: query,
+        page,
+      }),
+    [organizationId, request, role],
+  );
   const pageHeaderError = usePageHeaderRequestError(error, retry);
   return (
     <div className={compact ? 'w-full min-w-0 max-w-56' : 'my-6 max-w-xl'}>
@@ -131,43 +160,19 @@ export function PosBranchSelector({
       >
         POS branch
       </label>
-      <SelectControl
+      <PagedOptionSelect
         id={id}
-        value={
-          branches?.some((branch) => branch.id === branchId) ? branchId : ''
-        }
-        disabled={disabled || !branches?.length || Boolean(error)}
+        value={branchId}
+        selectedOption={selectedBranch}
+        placeholder="Choose a branch"
+        emptyMessage="No accessible branches. Ask an owner to check your assignments or merchant link."
+        loadPage={loadBranchPage}
+        disabled={disabled || Boolean(error)}
         onValueChange={(next) => {
-          if (
-            disabled ||
-            !next ||
-            next === branchId ||
-            !branches?.some((branch) => branch.id === next)
-          )
-            return;
-          navigate(next);
+          if (!disabled && next && next !== branchId) navigate(next);
         }}
-      >
-        <option value="" disabled>
-          {branches ? 'Choose a branch' : 'Loading branches…'}
-        </option>
-        {(branches ?? []).map((branch) => (
-          <option key={branch.id} value={branch.id}>
-            {branch.name}
-            {branch.code ? ` (${branch.code})` : ''}
-          </option>
-        ))}
-      </SelectControl>
-      {branches?.length === 0 ? (
-        <p role="status" className="mt-3 text-sm text-muted">
-          No accessible branches. Ask an owner to check your branch assignments.
-        </p>
-      ) : null}
-      {!branchId &&
-      preferredBranchId &&
-      branches &&
-      !error &&
-      !branches.some((branch) => branch.id === preferredBranchId) ? (
+      />
+      {!branchId && preferredBranchId && preferredUnavailable && !error ? (
         <p role="status" className="mt-3 text-sm text-muted">
           The selected branch is unavailable in POS. Choose an accessible
           branch.

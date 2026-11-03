@@ -19,6 +19,7 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import {
   getPosBranch,
+  listPosBranchOptions,
   listPosBranches,
   lookupPosCode,
   searchPosProducts,
@@ -32,6 +33,61 @@ import {
 } from '../model/pos.test-fixtures';
 import { BranchPos } from './branch-pos';
 import { setCheckoutAttempt } from '../model/checkout-attempt';
+const recoveryMocks = vi.hoisted(() => {
+  let command: Record<string, unknown> | null = null;
+  const prepareCommandRecovery = vi.fn();
+  const submitCommandRecovery = vi.fn();
+  const response = (state: 'PREPARED' | 'COMPLETED', result: unknown) => ({
+    id: '11111111-1111-4111-8111-111111111111',
+    kind: 'CHECKOUT' as const,
+    state,
+    requestId: String(command?.requestId),
+    branchId: scope.branchId,
+    saleId: null,
+    command: command ?? {},
+    sourceId:
+      state === 'COMPLETED' && result && typeof result === 'object'
+        ? completedSale.id
+        : null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    submittedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    completedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    acknowledgedAt: null,
+    closedAt: null,
+    result,
+  });
+  const reset = () => {
+    command = null;
+    prepareCommandRecovery.mockImplementation(
+      async (
+        _request: unknown,
+        _organizationId: string,
+        input: { command: Record<string, unknown> },
+      ) => {
+        command = input.command;
+        return response('PREPARED', null);
+      },
+    );
+    submitCommandRecovery.mockImplementation(
+      async (
+        request: (path: string, init?: RequestInit) => Promise<unknown>,
+        organizationId: string,
+      ) => {
+        const result = await request(`/organizations/${organizationId}/sales`, {
+          method: 'POST',
+          body: JSON.stringify(command),
+        });
+        return response('COMPLETED', result);
+      },
+    );
+  };
+  return { prepareCommandRecovery, submitCommandRecovery, reset };
+});
+const posPage = (items: (typeof product)[], hasMore = false) => ({
+  items,
+  nextCursor: null,
+  hasMore,
+});
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
@@ -40,9 +96,22 @@ vi.mock(
 );
 vi.mock('../api/pos-api', () => ({
   listPosBranches: vi.fn(),
+  listPosBranchOptions: vi.fn(),
   getPosBranch: vi.fn(),
   lookupPosCode: vi.fn(),
   searchPosProducts: vi.fn(),
+}));
+vi.mock('@/features/command-recovery/model/use-command-recoveries', () => ({
+  useCommandRecoveries: () => ({
+    items: [],
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
+vi.mock('@/features/command-recovery/api/command-recovery-api', () => ({
+  prepareCommandRecovery: recoveryMocks.prepareCommandRecovery,
+  submitCommandRecovery: recoveryMocks.submitCommandRecovery,
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 describe('Branch POS cart workflows', () => {
@@ -74,7 +143,9 @@ describe('Branch POS cart workflows', () => {
     await screen.findByRole('textbox', {
       name: `Quantity for ${product.name}`,
     });
-    fireEvent.click(screen.getByRole('combobox', { name: 'POS branch' }));
+    const branchPicker = screen.getByRole('combobox', { name: 'POS branch' });
+    await waitFor(() => expect(branchPicker).toBeEnabled());
+    fireEvent.click(branchPicker);
     fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
     expect(push).not.toHaveBeenCalled();
     expect(
@@ -113,6 +184,7 @@ describe('Branch POS cart workflows', () => {
   beforeEach(() => {
     setCheckoutAttempt(`${scope.organizationId}:actor`, null);
     vi.resetAllMocks();
+    recoveryMocks.reset();
     vi.mocked(useAuth).mockReturnValue({
       request,
       user: { id: 'actor' },
@@ -121,12 +193,19 @@ describe('Branch POS cart workflows', () => {
     vi.mocked(listPosBranches).mockResolvedValue([
       { id: scope.branchId, name: 'Makati', code: 'MKT' },
     ]);
+    vi.mocked(listPosBranchOptions).mockResolvedValue({
+      items: [
+        { id: scope.branchId, label: 'Makati (MKT)' },
+        { id: secondProduct.branchInventoryId, label: 'BGC (BGC)' },
+      ],
+      hasNext: false,
+    });
     vi.mocked(getPosBranch).mockResolvedValue({
       id: scope.branchId,
       name: 'Makati',
       code: 'MKT',
     });
-    vi.mocked(searchPosProducts).mockResolvedValue([product]);
+    vi.mocked(searchPosProducts).mockResolvedValue(posPage([product]));
     vi.mocked(lookupPosCode).mockResolvedValue([product]);
   });
   afterEach(() => {
@@ -424,9 +503,9 @@ describe('Branch POS cart workflows', () => {
     );
   });
   it('does not add unknown or out-of-stock codes and disables zero-stock search rows', async () => {
-    vi.mocked(searchPosProducts).mockResolvedValue([
-      { ...product, quantity: 0, eligible: false },
-    ]);
+    vi.mocked(searchPosProducts).mockResolvedValue(
+      posPage([{ ...product, quantity: 0, eligible: false }]),
+    );
     vi.mocked(lookupPosCode).mockResolvedValue([]);
     render(<BranchPos {...scope} />);
     expect(

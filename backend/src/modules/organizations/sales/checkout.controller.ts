@@ -24,9 +24,10 @@ import { OrganizationAccessGuard } from '../authorization/organization-access.gu
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
-import { CheckoutService } from './checkout.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { AllowInactiveReplay } from '../authorization/allow-inactive-replay.decorator';
+import { CommandRecoveryKind } from '../../../generated/prisma/client';
+import { CommandRecoveryService } from '../recovery/command-recovery.service';
 
 @Controller('organizations/:organizationId/branches/:branchId/sales')
 @UseGuards(AuthGuard, OrganizationAccessGuard)
@@ -51,7 +52,7 @@ import { AllowInactiveReplay } from '../authorization/allow-inactive-replay.deco
     'PRICE_CHANGED, INSUFFICIENT_STOCK, PRODUCT_UNAVAILABLE, REQUEST_ID_CONFLICT, or CHECKOUT_RETRY; no partial writes',
 })
 export class CheckoutController {
-  constructor(private readonly checkout: CheckoutService) {}
+  constructor(private readonly recovery: CommandRecoveryService) {}
   @Post()
   @AllowInactiveReplay()
   @ApiOperation({
@@ -64,6 +65,11 @@ export class CheckoutController {
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Body() dto: CheckoutDto,
   ) {
-    return this.checkout.complete(context, branchId, dto);
+    return this.recovery.submitLegacy(
+      context,
+      CommandRecoveryKind.CHECKOUT,
+      branchId,
+      dto,
+    );
   }
 }

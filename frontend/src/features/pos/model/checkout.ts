@@ -103,6 +103,24 @@ export type CheckoutCommand = {
   paymentReference?: string;
   requestId: string;
 };
+export const checkoutCommandSchema = z
+  .object({
+    requestId: z.uuidv4(),
+    items: z
+      .object({
+        branchInventoryId: z.uuidv4(),
+        quantity: z.number().int().min(1).max(2147483647),
+        expectedUnitPrice: money,
+      })
+      .strict()
+      .array()
+      .min(1)
+      .max(100),
+    paymentAccountId: z.uuidv4(),
+    cashTender: money.optional(),
+    paymentReference: z.string().trim().min(2).max(100).optional(),
+  })
+  .strict();
 const receiptItem = z.object({
   id: z.string().uuid(),
   branchInventoryId: z.string().uuid(),

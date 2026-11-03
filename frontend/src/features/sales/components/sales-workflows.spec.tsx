@@ -39,6 +39,14 @@ vi.mock(
 vi.mock('./sales-branch-selector', () => ({
   SalesBranchSelector: () => <div>Sales branch selector</div>,
 }));
+vi.mock('@/features/command-recovery/model/use-command-recoveries', () => ({
+  useCommandRecoveries: () => ({
+    items: [],
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
 
 function chooseSalesDate(day: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Sales date filter' }));

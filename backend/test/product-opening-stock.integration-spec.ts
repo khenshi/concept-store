@@ -117,7 +117,7 @@ describe('PostgreSQL atomic product opening stock', () => {
         lowStockThreshold: 5,
       }),
     ]);
-    expect(await catalog.findAll(context, branchId)).toEqual([
+    expect((await catalog.findAll(context, branchId)).items).toEqual([
       expect.objectContaining({
         productId: created.id,
         quantity: 3,
@@ -132,7 +132,7 @@ describe('PostgreSQL atomic product opening stock', () => {
       (await inventory.findAll(organizationId, otherBranchId, {}, context))
         .items,
     ).toEqual([]);
-    expect(await catalog.findAll(context, otherBranchId)).toEqual([]);
+    expect((await catalog.findAll(context, otherBranchId)).items).toEqual([]);
   });
   beforeAll(async () => {
     await admin.connect();

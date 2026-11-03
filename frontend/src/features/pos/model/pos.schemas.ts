@@ -40,8 +40,16 @@ export const posProductSchema = z
 const distinct = (rows: z.infer<typeof posProductSchema>[]) =>
   new Set(rows.map((row) => row.branchInventoryId)).size === rows.length &&
   new Set(rows.map((row) => row.productId)).size === rows.length;
-export const posCatalogSchema = z
-  .array(posProductSchema)
+export const posCatalogPageSchema = z.object({
+  items: posProductSchema
+    .array()
+    .max(15)
+    .refine(distinct, 'Duplicate POS products.'),
+  nextCursor: z.string().nullable(),
+  hasMore: z.boolean(),
+});
+export const posCatalogSchema = posProductSchema
+  .array()
   .max(100)
   .refine(distinct, 'Duplicate POS products.');
 export const posCodeMatchesSchema = z

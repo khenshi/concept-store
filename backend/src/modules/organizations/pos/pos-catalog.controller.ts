@@ -17,7 +17,10 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OrganizationRole } from '../../../generated/prisma/client';
-import { PosCatalogResponseDto } from '../../../openapi/response.dto';
+import {
+  PosCatalogPageResponseDto,
+  PosCatalogResponseDto,
+} from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
@@ -27,7 +30,7 @@ import {
   PosCatalogQueryDto,
   PosCodeQueryDto,
 } from './dto/pos-catalog-query.dto';
-import { PosCatalogService } from './pos-catalog.service';
+import { PosCatalogService, PosCatalogPage } from './pos-catalog.service';
 
 @Controller('organizations/:organizationId/branches/:branchId/pos/products')
 @UseGuards(AuthGuard, OrganizationAccessGuard)
@@ -51,16 +54,15 @@ export class PosCatalogController {
 
   @Get()
   @ApiOperation({
-    summary:
-      'Search active placed products in an authorized branch; at most 100 matches',
+    summary: 'Search active placed products with 15-row continuation pages',
   })
-  @ApiOkResponse({ type: PosCatalogResponseDto, isArray: true })
+  @ApiOkResponse({ type: PosCatalogPageResponseDto })
   findAll(
     @CurrentOrganization() context: OrganizationContext,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Query() query: PosCatalogQueryDto,
-  ) {
-    return this.catalog.findAll(context, branchId, query.q);
+  ): Promise<PosCatalogPage> {
+    return this.catalog.findAll(context, branchId, query.q, query.cursor);
   }
 
   @Get('code')

@@ -32,6 +32,9 @@ import {
 import { SaleReceipt } from './sale-receipt';
 import { PosBranchSelector } from './pos-branch-selector';
 import type { CompletedSale } from '../model/checkout';
+import { acknowledgeCommandRecovery } from '@/features/command-recovery/api/command-recovery-api';
+import { useCommandRecoveries } from '@/features/command-recovery/model/use-command-recoveries';
+import { checkoutCommandSchema, completedSaleSchema } from '../model/checkout';
 import {
   checkoutAttemptKey,
   getCheckoutAttempt,
@@ -120,6 +123,32 @@ function ScopedBranchPos({
     useWorkspaceChrome();
   const attemptKey = checkoutAttemptKey(organizationId, user?.id ?? '');
   const attempt = useCheckoutAttempt(attemptKey);
+  const { items: savedRecoveries } = useCommandRecoveries(
+    request,
+    organizationId,
+    'CHECKOUT',
+    Boolean(user),
+  );
+  useEffect(() => {
+    if (attempt || !savedRecoveries.length) return;
+    const saved = savedRecoveries.find((item) => item.branchId === branchId);
+    if (!saved) return;
+    const command = checkoutCommandSchema.safeParse(saved.command);
+    if (!command.success) return;
+    const sale =
+      saved.result === null
+        ? undefined
+        : completedSaleSchema.safeParse(saved.result);
+    const completedSale = sale?.success ? sale.data : undefined;
+    setCheckoutAttempt(attemptKey, {
+      scope: { organizationId, branchId },
+      lines: [],
+      command: command.data,
+      recoveryId: saved.id,
+      state: completedSale ? 'completed' : 'unknown',
+      ...(completedSale ? { sale: completedSale } : {}),
+    });
+  }, [attempt, attemptKey, branchId, organizationId, savedRecoveries]);
   const recovering = Boolean(
     attempt &&
     attempt.scope.branchId === branchId &&
@@ -183,6 +212,12 @@ function ScopedBranchPos({
   // After visiting History, require a fresh catalog read before reviewing payment.
   const [cartCatalogReady, setCartCatalogReady] = useState(true);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [catalogContinuationError, setCatalogContinuationError] = useState<
+    string | null
+  >(null);
+  const [catalogLoadingMore, setCatalogLoadingMore] = useState(false);
+  const [catalogCursor, setCatalogCursor] = useState<string | null>(null);
+  const [catalogHasMore, setCatalogHasMore] = useState(false);
   const [catalogRevision, setCatalogRevision] = useState(0);
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState<string | undefined>();
@@ -244,6 +279,10 @@ function ScopedBranchPos({
     setCode('');
     setCodeError(undefined);
     setProducts([]);
+    setCatalogCursor(null);
+    setCatalogHasMore(false);
+    setCatalogContinuationError(null);
+    setCatalogLoadingMore(false);
     setBranch(null);
     setNotice(null);
     setAccessDenied(true);
@@ -325,15 +364,20 @@ function ScopedBranchPos({
       if (!active) return;
       setCatalogLoading(true);
       setCatalogError(null);
+      setCatalogContinuationError(null);
+      setCatalogCursor(null);
+      setCatalogHasMore(false);
       setProducts([]);
       try {
-        const rows = await searchPosProducts(
+        const page = await searchPosProducts(
           request,
           { organizationId, branchId },
           q,
         );
         if (active) {
-          setProducts(rows);
+          setProducts(page.items);
+          setCatalogCursor(page.nextCursor);
+          setCatalogHasMore(page.hasMore);
           setCartCatalogReady(true);
         }
       } catch (cause) {
@@ -368,6 +412,62 @@ function ScopedBranchPos({
     cartActive,
     branchReady,
     branchError,
+  ]);
+
+  const loadMoreProducts = useCallback(async () => {
+    if (
+      !catalogCursor ||
+      !catalogHasMore ||
+      catalogLoadingMore ||
+      catalogLoading ||
+      accessDenied
+    )
+      return;
+    const generation = lookupGeneration.current;
+    setCatalogLoadingMore(true);
+    setCatalogContinuationError(null);
+    try {
+      const page = await searchPosProducts(
+        request,
+        { organizationId, branchId },
+        q,
+        catalogCursor,
+      );
+      if (generation !== lookupGeneration.current) return;
+      setProducts((current) => {
+        const seen = new Set(current.map((item) => item.branchInventoryId));
+        return [
+          ...current,
+          ...page.items.filter((item) => !seen.has(item.branchInventoryId)),
+        ];
+      });
+      setCatalogCursor(page.nextCursor);
+      setCatalogHasMore(page.hasMore);
+    } catch (cause) {
+      if (generation !== lookupGeneration.current) return;
+      if (cause instanceof ApiError && [403, 404].includes(cause.status)) {
+        denyAccess();
+        return;
+      }
+      setCatalogContinuationError(
+        cause instanceof ApiError
+          ? cause.message
+          : 'More products could not be loaded.',
+      );
+    } finally {
+      if (generation === lookupGeneration.current) setCatalogLoadingMore(false);
+    }
+  }, [
+    accessDenied,
+    branchId,
+    catalogCursor,
+    catalogHasMore,
+    catalogLoading,
+    catalogLoadingMore,
+    denyAccess,
+    organizationId,
+    q,
+    request,
   ]);
 
   useEffect(() => {
@@ -686,9 +786,22 @@ function ScopedBranchPos({
       paymentOpen.current = false;
       unsafeCheckout.current = false;
       setPaymentRevision((value) => value + 1);
-      setCheckoutAttempt(attemptKey, null);
     });
   }, [attempt, attemptKey, branchId]);
+  async function closeCompletedSale() {
+    const recoveryId = getCheckoutAttempt(attemptKey)?.recoveryId;
+    if (recoveryId) {
+      try {
+        await acknowledgeCommandRecovery(request, organizationId, recoveryId);
+      } catch {
+        setNotice('The saved checkout is still awaiting acknowledgement.');
+        return;
+      }
+    }
+    setCheckoutAttempt(attemptKey, null);
+    setCompleted(null);
+    focusCode();
+  }
   function checkoutIssue(issue: CheckoutIssue) {
     if (issue.code === 'ACCESS_DENIED') {
       denyAccess();
@@ -928,10 +1041,7 @@ function ScopedBranchPos({
               title="Sale completed"
               description="This persisted sale is complete. Printing and catalog retries do not repeat checkout."
               size="medium"
-              onClose={() => {
-                setCompleted(null);
-                focusCode();
-              }}
+              onClose={() => void closeCompletedSale()}
             >
               <div className=" mt-6 min-w-0 sm:-mb-8">
                 <SaleReceipt
@@ -949,10 +1059,7 @@ function ScopedBranchPos({
                         <div className="flex shrink-0 flex-nowrap justify-end gap-2">
                           <Button
                             variant="quiet"
-                            onClick={() => {
-                              setCompleted(null);
-                              focusCode();
-                            }}
+                            onClick={() => void closeCompletedSale()}
                           >
                             Close
                           </Button>
@@ -997,7 +1104,11 @@ function ScopedBranchPos({
               settled={settled}
               catalogLoading={catalogLoading}
               catalogError={catalogError}
+              catalogContinuationError={catalogContinuationError}
+              catalogLoadingMore={catalogLoadingMore}
               onCatalogRetry={() => setCatalogRevision((value) => value + 1)}
+              onLoadMore={() => void loadMoreProducts()}
+              catalogHasMore={catalogHasMore}
               products={products}
               onAdd={(product) => {
                 add(product);

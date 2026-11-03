@@ -59,11 +59,82 @@ const branchPage = {
   ],
 };
 const base = `/app/organizations/${scope.organizationId}/branches/${scope.branchId}/pos/refunds`;
+const recoveryMocks = vi.hoisted(() => {
+  let command: Record<string, unknown> | null = null;
+  const prepareCommandRecovery = vi.fn();
+  const submitCommandRecovery = vi.fn();
+  const acknowledgeCommandRecovery = vi.fn();
+  const response = (state: 'PREPARED' | 'COMPLETED', result: unknown) => ({
+    id: '11111111-1111-4111-8111-111111111111',
+    kind: 'REFUND' as const,
+    state,
+    requestId: String(command?.requestId),
+    branchId: refundScope.branchId,
+    saleId: refundScope.saleId,
+    command: command ?? {},
+    sourceId:
+      state === 'COMPLETED' && result && typeof result === 'object'
+        ? staffRefund.id
+        : null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    submittedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    completedAt: state === 'COMPLETED' ? '2026-01-01T00:00:00.000Z' : null,
+    acknowledgedAt: null,
+    closedAt: null,
+    result,
+  });
+  const reset = () => {
+    command = null;
+    prepareCommandRecovery.mockImplementation(
+      async (
+        _request: unknown,
+        _organizationId: string,
+        input: { command: Record<string, unknown> },
+      ) => {
+        command = input.command;
+        return response('PREPARED', null);
+      },
+    );
+    submitCommandRecovery.mockImplementation(
+      async (
+        request: (path: string, init?: RequestInit) => Promise<unknown>,
+        organizationId: string,
+      ) => {
+        const result = await request(
+          `/organizations/${organizationId}/refunds`,
+          { method: 'POST', body: JSON.stringify(command) },
+        );
+        return response('COMPLETED', result);
+      },
+    );
+    acknowledgeCommandRecovery.mockResolvedValue(response('COMPLETED', null));
+  };
+  return {
+    prepareCommandRecovery,
+    submitCommandRecovery,
+    acknowledgeCommandRecovery,
+    reset,
+  };
+});
+vi.mock('@/features/command-recovery/api/command-recovery-api', () => ({
+  prepareCommandRecovery: recoveryMocks.prepareCommandRecovery,
+  submitCommandRecovery: recoveryMocks.submitCommandRecovery,
+  acknowledgeCommandRecovery: recoveryMocks.acknowledgeCommandRecovery,
+}));
+vi.mock('@/features/command-recovery/model/use-command-recoveries', () => ({
+  useCommandRecoveries: () => ({
+    items: [],
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}));
 describe('POS branch refund history', () => {
   const request = vi.fn();
   const key = refundAttemptKey(scope.organizationId, 'actor');
   beforeEach(() => {
     vi.resetAllMocks();
+    recoveryMocks.reset();
     navigation.params = '';
     setRefundAttempt(key, null);
     vi.mocked(useAuth).mockReturnValue({
@@ -332,6 +403,7 @@ describe('POS branch refund history', () => {
       screen.queryByRole('button', { name: 'Find sale to refund' }),
     ).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Acknowledge' }));
     expect(
       await screen.findByRole('button', { name: 'Find sale to refund' }),
     ).toBeEnabled();

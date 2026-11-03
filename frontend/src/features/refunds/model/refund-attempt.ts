@@ -5,6 +5,7 @@ import type { RefundCommand, StaffRefund } from './refund.schemas';
 export type RefundAttempt = {
   scope: RefundScope;
   command: RefundCommand;
+  recoveryId?: string;
   state: 'pending' | 'unknown' | 'completed';
   refund?: StaffRefund;
 };

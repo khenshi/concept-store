@@ -25,7 +25,11 @@ export function PosProductBrowser({
   settled,
   catalogLoading,
   catalogError,
+  catalogContinuationError,
+  catalogLoadingMore,
+  catalogHasMore,
   onCatalogRetry,
+  onLoadMore,
   products,
   onAdd,
   notice,
@@ -45,7 +49,11 @@ export function PosProductBrowser({
   settled: boolean;
   catalogLoading: boolean;
   catalogError: string | null;
+  catalogContinuationError: string | null;
+  catalogLoadingMore: boolean;
+  catalogHasMore: boolean;
   onCatalogRetry(): void;
+  onLoadMore(): void;
   products: PosProduct[];
   onAdd(product: PosProduct): void;
   notice: string | null;
@@ -196,6 +204,31 @@ export function PosProductBrowser({
               ))}
             </ul>
           )}
+          {!catalogLoading &&
+          !catalogError &&
+          products.length &&
+          catalogContinuationError ? (
+            <RequestError
+              className="py-3"
+              message={catalogContinuationError}
+              onRetry={onLoadMore}
+            />
+          ) : null}
+          {!catalogLoading &&
+          !catalogError &&
+          products.length > 0 &&
+          !catalogContinuationError &&
+          catalogHasMore ? (
+            <Button
+              variant="secondary"
+              className="my-4 w-full"
+              pending={catalogLoadingMore}
+              pendingLabel="Loading more…"
+              onClick={onLoadMore}
+            >
+              Load more
+            </Button>
+          ) : null}
         </div>
       </div>
     </section>

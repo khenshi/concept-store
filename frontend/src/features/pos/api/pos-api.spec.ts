@@ -49,12 +49,30 @@ describe('POS minimal read contracts', () => {
   const path = `/organizations/${scope.organizationId}/branches/${scope.branchId}/pos/products`;
   beforeEach(() => {
     vi.resetAllMocks();
-    request.mockResolvedValue([product]);
+    request.mockResolvedValue({
+      items: [product],
+      nextCursor: null,
+      hasMore: false,
+    });
   });
   it('uses only scoped POS search/code reads and preserves barcode case/zeroes', async () => {
-    expect(await searchPosProducts(request, scope, ' vase ')).toEqual([
-      product,
-    ]);
+    request
+      .mockResolvedValueOnce({
+        items: [product],
+        nextCursor: null,
+        hasMore: false,
+      })
+      .mockResolvedValueOnce([product])
+      .mockResolvedValueOnce({
+        items: [product],
+        nextCursor: null,
+        hasMore: false,
+      });
+    expect(await searchPosProducts(request, scope, ' vase ')).toEqual({
+      items: [product],
+      nextCursor: null,
+      hasMore: false,
+    });
     expect(request).toHaveBeenLastCalledWith(path + '?q=vase');
     expect(await lookupPosCode(request, scope, ' 001Ab ')).toEqual([product]);
     expect(request).toHaveBeenLastCalledWith(path + '/code?code=001Ab');
@@ -62,10 +80,16 @@ describe('POS minimal read contracts', () => {
     expect(request).toHaveBeenLastCalledWith(path);
   });
   it('strips unneeded server fields defensively', async () => {
-    request.mockResolvedValue([
-      { ...product, contactName: 'private', createdById: 'private' },
-    ]);
-    expect(await searchPosProducts(request, scope)).toEqual([product]);
+    request.mockResolvedValue({
+      items: [{ ...product, contactName: 'private', createdById: 'private' }],
+      nextCursor: null,
+      hasMore: false,
+    });
+    expect(await searchPosProducts(request, scope)).toEqual({
+      items: [product],
+      nextCursor: null,
+      hasMore: false,
+    });
   });
   it.each([
     { sellingPrice: 850 },
@@ -76,13 +100,21 @@ describe('POS minimal read contracts', () => {
     { eligible: false },
     { productId: 'invalid' },
   ])('rejects malformed product rows %j', async (extra) => {
-    request.mockResolvedValue([{ ...product, ...extra }]);
+    request.mockResolvedValue({
+      items: [{ ...product, ...extra }],
+      nextCursor: null,
+      hasMore: false,
+    });
     await expect(searchPosProducts(request, scope)).rejects.toThrow();
   });
   it('rejects duplicate/oversized/ambiguous contract rows', async () => {
-    request.mockResolvedValue([product, product]);
+    request.mockResolvedValueOnce([product, product]);
     await expect(lookupPosCode(request, scope, '001Ab')).rejects.toThrow();
-    request.mockResolvedValue(Array(101).fill(product));
+    request.mockResolvedValueOnce({
+      items: Array(101).fill(product),
+      nextCursor: null,
+      hasMore: false,
+    });
     await expect(searchPosProducts(request, scope)).rejects.toThrow();
   });
   it('validates input before requesting', async () => {

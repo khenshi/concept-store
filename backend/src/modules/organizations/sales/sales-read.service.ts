@@ -9,9 +9,11 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { branchScope } from '../authorization/resource-access';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import type { ListSalesQueryDto } from './dto/list-sales-query.dto';
+import type { ListSellingBranchesQueryDto } from './dto/list-selling-branches-query.dto';
 import { completedSaleResponse, completedSaleSelect } from './sales.types';
 
 const ExactDecimal = Prisma.Decimal.clone({ precision: 40 });
+const SELLING_BRANCH_PAGE_SIZE = 15;
 export const merchantSaleItemSelect = {
   id: true,
   productId: true,
@@ -232,6 +234,71 @@ export class SalesReadService {
           select: { id: true, name: true, code: true },
           orderBy: [{ name: 'asc' }, { id: 'asc' }],
         });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  async sellingBranchDirectory(
+    context: OrganizationContext,
+    query: ListSellingBranchesQueryDto,
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await this.currentContext(tx, context);
+        if (current.role !== 'MERCHANT')
+          throw new ForbiddenException(
+            'Only merchants use own-sale branch lookup',
+          );
+        if (!current.merchantId)
+          return {
+            items: [],
+            page: query.page,
+            limit: SELLING_BRANCH_PAGE_SIZE,
+            total: 0,
+            totalPages: 0,
+            hasNext: false,
+          };
+        const where: Prisma.BranchWhereInput = {
+          organizationId: current.organizationId,
+          sales: {
+            some: {
+              organizationId: current.organizationId,
+              items: {
+                some: {
+                  organizationId: current.organizationId,
+                  merchantId: current.merchantId,
+                },
+              },
+            },
+          },
+          ...(query.q
+            ? {
+                OR: [
+                  { name: { contains: query.q, mode: 'insensitive' as const } },
+                  { code: { contains: query.q, mode: 'insensitive' as const } },
+                ],
+              }
+            : {}),
+        };
+        const [total, items] = await Promise.all([
+          tx.branch.count({ where }),
+          tx.branch.findMany({
+            where,
+            select: { id: true, name: true, code: true },
+            orderBy: [{ name: 'asc' }, { id: 'asc' }],
+            skip: (query.page - 1) * SELLING_BRANCH_PAGE_SIZE,
+            take: SELLING_BRANCH_PAGE_SIZE,
+          }),
+        ]);
+        return {
+          items,
+          page: query.page,
+          limit: SELLING_BRANCH_PAGE_SIZE,
+          total,
+          totalPages: Math.ceil(total / SELLING_BRANCH_PAGE_SIZE),
+          hasNext: query.page * SELLING_BRANCH_PAGE_SIZE < total,
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );

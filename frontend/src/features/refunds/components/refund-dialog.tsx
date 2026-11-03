@@ -12,7 +12,11 @@ import {
   TextField,
   focusFirstInvalidField,
 } from '@/shared/components/ui/text-field';
-import { completeRefund, type RefundScope } from '../api/refund-api';
+import { type RefundScope } from '../api/refund-api';
+import {
+  prepareCommandRecovery,
+  submitCommandRecovery,
+} from '@/features/command-recovery/api/command-recovery-api';
 import {
   refundErrors,
   refundEstimate,
@@ -23,7 +27,12 @@ import {
   setRefundAttempt,
   useRefundAttempt,
 } from '../model/refund-attempt';
-import type { RefundCommand, RemainingItem } from '../model/refund.schemas';
+import {
+  staffRefundSchema,
+  type RefundCommand,
+  type RemainingItem,
+  type StaffRefund,
+} from '../model/refund.schemas';
 
 function RefundQuantityInput({
   id,
@@ -80,7 +89,7 @@ export function RefundDialog({
   remaining: RemainingItem[];
   attemptKey: string;
   onClose(): void;
-  onCompleted(): void;
+  onCompleted(refund: StaffRefund): void;
   onIssue(message: string, denied: boolean): void;
 }) {
   const {
@@ -242,21 +251,44 @@ export function RefundDialog({
     busy.current = true;
     setPending(true);
     setMessage(null);
+    const retainedAttempt = getRefundAttempt(attemptKey);
     setRefundAttempt(attemptKey, {
       scope,
       command: submitted,
+      recoveryId: retainedAttempt?.recoveryId,
       state: 'pending',
     });
     try {
-      const refund = await completeRefund(request, scope, sale, submitted);
+      const recovery = retainedAttempt?.recoveryId
+        ? { id: retainedAttempt.recoveryId }
+        : await prepareCommandRecovery(request, scope.organizationId, {
+            kind: 'REFUND',
+            branchId: scope.branchId,
+            saleId: scope.saleId,
+            command: submitted,
+          });
+      setRefundAttempt(attemptKey, {
+        scope,
+        command: submitted,
+        recoveryId: recovery.id,
+        state: 'pending',
+      });
+      const saved = await submitCommandRecovery(
+        request,
+        scope.organizationId,
+        recovery.id,
+      );
+      if (saved.state !== 'COMPLETED' || saved.result === null)
+        throw new Error('Refund outcome is not confirmed.');
+      const refund = staffRefundSchema.parse(saved.result);
+      uncertain.current = false;
       setRefundAttempt(attemptKey, {
         scope,
         command: submitted,
         state: 'completed',
         refund,
       });
-      uncertain.current = false;
-      if (mounted.current) onCompleted();
+      if (mounted.current) onCompleted(refund);
     } catch (cause) {
       const api = cause instanceof ApiError ? cause : null;
       const known =
@@ -268,6 +300,7 @@ export function RefundDialog({
               'RETURN_QUANTITY_EXCEEDED',
               'STOCK_OVERFLOW',
               'PAYMENT_ACCOUNT_UNAVAILABLE',
+              'COMMAND_RECOVERY_BLOCKED',
             ].includes(api.details?.code ?? '')));
       if (known) {
         setRefundAttempt(attemptKey, null);
@@ -286,6 +319,7 @@ export function RefundDialog({
         setRefundAttempt(attemptKey, {
           scope,
           command: submitted,
+          recoveryId: getRefundAttempt(attemptKey)?.recoveryId,
           state: 'unknown',
         });
         if (!mounted.current) return;

@@ -21,7 +21,7 @@ describe('PosCatalogService', () => {
     await service.findAll(context, 'branch', '001Ab');
     expect(prisma.branchInventory.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        take: 100,
+        take: 16,
         select: posCatalogSelect,
         orderBy: [{ product: { name: 'asc' } }, { id: 'asc' }],
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -53,5 +53,57 @@ describe('PosCatalogService', () => {
       'Branch not found',
     );
     expect(prisma.branchInventory.findMany).not.toHaveBeenCalled();
+  });
+
+  it('returns a validated continuation cursor and applies it to the next read', async () => {
+    const row = (id: string, name: string) => ({
+      id,
+      sellingPrice: { toFixed: () => '10.00' },
+      quantity: 1,
+      merchantBranch: { status: 'ACTIVE' },
+      product: {
+        id: `product-${id}`,
+        name,
+        sku: null,
+        barcode: null,
+        merchant: { name: 'Merchant' },
+      },
+    });
+    prisma.branchInventory.findMany.mockResolvedValueOnce(
+      Array.from({ length: 16 }, (_, index) =>
+        row(`inventory-${index}`, `Product ${String(index).padStart(2, '0')}`),
+      ),
+    );
+
+    const first = await service.findAll(context, 'branch', '  product ');
+
+    expect(first.items).toHaveLength(15);
+    expect(first.hasMore).toBe(true);
+    expect(first.nextCursor).toEqual(expect.any(String));
+
+    prisma.branchInventory.findMany.mockResolvedValueOnce([]);
+    await service.findAll(context, 'branch', 'product', first.nextCursor!);
+
+    expect(prisma.branchInventory.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        // Prisma's generated where input is intentionally structural here.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [
+                { product: { name: { gt: 'Product 14' } } },
+                {
+                  AND: [
+                    { product: { name: 'Product 14' } },
+                    { id: { gt: 'inventory-14' } },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
   });
 });
