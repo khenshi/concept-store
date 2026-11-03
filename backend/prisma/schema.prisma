@@ -46,6 +46,28 @@ enum OrganizationLifecycleAction {
   RENAME
 }
 
+enum MemberAccessEventOperation {
+  ROLE_CHANGED
+  MERCHANT_LINKED
+  MERCHANT_UNLINKED
+  BRANCH_GRANTED
+  BRANCH_REVOKED
+  MEMBER_REMOVED
+}
+
+enum CommandRecoveryKind {
+  CHECKOUT
+  REFUND
+}
+
+enum CommandRecoveryState {
+  PREPARED
+  SUBMITTED
+  COMPLETED
+  ACKNOWLEDGED
+  ABANDONED
+}
+
 enum BranchStatus {
   ACTIVE
   INACTIVE
@@ -75,6 +97,7 @@ model User {
   refunds                         Refund[]
   openingStockProducts            Product[]                @relation("ProductCreationActor")
   accountActionTokens             AccountActionToken[]     @relation("UserAccountActionTokens")
+  commandRecoveries               CommandRecovery[]
 
   @@index([deletedAt])
 }
@@ -132,16 +155,18 @@ model Organization {
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
 
-  memberships     OrganizationMembership[]
-  branches        Branch[]
-  invitations     OrganizationInvitation[]
-  merchants       Merchant[]
-  products        Product[]
-  sales           Sale[]
-  refunds         Refund[]
-  spaceTypes      SpaceType[]
-  lifecycleEvents OrganizationLifecycleEvent[]
-  paymentAccounts PaymentAccount[]
+  memberships        OrganizationMembership[]
+  branches           Branch[]
+  invitations        OrganizationInvitation[]
+  merchants          Merchant[]
+  products           Product[]
+  sales              Sale[]
+  refunds            Refund[]
+  spaceTypes         SpaceType[]
+  lifecycleEvents    OrganizationLifecycleEvent[]
+  paymentAccounts    PaymentAccount[]
+  memberAccessEvents MemberAccessEvent[]
+  commandRecoveries  CommandRecovery[]
 }
 
 model OrganizationLifecycleEvent {
@@ -203,15 +228,16 @@ model Branch {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  merchants        MerchantBranch[]
-  spaces           Space[]
-  inventory        BranchInventory[]
-  memberships      BranchMembership[]
-  invitationGrants InvitationBranch[]
-  sales            Sale[]
-  refunds          Refund[]
-  paymentAccounts PaymentAccountBranch[]
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  merchants         MerchantBranch[]
+  spaces            Space[]
+  inventory         BranchInventory[]
+  memberships       BranchMembership[]
+  invitationGrants  InvitationBranch[]
+  sales             Sale[]
+  refunds           Refund[]
+  paymentAccounts   PaymentAccountBranch[]
+  commandRecoveries CommandRecovery[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, name])
@@ -327,32 +353,32 @@ model InventoryMovement {
 
 /// Completed-only records. Payment/amount constraints are defined in SQL.
 model Sale {
-  id               String            @id @default(uuid())
-  organizationId   String
-  branchId         String
-  receiptCode      String
-  createdById      String
-  requestId        String
-  paymentAccountId String
-  paymentAccountName String @db.VarChar(100)
-  paymentAccountIsCash Boolean
+  id                              String   @id @default(uuid())
+  organizationId                  String
+  branchId                        String
+  receiptCode                     String
+  createdById                     String
+  requestId                       String
+  paymentAccountId                String
+  paymentAccountName              String   @db.VarChar(100)
+  paymentAccountIsCash            Boolean
   paymentAccountRequiresReference Boolean
-  cashTender       Decimal?          @db.Decimal(24, 2)
-  cashChange       Decimal?          @db.Decimal(24, 2)
-  paymentReference String?
-  total            Decimal           @db.Decimal(24, 2)
-  completedAt      DateTime          @default(now())
-  organizationName String
-  branchName       String
-  branchCode       String?
-  cashierName      String
-  checkoutCommand  Json              @db.JsonB
+  cashTender                      Decimal? @db.Decimal(24, 2)
+  cashChange                      Decimal? @db.Decimal(24, 2)
+  paymentReference                String?
+  total                           Decimal  @db.Decimal(24, 2)
+  completedAt                     DateTime @default(now())
+  organizationName                String
+  branchName                      String
+  branchCode                      String?
+  cashierName                     String
+  checkoutCommand                 Json     @db.JsonB
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branch       Branch       @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  items        SaleItem[]
-  refunds      Refund[]
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch         Branch         @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  createdBy      User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items          SaleItem[]
+  refunds        Refund[]
   paymentAccount PaymentAccount @relation(fields: [paymentAccountId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([organizationId, receiptCode])
@@ -395,28 +421,28 @@ model SaleItem {
 
 /// Completed-only manual refund records. Row-local payment checks are defined in SQL.
 model Refund {
-  id               String            @id @default(uuid())
-  organizationId   String
-  branchId         String
-  saleId           String
-  refundCode       String
-  requestId        String            @db.Uuid
-  createdById      String
-  completedAt      DateTime          @default(now())
-  reason           String
-  paymentAccountId String
-  paymentAccountName String @db.VarChar(100)
-  paymentAccountIsCash Boolean
+  id                              String   @id @default(uuid())
+  organizationId                  String
+  branchId                        String
+  saleId                          String
+  refundCode                      String
+  requestId                       String   @db.Uuid
+  createdById                     String
+  completedAt                     DateTime @default(now())
+  reason                          String
+  paymentAccountId                String
+  paymentAccountName              String   @db.VarChar(100)
+  paymentAccountIsCash            Boolean
   paymentAccountRequiresReference Boolean
-  paymentReference String?
-  total            Decimal           @db.Decimal(24, 2)
-  refundCommand    Json              @db.JsonB
+  paymentReference                String?
+  total                           Decimal  @db.Decimal(24, 2)
+  refundCommand                   Json     @db.JsonB
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branch       Branch       @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
-  sale         Sale         @relation(fields: [saleId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict, onUpdate: Restrict, map: "Refund_sale_scope_fkey")
-  createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  items        RefundItem[]
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branch         Branch         @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  sale           Sale           @relation(fields: [saleId, organizationId, branchId], references: [id, organizationId, branchId], onDelete: Restrict, onUpdate: Restrict, map: "Refund_sale_scope_fkey")
+  createdBy      User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items          RefundItem[]
   paymentAccount PaymentAccount @relation(fields: [paymentAccountId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([organizationId, refundCode])
@@ -482,6 +508,51 @@ model BranchMembership {
 
   @@id([organizationId, branchId, userId])
   @@index([organizationId, userId])
+}
+
+model MemberAccessEvent {
+  id             String                     @id @default(uuid())
+  organizationId String
+  occurredAt     DateTime                   @default(now())
+  operation      MemberAccessEventOperation
+  actorId        String
+  targetUserId   String
+  actorName      String
+  targetName     String
+  beforeState    Json
+  afterState     Json
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, occurredAt, id])
+  @@index([organizationId, targetUserId, occurredAt, id])
+}
+
+model CommandRecovery {
+  id             String               @id @default(uuid())
+  organizationId String
+  actorUserId    String
+  kind           CommandRecoveryKind
+  state          CommandRecoveryState @default(PREPARED)
+  requestId      String               @db.Uuid
+  branchId       String
+  saleId         String?
+  commandVersion Int                  @default(1)
+  command        Json                 @db.JsonB
+  sourceId       String?
+  createdAt      DateTime             @default(now())
+  submittedAt    DateTime?
+  completedAt    DateTime?
+  acknowledgedAt DateTime?
+  closedAt       DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor        User         @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  branch       Branch       @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict)
+
+  @@unique([organizationId, kind, requestId])
+  @@index([organizationId, actorUserId, kind, state])
+  @@index([organizationId, branchId, kind, createdAt])
 }
 
 model OrganizationInvitation {
@@ -555,21 +626,21 @@ enum PaymentAccountAssignmentMode {
 }
 
 model PaymentAccount {
-  id String @id @default(uuid())
-  organizationId String
-  name String @db.VarChar(100)
-  normalizedName String @db.VarChar(100)
-  enabled Boolean @default(true)
-  assignmentMode PaymentAccountAssignmentMode
-  systemKey String? @db.VarChar(4)
-  requiresReference Boolean @default(true)
-  version Int @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  branches PaymentAccountBranch[]
-  sales Sale[]
-  refunds Refund[]
+  id                String                       @id @default(uuid())
+  organizationId    String
+  name              String                       @db.VarChar(100)
+  normalizedName    String                       @db.VarChar(100)
+  enabled           Boolean                      @default(true)
+  assignmentMode    PaymentAccountAssignmentMode
+  systemKey         String?                      @db.VarChar(4)
+  requiresReference Boolean                      @default(true)
+  version           Int                          @default(1)
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+  organization      Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  branches          PaymentAccountBranch[]
+  sales             Sale[]
+  refunds           Refund[]
 
   @@unique([id, organizationId])
   @@unique([organizationId, normalizedName])
@@ -578,11 +649,11 @@ model PaymentAccount {
 }
 
 model PaymentAccountBranch {
-  organizationId String
+  organizationId   String
   paymentAccountId String
-  branchId String
-  paymentAccount PaymentAccount @relation(fields: [paymentAccountId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
-  branch Branch @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
+  branchId         String
+  paymentAccount   PaymentAccount @relation(fields: [paymentAccountId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
+  branch           Branch         @relation(fields: [branchId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: Restrict)
 
   @@id([paymentAccountId, branchId])
   @@index([organizationId, branchId, paymentAccountId])
@@ -605,11 +676,15 @@ model SpaceType {
   id             String       @id @default(uuid())
   organizationId String
   name           String
+  archivedAt     DateTime?
+  version        Int          @default(1)
   createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   spaces         Space[]
 
   @@unique([organizationId, name])
+  @@index([organizationId, archivedAt, name])
 }
 
 model Space {
