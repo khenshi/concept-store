@@ -43,7 +43,24 @@ export class SalesReportQueryDto {
   until!: string;
 }
 
-export class ReportBranchesQueryDto {}
+export class ReportBranchesQueryDto {
+  @ApiPropertyOptional({
+    maxLength: 254,
+    description: 'Case-insensitive branch name or code search',
+  })
+  @Transform(trimOptionalString)
+  @IsOptional()
+  @IsString()
+  @MaxLength(254)
+  q?: string;
+
+  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @Transform(queryInteger)
+  @IsInt()
+  @Min(1)
+  @Max(214748364)
+  page = 1;
+}
 
 export enum ReportPeriodMode {
   ALL_TIME = 'ALL_TIME',

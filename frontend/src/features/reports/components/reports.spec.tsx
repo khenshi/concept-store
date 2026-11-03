@@ -276,38 +276,69 @@ describe('staff Reports workspace', () => {
     } as unknown as ReturnType<typeof useRouter>);
     context();
     request.mockImplementation(async (path: string) =>
-      path.endsWith('/reports/sales/branches')
-        ? [branch, second]
-        : path.includes('/merchants')
-          ? [
-              {
-                id: '44444444-4444-4444-8444-444444444444',
-                organizationId: '11111111-1111-4111-8111-111111111111',
-                name: 'Local maker',
-                code: 'LOCAL',
-                contactName: 'Contact',
-                email: null,
-                phone: '09171234567',
-                status: 'ACTIVE',
-                createdAt: '2026-01-01T00:00:00.000Z',
-                updatedAt: '2026-01-01T00:00:00.000Z',
-              },
-            ]
-          : path.includes('/transactions')
-            ? transactionsFor(path)
-            : path.includes('/rankings')
-              ? rankingFor(path)
-              : {
-                  ...(path.includes('/analytics')
-                    ? analyticsFor(path)
-                    : report),
-                  branch: path.includes(`/branches/${second.id}/`)
-                    ? second
-                    : branch,
-                  ...Object.fromEntries(
-                    new URLSearchParams(path.split('?')[1]),
-                  ),
+      path.includes('/reports/sales/branches/directory')
+        ? {
+            items: [branch, second],
+            page: 1,
+            limit: 15,
+            total: 2,
+            totalPages: 1,
+            hasNext: false,
+          }
+        : path.includes('/merchants/directory')
+          ? {
+              items: [
+                {
+                  id: '44444444-4444-4444-8444-444444444444',
+                  organizationId: '11111111-1111-4111-8111-111111111111',
+                  name: 'Local maker',
+                  code: 'LOCAL',
+                  status: 'ACTIVE',
+                  contactName: 'Contact',
+                  email: null,
+                  phone: '09171234567',
+                  createdAt: '2026-01-01T00:00:00.000Z',
+                  updatedAt: '2026-01-01T00:00:00.000Z',
                 },
+              ],
+              page: 1,
+              limit: 15,
+              total: 1,
+              totalPages: 1,
+              hasNext: false,
+            }
+          : path.endsWith('/reports/sales/branches')
+            ? [branch, second]
+            : path.includes('/merchants')
+              ? [
+                  {
+                    id: '44444444-4444-4444-8444-444444444444',
+                    organizationId: '11111111-1111-4111-8111-111111111111',
+                    name: 'Local maker',
+                    code: 'LOCAL',
+                    contactName: 'Contact',
+                    email: null,
+                    phone: '09171234567',
+                    status: 'ACTIVE',
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                    updatedAt: '2026-01-01T00:00:00.000Z',
+                  },
+                ]
+              : path.includes('/transactions')
+                ? transactionsFor(path)
+                : path.includes('/rankings')
+                  ? rankingFor(path)
+                  : {
+                      ...(path.includes('/analytics')
+                        ? analyticsFor(path)
+                        : report),
+                      branch: path.includes(`/branches/${second.id}/`)
+                        ? second
+                        : branch,
+                      ...Object.fromEntries(
+                        new URLSearchParams(path.split('?')[1]),
+                      ),
+                    },
     );
   });
   afterEach(() => {
@@ -621,7 +652,9 @@ describe('staff Reports workspace', () => {
     );
     await screen.findByRole('table', { name: 'Transaction history' });
     fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
-    fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'South (MAIN)' }),
+    );
     const next = new URL(push.mock.calls.at(-1)![0], 'http://localhost');
     expect(next.pathname).toBe(
       `/app/organizations/org/branches/${second.id}/reports/transactions`,
@@ -636,7 +669,18 @@ describe('staff Reports workspace', () => {
     ).toBeNull();
   });
   it('requires explicit selection even for one branch and uses no summary/general branch read', async () => {
-    request.mockResolvedValue([branch]);
+    request.mockImplementation(async (path: string) =>
+      path.includes('/reports/sales/branches/directory')
+        ? {
+            items: [branch],
+            page: 1,
+            limit: 15,
+            total: 1,
+            totalPages: 1,
+            hasNext: false,
+          }
+        : [branch],
+    );
     render(<ReportsEntry organizationId="org" />);
     const picker = await screen.findByRole('combobox', {
       name: 'Reports branch',
@@ -644,7 +688,7 @@ describe('staff Reports workspace', () => {
     await waitFor(() => expect(picker).toBeEnabled());
     expect(picker).toHaveTextContent('Choose a branch');
     expect(push).not.toHaveBeenCalled();
-    expect(request).toHaveBeenCalledExactlyOnceWith(
+    expect(request).toHaveBeenCalledWith(
       '/organizations/org/reports/sales/branches',
     );
     fireEvent.click(picker);
@@ -668,16 +712,26 @@ describe('staff Reports workspace', () => {
   it('shows empty assignments and safely retries a failed entry read', async () => {
     request
       .mockRejectedValueOnce(new ApiError(403, 'Denied'))
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({
+        items: [],
+        page: 1,
+        limit: 15,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+      });
     render(<ReportsEntry organizationId="org" />);
     await screen.findByRole('alert');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(
       await screen.findByText(/No accessible report branches/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
     fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
-    fireEvent.click(screen.getByRole('option', { name: 'All branches' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'All branches' }),
+    );
     expect(push).toHaveBeenCalledWith(
       '/app/organizations/org/reports/all/overview',
     );
@@ -1057,7 +1111,9 @@ describe('staff Reports workspace', () => {
     await screen.findAllByText('PHP 60.00');
     setSelectedBranchId.mockClear();
     fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
-    fireEvent.click(screen.getByRole('option', { name: 'All branches' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'All branches' }),
+    );
     expect(push).toHaveBeenLastCalledWith(
       expect.stringMatching(
         /^\/app\/organizations\/org\/reports\/all\/overview\?/,
@@ -1116,7 +1172,9 @@ describe('staff Reports workspace', () => {
     render(<BranchReports organizationId="org" branchId={branch.id} />);
     await screen.findAllByText('PHP 60.00');
     fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
-    fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'South (MAIN)' }),
+    );
     expect(screen.queryByText('PHP 60.00')).not.toBeInTheDocument();
     expect(push).toHaveBeenCalledWith(
       `/app/organizations/org/branches/${second.id}/reports/overview?${new URLSearchParams({ preset: 'TODAY', fromDay: '2026-09-14', throughDay: '2026-09-14' })}`,
@@ -1241,15 +1299,24 @@ describe('staff Reports workspace', () => {
     beforeEach(() => {
       context('MERCHANT');
       request.mockImplementation(async (path: string) =>
-        path.endsWith('/reports/sales/branches')
-          ? [branch, second]
-          : {
-              ...ownAnalyticsFor(path),
-              branch: path.includes(`/branches/${second.id}/`)
-                ? second
-                : branch,
-              ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
-            },
+        path.includes('/reports/sales/branches/directory')
+          ? {
+              items: [branch, second],
+              page: 1,
+              limit: 15,
+              total: 2,
+              totalPages: 1,
+              hasNext: false,
+            }
+          : path.endsWith('/reports/sales/branches')
+            ? [branch, second]
+            : {
+                ...ownAnalyticsFor(path),
+                branch: path.includes(`/branches/${second.id}/`)
+                  ? second
+                  : branch,
+                ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
+              },
       );
     });
     it('revalidates All time on merchant refresh so a changed link cannot truncate history', async () => {
@@ -1316,21 +1383,40 @@ describe('staff Reports workspace', () => {
       ).toBeInTheDocument();
       expect(push).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
-      fireEvent.click(screen.getByRole('option', { name: 'South (MAIN)' }));
+      fireEvent.click(
+        await screen.findByRole('option', { name: 'South (MAIN)' }),
+      );
       expect(push).toHaveBeenCalledWith(
         `/app/organizations/org/branches/${second.id}/reports`,
       );
-      expect(request).toHaveBeenCalledTimes(1);
+      expect(request).toHaveBeenCalledWith(
+        expect.stringContaining('/reports/sales/branches/directory'),
+      );
     });
     it('explains no assigned/historical access without inventing a link state or fallback', async () => {
-      request.mockResolvedValue([]);
-      render(<ReportsEntry organizationId="org" />);
-      expect(await screen.findByRole('status')).toHaveTextContent(
-        'No assigned or historical own-selling branches',
+      request.mockImplementation(async (path: string) =>
+        path.includes('/reports/sales/branches/directory')
+          ? {
+              items: [],
+              page: 1,
+              limit: 15,
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+            }
+          : [],
       );
-      expect(screen.getByRole('combobox')).toBeEnabled();
+      render(<ReportsEntry organizationId="org" />);
+      expect(
+        await screen.findByText(
+          /No assigned or historical own-selling branches/,
+        ),
+      ).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
       fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
-      fireEvent.click(screen.getByRole('option', { name: 'All branches' }));
+      fireEvent.click(
+        await screen.findByRole('option', { name: 'All branches' }),
+      );
       expect(push).toHaveBeenCalledWith(
         '/app/organizations/org/reports/all/overview',
       );
@@ -1339,25 +1425,34 @@ describe('staff Reports workspace', () => {
     });
     it('keeps historical branch choices in an empty period and explains unlinked assigned zeros', async () => {
       request.mockImplementation(async (path: string) =>
-        path.endsWith('/reports/sales/branches')
-          ? [branch, second]
-          : {
-              ...ownAnalyticsFor(path),
-              ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
-              ownGrossSales: '0.00',
-              ownNetRecordedSales: '0.00',
-              ownTransactionCount: '0',
-              ownUnitsSold: '0',
-              dailyTrends: ownAnalyticsFor(path).dailyTrends.map((row) => ({
-                ...row,
+        path.includes('/reports/sales/branches/directory')
+          ? {
+              items: [branch, second],
+              page: 1,
+              limit: 15,
+              total: 2,
+              totalPages: 1,
+              hasNext: false,
+            }
+          : path.endsWith('/reports/sales/branches')
+            ? [branch, second]
+            : {
+                ...ownAnalyticsFor(path),
+                ...Object.fromEntries(new URLSearchParams(path.split('?')[1])),
                 ownGrossSales: '0.00',
+                ownNetRecordedSales: '0.00',
                 ownTransactionCount: '0',
                 ownUnitsSold: '0',
-                ownNetRecordedSales: '0.00',
-              })),
-              topProducts: [],
-              totalProducts: '0',
-            },
+                dailyTrends: ownAnalyticsFor(path).dailyTrends.map((row) => ({
+                  ...row,
+                  ownGrossSales: '0.00',
+                  ownTransactionCount: '0',
+                  ownUnitsSold: '0',
+                  ownNetRecordedSales: '0.00',
+                })),
+                topProducts: [],
+                totalProducts: '0',
+              },
       );
       render(<BranchReports organizationId="org" branchId={branch.id} />);
       await screen.findByText(/If your profile is not linked/);
@@ -1366,7 +1461,7 @@ describe('staff Reports workspace', () => {
       await screen.findAllByText('PHP 0.00');
       fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
       expect(
-        screen.getByRole('option', { name: 'South (MAIN)' }),
+        await screen.findByRole('option', { name: 'South (MAIN)' }),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole('table', { name: 'Exact payment account flows' }),

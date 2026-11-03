@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -7,7 +7,7 @@ import { useOrganizationWorkspaceContext } from '@/features/organizations/compon
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
-import { listReportBranches } from '../api/report-api';
+import { listReportBranchOptions, listReportBranches } from '../api/report-api';
 import type { ReportBranch } from '../model/report.schemas';
 import type { ReportScope } from '../model/report-scope';
 import { ReportAccess } from './report-access';
@@ -52,6 +52,14 @@ function ScopedReportsEntry({
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
   const resumed = useRef<string | null>(null);
+  const loadReportBranchPage = useCallback(
+    (query: string, page: number) =>
+      listReportBranchOptions(request, organizationId, {
+        search: query,
+        page,
+      }),
+    [organizationId, request],
+  );
   function navigate(scope: ReportScope) {
     const branchId = scope.kind === 'branch' ? scope.branchId : null;
     const checkout =
@@ -115,6 +123,7 @@ function ScopedReportsEntry({
             branches={branches}
             loading={branches === null && error === null}
             allBranches
+            loadPage={loadReportBranchPage}
             onChange={navigate}
             compact
           />

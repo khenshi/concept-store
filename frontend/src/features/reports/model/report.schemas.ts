@@ -104,6 +104,30 @@ export const reportBranchesSchema = reportBranchSchema
       new Set(branches.map((branch) => branch.id)).size === branches.length,
     'Report branches must be distinct.',
   );
+export const reportBranchDirectoryPageSchema = z
+  .object({
+    items: reportBranchSchema.array(),
+    page: z.number().int().positive(),
+    limit: z.literal(15),
+    total: z.number().int().nonnegative(),
+    totalPages: z.number().int().nonnegative(),
+    hasNext: z.boolean(),
+  })
+  .superRefine((page, context) => {
+    if (
+      page.totalPages !== Math.ceil(page.total / page.limit) ||
+      page.hasNext !== page.page < page.totalPages ||
+      page.items.length !==
+        Math.max(
+          0,
+          Math.min(page.limit, page.total - (page.page - 1) * page.limit),
+        )
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'Report branch pagination is inconsistent.',
+      });
+  });
 const reportResponseScopeShape = {
   branch: reportBranchSchema.optional(),
   reportScope: z.literal('ALL').optional(),

@@ -463,6 +463,44 @@ describe('ReportsService', () => {
     });
     expect(tx.$queryRaw).not.toHaveBeenCalled();
   });
+  it('pages report branches within the current role scope and applies search', async () => {
+    tx.branch.count.mockResolvedValue(16);
+    tx.branch.findMany.mockResolvedValue([
+      { id: 'branch-16', name: 'South', code: 'SOUTH' },
+    ]);
+    await expect(
+      service.branchDirectory(context, { q: 'south', page: 2 }),
+    ).resolves.toMatchObject({
+      items: [{ id: 'branch-16', name: 'South', code: 'SOUTH' }],
+      page: 2,
+      limit: 15,
+      total: 16,
+      totalPages: 2,
+      hasNext: false,
+    });
+    const countCall = tx.branch.count.mock.calls[0] as [
+      { where: Prisma.BranchWhereInput },
+    ];
+    const where = countCall[0].where;
+    expect(where).toEqual({
+      AND: [
+        { organizationId: 'org' },
+        {
+          OR: [
+            { name: { contains: 'south', mode: 'insensitive' } },
+            { code: { contains: 'south', mode: 'insensitive' } },
+          ],
+        },
+      ],
+    });
+    expect(tx.branch.findMany).toHaveBeenCalledWith({
+      where,
+      select: { id: true, name: true, code: true },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: 15,
+      take: 15,
+    });
+  });
   it.each([
     ['0.00', '0.01', '-0.01'],
     ['1.00', '2.01', '-1.01'],

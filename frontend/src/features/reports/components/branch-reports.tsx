@@ -14,7 +14,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listMerchants } from '@/features/merchants/api/merchant-api';
+import { listMerchantOptions } from '@/features/merchants/api/merchant-api';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { PageHeader } from '@/shared/components/ui/page-header';
@@ -27,6 +27,7 @@ import {
   getMerchantSalesRankings,
   getStaffTransactions,
   getMerchantTransactions,
+  listReportBranchOptions,
   listReportBranches,
   resolveReportPeriod,
 } from '../api/report-api';
@@ -402,6 +403,24 @@ function ScopedBranchReports({
     [branchId],
   );
   const { request, user } = useAuth();
+  const loadReportBranchPage = useCallback(
+    (query: string, page: number) =>
+      listReportBranchOptions(request, organizationId, {
+        search: query,
+        page,
+      }),
+    [organizationId, request],
+  );
+  const loadReportMerchantPage = useCallback(
+    (query: string, page: number) =>
+      listMerchantOptions(
+        request,
+        organizationId,
+        { search: query, page },
+        role,
+      ),
+    [organizationId, request, role],
+  );
   const { refreshOrganization, setSelectedBranchId } =
     useOrganizationWorkspaceContext();
   const router = useRouter();
@@ -701,10 +720,12 @@ function ScopedBranchReports({
     )
       return;
     let active = true;
-    void listMerchants(request, organizationId, {}, role)
+    void listMerchantOptions(request, organizationId, { page: 1 }, role)
       .then((items) => {
         if (!active) return;
-        setMerchantOptions(items.map(({ id, name }) => ({ id, name })));
+        setMerchantOptions(
+          items.items.map(({ id, label }) => ({ id, name: label })),
+        );
       })
       .catch((cause) => {
         if (!active) return;
@@ -992,6 +1013,7 @@ function ScopedBranchReports({
           merchantOptions={merchantOptions ?? []}
           merchantOptionsLoading={merchantOptionsLoading}
           merchantOptionsError={merchantOptionsError}
+          merchantOptionsLoader={loadReportMerchantPage}
           onMerchantOptionsRetry={() => {
             setMerchantOptions(null);
             setMerchantOptionsError(null);
@@ -1023,6 +1045,7 @@ function ScopedBranchReports({
             branchId={branchId ?? undefined}
             allBranches
             allBranchesSelected={!branchId}
+            loadPage={loadReportBranchPage}
             onChange={(nextScope) => {
               const next =
                 nextScope.kind === 'branch' ? nextScope.branchId : null;

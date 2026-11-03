@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { ReportScope } from '../model/report-scope';
 import {
   reportBranchesSchema,
+  reportBranchDirectoryPageSchema,
   reportQuerySchema,
   staffSalesReportSchema,
   merchantSalesReportSchema,
@@ -135,6 +136,27 @@ export async function listReportBranches(
       `/organizations/${encodeURIComponent(organizationId)}/reports/sales/branches`,
     ),
   );
+}
+
+export async function listReportBranchOptions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  query: { search?: string; page?: number } = {},
+) {
+  const params = new URLSearchParams({ page: String(query.page ?? 1) });
+  if (query.search) params.set('q', query.search);
+  const page = reportBranchDirectoryPageSchema.parse(
+    await request<unknown>(
+      `/organizations/${encodeURIComponent(organizationId)}/reports/sales/branches/directory?${params}`,
+    ),
+  );
+  return {
+    items: page.items.map(({ id, name, code }) => ({
+      id,
+      label: code ? `${name} (${code})` : name,
+    })),
+    hasNext: page.hasNext,
+  };
 }
 
 async function getTransactions(

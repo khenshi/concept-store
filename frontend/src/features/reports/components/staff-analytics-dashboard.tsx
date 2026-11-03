@@ -9,6 +9,11 @@ import {
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+  type PagedOptionResult,
+} from '@/shared/components/ui/paged-option-select';
 import type {
   ReportMerchantOption,
   ReportRankingControls,
@@ -755,6 +760,7 @@ export function RankingControls({
   merchantOptionsError = null,
   showMerchantFilter,
   onMerchantOptionsRetry = () => undefined,
+  merchantOptionsLoader,
   onChange,
 }: {
   controls: ReportRankingControls;
@@ -763,6 +769,10 @@ export function RankingControls({
   merchantOptionsError?: string | null;
   showMerchantFilter: boolean;
   onMerchantOptionsRetry?: () => void;
+  merchantOptionsLoader?: (
+    query: string,
+    page: number,
+  ) => Promise<PagedOptionResult>;
   onChange: (controls: ReportRankingControls) => void;
 }) {
   const sortOptions: { value: ReportRankingSort; label: string }[] = [
@@ -811,27 +821,50 @@ export function RankingControls({
           <label className="block" htmlFor="sales-report-ranking-merchant">
             Merchant
           </label>
-          <SelectControl
-            id="sales-report-ranking-merchant"
-            aria-label="Merchant"
-            value={controls.merchantId ?? ''}
-            disabled={merchantOptionsLoading || merchantOptionsError !== null}
-            aria-describedby="sales-report-ranking-merchant-status"
-            className="mt-1 bg-subtle px-4 text-sm font-medium"
-            onValueChange={(value) =>
-              onChange({
-                ...controls,
-                merchantId: value || null,
-              })
-            }
-          >
-            <option value="">All merchants</option>
-            {merchantOptions.map((merchant) => (
-              <option key={merchant.id} value={merchant.id}>
-                {merchant.name}
-              </option>
-            ))}
-          </SelectControl>
+          {merchantOptionsLoader ? (
+            <PagedOptionSelect
+              id="sales-report-ranking-merchant"
+              value={controls.merchantId ?? ''}
+              selectedOption={
+                merchantOptions.find(
+                  (merchant) => merchant.id === controls.merchantId,
+                )
+                  ? ({
+                      id: controls.merchantId!,
+                      label: merchantOptions.find(
+                        (merchant) => merchant.id === controls.merchantId,
+                      )!.name,
+                    } satisfies PagedOption)
+                  : null
+              }
+              placeholder="All merchants"
+              searchPlaceholder="Search merchants"
+              loadPage={merchantOptionsLoader}
+              className="mt-1 bg-subtle px-4 text-sm font-medium"
+              onValueChange={(value) =>
+                onChange({ ...controls, merchantId: value || null })
+              }
+            />
+          ) : (
+            <SelectControl
+              id="sales-report-ranking-merchant"
+              aria-label="Merchant"
+              value={controls.merchantId ?? ''}
+              disabled={merchantOptionsLoading || merchantOptionsError !== null}
+              aria-describedby="sales-report-ranking-merchant-status"
+              className="mt-1 bg-subtle px-4 text-sm font-medium"
+              onValueChange={(value) =>
+                onChange({ ...controls, merchantId: value || null })
+              }
+            >
+              <option value="">All merchants</option>
+              {merchantOptions.map((merchant) => (
+                <option key={merchant.id} value={merchant.id}>
+                  {merchant.name}
+                </option>
+              ))}
+            </SelectControl>
+          )}
           {merchantOptionsLoading ? (
             <span
               id="sales-report-ranking-merchant-status"
@@ -872,6 +905,7 @@ function StaffRankings({
   merchantOptionsLoading,
   merchantOptionsError,
   onMerchantOptionsRetry,
+  merchantOptionsLoader,
   onControlsChange,
 }: {
   page: StaffSalesRankingPage | null;
@@ -884,6 +918,10 @@ function StaffRankings({
   merchantOptionsLoading: boolean;
   merchantOptionsError: string | null;
   onMerchantOptionsRetry: () => void;
+  merchantOptionsLoader?: (
+    query: string,
+    page: number,
+  ) => Promise<PagedOptionResult>;
   onControlsChange: (controls: ReportRankingControls) => void;
 }) {
   const title =
@@ -914,6 +952,7 @@ function StaffRankings({
           merchantOptionsError={merchantOptionsError}
           showMerchantFilter
           onMerchantOptionsRetry={onMerchantOptionsRetry}
+          merchantOptionsLoader={merchantOptionsLoader}
           onChange={onControlsChange}
         />
       }
@@ -1058,6 +1097,7 @@ export function StaffAnalyticsDashboard({
   merchantOptionsLoading = false,
   merchantOptionsError = null,
   onMerchantOptionsRetry = () => undefined,
+  merchantOptionsLoader,
   onRankingControlsChange = () => undefined,
   rankingLoading = false,
   rankingError = null,
@@ -1073,6 +1113,10 @@ export function StaffAnalyticsDashboard({
   merchantOptionsLoading?: boolean;
   merchantOptionsError?: string | null;
   onMerchantOptionsRetry?: () => void;
+  merchantOptionsLoader?: (
+    query: string,
+    page: number,
+  ) => Promise<PagedOptionResult>;
   onRankingControlsChange?: (controls: ReportRankingControls) => void;
   rankingLoading?: boolean;
   rankingError?: string | null;
@@ -1112,6 +1156,7 @@ export function StaffAnalyticsDashboard({
         merchantOptionsLoading={merchantOptionsLoading}
         merchantOptionsError={merchantOptionsError}
         onMerchantOptionsRetry={onMerchantOptionsRetry}
+        merchantOptionsLoader={merchantOptionsLoader}
         onControlsChange={onRankingControlsChange}
       />
     );

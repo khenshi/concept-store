@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
 import { BranchAccessPicker } from '@/features/organization-invitations/components/branch-access-picker';
+import { listBranchOptions } from '@/features/branches/api/branch-api';
 import type { BranchView } from '@/features/branches/model/branch.types';
 import { Button } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
@@ -27,6 +28,10 @@ import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { FloatingNotice } from '@/shared/components/ui/floating-notice';
 import { RequestError } from '@/shared/components/ui/request-error';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+} from '@/shared/components/ui/paged-option-select';
 import {
   createPaymentAccount,
   listPaymentAccounts,
@@ -69,10 +74,19 @@ function ScopedPaymentAccounts({ organizationId }: { organizationId: string }) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [branch, setBranch] = useState('');
+  const [branchOption, setBranchOption] = useState<PagedOption | null>(null);
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<PaymentAccount | 'new' | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const readOnly = organization?.status === 'INACTIVE';
+  const loadBranchPage = useCallback(
+    (query: string, optionPage: number) =>
+      listBranchOptions(request, organizationId, {
+        search: query,
+        page: optionPage,
+      }),
+    [organizationId, request],
+  );
 
   useEffect(() => {
     if (organization?.role !== 'OWNER') return;
@@ -186,21 +200,19 @@ function ScopedPaymentAccounts({ organizationId }: { organizationId: string }) {
               </SelectControl>
             </FilterField>
             <FilterField id="account-branch" label="Branch">
-              <SelectControl
+              <PagedOptionSelect
                 id="account-branch"
                 value={branch}
+                selectedOption={branchOption}
+                placeholder="All branches"
+                searchPlaceholder="Search branches"
+                loadPage={loadBranchPage}
                 onValueChange={(value) => {
                   setBranch(value);
                   setPage(1);
                 }}
-              >
-                <option value="">All branches</option>
-                {branches.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </SelectControl>
+                onOptionChange={setBranchOption}
+              />
             </FilterField>
           </div>
         }
@@ -350,6 +362,11 @@ function PaymentAccountForm({
   onSaved(account: PaymentAccount): void;
 }) {
   const { request } = useAuth();
+  const loadBranchPage = useCallback(
+    (query: string, page: number) =>
+      listBranchOptions(request, organizationId, { search: query, page }),
+    [organizationId, request],
+  );
   const initial: PaymentAccountInput = {
     name: account?.name ?? '',
     enabled: account?.enabled ?? true,
@@ -455,6 +472,7 @@ function PaymentAccountForm({
         {draft.assignmentMode === 'SELECTED' ? (
           <BranchAccessPicker
             branches={branches}
+            loadPage={loadBranchPage}
             selectedIds={draft.branchIds}
             disabled={pending}
             description="This payment account can be used only in selected branches."

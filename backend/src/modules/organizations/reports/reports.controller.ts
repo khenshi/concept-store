@@ -14,6 +14,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiProperty,
   ApiTags,
   ApiUnauthorizedResponse,
   getSchemaPath,
@@ -57,6 +58,26 @@ import {
   StaffSaleTransactionResponseDto,
   StaffRefundTransactionResponseDto,
 } from './reports.types';
+
+class ReportBranchDirectoryResponseDto {
+  @ApiProperty({ type: [BranchIdentityResponseDto] })
+  items!: BranchIdentityResponseDto[];
+
+  @ApiProperty()
+  page!: number;
+
+  @ApiProperty()
+  limit!: number;
+
+  @ApiProperty()
+  total!: number;
+
+  @ApiProperty()
+  totalPages!: number;
+
+  @ApiProperty()
+  hasNext!: boolean;
+}
 
 @Controller('organizations/:organizationId')
 @UseGuards(AuthGuard, OrganizationAccessGuard)
@@ -293,6 +314,18 @@ export class ReportsController {
   ) {
     void query;
     return this.reports.branches(context);
+  }
+
+  @Get('reports/sales/branches/directory')
+  @ApiOperation({
+    summary: 'Search and page identity-only branches available in Reports',
+  })
+  @ApiOkResponse({ type: ReportBranchDirectoryResponseDto })
+  branchDirectory(
+    @CurrentOrganization() context: OrganizationContext,
+    @Query() query: ReportBranchesQueryDto,
+  ) {
+    return this.reports.branchDirectory(context, query);
   }
 
   @Get('branches/:branchId/reports/sales')

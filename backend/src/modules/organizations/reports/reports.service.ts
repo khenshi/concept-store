@@ -10,6 +10,7 @@ import type { OrganizationContext } from '../authorization/organization-authoriz
 import { branchScope, merchantScope } from '../authorization/resource-access';
 import type {
   DailyReportQueryDto,
+  ReportBranchesQueryDto,
   ReportPeriodQueryDto,
   SalesRankingQueryDto,
   SalesReportQueryDto,
@@ -81,6 +82,7 @@ type ResolvedBranches = {
   branchCount?: number;
 };
 const identitySelect = { id: true, name: true, code: true } as const;
+const REPORT_BRANCH_PAGE_SIZE = 15;
 
 @Injectable()
 export class ReportsService {
@@ -95,6 +97,60 @@ export class ReportsService {
           select: identitySelect,
           orderBy: [{ name: 'asc' }, { id: 'asc' }],
         });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+
+  async branchDirectory(
+    context: OrganizationContext,
+    query: ReportBranchesQueryDto,
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const current = await this.currentContext(tx, context);
+        const scope = this.reportBranchScope(current);
+        const where: Prisma.BranchWhereInput = query.q
+          ? {
+              AND: [
+                scope,
+                {
+                  OR: [
+                    {
+                      name: {
+                        contains: query.q,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                    {
+                      code: {
+                        contains: query.q,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  ],
+                },
+              ],
+            }
+          : scope;
+        const [total, items] = await Promise.all([
+          tx.branch.count({ where }),
+          tx.branch.findMany({
+            where,
+            select: identitySelect,
+            orderBy: [{ name: 'asc' }, { id: 'asc' }],
+            skip: (query.page - 1) * REPORT_BRANCH_PAGE_SIZE,
+            take: REPORT_BRANCH_PAGE_SIZE,
+          }),
+        ]);
+        return {
+          items,
+          page: query.page,
+          limit: REPORT_BRANCH_PAGE_SIZE,
+          total,
+          totalPages: Math.ceil(total / REPORT_BRANCH_PAGE_SIZE),
+          hasNext: query.page * REPORT_BRANCH_PAGE_SIZE < total,
+        };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
