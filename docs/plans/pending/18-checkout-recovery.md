@@ -2,8 +2,12 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No command, schema, API, browser state,
-financial record or database operation changed during this task.
+Status: Code implementation complete as of November 2, 2026. Migration/runtime,
+normal checkout/refund browser flow, API-level cross-session visibility, and
+stale-command concurrency proof are complete. Rendered two-device recovery,
+successful-submit race proof, and Plan 14 release gates remain open; Plan 17's
+deployment checks remain explicitly deferred. No production database or live
+financial record operation is authorized by this plan.
 
 Priority: Required before real checkout/refund use and Plan 14 pilot approval.
 
@@ -265,13 +269,18 @@ roll forward. Never drop envelopes/reset money history to unblock deployment.
 
 ## 10. Completion and remaining gates
 
-Complete when same-actor cross-device recovery retains original immutable command,
-one blocker per tenant/actor/kind is enforced server-side, saved outcomes require
-explicit acknowledgement and all unknown/failure/lifecycle/restore cases avoid
-duplicate records, collection/payout instructions and stock effects.
+The code now provides the approved server-persisted envelope, immutable canonical
+command, organization/actor/kind blocker, explicit unchanged retry, source-record
+reuse, acknowledgement/abandonment lifecycle, old-route delegation and POS/refund
+rehydration. The migration has been applied successfully to both disposable local
+PostgreSQL and the configured Neon database. Focused unit, affected e2e, frontend,
+backend lint/typecheck/build gates pass. Browser QA completed a disposable sale
+and refund with explicit acknowledgement. API-level proof also confirmed that a
+prepared blocker is visible and safely abandonable from a second authenticated
+session, while two concurrent stale-price submissions both reject without a Sale.
 
-Open technical gates: exact schema/state/fencing implementation, lock order,
-safe terminal proof, payload retention/version support and operator restore gating.
-User-confirmed cross-device support, same-kind blocking and explicit acknowledgement
-are not optional. No system can infer physical money movement solely from missing
-database records; unresolved ambiguity remains a 10 support case.
+Plan acceptance remains open for rendered two-device recovery, a successful-submit
+concurrency race proof, restore/retention/operator procedures from Plans 04/10/13,
+deep financial/concurrency review and Plan 14 sign-off. No restore automation or
+second financial ledger was added. No system can infer physical money movement
+solely from missing database records; unresolved ambiguity remains a support case.

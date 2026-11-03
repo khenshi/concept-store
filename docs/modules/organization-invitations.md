@@ -20,7 +20,7 @@ and pending invitations cannot be accepted for an inactive branch.
 
 ```text
 POST  /organizations/:organizationId/invitations
-GET   /organizations/:organizationId/invitations
+GET   /organizations/:organizationId/invitations?page=&q=&status=
 POST  /organizations/:organizationId/invitations/:invitationId/resend
 PATCH /organizations/:organizationId/invitations/:invitationId/revoke
 DELETE /organizations/:organizationId/invitations/:invitationId
@@ -35,6 +35,11 @@ POST  /organization-invitations/:token/accept
 - Acceptance requires authentication and an account email matching the invite.
 
 ## Data and rules
+
+Owner invitation lists return 15-row pages. `q` searches invited email and
+`status` filters the computed mutually exclusive `PENDING`, `ACCEPTED`,
+`REVOKED`, or `EXPIRED` state. The same status predicate is used for rows and
+counts, so expiration is not stored as a second mutable state.
 
 - Invitation tokens are random and stored only as hashes.
 - Invitations expire and are single use.
@@ -105,9 +110,10 @@ and unavailable-token conditions also have focused service coverage.
 Owners manage invitations from the organization member workflow. A separate
 token route previews and accepts invitations.
 
-The owner invitation modal loads tenant-local branches and merchant profiles.
-Staff branch access uses a searchable custom picker with zero to 100 distinct
-assignments, selected-count feedback, and a clear action; MERCHANT requires a
+The owner invitation modal loads tenant-local branch and merchant options through
+bounded server search. Staff branch access uses a searchable custom picker with
+zero to 100 distinct assignments, selected-count feedback, load-more continuation
+and a clear action; MERCHANT requires a
 profile selection and shows inherited-access guidance instead of branch access.
 Switching away from MERCHANT clears the link selection.
 Validation runs 300 ms after input changes, immediately on blur, and again on

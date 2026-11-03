@@ -28,6 +28,7 @@ No per-original-sale-method net attribution is used for payment-account flows.
 
 ```text
 GET /organizations/:organizationId/reports/sales/branches
+GET /organizations/:organizationId/reports/sales/branches/directory?page=&q=
 GET /organizations/:organizationId/reports/sales/all/period?mode=ALL_TIME&until=
 GET /organizations/:organizationId/reports/sales/all?from=&until=
 GET /organizations/:organizationId/reports/sales/all/analytics?from=&until=
@@ -61,8 +62,12 @@ source rows directly; no client branch lists or unbounded branch-ID arrays are
 trusted. An authorized empty scope returns zero/empty data (including
 `branchCount: 0`); it is not treated as a denial. Single-branch routes and response
 shapes remain compatible.
-Branch lookup accepts no query parameters. The backend does not infer a local
-calendar day for summary reads. Analytics labels dates in Asia/Manila after exact
+The Reports branch directory is a bounded 15-row continuation endpoint for the
+Reports branch picker. It applies the same Owner/Manager/Merchant report scope as
+report reads and returns only branch identity fields. The picker browses pages
+without a search field. The legacy array lookup remains for workspace access
+initialization, not picker population. The
+backend does not infer a local calendar day for summary reads. Analytics labels dates in Asia/Manila after exact
 UTC filtering. The frontend converts inclusive Philippines calendar
 dates into the required half-open UTC range. The Reports period control uses
 the shared one-calendar date picker: the first selection is one Philippine day,

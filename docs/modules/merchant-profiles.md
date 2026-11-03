@@ -17,6 +17,7 @@ payments, commercial agreements, settlements, or deletion.
 ```text
 POST  /organizations/:organizationId/merchants
 GET   /organizations/:organizationId/merchants?q=&status=
+GET   /organizations/:organizationId/merchants/directory?page=&q=&status=
 GET   /organizations/:organizationId/merchants/:merchantId
 PATCH /organizations/:organizationId/merchants/:merchantId
 PATCH /organizations/:organizationId/merchants/:merchantId/status
@@ -25,7 +26,10 @@ PATCH /organizations/:organizationId/merchants/:merchantId/status
 List responses are ordered by merchant name and then ID. The optional `q`
 parameter searches name, code, contact name, email, and phone
 case-insensitively. The optional `status` parameter applies an exact lifecycle
-filter. Results are not paginated.
+filter. The legacy list response remains available to existing option consumers.
+The directory response is bounded to 15 rows and includes `items`, `page`,
+`limit`, `total`, `totalPages`, and `hasNext`, with stable name/ID ordering and
+the same tenant and role projections.
 
 ## Authorization and tenant isolation
 

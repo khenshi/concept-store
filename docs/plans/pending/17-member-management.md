@@ -2,8 +2,9 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No schema, API, UI, permissions, queries,
-dependencies or database operations changed during this task.
+Status: Approved and active for implementation as of October 31, 2026. Core
+directory, access-history, and POS continuation slices are implemented locally;
+selection-consumer migration and database/browser gates remain open.
 
 Priority: All scope below required before real pilot, confirmed October 24.
 
@@ -231,7 +232,27 @@ selection remains complete through bounded search, committed access changes have
 minimal atomic Owner-only history, and POS loads 15 at a time without affecting
 scanner/cart/checkout safety. Evidence must cover current candidate, not old counts.
 
-Remaining gates: history retention/deletion display policy, exact option consumers
-and routes, cursor encoding/version limits and contract rollout. Proposed member
-search fields and contained history placement need review before coding. The
-confirmed pre-pilot priority and Owner-only history access are not open decisions.
+Current local evidence: the full `npm run ci -- --skip-install` packet passes
+with an isolated PostgreSQL 17 container on an alternate free CI port. Prisma
+validation/generation, backend formatting, typecheck, lint, build, 52 backend
+unit suites (633 tests), 9 backend HTTP e2e suites (283 tests, including paged
+member and Owner-only access-history authorization), 11 database integration
+suites (329 passed, 1 skipped), frontend formatting, typecheck, lint, build,
+the full frontend suite (125 files, 1,223 tests), and runtime proxy smoke all
+pass. Existing frontend lint warnings are limited to five unused-value
+warnings in inventory files outside this selector slice. The approved page
+contracts and e2e expectations now cover the 15-row POS response and
+Owner-attributed access mutations.
+
+The open Chrome session previously lost authentication when the organization
+Reports URL was opened, so no current-candidate browser proof is claimed here;
+the previous deployed-candidate evidence predates the local Plan 17 directory
+changes.
+
+At the user's request on November 2, 2026, deployment and deployed-browser
+checks are deferred. The visible merchant/branch option consumers now use
+bounded search or selected-ID lookup, including invitations, Payment Accounts,
+product opening stock, Reports, and member access editing. The plan remains
+active and is not archived as complete until the deferred deployment checks
+are run.
+History retention/redaction remains a Plan 13 pre-real-data decision.

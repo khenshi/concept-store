@@ -19,11 +19,20 @@ provided by the scoped inventory workspace.
 ```text
 POST  /organizations/:organizationId/products
 GET   /organizations/:organizationId/products?q=&merchantId=&status=
+GET   /organizations/:organizationId/products/directory?page=&q=&merchantId=&status=
 GET   /organizations/:organizationId/products/:productId
 PATCH /organizations/:organizationId/products/:productId
 PATCH /organizations/:organizationId/products/:productId/status
 GET   /organizations/:organizationId/products/:productId/inventory
 ```
+
+The directory endpoint returns a bounded 15-row response with `items`, `page`,
+`limit`, `total`, `totalPages`, and `hasNext`. It preserves the existing
+product/merchant/status filters and stable name/ID ordering. The array list
+endpoint remains available to identity/projection consumers. Product and merchant
+selectors use bounded server search; the optional opening-stock branch selector
+uses active merchant-branch participation with the same paged search and load-more
+behavior, so it does not truncate eligible branches at the first page.
 
 Every route requires authentication and organization membership. Only owners
 create/edit/change status. Managers read only products placed in assigned branches;
@@ -117,7 +126,7 @@ directory. Product creation, role visibility, and scoped reads remain unchanged.
 
 Product directory search matches name/SKU case-insensitively and barcode
 case-sensitively. Merchant and product status filters are optional. Results order
-by name then ID and return the complete filtered list without pagination.
+by name then ID and use the directory's 15-row pagination contract.
 
 Placement listing resolves the product in the active tenant, then returns scoped
 inventory records with branch ID/name/code, quantity, and PHP selling price as an
@@ -143,14 +152,13 @@ automated tests. The unperformed checklist is retained in the
 
 ## Workspace UI
 
-The new-product dialog includes optional Add initial stock with an explicit branch
-dropdown, PHP price and whole-unit quantity. Branches are read only after enabling
-the section, using the existing authorized owner branch API. No branch is selected
-automatically, even when only one exists. Loading, empty and failed branch reads
-block enabled opening-stock creation; read-only Retry branches never writes a
-product. Disabling the section removes its controls/errors and omits both opening
-inventory and request ID from the legacy product-only command. Obsolete branch
-responses are ignored.
+The new-product dialog includes optional Add initial stock with an explicit searchable
+branch selector, PHP price and whole-unit quantity. The branch choices are limited
+to active participation for the selected merchant and load in bounded pages. No
+branch is selected automatically, even when only one exists. Loading, empty and
+failed branch reads block enabled opening-stock creation; read-only Retry branches
+never writes a product. Disabling the section removes its controls/errors and omits
+both opening inventory and request ID from the legacy product-only command.
 
 Changed fields validate after 300 ms, on blur immediately and finally on submit;
 invalid submit focuses the first invalid control. Price stays decimal text and

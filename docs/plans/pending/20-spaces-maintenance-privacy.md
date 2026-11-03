@@ -2,8 +2,10 @@
 
 Date: October 24, 2026
 
-Status: Draft for review; planning only. No schema, API, UI, privacy projection,
-type label or database changes performed during this task.
+Status: Implementation complete locally on November 3, 2026. The migration,
+backend projection/authorization, frontend management UI and focused automated
+checks are complete. Browser, deployed-database and manual privacy inspection
+gates remain intentionally deferred with the other release checks.
 
 Priority: Both privacy correction and Owner type maintenance required before
 real pilot, confirmed October 24.
@@ -52,8 +54,10 @@ SpacesService/controller, frontend schema/detail/form paths and queue requiremen
   schema requires that field. Hiding one column would leave API exposure intact.
 - Existing space mutations are Owner-only; read scope includes Managers/Merchants.
   Preserve those role rules even when 16 discusses controlled branch closure.
-- No application tests, migration/database, race or browser checks ran for this
-  planning draft. This is a source finding, not a verified deployed-data audit.
+- The implementation uses the existing name-based composite foreign key and
+  serializes type reads/writes with row locks. A deeper concurrent rename/type
+  change review is still a release gate; local focused tests do not replace
+  production-concurrency evidence.
 
 ## 3. Privacy projection correction
 
@@ -212,13 +216,26 @@ procedure if compatibility cannot be maintained. No reset authorized here.
 
 ## 9. Completion and remaining gates
 
-Complete when Merchant payloads/UI never expose release actor identity, staff
-visibility/internal attribution remains correct, and Owner type updates preserve
-references with atomic active/archive selection rules and current-label history.
-Both are required before pilot. No new business clarification remains for this
-draft; exact FK/trigger/version/lock mechanics and real migration/privacy/browser
-evidence remain implementation gates.
+Implemented locally: Merchant payloads omit release actor identity, staff
+visibility/internal attribution remains correct, and Owner type updates
+preserve references with active/archive selection rules and current-label
+history. The trigger is removed, unknown type labels are rejected, and the
+archive/version migration has been rehearsed against disposable PostgreSQL.
 
-After drafting this final numbered plan, perform the separately requested full
-batch coverage/dependency/open-decision review before calling planning complete
-or promoting any implementation. No pending plan authorizes itself.
+Local evidence:
+
+- Prisma generate and validate passed.
+- Backend typecheck passed.
+- Focused Spaces integration suites passed: 2 suites, 29 tests.
+- Focused Spaces frontend tests passed: 5 files, 42 tests.
+- Frontend typecheck passed.
+
+Remaining gates are browser/manual validation of raw Merchant JSON and the
+Owner Types workflow, deployed migration rehearsal/production rollout, and the
+deep concurrency/security review consumed by Plans 11, 12 and 14. This plan
+must remain pending until those gates are intentionally closed; no live
+database was reset or migrated for this implementation.
+
+The full batch coverage/dependency/open-decision review remains a separate
+release-planning activity. This pending record does not authorize production
+deployment or close the browser/deployed gates by itself.

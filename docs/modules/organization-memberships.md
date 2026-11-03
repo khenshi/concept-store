@@ -19,6 +19,7 @@ backend transaction, not only by workspace controls.
 
 ```text
 GET    /organizations/:organizationId/members
+GET    /organizations/:organizationId/members/access-history?page=&userId=
 PATCH  /organizations/:organizationId/members/:userId/role
 DELETE /organizations/:organizationId/members/:userId
 GET    /organizations/:organizationId/members/:userId/branches
@@ -26,6 +27,10 @@ PUT    /organizations/:organizationId/members/:userId/branches/:branchId
 DELETE /organizations/:organizationId/members/:userId/branches/:branchId
 PATCH  /organizations/:organizationId/members/:userId/merchant
 ```
+
+Member lists return 15-row pages with optional case-insensitive first-name,
+last-name, and email search. Access history is a read-only owner-only 15-row
+feed ordered newest first.
 
 ## Authorization
 
@@ -70,6 +75,13 @@ assignments. No product ownership or historical actor attribution changes.
 Access mutations and membership removal lock the same tenant-local membership in
 serializable transactions. Serialization conflicts return 409 with retry guidance.
 The last-owner invariant remains enforced; failed writes roll back all changes.
+Committed role changes, merchant links, branch grants/revocations, and member
+removals create a tenant-scoped `MemberAccessEvent` in the same transaction.
+No-op grants/revocations do not create events. Events retain only the operation,
+actor/target identities, and bounded before/after role, merchant, and branch
+state; history remains after membership removal. Creation, invitation acceptance,
+and provisioning events are not backfilled. Retention/redaction remains a Plan 13
+pre-real-data gate.
 Invitation grant acceptance is delivered in Part 3; backend resource-access
 filtering and role-specific projections are delivered in Part 4.
 
@@ -105,7 +117,9 @@ Managers and cashiers can receive individual branch grants; revocations require 
 MERCHANT links can be changed with confirmation explaining the read-access change
 without changing product ownership or history. Pending writes prevent duplicate
 actions and dismissal; loading, retryable failures, and success are explicit.
-API responses are runtime validated. Dialog choices and lists are scroll-bounded.
+API responses are runtime validated. Merchant and branch choices use bounded
+server search; staff branch assignments support search and load-more continuation
+without truncating eligible branches. Dialog choices and lists are scroll-bounded.
 
 The member directory uses the shared warm-neutral canvas, a centered rounded
 collection panel, and responsive divided rows. Member removal and edit controls
@@ -114,6 +128,11 @@ visible at narrow widths.
 Role changes and removal disable member controls while pending; request failures
 and successful changes remain visible. Workspace navigation alignment is delivered
 separately in Part 7; Members navigation is now owner-only.
+
+The member view adds debounced search, 15-row pagination, and an expandable
+owner-only access-history panel. History displays committed operations, target
+identity, actor identity, and timestamp without passwords, tokens, financial
+payloads, or cross-organization records.
 
 ## Final verification (Part 8)
 

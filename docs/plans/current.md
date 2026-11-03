@@ -1,10 +1,13 @@
 # Current implementation plan
 
-No implementation plan is currently active.
+Plan 20, [Space-type maintenance and occupancy actor privacy](pending/20-spaces-maintenance-privacy.md),
+is approved and active for implementation as of November 3, 2026. Plans 17 and
+18 remain implemented with their manual and deployment verification deferred.
 
-Plan 16, Branch lifecycle enforcement, was completed and archived on October 30,
-2026 after source, disposable-PostgreSQL, full-CI, and local runtime checks
-passed. The next queued plans remain pending and require a separate review and
-approval before implementation. Plan 14 remains the STAGING-ONLY release
-record; Plan 13 legal/privacy/commercial work and Plan 12 deferred gates remain
-excluded.
+The scope is limited to Owner-managed space-type rename/archive/reactivation and
+backend-enforced Merchant occupancy actor privacy. Preserve existing spaces,
+occupancy history, permissions and current-label behavior. Do not add deletion,
+type merging, automatic occupancy release, a generic catalog abstraction, lease
+billing, a global audit system or new infrastructure. Plans 16 and 08 remain
+completed; Plan 14 remains the STAGING-ONLY release record; Plan 13
+legal/privacy/retention decisions and Plan 12 deferred gates remain excluded.

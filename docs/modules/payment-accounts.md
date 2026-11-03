@@ -94,7 +94,9 @@ external balances.
 
 Owners manage accounts from the organization sidebar at
 `/app/organizations/:organizationId/payment-accounts`. The page uses the shared
-operational collection, filters, versioned modal form and branch-access picker.
+operational collection, filters, versioned modal form and searchable branch-access
+picker. Branch filters and selected-branch assignments use bounded server search
+with load-more continuation; account assignment remains complete across pages.
 Cash has no edit action; custom accounts expose edit and enable/disable controls.
 Save is disabled for invalid or unchanged drafts, and success/error feedback
 uses the shared floating notice/footer patterns.

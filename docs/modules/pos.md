@@ -33,7 +33,7 @@ catalog eligibility remains a read-time observation only.
 ## API and authorization
 
 ```text
-GET /organizations/:organizationId/branches/:branchId/pos/products?q=
+GET /organizations/:organizationId/branches/:branchId/pos/products?q=&cursor=
 GET /organizations/:organizationId/branches/:branchId/pos/products/code?code=
 ```
 
@@ -69,8 +69,10 @@ are included. Reads never change stock or prices.
 
 Search trims optional text (maximum 254 characters), matches product name/SKU
 case-insensitively and barcode case-sensitively, and orders by product name then
-placement ID. Results are bounded to the first 100 matches; clients can narrow
-search for larger catalogs. No total-count or paginated directory is introduced.
+placement ID. Results return at most 15 rows with an opaque, scope-bound keyset
+cursor and `hasMore`; the cursor is continuation state, not an authorization
+credential. Each request rechecks the current branch and role scope. Exact code
+lookup remains a separate path and does not depend on browsed pages.
 
 Exact code is required, trimmed, 1–64 ASCII letters/numbers/hyphens. SKU comparison
 uses uppercase; barcode comparison retains case and leading zeroes. All distinct
@@ -118,7 +120,10 @@ Enter submits an exact SKU/barcode lookup, preserving barcode case and leading
 zeroes. Repeated products increment one cart line. In-flight requests and input
 composition cannot trigger duplicate additions; ambiguous matches require an
 explicit product choice. Unknown and zero-stock products cannot be added.
-Search is debounced by 300 ms and bounded to 100 matches.
+Search is debounced by 300 ms and browses in 15-row batches. Load more appends
+only matching branch-inventory IDs, preserves the cart, and reports continuation
+errors separately from the initial search. Search and access changes reset the
+cursor.
 
 Quantity feedback runs on input with 300 ms debouncing and immediately on blur.
 Positive whole quantities must fit the observed stock and supported integer range.
@@ -146,6 +151,11 @@ custom modal dialog as well.
 Building/editing a cart performs no sale/payment writes or stock deductions.
 Confirmed checkout uses the [sales API](sales.md), which remains authoritative
 for price, stock, payment values and authorization.
+
+POS branch selection uses bounded server-side pages with continuation rather
+than loading every branch at once. Direct branch URLs and remembered branch
+choices use an authorized selected-branch lookup; an inaccessible remembered
+choice is reported without silently switching to another branch.
 
 ## Fast cashier workspace
 
@@ -213,17 +223,32 @@ Stock/lifecycle conflicts mark the affected line invalid;
 staff must correct or remove it. Refresh never automatically submits checkout.
 
 Network/server errors, malformed/mismatched successful responses and request-ID
-conflicts are treated as uncertain outcomes. The frozen command remains locked for
-same-ID retry, without collecting payment again. A subsequent rejection does not
-unlock a previously uncertain command. Focused in-memory attempt state is keyed
-to organization and authenticated user and survives route unmounts: another branch
-in that organization blocks new checkout and links back to the original branch.
-Returning recovers the frozen command without auto-submitting. A response that
-completes while unmounted is recovered as a completed receipt without another POST.
-This is not persistent/offline storage: page reload/tab closure loses memory and
-uses the browser unload warning; staff must verify recorded sales before recreating
-an uncertain transaction after leaving the page. Role/branch checks still apply to
-every retry, and another user's session never receives this in-memory attempt.
+conflicts are treated as uncertain outcomes. Before the financial write, the
+server persists an immutable recovery envelope containing the canonical command,
+actor, organization, branch and request ID. The existing Sale idempotency record
+remains the authoritative outcome; the envelope does not duplicate money or stock
+records. A same-kind command remains blocked for that actor until the outcome is
+resolved, including after reload, route unmount, sign-in on another device or
+process restart. Same-ID retry is explicit and never collects payment again.
+Role, tenant and branch checks are re-applied on every read and retry, and another
+user cannot discover the original actor's envelope.
+
+Recovery endpoints are organization-scoped:
+
+```text
+POST /organizations/:organizationId/command-recovery
+GET  /organizations/:organizationId/command-recovery?kind=CHECKOUT
+GET  /organizations/:organizationId/command-recovery/:id
+POST /organizations/:organizationId/command-recovery/:id/submit
+POST /organizations/:organizationId/command-recovery/:id/acknowledge
+POST /organizations/:organizationId/command-recovery/:id/abandon
+```
+
+Preparation freezes the reviewed command but does not reserve stock or payment.
+Submit is the only recovery write. Completed outcomes remain blocked until the
+staff member explicitly acknowledges the saved receipt; a prepared command may
+be abandoned only before submission and is permanently fenced against delayed
+submission. Refresh, remount, reconnect and browser focus only read status.
 
 Pending/unknown checkout also blocks History tab switching. If browser history or a
 deep-link transition targets History with a frozen same-branch command, the workspace
@@ -273,7 +298,7 @@ validation, exact estimates, cart clearing, access revocation and navigation gua
 Payment/receipt tests cover exact cash/manual validation, pending/unknown locking,
 unchanged and edited command IDs, route recovery, isolated attempt state, explicit
 price re-review, failed post-completion catalog reads and print-only retries.
-Frontend formatting, type checking, lint, all 401 tests across 63 files and the
+Frontend formatting, type checking, lint, the affected POS/refund suites and the
 production build pass. The user
 explicitly waived rendered responsive, keyboard/dialog, zoom and print QA for this
 POS/sales milestone on September 13, 2026. This is a new waiver, separate from access

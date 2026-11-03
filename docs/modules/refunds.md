@@ -66,12 +66,21 @@ shows the saved refund code, preserves history filters and refreshes reads.
 Pending/unknown attempts pin the original sale in the Refund history subtree;
 browser query Back cannot substitute another sale or detail. The persistent POS
 shell also substitutes original-sale recovery if browser navigation reaches Cart
-or Sales History. Recovery remains through completed acknowledgement until a
-successful quantities GET clears the retained attempt. Remounted pending dialogs
-derive external request state from the attempt, so a later unknown outcome enables
-explicit same-command retry. Existing command calculations and write endpoints
-are unchanged. These retained UI protections apply while the POS layout remains
-mounted; attempts remain memory-only under the existing lifecycle contract.
+or Sales History. The server persists the frozen refund command before the
+existing Refund write, keyed to the authenticated actor, organization, branch,
+sale and request ID. Existing Refund idempotency, cumulative return limits and
+stock transaction remain authoritative; recovery adds no second refund ledger.
+The same actor can read and explicitly retry the unchanged command after reload
+or on another device. A completed outcome remains a blocker until explicit
+acknowledgement; only a prepared, never-submitted command can be safely abandoned.
+Remounted dialogs read the server envelope rather than treating a missing browser
+attempt as permission to create another refund. Reads and focus changes never
+submit automatically.
+
+Refund recovery uses the shared organization-scoped command-recovery endpoints
+documented in [Branch POS](pos.md). Its `REFUND` namespace is independent from
+checkout, while actor, tenant, branch, sale and canonical-command checks are
+reapplied on every operation.
 
 ## Sale-detail frontend workflow
 
@@ -118,8 +127,8 @@ quantity measures dedicated comparison columns. Recorded refunds separate the
 refund code, completion date, amount and View action; the action remains a
 borderless quiet control.
 
-Before POST, a memory-only organization/user-scoped attempt retains the exact
-command and request ID. Pending submissions freeze fields and block duplicates,
+Before submission, the organization/user-scoped recovery envelope retains the
+exact command and request ID. Pending submissions freeze fields and block duplicates,
 Escape, backdrop/cancel dismissal, in-app link/programmatic POS navigation and
 normal page unloading. Network/timeout/server errors, malformed completion and
 request-ID conflicts retain the frozen command. Retry same refund explicitly
@@ -134,14 +143,16 @@ automatic retry. Current-access denial clears the original sale, print controls
 and refund records. The navigation lock lives beside sale access rather than
 loaded refund records so denied reads do not drop an unresolved attempt.
 
-Confirmed completion closes the dialog and refreshes history/remaining quantities.
+Confirmed completion closes the dialog and refreshes history/remaining quantities
+but keeps the completed recovery visible until the user acknowledges it. A lost
+acknowledgement response can be retried safely without another refund write.
 Failed follow-up reads retain completion feedback and permit GET-only retry, never
 another POST. No inventory editor is mounted here; subsequent inventory reads show
-the committed original-placement RETURN movements. Attempts survive component
-unmount/remount in memory, including late completion for the original actor, but
-are not persistent/offline drafts and cannot survive a full process/page restart.
+the committed original-placement RETURN movements. The client mirrors the
+organization-scoped server envelope for route continuity, while the server record
+survives component unmount/remount, process restart and sign-in on another device.
 An unresolved other-sale attempt blocks new refunds and links staff to its original
-sale; a completed other-sale attempt asks for original-sale read acknowledgement.
+sale; a completed other-sale attempt asks for original-sale acknowledgement.
 
 Saved refund detail displays immutable identity, completion time, role-appropriate
 amount and metadata, then presents returned lines in a labeled table with product

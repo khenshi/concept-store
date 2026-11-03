@@ -37,7 +37,9 @@ The Spaces table search includes an example placeholder. Rows use sm graphite
 text, with semibold space names and actions only. Status and occupancy retain
 their existing colors with normal weight.
 
-**Status:** Implemented October 9, 2026.
+**Status:** Implemented October 9, 2026. Space-type maintenance and occupancy
+actor privacy were implemented locally November 3, 2026; live/browser gates
+remain deferred.
 
 ## Purpose and ownership
 
@@ -45,7 +47,13 @@ Optional tracking of named physical spaces (racks, shelves, and custom types) in
 
 `Space` stores tenant/branch IDs, a name, organization-catalog type label, `ACTIVE`/`ARCHIVED` status, and timestamps. Names are trimmed, 1–120 characters, and unique ignoring case within a branch, including archived spaces. Types are trimmed, 1–80 characters. Only an empty space can be archived; reactivation preserves history. There are no deletion routes.
 
-`SpaceOccupancy` stores the tenant, branch, space, merchant, occupancy interval, assignment/release actors, and release reason. It does not store separate record-creation or record-update timestamps; history is represented by the occupancy interval (`startedAt`/`endedAt`). Composite foreign keys require the space and merchant–branch association to belong to the same tenant and branch. Actor IDs are retained internally and omitted from read projections. Space/merchant/branch names in reads are current identities rather than historical snapshots.
+`SpaceType` stores a stable organization-scoped ID, its current display name,
+optional `archivedAt`, a positive optimistic-concurrency `version`, and
+timestamps. Names remain unique case-insensitively across active and archived
+types. Renaming updates the current label everywhere through the existing
+name-based foreign key; it does not create a historical label snapshot.
+
+`SpaceOccupancy` stores the tenant, branch, space, merchant, occupancy interval, assignment/release actors, and release reason. It does not store separate record-creation or record-update timestamps; history is represented by the occupancy interval (`startedAt`/`endedAt`). Composite foreign keys require the space and merchant–branch association to belong to the same tenant and branch. Actor IDs are retained internally; staff projections may expose the releasing actor, while Merchant projections omit actor identity. Space/merchant/branch names in reads are current identities rather than historical snapshots.
 
 ## Dates and consistency
 
@@ -69,12 +77,14 @@ All paths below are under `/organizations/:organizationId`. Object path IDs requ
 | GET / POST  | `/branches/:branchId/spaces/:spaceId/occupancies`                      | Read occupancy / assign or record history            |
 | PATCH       | `/branches/:branchId/spaces/:spaceId/occupancies/:occupancyId/release` | Release current occupancy                            |
 | GET         | `/merchants/:merchantId/spaces`                                        | Current/history occupancy across accessible branches |
+| GET / POST  | `/space-types`                                                         | List / create organization types                     |
+| PATCH       | `/space-types/:typeId`                                                  | Rename / archive / reactivate a type                 |
 
-Space lists accept `page`, `q` (name search), `type` (case-insensitive exact label), `status`, and optional `merchantId` (current occupant for staff; own spaces for merchants). Occupancy lists accept `page`, `view=CURRENT|HISTORY`, and optional `branchId`. All lists use 15 rows with `items`, `page`, `limit`, `total`, `totalPages`, and `hasNext`. Spaces sort by name then ID; occupancy sorts by start descending then ID descending. The space list includes `currentOccupancy`; occupancy includes space identity/type/status, branch identity/code, merchant identity/code, occupancy dates, release reason, and released-by ID/name, without contact details or record-creation/update timestamps.
+Space lists accept `page`, `q` (name search), `type` (case-insensitive exact label), `status`, and optional `merchantId` (current occupant for staff; own spaces for merchants). Occupancy lists accept `page`, `view=CURRENT|HISTORY`, and optional `branchId`. All lists use 15 rows with `items`, `page`, `limit`, `total`, `totalPages`, and `hasNext`. Spaces sort by name then ID; occupancy sorts by start descending then ID descending. The space list includes `currentOccupancy`; occupancy includes space identity/type/status, branch identity/code, merchant identity/code, occupancy dates, and release reason, without contact details or record-creation/update timestamps. Staff projections additionally include released-by ID/name. Merchant projections omit `releasedBy`, `releasedById`, and nested actor identity entirely.
 
 ## Authorization
 
-Every request requires authentication and current organization membership. Owners read/manage all tenant spaces. Managers read only assigned branches, including the branch-filtered history on merchant profiles. Linked merchant members read only their profile's occupancy in affiliated branches, including inactive participation/history. They cannot inspect other occupants or unassigned spaces. Space lists for merchants include only spaces they have occupied and project only their own open occupancy; an empty current projection does not disclose another occupant. Cashiers cannot access these routes. Missing, inaccessible, and foreign objects return the same 404. Current role, profile link, and branch grants are reloaded on each operation.
+Every request requires authentication and current organization membership. Owners read/manage all tenant spaces and are the only role allowed to create, rename, archive, or reactivate organization space types. Managers read the shared type catalog and read only assigned branches, including the branch-filtered history on merchant profiles. Linked merchant members read only their profile's occupancy in affiliated branches, including inactive participation/history; their occupancy projection never includes release-actor identity. They cannot inspect other occupants or unassigned spaces. Space lists for merchants include only spaces they have occupied and project only their own open occupancy; an empty current projection does not disclose another occupant. Cashiers cannot access these routes. Missing, inaccessible, and foreign objects return the same 404. Current role, profile link, and branch grants are reloaded on each operation.
 
 ## Frontend
 
@@ -159,20 +169,31 @@ and the outstanding browser and deployment boundaries.
 ## Organization space types (October 10, 2026)
 
 The dedicated workspace has Spaces and Types tabs for owners/managers. Types is
-organization-wide and does not require branch selection. Owners create types;
-managers read the shared catalog. Merchants keep their own Spaces view without
-the management tab, and cashiers remain excluded. Tabs support arrow/Home/End
-keyboard navigation, selected-state semantics, dirty-draft confirmation, and
-pending-write protection.
+organization-wide and does not require branch selection. Owners create,
+rename, archive and reactivate types; managers read the shared catalog.
+Merchants keep their own Spaces view without the management tab, and cashiers
+remain excluded. Tabs support arrow/Home/End keyboard navigation,
+selected-state semantics, dirty-draft confirmation, and pending-write
+protection.
 
-`SpaceType` stores an ID, organization ID, name, and creation timestamp. Names are
-trimmed, 1–80 characters, and unique case-insensitively per organization. There
-are no rename, deletion, or archive commands. GET `/organizations/:organizationId/space-types`
-returns an array of `{ id, organizationId, name }` without counts. Owners and
-managers receive the organization catalog. Merchants receive only types used by
-their own accessible current/past spaces. POST on the same path creates a type
-and is owner-only; duplicate names receive 409, invalid/unknown body fields 400,
-and cashier access 403. Current membership is reloaded for both operations.
+`SpaceType` stores an ID, organization ID, current name, optional archive time,
+positive version, and timestamps. Names are trimmed, 1–80 characters, and
+unique case-insensitively across active and archived types. GET
+`/organizations/:organizationId/space-types` returns `{ id, organizationId,
+name, archived, version, updatedAt }`. Owners may request `includeArchived=true`
+for management; `currentName` keeps an existing archived type available while
+editing a space that already uses it. Managers receive active organization
+types. Merchants receive only active types used by their own accessible
+current/past spaces. POST creates a type and is owner-only. PATCH on the same
+path is owner-only and accepts `name`, `archived`, and required
+`expectedVersion`; stale versions receive 409. Duplicate names, invalid/unknown
+fields, and cashier access retain existing error behavior.
+
+Archived types remain attached to existing spaces and are shown in those
+spaces' current-label history, but cannot be selected for a new space or a
+type change. Reverting an edit without changing the current archived type is
+allowed. Reactivation restores selection eligibility and never changes spaces
+or occupancy records.
 
 Space creation/edit uses a focused form dialog with the name field receiving
 initial focus, persistent field guidance, live field-level validation, and a
@@ -195,21 +216,17 @@ available if the space form is cancelled. Branch-space filters use catalog
 choices, including privacy-scoped choices for merchants. Type-list failures show
 an explicit retry action and do not silently submit a missing selection.
 
-Migration `20261010010000_add_space_types` runs transactionally while locking
-Space writes, backfills all existing labels (including archived spaces), and
-chooses deterministic canonical spelling for case variants within each tenant.
-Space identities, timestamps, statuses, and occupancy records are retained. A
-composite foreign key ties Space's `(organizationId, type)` to the catalog's
-`(organizationId, name)`. A registration trigger atomically registers and
-canonicalizes existing string-based writes; failed space writes roll back their
-implicit new types. This preserves the existing API response/request shape and
-supports legacy clients during deployment. Explicit catalog creation still
-rejects duplicates rather than silently returning another record.
+Migration `20261010010000_add_space_types` established the organization-scoped
+catalog, canonical labels and composite foreign key. Migration
+`20261103010000_space_type_maintenance` adds `archivedAt`, `version`,
+`updatedAt`, the archive/version index and a positive-version constraint, then
+removes the implicit `register_space_type` trigger/function. Space create and
+type-change commands now resolve an existing active type explicitly. Existing
+Space rows, IDs, occupancy records and current-label relationships are
+preserved; unknown type labels no longer create catalog rows implicitly.
 
-Apply the new migration before the matching API/frontend. It has only been
-applied to disposable test databases in this session. For application rollback,
-keep the additive schema and legacy-compatible trigger. If a schema rollback is
-separately authorized, remove the Space catalog foreign key, trigger, function,
-and catalog table in that order; retain space strings/occupancy. Canonical
-capitalization remains unless restored from a prior backup. See
-[type validation](../validation/space-types-2026-10-10.md).
+Apply both migrations before deploying the matching API/frontend. The new
+migration has been rehearsed against a disposable PostgreSQL database; live
+deployment and browser/privacy inspection remain deferred. There is no safe
+rollback to the removed auto-registration behavior once callers can depend on
+explicit type validation. See [type validation](../validation/space-types-2026-10-10.md).

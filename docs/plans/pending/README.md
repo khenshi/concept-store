@@ -59,7 +59,7 @@ Existing specifications remain the source of truth until their review turn.
 | ID  | Plan / intended file                                                                    | Priority              | Draft status                                                                                         |
 | --- | --------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------- |
 | 16  | [Branch lifecycle enforcement](../archive/16-branch-lifecycle-2026-10-30.md)          | Required before pilot | Completed and archived October 30; Owner-only status enforcement, controlled closure, disposable-PostgreSQL verification and full CI passed |
-| 17  | [Directory pagination, member access history and POS browsing](17-member-management.md) | Required before pilot | Drafted October 24; Owner-only history/15-product POS batches confirmed; implementation not approved |
+| 17  | [Directory pagination, member access history and POS browsing](17-member-management.md) | Required before pilot | Approved and active October 31; core slices implemented locally; option-consumer, HTTP/integration, and browser gates remain open |
 
 ### Checkout and refund recovery addition
 
@@ -88,7 +88,7 @@ before 11/12/14 sign-off; otherwise document explicit deferral.
 
 | ID  | Plan / intended file                                                                   | Priority                   | Draft status                                                                                          |
 | --- | -------------------------------------------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 20  | [Space-type maintenance and occupancy actor privacy](20-spaces-maintenance-privacy.md) | Both required before pilot | Drafted October 24; archive/reactivation/current-label history confirmed; implementation not approved |
+| 20  | [Space-type maintenance and occupancy actor privacy](20-spaces-maintenance-privacy.md) | Both required before pilot | Implemented locally November 3; focused local gates passed; browser, deployed-database and release-review gates remain deferred |
 
 Plan 20 reuses existing Spaces authorization and catalog relationships. Coordinate
 with database safety (04), branch lifecycle (16) and final qualification (11/14).
