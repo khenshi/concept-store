@@ -14,12 +14,19 @@ describe('organization member API', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('lists members through the organization-scoped path', async () => {
-    vi.mocked(request).mockResolvedValue([]);
+    vi.mocked(request).mockResolvedValue({
+      items: [],
+      page: 1,
+      limit: 15,
+      total: 0,
+      totalPages: 0,
+      hasNext: false,
+    });
 
     await listOrganizationMembers(request, 'organization/id');
 
     expect(request).toHaveBeenCalledWith(
-      '/organizations/organization%2Fid/members',
+      '/organizations/organization%2Fid/members?page=1',
     );
   });
 

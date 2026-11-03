@@ -16,13 +16,19 @@ import {
   scope,
 } from '../model/inventory.test-fixtures';
 import { InventoryDetail } from './inventory-detail';
-import { listBranches } from '@/features/branches/api/branch-api';
+import {
+  getBranch,
+  listBranchOptions,
+  listBranches,
+} from '@/features/branches/api/branch-api';
 const { push, router } = vi.hoisted(() => {
   const push = vi.fn();
   return { push, router: { push } };
 });
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 vi.mock('@/features/branches/api/branch-api', () => ({
+  getBranch: vi.fn(),
+  listBranchOptions: vi.fn(),
   listBranches: vi.fn(),
 }));
 
@@ -55,17 +61,22 @@ describe('InventoryDetail workflows', () => {
     ).toBeInTheDocument();
   });
   it('switches branches without a discard prompt for unsaved edits', async () => {
-    vi.mocked(listBranches).mockResolvedValue([
-      { id: scope.branchId, name: branch.name, code: branch.code },
-      { id: 'other', name: 'BGC', code: 'BGC' },
-    ] as never);
+    vi.mocked(listBranchOptions).mockResolvedValue({
+      items: [
+        { id: scope.branchId, label: `${branch.name} (${branch.code})` },
+        { id: 'other', label: 'BGC (BGC)' },
+      ],
+      hasNext: false,
+    });
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<InventoryDetail {...scope} />);
     await screen.findByRole('button', { name: 'View' });
     openAction('Receive');
     const quantity = screen.getByRole('textbox', { name: 'Units to receive' });
     fireEvent.change(quantity, { target: { value: '3' } });
-    fireEvent.click(screen.getByRole('combobox', { name: 'Inventory branch' }));
+    const picker = screen.getByRole('combobox', { name: 'Inventory branch' });
+    await waitFor(() => expect(picker).toBeEnabled());
+    fireEvent.click(picker);
     fireEvent.click(screen.getByRole('option', { name: 'BGC (BGC)' }));
     expect(confirm).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith(
@@ -90,6 +101,11 @@ describe('InventoryDetail workflows', () => {
   const request = vi.fn();
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.mocked(getBranch).mockResolvedValue(branch as never);
+    vi.mocked(listBranchOptions).mockResolvedValue({
+      items: [{ id: scope.branchId, label: `${branch.name} (${branch.code})` }],
+      hasNext: false,
+    });
     vi.mocked(listBranches).mockResolvedValue([
       { id: scope.branchId, name: branch.name, code: branch.code },
     ] as never);

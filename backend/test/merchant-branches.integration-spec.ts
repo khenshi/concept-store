@@ -514,7 +514,7 @@ describe('Merchant branch HTTP authorization and operational integrity', () => {
         .participationStatus,
     ).toBe('INACTIVE');
     expect(
-      (await new PosCatalogService(prisma).findAll(context, branchId))[0]
+      (await new PosCatalogService(prisma).findAll(context, branchId)).items[0]
         .eligible,
     ).toBe(false);
     expect(

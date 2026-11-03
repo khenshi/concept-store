@@ -100,6 +100,7 @@ export class BranchesController {
     OrganizationRole.OWNER,
     OrganizationRole.MANAGER,
     OrganizationRole.CASHIER,
+    OrganizationRole.MERCHANT,
   )
   @Get('directory')
   @ApiOperation({ summary: 'Page the staff branch directory' })

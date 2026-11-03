@@ -16,6 +16,15 @@ export const invitationResponseSchema = z.object({
   merchantId: z.uuidv4().nullable(),
   merchant: accessMerchantSchema.nullable(),
   branches: z.array(z.object({ branch: accessBranchSchema })),
+  status: z.enum(['PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED']),
+});
+export const invitationPageSchema = z.object({
+  items: invitationResponseSchema.array(),
+  page: z.number().int().positive(),
+  limit: z.literal(15),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  hasNext: z.boolean(),
 });
 export const createdInvitationResponseSchema = z.object({
   invitation: invitationResponseSchema,

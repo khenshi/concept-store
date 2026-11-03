@@ -17,15 +17,21 @@ import { isDeepStrictEqual } from 'node:util';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { CreateProductDto } from './dto/create-product.dto';
 import type { ListProductsQueryDto } from './dto/list-products-query.dto';
+import type { ListProductDirectoryQueryDto } from './dto/list-product-directory-query.dto';
 import type { UpdateProductDto } from './dto/update-product.dto';
 import type { UpdateProductStatusDto } from './dto/update-product-status.dto';
-import type { ProductInventoryRecord, ProductRecord } from './products.types';
+import type {
+  ProductDirectoryPage,
+  ProductInventoryRecord,
+  ProductRecord,
+} from './products.types';
 import { productSelect } from './products.types';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { inventoryScope, productScope } from '../authorization/resource-access';
 import { deriveInventoryStockStatus } from '../inventory/inventory.types';
 import { assertActiveOrganization } from '../organization-state';
 import { assertBranchWriteAllowed } from '../branch-lifecycle';
+import { ORGANIZATION_PAGE_SIZE } from '../dto/page-query.dto';
 
 @Injectable()
 export class ProductsService {
@@ -103,6 +109,49 @@ export class ProductsService {
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
+  }
+
+  async findDirectory(
+    organizationId: string,
+    query: ListProductDirectoryQueryDto,
+    context: OrganizationContext,
+  ): Promise<ProductDirectoryPage> {
+    if (query.merchantId)
+      await this.resolveMerchant(organizationId, query.merchantId);
+    const where: Prisma.ProductWhereInput = {
+      organizationId,
+      AND: [productScope(context)],
+      ...(query.merchantId ? { merchantId: query.merchantId } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { name: { contains: query.q, mode: 'insensitive' } },
+              { sku: { contains: query.q, mode: 'insensitive' } },
+              { barcode: { contains: query.q } },
+            ],
+          }
+        : {}),
+    };
+    const skip = (query.page - 1) * ORGANIZATION_PAGE_SIZE;
+    const [total, products] = await this.prisma.$transaction([
+      this.prisma.product.count({ where }),
+      this.prisma.product.findMany({
+        select: productSelect,
+        where,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip,
+        take: ORGANIZATION_PAGE_SIZE,
+      }),
+    ]);
+    return {
+      items: products,
+      page: query.page,
+      limit: ORGANIZATION_PAGE_SIZE,
+      total,
+      totalPages: Math.ceil(total / ORGANIZATION_PAGE_SIZE),
+      hasNext: query.page * ORGANIZATION_PAGE_SIZE < total,
+    };
   }
 
   async findOne(

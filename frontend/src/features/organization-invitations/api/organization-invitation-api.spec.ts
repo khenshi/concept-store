@@ -22,6 +22,7 @@ describe('organization invitation API', () => {
     createdAt: '2026-09-13T00:00:00Z',
     acceptedAt: null,
     revokedAt: null,
+    status: 'PENDING',
   };
   const request = vi.fn() as unknown as AuthenticatedRequest;
 
@@ -34,7 +35,14 @@ describe('organization invitation API', () => {
         token: 'token',
         emailDelivery: 'accepted',
       })
-      .mockResolvedValueOnce([invitation]);
+      .mockResolvedValueOnce({
+        items: [invitation],
+        page: 1,
+        limit: 15,
+        total: 1,
+        totalPages: 1,
+        hasNext: false,
+      });
     const input = { email: 'manager@example.com', role: 'MANAGER' as const };
 
     await createOrganizationInvitation(request, 'organization/id', input);
@@ -51,7 +59,7 @@ describe('organization invitation API', () => {
     );
     expect(request).toHaveBeenNthCalledWith(
       2,
-      '/organizations/organization%2Fid/invitations',
+      '/organizations/organization%2Fid/invitations?page=1',
     );
   });
 
@@ -75,7 +83,7 @@ describe('organization invitation API', () => {
   });
 
   it('revokes an invitation through both scoped identifiers', async () => {
-    vi.mocked(request).mockResolvedValue(invitation);
+    vi.mocked(request).mockResolvedValue({ ...invitation, status: 'REVOKED' });
 
     await revokeOrganizationInvitation(
       request,

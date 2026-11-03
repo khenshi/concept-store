@@ -86,3 +86,11 @@ export const merchantViewSchema = z.union([
   merchantSummarySchema,
 ]);
 export const merchantViewListSchema = z.array(merchantViewSchema);
+export const merchantDirectoryPageSchema = z.object({
+  items: merchantViewSchema.array(),
+  page: z.number().int().positive(),
+  limit: z.literal(15),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  hasNext: z.boolean(),
+});

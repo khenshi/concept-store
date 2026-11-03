@@ -24,7 +24,10 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { OrganizationRole } from '../../../generated/prisma/client';
-import { MerchantResponseDto } from '../../../openapi/response.dto';
+import {
+  MerchantDirectoryPageResponseDto,
+  MerchantResponseDto,
+} from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
 import { ResourceAccessGuard } from '../authorization/resource-access.guard';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
@@ -33,10 +36,12 @@ import { CurrentOrganization } from '../authorization/organization-context.decor
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
 import { CreateMerchantDto } from './dto/create-merchant.dto';
 import { ListMerchantsQueryDto } from './dto/list-merchants-query.dto';
+import { ListMerchantDirectoryQueryDto } from './dto/list-merchant-directory-query.dto';
 import { UpdateMerchantStatusDto } from './dto/update-merchant-status.dto';
 import { UpdateMerchantDto } from './dto/update-merchant.dto';
 import { MerchantsService } from './merchants.service';
 import type { MerchantRecord } from './merchants.types';
+import type { MerchantDirectoryPage } from './merchants.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard, ResourceAccessGuard)
 @OrganizationRoles(
@@ -44,7 +49,11 @@ import type { MerchantRecord } from './merchants.types';
   OrganizationRole.MANAGER,
   OrganizationRole.MERCHANT,
 )
-@ApiExtraModels(MerchantResponseDto, MerchantIdentityResponseDto)
+@ApiExtraModels(
+  MerchantResponseDto,
+  MerchantIdentityResponseDto,
+  MerchantDirectoryPageResponseDto,
+)
 @ApiTags('merchants')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Access token is missing or invalid' })
@@ -86,6 +95,20 @@ export class MerchantsController {
     @Query() query: ListMerchantsQueryDto,
   ) {
     return this.merchantsService.findAll(
+      organization.organizationId,
+      query,
+      organization,
+    );
+  }
+
+  @Get('directory')
+  @ApiOperation({ summary: 'List a bounded merchant directory page' })
+  @ApiOkResponse({ type: MerchantDirectoryPageResponseDto })
+  findDirectory(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() query: ListMerchantDirectoryQueryDto,
+  ): Promise<MerchantDirectoryPage> {
+    return this.merchantsService.findDirectory(
       organization.organizationId,
       query,
       organization,

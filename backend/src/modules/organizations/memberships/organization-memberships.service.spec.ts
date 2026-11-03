@@ -19,18 +19,21 @@ describe('OrganizationMembershipsService', () => {
     branchMembership: { deleteMany: jest.fn(), upsert: jest.fn() },
     branch: { findUnique: jest.fn(), findMany: jest.fn() },
     merchant: { findUnique: jest.fn() },
+    memberAccessEvent: { create: jest.fn() },
     organizationMembership: {
       findUnique: jest.fn(),
-      count: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     },
   };
   const prisma = {
     $transaction: jest.fn(),
     organizationMembership: {
       findMany: jest.fn(),
+      count: jest.fn(),
     },
+    memberAccessEvent: { findMany: jest.fn(), count: jest.fn() },
   };
   let service: OrganizationMembershipsService;
 
@@ -39,9 +42,10 @@ describe('OrganizationMembershipsService', () => {
     transaction.$queryRaw.mockResolvedValue([
       { id: organizationId, status: 'ACTIVE' },
     ]);
-    prisma.$transaction.mockImplementation(
-      (callback: (client: typeof transaction) => unknown) =>
-        callback(transaction),
+    prisma.$transaction.mockImplementation((operation: unknown) =>
+      Array.isArray(operation)
+        ? Promise.all(operation)
+        : (operation as (client: typeof transaction) => unknown)(transaction),
     );
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -63,34 +67,31 @@ describe('OrganizationMembershipsService', () => {
       },
     ]);
 
-    await expect(service.findAll(organizationId)).resolves.toEqual([
-      {
-        ...user,
-        role: OrganizationRole.MANAGER,
-        merchantId: null,
-        branchAccessCount: 2,
-        joinedAt,
-      },
-    ]);
-    expect(prisma.organizationMembership.findMany).toHaveBeenCalledWith({
-      where: { organizationId },
-      select: {
-        role: true,
-        merchantId: true,
-        createdAt: true,
-        _count: { select: { branches: true } },
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            phone: true,
-          },
+    prisma.organizationMembership.count.mockResolvedValue(1);
+    await expect(service.findAll(organizationId)).resolves.toEqual({
+      items: [
+        {
+          ...user,
+          role: OrganizationRole.MANAGER,
+          merchantId: null,
+          branchAccessCount: 2,
+          joinedAt,
         },
-      },
-      orderBy: { createdAt: 'asc' },
+      ],
+      page: 1,
+      limit: 15,
+      total: 1,
+      totalPages: 1,
+      hasNext: false,
     });
+    expect(prisma.organizationMembership.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId },
+        skip: 0,
+        take: 15,
+        orderBy: [{ createdAt: 'asc' }, { userId: 'asc' }],
+      }),
+    );
   });
 
   it('updates a member role in a serializable transaction', async () => {

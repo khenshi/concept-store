@@ -37,6 +37,7 @@ describe('MerchantsService', () => {
     spaceOccupancy: { findMany: jest.fn(), updateMany: jest.fn() },
     merchant: {
       create: jest.fn(),
+      count: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -46,8 +47,10 @@ describe('MerchantsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    prisma.$transaction.mockImplementation((work: (tx: unknown) => unknown) =>
-      work(prisma),
+    prisma.$transaction.mockImplementation((work: unknown) =>
+      Array.isArray(work)
+        ? Promise.all(work)
+        : (work as (tx: typeof prisma) => unknown)(prisma),
     );
     prisma.$queryRaw.mockResolvedValue([{ id: merchantId, status: 'ACTIVE' }]);
     prisma.organizationMembership.findFirst.mockResolvedValue({
@@ -108,6 +111,35 @@ describe('MerchantsService', () => {
       where: { organizationId },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
+  });
+
+  it('returns a bounded scoped directory page', async () => {
+    prisma.merchant.count.mockResolvedValue(16);
+    prisma.merchant.findMany.mockResolvedValue([merchant]);
+
+    await expect(
+      service.findDirectory(
+        organizationId,
+        { page: 2 },
+        {
+          organizationId,
+          userId: 'owner-id',
+          role: 'OWNER',
+          merchantId: null,
+          status: 'ACTIVE',
+        },
+      ),
+    ).resolves.toMatchObject({
+      items: [merchant],
+      page: 2,
+      limit: 15,
+      total: 16,
+      totalPages: 2,
+      hasNext: false,
+    });
+    expect(prisma.merchant.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 15, take: 15 }),
+    );
   });
 
   it('does not reveal a missing or foreign-organization merchant', async () => {

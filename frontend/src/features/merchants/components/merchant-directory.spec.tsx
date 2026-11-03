@@ -7,7 +7,8 @@ import {
 } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listMerchants } from '../api/merchant-api';
+import { listMerchantDirectory } from '../api/merchant-api';
+import type { MerchantView } from '../model/merchant.types';
 import { MerchantDirectory } from './merchant-directory';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -18,7 +19,7 @@ vi.mock(
   }),
 );
 vi.mock('../api/merchant-api', () => ({
-  listMerchants: vi.fn(),
+  listMerchantDirectory: vi.fn(),
   createMerchant: vi.fn(),
   updateMerchant: vi.fn(),
 }));
@@ -69,6 +70,14 @@ const merchant = {
   createdAt: '2026-09-12T00:00:00.000Z',
   updatedAt: '2026-09-12T00:00:00.000Z',
 };
+const merchantPage = (items: MerchantView[] = [merchant]) => ({
+  items,
+  page: 1,
+  limit: 15 as const,
+  total: items.length,
+  totalPages: items.length ? 1 : 0,
+  hasNext: false,
+});
 
 describe('MerchantDirectory', () => {
   beforeEach(() => {
@@ -85,21 +94,21 @@ describe('MerchantDirectory', () => {
   });
 
   it('shows loading and empty directory states', async () => {
-    let resolveRequest!: (value: []) => void;
-    vi.mocked(listMerchants).mockReturnValue(
+    let resolveRequest!: () => void;
+    vi.mocked(listMerchantDirectory).mockReturnValue(
       new Promise((resolve) => {
-        resolveRequest = resolve;
+        resolveRequest = () => resolve(merchantPage([]));
       }),
     );
     render(<MerchantDirectory organizationId={organizationId} />);
     expect(screen.getByLabelText('Loading merchants')).toBeInTheDocument();
 
-    resolveRequest([]);
+    resolveRequest();
     expect(await screen.findByText('No merchants yet')).toBeInTheDocument();
   });
 
   it('shows request errors and opens creation in a modal', async () => {
-    vi.mocked(listMerchants).mockRejectedValue(new Error('offline'));
+    vi.mocked(listMerchantDirectory).mockRejectedValue(new Error('offline'));
     render(<MerchantDirectory organizationId={organizationId} />);
     expect(
       await screen.findByText('Merchants unavailable'),
@@ -112,7 +121,7 @@ describe('MerchantDirectory', () => {
   });
 
   it('debounces search and applies the exact status filter', async () => {
-    vi.mocked(listMerchants).mockResolvedValue([merchant]);
+    vi.mocked(listMerchantDirectory).mockResolvedValue(merchantPage());
     render(<MerchantDirectory organizationId={organizationId} />);
     expect(await screen.findByText(merchant.name)).toBeInTheDocument();
 
@@ -121,10 +130,10 @@ describe('MerchantDirectory', () => {
     });
     await waitFor(
       () =>
-        expect(listMerchants).toHaveBeenLastCalledWith(
+        expect(listMerchantDirectory).toHaveBeenLastCalledWith(
           expect.any(Function),
           organizationId,
-          { q: 'amihan', status: undefined },
+          { q: 'amihan', status: undefined, page: 1 },
           'OWNER',
         ),
       { timeout: 1000 },
@@ -133,17 +142,17 @@ describe('MerchantDirectory', () => {
     fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'Suspended' }));
     await waitFor(() =>
-      expect(listMerchants).toHaveBeenLastCalledWith(
+      expect(listMerchantDirectory).toHaveBeenLastCalledWith(
         expect.any(Function),
         organizationId,
-        { q: 'amihan', status: 'SUSPENDED' },
+        { q: 'amihan', status: 'SUSPENDED', page: 1 },
         'OWNER',
       ),
     );
   });
 
   it('restores the trigger focus and scrolling after modal cancellation', async () => {
-    vi.mocked(listMerchants).mockResolvedValue([]);
+    vi.mocked(listMerchantDirectory).mockResolvedValue(merchantPage([]));
     render(<MerchantDirectory organizationId={organizationId} />);
     await screen.findByText('No merchants yet');
     const trigger = screen.getByRole('button', { name: 'Add merchant' });
@@ -166,7 +175,7 @@ describe('MerchantDirectory', () => {
     } as never);
     render(<MerchantDirectory organizationId={organizationId} />);
     expect(screen.getByText('Merchant directory unavailable')).toBeVisible();
-    expect(listMerchants).not.toHaveBeenCalled();
+    expect(listMerchantDirectory).not.toHaveBeenCalled();
     expect(
       screen.queryByRole('button', { name: 'Add merchant' }),
     ).not.toBeInTheDocument();
@@ -176,14 +185,16 @@ describe('MerchantDirectory', () => {
       organization: { role: 'MANAGER' },
       organizationStatus: 'ready',
     } as never);
-    vi.mocked(listMerchants).mockResolvedValue([
-      {
-        id: merchant.id,
-        name: merchant.name,
-        code: merchant.code,
-        status: merchant.status,
-      },
-    ]);
+    vi.mocked(listMerchantDirectory).mockResolvedValue(
+      merchantPage([
+        {
+          id: merchant.id,
+          name: merchant.name,
+          code: merchant.code,
+          status: merchant.status,
+        },
+      ]),
+    );
     render(<MerchantDirectory organizationId={organizationId} />);
     await screen.findByRole('link', { name: `View ${merchant.name}` });
     expect(
@@ -197,14 +208,16 @@ describe('MerchantDirectory', () => {
   });
 
   it('aligns status and action columns and marks suspended merchants red', async () => {
-    vi.mocked(listMerchants).mockResolvedValue([
-      merchant,
-      {
-        ...merchant,
-        id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-        status: 'SUSPENDED',
-      },
-    ]);
+    vi.mocked(listMerchantDirectory).mockResolvedValue(
+      merchantPage([
+        merchant,
+        {
+          ...merchant,
+          id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          status: 'SUSPENDED',
+        },
+      ]),
+    );
     render(<MerchantDirectory organizationId={organizationId} />);
 
     const actionHeader = await screen.findByText('Action');

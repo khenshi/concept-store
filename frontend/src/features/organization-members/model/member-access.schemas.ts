@@ -19,5 +19,39 @@ export const memberResponseSchema = z.object({
   joinedAt: z.iso.datetime({ offset: true }),
   merchantId: z.uuidv4().nullable(),
 });
+export const memberPageSchema = z.object({
+  items: memberResponseSchema.array(),
+  page: z.number().int().positive(),
+  limit: z.literal(15),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  hasNext: z.boolean(),
+});
+export const memberAccessEventSchema = z.object({
+  id: z.uuidv4(),
+  occurredAt: z.iso.datetime({ offset: true }),
+  operation: z.enum([
+    'ROLE_CHANGED',
+    'MERCHANT_LINKED',
+    'MERCHANT_UNLINKED',
+    'BRANCH_GRANTED',
+    'BRANCH_REVOKED',
+    'MEMBER_REMOVED',
+  ]),
+  actorId: z.uuidv4(),
+  actorName: z.string(),
+  targetUserId: z.uuidv4(),
+  targetName: z.string(),
+  beforeState: z.record(z.string(), z.unknown()),
+  afterState: z.record(z.string(), z.unknown()),
+});
+export const memberAccessEventPageSchema = z.object({
+  items: memberAccessEventSchema.array(),
+  page: z.number().int().positive(),
+  limit: z.literal(15),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  hasNext: z.boolean(),
+});
 export type AccessBranch = z.infer<typeof accessBranchSchema>;
 export type AccessMerchant = z.infer<typeof accessMerchantSchema>;

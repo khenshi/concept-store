@@ -8,13 +8,15 @@ import {
 import { useAuth } from '@/features/auth/model/auth-context';
 import { createOrganizationInvitation } from '../api/organization-invitation-api';
 import { OrganizationInvitationModal } from './organization-invitation-modal';
-import { loadMemberAccessOptions } from '@/features/organization-members/api/organization-member-api';
+import { listBranchOptions } from '@/features/branches/api/branch-api';
+import { listMerchantOptions } from '@/features/merchants/api/merchant-api';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
-vi.mock('@/features/organization-members/api/organization-member-api', () => ({
-  loadMemberAccessOptions: vi
-    .fn()
-    .mockResolvedValue({ branches: [], merchants: [] }),
+vi.mock('@/features/branches/api/branch-api', () => ({
+  listBranchOptions: vi.fn(),
+}));
+vi.mock('@/features/merchants/api/merchant-api', () => ({
+  listMerchantOptions: vi.fn(),
 }));
 vi.mock('../api/organization-invitation-api', () => ({
   createOrganizationInvitation: vi.fn(),
@@ -30,9 +32,13 @@ const close = Object.getOwnPropertyDescriptor(
 );
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(loadMemberAccessOptions).mockResolvedValue({
-    branches: [],
-    merchants: [],
+  vi.mocked(listBranchOptions).mockResolvedValue({
+    items: [],
+    hasNext: false,
+  });
+  vi.mocked(listMerchantOptions).mockResolvedValue({
+    items: [],
+    hasNext: false,
   });
   vi.mocked(useAuth).mockReturnValue({ request } as unknown as ReturnType<
     typeof useAuth
@@ -78,9 +84,6 @@ it('validates email after input debounce and immediately on blur', async () => {
 });
 
 it('shows a branch skeleton while access choices are loading', () => {
-  vi.mocked(loadMemberAccessOptions).mockReturnValueOnce(
-    new Promise(() => undefined),
-  );
   render(
     <OrganizationInvitationModal
       organizationId="org"
@@ -95,9 +98,13 @@ it('shows a branch skeleton while access choices are loading', () => {
 
 it('merchant invitations inherit profile branches without individual grants', async () => {
   const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-  vi.mocked(loadMemberAccessOptions).mockResolvedValue({
-    branches: [{ id, name: 'Makati', code: null }],
-    merchants: [{ id, name: 'Amihan', code: null, status: 'ACTIVE' }],
+  vi.mocked(listBranchOptions).mockResolvedValue({
+    items: [{ id, label: 'Makati' }],
+    hasNext: false,
+  });
+  vi.mocked(listMerchantOptions).mockResolvedValue({
+    items: [{ id, label: 'Amihan' }],
+    hasNext: false,
   });
   vi.mocked(createOrganizationInvitation).mockResolvedValue({
     token: 'token',
@@ -111,6 +118,7 @@ it('merchant invitations inherit profile branches without individual grants', as
       createdAt: '2026-09-13T00:00:00Z',
       acceptedAt: null,
       revokedAt: null,
+      status: 'PENDING',
     },
   });
   render(
@@ -126,11 +134,18 @@ it('merchant invitations inherit profile branches without individual grants', as
   });
   fireEvent.click(screen.getByRole('combobox', { name: 'Organization role' }));
   fireEvent.click(screen.getByRole('option', { name: 'Merchant' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('combobox', { name: 'Merchant profile' }),
+    ).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole('combobox', { name: 'Merchant profile' }));
-  fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
-  expect(
-    screen.queryByRole('button', { name: /Makati/ }),
-  ).not.toBeInTheDocument();
+  fireEvent.click(await screen.findByRole('option', { name: 'Amihan' }));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole('button', { name: /Makati/ }),
+    ).not.toBeInTheDocument(),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Create invitation' }));
   await screen.findByRole('heading', { name: 'Invitation ready' });
   expect(createOrganizationInvitation).toHaveBeenCalledWith(request, 'org', {
@@ -145,10 +160,18 @@ it('uses a searchable custom branch picker for staff invitations', async () => {
     { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', name: 'Makati', code: 'MKT' },
     { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', name: 'BGC', code: 'BGC' },
   ];
-  vi.mocked(loadMemberAccessOptions).mockResolvedValue({
-    branches,
-    merchants: [],
-  });
+  vi.mocked(listBranchOptions).mockImplementation(
+    async (_request, _org, query) => ({
+      items: branches
+        .filter(({ name, code }) =>
+          `${name} ${code}`
+            .toLocaleLowerCase()
+            .includes((query?.search ?? '').toLocaleLowerCase()),
+        )
+        .map(({ id, name, code }) => ({ id, label: `${name} · ${code}` })),
+      hasNext: false,
+    }),
+  );
   render(
     <OrganizationInvitationModal
       organizationId="org"
@@ -164,10 +187,12 @@ it('uses a searchable custom branch picker for staff invitations', async () => {
   fireEvent.change(screen.getByRole('searchbox', { name: 'Filter branches' }), {
     target: { value: 'BGC' },
   });
-  expect(
-    screen.queryByRole('button', { name: /Makati/ }),
-  ).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /BGC/ })).toBeInTheDocument();
+  await waitFor(() => {
+    expect(
+      screen.queryByRole('button', { name: /Makati/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /BGC/ })).toBeInTheDocument();
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Clear branch selection' }),
   );
@@ -197,10 +222,8 @@ it('requires a merchant link before submitting a merchant invitation', async () 
   ).toHaveAttribute('aria-invalid', 'true');
 });
 
-it('recovers choice loading without losing the invitation draft', async () => {
-  vi.mocked(loadMemberAccessOptions).mockRejectedValueOnce(
-    new Error('offline'),
-  );
+it('recovers branch choice loading without losing the invitation draft', async () => {
+  vi.mocked(listBranchOptions).mockRejectedValueOnce(new Error('offline'));
   render(
     <OrganizationInvitationModal
       organizationId="org"
@@ -211,12 +234,7 @@ it('recovers choice loading without losing the invitation draft', async () => {
   fireEvent.change(screen.getByLabelText('Email address'), {
     target: { value: 'staff@example.test' },
   });
-  await screen.findByText(
-    'Branches and merchants could not be loaded. Try again.',
-  );
-  expect(
-    screen.getByRole('button', { name: 'Create invitation' }),
-  ).toBeDisabled();
+  await screen.findByText('Branches could not be loaded. Try again.');
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   await screen.findByText(
     'No branches available. Access can be assigned later.',
@@ -324,6 +342,7 @@ it('blocks dismissal while creating and presents the normalized invitation link'
       createdAt: '2026-09-12T00:00:00Z',
       acceptedAt: null,
       revokedAt: null,
+      status: 'PENDING',
     },
   });
   expect(

@@ -1,6 +1,7 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
 import {
   productListResponseSchema,
+  productDirectoryPageSchema,
   productResponseSchema,
   productPlacementListSchema,
 } from '../model/product.schemas';
@@ -29,6 +30,19 @@ export async function listProducts(
     if (value) query.set(key, value);
   return productListResponseSchema.parse(
     await request<unknown>(`${path(org)}${query.size ? `?${query}` : ''}`),
+  );
+}
+
+export async function listProductDirectory(
+  request: AuthenticatedRequest,
+  org: string,
+  filters: ProductFilters & { page?: number } = {},
+) {
+  const query = new URLSearchParams({ page: String(filters.page ?? 1) });
+  for (const [key, value] of Object.entries(filters))
+    if (key !== 'page' && value) query.set(key, value);
+  return productDirectoryPageSchema.parse(
+    await request<unknown>(`${path(org)}/directory?${query}`),
   );
 }
 export async function getProduct(

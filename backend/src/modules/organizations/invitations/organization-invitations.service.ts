@@ -11,9 +11,12 @@ import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import { EmailService } from '../../../infrastructure/email/email.service';
 import type { AuthenticatedPrincipal } from '../../auth/auth.types';
 import type { CreateOrganizationInvitationDto } from './dto/create-organization-invitation.dto';
+import type { ListInvitationsQueryDto } from './dto/list-invitations-query.dto';
+import { ORGANIZATION_PAGE_SIZE } from '../dto/page-query.dto';
 import type {
   AcceptedOrganizationInvitation,
   CreatedOrganizationInvitation,
+  OrganizationInvitationPage,
   OrganizationInvitationPreview,
   OrganizationInvitationView,
 } from './organization-invitations.types';
@@ -144,7 +147,11 @@ export class OrganizationInvitationsService {
       token,
       expiresAt: invitation.expiresAt,
     });
-    return { invitation, token, emailDelivery: emailDelivery.status };
+    return {
+      invitation: this.withStatus(invitation),
+      token,
+      emailDelivery: emailDelivery.status,
+    };
   }
 
   async resend(
@@ -209,15 +216,42 @@ export class OrganizationInvitationsService {
       token,
       expiresAt: invitation.expiresAt,
     });
-    return { invitation, token, emailDelivery: emailDelivery.status };
+    return {
+      invitation: this.withStatus(invitation),
+      token,
+      emailDelivery: emailDelivery.status,
+    };
   }
 
-  findAll(organizationId: string): Promise<OrganizationInvitationView[]> {
-    return this.prisma.organizationInvitation.findMany({
-      where: { organizationId },
-      select: invitationSelect,
-      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-    });
+  async findAll(
+    organizationId: string,
+    query: ListInvitationsQueryDto = { page: 1 },
+  ): Promise<OrganizationInvitationPage> {
+    const now = new Date();
+    const where: Prisma.OrganizationInvitationWhereInput = {
+      organizationId,
+      ...(query.q ? { email: { contains: query.q, mode: 'insensitive' } } : {}),
+      ...(query.status ? invitationStatusWhere(query.status, now) : {}),
+    };
+    const skip = (query.page - 1) * ORGANIZATION_PAGE_SIZE;
+    const [total, invitations] = await this.prisma.$transaction([
+      this.prisma.organizationInvitation.count({ where }),
+      this.prisma.organizationInvitation.findMany({
+        where,
+        select: invitationSelect,
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        skip,
+        take: ORGANIZATION_PAGE_SIZE,
+      }),
+    ]);
+    return {
+      items: invitations.map((invitation) => this.withStatus(invitation, now)),
+      page: query.page,
+      limit: ORGANIZATION_PAGE_SIZE,
+      total,
+      totalPages: Math.ceil(total / ORGANIZATION_PAGE_SIZE),
+      hasNext: query.page * ORGANIZATION_PAGE_SIZE < total,
+    };
   }
 
   async revoke(
@@ -238,10 +272,12 @@ export class OrganizationInvitationsService {
       if (result.count !== 1) {
         throw new ConflictException('Invitation is no longer pending');
       }
-      return transaction.organizationInvitation.findFirstOrThrow({
-        where: { id: invitationId, organizationId },
-        select: invitationSelect,
-      });
+      const invitation =
+        await transaction.organizationInvitation.findFirstOrThrow({
+          where: { id: invitationId, organizationId },
+          select: invitationSelect,
+        });
+      return this.withStatus(invitation);
     });
   }
 
@@ -423,4 +459,35 @@ export class OrganizationInvitationsService {
       'Invitation is invalid, expired, or unavailable',
     );
   }
+
+  private withStatus(
+    invitation: Omit<OrganizationInvitationView, 'status'>,
+    now = new Date(),
+  ): OrganizationInvitationView {
+    return { ...invitation, status: invitationStatus(invitation, now) };
+  }
+}
+
+function invitationStatusWhere(
+  status: NonNullable<ListInvitationsQueryDto['status']>,
+  now: Date,
+): Prisma.OrganizationInvitationWhereInput {
+  if (status === 'ACCEPTED') return { acceptedAt: { not: null } };
+  if (status === 'REVOKED')
+    return { acceptedAt: null, revokedAt: { not: null } };
+  if (status === 'EXPIRED')
+    return { acceptedAt: null, revokedAt: null, expiresAt: { lte: now } };
+  return { acceptedAt: null, revokedAt: null, expiresAt: { gt: now } };
+}
+
+function invitationStatus(
+  invitation: Pick<
+    OrganizationInvitationView,
+    'acceptedAt' | 'revokedAt' | 'expiresAt'
+  >,
+  now: Date,
+): OrganizationInvitationView['status'] {
+  if (invitation.acceptedAt) return 'ACCEPTED';
+  if (invitation.revokedAt) return 'REVOKED';
+  return invitation.expiresAt <= now ? 'EXPIRED' : 'PENDING';
 }

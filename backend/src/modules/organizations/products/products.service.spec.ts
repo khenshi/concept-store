@@ -16,6 +16,7 @@ describe('ProductsService', () => {
     merchant: { findUnique: jest.fn() },
     product: {
       create: jest.fn(),
+      count: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
@@ -25,8 +26,10 @@ describe('ProductsService', () => {
   const service = new ProductsService(prisma as unknown as PrismaService);
   beforeEach(() => {
     jest.resetAllMocks();
-    prisma.$transaction.mockImplementation(
-      (operation: (client: typeof prisma) => unknown) => operation(prisma),
+    prisma.$transaction.mockImplementation((operation: unknown) =>
+      Array.isArray(operation)
+        ? Promise.all(operation)
+        : (operation as (client: typeof prisma) => unknown)(prisma),
     );
     prisma.$queryRaw.mockResolvedValue([{ id: 'org', status: 'ACTIVE' }]);
     prisma.branch.findUnique.mockResolvedValue({
@@ -101,6 +104,35 @@ describe('ProductsService', () => {
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
+  });
+
+  it('returns a bounded scoped directory page', async () => {
+    prisma.product.count.mockResolvedValue(16);
+    prisma.product.findMany.mockResolvedValue([]);
+
+    await expect(
+      service.findDirectory(
+        'org',
+        { page: 2 },
+        {
+          organizationId: 'org',
+          userId: 'owner-id',
+          role: 'OWNER',
+          merchantId: null,
+          status: 'ACTIVE',
+        },
+      ),
+    ).resolves.toMatchObject({
+      items: [],
+      page: 2,
+      limit: 15,
+      total: 16,
+      totalPages: 2,
+      hasNext: false,
+    });
+    expect(prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 15, take: 15 }),
+    );
   });
 
   it('rejects empty edits and guessed products before writes', async () => {

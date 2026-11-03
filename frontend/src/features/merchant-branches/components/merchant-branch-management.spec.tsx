@@ -12,7 +12,8 @@ import {
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
-import { listBranches } from '@/features/branches/api/branch-api';
+import { listBranchOptions } from '@/features/branches/api/branch-api';
+import { listMerchantOptions } from '@/features/merchants/api/merchant-api';
 import { listAssociations, saveAssociation } from '../api/merchant-branch-api';
 import { MerchantBranchManagement } from './merchant-branch-management';
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -24,7 +25,10 @@ vi.mock('@/shared/components/ui/confirmation-dialog', () => ({
   useConfirmationDialog: vi.fn(),
 }));
 vi.mock('@/features/branches/api/branch-api', () => ({
-  listBranches: vi.fn(),
+  listBranchOptions: vi.fn(),
+}));
+vi.mock('@/features/merchants/api/merchant-api', () => ({
+  listMerchantOptions: vi.fn(),
 }));
 vi.mock('../api/merchant-branch-api', () => ({
   listAssociations: vi.fn(),
@@ -85,6 +89,14 @@ describe('Merchant branch management', () => {
     confirm.mockResolvedValue(true);
     loadBranches.mockResolvedValue([]);
     vi.mocked(listAssociations).mockResolvedValue(page);
+    vi.mocked(listBranchOptions).mockResolvedValue({
+      items: [],
+      hasNext: false,
+    });
+    vi.mocked(listMerchantOptions).mockResolvedValue({
+      items: [],
+      hasNext: false,
+    });
     vi.mocked(saveAssociation).mockResolvedValue({ ...row, status: 'ACTIVE' });
   });
   it('shows owner actions, confirms reactivation and refreshes branch access', async () => {
@@ -123,7 +135,10 @@ describe('Merchant branch management', () => {
       name: 'BGC',
       code: null,
     };
-    vi.mocked(listBranches).mockResolvedValue([row.branch, other]);
+    vi.mocked(listBranchOptions).mockResolvedValue({
+      items: [{ id: other.id, label: other.name }],
+      hasNext: false,
+    });
     setup();
     fireEvent.click(
       await screen.findByRole('button', { name: 'Assign branch' }),
@@ -135,9 +150,8 @@ describe('Merchant branch management', () => {
     expect(
       within(dialog).queryByRole('option', { name: /Makati/ }),
     ).not.toBeInTheDocument();
-    fireEvent.change(within(dialog).getByRole('combobox'), {
-      target: { value: other.id },
-    });
+    fireEvent.click(within(dialog).getByRole('combobox'));
+    fireEvent.click(within(dialog).getByRole('option', { name: other.name }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Assign' }));
     await screen.findByText('Branch assignment saved.');
     expect(saveAssociation).toHaveBeenCalledWith(

@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { listMerchants } from '@/features/merchants/api/merchant-api';
+import { listMerchantOptions } from '@/features/merchants/api/merchant-api';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import type { ProductStatus } from '@/features/products/model/product.types';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -18,6 +19,10 @@ import { OperationalTableFrame } from '@/shared/components/ui/operational-table'
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+} from '@/shared/components/ui/paged-option-select';
 import { Icon } from '@/shared/components/ui/icon';
 import { Notice } from '@/shared/components/ui/notice';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
@@ -84,6 +89,9 @@ function ScopedInventoryDirectory({
   const [pageError, setPageError] = useState<string | null>(null);
   const [pageRetry, setPageRetry] = useState<InventoryPageTarget | null>(null);
   const [merchants, setMerchants] = useState<MerchantView[]>([]);
+  const [merchantOption, setMerchantOption] = useState<PagedOption | null>(
+    null,
+  );
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
   const [status, setStatus] = useState<ProductStatus | ''>('');
@@ -144,6 +152,16 @@ function ScopedInventoryDirectory({
   }, []);
   const [revision, setRevision] = useState(0);
   const q = useDebouncedValue(search);
+  const loadMerchantPage = useCallback(
+    (query: string, optionPage: number) =>
+      listMerchantOptions(
+        request,
+        organizationId,
+        { search: query, page: optionPage },
+        organization?.role,
+      ),
+    [organization?.role, organizationId, request],
+  );
   useEffect(() => {
     if (!allowed) return;
     let active = true;
@@ -482,20 +500,17 @@ function ScopedInventoryDirectory({
                 >
                   Merchant
                 </label>
-                <SelectControl
+                <PagedOptionSelect
                   id="inventory-merchant"
-                  aria-label="Merchant"
                   className="mt-1 rounded-full bg-subtle px-4 text-sm font-medium lg:min-w-[10rem]"
                   value={merchantId}
+                  selectedOption={merchantOption}
+                  placeholder="All merchants"
+                  searchPlaceholder="Search merchants"
+                  loadPage={loadMerchantPage}
                   onValueChange={setMerchantId}
-                >
-                  <option value="">All merchants</option>
-                  {merchants.map((merchant) => (
-                    <option key={merchant.id} value={merchant.id}>
-                      {merchant.name}
-                    </option>
-                  ))}
-                </SelectControl>
+                  onOptionChange={setMerchantOption}
+                />
               </div>
               <div className="min-w-0">
                 <label

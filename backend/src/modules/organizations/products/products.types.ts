@@ -16,6 +16,15 @@ export type ProductRecord = Prisma.ProductGetPayload<{
   select: typeof productSelect;
 }>;
 
+export interface ProductDirectoryPage {
+  items: ProductRecord[];
+  page: number;
+  limit: 15;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
 export interface ProductInventoryRecord {
   id: string;
   organizationId: string;

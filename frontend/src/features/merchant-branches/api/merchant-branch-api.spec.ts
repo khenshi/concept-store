@@ -1,6 +1,7 @@
 import {
   listAssociations,
   listActiveMerchantBranches,
+  listActiveMerchantBranchOptions,
   saveAssociation,
 } from './merchant-branch-api';
 const org = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -104,6 +105,21 @@ describe('Merchant branch API contracts', () => {
     ]);
     expect(request).toHaveBeenLastCalledWith(
       `/organizations/${org}/merchants/${merchant}/branches?page=2&status=ACTIVE`,
+    );
+  });
+  it('returns one bounded page of active branch options', async () => {
+    const request = vi.fn().mockResolvedValue(page);
+    await expect(
+      listActiveMerchantBranchOptions(request, org, merchant, {
+        search: 'Branch',
+        page: 2,
+      }),
+    ).resolves.toEqual({
+      items: [{ id: branch, label: 'Branch' }],
+      hasNext: false,
+    });
+    expect(request).toHaveBeenCalledWith(
+      `/organizations/${org}/merchants/${merchant}/branches?page=2&q=Branch&status=ACTIVE`,
     );
   });
 });

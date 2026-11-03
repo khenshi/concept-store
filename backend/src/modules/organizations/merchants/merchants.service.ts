@@ -14,12 +14,15 @@ import { Prisma } from '../../../generated/prisma/client';
 import { PrismaService } from '../../../infrastructure/database/prisma.service';
 import type { CreateMerchantDto } from './dto/create-merchant.dto';
 import type { ListMerchantsQueryDto } from './dto/list-merchants-query.dto';
+import type { ListMerchantDirectoryQueryDto } from './dto/list-merchant-directory-query.dto';
 import type { UpdateMerchantStatusDto } from './dto/update-merchant-status.dto';
 import type { UpdateMerchantDto } from './dto/update-merchant.dto';
 import type { MerchantRecord } from './merchants.types';
+import type { MerchantDirectoryPage } from './merchants.types';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { merchantScope } from '../authorization/resource-access';
 import { assertActiveOrganization } from '../organization-state';
+import { ORGANIZATION_PAGE_SIZE } from '../dto/page-query.dto';
 
 @Injectable()
 export class MerchantsService {
@@ -96,6 +99,76 @@ export class MerchantsService {
           status,
         }))
       : merchants;
+  }
+
+  async findDirectory(
+    organizationId: string,
+    query: ListMerchantDirectoryQueryDto,
+    context: OrganizationContext,
+  ): Promise<MerchantDirectoryPage> {
+    const search = query.q;
+    const where: Prisma.MerchantWhereInput = {
+      organizationId,
+      AND: [merchantScope(context)],
+      ...(query.status ? { status: query.status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { code: { contains: search, mode: 'insensitive' } },
+              ...(context.role === 'MANAGER'
+                ? []
+                : [
+                    {
+                      contactName: {
+                        contains: search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                    {
+                      email: {
+                        contains: search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                    {
+                      phone: {
+                        contains: search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  ]),
+            ],
+          }
+        : {}),
+    };
+    const skip = (query.page - 1) * ORGANIZATION_PAGE_SIZE;
+    const [total, merchants] = await this.prisma.$transaction([
+      this.prisma.merchant.count({ where }),
+      this.prisma.merchant.findMany({
+        where,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip,
+        take: ORGANIZATION_PAGE_SIZE,
+      }),
+    ]);
+    const items =
+      context.role === 'MANAGER'
+        ? merchants.map(({ id, name, code, status }) => ({
+            id,
+            name,
+            code,
+            status,
+          }))
+        : merchants;
+    return {
+      items,
+      page: query.page,
+      limit: ORGANIZATION_PAGE_SIZE,
+      total,
+      totalPages: Math.ceil(total / ORGANIZATION_PAGE_SIZE),
+      hasNext: query.page * ORGANIZATION_PAGE_SIZE < total,
+    };
   }
 
   async findOne(

@@ -12,3 +12,19 @@ export interface MerchantRecord {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface MerchantDirectoryPage {
+  items: (MerchantRecord | MerchantIdentity)[];
+  page: number;
+  limit: 15;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
+export interface MerchantIdentity {
+  id: string;
+  name: string;
+  code: string | null;
+  status: MerchantStatus;
+}

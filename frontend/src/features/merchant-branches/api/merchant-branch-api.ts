@@ -78,3 +78,23 @@ export async function listActiveMerchantBranches(
     page++;
   }
 }
+
+export async function listActiveMerchantBranchOptions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  merchantId: string,
+  query: { search?: string; page?: number } = {},
+) {
+  const page = await listAssociations(
+    request,
+    { organizationId, kind: 'merchant', id: merchantId },
+    { page: query.page ?? 1, q: query.search, status: 'ACTIVE' },
+  );
+  return {
+    items: page.items.map(({ branch }) => ({
+      id: branch.id,
+      label: branch.code ? `${branch.name} · ${branch.code}` : branch.name,
+    })),
+    hasNext: page.hasNext,
+  };
+}

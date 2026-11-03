@@ -1,10 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
-import { listMerchants } from '@/features/merchants/api/merchant-api';
+import {
+  listMerchants,
+  listMerchantOptions,
+} from '@/features/merchants/api/merchant-api';
+import { listActiveMerchantBranchOptions } from '@/features/merchant-branches/api/merchant-branch-api';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
@@ -22,8 +26,13 @@ import {
 } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+} from '@/shared/components/ui/paged-option-select';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
-import { listProducts } from '../api/product-api';
+import { listProductDirectory } from '../api/product-api';
 import type { Product, ProductStatus } from '../model/product.types';
 import { ProductForm } from './product-form';
 
@@ -55,7 +64,14 @@ function ScopedProductDirectory({
     organization?.role === 'MERCHANT';
   const canEdit = organization?.role === 'OWNER';
   const [products, setProducts] = useState<Product[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
   const [merchants, setMerchants] = useState<MerchantView[]>([]);
+  const [merchantOption, setMerchantOption] = useState<PagedOption | null>(
+    null,
+  );
   const [search, setSearch] = useState('');
   const [merchantId, setMerchantId] = useState('');
   const [status, setStatus] = useState<ProductStatus | ''>('');
@@ -67,6 +83,37 @@ function ScopedProductDirectory({
   const [pending, setPending] = useState(false);
   const [revision, setRevision] = useState(0);
   const q = useDebouncedValue(search);
+  const loadMerchantPage = useCallback(
+    (query: string, optionPage: number) =>
+      listMerchantOptions(
+        request,
+        organizationId,
+        {
+          search: query,
+          page: optionPage,
+        },
+        organization?.role,
+      ),
+    [organization?.role, organizationId, request],
+  );
+  const loadActiveMerchantPage = useCallback(
+    (query: string, optionPage: number) =>
+      listMerchantOptions(
+        request,
+        organizationId,
+        { search: query, page: optionPage, status: 'ACTIVE' },
+        organization?.role,
+      ),
+    [organization?.role, organizationId, request],
+  );
+  const loadActiveBranchPage = useCallback(
+    (merchantId: string, query: string, optionPage: number) =>
+      listActiveMerchantBranchOptions(request, organizationId, merchantId, {
+        search: query,
+        page: optionPage,
+      }),
+    [organizationId, request],
+  );
   useEffect(() => {
     if (!allowed || creating) return;
     let active = true;
@@ -79,15 +126,19 @@ function ScopedProductDirectory({
       setMerchants([]);
       try {
         const [items, profiles] = await Promise.all([
-          listProducts(request, organizationId, {
+          listProductDirectory(request, organizationId, {
             q: q.trim() || undefined,
             merchantId: merchantId || undefined,
             status: status || undefined,
+            page,
           }),
           listMerchants(request, organizationId, {}, organization?.role),
         ]);
         if (active) {
-          setProducts(items);
+          setProducts(items.items);
+          setTotal(items.total);
+          setTotalPages(items.totalPages);
+          setHasNext(items.hasNext);
           setMerchants(profiles);
         }
       } catch (cause) {
@@ -114,6 +165,7 @@ function ScopedProductDirectory({
     q,
     merchantId,
     status,
+    page,
     revision,
   ]);
   if (organizationStatus === 'loading')
@@ -146,7 +198,7 @@ function ScopedProductDirectory({
         className="mt-0"
         title="Product directory"
         description={
-          loading ? 'Loading products…' : `${products.length} matching products`
+          loading ? 'Loading products…' : `${total} matching products`
         }
         action={
           canEdit ? (
@@ -173,35 +225,40 @@ function ScopedProductDirectory({
                 type="search"
                 value={search}
                 maxLength={254}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
                 placeholder="Product name, SKU, or barcode"
                 className="text-sm"
                 disabled={creating}
               />
             </FilterField>
             <FilterField id="product-filter-merchant" label="Merchant">
-              <SelectControl
+              <PagedOptionSelect
                 id="product-filter-merchant"
                 value={merchantId}
+                selectedOption={merchantOption}
+                placeholder="All merchants"
+                searchPlaceholder="Search merchants"
+                loadPage={loadMerchantPage}
                 disabled={creating}
-                onValueChange={setMerchantId}
-              >
-                <option value="">All merchants</option>
-                {merchants.map((merchant) => (
-                  <option key={merchant.id} value={merchant.id}>
-                    {merchant.name}
-                  </option>
-                ))}
-              </SelectControl>
+                onValueChange={(value) => {
+                  setMerchantId(value);
+                  setPage(1);
+                }}
+                onOptionChange={setMerchantOption}
+              />
             </FilterField>
             <FilterField id="product-filter-status" label="Status">
               <SelectControl
                 id="product-filter-status"
                 value={status}
                 disabled={creating}
-                onValueChange={(value) =>
-                  setStatus(value as ProductStatus | '')
-                }
+                onValueChange={(value) => {
+                  setStatus(value as ProductStatus | '');
+                  setPage(1);
+                }}
               >
                 <option value="">All statuses</option>
                 <option value="ACTIVE">Active</option>
@@ -236,51 +293,63 @@ function ScopedProductDirectory({
             }
           />
         ) : (
-          <ul aria-label="Product directory" className="m-0 list-none p-0">
-            <li
-              className={`data-column-header hidden justify-items-start text-left gap-x-6 gap-y-3 sm:grid ${productDirectoryGrid}`}
-            >
-              <span>Product</span>
-              <span>Merchant</span>
-              <span>Status</span>
-              <span>Action</span>
-            </li>
-            {products.map((product) => (
-              <li className="data-row" key={product.id}>
-                <Link
-                  href={`/app/organizations/${organizationId}/products/${product.id}`}
-                  aria-label={`View ${product.name}`}
-                  className={`grid min-w-0 justify-items-start gap-x-6 gap-y-3 px-4 py-4 text-left text-ink no-underline sm:items-center ${productDirectoryGrid}`}
-                >
-                  <div className="min-w-0 break-words">
-                    <strong className="block text-sm font-semibold">
-                      {product.name}
-                    </strong>
-                    <span className="mt-1 block text-xs text-muted">
-                      SKU: {product.sku ?? 'Not set'} · Barcode:{' '}
-                      {product.barcode ?? 'Not set'}
-                    </span>
-                  </div>
-                  <span className="min-w-0 break-words text-sm">
-                    {merchants.find(
-                      (merchant) => merchant.id === product.merchantId,
-                    )?.name ?? 'Merchant unavailable'}
-                  </span>
-                  <span
-                    className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-bold tracking-wide ${product.status === 'ACTIVE' ? 'border-success/20 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
-                  >
-                    {product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-                  </span>
-                  <span
-                    className="flex w-fit items-center justify-start gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-subtle"
-                    aria-hidden="true"
-                  >
-                    View <Icon name="arrow" className="size-4" />
-                  </span>
-                </Link>
+          <>
+            <ul aria-label="Product directory" className="m-0 list-none p-0">
+              <li
+                className={`data-column-header hidden justify-items-start text-left gap-x-6 gap-y-3 sm:grid ${productDirectoryGrid}`}
+              >
+                <span>Product</span>
+                <span>Merchant</span>
+                <span>Status</span>
+                <span>Action</span>
               </li>
-            ))}
-          </ul>
+              {products.map((product) => (
+                <li className="data-row" key={product.id}>
+                  <Link
+                    href={`/app/organizations/${organizationId}/products/${product.id}`}
+                    aria-label={`View ${product.name}`}
+                    className={`grid min-w-0 justify-items-start gap-x-6 gap-y-3 px-4 py-4 text-left text-ink no-underline sm:items-center ${productDirectoryGrid}`}
+                  >
+                    <div className="min-w-0 break-words">
+                      <strong className="block text-sm font-semibold">
+                        {product.name}
+                      </strong>
+                      <span className="mt-1 block text-xs text-muted">
+                        SKU: {product.sku ?? 'Not set'} · Barcode:{' '}
+                        {product.barcode ?? 'Not set'}
+                      </span>
+                    </div>
+                    <span className="min-w-0 break-words text-sm">
+                      {merchants.find(
+                        (merchant) => merchant.id === product.merchantId,
+                      )?.name ?? 'Merchant unavailable'}
+                    </span>
+                    <span
+                      className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-bold tracking-wide ${product.status === 'ACTIVE' ? 'border-success/20 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
+                    >
+                      {product.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                    </span>
+                    <span
+                      className="flex w-fit items-center justify-start gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-subtle"
+                      aria-hidden="true"
+                    >
+                      View <Icon name="arrow" className="size-4" />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <PaginationControls
+              ariaLabel="Product pages"
+              currentPage={page}
+              totalPages={totalPages}
+              hasNext={hasNext}
+              pending={loading}
+              summary={`${total} product${total === 1 ? '' : 's'}`}
+              onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+              onNext={() => setPage((current) => current + 1)}
+            />
+          </>
         )}
       </OperationalCollection>
       {creating && canEdit ? (
@@ -297,6 +366,8 @@ function ScopedProductDirectory({
           <ProductForm
             organizationId={organizationId}
             merchants={merchants}
+            loadMerchantOptions={loadActiveMerchantPage}
+            loadBranchOptions={loadActiveBranchPage}
             onCancel={() => {
               setCreating(false);
               setOpeningStockExpanded(false);

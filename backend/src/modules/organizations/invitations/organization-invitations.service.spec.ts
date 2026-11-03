@@ -48,6 +48,7 @@ describe('OrganizationInvitationsService', () => {
   const prisma = {
     $transaction: jest.fn(),
     organizationInvitation: {
+      count: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
       updateMany: jest.fn(),
@@ -60,9 +61,10 @@ describe('OrganizationInvitationsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     jest.useFakeTimers().setSystemTime(new Date('2026-08-27T00:00:00.000Z'));
-    prisma.$transaction.mockImplementation(
-      (operation: (client: typeof transaction) => unknown) =>
-        operation(transaction),
+    prisma.$transaction.mockImplementation((operation: unknown) =>
+      Array.isArray(operation)
+        ? Promise.all(operation)
+        : (operation as (client: typeof transaction) => unknown)(transaction),
     );
     transaction.$queryRaw.mockResolvedValue([
       { id: organizationId, status: 'ACTIVE' },
@@ -174,6 +176,29 @@ describe('OrganizationInvitationsService', () => {
         organizationName: 'Store',
         token: result.token,
       }),
+    );
+  });
+
+  it('returns a filtered, bounded invitation page with computed status', async () => {
+    prisma.organizationInvitation.count.mockResolvedValue(1);
+    prisma.organizationInvitation.findMany.mockResolvedValue([invitation]);
+
+    await expect(
+      service.findAll(organizationId, {
+        page: 2,
+        q: 'MANAGER@EXAMPLE.COM',
+        status: 'PENDING',
+      }),
+    ).resolves.toMatchObject({
+      items: [{ id: invitation.id, status: 'PENDING' }],
+      page: 2,
+      limit: 15,
+      total: 1,
+      totalPages: 1,
+      hasNext: false,
+    });
+    expect(prisma.organizationInvitation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 15, take: 15 }),
     );
   });
 

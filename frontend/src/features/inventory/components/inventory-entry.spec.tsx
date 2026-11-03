@@ -1,7 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listBranches } from '@/features/branches/api/branch-api';
+import {
+  listBranchOptions,
+  listBranches,
+} from '@/features/branches/api/branch-api';
 import { InventoryEntry } from './inventory-entry';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -10,6 +13,7 @@ vi.mock(
   () => ({ useOrganizationWorkspaceContext: vi.fn() }),
 );
 vi.mock('@/features/branches/api/branch-api', () => ({
+  listBranchOptions: vi.fn(),
   listBranches: vi.fn(),
 }));
 describe('Organization inventory entry', () => {
@@ -24,6 +28,10 @@ describe('Organization inventory entry', () => {
       organizationStatus: 'ready',
     } as never);
     vi.mocked(listBranches).mockResolvedValue([]);
+    vi.mocked(listBranchOptions).mockResolvedValue({
+      items: [],
+      hasNext: false,
+    });
   });
   it('offers explicit authorized selection', async () => {
     render(<InventoryEntry organizationId="org" />);

@@ -68,6 +68,24 @@ export async function listBranchDirectory(
   );
 }
 
+export async function listBranchOptions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  query: { search?: string; page?: number } = {},
+) {
+  const page = await listBranchDirectory(request, organizationId, {
+    search: query.search,
+    page: query.page ?? 1,
+  });
+  return {
+    items: page.items.map(({ id, name, code }) => ({
+      id,
+      label: code ? `${name} (${code})` : name,
+    })),
+    hasNext: page.hasNext,
+  };
+}
+
 export async function getBranch(
   request: AuthenticatedRequest,
   organizationId: string,

@@ -40,3 +40,12 @@ export interface MerchantFilters {
   q?: string;
   status?: MerchantStatus;
 }
+
+export interface MerchantDirectoryPage {
+  items: MerchantView[];
+  page: number;
+  limit: 15;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+}

@@ -8,9 +8,15 @@ import {
 } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listMerchants } from '@/features/merchants/api/merchant-api';
-import { listActiveMerchantBranches } from '@/features/merchant-branches/api/merchant-branch-api';
-import { createProduct, listProducts } from '../api/product-api';
+import {
+  listMerchants,
+  listMerchantOptions,
+} from '@/features/merchants/api/merchant-api';
+import {
+  listActiveMerchantBranchOptions,
+  listActiveMerchantBranches,
+} from '@/features/merchant-branches/api/merchant-branch-api';
+import { createProduct, listProductDirectory } from '../api/product-api';
 import {
   merchant,
   organizationId,
@@ -26,15 +32,26 @@ vi.mock(
 );
 vi.mock('@/features/merchants/api/merchant-api', () => ({
   listMerchants: vi.fn(),
+  listMerchantOptions: vi.fn(),
 }));
 vi.mock('@/features/merchant-branches/api/merchant-branch-api', () => ({
+  listActiveMerchantBranchOptions: vi.fn(),
   listActiveMerchantBranches: vi.fn(),
 }));
 vi.mock('../api/product-api', () => ({
-  listProducts: vi.fn(),
+  listProductDirectory: vi.fn(),
   createProduct: vi.fn(),
   updateProduct: vi.fn(),
 }));
+
+const productPage = (items: (typeof product)[] = [product]) => ({
+  items,
+  page: 1,
+  limit: 15 as const,
+  total: items.length,
+  totalPages: items.length ? 1 : 0,
+  hasNext: false,
+});
 
 describe('ProductDirectory workflows', () => {
   const request = vi.fn();
@@ -46,8 +63,16 @@ describe('ProductDirectory workflows', () => {
       organizationStatus: 'ready',
     } as never);
     vi.mocked(listMerchants).mockResolvedValue([merchant]);
-    vi.mocked(listProducts).mockResolvedValue([product]);
+    vi.mocked(listMerchantOptions).mockResolvedValue({
+      items: [{ id: merchant.id, label: merchant.name }],
+      hasNext: false,
+    });
+    vi.mocked(listProductDirectory).mockResolvedValue(productPage());
     vi.mocked(listActiveMerchantBranches).mockResolvedValue([placement.branch]);
+    vi.mocked(listActiveMerchantBranchOptions).mockResolvedValue({
+      items: [{ id: placement.branch.id, label: 'Makati · MKT' }],
+      hasNext: false,
+    });
   });
   it.each(['CASHIER'])(
     'does not request or show product controls for %s',
@@ -60,7 +85,7 @@ describe('ProductDirectory workflows', () => {
       expect(screen.getByRole('alert')).toHaveTextContent(
         'cannot view or manage products',
       );
-      expect(listProducts).not.toHaveBeenCalled();
+      expect(listProductDirectory).not.toHaveBeenCalled();
       expect(listMerchants).not.toHaveBeenCalled();
     },
   );
@@ -85,22 +110,34 @@ describe('ProductDirectory workflows', () => {
       target: { value: '001Ab' },
     });
     await waitFor(() =>
-      expect(listProducts).toHaveBeenLastCalledWith(request, organizationId, {
-        q: '001Ab',
-        merchantId: undefined,
-        status: undefined,
-      }),
+      expect(listProductDirectory).toHaveBeenLastCalledWith(
+        request,
+        organizationId,
+        {
+          q: '001Ab',
+          merchantId: undefined,
+          status: undefined,
+          page: 1,
+        },
+      ),
     );
-    fireEvent.click(screen.getByRole('combobox', { name: 'Merchant' }));
-    fireEvent.click(screen.getByRole('option', { name: merchant.name }));
+    const merchantFilter = screen.getByRole('combobox', { name: 'Merchant' });
+    await waitFor(() => expect(merchantFilter).toBeEnabled());
+    fireEvent.click(merchantFilter);
+    fireEvent.click(await screen.findByRole('option', { name: merchant.name }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
     await waitFor(() =>
-      expect(listProducts).toHaveBeenLastCalledWith(request, organizationId, {
-        q: '001Ab',
-        merchantId: merchant.id,
-        status: 'INACTIVE',
-      }),
+      expect(listProductDirectory).toHaveBeenLastCalledWith(
+        request,
+        organizationId,
+        {
+          q: '001Ab',
+          merchantId: merchant.id,
+          status: 'INACTIVE',
+          page: 1,
+        },
+      ),
     );
   });
   it('widens the add-product dialog while opening stock is enabled', async () => {
@@ -111,9 +148,13 @@ describe('ProductDirectory workflows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
     const dialog = screen.getByRole('dialog', { name: 'Add a product' });
     expect(dialog).toHaveClass('max-w-3xl');
-    fireEvent.click(within(dialog).getByRole('combobox', { name: 'Merchant' }));
+    const merchantSelect = within(dialog).getByRole('combobox', {
+      name: 'Merchant',
+    });
+    await waitFor(() => expect(merchantSelect).toBeEnabled());
+    fireEvent.click(merchantSelect);
     fireEvent.click(
-      within(dialog).getByRole('option', { name: merchant.name }),
+      await within(dialog).findByRole('option', { name: merchant.name }),
     );
     fireEvent.click(
       within(dialog).getByRole('checkbox', { name: 'Add initial stock' }),
@@ -149,7 +190,7 @@ describe('ProductDirectory workflows', () => {
       organization: { role: 'MERCHANT' },
       organizationStatus: 'ready',
     } as never);
-    vi.mocked(listProducts).mockResolvedValue([]);
+    vi.mocked(listProductDirectory).mockResolvedValue(productPage([]));
     vi.mocked(listMerchants).mockResolvedValue([]);
     render(<ProductDirectory organizationId={organizationId} />);
     expect(
@@ -161,18 +202,20 @@ describe('ProductDirectory workflows', () => {
   });
   it('retains successful opening creation when the subsequent directory refresh fails, and retries reads only', async () => {
     vi.mocked(createProduct).mockResolvedValue(product);
-    vi.mocked(listProducts)
-      .mockResolvedValueOnce([product])
+    vi.mocked(listProductDirectory)
+      .mockResolvedValueOnce(productPage([product]))
       .mockRejectedValueOnce(new Error('Read offline'))
-      .mockResolvedValueOnce([product]);
+      .mockResolvedValueOnce(productPage([product]));
     render(<ProductDirectory organizationId={organizationId} />);
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Add product' })).toBeEnabled(),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
     const modal = within(screen.getByRole('dialog'));
-    fireEvent.click(modal.getByRole('combobox', { name: 'Merchant' }));
-    fireEvent.click(modal.getByRole('option', { name: merchant.name }));
+    const merchantSelect = modal.getByRole('combobox', { name: 'Merchant' });
+    await waitFor(() => expect(merchantSelect).toBeEnabled());
+    fireEvent.click(merchantSelect);
+    fireEvent.click(await modal.findByRole('option', { name: merchant.name }));
     fireEvent.change(modal.getByRole('textbox', { name: 'Product name' }), {
       target: { value: 'Vase' },
     });
@@ -213,8 +256,10 @@ describe('ProductDirectory workflows', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
     const dialog = screen.getByRole('dialog');
     const modal = within(dialog);
-    fireEvent.click(modal.getByRole('combobox', { name: 'Merchant' }));
-    fireEvent.click(modal.getByRole('option', { name: merchant.name }));
+    const merchantSelect = modal.getByRole('combobox', { name: 'Merchant' });
+    await waitFor(() => expect(merchantSelect).toBeEnabled());
+    fireEvent.click(merchantSelect);
+    fireEvent.click(await modal.findByRole('option', { name: merchant.name }));
     fireEvent.change(modal.getByRole('textbox', { name: 'Product name' }), {
       target: { value: 'Vase' },
     });
@@ -252,8 +297,10 @@ describe('ProductDirectory workflows', () => {
     trigger.focus();
     fireEvent.click(trigger);
     const modal = within(screen.getByRole('dialog', { name: 'Add a product' }));
-    fireEvent.click(modal.getByRole('combobox', { name: 'Merchant' }));
-    fireEvent.click(modal.getByRole('option', { name: merchant.name }));
+    const merchantSelect = modal.getByRole('combobox', { name: 'Merchant' });
+    await waitFor(() => expect(merchantSelect).toBeEnabled());
+    fireEvent.click(merchantSelect);
+    fireEvent.click(await modal.findByRole('option', { name: merchant.name }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Product name' }), {
       target: { value: ' New vase ' },
     });
@@ -277,12 +324,12 @@ describe('ProductDirectory workflows', () => {
       await screen.findByText(`${product.name} was created successfully.`),
     ).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await waitFor(() => expect(listProducts).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(listProductDirectory).toHaveBeenCalledTimes(2));
   });
   it('offers retry after read failure and distinguishes empty results', async () => {
-    vi.mocked(listProducts)
+    vi.mocked(listProductDirectory)
       .mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValue([]);
+      .mockResolvedValue(productPage([]));
     render(<ProductDirectory organizationId={organizationId} />);
     await screen.findByText('The product directory could not be loaded.');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -290,15 +337,15 @@ describe('ProductDirectory workflows', () => {
   });
   it('ignores a superseded response after a filter change', async () => {
     let resolveOld!: (items: (typeof product)[]) => void;
-    vi.mocked(listProducts)
+    vi.mocked(listProductDirectory)
       .mockReturnValueOnce(
         new Promise((resolve) => {
-          resolveOld = resolve;
+          resolveOld = (items) => resolve(productPage(items));
         }),
       )
-      .mockResolvedValue([]);
+      .mockResolvedValue(productPage([]));
     render(<ProductDirectory organizationId={organizationId} />);
-    await waitFor(() => expect(listProducts).toHaveBeenCalledOnce());
+    await waitFor(() => expect(listProductDirectory).toHaveBeenCalledOnce());
     fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
     await screen.findByText('No products match these filters');

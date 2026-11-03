@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -22,14 +23,22 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { OrganizationMemberResponseDto } from '../../../openapi/response.dto';
+import {
+  MemberAccessEventPageResponseDto,
+  OrganizationMemberResponseDto,
+  OrganizationMemberPageResponseDto,
+} from '../../../openapi/response.dto';
 import { OrganizationRole } from '../../../generated/prisma/client';
 import { AuthGuard } from '../../auth/auth.guard';
+import type { AuthenticatedPrincipal } from '../../auth/auth.types';
+import { CurrentUser } from '../../auth/current-user.decorator';
 import { OrganizationAccessGuard } from '../authorization/organization-access.guard';
 import type { OrganizationContext } from '../authorization/organization-authorization.types';
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
 import { UpdateOrganizationMemberRoleDto } from './dto/update-organization-member-role.dto';
+import { ListMemberAccessHistoryQueryDto } from './dto/list-member-access-history-query.dto';
+import { ListMembersQueryDto } from './dto/list-members-query.dto';
 import { OrganizationMembershipsService } from './organization-memberships.service';
 import {
   EmptyAssignmentDto,
@@ -39,7 +48,11 @@ import {
   MemberBranchResponse,
   MemberMerchantResponse,
 } from './member-access.response';
-import type { OrganizationMember } from './organization-memberships.types';
+import type {
+  MemberAccessEventPage,
+  OrganizationMember,
+  OrganizationMemberPage,
+} from './organization-memberships.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard)
 @ApiTags('organization members')
@@ -55,14 +68,29 @@ export class OrganizationMembershipsController {
   @OrganizationRoles(OrganizationRole.OWNER)
   @Get()
   @ApiOperation({ summary: 'List organization members' })
-  @ApiOkResponse({ type: OrganizationMemberResponseDto, isArray: true })
+  @ApiOkResponse({ type: OrganizationMemberPageResponseDto })
   @ApiForbiddenResponse({
     description: 'The organization role cannot list members',
   })
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
-  ): Promise<OrganizationMember[]> {
-    return this.membershipsService.findAll(organization.organizationId);
+    @Query() query: ListMembersQueryDto,
+  ): Promise<OrganizationMemberPage> {
+    return this.membershipsService.findAll(organization.organizationId, query);
+  }
+
+  @OrganizationRoles(OrganizationRole.OWNER)
+  @Get('access-history')
+  @ApiOperation({ summary: 'List owner-only member access changes' })
+  @ApiOkResponse({ type: MemberAccessEventPageResponseDto })
+  findAccessHistory(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() query: ListMemberAccessHistoryQueryDto,
+  ): Promise<MemberAccessEventPage> {
+    return this.membershipsService.findAccessHistory(
+      organization.organizationId,
+      query,
+    );
   }
 
   @OrganizationRoles(OrganizationRole.OWNER)
@@ -91,6 +119,7 @@ export class OrganizationMembershipsController {
   })
   grantBranch(
     @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() actor: AuthenticatedPrincipal,
     @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Body() _dto: EmptyAssignmentDto,
@@ -101,6 +130,7 @@ export class OrganizationMembershipsController {
       userId,
       branchId,
       true,
+      actor.id,
     );
   }
 
@@ -114,6 +144,7 @@ export class OrganizationMembershipsController {
   })
   revokeBranch(
     @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() actor: AuthenticatedPrincipal,
     @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
     @Param('branchId', new ParseUUIDPipe({ version: '4' })) branchId: string,
     @Body() _dto: EmptyAssignmentDto,
@@ -124,6 +155,7 @@ export class OrganizationMembershipsController {
       userId,
       branchId,
       false,
+      actor.id,
     );
   }
 
@@ -138,6 +170,7 @@ export class OrganizationMembershipsController {
   })
   setMerchant(
     @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() actor: AuthenticatedPrincipal,
     @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
     @Body() dto: UpdateMemberMerchantDto,
   ) {
@@ -145,6 +178,7 @@ export class OrganizationMembershipsController {
       organization.organizationId,
       userId,
       dto.merchantId,
+      actor.id,
     );
   }
 
@@ -158,6 +192,7 @@ export class OrganizationMembershipsController {
   })
   updateRole(
     @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() actor: AuthenticatedPrincipal,
     @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
     @Body() dto: UpdateOrganizationMemberRoleDto,
   ): Promise<OrganizationMember> {
@@ -165,6 +200,7 @@ export class OrganizationMembershipsController {
       organization.organizationId,
       userId,
       dto,
+      actor.id,
     );
   }
 
@@ -179,8 +215,13 @@ export class OrganizationMembershipsController {
   })
   remove(
     @CurrentOrganization() organization: OrganizationContext,
+    @CurrentUser() actor: AuthenticatedPrincipal,
     @Param('userId', new ParseUUIDPipe({ version: '4' })) userId: string,
   ): Promise<void> {
-    return this.membershipsService.remove(organization.organizationId, userId);
+    return this.membershipsService.remove(
+      organization.organizationId,
+      userId,
+      actor.id,
+    );
   }
 }

@@ -86,6 +86,50 @@ export class OrganizationMemberResponseDto {
   @ApiProperty({ format: 'date-time' }) joinedAt!: Date;
 }
 
+export class OrganizationMemberPageResponseDto {
+  @ApiProperty({ type: [OrganizationMemberResponseDto] })
+  items!: OrganizationMemberResponseDto[];
+  @ApiProperty({ minimum: 1 }) page!: number;
+  @ApiProperty({ enum: [15] }) limit!: number;
+  @ApiProperty({ minimum: 0 }) total!: number;
+  @ApiProperty({ minimum: 0 }) totalPages!: number;
+  @ApiProperty() hasNext!: boolean;
+}
+
+export class MemberAccessEventResponseDto {
+  @ApiProperty({ format: 'uuid' }) id!: string;
+  @ApiProperty({ format: 'date-time' }) occurredAt!: Date;
+  @ApiProperty({
+    enum: [
+      'ROLE_CHANGED',
+      'MERCHANT_LINKED',
+      'MERCHANT_UNLINKED',
+      'BRANCH_GRANTED',
+      'BRANCH_REVOKED',
+      'MEMBER_REMOVED',
+    ],
+  })
+  operation!: string;
+  @ApiProperty({ format: 'uuid' }) actorId!: string;
+  @ApiProperty() actorName!: string;
+  @ApiProperty({ format: 'uuid' }) targetUserId!: string;
+  @ApiProperty() targetName!: string;
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  beforeState!: object;
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  afterState!: object;
+}
+
+export class MemberAccessEventPageResponseDto {
+  @ApiProperty({ type: [MemberAccessEventResponseDto] })
+  items!: MemberAccessEventResponseDto[];
+  @ApiProperty({ minimum: 1 }) page!: number;
+  @ApiProperty({ enum: [15] }) limit!: number;
+  @ApiProperty({ minimum: 0 }) total!: number;
+  @ApiProperty({ minimum: 0 }) totalPages!: number;
+  @ApiProperty() hasNext!: boolean;
+}
+
 export class InvitationMerchantSummaryDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() name!: string;
@@ -121,6 +165,18 @@ export class OrganizationInvitationResponseDto {
   @ApiPropertyOptional({ nullable: true, format: 'date-time' })
   revokedAt!: Date | null;
   @ApiProperty({ format: 'date-time' }) createdAt!: Date;
+  @ApiProperty({ enum: ['PENDING', 'ACCEPTED', 'REVOKED', 'EXPIRED'] })
+  status!: string;
+}
+
+export class OrganizationInvitationPageResponseDto {
+  @ApiProperty({ type: [OrganizationInvitationResponseDto] })
+  items!: OrganizationInvitationResponseDto[];
+  @ApiProperty({ minimum: 1 }) page!: number;
+  @ApiProperty({ enum: [15] }) limit!: number;
+  @ApiProperty({ minimum: 0 }) total!: number;
+  @ApiProperty({ minimum: 0 }) totalPages!: number;
+  @ApiProperty() hasNext!: boolean;
 }
 
 export class CreatedOrganizationInvitationResponseDto {
@@ -220,6 +276,16 @@ export class ProductResponseDto {
   @ApiProperty({ format: 'date-time' }) updatedAt!: Date;
 }
 
+export class ProductDirectoryPageResponseDto {
+  @ApiProperty({ type: [ProductResponseDto] })
+  items!: ProductResponseDto[];
+  @ApiProperty({ minimum: 1 }) page!: number;
+  @ApiProperty({ enum: [15] }) limit!: number;
+  @ApiProperty({ minimum: 0 }) total!: number;
+  @ApiProperty({ minimum: 0 }) totalPages!: number;
+  @ApiProperty() hasNext!: boolean;
+}
+
 export class InventoryBranchResponseDto {
   @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty({ example: 'Makati Main' }) name!: string;
@@ -292,6 +358,14 @@ export class PosCatalogResponseDto {
       'Stock is positive and merchant branch participation is active; checkout revalidates',
   })
   eligible!: boolean;
+}
+
+export class PosCatalogPageResponseDto {
+  @ApiProperty({ type: [PosCatalogResponseDto] })
+  items!: PosCatalogResponseDto[];
+  @ApiProperty({ type: String, nullable: true })
+  nextCursor!: string | null;
+  @ApiProperty() hasMore!: boolean;
 }
 
 export class CompletedSaleItemResponseDto {
@@ -533,6 +607,24 @@ export class MerchantIdentityResponseDto extends PickType(MerchantResponseDto, [
   'code',
   'status',
 ] as const) {}
+
+export class MerchantDirectoryPageResponseDto {
+  @ApiProperty({
+    type: 'array',
+    items: {
+      oneOf: [
+        { $ref: getSchemaPath(MerchantResponseDto) },
+        { $ref: getSchemaPath(MerchantIdentityResponseDto) },
+      ],
+    },
+  })
+  items!: (MerchantResponseDto | MerchantIdentityResponseDto)[];
+  @ApiProperty({ minimum: 1 }) page!: number;
+  @ApiProperty({ enum: [15] }) limit!: number;
+  @ApiProperty({ minimum: 0 }) total!: number;
+  @ApiProperty({ minimum: 0 }) totalPages!: number;
+  @ApiProperty() hasNext!: boolean;
+}
 export class MerchantMovementResponseDto extends OmitType(
   InventoryMovementResponseDto,
   ['createdById'] as const,

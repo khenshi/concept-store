@@ -45,6 +45,14 @@ describe('Milestone 1 organization access (e2e)', () => {
     add: jest.fn().mockResolvedValue({ id: CASHIER_ID }),
     updateRole: jest.fn().mockResolvedValue({ id: CASHIER_ID }),
     remove: jest.fn().mockResolvedValue(undefined),
+    findAccessHistory: jest.fn().mockResolvedValue({
+      items: [],
+      page: 1,
+      limit: 15,
+      total: 0,
+      totalPages: 0,
+      hasNext: false,
+    }),
   };
   const prismaService = {
     user: {
@@ -260,6 +268,7 @@ describe('Milestone 1 organization access (e2e)', () => {
       CASHIER_ID,
       BRANCH_ID,
       true,
+      OWNER_ID,
     );
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     await request(app.getHttpServer())
@@ -285,6 +294,7 @@ describe('Milestone 1 organization access (e2e)', () => {
       ORGANIZATION_ID,
       CASHIER_ID,
       BRANCH_ID,
+      OWNER_ID,
     );
     for (const role of [
       OrganizationRole.MANAGER,
@@ -381,5 +391,87 @@ describe('Milestone 1 organization access (e2e)', () => {
       .expect(404);
 
     expect(membershipsService.findAll).not.toHaveBeenCalled();
+  });
+
+  it('enforces paged member and owner-only access-history reads', async () => {
+    prismaService.organizationMembership.findUnique.mockReset();
+    prismaService.organizationMembership.findUnique.mockResolvedValue({
+      role: OrganizationRole.OWNER,
+      organization: { status: OrganizationStatus.ACTIVE },
+    });
+    membershipsService.findAll.mockResolvedValueOnce({
+      items: [],
+      page: 2,
+      limit: 15,
+      total: 16,
+      totalPages: 2,
+      hasNext: false,
+    });
+    const token = accessToken(OWNER_ID, 'owner@example.com');
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .get(`/organizations/${ORGANIZATION_ID}/members?q=car&page=2`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200, {
+        items: [],
+        page: 2,
+        limit: 15,
+        total: 16,
+        totalPages: 2,
+        hasNext: false,
+      });
+    expect(membershipsService.findAll).toHaveBeenCalledWith(ORGANIZATION_ID, {
+      q: 'car',
+      page: 2,
+    });
+
+    membershipsService.findAccessHistory.mockResolvedValueOnce({
+      items: [],
+      page: 2,
+      limit: 15,
+      total: 16,
+      totalPages: 2,
+      hasNext: false,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .get(
+        `/organizations/${ORGANIZATION_ID}/members/access-history?page=2&userId=${CASHIER_ID}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200, {
+        items: [],
+        page: 2,
+        limit: 15,
+        total: 16,
+        totalPages: 2,
+        hasNext: false,
+      });
+    expect(membershipsService.findAccessHistory).toHaveBeenCalledWith(
+      ORGANIZATION_ID,
+      { page: 2, userId: CASHIER_ID },
+    );
+
+    prismaService.organizationMembership.findUnique.mockResolvedValueOnce({
+      role: OrganizationRole.MANAGER,
+      organization: { status: OrganizationStatus.ACTIVE },
+    });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .get(`/organizations/${ORGANIZATION_ID}/members/access-history`)
+      .set(
+        'Authorization',
+        `Bearer ${accessToken(OWNER_ID, 'owner@example.com')}`,
+      )
+      .expect(403);
+    expect(membershipsService.findAccessHistory).toHaveBeenCalledTimes(1);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    await request(app.getHttpServer())
+      .get(`/organizations/${ORGANIZATION_ID}/members?page=0`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+    expect(membershipsService.findAll).toHaveBeenCalledTimes(1);
   });
 });

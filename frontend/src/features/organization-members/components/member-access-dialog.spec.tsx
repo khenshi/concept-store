@@ -2,20 +2,30 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import {
   listMemberBranches,
-  loadMemberAccessOptions,
   setMemberBranch,
   setMemberMerchant,
   updateOrganizationMemberRole,
 } from '../api/organization-member-api';
 import { MemberAccessDialog } from './member-access-dialog';
+import {
+  getMerchant,
+  listMerchantOptions,
+} from '@/features/merchants/api/merchant-api';
+import { listBranchOptions } from '@/features/branches/api/branch-api';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock('../api/organization-member-api', () => ({
   listMemberBranches: vi.fn(),
-  loadMemberAccessOptions: vi.fn(),
   setMemberBranch: vi.fn(),
   setMemberMerchant: vi.fn(),
   updateOrganizationMemberRole: vi.fn(),
+}));
+vi.mock('@/features/merchants/api/merchant-api', () => ({
+  getMerchant: vi.fn(),
+  listMerchantOptions: vi.fn(),
+}));
+vi.mock('@/features/branches/api/branch-api', () => ({
+  listBranchOptions: vi.fn(),
 }));
 const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const branch = { id, name: 'Makati', code: 'MKT' };
@@ -34,11 +44,16 @@ const request = vi.fn();
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useAuth).mockReturnValue({ request } as never);
-  vi.mocked(loadMemberAccessOptions).mockResolvedValue({
-    branches: [branch],
-    merchants: [{ id, name: 'Amihan', code: null, status: 'ACTIVE' }],
-  });
   vi.mocked(listMemberBranches).mockResolvedValue([branch]);
+  vi.mocked(getMerchant).mockResolvedValue({ id, name: 'Amihan' } as never);
+  vi.mocked(listMerchantOptions).mockResolvedValue({
+    items: [{ id, label: 'Amihan · ACTIVE' }],
+    hasNext: false,
+  });
+  vi.mocked(listBranchOptions).mockResolvedValue({
+    items: [{ id, label: 'Makati · MKT' }],
+    hasNext: false,
+  });
 });
 
 it('confirms revocation and preserves access on cancellation', async () => {
@@ -56,7 +71,7 @@ it('confirms revocation and preserves access on cancellation', async () => {
   ).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Keep current access' }));
   expect(setMemberBranch).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: 'Revoke Makati' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Revoke Makati' }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm change' }));
   await screen.findByRole('button', { name: 'Grant Makati' });
   expect(setMemberBranch).toHaveBeenCalledWith(request, 'org', id, id, false);
@@ -113,8 +128,15 @@ it('requires merchant selection and submits a confirmed merchant role change', a
   expect(
     await screen.findByRole('button', { name: 'Review role change' }),
   ).toBeDisabled();
+  await waitFor(() =>
+    expect(
+      screen.getByRole('combobox', { name: 'Merchant profile' }),
+    ).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole('combobox', { name: 'Merchant profile' }));
-  fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
+  fireEvent.click(
+    await screen.findByRole('option', { name: 'Amihan · ACTIVE' }),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Review role change' }));
   expect(
     screen.getByText(
@@ -145,8 +167,15 @@ it('preserves a failed relink confirmation and offers retry', async () => {
     />,
   );
   await screen.findByRole('combobox', { name: 'Merchant profile' });
+  await waitFor(() =>
+    expect(
+      screen.getByRole('combobox', { name: 'Merchant profile' }),
+    ).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole('combobox', { name: 'Merchant profile' }));
-  fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
+  fireEvent.click(
+    await screen.findByRole('option', { name: 'Amihan · ACTIVE' }),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Review merchant link' }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm change' }));
   expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -174,9 +203,7 @@ it('shows implicit owner access without assignment mutations', async () => {
 });
 
 it('recovers access-choice loading without writing incomplete settings', async () => {
-  vi.mocked(loadMemberAccessOptions).mockRejectedValueOnce(
-    new Error('offline'),
-  );
+  vi.mocked(listMemberBranches).mockRejectedValueOnce(new Error('offline'));
   render(
     <MemberAccessDialog
       organizationId="org"
@@ -189,7 +216,7 @@ it('recovers access-choice loading without writing incomplete settings', async (
   expect(setMemberBranch).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   await screen.findByRole('button', { name: 'Revoke Makati' });
-  expect(loadMemberAccessOptions).toHaveBeenCalledTimes(2);
+  expect(listMemberBranches).toHaveBeenCalledTimes(2);
 });
 
 it('does not change a merchant link when confirmation is cancelled', async () => {
@@ -202,8 +229,15 @@ it('does not change a merchant link when confirmation is cancelled', async () =>
     />,
   );
   await screen.findByRole('combobox', { name: 'Merchant profile' });
+  await waitFor(() =>
+    expect(
+      screen.getByRole('combobox', { name: 'Merchant profile' }),
+    ).toBeEnabled(),
+  );
   fireEvent.click(screen.getByRole('combobox', { name: 'Merchant profile' }));
-  fireEvent.click(screen.getByRole('option', { name: 'Amihan · ACTIVE' }));
+  fireEvent.click(
+    await screen.findByRole('option', { name: 'Amihan · ACTIVE' }),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Review merchant link' }));
   fireEvent.click(screen.getByRole('button', { name: 'Keep current access' }));
   expect(setMemberMerchant).not.toHaveBeenCalled();

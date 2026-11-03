@@ -100,6 +100,14 @@ export const productResponseSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 export const productListResponseSchema = z.array(productResponseSchema);
+export const productDirectoryPageSchema = z.object({
+  items: productResponseSchema.array(),
+  page: z.number().int().positive(),
+  limit: z.literal(15),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  hasNext: z.boolean(),
+});
 export const productPlacementResponseSchema = z.object({
   id: z.uuidv4(),
   organizationId: z.uuidv4(),

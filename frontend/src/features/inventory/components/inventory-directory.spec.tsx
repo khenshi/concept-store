@@ -7,7 +7,10 @@ import {
 } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listMerchants } from '@/features/merchants/api/merchant-api';
+import {
+  listMerchants,
+  listMerchantOptions,
+} from '@/features/merchants/api/merchant-api';
 import { merchant } from '@/features/products/model/product.test-fixtures';
 import {
   getInventoryBranch,
@@ -17,10 +20,16 @@ import {
 } from '../api/inventory-api';
 import { branch, inventory, scope } from '../model/inventory.test-fixtures';
 import { InventoryDirectory } from './inventory-directory';
-import { listBranches } from '@/features/branches/api/branch-api';
+import {
+  getBranch,
+  listBranches,
+  listBranchOptions,
+} from '@/features/branches/api/branch-api';
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/features/branches/api/branch-api', () => ({
+  getBranch: vi.fn(),
   listBranches: vi.fn(),
+  listBranchOptions: vi.fn(),
 }));
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -30,6 +39,7 @@ vi.mock(
 );
 vi.mock('@/features/merchants/api/merchant-api', () => ({
   listMerchants: vi.fn(),
+  listMerchantOptions: vi.fn(),
 }));
 vi.mock('../api/inventory-api', () => ({
   getInventoryBranch: vi.fn(),
@@ -103,6 +113,7 @@ describe('InventoryDirectory workflows', () => {
       }),
     );
     vi.mocked(listBranches).mockResolvedValue([]);
+    vi.mocked(getBranch).mockRejectedValueOnce({ status: 403 });
     render(<InventoryDirectory {...scope} />);
     await screen.findByRole('alert');
     await act(async () => finish({ items: [inventory], nextCursor: null }));
@@ -120,6 +131,11 @@ describe('InventoryDirectory workflows', () => {
     vi.mocked(listBranches).mockResolvedValue([
       { id: scope.branchId, name: branch.name, code: branch.code },
     ] as never);
+    vi.mocked(getBranch).mockResolvedValue(branch);
+    vi.mocked(listBranchOptions).mockResolvedValue({
+      items: [{ id: scope.branchId, label: branch.name }],
+      hasNext: false,
+    });
     vi.mocked(useAuth).mockReturnValue({ request } as never);
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { role: 'OWNER' },
@@ -131,6 +147,10 @@ describe('InventoryDirectory workflows', () => {
       nextCursor: null,
     });
     vi.mocked(listMerchants).mockResolvedValue([merchant]);
+    vi.mocked(listMerchantOptions).mockResolvedValue({
+      items: [{ id: merchant.id, label: merchant.name }],
+      hasNext: false,
+    });
     vi.mocked(listMovementRecords).mockResolvedValue({
       items: [],
       nextCursor: null,
@@ -362,8 +382,10 @@ describe('InventoryDirectory workflows', () => {
         { q: '001Ab', merchantId: undefined, status: undefined },
       ),
     );
-    fireEvent.click(screen.getByRole('combobox', { name: 'Merchant' }));
-    fireEvent.click(screen.getByRole('option', { name: merchant.name }));
+    const merchantFilter = screen.getByRole('combobox', { name: 'Merchant' });
+    await waitFor(() => expect(merchantFilter).toBeEnabled());
+    fireEvent.click(merchantFilter);
+    fireEvent.click(await screen.findByRole('option', { name: merchant.name }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Product status' }));
     fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
     await waitFor(() =>

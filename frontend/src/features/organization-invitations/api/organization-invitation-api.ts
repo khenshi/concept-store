@@ -1,6 +1,7 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
 import {
   createdInvitationResponseSchema,
+  invitationPageSchema,
   invitationResponseSchema,
   createOrganizationInvitationSchema,
 } from '../model/organization-invitation.schemas';
@@ -9,6 +10,7 @@ import type {
   CreatedOrganizationInvitation,
   CreateOrganizationInvitationInput,
   OrganizationInvitation,
+  OrganizationInvitationPage,
   OrganizationInvitationPreview,
 } from '../model/organization-invitation.types';
 
@@ -33,10 +35,19 @@ export async function createOrganizationInvitation(
 export async function listOrganizationInvitations(
   request: AuthenticatedRequest,
   organizationId: string,
-): Promise<OrganizationInvitation[]> {
-  return invitationResponseSchema
-    .array()
-    .parse(await request<unknown>(organizationPath(organizationId)));
+  query: {
+    page?: number;
+    q?: string;
+    status?: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+  } = {},
+): Promise<OrganizationInvitationPage> {
+  const params = new URLSearchParams();
+  params.set('page', String(query.page ?? 1));
+  if (query.q?.trim()) params.set('q', query.q.trim());
+  if (query.status) params.set('status', query.status);
+  return invitationPageSchema.parse(
+    await request<unknown>(`${organizationPath(organizationId)}?${params}`),
+  );
 }
 
 export async function resendOrganizationInvitation(

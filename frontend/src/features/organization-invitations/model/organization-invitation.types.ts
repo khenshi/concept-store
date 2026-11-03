@@ -9,6 +9,7 @@ export interface OrganizationInvitation {
   acceptedAt: string | null;
   revokedAt: string | null;
   createdAt: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
   merchantId?: string | null;
   merchant?: {
     id: string;
@@ -17,6 +18,15 @@ export interface OrganizationInvitation {
     status: string;
   } | null;
   branches?: { branch: { id: string; name: string; code: string | null } }[];
+}
+
+export interface OrganizationInvitationPage {
+  items: OrganizationInvitation[];
+  page: number;
+  limit: 15;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
 }
 
 export interface CreatedOrganizationInvitation {

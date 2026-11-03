@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import {
@@ -10,6 +10,10 @@ import {
 import { RequestError } from '@/shared/components/ui/request-error';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
+import { InputControl } from '@/shared/components/ui/input-control';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
+import { SelectControl } from '@/shared/components/ui/select-control';
+import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { OrganizationPageHeader } from '@/features/organizations/components/organization-page-header';
@@ -27,10 +31,14 @@ import type {
   OrganizationInvitation,
 } from '@/features/organization-invitations/model/organization-invitation.types';
 import {
+  listMemberAccessHistory,
   listOrganizationMembers,
   removeOrganizationMember,
 } from '../api/organization-member-api';
-import type { OrganizationMember } from '../model/organization-member.types';
+import type {
+  MemberAccessEvent,
+  OrganizationMember,
+} from '../model/organization-member.types';
 import { MemberAccessDialog } from './member-access-dialog';
 
 const roleLabels: Record<OrganizationRole, string> = {
@@ -89,7 +97,19 @@ export function OrganizationMemberManagement({
   } = useOrganizationWorkspaceContext();
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [invitations, setInvitations] = useState<OrganizationInvitation[]>([]);
-  const [invitationStatusTime, setInvitationStatusTime] = useState(0);
+  const [memberPage, setMemberPage] = useState(1);
+  const [memberTotal, setMemberTotal] = useState(0);
+  const [memberTotalPages, setMemberTotalPages] = useState(0);
+  const [memberHasNext, setMemberHasNext] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [invitationPage, setInvitationPage] = useState(1);
+  const [invitationTotal, setInvitationTotal] = useState(0);
+  const [invitationTotalPages, setInvitationTotalPages] = useState(0);
+  const [invitationHasNext, setInvitationHasNext] = useState(false);
+  const [invitationSearch, setInvitationSearch] = useState('');
+  const [invitationStatus, setInvitationStatus] = useState<
+    '' | 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED'
+  >('');
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -104,59 +124,78 @@ export function OrganizationMemberManagement({
   const [accessMember, setAccessMember] = useState<OrganizationMember | null>(
     null,
   );
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<MemberAccessEvent[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(0);
+  const [historyHasNext, setHistoryHasNext] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const { confirm, confirmationDialog } = useConfirmationDialog();
   const organizationRole = organization?.role;
+  const memberSearchQuery = useDebouncedValue(memberSearch);
+  const invitationSearchQuery = useDebouncedValue(invitationSearch);
+  const loadGeneration = useRef(0);
 
   const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
     setIsLoading(true);
     setLoadError(null);
     try {
       const [memberResult, invitationResult] = await Promise.all([
-        listOrganizationMembers(request, organizationId),
+        listOrganizationMembers(request, organizationId, {
+          page: memberPage,
+          q: memberSearchQuery,
+        }),
         organizationRole === 'OWNER'
-          ? listOrganizationInvitations(request, organizationId)
-          : Promise.resolve([]),
+          ? listOrganizationInvitations(request, organizationId, {
+              page: invitationPage,
+              q: invitationSearchQuery,
+              status: invitationStatus || undefined,
+            })
+          : Promise.resolve({
+              items: [],
+              page: 1,
+              limit: 15 as const,
+              total: 0,
+              totalPages: 0,
+              hasNext: false,
+            }),
       ]);
-      setMembers(memberResult);
-      setInvitations(invitationResult);
-      setInvitationStatusTime(Date.now());
+      if (generation !== loadGeneration.current) return;
+      setMembers(memberResult.items);
+      setMemberTotal(memberResult.total);
+      setMemberTotalPages(memberResult.totalPages);
+      setMemberHasNext(memberResult.hasNext);
+      setInvitations(invitationResult.items);
+      setInvitationTotal(invitationResult.total);
+      setInvitationTotalPages(invitationResult.totalPages);
+      setInvitationHasNext(invitationResult.hasNext);
     } catch (cause: unknown) {
+      if (generation !== loadGeneration.current) return;
       setLoadError(errorMessage(cause));
     } finally {
-      setIsLoading(false);
+      if (generation === loadGeneration.current) setIsLoading(false);
     }
-  }, [organizationRole, organizationId, request]);
+  }, [
+    invitationPage,
+    invitationSearchQuery,
+    invitationStatus,
+    memberPage,
+    memberSearchQuery,
+    organizationRole,
+    organizationId,
+    request,
+  ]);
 
   useEffect(() => {
     if (!organization) return;
     if (organization.role !== 'OWNER') {
       return;
     }
-    let active = true;
-    void Promise.all([
-      listOrganizationMembers(request, organizationId),
-      organization.role === 'OWNER'
-        ? listOrganizationInvitations(request, organizationId)
-        : Promise.resolve([]),
-    ])
-      .then(([memberResult, invitationResult]) => {
-        if (active) {
-          setMembers(memberResult);
-          setInvitations(invitationResult);
-          setInvitationStatusTime(Date.now());
-        }
-      })
-      .catch((cause: unknown) => {
-        if (active) setLoadError(errorMessage(cause));
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [organization, organizationId, request]);
+    void Promise.resolve().then(() => load());
+  }, [load, organization]);
 
   function replaceMember(updated: OrganizationMember) {
     setMembers((current) =>
@@ -275,6 +314,26 @@ export function OrganizationMemberManagement({
     }
   }
 
+  async function loadHistory(page: number) {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const result = await listMemberAccessHistory(request, organizationId, {
+        page,
+      });
+      setHistory(result.items);
+      setHistoryPage(result.page);
+      setHistoryTotal(result.total);
+      setHistoryTotalPages(result.totalPages);
+      setHistoryHasNext(result.hasNext);
+      setHistoryOpen(true);
+    } catch (cause) {
+      setHistoryError(errorMessage(cause));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   if (organizationStatus === 'loading') {
     return (
       <OrganizationPageFrame>
@@ -352,7 +411,21 @@ export function OrganizationMemberManagement({
               <OperationalPanel
                 className="mt-0"
                 title="People with access"
-                description={`${members.length} organization members · Branch assignments restrict access; owners have all-branch access`}
+                description={`${memberTotal} organization members · Branch assignments restrict access; owners have all-branch access`}
+                controls={
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <InputControl
+                      aria-label="Search members"
+                      type="search"
+                      value={memberSearch}
+                      placeholder="Search name or email"
+                      onChange={(event) => {
+                        setMemberSearch(event.target.value);
+                        setMemberPage(1);
+                      }}
+                    />
+                  </div>
+                }
                 action={
                   canManageMembers ? (
                     <button
@@ -379,45 +452,106 @@ export function OrganizationMemberManagement({
                     </p>
                   </div>
                 ) : (
-                  <ul
-                    aria-label="Organization members"
-                    className="m-0 list-none p-0"
-                  >
-                    <li className="data-column-header hidden grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] gap-x-5 gap-y-3 sm:grid">
-                      <span>Member</span>
-                      <span>Contact</span>
-                      <span>Role</span>
-                      <span>Access</span>
-                      <span>Joined</span>
-                      <span>Actions</span>
-                    </li>
-                    {members.map((member) => (
-                      <li
-                        className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] sm:items-start"
-                        key={member.id}
-                      >
-                        <div className="min-w-0 break-words">
-                          <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                            Member
-                          </span>
-                          <strong className="block text-sm font-semibold">
-                            <span className="block">{member.firstName}</span>
-                            <span className="block">{member.lastName}</span>
-                          </strong>
-                        </div>
-                        <div className="min-w-0 break-words">
-                          <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                            Contact
-                          </span>
-                          <p className="m-0 break-words text-sm text-ink">
-                            {member.email}
-                          </p>
-                          <p className="mt-1 text-xs text-muted">
-                            {member.phone ?? 'No phone added'}
-                          </p>
-                        </div>
-                        {canManageMembers ? (
-                          <>
+                  <>
+                    <ul
+                      aria-label="Organization members"
+                      className="m-0 list-none p-0"
+                    >
+                      <li className="data-column-header hidden grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] gap-x-5 gap-y-3 sm:grid">
+                        <span>Member</span>
+                        <span>Contact</span>
+                        <span>Role</span>
+                        <span>Access</span>
+                        <span>Joined</span>
+                        <span>Actions</span>
+                      </li>
+                      {members.map((member) => (
+                        <li
+                          className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] sm:items-start"
+                          key={member.id}
+                        >
+                          <div className="min-w-0 break-words">
+                            <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                              Member
+                            </span>
+                            <strong className="block text-sm font-semibold">
+                              <span className="block">{member.firstName}</span>
+                              <span className="block">{member.lastName}</span>
+                            </strong>
+                          </div>
+                          <div className="min-w-0 break-words">
+                            <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                              Contact
+                            </span>
+                            <p className="m-0 break-words text-sm text-ink">
+                              {member.email}
+                            </p>
+                            <p className="mt-1 text-xs text-muted">
+                              {member.phone ?? 'No phone added'}
+                            </p>
+                          </div>
+                          {canManageMembers ? (
+                            <>
+                              <div className="min-w-0">
+                                <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                  Role
+                                </span>
+                                <span className="text-sm font-semibold text-ink">
+                                  {roleLabels[member.role]}
+                                </span>
+                              </div>
+                              <div className="min-w-0">
+                                <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                  Access
+                                </span>
+                                <strong className="block text-sm font-semibold text-ink">
+                                  {accessSummary(member).label}
+                                </strong>
+                                <p className="mt-1 text-xs text-muted">
+                                  {accessSummary(member).description}
+                                </p>
+                              </div>
+                              <div className="min-w-0">
+                                <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                  Joined
+                                </span>
+                                <span className="text-sm text-ink">
+                                  {joinedDate(member.joinedAt)}
+                                </span>
+                              </div>
+                              <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
+                                <span className="mb-1 block basis-full text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                  Actions
+                                </span>
+                                <button
+                                  className={buttonStyles({
+                                    variant: 'quiet',
+                                    className:
+                                      'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm',
+                                  })}
+                                  type="button"
+                                  disabled={Boolean(pendingMemberId)}
+                                  aria-label={`Edit ${member.email}`}
+                                  onClick={() => setAccessMember(member)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className={buttonStyles({
+                                    variant: 'quiet',
+                                    className:
+                                      'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
+                                  })}
+                                  type="button"
+                                  disabled={Boolean(pendingMemberId)}
+                                  aria-label={`Remove ${member.email}`}
+                                  onClick={() => void handleRemove(member)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </>
+                          ) : (
                             <div className="min-w-0">
                               <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
                                 Role
@@ -426,82 +560,133 @@ export function OrganizationMemberManagement({
                                 {roleLabels[member.role]}
                               </span>
                             </div>
-                            <div className="min-w-0">
-                              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                                Access
-                              </span>
-                              <strong className="block text-sm font-semibold text-ink">
-                                {accessSummary(member).label}
-                              </strong>
-                              <p className="mt-1 text-xs text-muted">
-                                {accessSummary(member).description}
-                              </p>
-                            </div>
-                            <div className="min-w-0">
-                              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                                Joined
-                              </span>
-                              <span className="text-sm text-ink">
-                                {joinedDate(member.joinedAt)}
-                              </span>
-                            </div>
-                            <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
-                              <span className="mb-1 block basis-full text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                                Actions
-                              </span>
-                              <button
-                                className={buttonStyles({
-                                  variant: 'quiet',
-                                  className:
-                                    'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm',
-                                })}
-                                type="button"
-                                disabled={Boolean(pendingMemberId)}
-                                aria-label={`Edit ${member.email}`}
-                                onClick={() => setAccessMember(member)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                className={buttonStyles({
-                                  variant: 'quiet',
-                                  className:
-                                    'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
-                                })}
-                                type="button"
-                                disabled={Boolean(pendingMemberId)}
-                                aria-label={`Remove ${member.email}`}
-                                onClick={() => void handleRemove(member)}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="min-w-0">
-                            <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                              Role
-                            </span>
-                            <span className="text-sm font-semibold text-ink">
-                              {roleLabels[member.role]}
-                            </span>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    <PaginationControls
+                      ariaLabel="Member pages"
+                      currentPage={memberPage}
+                      totalPages={memberTotalPages}
+                      hasNext={memberHasNext}
+                      pending={isLoading}
+                      summary={`${memberTotal} member${memberTotal === 1 ? '' : 's'}`}
+                      onPrevious={() =>
+                        setMemberPage((page) => Math.max(1, page - 1))
+                      }
+                      onNext={() => setMemberPage((page) => page + 1)}
+                    />
+                  </>
                 )}
+              </OperationalPanel>
+
+              <OperationalPanel
+                className="mt-5"
+                title="Access history"
+                description="Owner-only record of committed role, branch, merchant-link, and membership changes."
+                action={
+                  <button
+                    type="button"
+                    className={buttonStyles({ variant: 'secondary' })}
+                    onClick={() =>
+                      historyOpen ? setHistoryOpen(false) : void loadHistory(1)
+                    }
+                  >
+                    {historyOpen ? 'Hide history' : 'View history'}
+                  </button>
+                }
+              >
+                {historyOpen ? (
+                  historyLoading ? (
+                    <div className="p-6">
+                      <ListSkeleton label="Loading access history" />
+                    </div>
+                  ) : historyError ? (
+                    <RequestError
+                      className="p-6"
+                      message={historyError}
+                      onRetry={() => void loadHistory(historyPage)}
+                    />
+                  ) : history.length === 0 ? (
+                    <EmptyState
+                      className="m-6"
+                      title="No access changes recorded yet"
+                      description="New committed access changes will appear here."
+                    />
+                  ) : (
+                    <>
+                      <ul
+                        className="m-0 list-none p-0"
+                        aria-label="Access history"
+                      >
+                        {history.map((event) => (
+                          <li
+                            className="data-row grid gap-2 px-5 py-4 sm:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1.3fr)_minmax(12rem,1fr)] sm:items-center sm:px-6"
+                            key={event.id}
+                          >
+                            <div>
+                              <strong className="block text-sm font-semibold">
+                                {event.operation.replaceAll('_', ' ')}
+                              </strong>
+                              <span className="text-xs text-muted">
+                                {joinedDate(event.occurredAt)}
+                              </span>
+                            </div>
+                            <div className="text-sm">
+                              <span className="block">{event.targetName}</span>
+                              <span className="text-xs text-muted">
+                                Target {event.targetUserId}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted">
+                              Actor {event.actorId}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                      <PaginationControls
+                        ariaLabel="Access history pages"
+                        currentPage={historyPage}
+                        totalPages={historyTotalPages}
+                        hasNext={historyHasNext}
+                        pending={historyLoading}
+                        summary={`${historyTotal} access change${historyTotal === 1 ? '' : 's'}`}
+                        onPrevious={() =>
+                          void loadHistory(Math.max(1, historyPage - 1))
+                        }
+                        onNext={() => void loadHistory(historyPage + 1)}
+                      />
+                    </>
+                  )
+                ) : null}
               </OperationalPanel>
 
               {canManageMembers ? (
                 <InvitationList
                   invitations={invitations}
-                  statusTime={invitationStatusTime}
                   pendingId={pendingInvitationId}
                   onRemove={handleRemoveInvitation}
                   onResend={handleResendInvitation}
                   resentInvitation={resentInvitation}
                   onCopyResentLink={() => void copyResentInvitationLink()}
+                  page={invitationPage}
+                  totalPages={invitationTotalPages}
+                  hasNext={invitationHasNext}
+                  total={invitationTotal}
+                  search={invitationSearch}
+                  status={invitationStatus}
+                  onSearchChange={(value) => {
+                    setInvitationSearch(value);
+                    setInvitationPage(1);
+                  }}
+                  onStatusChange={(value) => {
+                    setInvitationStatus(value);
+                    setInvitationPage(1);
+                  }}
+                  onPrevious={() =>
+                    setInvitationPage((current) => Math.max(1, current - 1))
+                  }
+                  onNext={() => setInvitationPage((current) => current + 1)}
                 />
               ) : null}
 
@@ -510,10 +695,7 @@ export function OrganizationMemberManagement({
                   organizationId={organizationId}
                   onClose={() => setIsAddMemberOpen(false)}
                   onCreated={(invitation) => {
-                    setInvitations((current) => [
-                      invitation,
-                      ...current.filter((item) => item.id !== invitation.id),
-                    ]);
+                    void load();
                     setSuccessMessage(
                       `An invitation was created for ${invitation.email}.`,
                     );
@@ -545,26 +727,72 @@ export function OrganizationMemberManagement({
 
 function InvitationList({
   invitations,
-  statusTime,
   pendingId,
   onRemove,
   onResend,
   resentInvitation,
   onCopyResentLink,
+  page,
+  totalPages,
+  hasNext,
+  total,
+  search,
+  status,
+  onSearchChange,
+  onStatusChange,
+  onPrevious,
+  onNext,
 }: {
   invitations: OrganizationInvitation[];
-  statusTime: number;
   pendingId: string | null;
   onRemove(invitation: OrganizationInvitation): Promise<void>;
   onResend(invitation: OrganizationInvitation): Promise<void>;
   resentInvitation: CreatedOrganizationInvitation | null;
   onCopyResentLink(): void;
+  page: number;
+  totalPages: number;
+  hasNext: boolean;
+  total: number;
+  search: string;
+  status: '' | 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+  onSearchChange(value: string): void;
+  onStatusChange(
+    value: '' | 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED',
+  ): void;
+  onPrevious(): void;
+  onNext(): void;
 }) {
   return (
     <OperationalPanel
       className="mt-5"
       title="Invitations"
-      description="Pending and historical organization invitations"
+      description={`${total} pending and historical organization invitation${total === 1 ? '' : 's'}`}
+      controls={
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+          <InputControl
+            aria-label="Search invitations"
+            type="search"
+            value={search}
+            placeholder="Search invited email"
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+          <SelectControl
+            aria-label="Invitation status"
+            value={status}
+            onValueChange={(value) =>
+              onStatusChange(
+                value as '' | 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED',
+              )
+            }
+          >
+            <option value="">All statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="ACCEPTED">Accepted</option>
+            <option value="REVOKED">Revoked</option>
+            <option value="EXPIRED">Expired</option>
+          </SelectControl>
+        </div>
+      }
     >
       {invitations.length === 0 ? (
         <div className="p-6">
@@ -603,14 +831,10 @@ function InvitationList({
               <span>Actions</span>
             </li>
             {invitations.map((invitation) => {
-              const pending = isPendingInvitation(invitation, statusTime);
-              const status = invitation.acceptedAt
-                ? 'Accepted'
-                : invitation.revokedAt
-                  ? 'Revoked'
-                  : pending
-                    ? 'Pending'
-                    : 'Expired';
+              const pending = invitation.status === 'PENDING';
+              const status =
+                invitation.status.charAt(0) +
+                invitation.status.slice(1).toLowerCase();
               return (
                 <li
                   className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(8rem,0.75fr)_minmax(8rem,auto)] sm:items-start"
@@ -689,6 +913,16 @@ function InvitationList({
               );
             })}
           </ul>
+          <PaginationControls
+            ariaLabel="Invitation pages"
+            currentPage={page}
+            totalPages={totalPages}
+            hasNext={hasNext}
+            pending={Boolean(pendingId)}
+            summary={`${total} invitation${total === 1 ? '' : 's'}`}
+            onPrevious={onPrevious}
+            onNext={onNext}
+          />
         </>
       )}
     </OperationalPanel>

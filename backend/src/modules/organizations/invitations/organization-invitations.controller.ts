@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -25,6 +26,7 @@ import {
 import { OrganizationRole } from '../../../generated/prisma/client';
 import {
   CreatedOrganizationInvitationResponseDto,
+  OrganizationInvitationPageResponseDto,
   OrganizationInvitationResponseDto,
 } from '../../../openapi/response.dto';
 import { AuthGuard } from '../../auth/auth.guard';
@@ -35,9 +37,11 @@ import type { OrganizationContext } from '../authorization/organization-authoriz
 import { CurrentOrganization } from '../authorization/organization-context.decorator';
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
 import { CreateOrganizationInvitationDto } from './dto/create-organization-invitation.dto';
+import { ListInvitationsQueryDto } from './dto/list-invitations-query.dto';
 import { OrganizationInvitationsService } from './organization-invitations.service';
 import type {
   CreatedOrganizationInvitation,
+  OrganizationInvitationPage,
   OrganizationInvitationView,
 } from './organization-invitations.types';
 
@@ -73,11 +77,12 @@ export class OrganizationInvitationsController {
 
   @Get()
   @ApiOperation({ summary: 'List organization invitations' })
-  @ApiOkResponse({ type: OrganizationInvitationResponseDto, isArray: true })
+  @ApiOkResponse({ type: OrganizationInvitationPageResponseDto })
   findAll(
     @CurrentOrganization() organization: OrganizationContext,
-  ): Promise<OrganizationInvitationView[]> {
-    return this.invitationsService.findAll(organization.organizationId);
+    @Query() query: ListInvitationsQueryDto,
+  ): Promise<OrganizationInvitationPage> {
+    return this.invitationsService.findAll(organization.organizationId, query);
   }
 
   @Post(':invitationId/resend')

@@ -18,6 +18,16 @@ export interface OrganizationInvitationView {
   acceptedAt: Date | null;
   revokedAt: Date | null;
   createdAt: Date;
+  status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+}
+
+export interface OrganizationInvitationPage {
+  items: OrganizationInvitationView[];
+  page: number;
+  limit: 15;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
 }
 
 export interface CreatedOrganizationInvitation {

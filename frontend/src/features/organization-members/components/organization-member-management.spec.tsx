@@ -10,6 +10,7 @@ import {
   listOrganizationInvitations,
   removeOrganizationInvitation,
 } from '@/features/organization-invitations/api/organization-invitation-api';
+import type { OrganizationInvitation } from '@/features/organization-invitations/model/organization-invitation.types';
 import { OrganizationMemberManagement } from './organization-member-management';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
@@ -53,7 +54,24 @@ const invitation = {
   merchantId: null,
   merchant: null,
   branches: [{ branch: { id: 'branch', name: 'Makati', code: 'MKT' } }],
+  status: 'PENDING' as const,
 };
+const memberPage = {
+  items: [member],
+  page: 1,
+  limit: 15 as const,
+  total: 1,
+  totalPages: 1,
+  hasNext: false,
+};
+const invitationPage = (items: OrganizationInvitation[] = []) => ({
+  items,
+  page: 1,
+  limit: 15 as const,
+  total: items.length,
+  totalPages: items.length ? 1 : 0,
+  hasNext: false,
+});
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useAuth).mockReturnValue({ request: vi.fn() } as never);
@@ -61,13 +79,13 @@ beforeEach(() => {
     organization: { id: 'org', name: 'Store', role: 'OWNER' },
     organizationStatus: 'ready',
   } as never);
-  vi.mocked(listOrganizationMembers).mockResolvedValue([member]);
+  vi.mocked(listOrganizationMembers).mockResolvedValue(memberPage);
   vi.mocked(loadMemberAccessOptions).mockResolvedValue({
     branches: [],
     merchants: [],
   });
   vi.mocked(listMemberBranches).mockResolvedValue([]);
-  vi.mocked(listOrganizationInvitations).mockResolvedValue([]);
+  vi.mocked(listOrganizationInvitations).mockResolvedValue(invitationPage());
 });
 
 it('renders responsive member rows with readable roles and uniquely named owner actions', async () => {
@@ -80,7 +98,9 @@ it('renders responsive member rows with readable roles and uniquely named owner 
   expect(screen.getByText('Manager')).toBeVisible();
   expect(screen.getByText('No phone added')).toBeVisible();
   expect(screen.getByText('No branches assigned')).toBeVisible();
-  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('combobox', { name: 'Invitation status' }),
+  ).toBeVisible();
   expect(
     screen.getByRole('button', { name: 'Edit mara@example.com' }),
   ).toBeVisible();
@@ -106,7 +126,9 @@ it('opens the edit dialog from the member row action', async () => {
 });
 
 it('renders invitation details in separate labeled columns', async () => {
-  vi.mocked(listOrganizationInvitations).mockResolvedValue([invitation]);
+  vi.mocked(listOrganizationInvitations).mockResolvedValue(
+    invitationPage([invitation]),
+  );
   render(<OrganizationMemberManagement organizationId="org" />);
   expect(await screen.findByText('new-member@example.com')).toBeVisible();
   expect(screen.getByText('Makati')).toBeVisible();
@@ -118,7 +140,9 @@ it('renders invitation details in separate labeled columns', async () => {
 });
 
 it('cancels and removes a pending invitation', async () => {
-  vi.mocked(listOrganizationInvitations).mockResolvedValue([invitation]);
+  vi.mocked(listOrganizationInvitations).mockResolvedValue(
+    invitationPage([invitation]),
+  );
   vi.mocked(removeOrganizationInvitation).mockResolvedValue();
   render(<OrganizationMemberManagement organizationId="org" />);
   fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
@@ -139,10 +163,11 @@ it('removes historical invitations from the current list', async () => {
     id: 'historical-invitation',
     email: 'historical@example.com',
     acceptedAt: '2026-09-14T00:00:00Z',
+    status: 'ACCEPTED' as const,
   };
-  vi.mocked(listOrganizationInvitations).mockResolvedValue([
-    historicalInvitation,
-  ]);
+  vi.mocked(listOrganizationInvitations).mockResolvedValue(
+    invitationPage([historicalInvitation]),
+  );
   render(<OrganizationMemberManagement organizationId="org" />);
   fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
   fireEvent.click(screen.getByRole('button', { name: 'Remove invitation' }));
@@ -164,8 +189,11 @@ it('permanently deletes expired invitations', async () => {
     id: 'expired-invitation',
     email: 'expired@example.com',
     expiresAt: '2026-08-26T00:00:00Z',
+    status: 'EXPIRED' as const,
   };
-  vi.mocked(listOrganizationInvitations).mockResolvedValue([expiredInvitation]);
+  vi.mocked(listOrganizationInvitations).mockResolvedValue(
+    invitationPage([expiredInvitation]),
+  );
   vi.mocked(removeOrganizationInvitation).mockResolvedValue();
   render(<OrganizationMemberManagement organizationId="org" />);
   fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));

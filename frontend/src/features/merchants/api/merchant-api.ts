@@ -1,6 +1,7 @@
 import type { AuthenticatedRequest } from '@/features/organizations/model/organization.types';
 import {
   merchantListResponseSchema,
+  merchantDirectoryPageSchema,
   merchantResponseSchema,
   merchantSummarySchema,
   merchantViewSchema,
@@ -13,6 +14,7 @@ import type {
   MerchantStatus,
   MerchantUpdateInput,
   MerchantView,
+  MerchantDirectoryPage,
 } from '../model/merchant.types';
 
 function merchantPath(organizationId: string): string {
@@ -44,6 +46,42 @@ export async function listMerchants(
     : role === 'OWNER' || role === 'MERCHANT'
       ? merchantListResponseSchema.parse(result)
       : merchantViewListSchema.parse(result);
+}
+
+export async function listMerchantDirectory(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  filters: MerchantFilters & { page?: number } = {},
+  role?: string,
+): Promise<MerchantDirectoryPage> {
+  const query = new URLSearchParams({ page: String(filters.page ?? 1) });
+  if (filters.q) query.set('q', filters.q);
+  if (filters.status) query.set('status', filters.status);
+  const result = merchantDirectoryPageSchema.parse(
+    await request<unknown>(
+      `${merchantPath(organizationId)}/directory?${query}`,
+    ),
+  );
+  if (role === 'MANAGER') return result;
+  return result;
+}
+
+export async function listMerchantOptions(
+  request: AuthenticatedRequest,
+  organizationId: string,
+  query: { search?: string; page?: number; status?: MerchantStatus } = {},
+  role?: string,
+) {
+  const page = await listMerchantDirectory(
+    request,
+    organizationId,
+    { q: query.search, page: query.page ?? 1, status: query.status },
+    role,
+  );
+  return {
+    items: page.items.map(({ id, name }) => ({ id, label: name })),
+    hasNext: page.hasNext,
+  };
 }
 
 export async function createMerchant(

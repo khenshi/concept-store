@@ -7,9 +7,21 @@ import {
 } from '@testing-library/react';
 import { useEffect } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
-import { listBranches } from '@/features/branches/api/branch-api';
-import { listPosBranches } from '@/features/pos/api/pos-api';
-import { listReportBranches } from '@/features/reports/api/report-api';
+import { ApiError } from '@/features/auth/api/auth-client';
+import {
+  getBranch,
+  listBranchOptions,
+  listBranches,
+} from '@/features/branches/api/branch-api';
+import {
+  getPosBranch,
+  listPosBranchOptions,
+  listPosBranches,
+} from '@/features/pos/api/pos-api';
+import {
+  listReportBranchOptions,
+  listReportBranches,
+} from '@/features/reports/api/report-api';
 import { PosEntry } from '@/features/pos/components/pos-entry';
 import { SpacesWorkspace } from '@/features/spaces/components/spaces-workspace';
 import { InventoryEntry } from '@/features/inventory/components/inventory-entry';
@@ -31,11 +43,18 @@ import {
 } from './organization-workspace-context';
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock('@/features/branches/api/branch-api', () => ({
+  getBranch: vi.fn(),
+  listBranchOptions: vi.fn(),
   listBranches: vi.fn(),
 }));
-vi.mock('@/features/pos/api/pos-api', () => ({ listPosBranches: vi.fn() }));
+vi.mock('@/features/pos/api/pos-api', () => ({
+  getPosBranch: vi.fn(),
+  listPosBranchOptions: vi.fn(),
+  listPosBranches: vi.fn(),
+}));
 vi.mock('@/features/reports/api/report-api', () => ({
   listReportBranches: vi.fn(),
+  listReportBranchOptions: vi.fn(),
 }));
 vi.mock('../api/organization-api', () => ({ getOrganization: vi.fn() }));
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
@@ -144,6 +163,32 @@ describe('shared organization workspace branch selection', () => {
         [a, b].map((branch) => ({ ...branch, organizationId: org })) as never,
     );
     vi.mocked(listReportBranches).mockResolvedValue([a, b]);
+    vi.mocked(getBranch).mockResolvedValue({
+      ...a,
+      organizationId: 'org',
+    } as never);
+    vi.mocked(listBranchOptions).mockResolvedValue({
+      items: [
+        { id: a.id, label: 'Main (MAIN)' },
+        { id: b.id, label: 'South (SOUTH)' },
+      ],
+      hasNext: false,
+    });
+    vi.mocked(getPosBranch).mockResolvedValue(a);
+    vi.mocked(listPosBranchOptions).mockResolvedValue({
+      items: [
+        { id: a.id, label: 'Main (MAIN)' },
+        { id: b.id, label: 'South (SOUTH)' },
+      ],
+      hasNext: false,
+    });
+    vi.mocked(listReportBranchOptions).mockResolvedValue({
+      items: [
+        { id: a.id, label: 'Main (MAIN)' },
+        { id: b.id, label: 'South (SOUTH)' },
+      ],
+      hasNext: false,
+    });
   });
   afterEach(() => {
     setCheckoutAttempt('org:actor', null);
@@ -232,13 +277,21 @@ describe('shared organization workspace branch selection', () => {
         { ...b, organizationId: 'org' },
       ] as never);
       vi.mocked(listReportBranches).mockResolvedValue([b]);
+      if (page === 'pos')
+        vi.mocked(getPosBranch).mockRejectedValueOnce(new Error('Unavailable'));
+      else if (page === 'inventory' || page === 'spaces')
+        vi.mocked(getBranch).mockRejectedValueOnce(new Error('Unavailable'));
       view.rerender(tree(page));
       await screen.findByText(/selected branch is unavailable/);
       expect(push).not.toHaveBeenCalled();
       expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(
         a.id,
       );
-      expect(screen.getByRole('combobox')).toHaveTextContent('Choose a branch');
+      await waitFor(() =>
+        expect(screen.getByRole('combobox')).toHaveTextContent(
+          'Choose a branch',
+        ),
+      );
     },
   );
   it('explicit authorized branch URLs override the shared choice', async () => {
@@ -401,18 +454,18 @@ describe('shared organization workspace branch selection', () => {
     }
   });
   it('ignores a late branch lookup after switching organizations', async () => {
-    let resolve!: (value: Awaited<ReturnType<typeof listPosBranches>>) => void;
-    vi.mocked(listPosBranches).mockReturnValueOnce(
+    let resolve!: (value: Awaited<ReturnType<typeof getPosBranch>>) => void;
+    vi.mocked(getPosBranch).mockReturnValueOnce(
       new Promise((done) => {
         resolve = done;
       }),
     );
     const view = render(tree('direct-pos'));
-    await waitFor(() => expect(listPosBranches).toHaveBeenCalledOnce());
+    await waitFor(() => expect(getPosBranch).toHaveBeenCalledOnce());
     view.rerender(tree('reports', 'other'));
     await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
     await act(async () => {
-      resolve([a, b]);
+      resolve(a);
     });
     expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(
       'none',
@@ -420,7 +473,9 @@ describe('shared organization workspace branch selection', () => {
     expect(push).not.toHaveBeenCalled();
   });
   it('does not remember an inaccessible direct branch route', async () => {
-    vi.mocked(listPosBranches).mockResolvedValue([b]);
+    vi.mocked(getPosBranch).mockRejectedValueOnce(
+      new ApiError(404, 'Unavailable'),
+    );
     render(tree('direct-pos'));
     await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
     expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(
@@ -434,6 +489,7 @@ describe('shared organization workspace branch selection', () => {
       role: 'MERCHANT',
     } as never);
     vi.mocked(listBranches).mockResolvedValue([b] as never);
+    vi.mocked(getBranch).mockRejectedValueOnce(new Error('Unavailable'));
     const view = render(tree('reports'));
     await choose('Main (MAIN)');
     push.mockClear();

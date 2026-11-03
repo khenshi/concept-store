@@ -4,9 +4,12 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
-import { listBranches } from '@/features/branches/api/branch-api';
+import {
+  getBranch,
+  listBranchOptions,
+} from '@/features/branches/api/branch-api';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
-import { SelectControl } from '@/shared/components/ui/select-control';
+import { PagedOptionSelect } from '@/shared/components/ui/paged-option-select';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { usePageHeaderRequestError } from '@/shared/components/ui/page-header';
 import { allowPosNavigation } from '@/features/pos/model/pos-navigation';
@@ -42,44 +45,83 @@ export function InventoryBranchSelector({
 }) {
   const { request, user } = useAuth();
   const router = useRouter();
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
   const id = useId();
-  const [branches, setBranches] = useState<Array<{
+  const [selectedBranch, setSelectedBranch] = useState<{
     id: string;
-    name: string;
-    code: string | null;
-  }> | null>(null);
+    label: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [preferredUnavailable, setPreferredUnavailable] = useState(false);
   const [revision, setRevision] = useState(0);
   const resumed = useRef<string | null>(null);
+  const beforeChangeRef = useRef(beforeChange);
+  useEffect(() => {
+    beforeChangeRef.current = beforeChange;
+  }, [beforeChange]);
+  const navigate = useCallback(
+    (next: string) => {
+      if (disabled || role === 'CASHIER') return false;
+      const checkout =
+        user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
+      const refund =
+        user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
+      if (
+        (checkout && checkout.state !== 'completed') ||
+        (refund && refund.state !== 'completed')
+      )
+        return false;
+      const href = `/app/organizations/${organizationId}/branches/${next}/inventory`;
+      if (
+        !allowPosNavigation(href) ||
+        (beforeChangeRef.current && !beforeChangeRef.current())
+      )
+        return false;
+      resumed.current = next;
+      rememberBranch?.(next);
+      routerRef.current.push(href);
+      return true;
+    },
+    [disabled, organizationId, rememberBranch, role, user],
+  );
   useEffect(() => {
     if (role === 'CASHIER') return;
     let active = true;
-    listBranches(request, organizationId, role)
-      .then((result) => {
+    const target = branchId || preferredBranchId;
+    if (!target) return () => {};
+    getBranch(request, organizationId, target, role)
+      .then((branch) => {
         if (!active) return;
-        if (
-          result.some(
-            (branch) =>
-              'organizationId' in branch &&
-              branch.organizationId !== organizationId,
-          )
-        )
-          throw new Error('Invalid branch scope.');
-        setBranches(result.map(({ id, name, code }) => ({ id, name, code })));
-        if (branchId && result.some((branch) => branch.id === branchId))
-          rememberBranch?.(branchId);
-        if (branchId && !result.some((branch) => branch.id === branchId))
-          onAccessDenied?.();
+        setPreferredUnavailable(false);
+        const option = {
+          id: branch.id,
+          label: branch.code ? `${branch.name} (${branch.code})` : branch.name,
+        };
+        setSelectedBranch(option);
+        if (branchId) rememberBranch?.(branchId);
+        if (!branchId && preferredBranchId && navigate(preferredBranchId))
+          resumed.current = preferredBranchId;
       })
       .catch((cause) => {
-        if (active)
-          setError('Accessible inventory branches could not be loaded.');
-        if (
-          active &&
-          cause instanceof ApiError &&
-          [403, 404].includes(cause.status)
-        )
+        if (!active) return;
+        if (!branchId && preferredBranchId) {
+          setPreferredUnavailable(true);
+          return;
+        }
+        const status =
+          cause instanceof ApiError
+            ? cause.status
+            : typeof cause === 'object' && cause !== null && 'status' in cause
+              ? Number(cause.status)
+              : undefined;
+        if (status === 403 || status === 404) {
           onAccessDenied?.();
+          return;
+        }
+        setError('Accessible inventory branches could not be loaded.');
       });
     return () => {
       active = false;
@@ -90,95 +132,42 @@ export function InventoryBranchSelector({
     role,
     revision,
     branchId,
+    preferredBranchId,
+    navigate,
     onAccessDenied,
     rememberBranch,
   ]);
-  function navigate(next: string) {
-    if (disabled || role === 'CASHIER') return false;
-    const checkout =
-      user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
-    const refund =
-      user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
-    if (
-      (checkout && checkout.state !== 'completed') ||
-      (refund && refund.state !== 'completed')
-    )
-      return false;
-    const href = `/app/organizations/${organizationId}/branches/${next}/inventory`;
-    if (!allowPosNavigation(href) || (beforeChange && !beforeChange()))
-      return false;
-    resumed.current = next;
-    rememberBranch?.(next);
-    router.push(href);
-    return true;
-  }
-  useEffect(() => {
-    if (
-      branchId ||
-      !preferredBranchId ||
-      !branches ||
-      error ||
-      disabled ||
-      resumed.current === preferredBranchId
-    )
-      return;
-    if (
-      branches.some((branch) => branch.id === preferredBranchId) &&
-      navigate(preferredBranchId)
-    )
-      resumed.current = preferredBranchId;
-  });
   const retry = useCallback(() => {
     setError(null);
-    setBranches(null);
+    setSelectedBranch(null);
+    setPreferredUnavailable(false);
     setRevision((value) => value + 1);
   }, []);
+  const loadBranchPage = useCallback(
+    (query: string, page: number) =>
+      listBranchOptions(request, organizationId, { search: query, page }),
+    [organizationId, request],
+  );
   const pageHeaderError = usePageHeaderRequestError(error, retry);
   return (
     <div className={compact ? 'w-full min-w-56 max-w-sm' : 'my-6 max-w-xl'}>
       <label htmlFor={id} className="mb-2 block text-sm font-medium">
         Inventory branch
       </label>
-      <SelectControl
+      <PagedOptionSelect
         id={id}
-        value={
-          branches?.some((branch) => branch.id === branchId) ? branchId : ''
-        }
-        disabled={
-          disabled || role === 'CASHIER' || !branches?.length || Boolean(error)
-        }
+        value={branchId}
+        selectedOption={selectedBranch}
+        placeholder="Choose a branch"
+        emptyMessage="No accessible branches. Ask an owner to check your assignments or merchant link."
+        retryKey={revision}
+        disabled={disabled || role === 'CASHIER' || Boolean(error)}
+        loadPage={loadBranchPage}
         onValueChange={(next) => {
-          if (
-            disabled ||
-            !next ||
-            next === branchId ||
-            !branches?.some((branch) => branch.id === next)
-          )
-            return;
-          navigate(next);
+          if (!disabled && next && next !== branchId) navigate(next);
         }}
-      >
-        <option value="" disabled>
-          {branches ? 'Choose a branch' : 'Loading branches…'}
-        </option>
-        {(branches ?? []).map((branch) => (
-          <option key={branch.id} value={branch.id}>
-            {branch.name}
-            {branch.code ? ` (${branch.code})` : ''}
-          </option>
-        ))}
-      </SelectControl>
-      {branches?.length === 0 ? (
-        <p role="status" className="mt-3 text-sm text-muted">
-          No accessible branches. Ask an owner to check your assignments or
-          merchant link.
-        </p>
-      ) : null}
-      {!branchId &&
-      preferredBranchId &&
-      branches &&
-      !error &&
-      !branches.some((branch) => branch.id === preferredBranchId) ? (
+      />
+      {!branchId && preferredBranchId && preferredUnavailable && !error ? (
         <p role="status" className="mt-3 text-sm text-muted">
           The selected branch is unavailable in Inventory. Choose an accessible
           branch.

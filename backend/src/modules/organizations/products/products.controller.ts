@@ -23,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { OrganizationRole } from '../../../generated/prisma/client';
 import {
+  ProductDirectoryPageResponseDto,
   ProductInventoryResponseDto,
   ProductResponseDto,
 } from '../../../openapi/response.dto';
@@ -34,10 +35,11 @@ import { CurrentOrganization } from '../authorization/organization-context.decor
 import { OrganizationRoles } from '../authorization/organization-roles.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ListProductsQueryDto } from './dto/list-products-query.dto';
+import { ListProductDirectoryQueryDto } from './dto/list-product-directory-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateProductStatusDto } from './dto/update-product-status.dto';
 import { ProductsService } from './products.service';
-import type { ProductRecord } from './products.types';
+import type { ProductDirectoryPage, ProductRecord } from './products.types';
 
 @UseGuards(AuthGuard, OrganizationAccessGuard, ResourceAccessGuard)
 @OrganizationRoles(
@@ -90,6 +92,20 @@ export class ProductsController {
     @Query() query: ListProductsQueryDto,
   ) {
     return this.productsService.findAll(
+      organization.organizationId,
+      query,
+      organization,
+    );
+  }
+
+  @Get('directory')
+  @ApiOperation({ summary: 'List a bounded product directory page' })
+  @ApiOkResponse({ type: ProductDirectoryPageResponseDto })
+  findDirectory(
+    @CurrentOrganization() organization: OrganizationContext,
+    @Query() query: ListProductDirectoryQueryDto,
+  ): Promise<ProductDirectoryPage> {
+    return this.productsService.findDirectory(
       organization.organizationId,
       query,
       organization,

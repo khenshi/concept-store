@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
@@ -17,6 +17,11 @@ import { OperationalTableFrame } from '@/shared/components/ui/operational-table'
 import { RequestError } from '@/shared/components/ui/request-error';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+} from '@/shared/components/ui/paged-option-select';
+import { listMerchantOptions } from '@/features/merchants/api/merchant-api';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { listMovementRecords } from '../api/inventory-api';
 import type {
@@ -59,7 +64,7 @@ export function InventoryMovementRecords({
   organizationId,
   branchId,
   role,
-  merchants,
+  merchants: _merchants,
   onAccessLost,
 }: InventoryScope & {
   role: OrganizationRole;
@@ -84,6 +89,9 @@ export function InventoryMovementRecords({
   const debouncedSearch = useDebouncedValue(search, 300);
   const [type, setType] = useState<MovementType | ''>('');
   const [merchantId, setMerchantId] = useState('');
+  const [merchantOption, setMerchantOption] = useState<PagedOption | null>(
+    null,
+  );
   const [fromDay, setFromDay] = useState('');
   const [throughDay, setThroughDay] = useState('');
   const [appliedDates, setAppliedDates] = useState<{
@@ -100,6 +108,19 @@ export function InventoryMovementRecords({
     merchantId: canWrite ? merchantId || undefined : undefined,
     ...appliedDates,
   };
+  const loadMerchantPage = useCallback(
+    (query: string, optionPage: number) =>
+      listMerchantOptions(
+        request,
+        organizationId,
+        {
+          search: query,
+          page: optionPage,
+        },
+        role,
+      ),
+    [organizationId, request, role],
+  );
 
   useEffect(() => {
     let active = true;
@@ -276,20 +297,17 @@ export function InventoryMovementRecords({
                 >
                   Merchant
                 </label>
-                <SelectControl
+                <PagedOptionSelect
                   id="movement-record-merchant"
-                  aria-label="Merchant"
                   value={merchantId}
+                  selectedOption={merchantOption}
+                  placeholder="All merchants"
+                  searchPlaceholder="Search merchants"
+                  loadPage={loadMerchantPage}
                   className="bg-subtle px-4 text-sm font-medium mt-1"
                   onValueChange={setMerchantId}
-                >
-                  <option value="">All merchants</option>
-                  {merchants.map((merchant) => (
-                    <option key={merchant.id} value={merchant.id}>
-                      {merchant.name}
-                    </option>
-                  ))}
-                </SelectControl>
+                  onOptionChange={setMerchantOption}
+                />
               </div>
             ) : null}
             <div className="min-w-0 md:col-span-3 md:w-[18rem] md:justify-self-start xl:col-span-1">

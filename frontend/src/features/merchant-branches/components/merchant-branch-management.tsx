@@ -1,11 +1,11 @@
 'use client';
 import { occupiedSpaceCount } from '@/features/spaces/api/space-api';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
-import { listBranches } from '@/features/branches/api/branch-api';
-import { listMerchants } from '@/features/merchants/api/merchant-api';
+import { listBranchOptions } from '@/features/branches/api/branch-api';
+import { listMerchantOptions } from '@/features/merchants/api/merchant-api';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { EmptyState } from '@/shared/components/ui/empty-state';
@@ -13,6 +13,10 @@ import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
 import { Icon } from '@/shared/components/ui/icon';
 import { InputControl } from '@/shared/components/ui/input-control';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+} from '@/shared/components/ui/paged-option-select';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import {
   listAssociations,
@@ -24,7 +28,6 @@ import type {
   MerchantBranchPage,
 } from '../model/merchant-branch.schemas';
 
-type Choice = { id: string; name: string; code: string | null };
 export function MerchantBranchManagement(
   props: AssociationScope & { onChanged?(): void },
 ) {
@@ -54,7 +57,9 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [assigning, setAssigning] = useState(false);
-  const [choices, setChoices] = useState<Choice[] | null>(null);
+  const [choicesReady, setChoicesReady] = useState(false);
+  const [existingChoiceIds, setExistingChoiceIds] = useState<string[]>([]);
+  const [choiceOption, setChoiceOption] = useState<PagedOption | null>(null);
   const [choiceError, setChoiceError] = useState<string | null>(null);
   const [choiceRevision, setChoiceRevision] = useState(0);
   const [selected, setSelected] = useState('');
@@ -107,7 +112,9 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
     let active = true;
     void Promise.resolve()
       .then(async () => {
-        setChoices(null);
+        setChoicesReady(false);
+        setExistingChoiceIds([]);
+        setChoiceOption(null);
         setChoiceError(null);
         setSelected('');
         const existing = new Set<string>();
@@ -124,12 +131,10 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
           if (!rows.hasNext) break;
           nextPage++;
         }
-        const candidates =
-          kind === 'merchant'
-            ? await listBranches(request, organizationId)
-            : await listMerchants(request, organizationId, {}, 'OWNER');
-        if (active)
-          setChoices(candidates.filter((choice) => !existing.has(choice.id)));
+        if (active) {
+          setExistingChoiceIds([...existing]);
+          setChoicesReady(true);
+        }
       })
       .catch((cause: unknown) => {
         if (active)
@@ -143,6 +148,27 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
       active = false;
     };
   }, [assigning, choiceRevision, request, organizationId, kind, id]);
+  const loadChoicePage = useCallback(
+    (query: string, optionPage: number) =>
+      (kind === 'merchant'
+        ? listBranchOptions(request, organizationId, {
+            search: query,
+            page: optionPage,
+          })
+        : listMerchantOptions(
+            request,
+            organizationId,
+            { search: query, page: optionPage },
+            'OWNER',
+          )
+      ).then((result) => ({
+        items: result.items.filter(
+          (option) => !existingChoiceIds.includes(option.id),
+        ),
+        hasNext: result.hasNext,
+      })),
+    [existingChoiceIds, kind, organizationId, request],
+  );
   async function write(candidate: string, nextStatus?: 'ACTIVE' | 'INACTIVE') {
     if (!owner || lock.current) return;
     lock.current = true;
@@ -393,40 +419,19 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
               htmlFor="association-choice"
             >
               {kind === 'merchant' ? 'Branch' : 'Merchant'}
-              <span className="relative block min-w-0">
-                <Icon
-                  name={kind === 'merchant' ? 'building' : 'account'}
-                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
-                />
-                <select
-                  id="association-choice"
-                  className="min-h-11 w-full rounded-full border border-control-border bg-surface px-3 !pl-10 text-ink"
-                  required
-                  value={selected}
-                  disabled={pending || !choices}
-                  onChange={(event) => setSelected(event.target.value)}
-                >
-                  <option value="">
-                    Choose {kind === 'merchant' ? 'a branch' : 'a merchant'}
-                  </option>
-                  {choices?.map((choice) => (
-                    <option key={choice.id} value={choice.id}>
-                      {choice.name}
-                      {choice.code ? ` · ${choice.code}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </span>
+              <PagedOptionSelect
+                id="association-choice"
+                value={selected}
+                selectedOption={choiceOption}
+                placeholder={`Choose ${kind === 'merchant' ? 'a branch' : 'a merchant'}`}
+                searchPlaceholder={`Search ${kind === 'merchant' ? 'branches' : 'merchants'}`}
+                emptyMessage="No unassigned choices remain. Existing inactive associations can be reactivated."
+                disabled={pending || !choicesReady}
+                loadPage={loadChoicePage}
+                onValueChange={setSelected}
+                onOptionChange={setChoiceOption}
+              />
             </label>
-            {!choices && !choiceError && (
-              <p role="status">Loading assignment choices…</p>
-            )}
-            {choices?.length === 0 && (
-              <p>
-                No unassigned choices remain. Existing inactive associations can
-                be reactivated.
-              </p>
-            )}
             <ModalActionRow
               feedback={
                 error ? (
@@ -446,7 +451,7 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
               </button>
               <button
                 type="submit"
-                disabled={pending || !selected || !choices}
+                disabled={pending || !selected || !choicesReady}
                 className={buttonStyles({ variant: 'primary' })}
               >
                 {pending ? 'Assigning…' : 'Assign'}

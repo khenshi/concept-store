@@ -20,8 +20,9 @@ import {
 } from '@/shared/components/ui/operational-page';
 import { RequestError } from '@/shared/components/ui/request-error';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
-import { listMerchants } from '../api/merchant-api';
+import { listMerchantDirectory } from '../api/merchant-api';
 import type {
   Merchant,
   MerchantView,
@@ -59,6 +60,10 @@ function ScopedMerchantDirectory({
     useOrganizationWorkspaceContext();
   const canEdit = organization?.role === 'OWNER';
   const [merchants, setMerchants] = useState<MerchantView[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<MerchantStatus | ''>('');
   const [loading, setLoading] = useState(true);
@@ -82,19 +87,23 @@ function ScopedMerchantDirectory({
         setLoading(true);
         setMerchants([]);
         setError(null);
-        return listMerchants(
+        return listMerchantDirectory(
           request,
           organizationId,
           {
             q: debouncedSearch.trim() || undefined,
             status: status || undefined,
+            page,
           },
           organization.role,
         );
       })
       .then((result) => {
         if (!active || !result) return;
-        setMerchants(result);
+        setMerchants(result.items);
+        setTotal(result.total);
+        setTotalPages(result.totalPages);
+        setHasNext(result.hasNext);
         setError(null);
         setLoading(false);
       })
@@ -112,6 +121,7 @@ function ScopedMerchantDirectory({
     organizationId,
     request,
     status,
+    page,
     revision,
   ]);
 
@@ -155,7 +165,7 @@ function ScopedMerchantDirectory({
       <OperationalCollection
         className="mt-0"
         title="Merchant directory"
-        description={`${merchants.length} matching merchant${merchants.length === 1 ? '' : 's'}`}
+        description={`${total} matching merchant${total === 1 ? '' : 's'}`}
         action={
           canEdit ? (
             <button
@@ -176,7 +186,10 @@ function ScopedMerchantDirectory({
               <InputControl
                 id="merchant-search"
                 icon="search"
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
                 placeholder={
                   organization.role === 'MANAGER'
                     ? 'Business or code'
@@ -189,9 +202,10 @@ function ScopedMerchantDirectory({
             <FilterField id="merchant-status" label="Status">
               <SelectControl
                 id="merchant-status"
-                onValueChange={(value) =>
-                  setStatus(value as MerchantStatus | '')
-                }
+                onValueChange={(value) => {
+                  setStatus(value as MerchantStatus | '');
+                  setPage(1);
+                }}
                 value={status}
               >
                 <option value="">All statuses</option>
@@ -232,56 +246,68 @@ function ScopedMerchantDirectory({
             }
           />
         ) : (
-          <ul aria-label="Merchant directory" className="m-0 list-none p-0">
-            <li
-              className={`data-column-header hidden justify-items-start text-left gap-x-6 gap-y-3 sm:grid ${merchantDirectoryGrid}`}
-            >
-              <span>Merchant</span>
-              <span>Contact</span>
-              <span>Status</span>
-              <span>Action</span>
-            </li>
-            {merchants.map((merchant) => (
-              <li className="data-row" key={merchant.id}>
-                <Link
-                  className={`grid min-w-0 justify-items-start gap-x-6 gap-y-3 px-4 py-4 text-left text-ink no-underline sm:items-center ${merchantDirectoryGrid}`}
-                  href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
-                  aria-label={`View ${merchant.name}`}
-                >
-                  <div className="min-w-0 flex-1 break-words">
-                    <strong className="block text-sm font-semibold">
-                      {merchant.name}
-                    </strong>
-                    <span className="mt-1 block text-xs text-muted">
-                      {merchant.code ?? 'No code'}
-                    </span>
-                  </div>
-                  {organization.role !== 'MANAGER' &&
-                  'contactName' in merchant ? (
-                    <div className="min-w-0 flex-1 break-words text-sm">
-                      <span className="block">{merchant.contactName}</span>
+          <>
+            <ul aria-label="Merchant directory" className="m-0 list-none p-0">
+              <li
+                className={`data-column-header hidden justify-items-start text-left gap-x-6 gap-y-3 sm:grid ${merchantDirectoryGrid}`}
+              >
+                <span>Merchant</span>
+                <span>Contact</span>
+                <span>Status</span>
+                <span>Action</span>
+              </li>
+              {merchants.map((merchant) => (
+                <li className="data-row" key={merchant.id}>
+                  <Link
+                    className={`grid min-w-0 justify-items-start gap-x-6 gap-y-3 px-4 py-4 text-left text-ink no-underline sm:items-center ${merchantDirectoryGrid}`}
+                    href={`/app/organizations/${organizationId}/merchants/${merchant.id}`}
+                    aria-label={`View ${merchant.name}`}
+                  >
+                    <div className="min-w-0 flex-1 break-words">
+                      <strong className="block text-sm font-semibold">
+                        {merchant.name}
+                      </strong>
                       <span className="mt-1 block text-xs text-muted">
-                        {merchant.email ?? merchant.phone}
+                        {merchant.code ?? 'No code'}
                       </span>
                     </div>
-                  ) : (
-                    <span className="text-xs text-muted">
-                      Contact details restricted
+                    {organization.role !== 'MANAGER' &&
+                    'contactName' in merchant ? (
+                      <div className="min-w-0 flex-1 break-words text-sm">
+                        <span className="block">{merchant.contactName}</span>
+                        <span className="mt-1 block text-xs text-muted">
+                          {merchant.email ?? merchant.phone}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted">
+                        Contact details restricted
+                      </span>
+                    )}
+                    <div className="flex items-center gap-4">
+                      <MerchantStatusBadge status={merchant.status} />
+                    </div>
+                    <span
+                      className="flex w-fit items-center justify-start gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-subtle"
+                      aria-hidden="true"
+                    >
+                      View <Icon name="arrow" className="size-4" />
                     </span>
-                  )}
-                  <div className="flex items-center gap-4">
-                    <MerchantStatusBadge status={merchant.status} />
-                  </div>
-                  <span
-                    className="flex w-fit items-center justify-start gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-ink transition-colors hover:bg-subtle"
-                    aria-hidden="true"
-                  >
-                    View <Icon name="arrow" className="size-4" />
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <PaginationControls
+              ariaLabel="Merchant pages"
+              currentPage={page}
+              totalPages={totalPages}
+              hasNext={hasNext}
+              pending={loading}
+              summary={`${total} merchant${total === 1 ? '' : 's'}`}
+              onPrevious={() => setPage((current) => Math.max(1, current - 1))}
+              onNext={() => setPage((current) => current + 1)}
+            />
+          </>
         )}
       </OperationalCollection>
       {showCreate && canEdit ? (

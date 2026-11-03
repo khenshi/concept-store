@@ -1,24 +1,29 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+  type PagedOptionResult,
+} from '@/shared/components/ui/paged-option-select';
 import { buttonStyles } from '@/shared/components/ui/button';
 import {
   listMemberBranches,
-  loadMemberAccessOptions,
   setMemberBranch,
   setMemberMerchant,
   updateOrganizationMemberRole,
 } from '../api/organization-member-api';
 import type { OrganizationMember } from '../model/organization-member.types';
 import type { OrganizationRole } from '@/features/organizations/model/organization.types';
-import type {
-  AccessBranch,
-  AccessMerchant,
-} from '../model/member-access.schemas';
+import {
+  getMerchant,
+  listMerchantOptions,
+} from '@/features/merchants/api/merchant-api';
+import { listBranchOptions } from '@/features/branches/api/branch-api';
 
 const roles: OrganizationRole[] = ['OWNER', 'MANAGER', 'CASHIER', 'MERCHANT'];
 
@@ -41,13 +46,13 @@ export function MemberAccessDialog({
   onMemberChanged(member: OrganizationMember): void;
 }) {
   const { request } = useAuth();
-  const [options, setOptions] = useState<{
-    branches: AccessBranch[];
-    merchants: AccessMerchant[];
-  } | null>(null);
   const [assigned, setAssigned] = useState<string[]>([]);
+  const [loadedAccessKey, setLoadedAccessKey] = useState<string | null>(null);
   const [role, setRole] = useState<OrganizationRole>(member.role);
   const [merchantId, setMerchantId] = useState(member.merchantId ?? '');
+  const [merchantOption, setMerchantOption] = useState<PagedOption | null>(
+    null,
+  );
   const [pending, setPending] = useState(false);
   const lock = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +66,23 @@ export function MemberAccessDialog({
   const safeFocus = useRef<HTMLButtonElement>(null);
   const roleChanged = role !== member.role;
   const isStaffRole = role === 'MANAGER' || role === 'CASHIER';
+  const accessLoadKey = `${member.id}:${revision}`;
+  const accessLoaded = loadedAccessKey === accessLoadKey;
+  const loadMerchantPage = useCallback(
+    (query: string, page: number) =>
+      listMerchantOptions(
+        request,
+        organizationId,
+        { search: query, page },
+        'OWNER',
+      ),
+    [organizationId, request],
+  );
+  const loadBranchPage = useCallback(
+    (query: string, page: number) =>
+      listBranchOptions(request, organizationId, { search: query, page }),
+    [organizationId, request],
+  );
 
   useEffect(() => {
     if (confirmation) safeFocus.current?.focus();
@@ -68,24 +90,38 @@ export function MemberAccessDialog({
 
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      loadMemberAccessOptions(request, organizationId),
-      listMemberBranches(request, organizationId, member.id),
-    ])
-      .then(([choices, branches]) => {
+    void listMemberBranches(request, organizationId, member.id)
+      .then((branches) => {
         if (active) {
-          setOptions(choices);
           setAssigned(branches.map(({ id }) => id));
+          setLoadedAccessKey(accessLoadKey);
           setError(null);
         }
       })
       .catch(() => {
         if (active) setError('Access settings could not be loaded. Try again.');
       });
+    if (member.merchantId) {
+      void getMerchant(request, organizationId, member.merchantId, 'OWNER')
+        .then((merchant) => {
+          if (active)
+            setMerchantOption({ id: merchant.id, label: merchant.name });
+        })
+        .catch(() => {
+          if (active) setMerchantOption(null);
+        });
+    }
     return () => {
       active = false;
     };
-  }, [request, organizationId, member.id, revision]);
+  }, [
+    request,
+    organizationId,
+    member.id,
+    member.merchantId,
+    revision,
+    accessLoadKey,
+  ]);
 
   async function write(action: () => Promise<void>) {
     if (lock.current) return;
@@ -143,7 +179,7 @@ export function MemberAccessDialog({
           {notice}
         </p>
       )}
-      {!options ? (
+      {!accessLoaded ? (
         <div className="mt-4">
           {error && (
             <p role="alert" className="text-sm text-danger">
@@ -232,10 +268,12 @@ export function MemberAccessDialog({
                 </p>
                 {role === 'MERCHANT' ? (
                   <MerchantProfileField
-                    merchants={options.merchants}
                     merchantId={merchantId}
+                    merchantOption={merchantOption}
+                    loadMerchantOptions={loadMerchantPage}
                     pending={pending}
                     onChange={setMerchantId}
+                    onOptionChange={setMerchantOption}
                   />
                 ) : null}
                 {role === 'OWNER' ? (
@@ -268,66 +306,36 @@ export function MemberAccessDialog({
           ) : null}
 
           {!roleChanged && isStaffRole ? (
-            <section>
-              <h3 className="text-base font-semibold">Branch assignments</h3>
-              <p className="mt-2 text-sm text-muted">
-                Changes save individually. Staff access is limited to assigned
-                branches.
-              </p>
-              <ul className="mt-3 max-h-72 list-none divide-y divide-hairline overflow-y-auto p-0">
-                {options.branches.map((branch) => {
-                  const granted = assigned.includes(branch.id);
-                  const action = async () => {
-                    await setMemberBranch(
-                      request,
-                      organizationId,
-                      member.id,
-                      branch.id,
-                      !granted,
-                    );
-                    const nextAssigned = granted
-                      ? assigned.filter((id) => id !== branch.id)
-                      : [...assigned, branch.id];
-                    setAssigned(nextAssigned);
-                    onMemberChanged({
-                      ...member,
-                      branchAccessCount: nextAssigned.length,
-                    });
-                  };
-                  return (
-                    <li
-                      key={branch.id}
-                      className="flex min-w-0 flex-wrap items-center justify-between gap-3 py-3"
-                    >
-                      <span className="min-w-0 break-words">
-                        {branch.name} {branch.code ? `· ${branch.code}` : ''}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        className={buttonStyles({ variant: 'secondary' })}
-                        aria-label={`${granted ? 'Revoke' : 'Grant'} ${branch.name}`}
-                        onClick={() =>
-                          granted
-                            ? setConfirmation({
-                                label: `Revoke ${branch.name}?`,
-                                action,
-                              })
-                            : void write(action)
-                        }
-                      >
-                        {granted ? 'Revoke' : 'Grant'}
-                      </button>
-                    </li>
+            <PagedBranchAssignments
+              assigned={assigned}
+              disabled={pending}
+              loadPage={loadBranchPage}
+              onToggle={(branch, granted) => {
+                const action = async () => {
+                  await setMemberBranch(
+                    request,
+                    organizationId,
+                    member.id,
+                    branch.id,
+                    !granted,
                   );
-                })}
-              </ul>
-              {options.branches.length === 0 && (
-                <p className="mt-3 text-sm text-muted">
-                  No branches available.
-                </p>
-              )}
-            </section>
+                  const nextAssigned = granted
+                    ? assigned.filter((id) => id !== branch.id)
+                    : [...assigned, branch.id];
+                  setAssigned(nextAssigned);
+                  onMemberChanged({
+                    ...member,
+                    branchAccessCount: nextAssigned.length,
+                  });
+                };
+                if (granted)
+                  setConfirmation({
+                    label: `Revoke ${branch.label}?`,
+                    action,
+                  });
+                else void write(action);
+              }}
+            />
           ) : null}
 
           {!roleChanged && member.role === 'MERCHANT' ? (
@@ -338,10 +346,12 @@ export function MemberAccessDialog({
               </p>
               <section className="grid gap-3">
                 <MerchantProfileField
-                  merchants={options.merchants}
                   merchantId={merchantId}
+                  merchantOption={merchantOption}
+                  loadMerchantOptions={loadMerchantPage}
                   pending={pending}
                   onChange={setMerchantId}
+                  onOptionChange={setMerchantOption}
                 />
                 <div className="flex justify-end">
                   <button
@@ -368,7 +378,7 @@ export function MemberAccessDialog({
       <ModalActionRow
         className="mt-6"
         feedback={
-          options && !confirmation && error ? (
+          accessLoaded && !confirmation && error ? (
             <p role="alert" className="text-sm text-danger">
               {error}
             </p>
@@ -389,34 +399,187 @@ export function MemberAccessDialog({
 }
 
 function MerchantProfileField({
-  merchants,
   merchantId,
+  merchantOption,
+  loadMerchantOptions,
   pending,
   onChange,
+  onOptionChange,
 }: {
-  merchants: AccessMerchant[];
   merchantId: string;
+  merchantOption: PagedOption | null;
+  loadMerchantOptions: (
+    query: string,
+    page: number,
+  ) => Promise<{
+    items: PagedOption[];
+    hasNext: boolean;
+  }>;
   pending: boolean;
   onChange(value: string): void;
+  onOptionChange(option: PagedOption | null): void;
 }) {
   return (
     <div className="grid gap-3">
       <label htmlFor="member-merchant" className="text-sm font-semibold">
         Merchant profile
       </label>
-      <SelectControl
+      <PagedOptionSelect
         id="member-merchant"
         value={merchantId}
+        selectedOption={merchantOption}
+        placeholder="Choose a merchant"
+        searchPlaceholder="Search merchants"
+        loadPage={loadMerchantOptions}
         disabled={pending}
         onValueChange={onChange}
-      >
-        <option value="">Choose a merchant</option>
-        {merchants.map((merchant) => (
-          <option key={merchant.id} value={merchant.id}>
-            {merchant.name} · {merchant.status}
-          </option>
-        ))}
-      </SelectControl>
+        onOptionChange={onOptionChange}
+      />
     </div>
+  );
+}
+
+function PagedBranchAssignments({
+  assigned,
+  disabled,
+  loadPage,
+  onToggle,
+}: {
+  assigned: string[];
+  disabled: boolean;
+  loadPage: (query: string, page: number) => Promise<PagedOptionResult>;
+  onToggle(branch: PagedOption, granted: boolean): void;
+}) {
+  const [query, setQuery] = useState('');
+  const [branches, setBranches] = useState<PagedOption[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setError(null);
+      void loadPage(query.trim(), 1)
+        .then((result) => {
+          if (!active) return;
+          setBranches(result.items);
+          setPage(1);
+          setHasNext(result.hasNext);
+        })
+        .catch(() => {
+          if (active) {
+            setBranches([]);
+            setPage(1);
+            setHasNext(false);
+            setError('Branches could not be loaded. Try again.');
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 250);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [loadPage, query, retry]);
+
+  async function loadMore() {
+    if (loading || loadingMore || !hasNext) return;
+    setLoadingMore(true);
+    try {
+      const result = await loadPage(query.trim(), page + 1);
+      setBranches((current) => [
+        ...current,
+        ...result.items.filter(
+          (item) => !current.some(({ id }) => id === item.id),
+        ),
+      ]);
+      setPage((current) => current + 1);
+      setHasNext(result.hasNext);
+    } catch {
+      setError('More branches could not be loaded.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  return (
+    <section>
+      <h3 className="text-base font-semibold">Branch assignments</h3>
+      <p className="mt-2 text-sm text-muted">
+        Changes save individually. Staff access is limited to assigned branches.
+      </p>
+      <input
+        className="mt-3 min-h-11 w-full rounded-full border border-control-border bg-surface px-4 text-sm"
+        type="search"
+        aria-label="Search branches"
+        placeholder="Search branches"
+        value={query}
+        disabled={disabled}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      {loading ? (
+        <p role="status" className="mt-3 text-sm text-muted">
+          Loading branches…
+        </p>
+      ) : error ? (
+        <div className="mt-3 grid gap-2">
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+          <button
+            type="button"
+            className={buttonStyles({ variant: 'quiet' })}
+            disabled={disabled}
+            onClick={() => setRetry((current) => current + 1)}
+          >
+            Try again
+          </button>
+        </div>
+      ) : branches.length ? (
+        <>
+          <ul className="mt-3 max-h-72 list-none divide-y divide-hairline overflow-y-auto p-0">
+            {branches.map((branch) => {
+              const granted = assigned.includes(branch.id);
+              return (
+                <li
+                  key={branch.id}
+                  className="flex min-w-0 flex-wrap items-center justify-between gap-3 py-3"
+                >
+                  <span className="min-w-0 break-words">{branch.label}</span>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    className={buttonStyles({ variant: 'secondary' })}
+                    aria-label={`${granted ? 'Revoke' : 'Grant'} ${branch.label.split(' · ')[0]}`}
+                    onClick={() => onToggle(branch, granted)}
+                  >
+                    {granted ? 'Revoke' : 'Grant'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {hasNext ? (
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'quiet' })}
+              disabled={disabled || loadingMore}
+              onClick={() => void loadMore()}
+            >
+              {loadingMore ? 'Loading more…' : 'Load more branches'}
+            </button>
+          ) : null}
+        </>
+      ) : (
+        <p className="mt-3 text-sm text-muted">No branches available.</p>
+      )}
+    </section>
   );
 }

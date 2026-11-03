@@ -1,11 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { buttonStyles } from '@/shared/components/ui/button';
 import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { InputControl } from '@/shared/components/ui/input-control';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+} from '@/shared/components/ui/paged-option-select';
 import {
   TextField,
   focusFirstInvalidField,
@@ -14,12 +24,9 @@ import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { createOrganizationInvitation } from '../api/organization-invitation-api';
 import { createOrganizationInvitationSchema } from '../model/organization-invitation.schemas';
-import { loadMemberAccessOptions } from '@/features/organization-members/api/organization-member-api';
+import { listBranchOptions } from '@/features/branches/api/branch-api';
+import { listMerchantOptions } from '@/features/merchants/api/merchant-api';
 import { BranchAccessPicker } from './branch-access-picker';
-import type {
-  AccessBranch,
-  AccessMerchant,
-} from '@/features/organization-members/model/member-access.schemas';
 import type {
   CreatedOrganizationInvitation,
   OrganizationInvitation,
@@ -59,36 +66,28 @@ export function OrganizationInvitationModal({
     'CASHIER',
   );
   const [merchantId, setMerchantId] = useState('');
+  const [merchantOption, setMerchantOption] = useState<PagedOption | null>(
+    null,
+  );
   const [branchIds, setBranchIds] = useState<string[]>([]);
   const [merchantError, setMerchantError] = useState<string | null>(null);
-  const [options, setOptions] = useState<{
-    branches: AccessBranch[];
-    merchants: AccessMerchant[];
-  } | null>(null);
-  const [optionsError, setOptionsError] = useState<string | null>(null);
-  const [revision, setRevision] = useState(0);
   const dirty = useRef(false);
   const submitLock = useRef(false);
-
-  useEffect(() => {
-    let active = true;
-    void loadMemberAccessOptions(request, organizationId)
-      .then((value) => {
-        if (active) {
-          setOptions(value);
-          setOptionsError(null);
-        }
-      })
-      .catch(() => {
-        if (active)
-          setOptionsError(
-            'Branches and merchants could not be loaded. Try again.',
-          );
-      });
-    return () => {
-      active = false;
-    };
-  }, [request, organizationId, revision]);
+  const loadMerchantPage = useCallback(
+    (query: string, page: number) =>
+      listMerchantOptions(
+        request,
+        organizationId,
+        { search: query, page },
+        'OWNER',
+      ),
+    [organizationId, request],
+  );
+  const loadBranchPage = useCallback(
+    (query: string, page: number) =>
+      listBranchOptions(request, organizationId, { search: query, page }),
+    [organizationId, request],
+  );
   function validateInputs() {
     const result = createOrganizationInvitationSchema.safeParse({
       email,
@@ -147,7 +146,6 @@ export function OrganizationInvitationModal({
       return;
     }
 
-    if (!options || optionsError) return;
     submitLock.current = true;
 
     setIsSubmitting(true);
@@ -240,22 +238,6 @@ export function OrganizationInvitationModal({
             The recipient will sign in or create their own account before
             accepting access.
           </p>
-          {optionsError && (
-            <p role="alert" className="text-sm text-danger">
-              {optionsError}{' '}
-              <button
-                type="button"
-                onClick={() => setRevision((value) => value + 1)}
-              >
-                Try again
-              </button>
-            </p>
-          )}
-          {!options && !optionsError && (
-            <p role="status" className="text-sm text-muted">
-              Loading access choices…
-            </p>
-          )}
           <div className="grid gap-2">
             <label className="text-sm font-bold" htmlFor="invitation-email">
               Email address
@@ -300,6 +282,7 @@ export function OrganizationInvitationModal({
                 dirty.current = true;
                 setRole(value as typeof role);
                 setMerchantId('');
+                setMerchantOption(null);
                 setMerchantError(null);
               }}
             >
@@ -319,27 +302,23 @@ export function OrganizationInvitationModal({
                 Merchant profile
               </label>
               <div onBlur={validateInputs}>
-                <SelectControl
+                <PagedOptionSelect
                   id="invitation-merchant"
                   value={merchantId}
-                  required
-                  disabled={isSubmitting || !options}
+                  disabled={isSubmitting}
+                  selectedOption={merchantOption}
+                  placeholder="Choose a merchant"
+                  searchPlaceholder="Search merchants"
+                  emptyMessage="No active merchants found."
+                  loadPage={loadMerchantPage}
                   aria-invalid={Boolean(merchantError)}
-                  aria-describedby={
-                    merchantError ? 'invitation-merchant-error' : undefined
-                  }
+                  aria-describedby="invitation-merchant-error"
                   onValueChange={(value) => {
                     dirty.current = true;
                     setMerchantId(value);
                   }}
-                >
-                  <option value="">Choose a merchant</option>
-                  {options?.merchants.map((merchant) => (
-                    <option key={merchant.id} value={merchant.id}>
-                      {merchant.name} · {merchant.status}
-                    </option>
-                  ))}
-                </SelectControl>
+                  onOptionChange={setMerchantOption}
+                />
               </div>
               {merchantError && (
                 <p
@@ -347,11 +326,6 @@ export function OrganizationInvitationModal({
                   className="text-sm text-danger"
                 >
                   {merchantError}
-                </p>
-              )}
-              {options?.merchants.length === 0 && (
-                <p className="text-sm text-muted">
-                  Create a merchant profile before inviting a merchant user.
                 </p>
               )}
             </div>
@@ -362,23 +336,21 @@ export function OrganizationInvitationModal({
               merchant profile.
             </p>
           ) : (
-            <fieldset disabled={isSubmitting || !options} className="min-w-0">
+            <fieldset disabled={isSubmitting} className="min-w-0">
               <legend className="text-sm font-bold">Branch assignments</legend>
               <p className="mt-2 text-sm text-muted">
                 Optional. Staff without assignments cannot access branches.
               </p>
-              {!optionsError ? (
-                <BranchAccessPicker
-                  branches={options?.branches ?? []}
-                  selectedIds={branchIds}
-                  disabled={isSubmitting}
-                  loading={!options}
-                  onChange={(nextIds) => {
-                    dirty.current = true;
-                    setBranchIds(nextIds);
-                  }}
-                />
-              ) : null}
+              <BranchAccessPicker
+                branches={[]}
+                loadPage={loadBranchPage}
+                selectedIds={branchIds}
+                disabled={isSubmitting}
+                onChange={(nextIds) => {
+                  dirty.current = true;
+                  setBranchIds(nextIds);
+                }}
+              />
             </fieldset>
           )}
           <ModalActionRow
@@ -402,7 +374,7 @@ export function OrganizationInvitationModal({
             <button
               className={buttonStyles({ variant: 'primary' })}
               type="submit"
-              disabled={isSubmitting || Boolean(optionsError)}
+              disabled={isSubmitting}
             >
               {isSubmitting ? 'Creating invitation…' : 'Create invitation'}
             </button>

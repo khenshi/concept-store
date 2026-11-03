@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { ApiError } from '@/features/auth/api/auth-client';
 import type { MerchantView } from '@/features/merchants/model/merchant.types';
@@ -14,6 +20,11 @@ import {
   focusFirstInvalidField,
 } from '@/shared/components/ui/text-field';
 import { SelectControl } from '@/shared/components/ui/select-control';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+  type PagedOptionResult,
+} from '@/shared/components/ui/paged-option-select';
 import { createProduct, updateProduct } from '../api/product-api';
 import {
   productCreateFieldsSchema,
@@ -33,6 +44,8 @@ type Field =
 export function ProductForm({
   organizationId,
   merchants,
+  loadMerchantOptions,
+  loadBranchOptions,
   product,
   onSaved,
   onCancel,
@@ -41,6 +54,15 @@ export function ProductForm({
 }: {
   organizationId: string;
   merchants: MerchantView[];
+  loadMerchantOptions?: (
+    query: string,
+    page: number,
+  ) => Promise<PagedOptionResult>;
+  loadBranchOptions?: (
+    merchantId: string,
+    query: string,
+    page: number,
+  ) => Promise<PagedOptionResult>;
   product?: Product;
   onSaved(product: Product, withOpeningStock?: boolean): void;
   onCancel(): void;
@@ -58,6 +80,11 @@ export function ProductForm({
   const [selectedMerchantId, setSelectedMerchantId] = useState(
     product?.merchantId ?? '',
   );
+  const [selectedMerchantOption, setSelectedMerchantOption] =
+    useState<PagedOption | null>(null);
+  const [selectedOpeningBranchId, setSelectedOpeningBranchId] = useState('');
+  const [selectedOpeningBranchOption, setSelectedOpeningBranchOption] =
+    useState<PagedOption | null>(null);
   const [branches, setBranches] = useState<BranchView[]>([]);
   const [branchState, setBranchState] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -67,10 +94,17 @@ export function ProductForm({
   const submitted = useRef<ProductInput | null>(null);
   const saving = useRef(false);
   const disabled = pending || Boolean(recovery);
+  const loadOpeningBranchPage = useCallback(
+    (query: string, page: number) =>
+      loadBranchOptions
+        ? loadBranchOptions(selectedMerchantId, query, page)
+        : Promise.resolve({ items: [], hasNext: false }),
+    [loadBranchOptions, selectedMerchantId],
+  );
   const timers = useRef<Partial<Record<Field, number>>>({});
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
-    if (product || !openingEnabled) return;
+    if (product || !openingEnabled || loadBranchOptions) return;
     let active = true;
     void Promise.resolve()
       .then(async () => {
@@ -106,6 +140,7 @@ export function ProductForm({
     product,
     openingEnabled,
     branchRevision,
+    loadBranchOptions,
     selectedMerchantId,
   ]);
   useEffect(() => {
@@ -202,12 +237,14 @@ export function ProductForm({
       !product &&
       openingEnabled &&
       !recovery &&
-      (branchState !== 'ready' ||
-        !branches.some(
-          (branch) =>
-            branch.id ===
-            (parsed.data as ProductInput).initialInventory?.branchId,
-        ))
+      (loadBranchOptions
+        ? !selectedOpeningBranchId
+        : branchState !== 'ready' ||
+          !branches.some(
+            (branch) =>
+              branch.id ===
+              (parsed.data as ProductInput).initialInventory?.branchId,
+          ))
     ) {
       setErrors((current) => ({
         ...current,
@@ -303,33 +340,66 @@ export function ProductForm({
               >
                 Merchant
               </label>
-              <SelectControl
-                id="product-merchant"
-                name="merchantId"
-                required
-                disabled={disabled}
-                aria-invalid={Boolean(errors.merchantId)}
-                aria-describedby="product-merchant-hint"
-                onValueChange={(value) => {
-                  setSelectedMerchantId(value);
-                  const field = formRef.current?.elements.namedItem('branchId');
-                  if (field instanceof HTMLSelectElement) field.value = '';
-                  validate('merchantId');
-                }}
-              >
-                <option value="">Choose an active merchant</option>
-                {activeMerchants.map((merchant) => (
-                  <option key={merchant.id} value={merchant.id}>
-                    {merchant.name}
-                  </option>
-                ))}
-              </SelectControl>
+              {loadMerchantOptions ? (
+                <>
+                  <input
+                    type="hidden"
+                    name="merchantId"
+                    value={selectedMerchantId}
+                  />
+                  <PagedOptionSelect
+                    id="product-merchant"
+                    value={selectedMerchantId}
+                    selectedOption={selectedMerchantOption}
+                    placeholder="Choose an active merchant"
+                    searchPlaceholder="Search active merchants"
+                    emptyMessage="No active merchants found."
+                    disabled={disabled}
+                    loadPage={loadMerchantOptions}
+                    onValueChange={(value) => {
+                      setSelectedMerchantId(value);
+                      setSelectedOpeningBranchId('');
+                      setSelectedOpeningBranchOption(null);
+                      const field =
+                        formRef.current?.elements.namedItem('branchId');
+                      if (field instanceof HTMLSelectElement) field.value = '';
+                      validate('merchantId');
+                    }}
+                    onOptionChange={setSelectedMerchantOption}
+                  />
+                </>
+              ) : (
+                <SelectControl
+                  id="product-merchant"
+                  name="merchantId"
+                  required
+                  disabled={disabled}
+                  aria-invalid={Boolean(errors.merchantId)}
+                  aria-describedby="product-merchant-hint"
+                  onValueChange={(value) => {
+                    setSelectedMerchantId(value);
+                    setSelectedOpeningBranchId('');
+                    setSelectedOpeningBranchOption(null);
+                    const field =
+                      formRef.current?.elements.namedItem('branchId');
+                    if (field instanceof HTMLSelectElement) field.value = '';
+                    validate('merchantId');
+                  }}
+                >
+                  <option value="">Choose an active merchant</option>
+                  {activeMerchants.map((merchant) => (
+                    <option key={merchant.id} value={merchant.id}>
+                      {merchant.name}
+                    </option>
+                  ))}
+                </SelectControl>
+              )}
               <p
                 id="product-merchant-hint"
                 className={`text-xs ${errors.merchantId ? 'text-danger' : 'text-muted'}`}
               >
                 {errors.merchantId ??
-                  (activeMerchants.length
+                  (loadMerchantOptions || activeMerchants.length
                     ? 'Merchant ownership cannot be changed after creation.'
                     : 'Add or activate a merchant before creating a product.')}
               </p>
@@ -390,6 +460,8 @@ export function ProductForm({
                   setOpeningEnabled(expanded);
                   onOpeningStockChange?.(expanded);
                   setBranches([]);
+                  setSelectedOpeningBranchId('');
+                  setSelectedOpeningBranchOption(null);
                   setBranchState('loading');
                   setOpeningPrice('');
                   setOpeningQuantity('');
@@ -418,24 +490,52 @@ export function ProductForm({
                   >
                     Initial stock branch
                   </label>
-                  <SelectControl
-                    id="product-opening-branch"
-                    name="branchId"
-                    required
-                    disabled={disabled || branchState !== 'ready'}
-                    aria-invalid={Boolean(errors.branchId)}
-                    aria-describedby="product-opening-branch-hint"
-                    onValueChange={() => validate('branchId')}
-                  >
-                    <option value="">Choose a branch</option>
-                    {branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                        {branch.code ? ` · ${branch.code}` : ''}
-                      </option>
-                    ))}
-                  </SelectControl>
-                  {selectedMerchantId &&
+                  {loadBranchOptions ? (
+                    <>
+                      <input
+                        type="hidden"
+                        name="branchId"
+                        value={selectedOpeningBranchId}
+                      />
+                      <PagedOptionSelect
+                        id="product-opening-branch"
+                        value={selectedOpeningBranchId}
+                        selectedOption={selectedOpeningBranchOption}
+                        placeholder="Choose a branch"
+                        searchPlaceholder="Search active branches"
+                        emptyMessage="No active branch participation."
+                        disabled={disabled || !selectedMerchantId}
+                        loadPage={loadOpeningBranchPage}
+                        onValueChange={(value) => {
+                          setSelectedOpeningBranchId(value);
+                          validate('branchId');
+                        }}
+                        onOptionChange={setSelectedOpeningBranchOption}
+                        aria-invalid={Boolean(errors.branchId)}
+                        aria-describedby="product-opening-branch-hint"
+                      />
+                    </>
+                  ) : (
+                    <SelectControl
+                      id="product-opening-branch"
+                      name="branchId"
+                      required
+                      disabled={disabled || branchState !== 'ready'}
+                      aria-invalid={Boolean(errors.branchId)}
+                      aria-describedby="product-opening-branch-hint"
+                      onValueChange={() => validate('branchId')}
+                    >
+                      <option value="">Choose a branch</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                          {branch.code ? ` · ${branch.code}` : ''}
+                        </option>
+                      ))}
+                    </SelectControl>
+                  )}
+                  {!loadBranchOptions &&
+                    selectedMerchantId &&
                     branchState === 'ready' &&
                     branches.length === 0 && (
                       <p className="text-sm text-muted">
@@ -455,15 +555,19 @@ export function ProductForm({
                     role={branchState === 'error' ? 'alert' : undefined}
                   >
                     {errors.branchId ??
-                      (branchState === 'loading'
-                        ? 'Loading available branches…'
-                        : branchState === 'error'
-                          ? 'Branches could not be loaded. Retry before adding initial stock.'
-                          : !branches.length
-                            ? 'Assign an active branch to this merchant before adding initial stock.'
-                            : 'Explicitly choose where this product will be stocked.')}
+                      (loadBranchOptions && !selectedMerchantId
+                        ? 'Choose an active merchant first.'
+                        : loadBranchOptions
+                          ? 'Search and choose an active branch for this merchant.'
+                          : branchState === 'loading'
+                            ? 'Loading available branches…'
+                            : branchState === 'error'
+                              ? 'Branches could not be loaded. Retry before adding initial stock.'
+                              : !branches.length
+                                ? 'Assign an active branch to this merchant before adding initial stock.'
+                                : 'Explicitly choose where this product will be stocked.')}
                   </p>
-                  {branchState === 'error' ? (
+                  {!loadBranchOptions && branchState === 'error' ? (
                     <button
                       type="button"
                       className={buttonStyles({ variant: 'secondary' })}
@@ -574,9 +678,13 @@ export function ProductForm({
             pending ||
             (!recovery &&
               !product &&
-              (!activeMerchants.length ||
+              (!(loadMerchantOptions
+                ? selectedMerchantId
+                : activeMerchants.length) ||
                 (openingEnabled &&
-                  (branchState !== 'ready' || !branches.length))))
+                  (loadBranchOptions
+                    ? !selectedOpeningBranchId
+                    : branchState !== 'ready' || !branches.length))))
           }
           aria-busy={pending}
         >
