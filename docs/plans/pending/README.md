@@ -2,7 +2,7 @@
 
 Date: October 22, 2026
 
-Queue updated: October 30, 2026
+Queue updated: November 6, 2026
 
 Status: Plans 01–02 completed and archived October 25. Plan 03 has a committed
 local implementation record with remaining release gates deferred to the owning
@@ -65,13 +65,13 @@ Existing specifications remain the source of truth until their review turn.
 
 | ID  | Plan / intended file                                                | Priority                                 | Draft status                                                                                     |
 | --- | ------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 18  | [Durable checkout/refund outcome recovery](18-checkout-recovery.md) | Required before real checkout/refund use | Drafted October 24; cross-device/blocking/acknowledgement confirmed; implementation not approved |
+| 18  | [Durable checkout/refund outcome recovery](18-checkout-recovery.md) | Required before real checkout/refund use | Code implementation complete November 2; migration/runtime, API cross-session visibility and stale-command concurrency proof passed; rendered two-device recovery, successful-submit race, recovery procedures, deep review and release gates remain open |
 
 Plan 18 owns the recovery feature; Plan 10 consumes it in the operator runbook.
 Coordinate with session/access behavior (03/07), Payment Accounts (08), branch
-lifecycle (16) and checkout/refund acceptance (11). Implement and qualify 18 before real
-checkout/refund use and final release sign-off (14). No specific storage technology or
-new infrastructure is selected by this manifest.
+lifecycle (16) and checkout/refund acceptance (11). Qualify the completed
+implementation before real checkout/refund use and final release sign-off (14).
+No specific storage technology or new infrastructure is selected by this manifest.
 
 ### Reports export addition
 

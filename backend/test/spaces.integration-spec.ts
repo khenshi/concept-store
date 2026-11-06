@@ -914,6 +914,37 @@ it('filters occupancy before pagination and combines lifecycle and merchant filt
   expect((await spaces.list(context, branchId, { page: 1 })).total).toBe(19);
 });
 
+it('omits release actors from every Merchant HTTP occupancy projection', async () => {
+  const current = await create('Merchant current');
+  const history = await create('Merchant history');
+  await assign(current.id);
+  await spaces.assign(context, branchId, history.id, {
+    merchantId,
+    startedAt: old(1000),
+    endedAt: old(1500),
+  });
+
+  const currentList = await http()
+    .get(path())
+    .set('Authorization', `Bearer ${token(merchant)}`)
+    .expect(200);
+  const merchantHistory = await http()
+    .get(
+      `/organizations/${context.organizationId}/merchants/${merchantId}/spaces?view=HISTORY`,
+    )
+    .set('Authorization', `Bearer ${token(merchant)}`)
+    .expect(200);
+  const spaceHistory = await http()
+    .get(`${path()}/${history.id}/occupancies?view=HISTORY`)
+    .set('Authorization', `Bearer ${token(merchant)}`)
+    .expect(200);
+
+  for (const response of [currentList, merchantHistory, spaceHistory])
+    expect(JSON.stringify(response.body)).not.toMatch(
+      /releasedBy|releasedById|assignedBy|assignedById/,
+    );
+});
+
 it('enforces occupancy query validation, role scope, and branch isolation', async () => {
   const occupied = await create();
   await assign(occupied.id);

@@ -226,15 +226,25 @@ Local evidence:
 
 - Prisma generate and validate passed.
 - Backend typecheck passed.
-- Focused Spaces integration suites passed: 2 suites, 29 tests.
+- Disposable PostgreSQL Spaces integration suites passed: 2 suites, 30 tests,
+  including the serialized Merchant HTTP projection contract across current
+  and history responses.
 - Focused Spaces frontend tests passed: 5 files, 42 tests.
 - Frontend typecheck passed.
 
-Remaining gates are browser/manual validation of raw Merchant JSON and the
-Owner Types workflow, deployed migration rehearsal/production rollout, and the
-deep concurrency/security review consumed by Plans 11, 12 and 14. This plan
-must remain pending until those gates are intentionally closed; no live
-database was reset or migrated for this implementation.
+Remaining gates are:
+
+- browser/manual validation of the Owner Types workflow and responsive behavior;
+- manual/browser inspection of raw Merchant JSON across current, nested and
+  history responses, including role refresh/demotion and cached or late-response
+  cases; the automated HTTP projection contract now passes;
+- deployed-database migration rehearsal and an approved production rollout
+  through the release process; and
+- deep concurrency/security review consumed by Plans 11, 12 and 14.
+
+This plan must remain pending until those gates are intentionally closed. No
+live database was reset or migrated for this implementation, and this plan does
+not authorize production deployment.
 
 The full batch coverage/dependency/open-decision review remains a separate
 release-planning activity. This pending record does not authorize production

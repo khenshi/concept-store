@@ -38,8 +38,11 @@ text, with semibold space names and actions only. Status and occupancy retain
 their existing colors with normal weight.
 
 **Status:** Implemented October 9, 2026. Space-type maintenance and occupancy
-actor privacy were implemented locally November 3, 2026; live/browser gates
-remain deferred.
+actor privacy were implemented locally November 3, 2026. The disposable
+PostgreSQL migration/integration checks and serialized Merchant HTTP projection
+contract pass. Browser/manual Owner Types and raw-Merchant-JSON inspection,
+deployed migration rehearsal, and deep concurrency/security review remain
+deferred; production deployment is not authorized by the implementation plan.
 
 ## Purpose and ownership
 
@@ -226,7 +229,8 @@ Space rows, IDs, occupancy records and current-label relationships are
 preserved; unknown type labels no longer create catalog rows implicitly.
 
 Apply both migrations before deploying the matching API/frontend. The new
-migration has been rehearsed against a disposable PostgreSQL database; live
-deployment and browser/privacy inspection remain deferred. There is no safe
-rollback to the removed auto-registration behavior once callers can depend on
-explicit type validation. See [type validation](../validation/space-types-2026-10-10.md).
+migration has been rehearsed against a disposable PostgreSQL database; deployed
+migration rehearsal, browser/privacy inspection, and deep concurrency/security
+review remain deferred. There is no safe rollback to the removed
+auto-registration behavior once callers can depend on explicit type validation.
+See [type validation](../validation/space-types-2026-10-10.md).
