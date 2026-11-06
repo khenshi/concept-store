@@ -1,7 +1,8 @@
 # Payment Accounts
 
 **Status:** Implemented and deployed for the approved Plan 08 development
-cutover; hosted qualification confirmed October 26, 2026.
+cutover; hosted qualification confirmed October 26, 2026. The approved
+configured-Neon preservation recovery completed November 6, 2026.
 
 ## Responsibilities and exclusions
 
@@ -116,7 +117,12 @@ privacy regressions are covered by focused tests. Disposable database and
 frontend build evidence is recorded in
 `docs/validation/plan08-implementation-2026-10-25.md`.
 
-The development database cutover was completed on the explicitly verified
-disposable replacement target. The forward migration intentionally stops when
-existing Sale or Refund source rows are present; real financial records require
-a separately approved preservation migration.
+The forward migration supports the approved preservation path for an existing
+development dataset: legacy Cash, GCash and Card values are mapped into
+PaymentAccount rows and immutable Sale/Refund account snapshots before the
+legacy payment representation is removed. The configured development Neon
+database recovery completed November 6, 2026 with three sales and one refund
+preserved, exact source totals retained, complete account snapshots and no
+legacy payment columns or enum remaining. Fresh disposable targets may still
+use the normal empty-database cutover and guarded demo seed; that reset path is
+never a recovery method for existing financial rows.

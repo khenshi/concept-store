@@ -18,6 +18,7 @@ if (!connectionString)
   throw new Error(
     'Set TEST_DATABASE_URL to an explicitly disposable PostgreSQL test database',
   );
+type RefundRecord = Prisma.RefundGetPayload<Prisma.RefundDefaultArgs>;
 const schema = `refunds_test_${randomUUID().replaceAll('-', '')}`;
 const admin = new Client({ connectionString });
 const prisma = new PrismaClient({
@@ -174,6 +175,7 @@ async function fixture(legacySchema = false) {
     product,
     inventory,
     sale,
+    refund: undefined as RefundRecord | undefined,
     item,
   };
 }
@@ -182,6 +184,9 @@ let current: Fixture;
 let legacy: Fixture;
 let legacyProof: {
   sale: unknown;
+  saleBefore: unknown;
+  refund: unknown;
+  refundBefore: unknown;
   item: unknown;
   movements: {
     refundItemId: string | null;
@@ -296,12 +301,32 @@ describe('PostgreSQL refund persistence', () => {
           );
       }
       if (directory === '20261025020000_payment_accounts') {
+        const saleBefore = (
+          await admin.query('SELECT * FROM "Sale" WHERE "id"=$1', [
+            legacy.sale.id,
+          ])
+        ).rows[0] as unknown;
+        const refundBefore = (
+          await admin.query('SELECT * FROM "Refund" WHERE "saleId"=$1', [
+            legacy.sale.id,
+          ])
+        ).rows[0] as unknown;
+        await admin.query(
+          readFileSync(join(migrations, directory, 'migration.sql'), 'utf8'),
+        );
         legacyProof = {
           sale: (
             await admin.query('SELECT * FROM "Sale" WHERE "id"=$1', [
               legacy.sale.id,
             ])
           ).rows[0] as unknown,
+          saleBefore,
+          refund: (
+            await admin.query('SELECT * FROM "Refund" WHERE "saleId"=$1', [
+              legacy.sale.id,
+            ])
+          ).rows[0] as unknown,
+          refundBefore,
           item: await prisma.saleItem.findUniqueOrThrow({
             where: { id: legacy.item.id },
           }),
@@ -317,20 +342,7 @@ describe('PostgreSQL refund persistence', () => {
             })
           ).quantity,
         };
-        await expect(
-          admin.query(
-            readFileSync(join(migrations, directory, 'migration.sql'), 'utf8'),
-          ),
-        ).rejects.toThrow('requires empty Sale and Refund');
-        await admin.query('ROLLBACK');
-        await admin.query(
-          'DELETE FROM "InventoryMovement" WHERE "saleItemId"=$1',
-          [legacy.item.id],
-        );
-        await admin.query('DELETE FROM "SaleItem" WHERE "id"=$1', [
-          legacy.item.id,
-        ]);
-        await admin.query('DELETE FROM "Sale" WHERE "id"=$1', [legacy.sale.id]);
+        continue;
       }
       await admin.query(
         readFileSync(
@@ -338,6 +350,22 @@ describe('PostgreSQL refund persistence', () => {
           'utf8',
         ).replace('CREATE SCHEMA IF NOT EXISTS "public";', ''),
       );
+      if (directory === '20260914020000_add_refund_persistence') {
+        legacy.refund = (
+          await admin.query<Prisma.RefundGetPayload<Prisma.RefundDefaultArgs>>(
+            `INSERT INTO "Refund" ("id","organizationId","branchId","saleId","refundCode","requestId","createdById","reason","paymentMethod","total","refundCommand") VALUES ($1,$2,$3,$4,$5,$6,$7,'Legacy refund','CASH',25,'{}') RETURNING *`,
+            [
+              randomUUID(),
+              legacy.organization.id,
+              legacy.branch.id,
+              legacy.sale.id,
+              randomUUID(),
+              randomUUID(),
+              legacy.user.id,
+            ],
+          )
+        ).rows[0];
+      }
     }
   });
   afterAll(async () => {
@@ -349,8 +377,33 @@ describe('PostgreSQL refund persistence', () => {
     current = await fixture();
   });
 
-  it('upgrades existing sales/stock history without changing records or creating refunds', () => {
-    expect(legacyProof.sale).toEqual(legacy.sale);
+  it('preserves legacy sales, refunds, and stock history during account cutover', () => {
+    expect(legacyProof.saleBefore).toMatchObject({
+      id: legacy.sale.id,
+      paymentMethod: 'CASH',
+      total: '125.00',
+    });
+    expect(legacyProof.sale).toMatchObject({
+      id: legacy.sale.id,
+      paymentAccountName: 'Cash',
+      paymentAccountIsCash: true,
+      paymentAccountRequiresReference: false,
+      total: '125.00',
+    });
+    expect(legacyProof.sale).not.toHaveProperty('paymentMethod');
+    expect(legacyProof.refundBefore).toMatchObject({
+      id: legacy.refund?.id,
+      paymentMethod: 'CASH',
+      total: '25.00',
+    });
+    expect(legacyProof.refund).toMatchObject({
+      id: legacy.refund?.id,
+      paymentAccountName: 'Cash',
+      paymentAccountIsCash: true,
+      paymentAccountRequiresReference: false,
+      total: '25.00',
+    });
+    expect(legacyProof.refund).not.toHaveProperty('paymentMethod');
     expect(legacyProof.item).toEqual(legacy.item);
     const movements = legacyProof.movements;
     expect(movements).toHaveLength(2);
@@ -360,7 +413,7 @@ describe('PostgreSQL refund persistence', () => {
     expect(
       movements.find((movement) => movement.type === 'SALE')?.saleItemId,
     ).toBe(legacy.item.id);
-    expect(legacyProof.refunds).toBe(0);
+    expect(legacyProof.refunds).toBe(1);
     expect(legacyProof.quantity).toBe(3);
   });
 

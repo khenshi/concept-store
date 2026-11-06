@@ -1,9 +1,7 @@
 BEGIN;
-DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM "Sale") OR EXISTS (SELECT 1 FROM "Refund") THEN
-    RAISE EXCEPTION 'Plan 08 requires empty Sale and Refund source tables. Stop for an approved preservation strategy; do not reset a live database.';
-  END IF;
-END $$;
+
+-- Preserve legacy SalePaymentMethod records in immutable account snapshots.
+-- Existing development rows are migrated forward; no source rows are deleted.
 
 CREATE TYPE "PaymentAccountAssignmentMode" AS ENUM ('ALL', 'SELECTED');
 CREATE TABLE "PaymentAccount" (
@@ -54,6 +52,21 @@ CREATE TRIGGER "Organization_provision_cash" AFTER INSERT ON "Organization" FOR 
 INSERT INTO "PaymentAccount" ("id", "organizationId", "name", "normalizedName", "systemKey", "enabled", "assignmentMode", "requiresReference", "updatedAt")
 SELECT gen_random_uuid()::text, "id", 'Cash', 'cash', 'CASH', true, 'ALL', false, CURRENT_TIMESTAMP FROM "Organization";
 
+WITH legacy_methods AS (
+  SELECT DISTINCT "organizationId", "paymentMethod"::text AS method FROM "Sale"
+  UNION
+  SELECT DISTINCT "organizationId", "paymentMethod"::text AS method FROM "Refund"
+), legacy_accounts AS (
+  SELECT "organizationId",
+    CASE "method" WHEN 'GCASH' THEN 'GCash' WHEN 'CARD' THEN 'Card' ELSE initcap(lower("method")) END AS name
+  FROM legacy_methods
+  WHERE "method" <> 'CASH'
+)
+INSERT INTO "PaymentAccount" ("id", "organizationId", "name", "normalizedName", "enabled", "assignmentMode", "requiresReference", "updatedAt")
+SELECT gen_random_uuid()::text, "organizationId", name, lower(name), true, 'ALL', true, CURRENT_TIMESTAMP
+FROM legacy_accounts
+ON CONFLICT ("organizationId", "normalizedName") DO NOTHING;
+
 CREATE FUNCTION protect_payment_account_identity() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
   IF TG_OP = 'DELETE' THEN
     IF OLD."systemKey" = 'CASH' THEN RAISE EXCEPTION 'System Cash cannot be deleted'; END IF;
@@ -82,11 +95,28 @@ END $$;
 CREATE CONSTRAINT TRIGGER "PaymentAccount_assignment_check" AFTER INSERT OR UPDATE ON "PaymentAccount" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check_payment_account_assignment();
 CREATE CONSTRAINT TRIGGER "PaymentAccountBranch_assignment_check" AFTER INSERT OR UPDATE OR DELETE ON "PaymentAccountBranch" DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION check_payment_account_assignment();
 
-ALTER TABLE "Sale" DROP CONSTRAINT "Sale_payment_check", DROP COLUMN "paymentMethod",
-  ADD COLUMN "paymentAccountId" TEXT NOT NULL,
-  ADD COLUMN "paymentAccountName" VARCHAR(100) NOT NULL,
-  ADD COLUMN "paymentAccountIsCash" BOOLEAN NOT NULL,
-  ADD COLUMN "paymentAccountRequiresReference" BOOLEAN NOT NULL,
+ALTER TABLE "Sale" DROP CONSTRAINT "Sale_payment_check",
+  ADD COLUMN "paymentAccountId" TEXT,
+  ADD COLUMN "paymentAccountName" VARCHAR(100),
+  ADD COLUMN "paymentAccountIsCash" BOOLEAN,
+  ADD COLUMN "paymentAccountRequiresReference" BOOLEAN;
+UPDATE "Sale" AS s
+SET "paymentAccountId" = pa."id",
+    "paymentAccountName" = pa."name",
+    "paymentAccountIsCash" = COALESCE(pa."systemKey" = 'CASH', false),
+    "paymentAccountRequiresReference" = pa."requiresReference"
+FROM "PaymentAccount" AS pa
+WHERE pa."organizationId" = s."organizationId"
+  AND pa."normalizedName" = CASE s."paymentMethod"::text
+    WHEN 'CASH' THEN 'cash'
+    WHEN 'GCASH' THEN 'gcash'
+    WHEN 'CARD' THEN 'card'
+  END;
+ALTER TABLE "Sale"
+  ALTER COLUMN "paymentAccountId" SET NOT NULL,
+  ALTER COLUMN "paymentAccountName" SET NOT NULL,
+  ALTER COLUMN "paymentAccountIsCash" SET NOT NULL,
+  ALTER COLUMN "paymentAccountRequiresReference" SET NOT NULL,
   ADD CONSTRAINT "Sale_paymentAccountId_organizationId_fkey" FOREIGN KEY ("paymentAccountId", "organizationId") REFERENCES "PaymentAccount"("id", "organizationId") ON DELETE RESTRICT ON UPDATE RESTRICT,
   ADD CONSTRAINT "Sale_payment_check" CHECK (
     char_length(btrim("paymentAccountName")) BETWEEN 1 AND 100 AND "paymentAccountName" = btrim("paymentAccountName") AND
@@ -97,11 +127,28 @@ ALTER TABLE "Sale" DROP CONSTRAINT "Sale_payment_check", DROP COLUMN "paymentMet
       AND (NOT "paymentAccountRequiresReference" OR "paymentReference" IS NOT NULL)
       AND ("paymentReference" IS NULL OR (char_length(btrim("paymentReference")) BETWEEN 2 AND 100 AND "paymentReference" = btrim("paymentReference")))))
   );
-ALTER TABLE "Refund" DROP CONSTRAINT "Refund_payment_check", DROP COLUMN "paymentMethod",
-  ADD COLUMN "paymentAccountId" TEXT NOT NULL,
-  ADD COLUMN "paymentAccountName" VARCHAR(100) NOT NULL,
-  ADD COLUMN "paymentAccountIsCash" BOOLEAN NOT NULL,
-  ADD COLUMN "paymentAccountRequiresReference" BOOLEAN NOT NULL,
+ALTER TABLE "Refund" DROP CONSTRAINT "Refund_payment_check",
+  ADD COLUMN "paymentAccountId" TEXT,
+  ADD COLUMN "paymentAccountName" VARCHAR(100),
+  ADD COLUMN "paymentAccountIsCash" BOOLEAN,
+  ADD COLUMN "paymentAccountRequiresReference" BOOLEAN;
+UPDATE "Refund" AS r
+SET "paymentAccountId" = pa."id",
+    "paymentAccountName" = pa."name",
+    "paymentAccountIsCash" = COALESCE(pa."systemKey" = 'CASH', false),
+    "paymentAccountRequiresReference" = pa."requiresReference"
+FROM "PaymentAccount" AS pa
+WHERE pa."organizationId" = r."organizationId"
+  AND pa."normalizedName" = CASE r."paymentMethod"::text
+    WHEN 'CASH' THEN 'cash'
+    WHEN 'GCASH' THEN 'gcash'
+    WHEN 'CARD' THEN 'card'
+  END;
+ALTER TABLE "Refund"
+  ALTER COLUMN "paymentAccountId" SET NOT NULL,
+  ALTER COLUMN "paymentAccountName" SET NOT NULL,
+  ALTER COLUMN "paymentAccountIsCash" SET NOT NULL,
+  ALTER COLUMN "paymentAccountRequiresReference" SET NOT NULL,
   ADD CONSTRAINT "Refund_paymentAccountId_organizationId_fkey" FOREIGN KEY ("paymentAccountId", "organizationId") REFERENCES "PaymentAccount"("id", "organizationId") ON DELETE RESTRICT ON UPDATE RESTRICT,
   ADD CONSTRAINT "Refund_payment_check" CHECK (
     char_length(btrim("paymentAccountName")) BETWEEN 1 AND 100 AND "paymentAccountName" = btrim("paymentAccountName") AND
@@ -109,6 +156,8 @@ ALTER TABLE "Refund" DROP CONSTRAINT "Refund_payment_check", DROP COLUMN "paymen
     OR (NOT "paymentAccountIsCash" AND (NOT "paymentAccountRequiresReference" OR "paymentReference" IS NOT NULL)
       AND ("paymentReference" IS NULL OR (char_length(btrim("paymentReference")) BETWEEN 2 AND 100 AND "paymentReference" = btrim("paymentReference")))))
   );
+ALTER TABLE "Sale" DROP COLUMN "paymentMethod";
+ALTER TABLE "Refund" DROP COLUMN "paymentMethod";
 DROP TYPE "SalePaymentMethod";
 CREATE INDEX "Sale_organizationId_branchId_paymentAccountId_completedAt_idx" ON "Sale"("organizationId", "branchId", "paymentAccountId", "completedAt");
 CREATE INDEX "Refund_organizationId_branchId_paymentAccountId_completedAt_idx" ON "Refund"("organizationId", "branchId", "paymentAccountId", "completedAt");

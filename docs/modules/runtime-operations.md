@@ -111,17 +111,21 @@ authorizes deployment. Empty and upgrade-needed states require a separate
 reviewed rehearsal and release gate.
 
 Plan 08 adds a development-only account cutover boundary. Its forward migration
-must be applied through the normal migration chain on a verified disposable
-database and intentionally stops when Sale or Refund rows already exist. For a
-fresh development dataset, set `DIRECT_DATABASE_URL` to the exact disposable
-target for `npm run prisma:migrate:deploy`, then run the guarded seed with
+must be applied through the normal migration chain on a verified target. For an
+existing approved development dataset, the preservation path maps legacy
+payment methods into immutable Sale/Refund account snapshots and requires
+pre/post checks of source counts, totals and snapshot completeness. The
+configured development Neon recovery completed on November 6, 2026 without a
+reset or financial-row deletion. For a fresh development dataset, set
+`DIRECT_DATABASE_URL` to the exact disposable target for
+`npm run prisma:migrate:deploy`, then run the guarded seed with
 `DEMO_DATABASE_URL`, `SEED_DEMO_DATABASE_NAME`,
 `SEED_DEMO_CONFIRM=I_UNDERSTAND_DISPOSABLE_DEMO_RESET` and
 `NODE_ENV=development` or `test`. The seed never accepts the application
 `DATABASE_URL`, and remote reset requires separate explicit remote-target
 confirmation. Verify Cash/account counts and report totals before starting the
-matching API/frontend versions. Existing financial rows require a separately
-approved preservation migration; do not use the demo reset as one.
+matching API/frontend versions. Do not use the demo reset to recover existing
+financial rows.
 
 ## Verification and limits
 
