@@ -101,6 +101,9 @@ an alternative or erasing a choice still valid for another feature.
 
 Validated explicit branch routes take precedence. Dropdown changes update the
 shared choice only after navigation/write/unsaved-change guards allow the change.
+Branch-selection cards write the same shared choice before opening their branch
+route, so choosing a card has the same cross-page behavior as choosing a branch
+from a dropdown.
 Organization switching resets the choice, including returning to the old tenant;
 user changes/sign-out reset both choice and workspace caches. Current role changes
 clear the choice permanently. Same-role access refresh retains the preference but

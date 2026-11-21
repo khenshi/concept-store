@@ -101,23 +101,14 @@ function ScopedReportsEntry({
     };
   }, [request, organizationId, revision]);
   useEffect(() => {
-    if (
-      selectedBranchId &&
-      branches?.some((branch) => branch.id === selectedBranchId) &&
-      !error &&
-      resumed.current === null
-    )
-      navigate({ kind: 'branch', branchId: selectedBranchId });
+    if (branches && !error && resumed.current === null)
+      navigate({ kind: 'all' });
   });
   return (
     <OrganizationPageFrame wide>
       <PageHeader
         title="Reports"
-        description={
-          merchant
-            ? 'Choose a branch or all accessible branches to view your own gross recorded sales, matching transactions and units sold.'
-            : 'Choose a branch or all accessible branches to view recorded sales, transaction counts, units sold and payment summaries.'
-        }
+        description="Choose a branch or all accessible branches to view reports"
         action={
           <ReportBranchPicker
             branches={branches}

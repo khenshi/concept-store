@@ -668,7 +668,7 @@ describe('staff Reports workspace', () => {
       screen.queryByRole('table', { name: 'Transaction history' }),
     ).toBeNull();
   });
-  it('requires explicit selection even for one branch and uses no summary/general branch read', async () => {
+  it('defaults to All branches even with one branch and uses no summary/general branch read', async () => {
     request.mockImplementation(async (path: string) =>
       path.includes('/reports/sales/branches/directory')
         ? {
@@ -686,8 +686,11 @@ describe('staff Reports workspace', () => {
       name: 'Reports branch',
     });
     await waitFor(() => expect(picker).toBeEnabled());
-    expect(picker).toHaveTextContent('Choose a branch');
-    expect(push).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        '/app/organizations/org/reports/all/overview',
+      ),
+    );
     expect(request).toHaveBeenCalledWith(
       '/organizations/org/reports/sales/branches',
     );
@@ -1374,14 +1377,17 @@ describe('staff Reports workspace', () => {
       ).toBe(true);
       expect(request.mock.calls[1][0]).toContain('/reports/sales/analytics?');
     });
-    it('requires explicit historical/assigned branch choice and offers link/access guidance', async () => {
+    it('defaults to All branches and offers link/access guidance', async () => {
       render(<ReportsEntry organizationId="org" />);
       await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
-      expect(screen.getByRole('combobox')).toHaveTextContent('Choose a branch');
       expect(
         screen.getByText(/An assignment alone does not grant whole-branch/),
       ).toBeInTheDocument();
-      expect(push).not.toHaveBeenCalled();
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith(
+          '/app/organizations/org/reports/all/overview',
+        ),
+      );
       fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
       fireEvent.click(
         await screen.findByRole('option', { name: 'South (MAIN)' }),
@@ -1393,7 +1399,7 @@ describe('staff Reports workspace', () => {
         expect.stringContaining('/reports/sales/branches/directory'),
       );
     });
-    it('explains no assigned/historical access without inventing a link state or fallback', async () => {
+    it('defaults to All branches even without assigned or historical access', async () => {
       request.mockImplementation(async (path: string) =>
         path.includes('/reports/sales/branches/directory')
           ? {
@@ -1413,12 +1419,10 @@ describe('staff Reports workspace', () => {
         ),
       ).toBeInTheDocument();
       await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
-      fireEvent.click(screen.getByRole('combobox', { name: 'Reports branch' }));
-      fireEvent.click(
-        await screen.findByRole('option', { name: 'All branches' }),
-      );
-      expect(push).toHaveBeenCalledWith(
-        '/app/organizations/org/reports/all/overview',
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith(
+          '/app/organizations/org/reports/all/overview',
+        ),
       );
       fireEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
       expect(refreshOrganization).toHaveBeenCalled();

@@ -113,6 +113,11 @@ describe('merchant analytics dashboard', () => {
       screen.getByText('Product rankings by Gross sales.'),
     ).toBeInTheDocument();
     expect(
+      screen
+        .getByRole('heading', { name: 'Your top products by gross sales' })
+        .closest('section'),
+    ).toHaveClass('overflow-visible');
+    expect(
       screen.queryByRole('combobox', { name: 'Merchant' }),
     ).not.toBeInTheDocument();
     const rankingTable = screen.getByRole('table', {

@@ -44,7 +44,7 @@ read-only migration preflight compares explicit-target history names/checksums
 with repository files and classifies empty, upgrade-needed, current and unsafe
 states. A disposable PostgreSQL 17 rehearsal classified an empty target,
 applied all 18 tracked migrations, and then classified the target as current;
-evidence is recorded in [the dated validation note](../validation/database-safety-2026-10-25.md).
+evidence is recorded in [the dated validation note](../../validation/database-safety-2026-10-25.md).
 The same local validation restored a guarded synthetic fixture into a separate
 target, preserved aggregate tenant/inventory/sale/refund counts, verified current
 migration history and reconnected the production API with successful root,

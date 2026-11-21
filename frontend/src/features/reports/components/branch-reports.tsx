@@ -1035,8 +1035,8 @@ function ScopedBranchReports({
         title={merchant ? 'Own-sales reports' : 'Sales reports'}
         description={
           merchant
-            ? `Gross recorded sales of your own items only, not whole-branch sales. Transactions count distinct sales containing your items${branchId ? ' in this branch' : ' across authorized branches'}.`
-            : `Recorded sales and refunds ${branchId ? 'for one branch' : 'across authorized branches'}, with daily trends and top products. Net recorded sales is not profit or merchant payouts.`
+            ? `Sales of your items only. Transactions count unique sales ${branchId ? 'in this branch' : 'across branches'}.`
+            : `Sales, refunds, daily trends, and top products ${branchId ? 'for this branch' : 'across branches'}. Net sales exclude profit and payouts.`
         }
         action={
           <ReportBranchPicker

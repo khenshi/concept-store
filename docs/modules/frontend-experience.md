@@ -382,9 +382,9 @@ Transactions. Existing access and calculation contracts remain unchanged; see
 [Reports navigation](reports.md#nested-reports-navigation).
 
 Owners/managers now have Reports in sidebar/mobile navigation, with both Reports
-routes active under that entry rather than Branches. The entry requires explicit
-selection from the identity-only authorized Reports branch lookup, even with one
-branch, and offers an explicit All branches option only within Reports. Owners see
+routes active under that entry rather than Branches. The entry defaults to the
+explicit All branches route after the identity-only authorized Reports lookup and
+offers real branch selection within Reports. Owners see
 organization branches, Managers their assigned branches, and Merchants receive
 their own accessible activity across authorized branches. All Branches is held in
 the Reports route and does not overwrite the shared preferred branch used by other
@@ -400,7 +400,8 @@ old data; scoped guards prevent obsolete responses from restoring totals.
 Report Overview leads with net recorded sales after refunds, with gross sales,
 refunded amount and completed transactions kept as supporting metrics. The
 Overview reading order is summary, primary daily/hourly trend, then grouped
-merchant/product and weekday/payment breakdowns. Trend, weekday and payment
+merchant/product charts, a full-width weekday panel, and the payment-account
+breakdown. Trend, weekday and payment
 visualizations use compact status rows when their series are zero-valued, so an
 empty period does not reserve a full chart or imply missing insight. Populated
 charts retain their exact accessible values. Operational
@@ -473,9 +474,10 @@ certify rendered layout/accessibility. This waiver is specific to Reports.
 
 Inventory now appears in sidebar/mobile navigation for owners, managers and
 merchants, with inventory directory/detail routes active under this entry rather
-than Branches. The organization Inventory entry offers explicit authorized branch
-selection; directories/details share a labeled branch dropdown. Normal Back to
-branch is removed, while detail-to-inventory and existing shortcuts remain.
+than Branches. The organization Inventory entry presents authorized branches as
+cards when no branch is selected and retains the compact branch dropdown;
+directories/details share a labeled branch dropdown. Normal Back to branch is
+removed, while detail-to-inventory and existing shortcuts remain.
 Switching branch confirms unsaved form discard and blocks pending writes; scoped
 data/filters reset and obsolete reads cannot restore data after access loss.
 Cashiers remain denied and merchants retain own-only inventory. No backend or
@@ -556,9 +558,10 @@ arrive.
 ## POS navigation refinement
 
 Staff sidebar/mobile navigation now includes POS, with branch checkout routes
-marking that entry active. The organization POS entry requires explicit authorized
-branch selection; branch POS uses the shared labeled dropdown and omits normal
-back buttons. Branch switching preserves cancellation, cart-discard confirmation,
+marking that entry active. The organization POS entry presents authorized branches
+as cards when no branch is selected and retains the compact branch selector;
+branch POS uses the shared labeled dropdown and omits normal back buttons. Branch
+switching preserves cancellation, cart-discard confirmation,
 scope isolation and pending/uncertain checkout recovery. Merchant navigation remains
 read-only Sales. Cart and Sales History are route-backed links in one persistent
 branch POS layout/header. Saved receipt detail keeps History active, while normal
@@ -1005,8 +1008,10 @@ Branch operations includes Spaces after Inventory for owners, managers, and
 merchants. The organization entry `/app/organizations/[organizationId]/spaces`
 and direct branch route
 `/app/organizations/[organizationId]/branches/[branchId]/spaces` share authorized
-branch selection and the existing workspace's remembered branch. The direct URL
-wins; unavailable remembered choices require an explicit accessible selection.
+branch selection and the existing workspace's remembered branch. When no branch
+is selected, the organization entry presents authorized branches as cards. The
+direct URL wins; unavailable remembered choices require an explicit accessible
+selection.
 Cashiers have no entry or Spaces data requests, including on direct visits.
 
 The page follows the existing operational layout and reuses the branch Spaces

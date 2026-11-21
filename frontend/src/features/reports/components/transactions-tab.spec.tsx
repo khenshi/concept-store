@@ -80,6 +80,11 @@ describe('Reports inline refund details', () => {
   });
   it('opens the existing details modal without navigation and preserves report filters on close', async () => {
     render(<TransactionsTab {...props} search="REFUND" filterType="REFUND" />);
+    expect(
+      screen
+        .getByRole('heading', { name: 'Transaction history' })
+        .closest('section'),
+    ).toHaveClass('overflow-visible');
     fireEvent.click(screen.getByRole('button', { name: 'View' }));
     expect(
       screen.getByRole('dialog', { name: 'Refund details' }),

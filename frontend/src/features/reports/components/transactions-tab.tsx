@@ -122,6 +122,7 @@ export function TransactionsTab({
         id="sales-transactions-panel"
         aria-labelledby="sales-report-tab-transactions"
         tabIndex={0}
+        className="overflow-visible"
         title={merchant ? 'Your transaction history' : 'Transaction history'}
         description={
           merchant

@@ -7,6 +7,11 @@ critical security/startup fixes, required features and operational gates below.
 This is an audit/checklist, not approval to implement new modules or deploy/reset
 databases. Continue using approved current plans for implementation.
 
+For the current candidate's end-of-batch evidence, use the
+[final project verification checklist](validation/final-project-verification-checklist.md).
+This document retains the historical readiness audit and background findings;
+its older counts and boxes do not override the current-candidate checklist.
+
 Planning sequence: [pending plans and implementation order](plans/pending/README.md).
 Plans 07 and 08 are completed and archived. Plan 08 Payment Accounts has local,
 cutover and hosted evidence in
@@ -197,7 +202,7 @@ database was queried, migrated, reset or seeded by the audit.
       report, correct actual refund-account attribution, exact breakdown table
       and signed-negative chart. Confirm Manager assigned-branch access and
       historical disabled-account visibility under Plan 08.
-- [ ] **Reports All Branches:** implement the [pending plan](plans/pending/09-reports-all-branches.md) after promotion/approval, preserving
+- [ ] **Reports All Branches:** implement the [archived plan](plans/archive/09-reports-all-branches-2026-10-26.md) only after a new plan is explicitly approved, preserving
       Owner/Manager/Merchant scope, global counts/rankings/pagination, safe source branch
       links and All Time periods. No shared branch-preference sentinel in POS/Inventory.
 - [x] **Controlled enrollment/manual activation:** the protected operator command

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { listMovementRecords } from '../api/inventory-api';
 import { inventory, scope } from '../model/inventory.test-fixtures';
@@ -134,6 +140,22 @@ describe('InventoryMovementRecords', () => {
     expect(
       screen.getByRole('list', { name: 'Branch movement records' }),
     ).toHaveClass('overflow-x-auto');
+    const movementHeading = screen.getByRole('heading', {
+      name: 'Movement records',
+    });
+    const movementHeader = movementHeading.closest('header');
+    expect(
+      within(movementHeader!).getByRole('button', {
+        name: 'Movement date filter',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Movement date filter' })
+        .parentElement,
+    ).toHaveClass('w-56');
+    expect(
+      screen.queryByRole('searchbox', { name: 'Search merchants' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Maria Santos')).toBeInTheDocument();
     fireEvent.click(viewReason);
     expect(

@@ -2,7 +2,13 @@ import {
   reportAccount,
   mergeAccountFlows,
 } from '@/features/reports/model/report.test-fixtures';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import {
   RankingControls,
   StaffAnalyticsDashboard,
@@ -224,6 +230,11 @@ describe('staff analytics dashboard', () => {
     expect(
       screen.getByText('Product rankings by Gross sales for All merchants.'),
     ).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole('heading', { name: 'Top products by gross sales' })
+        .closest('section'),
+    ).toHaveClass('overflow-visible');
     const products = screen.getByRole('table', { name: /Top products/i });
     expect(within(products).getByText('Refund only')).toBeInTheDocument();
     expect(within(products).getByText('-10.00')).toBeInTheDocument();
@@ -292,7 +303,7 @@ describe('staff analytics dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(onRankingPageChange).toHaveBeenCalledWith(2);
   });
-  it('offers metric and merchant ranking controls for staff', () => {
+  it('offers metric and merchant ranking controls for staff', async () => {
     const onRankingControlsChange = vi.fn();
     render(
       <StaffAnalyticsDashboard
@@ -304,15 +315,29 @@ describe('staff analytics dashboard', () => {
             name: 'Merchant one',
           },
         ]}
+        merchantOptionsLoader={async () => ({
+          items: [
+            {
+              id: '44444444-4444-4444-8444-444444444444',
+              label: 'Merchant one',
+            },
+          ],
+          hasNext: false,
+        })}
         onRankingControlsChange={onRankingControlsChange}
       />,
+    );
+    expect(
+      screen.queryByRole('searchbox', { name: 'Search merchants' }),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('combobox', { name: 'Merchant' }),
+      ).toHaveTextContent('All merchants'),
     );
     expect(screen.getByRole('combobox', { name: 'Rank by' })).toHaveTextContent(
       'Gross sales',
     );
-    expect(
-      screen.getByRole('combobox', { name: 'Merchant' }),
-    ).toHaveTextContent('All merchants');
     fireEvent.click(screen.getByRole('combobox', { name: 'Rank by' }));
     fireEvent.click(screen.getByRole('option', { name: 'Units sold' }));
     expect(onRankingControlsChange).toHaveBeenLastCalledWith({
@@ -352,10 +377,24 @@ describe('staff analytics dashboard', () => {
     const metricGroup = screen.getByRole('group', {
       name: 'Sales trend metric',
     });
+    const trendHeading = screen.getByRole('heading', {
+      name: 'Daily sales trend',
+    });
+    expect(trendHeading).toHaveClass('min-w-0', 'font-semibold');
+    expect(trendHeading).not.toHaveClass('text-center');
+    expect(metricGroup).toHaveClass('justify-end');
     const netSales = within(metricGroup).getByRole('radio', {
       name: 'Net Sales',
     });
     expect(netSales).toBeChecked();
+    expect(netSales.closest('label')).not.toHaveClass('border-hairline');
+    expect(netSales.closest('label')).toHaveClass('!border-0');
+    expect(netSales.closest('label')).not.toHaveClass('focus-within:ring-2');
+    expect(
+      within(metricGroup)
+        .getByRole('radio', { name: 'Gross Sales' })
+        .closest('label'),
+    ).toHaveClass('border-hairline');
     expect(netSales.closest('label')).toHaveClass('rounded-full');
     const netValues = screen.getByRole('list', {
       name: 'Net Sales exact daily values',
@@ -424,14 +463,14 @@ describe('staff analytics dashboard', () => {
     });
     expect(performance).toHaveClass('md:grid-cols-2');
     const merchants = screen.getByRole('list', {
-      name: 'Top merchants by gross sales values',
+      name: 'Top 5 merchants by gross sales values',
     });
     expect(within(merchants).getAllByRole('listitem')).toHaveLength(5);
     expect(within(merchants).getByText('Merchant 1')).toBeInTheDocument();
     expect(within(merchants).queryByText('Merchant 6')).not.toBeInTheDocument();
     expect(merchants.closest('section')).toBeInTheDocument();
     const productsBySales = screen.getByRole('list', {
-      name: 'Top products by gross sales values',
+      name: 'Top 5 products by gross sales values',
     });
     expect(within(productsBySales).getAllByRole('listitem')).toHaveLength(5);
     expect(within(productsBySales).getByText('Product 1')).toBeInTheDocument();
@@ -442,15 +481,21 @@ describe('staff analytics dashboard', () => {
     const weekdayRow = screen.getByRole('group', {
       name: 'Weekday and payment account charts',
     });
-    expect(weekdayRow).toHaveClass('md:grid-cols-3');
-    expect(weekdayRow.children[0]).toHaveClass('md:col-span-2');
-    expect(weekdayRow.children[1]).toHaveClass('md:col-span-1');
+    expect(weekdayRow).toHaveClass('space-y-6');
+    expect(weekdayRow.children[0]).not.toHaveClass('md:col-span-2');
+    expect(weekdayRow.children[1]).not.toHaveClass('md:col-span-1');
     expect(
       screen.getByRole('heading', { name: 'Average sales by weekday' }),
     ).toBeInTheDocument();
     const paymentChart = screen
       .getByRole('heading', { name: 'Payment Accounts' })
       .closest('section');
+    const donut = within(paymentChart!).getByRole('img', {
+      name: /Received by payment account donut/,
+    });
+    expect(donut.parentElement?.parentElement).toHaveClass(
+      'md:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]',
+    );
     expect(within(paymentChart!).getAllByText('Cash')[0]).toBeInTheDocument();
     expect(within(paymentChart!).getAllByText('5.00')[0]).toBeInTheDocument();
     expect(
@@ -548,9 +593,6 @@ describe('staff analytics dashboard', () => {
       hourlyTrends,
     });
     render(<StaffAnalyticsDashboard report={hourlyReport} />);
-    expect(
-      screen.getByText(/Net Sales by Philippine hour/),
-    ).toBeInTheDocument();
     const trend = screen
       .getByRole('heading', { name: 'Hourly sales trend' })
       .closest('section');

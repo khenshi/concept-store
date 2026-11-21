@@ -177,7 +177,8 @@ rename, archive and reactivate types; managers read the shared catalog.
 Merchants keep their own Spaces view without the management tab, and cashiers
 remain excluded. Tabs support arrow/Home/End keyboard navigation,
 selected-state semantics, dirty-draft confirmation, and pending-write
-protection.
+protection. The Type catalog keeps Status and owner-only Action aligned with
+their row content and shows each type name without repeating its branch scope.
 
 `SpaceType` stores an ID, organization ID, current name, optional archive time,
 positive version, and timestamps. Names are trimmed, 1–80 characters, and

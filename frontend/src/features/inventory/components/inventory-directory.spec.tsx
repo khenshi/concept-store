@@ -164,6 +164,9 @@ describe('InventoryDirectory workflows', () => {
     expect(screen.getByText('10 units')).toHaveClass('text-success-ink');
     expect(screen.getByText('Threshold 5')).toBeInTheDocument();
     expect(screen.getByText('Search')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('searchbox', { name: 'Search merchants' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Stock status')).toBeInTheDocument();
     expect(screen.getByText('Merchant')).toBeInTheDocument();
     expect(screen.getByText('Product status')).toBeInTheDocument();

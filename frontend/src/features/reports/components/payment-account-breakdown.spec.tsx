@@ -33,6 +33,16 @@ describe('payment account reports', () => {
   it('toggles locally and switches negative account net to signed bars despite a positive overall net', () => {
     const parsed = staffSalesReportSchema.parse(report);
     render(<PaymentAccountBreakdown report={parsed} />);
+    const header = screen
+      .getByRole('heading', { name: 'Payment Accounts' })
+      .closest('header');
+    expect(header).toHaveClass('flex', 'flex-wrap', 'justify-between');
+    expect(
+      within(header!).getByRole('group', { name: 'Payment account metric' }),
+    ).toHaveClass('ml-auto', 'justify-end');
+    expect(screen.getByRole('button', { name: 'Refunded' })).toHaveClass(
+      'border-hairline',
+    );
     expect(
       screen.getByRole('img', { name: /Received by payment account donut/ }),
     ).toBeInTheDocument();

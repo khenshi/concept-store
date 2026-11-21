@@ -194,7 +194,7 @@ describe('shared organization workspace branch selection', () => {
     setCheckoutAttempt('org:actor', null);
     setRefundAttempt('org:actor', null);
   });
-  it('carries the POS branch through Inventory and Reports, then reuses an Inventory change in POS', async () => {
+  it('carries the POS branch through Inventory, defaults Reports to All branches, then reuses an Inventory change in POS', async () => {
     const view = render(tree('pos'));
     await choose('South (SOUTH)');
     expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(b.id);
@@ -208,7 +208,7 @@ describe('shared organization workspace branch selection', () => {
     view.rerender(tree('reports'));
     await waitFor(() =>
       expect(push).toHaveBeenLastCalledWith(
-        `/app/organizations/org/branches/${b.id}/reports`,
+        '/app/organizations/org/reports/all/overview',
       ),
     );
     expect(push).toHaveBeenCalledTimes(3);
@@ -226,7 +226,20 @@ describe('shared organization workspace branch selection', () => {
     );
     expect(push).toHaveBeenCalledTimes(4);
   });
-  it.each(['pos', 'inventory', 'reports', 'spaces'] as const)(
+  it('remembers a branch selected from the organization branch cards', async () => {
+    const view = render(tree('pos'));
+    fireEvent.click(
+      await screen.findByRole('link', { name: /South.*Open branch/ }),
+    );
+    expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(b.id);
+    view.rerender(tree('inventory'));
+    await waitFor(() =>
+      expect(push).toHaveBeenLastCalledWith(
+        `/app/organizations/org/branches/${b.id}/inventory`,
+      ),
+    );
+  });
+  it.each(['pos', 'inventory', 'spaces'] as const)(
     'does not choose a default branch in %s without a remembered choice',
     async (page) => {
       render(tree(page));
@@ -237,6 +250,17 @@ describe('shared organization workspace branch selection', () => {
       );
     },
   );
+  it('defaults Reports to All branches without changing the remembered branch', async () => {
+    render(tree('reports'));
+    await waitFor(() =>
+      expect(push).toHaveBeenLastCalledWith(
+        '/app/organizations/org/reports/all/overview',
+      ),
+    );
+    expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(
+      'none',
+    );
+  });
   it.each(['inventory', 'reports'] as const)(
     'keeps the %s entry header on the wide workspace track',
     async (page) => {
@@ -253,17 +277,23 @@ describe('shared organization workspace branch selection', () => {
   );
   it('updates the common choice after explicit Reports selection, without a duplicate redirect', async () => {
     const view = render(tree('reports'));
+    await waitFor(() =>
+      expect(push).toHaveBeenLastCalledWith(
+        '/app/organizations/org/reports/all/overview',
+      ),
+    );
     await choose('South (SOUTH)');
     expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(b.id);
-    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledTimes(2);
     view.rerender(tree('inventory'));
     await waitFor(() =>
       expect(push).toHaveBeenLastCalledWith(
         `/app/organizations/org/branches/${b.id}/inventory`,
       ),
     );
+    expect(push).toHaveBeenCalledTimes(3);
   });
-  it.each(['pos', 'inventory', 'reports', 'spaces'] as const)(
+  it.each(['pos', 'inventory', 'spaces'] as const)(
     'keeps feature-inaccessible remembered branch and shows an explicit %s picker without falling back',
     async (page) => {
       const view = render(tree('direct-pos'));
@@ -319,7 +349,12 @@ describe('shared organization workspace branch selection', () => {
     expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(
       'none',
     );
-    expect(push).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(push).toHaveBeenLastCalledWith(
+        '/app/organizations/org/reports/all/overview',
+      ),
+    );
+    expect(push).toHaveBeenCalledTimes(2);
   });
   it('clears selection and workspace data on user changes and sign-out', async () => {
     const view = render(tree('pos'));
@@ -470,7 +505,12 @@ describe('shared organization workspace branch selection', () => {
     expect(screen.getByLabelText('Remembered branch')).toHaveTextContent(
       'none',
     );
-    expect(push).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith(
+      '/app/organizations/other/reports/all/overview',
+    );
+    expect(push).not.toHaveBeenCalledWith(
+      `/app/organizations/other/branches/${a.id}/reports`,
+    );
   });
   it('does not remember an inaccessible direct branch route', async () => {
     vi.mocked(getPosBranch).mockRejectedValueOnce(

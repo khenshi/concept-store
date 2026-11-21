@@ -3,7 +3,8 @@
 Date: October 24, 2026
 
 Status: Technical sign-off packet created October 30, 2026 with a STAGING ONLY
-decision. Legal, privacy and commercial gates from Plan 13 are explicitly
+decision. Plan 14 became the active planning focus November 9, 2026. Legal,
+privacy, commercial and remaining technical verification gates are explicitly
 deferred at the user's direction. This is not a release approval and does not
 authorize public paid SaaS, legal claims or production data onboarding by itself.
 
@@ -52,7 +53,7 @@ privacy compliance or public paid-launch approval.
 ## 3. Current evidence and gaps
 
 Reviewed current plan, queue dependencies/status, checklist release gates and the
-01/10/13 scope and limitations. The dated [technical sign-off packet](../validation/plan14-technical-signoff-2026-10-30.md)
+01/10/13 scope and limitations. The dated [technical sign-off packet](../../validation/plan14-technical-signoff-2026-10-30.md)
 records the current repository/hosted identifiers, reused local evidence and
 current hosted browser/proxy verification. Earlier plans remain specifications
 unless their evidence is explicitly linked. No current release is certified
@@ -174,6 +175,10 @@ slice. Plan 14 remains open for a later explicit NO-GO, bounded PILOT APPROVED o
 paid-launch decision after the remaining technical gates are completed or
 separately accepted. Batch planning completion is a different milestone and
 requires review of remaining 15–20 and all dependencies.
+
+Use the [final project verification checklist](../../validation/final-project-verification-checklist.md)
+for the end-of-batch Plan 01–20 evidence pass. The checklist is a verification
+record only and does not replace explicit deployment or pilot approval.
 
 Open gates: pilot duration/review criteria, exact business/contact, support coverage
 versus two-hour RTO, host/cost approval, dataset/browser qualification, 16/17/20

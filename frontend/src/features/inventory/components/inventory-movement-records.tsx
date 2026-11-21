@@ -64,7 +64,6 @@ export function InventoryMovementRecords({
   organizationId,
   branchId,
   role,
-  merchants: _merchants,
   onAccessLost,
 }: InventoryScope & {
   role: OrganizationRole;
@@ -243,8 +242,27 @@ export function InventoryMovementRecords({
         className="mt-0"
         title="Movement records"
         description="Search and review stock activity recorded in this branch."
+        action={
+          <DateRangePicker
+            id="movement-record-date-filter"
+            value={{ fromDay, throughDay }}
+            onChange={({
+              fromDay: nextFromDay,
+              throughDay: nextThroughDay,
+            }) => {
+              setFromDay(nextFromDay);
+              setThroughDay(nextThroughDay);
+            }}
+            onApply={applyDateFilter}
+            onClear={clearDateFilter}
+            filterLabel="Movement date filter"
+            dialogLabel="Choose movement record dates"
+            align="end"
+            className="w-56"
+          />
+        }
         controls={
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(18rem,1.35fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)_minmax(18rem,0.95fr)_auto]">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)] xl:grid-cols-[minmax(18rem,1.35fr)_minmax(10rem,0.7fr)_minmax(12rem,0.8fr)]">
             <div className="min-w-0">
               <label
                 className="block text-xs font-medium text-muted"
@@ -302,7 +320,6 @@ export function InventoryMovementRecords({
                   value={merchantId}
                   selectedOption={merchantOption}
                   placeholder="All merchants"
-                  searchPlaceholder="Search merchants"
                   loadPage={loadMerchantPage}
                   className="bg-subtle px-4 text-sm font-medium mt-1"
                   onValueChange={setMerchantId}
@@ -310,24 +327,6 @@ export function InventoryMovementRecords({
                 />
               </div>
             ) : null}
-            <div className="min-w-0 md:col-span-3 md:w-[18rem] md:justify-self-start xl:col-span-1">
-              <DateRangePicker
-                id="movement-record-date-filter"
-                value={{ fromDay, throughDay }}
-                onChange={({
-                  fromDay: nextFromDay,
-                  throughDay: nextThroughDay,
-                }) => {
-                  setFromDay(nextFromDay);
-                  setThroughDay(nextThroughDay);
-                }}
-                onApply={applyDateFilter}
-                onClear={clearDateFilter}
-                filterLabel="Movement date filter"
-                dialogLabel="Choose movement record dates"
-                className="w-full"
-              />
-            </div>
           </div>
         }
       >

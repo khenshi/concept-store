@@ -465,11 +465,11 @@ contains no rows.
 The refreshed owner/manager Overview layout puts the period summary first, then a
 full-width selectable daily trend as the primary reading surface. An `Explore the
 period` group follows with side-by-side Top Merchants and Top Products gross-sales
-bars, then a separated Average Sales by Weekday and Payment Accounts
-breakdown. The two performance charts show up to the first five ranked results.
-At medium widths and above, the weekday chart spans two-thirds of its row and the
-payment donut one-third; they stack on narrow phones. Merchant bars use the
-staff-only ranking.
+bars, then a separated full-width Average Sales by Weekday panel followed by the
+Payment Accounts breakdown. The two performance charts show up to the first five
+ranked results. At medium widths and above, the payment donut sits to the left of
+its account markers and identifiers, with the account table below both; the chart
+and identifiers stack on narrow phones. Merchant bars use the staff-only ranking.
 The weekday average sums daily gross sales and divides by every matching weekday
 date in the selected Manila range, including zero-sales dates, then rounds to the
 nearest cent. A weekday with no date in the range is labeled accordingly. The
@@ -483,8 +483,8 @@ the staff analytics response adds an optional hourly trend only for one-day
 periods. The Reports frontend suite passes 179
 tests across ten files; changed-file formatting, lint, typecheck and production
 build pass. Safari viewport review at 390×844, 834×1194, 1180×820 and 1600×900
-confirmed phone stacking, the weekday/payment two-thirds-to-one-third layout at
-medium widths, side-by-side performance charts when space allows, and no
+confirmed phone stacking, the full-width weekday panel and payment chart/table
+stack at medium widths, side-by-side performance charts when space allows, and no
 page-level horizontal overflow. The review included populated and empty periods.
 The production build retains the existing multiple-lockfile workspace-root
 warning.
@@ -544,17 +544,15 @@ instead of Branches:
 /app/organizations/:organizationId/branches/:branchId/reports
 ```
 
-The organization entry reads only the Reports identity lookup and reuses the shared
-POS/Inventory/Reports branch if that lookup grants access. With no remembered choice,
-it requires explicit selection. The Reports-only picker also offers All branches,
-including when the authorized lookup is empty. An inaccessible remembered branch
-shows access feedback without selecting an alternative or discarding another
-feature's valid preference. Selecting All branches navigates to the explicit
-`/reports/all/...` route and does not write a sentinel or clear/replace the shared
-branch preference. Selecting a real branch retains the existing preference behavior.
-The workspace rechecks access before each read. Cashiers cannot mount report reads.
-Merchants use the separate own-only view below; existing merchant Sales remains
-unchanged.
+The organization entry reads only the Reports identity lookup and defaults to the
+explicit All branches route after that lookup succeeds, without changing the shared
+POS/Inventory branch preference. The Reports-only picker also offers All branches,
+including when the authorized lookup is empty. A real branch remains available for
+explicit selection; selecting it retains the existing shared preference behavior.
+Selecting All branches navigates to the explicit `/reports/all/...` route and does
+not write a sentinel or clear/replace the shared branch preference. The workspace
+rechecks access before each read. Cashiers cannot mount report reads. Merchants use
+the separate own-only view below; existing merchant Sales remains unchanged.
 
 Authorized explicit branch Reports URLs override the remembered choice after their
 scoped report read succeeds. All-scope URLs do not alter that remembered branch.

@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -42,6 +43,10 @@ function context(role = 'OWNER', selectedBranchId: string | null = null) {
     organization: { id: 'org', role },
     selectedBranchId,
     setSelectedBranchId: remember,
+    branches: [main],
+    branchesStatus: 'ready',
+    branchesError: null,
+    loadBranches: vi.fn(),
   } as never);
 }
 beforeEach(() => {
@@ -66,6 +71,12 @@ beforeEach(() => {
     },
   ]);
   context();
+});
+it('shows accessible branch cards when no branch is selected', () => {
+  render(<SpacesWorkspace organizationId="org" />);
+  expect(
+    screen.getByRole('link', { name: /Main.*Open branch/ }),
+  ).toHaveAttribute('href', '/app/organizations/org/branches/main/spaces');
 });
 it('denies cashiers before making branch or spaces requests', () => {
   context('CASHIER');
@@ -137,6 +148,23 @@ it('opens organization Types without a branch and preserves dirty drafts when ta
   render(<SpacesWorkspace organizationId="org" />);
   fireEvent.click(screen.getByRole('tab', { name: 'Types' }));
   expect(await screen.findByText('Shelf')).toBeInTheDocument();
+  const catalog = screen.getByRole('region', { name: 'Space types' });
+  expect(screen.queryByText('All branches')).not.toBeInTheDocument();
+  expect(within(catalog).getByText('Status').parentElement).toHaveClass(
+    'items-center',
+  );
+  expect(within(catalog).getByText('Status')).toHaveClass(
+    'justify-self-center',
+  );
+  expect(within(catalog).getByText('Active').closest('li')).toHaveClass(
+    'items-center',
+  );
+  expect(within(catalog).getByText('Active')).toHaveClass(
+    'justify-self-center',
+  );
+  expect(within(catalog).getByText('Action')).toHaveClass(
+    'justify-self-center',
+  );
   expect(
     screen.queryByRole('combobox', { name: 'Spaces branch' }),
   ).not.toBeInTheDocument();

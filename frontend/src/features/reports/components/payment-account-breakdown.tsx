@@ -75,23 +75,18 @@ export function PaymentAccountBreakdown({
       <p id={currencyDescriptionId} className="sr-only">
         All amounts are in PHP.
       </p>
-      <header className="px-5 py-5 sm:px-6">
+      <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 px-5 py-5 sm:px-6">
         <h2 className="font-semibold">Payment Accounts</h2>
-        <p className="mt-1 text-sm text-muted">
-          Recorded transaction flows for the selected period and branch. These
-          are not verified bank or wallet balances, available cash, or provider
-          reconciliation. Opening balances, transfers, withdrawals, expenses,
-          fees and settlement timing are excluded.
-        </p>
         <div
           role="group"
           aria-label="Payment account metric"
-          className="mt-4 flex flex-wrap gap-2"
+          className="ml-auto flex flex-wrap justify-end gap-2"
         >
           {metrics.map(([key, name]) => (
             <Button
               key={key}
               variant={metric === key ? 'primary' : 'quiet'}
+              className={metric === key ? undefined : 'border-hairline'}
               aria-pressed={metric === key}
               onClick={() => setMetric(key)}
             >
@@ -140,48 +135,50 @@ export function PaymentAccountBreakdown({
           })}
         </div>
       ) : (
-        <div className="grid justify-items-center gap-4 px-5 pb-5 sm:px-6">
-          <svg
-            role="img"
-            aria-label={`${label} by payment account donut. Exact values follow.`}
-            viewBox="0 0 42 42"
-            className="size-32 max-w-full -rotate-90"
-          >
-            <circle
-              cx="21"
-              cy="21"
-              r="15.9155"
-              fill="none"
-              stroke="var(--color-hairline)"
-              strokeWidth="8"
-            />
-            {rows.map((row, index) => {
-              const share =
-                Number((values[index] * BigInt(1000000)) / total) / 10000;
-              const start =
-                Number(
-                  (values
-                    .slice(0, index)
-                    .reduce((sum, value) => sum + value, BigInt(0)) *
-                    BigInt(1000000)) /
-                    total,
-                ) / 10000;
-              return (
-                <circle
-                  key={row.accountId}
-                  cx="21"
-                  cy="21"
-                  r="15.9155"
-                  fill="none"
-                  stroke={accountColor(row.accountId)}
-                  strokeWidth="8"
-                  strokeDasharray={`${share} ${100 - share}`}
-                  strokeDashoffset={-start}
-                />
-              );
-            })}
-          </svg>
-          <dl aria-label={`${label} chart values`} className="w-full space-y-2">
+        <div className="grid gap-6 px-5 pb-5 sm:px-6 md:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)] md:items-center">
+          <div className="flex justify-center">
+            <svg
+              role="img"
+              aria-label={`${label} by payment account donut. Exact values follow.`}
+              viewBox="0 0 42 42"
+              className="size-32 max-w-full -rotate-90"
+            >
+              <circle
+                cx="21"
+                cy="21"
+                r="15.9155"
+                fill="none"
+                stroke="var(--color-hairline)"
+                strokeWidth="8"
+              />
+              {rows.map((row, index) => {
+                const share =
+                  Number((values[index] * BigInt(1000000)) / total) / 10000;
+                const start =
+                  Number(
+                    (values
+                      .slice(0, index)
+                      .reduce((sum, value) => sum + value, BigInt(0)) *
+                      BigInt(1000000)) /
+                      total,
+                  ) / 10000;
+                return (
+                  <circle
+                    key={row.accountId}
+                    cx="21"
+                    cy="21"
+                    r="15.9155"
+                    fill="none"
+                    stroke={accountColor(row.accountId)}
+                    strokeWidth="8"
+                    strokeDasharray={`${share} ${100 - share}`}
+                    strokeDashoffset={-start}
+                  />
+                );
+              })}
+            </svg>
+          </div>
+          <dl aria-label={`${label} chart values`} className="space-y-2">
             {rows.map((row) => (
               <div
                 key={row.accountId}

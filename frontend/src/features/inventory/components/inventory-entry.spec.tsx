@@ -26,6 +26,10 @@ describe('Organization inventory entry', () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
       organization: { id: 'org', role: 'OWNER' },
       organizationStatus: 'ready',
+      branches: [{ id: 'branch', name: 'Main', code: 'MKT' }],
+      branchesStatus: 'ready',
+      branchesError: null,
+      loadBranches: vi.fn(),
     } as never);
     vi.mocked(listBranches).mockResolvedValue([]);
     vi.mocked(listBranchOptions).mockResolvedValue({
@@ -39,6 +43,12 @@ describe('Organization inventory entry', () => {
       screen.getByRole('heading', { name: 'Inventory' }),
     ).toBeInTheDocument();
     await screen.findByRole('status');
+    expect(
+      screen.getByRole('link', { name: /Main.*Open branch/ }),
+    ).toHaveAttribute(
+      'href',
+      '/app/organizations/org/branches/branch/inventory',
+    );
   });
   it('does not request branches for cashiers or a mismatched tenant context', () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({

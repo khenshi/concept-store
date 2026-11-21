@@ -170,7 +170,7 @@
   }
 
   .data-row {
-    @apply border-t border-hairline transition-colors duration-150;
+    @apply transition-colors duration-150;
   }
 
   .filter-field > input {

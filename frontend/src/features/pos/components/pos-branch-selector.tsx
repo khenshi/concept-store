@@ -54,6 +54,27 @@ export function PosBranchSelector({
   const [revision, setRevision] = useState(0);
   const lookupKey = useRef<string | null>(null);
   const resumed = useRef<string | null>(null);
+  const navigate = useCallback(
+    (next: string) => {
+      if (disabled) return false;
+      const attempt =
+        user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
+      const refund =
+        user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
+      if (
+        (attempt && attempt.state !== 'completed') ||
+        (refund && refund.state !== 'completed')
+      )
+        return false;
+      const href = `/app/organizations/${organizationId}/branches/${next}/pos`;
+      if (!allowPosNavigation(href)) return false;
+      resumed.current = next;
+      rememberBranch?.(next);
+      routerRef.current.push(href);
+      return true;
+    },
+    [disabled, organizationId, rememberBranch, user],
+  );
   useEffect(() => {
     let active = true;
     const target = branchId || preferredBranchId;
@@ -71,6 +92,13 @@ export function PosBranchSelector({
         };
         setSelectedBranch(option);
         if (branchId) rememberBranch?.(branchId);
+        if (
+          !branchId &&
+          preferredBranchId &&
+          resumed.current !== preferredBranchId &&
+          navigate(preferredBranchId)
+        )
+          resumed.current = preferredBranchId;
       })
       .catch((error) => {
         if (!active) return;
@@ -98,42 +126,10 @@ export function PosBranchSelector({
     preferredBranchId,
     disabled,
     revision,
+    navigate,
     onAccessDenied,
     rememberBranch,
   ]);
-  const navigate = useCallback(
-    (next: string) => {
-      if (disabled) return false;
-      const attempt =
-        user && getCheckoutAttempt(checkoutAttemptKey(organizationId, user.id));
-      const refund =
-        user && getRefundAttempt(refundAttemptKey(organizationId, user.id));
-      if (
-        (attempt && attempt.state !== 'completed') ||
-        (refund && refund.state !== 'completed')
-      )
-        return false;
-      const href = `/app/organizations/${organizationId}/branches/${next}/pos`;
-      if (!allowPosNavigation(href)) return false;
-      resumed.current = next;
-      rememberBranch?.(next);
-      routerRef.current.push(href);
-      return true;
-    },
-    [disabled, organizationId, rememberBranch, user],
-  );
-  useEffect(() => {
-    if (
-      branchId ||
-      !preferredBranchId ||
-      !selectedBranch ||
-      selectedBranch.id !== preferredBranchId ||
-      disabled ||
-      resumed.current === preferredBranchId
-    )
-      return;
-    if (navigate(preferredBranchId)) resumed.current = preferredBranchId;
-  }, [branchId, disabled, navigate, preferredBranchId, selectedBranch]);
   const retry = useCallback(() => {
     setError(null);
     setSelectedBranch(null);
@@ -147,9 +143,10 @@ export function PosBranchSelector({
       }),
     [organizationId, request, role],
   );
+  const selectedValue = branchId || selectedBranch?.id || '';
   const pageHeaderError = usePageHeaderRequestError(error, retry);
   return (
-    <div className={compact ? 'w-full min-w-0 max-w-56' : 'my-6 max-w-xl'}>
+    <div className={compact ? 'w-full min-w-56 max-w-sm' : 'my-6 max-w-xl'}>
       <label
         htmlFor={id}
         className={
@@ -162,14 +159,14 @@ export function PosBranchSelector({
       </label>
       <PagedOptionSelect
         id={id}
-        value={branchId}
+        value={selectedValue}
         selectedOption={selectedBranch}
         placeholder="Choose a branch"
         emptyMessage="No accessible branches. Ask an owner to check your assignments or merchant link."
         loadPage={loadBranchPage}
         disabled={disabled || Boolean(error)}
         onValueChange={(next) => {
-          if (!disabled && next && next !== branchId) navigate(next);
+          if (!disabled && next && next !== selectedValue) navigate(next);
         }}
       />
       {!branchId && preferredBranchId && preferredUnavailable && !error ? (

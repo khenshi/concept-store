@@ -3,6 +3,7 @@
 import { useAuth } from '@/features/auth/model/auth-context';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
+import { BranchSelectionCards } from '@/features/organizations/components/branch-selection-cards';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { RequestError } from '@/shared/components/ui/request-error';
@@ -61,6 +62,14 @@ export function InventoryEntry({ organizationId }: { organizationId: string }) {
           />
         }
       />
+      {!selectedBranchId ? (
+        <BranchSelectionCards
+          description="Select a branch to view its inventory, prices, stock and movement history."
+          hrefForBranch={(branchId) =>
+            `/app/organizations/${organizationId}/branches/${branchId}/inventory`
+          }
+        />
+      ) : null}
     </OrganizationPageFrame>
   );
 }

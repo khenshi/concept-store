@@ -1,5 +1,6 @@
 import { PaymentAccountBreakdown } from './payment-account-breakdown';
 import { useState, type ReactNode } from 'react';
+import { buttonStyles } from '@/shared/components/ui/button';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { OperationalCollection } from '@/shared/components/ui/operational-page';
 import {
@@ -368,23 +369,21 @@ function SelectableStaffTrendChart({
 
   return (
     <section className="data-surface min-w-0">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-hairline px-5 py-5 sm:px-6">
-        <div>
-          <h2 className="font-semibold">
-            {isHourly
-              ? 'Hourly sales trend'
-              : `${granularityLabels[granularity]} sales trend`}
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            {`${selectedMetric.label} by Philippine ${isHourly ? 'hour' : granularity === 'MONTH' ? 'month' : granularity === 'YEAR' ? 'year' : 'date'}. Net sales may fall below zero after refunds.`}
-          </p>
-        </div>
-        <fieldset className="flex flex-wrap gap-2">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-hairline px-5 py-5 sm:px-6">
+        <h2 className="min-w-0 font-semibold">
+          {isHourly
+            ? 'Hourly sales trend'
+            : `${granularityLabels[granularity]} sales trend`}
+        </h2>
+        <fieldset className="flex flex-wrap justify-end gap-2">
           <legend className="sr-only">Sales trend metric</legend>
           {staffTrendMetrics.map((option) => (
             <label
               key={option.value}
-              className="flex min-h-11 cursor-pointer items-center rounded-full border border-hairline px-4 py-2 text-sm font-medium focus-within:ring-2 focus-within:ring-ink focus-within:ring-offset-2 has-[:checked]:border-ink has-[:checked]:bg-subtle"
+              className={buttonStyles({
+                variant: metric === option.value ? 'primary' : 'quiet',
+                className: `rounded-full cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus${metric === option.value ? ' !border-0' : ' border-hairline'}`,
+              })}
             >
               <input
                 className="sr-only"
@@ -515,12 +514,8 @@ function AverageWeekdayChart({ rows }: { rows: AnalyticsTrendRow[] }) {
     <section className="data-surface min-w-0">
       {hasGrossSales ? (
         <>
-          <header className="px-5 sm:px-6 border-b border-hairline py-5">
+          <header className="px-5 sm:px-6 pt-5">
             <h2 className="font-semibold">Average sales by weekday</h2>
-            <p className="mt-1 text-sm text-muted">
-              Gross sales by weekday across the period, including zero-sales
-              dates.
-            </p>
           </header>
           <ol
             aria-label="Average gross sales by weekday values"
@@ -572,13 +567,11 @@ function AverageWeekdayChart({ rows }: { rows: AnalyticsTrendRow[] }) {
 
 function HorizontalSalesBars({
   title,
-  description,
   rows,
   emptyMessage,
   className = '',
 }: {
   title: string;
-  description: string;
   rows: {
     id: string;
     label: string;
@@ -596,9 +589,8 @@ function HorizontalSalesBars({
     <section className={`data-surface min-w-0 ${className}`.trim()}>
       {rows.length ? (
         <>
-          <header className="border-b border-hairline px-5 py-5 sm:px-6">
+          <header className="px-5 pt-5 sm:px-6">
             <h2 className="font-semibold">{title}</h2>
-            <p className="mt-1 text-sm text-muted">{description}</p>
           </header>
           <ol aria-label={`${title} values`} className="m-0 list-none p-0">
             {rows.map((row, index) => (
@@ -666,7 +658,7 @@ export function StaffDailyData({
       aria-labelledby="sales-report-tab-daily"
       tabIndex={0}
       title="Daily sales data"
-      description="Exact daily sales analytics in Asia/Manila."
+      description=""
     >
       <OperationalTableFrame
         empty={
@@ -838,7 +830,6 @@ export function RankingControls({
                   : null
               }
               placeholder="All merchants"
-              searchPlaceholder="Search merchants"
               loadPage={merchantOptionsLoader}
               className="mt-1 bg-subtle px-4 text-sm font-medium"
               onValueChange={(value) =>
@@ -941,6 +932,7 @@ function StaffRankings({
       id="sales-rankings-panel"
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
+      className="overflow-visible"
       title={title}
       description={`Product rankings by ${sortLabel} for ${merchantLabel}.`}
       controlsPlacement="inline"
@@ -1210,11 +1202,6 @@ export function StaffAnalyticsDashboard({
             <h2 id="sales-explore-heading" className="text-base font-semibold">
               Explore the period
             </h2>
-            <p className="mt-1 text-sm text-muted">
-              {granularity === 'DAY'
-                ? 'Gross sales by merchant, product, weekday, and payment account.'
-                : 'Gross sales by merchant, product, and payment account.'}
-            </p>
           </div>
           <div
             role="group"
@@ -1222,8 +1209,7 @@ export function StaffAnalyticsDashboard({
             className="mt-5 grid gap-6 md:grid-cols-2"
           >
             <HorizontalSalesBars
-              title="Top merchants by gross sales"
-              description="Top 5 merchants by gross sales."
+              title="Top 5 merchants by gross sales"
               rows={report.topMerchants.slice(0, 5).map((row) => ({
                 id: row.merchantId,
                 label: row.merchantName,
@@ -1232,8 +1218,7 @@ export function StaffAnalyticsDashboard({
               emptyMessage="No merchant gross sales in this period."
             />
             <HorizontalSalesBars
-              title="Top products by gross sales"
-              description="Top 5 products by gross sales."
+              title="Top 5 products by gross sales"
               rows={report.topProducts
                 .slice(0, 5)
                 .filter((row) => row.grossSales !== '0.00')
@@ -1252,14 +1237,14 @@ export function StaffAnalyticsDashboard({
                 ? 'Weekday and payment account charts'
                 : 'Payment account chart'
             }
-            className={`mt-8 grid gap-6 border-t border-hairline pt-8 ${granularity === 'DAY' ? 'md:grid-cols-3' : ''}`}
+            className="mt-8 space-y-6 border-t border-hairline pt-8"
           >
             {granularity === 'DAY' && (
-              <div className="min-w-0 md:col-span-2">
+              <div className="min-w-0">
                 <AverageWeekdayChart rows={report.dailyTrends} />
               </div>
             )}
-            <div className="min-w-0 md:col-span-1">
+            <div className="min-w-0">
               <PaymentAccountBreakdown report={report} />
             </div>
           </div>

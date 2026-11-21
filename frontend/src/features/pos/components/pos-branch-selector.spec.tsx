@@ -81,6 +81,25 @@ describe('POS branch selection', () => {
       '/app/organizations/org/branches/branch/pos',
     );
   });
+  it('resumes an authorized remembered branch from another workspace page', async () => {
+    render(
+      <PosBranchSelector
+        organizationId="org"
+        role="OWNER"
+        preferredBranchId="branch"
+      />,
+    );
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        '/app/organizations/org/branches/branch/pos',
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole('combobox', { name: 'POS branch' }),
+      ).toHaveTextContent('Makati (MKT)'),
+    );
+  });
   it('handles unassigned members without choosing a branch', async () => {
     vi.mocked(listPosBranchOptions).mockResolvedValue({
       items: [],

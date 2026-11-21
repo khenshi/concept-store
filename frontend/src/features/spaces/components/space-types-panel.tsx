@@ -81,6 +81,10 @@ export function SpaceTypesPanel({
   const filtered = types?.filter((type) =>
     type.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
   );
+  const catalogGrid =
+    organization.role === 'OWNER'
+      ? 'grid-cols-[minmax(0,1fr)_minmax(5rem,auto)_minmax(11rem,auto)]'
+      : 'grid-cols-[minmax(0,1fr)_minmax(5rem,auto)]';
   return (
     <>
       {confirmationDialog}
@@ -105,9 +109,6 @@ export function SpaceTypesPanel({
             <h2 className="text-xl font-semibold tracking-tight">
               Space types
             </h2>
-            <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted">
-              Organize spaces with types shared across your branches.
-            </p>
           </div>
         </div>
         <div
@@ -116,9 +117,6 @@ export function SpaceTypesPanel({
           {organization.role === 'OWNER' && (
             <div className="border-b border-hairline pb-6 lg:border-r lg:border-b-0 lg:pr-8 lg:pb-0">
               <h3 className="text-sm font-semibold">Add a type</h3>
-              <p className="mt-1.5 text-sm leading-6 text-muted">
-                Create a shared label once, then use it across every branch.
-              </p>
               <div className="mt-5">
                 <SpaceTypeCreator
                   organizationId={organizationId}
@@ -189,29 +187,30 @@ export function SpaceTypesPanel({
               />
             ) : (
               <ul className="mt-5 divide-y divide-hairline border-y border-hairline">
-                <li className="data-column-header grid grid-cols-[minmax(0,1fr)_auto_auto] gap-4">
+                <li
+                  className={`data-column-header grid ${catalogGrid} items-center gap-4 px-3 sm:px-4`}
+                >
                   <span>Type</span>
-                  <span>Status</span>
-                  {organization.role === 'OWNER' ? <span>Action</span> : null}
+                  <span className="justify-self-center">Status</span>
+                  {organization.role === 'OWNER' ? (
+                    <span className="justify-self-center">Action</span>
+                  ) : null}
                 </li>
                 {filtered.map((type) => (
                   <li
                     key={type.id}
-                    className="data-row grid grid-cols-[minmax(0,1fr)_auto_auto] gap-4 px-3 py-4 text-sm sm:px-4"
+                    className={`data-row grid ${catalogGrid} items-center gap-4 px-3 py-4 text-sm sm:px-4`}
                   >
                     <div className="min-w-0">
                       <span className="font-semibold">{type.name}</span>
-                      <p className="mt-1 text-xs text-muted">All branches</p>
                     </div>
                     <span
-                      className={
-                        type.archived ? 'text-danger' : 'text-success-ink'
-                      }
+                      className={`justify-self-center ${type.archived ? 'text-danger' : 'text-success-ink'}`}
                     >
                       {type.archived ? 'Archived' : 'Active'}
                     </span>
                     {organization.role === 'OWNER' ? (
-                      <div className="flex flex-wrap justify-start gap-2">
+                      <div className="flex flex-wrap items-center justify-self-center gap-2">
                         <button
                           type="button"
                           className={buttonStyles({

@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
+import { BranchSelectionCards } from '@/features/organizations/components/branch-selection-cards';
 import { OrganizationPageFrame } from '@/features/organizations/components/organization-page-frame';
 import { PageHeader } from '@/shared/components/ui/page-header';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
@@ -203,6 +204,13 @@ function ScopedSpacesWorkspace({
             id={branchId}
             onInteractionChange={setBlocked}
             onNavigationGuard={registerGuard}
+          />
+        ) : !branchId && !selectedBranchId ? (
+          <BranchSelectionCards
+            description="Select a branch to view its spaces and occupancy."
+            hrefForBranch={(nextBranchId) =>
+              `/app/organizations/${organizationId}/branches/${nextBranchId}/spaces`
+            }
           />
         ) : null}
       </div>

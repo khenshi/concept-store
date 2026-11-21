@@ -165,6 +165,7 @@ function MerchantRankings({
       id="sales-rankings-panel"
       aria-labelledby="sales-report-tab-rankings"
       tabIndex={0}
+      className="overflow-visible"
       title={title}
       description={`Product rankings by ${sortLabel}.`}
       controlsPlacement="inline"

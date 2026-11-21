@@ -506,7 +506,6 @@ function ScopedInventoryDirectory({
                   value={merchantId}
                   selectedOption={merchantOption}
                   placeholder="All merchants"
-                  searchPlaceholder="Search merchants"
                   loadPage={loadMerchantPage}
                   onValueChange={setMerchantId}
                   onOptionChange={setMerchantOption}

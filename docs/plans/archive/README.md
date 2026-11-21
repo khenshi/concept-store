@@ -1,9 +1,16 @@
 # Archived Implementation Plans
 
-The unimplemented Sales Reports All Branches plan was moved from this archive to
-[pending](../pending/09-reports-all-branches.md) on October 23, 2026.
-It is not completed or cancelled. See the
-[pending sequence](../pending/README.md) for its review and implementation place.
+The active plan and all pending plan records were archived on November 21, 2026
+at the user's direction. Their original statuses are preserved in the dated
+records below; archiving does not mark unfinished work complete or authorize
+implementation. The live indexes now explicitly report that no plan is active
+or pending.
+
+The Sales Reports All Branches plan was previously moved from this archive to
+the pending queue on October 23, 2026. It is now retained at
+[`09-reports-all-branches-2026-10-26.md`](09-reports-all-branches-2026-10-26.md);
+it is not completed or cancelled. See the
+[pending index](../pending/README.md) for the current empty-queue state.
 
 The completed local Spaces workspace plan, including its routes, role boundaries,
 history filters, and documented rollout limits, is retained in

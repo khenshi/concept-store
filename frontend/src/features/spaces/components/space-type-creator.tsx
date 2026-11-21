@@ -150,9 +150,6 @@ export function SpaceTypeCreator({
             Discard
           </button>
         </div>
-        <p id={`${fieldId}-hint`} className="text-xs leading-5 text-muted">
-          Available across all branches in this organization.
-        </p>
       </div>
     );
   return (
@@ -166,9 +163,6 @@ export function SpaceTypeCreator({
           {error}
         </p>
       ) : null}
-      <p className="text-sm text-muted">
-        Available across all branches in this organization.
-      </p>
       {saveButton}
     </div>
   );
