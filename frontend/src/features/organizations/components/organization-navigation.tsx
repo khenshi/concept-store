@@ -31,6 +31,7 @@ export function OrganizationNavigation({
   showPaymentAccounts = false,
   collapsed = false,
   onNavigate,
+  selectedBranchId = null,
 }: {
   organizationId: string;
   showMembers?: boolean;
@@ -44,9 +45,19 @@ export function OrganizationNavigation({
   showPaymentAccounts?: boolean;
   collapsed?: boolean;
   onNavigate?(): void;
+  selectedBranchId?: string | null;
 }) {
   const pathname = usePathname();
   const basePath = `/app/organizations/${organizationId}`;
+  const branchPath = `${basePath}/branches/`;
+  const branchRoute = pathname.startsWith(branchPath)
+    ? pathname.slice(branchPath.length).split('/')
+    : [];
+  const activeBranchId =
+    branchRoute.length > 1 &&
+    ['reports', 'inventory', 'spaces', 'pos', 'sales'].includes(branchRoute[1])
+      ? branchRoute[0]
+      : selectedBranchId;
   const spacesRoute =
     showSpaces &&
     (pathname === `${basePath}/spaces` ||
@@ -92,16 +103,27 @@ export function OrganizationNavigation({
     {
       key: 'inventory',
       label: 'Inventory',
-      href: `${basePath}/inventory`,
+      href: activeBranchId
+        ? `${branchPath}${activeBranchId}/inventory`
+        : `${basePath}/inventory`,
       visible: showInventory,
     },
     {
       key: 'spaces',
       label: 'Spaces',
-      href: `${basePath}/spaces`,
+      href: activeBranchId
+        ? `${branchPath}${activeBranchId}/spaces`
+        : `${basePath}/spaces`,
       visible: showSpaces,
     },
-    { key: 'pos', label: 'POS', href: `${basePath}/pos`, visible: showPos },
+    {
+      key: 'pos',
+      label: 'POS',
+      href: activeBranchId
+        ? `${basePath}/branches/${activeBranchId}/pos`
+        : `${basePath}/pos`,
+      visible: showPos,
+    },
   ];
   const organizationDestinations = [
     { key: 'overview', label: 'Overview', href: basePath, visible: true },

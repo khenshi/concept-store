@@ -5,6 +5,28 @@ import { OrganizationNavigation } from './organization-navigation';
 vi.mock('next/navigation', () => ({ usePathname: vi.fn() }));
 
 describe('OrganizationNavigation', () => {
+  it('retains branch destinations after visiting Overview', () => {
+    vi.mocked(usePathname).mockReturnValue('/app/organizations/org');
+    render(
+      <OrganizationNavigation
+        organizationId="org"
+        selectedBranchId="branch"
+        showPos
+        showInventory
+        showSpaces
+      />,
+    );
+    for (const [name, destination] of [
+      ['POS', 'pos'],
+      ['Inventory', 'inventory'],
+      ['Spaces', 'spaces'],
+    ]) {
+      expect(screen.getByRole('link', { name })).toHaveAttribute(
+        'href',
+        `/app/organizations/org/branches/branch/${destination}`,
+      );
+    }
+  });
   it('groups branch operations separately from organization-wide pages', () => {
     vi.mocked(usePathname).mockReturnValue('/app/organizations/org');
     render(
@@ -105,6 +127,19 @@ describe('OrganizationNavigation', () => {
     );
     view.rerender(<OrganizationNavigation organizationId="org" showSales />);
     expect(screen.queryByRole('link', { name: 'POS' })).not.toBeInTheDocument();
+  });
+  it.each([
+    '/branches/branch/spaces',
+    '/branches/branch/inventory',
+    '/branches/branch/reports',
+    '/branches/branch/sales',
+  ])('preserves the active branch when opening POS from %s', (path) => {
+    vi.mocked(usePathname).mockReturnValue(`/app/organizations/org${path}`);
+    render(<OrganizationNavigation organizationId="org" showPos />);
+    expect(screen.getByRole('link', { name: 'POS' })).toHaveAttribute(
+      'href',
+      '/app/organizations/org/branches/branch/pos',
+    );
   });
   it('shows merchant sales navigation only when allowed, including collapsed active detail destinations', () => {
     vi.mocked(usePathname).mockReturnValue('/app/organizations/org/sales');

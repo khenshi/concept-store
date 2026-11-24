@@ -24,7 +24,7 @@ export function OrganizationWorkspaceShell({
   organizationId: string;
   children: ReactNode;
 }) {
-  const { organization, organizationStatus } =
+  const { organization, organizationStatus, selectedBranchId } =
     useOrganizationWorkspaceContext();
   const { posFullscreen } = useWorkspaceChrome();
   const canManage =
@@ -63,6 +63,7 @@ export function OrganizationWorkspaceShell({
   const navigation = (collapsed = false) =>
     organization ? (
       <OrganizationNavigation
+        selectedBranchId={selectedBranchId}
         organizationId={organizationId}
         showMembers={organization.role === 'OWNER'}
         showPaymentAccounts={organization.role === 'OWNER'}

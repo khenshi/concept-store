@@ -117,6 +117,7 @@ export function PosBranchSelector({
       });
     return () => {
       active = false;
+      lookupKey.current = null;
     };
   }, [
     request,
