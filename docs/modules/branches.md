@@ -122,6 +122,8 @@ remain available to branch selectors and merchant workflows.
 The staff directory keeps the page header on the neutral `#F2F2F2` canvas, then presents a
 compact summary card and a separate flat white Store locations card. Search/status
 controls, loading states and table rows remain inside the Store locations card.
+The table keeps filtering inline without a Clear filters action; changing either
+filter resets the first page.
 Its rows use the Inventory directory's shared column-header and data-row geometry:
 quiet hairline dividers, the same wide-screen column rhythm, stacked narrow-screen
 content, and compact quiet View actions. Rows show branch name/code, city and
@@ -135,6 +137,9 @@ branch details but cannot change lifecycle status, while cashiers remain
 read-only.
 Add branch appears in the Store locations panel header, consistent with other
 directories. The Branches page title has no organization-name eyebrow above it.
+
+Branch detail editing is launched from the Branch information panel rather than
+the page header; status controls remain in the page header.
 
 Creation and editing share a scroll-contained native modal. It focuses the form
 heading, blocks background interaction, restores focus/scrolling on close, and
@@ -150,15 +155,18 @@ disabled until all required fields contain values; request failures remain
 visible above the action row and validation feedback stays with the affected
 fields. Cancel is a borderless quiet action.
 
-The detail view uses the shared wide page frame, page header, accessible tabbed
-workspace navigation, information panel, and owner/manager edit action. Overview,
-inventory, POS, sales, participation, and spaces render as separate role-aware
-tabs so branch work is not presented as one long page. The tab strip keeps its
-dark active underline, supports horizontal scrolling on narrow screens, and
-supports keyboard tab movement. Successful create/edit operations update the
-workspace cache and announce the affected branch. Edit requests still explicitly
-send `null` when clearing optional code, second address line, or postal code. API
-scoping, authorization, schema validation, and normalization are unchanged.
+The detail view uses the shared wide page frame, page header, information panel,
+and owner/manager edit action. Branch information, inventory health summaries,
+POS, sales, merchant participation, and spaces are presented on one page. The
+inventory action is in the card header, while POS and sales share one card with
+direct links to their branch workspaces. Participation and spaces are represented
+by direct workspace links instead of embedded tables. Successful create/edit
+operations update the workspace cache and announce the affected branch. Edit
+requests still explicitly send `null` when clearing optional code, second address
+line, or postal code. API scoping, authorization, schema validation, and
+normalization are unchanged. On wider screens, the POS and Branch workspaces
+cards share a row and stack responsively on narrow screens.
+Edit branch and Open POS use the transparent quiet action treatment.
 
 Rendered branch inventory-health card layout, filtered-link behavior, keyboard/
 focus behavior, non-color communication and 200% zoom QA were explicitly waived

@@ -1,10 +1,3 @@
-vi.mock('@/features/spaces/components/space-management', () => ({
-  SpaceManagement: () => null,
-}));
-vi.mock(
-  '@/features/merchant-branches/components/merchant-branch-management',
-  () => ({ MerchantBranchManagement: () => null }),
-);
 import {
   act,
   cleanup,
@@ -129,6 +122,9 @@ it('places Add branch in the directory panel and omits the title eyebrow', () =>
   expect(
     within(panelHeader!).getByRole('button', { name: 'Add branch' }),
   ).toBeVisible();
+  expect(
+    screen.queryByRole('button', { name: 'Clear filters' }),
+  ).not.toBeInTheDocument();
   expect(
     screen.getByRole('heading', { name: 'Store locations' }).closest('section'),
   ).toHaveClass('card-surface');
@@ -504,26 +500,51 @@ describe('BranchForm', () => {
 });
 
 describe('BranchDetail', () => {
-  it('switches between branch workspace tabs and exposes one panel at a time', async () => {
+  it('shows branch workspaces on one page with direct links', async () => {
     render(<BranchDetail organizationId="org" branchId="branch-id" />);
     await screen.findByRole('heading', { name: 'Makati Main' });
 
-    const inventoryTab = screen.getByRole('tab', { name: 'Inventory' });
-    fireEvent.click(inventoryTab);
-    expect(inventoryTab).toHaveAttribute('aria-selected', 'true');
+    const informationPanel = screen
+      .getByRole('heading', { name: 'Branch information' })
+      .closest('section');
+    expect(informationPanel).not.toBeNull();
     expect(
-      screen.getByRole('tabpanel', { name: 'Inventory' }),
-    ).toBeInTheDocument();
+      within(informationPanel!).getByRole('button', { name: 'Edit branch' }),
+    ).toHaveClass('ui-button-quiet');
     expect(
-      screen.queryByRole('tabpanel', { name: 'Overview' }),
+      within(
+        screen.getByRole('heading', { name: 'Makati Main' }).closest('header')!,
+      ).queryByRole('button', { name: 'Edit branch' }),
     ).not.toBeInTheDocument();
-
-    fireEvent.keyDown(inventoryTab, { key: 'ArrowRight' });
-    expect(screen.getByRole('tab', { name: 'POS' })).toHaveAttribute(
-      'aria-selected',
-      'true',
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Manage inventory' }),
+    ).toHaveAttribute(
+      'href',
+      '/app/organizations/org/branches/branch-id/inventory',
     );
-    expect(screen.getByRole('tabpanel', { name: 'POS' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open POS cart' })).toHaveClass(
+      'ui-button-quiet',
+    );
+    expect(screen.getByRole('link', { name: 'Open POS cart' })).toHaveAttribute(
+      'href',
+      '/app/organizations/org/branches/branch-id/pos',
+    );
+    expect(
+      screen.getByRole('link', { name: 'View sales history' }),
+    ).toHaveAttribute(
+      'href',
+      '/app/organizations/org/branches/branch-id/sales',
+    );
+    const workspaceRow = screen
+      .getByRole('heading', { name: 'POS and sales' })
+      .closest('section')?.parentElement;
+    expect(workspaceRow).toHaveClass('lg:grid-cols-2');
+    expect(workspaceRow).toContainElement(
+      screen
+        .getByRole('heading', { name: 'Branch workspaces' })
+        .closest('section'),
+    );
   });
 
   it('changes branch status and updates the workspace cache', async () => {
@@ -594,7 +615,6 @@ describe('BranchDetail', () => {
     vi.mocked(updateBranch).mockResolvedValueOnce(saved);
     render(<BranchDetail organizationId="org" branchId="branch-id" />);
     await screen.findByRole('heading', { name: 'Makati Main' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Inventory' }));
     expect(
       screen.getByRole('link', { name: 'Manage inventory' }),
     ).toHaveAttribute(
@@ -611,9 +631,7 @@ describe('BranchDetail', () => {
       'href',
       '/app/organizations/org/branches/branch-id/inventory?stockStatus=OUT_OF_STOCK',
     );
-    fireEvent.click(screen.getByRole('tab', { name: 'POS' }));
     expect(screen.getByRole('link', { name: 'Open POS cart' })).toBeVisible();
-    fireEvent.click(screen.getByRole('tab', { name: 'Sales' }));
     expect(
       screen.getByRole('link', { name: 'View sales history' }),
     ).toBeVisible();
@@ -665,7 +683,6 @@ describe('BranchDetail', () => {
       if (role === 'MERCHANT') {
         expect(screen.queryByText('Country')).not.toBeInTheDocument();
         expect(screen.queryByText('Address')).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('tab', { name: 'Inventory' }));
         expect(
           screen.getByRole('link', { name: 'View own inventory' }),
         ).toHaveAttribute(
@@ -708,7 +725,6 @@ describe('BranchDetail', () => {
       .mockResolvedValueOnce({ inStock: 0, lowStock: 0, outOfStock: 0 });
     render(<BranchDetail organizationId="org" branchId="branch-id" />);
     await screen.findByRole('heading', { name: 'Makati Main' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Inventory' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Inventory health could not be loaded.',
     );

@@ -188,11 +188,6 @@ function ScopedBranchManagement({
           directoryError={directoryError}
           directoryStatus={directoryStatus}
           hasFilters={Boolean(search || statusFilter)}
-          onClear={() => {
-            setSearch('');
-            setStatusFilter('');
-            setPage(1);
-          }}
           onPageChange={setPage}
           onRetry={() => void loadDirectory(page)}
           onSearchChange={(value) => {
@@ -237,7 +232,6 @@ function StaffBranchDirectory({
   directoryError,
   directoryStatus,
   hasFilters,
-  onClear,
   onPageChange,
   onRetry,
   onSearchChange,
@@ -253,7 +247,6 @@ function StaffBranchDirectory({
   directoryError: string | null;
   directoryStatus: DirectoryStatus;
   hasFilters: boolean;
-  onClear: () => void;
   onPageChange: (page: number) => void;
   onRetry: () => void;
   onSearchChange: (value: string) => void;
@@ -283,7 +276,7 @@ function StaffBranchDirectory({
           ) : undefined
         }
         controls={
-          <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
+          <div className="grid items-end gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
             <TextField
               id="branch-search"
               label="Search branches"
@@ -306,14 +299,6 @@ function StaffBranchDirectory({
                 <option value="INACTIVE">Inactive</option>
               </SelectControl>
             </FilterField>
-            <Button
-              variant="quiet"
-              className="justify-self-start px-3 sm:mb-0.5"
-              disabled={!hasFilters}
-              onClick={onClear}
-            >
-              Clear filters
-            </Button>
           </div>
         }
       >
@@ -336,17 +321,10 @@ function StaffBranchDirectory({
             }
             description={
               hasFilters
-                ? 'Try a different search or clear the filters to see every accessible branch.'
+                ? 'Try a different search or status filter to see more accessible branches.'
                 : canManage
                   ? 'Add the first physical store location for this organization.'
                   : 'No branches are available to your access.'
-            }
-            action={
-              hasFilters ? (
-                <Button variant="secondary" onClick={onClear}>
-                  Clear filters
-                </Button>
-              ) : undefined
             }
           />
         ) : directory ? (
