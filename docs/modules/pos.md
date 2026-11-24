@@ -1,5 +1,11 @@
 # Branch POS
 
+Organization navigation retains the shared remembered branch through Overview
+and other organization-wide pages. POS, Inventory and Spaces links open that
+branch directly; each destination still checks branch access. Reports retains
+its All branches default. Cancelled POS branch lookups release their request
+marker so a replacement lookup can finish after a rerender.
+
 Checkout is unavailable for inactive branches. Saved command replays remain
 safe after fresh authorization, while historical receipts stay readable.
 
@@ -51,7 +57,7 @@ Staff POS Sales History uses the existing scoped sales read and cashier-options
 routes. The history screen has server-backed receipt-code, cashier, payment-account
 and optional Manila calendar-date filters. Search is debounced by 300 ms; select
 changes reload immediately. The table uses a fixed 15-row page and shows Manila
-date/time, cashier, saved payment account, amount and a receipt action. It has no
+date/time in a date column with a 10rem minimum width, cashier, saved payment account, amount and a receipt action. The desktop history rows scroll horizontally when the available width is smaller than the table. It has no
 branch column because the active POS scope already identifies the branch.
 Merchant own-sales routes keep their reduced projections, separate UTC filter
 controls and the same 15-row page size; they never request the staff cashier
@@ -84,6 +90,10 @@ both fields appears once; an unknown/unavailable code returns an empty array.
 
 Organization sidebar and mobile navigation expose POS to owners, managers and
 cashiers, with branch checkout routes marking POS rather than Branches active.
+When the organization navigation opens POS from a branch-scoped Spaces,
+Inventory, Reports, or Sales route, it preserves that route's branch in the
+POS destination URL so the branch checkout opens directly without an empty
+remembered-branch transition.
 `/app/organizations/:organizationId/pos` requires an explicit branch selection,
 even when only one branch is available. The branch-title dropdown reuses authorized
 branch reads: owners see tenant branches and managers/cashiers only assigned ones.

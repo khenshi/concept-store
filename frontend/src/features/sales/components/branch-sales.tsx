@@ -231,7 +231,7 @@ function StaffBranchSales({
     query.until,
   );
   const grid =
-    'lg:grid-cols-[minmax(0,1.1fr)_minmax(9rem,0.9fr)_minmax(10rem,1fr)_minmax(9rem,0.8fr)_minmax(8rem,0.7fr)_minmax(9rem,auto)]';
+    'lg:grid-cols-[minmax(10rem,1.1fr)_minmax(9rem,0.9fr)_minmax(10rem,1fr)_minmax(9rem,0.8fr)_minmax(8rem,0.7fr)_minmax(9rem,auto)]';
 
   return (
     <SalesPageFrame embedded={embedded}>
@@ -427,62 +427,67 @@ function StaffBranchSales({
             }
           />
         ) : (
-          <ul aria-label="Sales history" className="m-0 list-none p-0">
-            <li
-              className={`data-column-header hidden gap-x-6 gap-y-3 lg:grid ${grid}`}
+          <div className="overflow-x-auto">
+            <ul
+              aria-label="Sales history"
+              className="m-0 list-none p-0 lg:min-w-[62.5rem]"
             >
-              <span>Date</span>
-              <span>Sale Code</span>
-              <span>Cashier</span>
-              <span>Payment Account</span>
-              <span>Amount</span>
-              <span>Action</span>
-            </li>
-            {page.items.map((sale) => (
               <li
-                key={sale.id}
-                className={`data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:px-6 lg:items-center ${grid}`}
+                className={`data-column-header hidden gap-x-6 gap-y-3 lg:grid ${grid}`}
               >
-                <div className="min-w-0 break-words">
-                  <time dateTime={sale.completedAt} className="tabular-nums">
-                    <span className="block text-sm font-medium text-ink">
-                      {manilaDateFormatter.format(new Date(sale.completedAt))}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-muted">
-                      {manilaTimeFormatter.format(new Date(sale.completedAt))}{' '}
-                      (PH)
-                    </span>
-                  </time>
-                </div>
-                <span className="min-w-0 break-words text-sm font-medium">
-                  {sale.receiptCode}
-                </span>
-                <span className="min-w-0 break-words text-sm">
-                  {sale.cashierName}
-                </span>
-                <span className="text-sm">{sale.paymentAccountName}</span>
-                <span className="text-sm font-semibold tabular-nums">
-                  {embedded ? 'PHP' : 'Total: PHP'} {sale.total}
-                </span>
-                <Link
-                  aria-label={`View receipt ${sale.receiptCode}`}
-                  className={buttonStyles({
-                    variant: embedded ? 'quiet' : 'secondary',
-                    className: embedded
-                      ? 'w-fit justify-self-start rounded-full !min-w-11 !px-2'
-                      : 'rounded-full',
-                  })}
-                  href={`/app/organizations/${organizationId}/branches/${branchId}/${embedded ? 'pos/sales' : 'sales'}/${sale.id}`}
-                >
-                  {embedded ? 'View' : 'View Receipt'}
-                  <span className="sr-only"> {sale.receiptCode}</span>
-                </Link>
-                <span className="sr-only">
-                  Cashier: {sale.cashierName} · {sale.paymentAccountName}
-                </span>
+                <span>Date</span>
+                <span>Sale Code</span>
+                <span>Cashier</span>
+                <span>Payment Account</span>
+                <span>Amount</span>
+                <span>Action</span>
               </li>
-            ))}
-          </ul>
+              {page.items.map((sale) => (
+                <li
+                  key={sale.id}
+                  className={`data-row grid min-w-0 gap-x-6 gap-y-3 px-4 py-4 sm:px-6 lg:items-center ${grid}`}
+                >
+                  <div className="min-w-0 break-words">
+                    <time dateTime={sale.completedAt} className="tabular-nums">
+                      <span className="block whitespace-nowrap text-sm font-medium text-ink">
+                        {manilaDateFormatter.format(new Date(sale.completedAt))}
+                      </span>
+                      <span className="mt-1 block text-xs leading-5 text-muted">
+                        {manilaTimeFormatter.format(new Date(sale.completedAt))}{' '}
+                        (PH)
+                      </span>
+                    </time>
+                  </div>
+                  <span className="min-w-0 break-words text-sm font-medium">
+                    {sale.receiptCode}
+                  </span>
+                  <span className="min-w-0 break-words text-sm">
+                    {sale.cashierName}
+                  </span>
+                  <span className="text-sm">{sale.paymentAccountName}</span>
+                  <span className="text-sm font-semibold tabular-nums">
+                    {embedded ? 'PHP' : 'Total: PHP'} {sale.total}
+                  </span>
+                  <Link
+                    aria-label={`View receipt ${sale.receiptCode}`}
+                    className={buttonStyles({
+                      variant: embedded ? 'quiet' : 'secondary',
+                      className: embedded
+                        ? 'w-fit justify-self-start rounded-full !min-w-11 !px-2'
+                        : 'rounded-full',
+                    })}
+                    href={`/app/organizations/${organizationId}/branches/${branchId}/${embedded ? 'pos/sales' : 'sales'}/${sale.id}`}
+                  >
+                    {embedded ? 'View' : 'View Receipt'}
+                    <span className="sr-only"> {sale.receiptCode}</span>
+                  </Link>
+                  <span className="sr-only">
+                    Cashier: {sale.cashierName} · {sale.paymentAccountName}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         {result ? (
           <PaginationControls

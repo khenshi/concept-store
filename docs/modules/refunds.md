@@ -29,6 +29,15 @@ in existing POS Sales History; merchants use their existing own-sale detail.
 
 ## Branch refund history in POS
 
+The tab presents Find sale to refund above refund history. Entering a complete
+receipt code and pressing Select sale resolves an exact authorized match and
+opens the existing refund modal. No sales list loads before submission;
+unmatched codes show unavailable-code feedback.
+
+Refund history search updates automatically after the receipt/refund query stops
+changing for 300ms; the separate Search button is omitted and changing the
+query resets pagination.
+
 Owners and Managers also have a `Refund history` POS tab at
 `.../branches/:branchId/pos/refunds`. Merchants continue using their own-only
 Reports Transactions and sale detail; neither Merchants nor Cashiers can access

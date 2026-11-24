@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -30,6 +30,7 @@ import { PaginationControls } from '@/shared/components/ui/pagination-controls';
 import { ListSkeleton } from '@/shared/components/ui/list-skeleton';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { RequestError } from '@/shared/components/ui/request-error';
+import { useDebouncedValue } from '@/shared/hooks/use-debounced-value';
 import { listBranchRefunds } from '../api/branch-refund-api';
 import {
   refundLocation,
@@ -182,6 +183,15 @@ function ScopedRefunds({ scope, role }: { scope: PosScope; role: StaffRole }) {
           </Link>
         </p>
       ) : null}
+      <div className="mb-6">
+        <SaleSelection
+          scope={scope}
+          role={role}
+          navigate={navigate}
+          locked={locked || Boolean(attempt)}
+          onDenied={setDenied}
+        />
+      </div>
       {selectedSaleId ? (
         <SelectedRefundSale
           key={`${selectedSaleId}:${selectedRefundId ?? 'return'}`}
@@ -206,141 +216,119 @@ function ScopedRefunds({ scope, role }: { scope: PosScope; role: StaffRole }) {
             });
           }}
         />
-      ) : location.selecting ? (
-        <SaleSelection
-          key={`${location.saleQuery.q ?? ''}:${location.saleQuery.page}`}
-          scope={scope}
-          role={role}
-          query={location.saleQuery}
-          navigate={navigate}
-          locked={locked || Boolean(attempt)}
-          onDenied={setDenied}
-        />
-      ) : (
-        <OperationalCollection
-          surface="data"
-          title="Refund history"
-          description="Completed refunds for this branch, newest first."
-          action={
-            <Button
-              disabled={locked || Boolean(attempt)}
-              onClick={() => navigate({ select: '1' })}
-            >
-              Find sale to refund
-            </Button>
-          }
-          controls={
-            <RefundFilters
-              key={`${location.query.q}:${location.query.paymentAccountId}:${location.dates.fromDay}:${location.dates.throughDay}`}
-              accounts={accountOptions.accounts ?? []}
-              location={location}
-              navigate={navigate}
-              locked={locked}
-            />
-          }
-        >
-          {accountOptions.error ? (
-            <RequestError
-              className="p-5"
-              message={accountOptions.error}
-              onRetry={accountOptions.refresh}
-            />
-          ) : null}
-          {error ? (
-            <RequestError
-              className="p-5"
-              message={error}
-              onRetry={() => setRevision((n) => n + 1)}
-            />
-          ) : !page ? (
-            <ListSkeleton
-              className="p-5"
-              label="Loading branch refund history"
-            />
-          ) : (
-            <OperationalTableFrame
-              empty={
-                !page.items.length ? (
-                  <EmptyState
-                    title={
-                      page.total
-                        ? 'No refunds on this page.'
-                        : location.query.q ||
-                            location.query.from ||
-                            location.query.paymentAccountId
-                          ? 'No matching refunds.'
-                          : 'No refunds recorded yet.'
-                    }
-                    description="Choose another filter or find an original sale to record a return."
-                  />
-                ) : undefined
-              }
-              footer={
-                <PaginationControls
-                  ariaLabel="Branch refund pagination"
-                  currentPage={page.page}
-                  totalPages={page.totalPages}
-                  hasNext={page.page < page.totalPages}
-                  pending={locked}
-                  summary={`${page.total} refunds`}
-                  onPrevious={() => navigate({ page: String(page.page - 1) })}
-                  onNext={() => navigate({ page: String(page.page + 1) })}
+      ) : null}
+      <OperationalCollection
+        surface="data"
+        title="Refund history"
+        description="Completed refunds for this branch, newest first."
+        controls={
+          <RefundFilters
+            key={`${location.query.q}:${location.query.paymentAccountId}:${location.dates.fromDay}:${location.dates.throughDay}`}
+            accounts={accountOptions.accounts ?? []}
+            location={location}
+            navigate={navigate}
+            locked={locked}
+          />
+        }
+      >
+        {accountOptions.error ? (
+          <RequestError
+            className="p-5"
+            message={accountOptions.error}
+            onRetry={accountOptions.refresh}
+          />
+        ) : null}
+        {error ? (
+          <RequestError
+            className="p-5"
+            message={error}
+            onRetry={() => setRevision((n) => n + 1)}
+          />
+        ) : !page ? (
+          <ListSkeleton className="p-5" label="Loading branch refund history" />
+        ) : (
+          <OperationalTableFrame
+            empty={
+              !page.items.length ? (
+                <EmptyState
+                  title={
+                    page.total
+                      ? 'No refunds on this page.'
+                      : location.query.q ||
+                          location.query.from ||
+                          location.query.paymentAccountId
+                        ? 'No matching refunds.'
+                        : 'No refunds recorded yet.'
+                  }
+                  description="Choose another filter or find an original sale to record a return."
                 />
-              }
+              ) : undefined
+            }
+            footer={
+              <PaginationControls
+                ariaLabel="Branch refund pagination"
+                currentPage={page.page}
+                totalPages={page.totalPages}
+                hasNext={page.page < page.totalPages}
+                pending={locked}
+                summary={`${page.total} refunds`}
+                onPrevious={() => navigate({ page: String(page.page - 1) })}
+                onNext={() => navigate({ page: String(page.page + 1) })}
+              />
+            }
+          >
+            <OperationalTable
+              tableProps={{ 'aria-label': 'Branch refund history' }}
+              className="min-w-[55rem]"
             >
-              <OperationalTable
-                tableProps={{ 'aria-label': 'Branch refund history' }}
-                className="min-w-[55rem]"
-              >
-                <thead>
-                  <tr>
-                    {[
-                      'Refund code',
-                      'Original receipt',
-                      'Refunded at',
-                      'Account',
-                      'Amount',
-                      'Action',
-                    ].map((label) => (
-                      <th key={label} scope="col">
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {page.items.map((row) => (
-                    <tr key={row.id}>
-                      <td className="font-semibold">{row.refundCode}</td>
-                      <td>{row.receiptCode}</td>
-                      <td>
-                        <time dateTime={row.completedAt}>
-                          {date(row.completedAt)}
-                        </time>
-                      </td>
-                      <td>{row.paymentAccountName}</td>
-                      <td className="font-semibold tabular-nums">
-                        PHP {row.total}
-                      </td>
-                      <td>
-                        <Button
-                          variant="quiet"
-                          disabled={locked}
-                          onClick={() =>
-                            navigate({ sale: row.saleId, refund: row.id })
-                          }
-                        >
-                          View
-                        </Button>
-                      </td>
-                    </tr>
+              <thead>
+                <tr>
+                  {[
+                    'Refund code',
+                    'Original receipt',
+                    'Refunded at',
+                    'Account',
+                    'Amount',
+                    'Action',
+                  ].map((label) => (
+                    <th key={label} scope="col">
+                      {label}
+                    </th>
                   ))}
-                </tbody>
-              </OperationalTable>
-            </OperationalTableFrame>
-          )}
-        </OperationalCollection>
-      )}
+                </tr>
+              </thead>
+              <tbody>
+                {page.items.map((row) => (
+                  <tr key={row.id}>
+                    <td className="font-semibold">{row.refundCode}</td>
+                    <td>{row.receiptCode}</td>
+                    <td>
+                      <time dateTime={row.completedAt}>
+                        {date(row.completedAt)}
+                      </time>
+                    </td>
+                    <td>{row.paymentAccountName}</td>
+                    <td className="font-semibold tabular-nums">
+                      PHP {row.total}
+                    </td>
+                    <td>
+                      <Button
+                        variant="quiet"
+                        disabled={locked}
+                        onClick={() =>
+                          navigate({ sale: row.saleId, refund: row.id })
+                        }
+                      >
+                        View
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </OperationalTable>
+          </OperationalTableFrame>
+        )}
+      </OperationalCollection>
     </>
   );
 }
@@ -358,17 +346,19 @@ function RefundFilters({
 }) {
   const [q, setQ] = useState(location.query.q ?? '');
   const [dates, setDates] = useState<DateRangePickerValue>(location.dates);
+  const debouncedQ = useDebouncedValue(q, 300);
+  const lastNavigatedQ = useRef(location.query.q ?? '');
+  useEffect(() => {
+    const next = debouncedQ.trim();
+    if (next === lastNavigatedQ.current || locked) return;
+    lastNavigatedQ.current = next;
+    navigate({ q: next, page: undefined });
+  }, [debouncedQ, locked, navigate]);
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <form
-        className="flex min-w-48 flex-1 items-end gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          navigate({ q: q.trim(), page: undefined });
-        }}
-      >
+      <div className="min-w-48 flex-1">
         <label
-          className="grid flex-1 gap-2 text-xs font-medium text-muted"
+          className="grid gap-2 text-xs font-medium text-muted"
           htmlFor="refund-search"
         >
           Search
@@ -381,10 +371,7 @@ function RefundFilters({
             onChange={(event) => setQ(event.target.value)}
           />
         </label>
-        <Button variant="quiet" type="submit" disabled={locked}>
-          Search
-        </Button>
-      </form>
+      </div>
       <DateRangePicker
         id="refund-dates"
         label="Refund dates (PH)"
@@ -445,168 +432,79 @@ function RefundFilters({
 function SaleSelection({
   scope,
   role,
-  query,
   navigate,
   locked,
   onDenied,
 }: {
   scope: PosScope;
   role: StaffRole;
-  query: ReturnType<typeof refundLocation>['saleQuery'];
   navigate: Navigate;
   locked: boolean;
   onDenied(message: string): void;
 }) {
   const { request } = useAuth();
-  const [result, setResult] = useState<Awaited<
-    ReturnType<typeof listSales>
-  > | null>(null);
+  const [search, setSearch] = useState('');
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [revision, setRevision] = useState(0);
-  const [search, setSearch] = useState(query.q ?? '');
-  const queryKey = JSON.stringify(query);
-  const { organizationId, branchId } = scope;
-  useEffect(() => {
-    let active = true;
-    void Promise.resolve().then(async () => {
-      if (!active) return;
-      setResult(null);
-      setError(null);
-      try {
-        const data = await listSales(
-          request,
-          { organizationId, branchId },
-          role,
-          JSON.parse(queryKey),
-        );
-        if (active) setResult(data);
-      } catch (cause) {
-        if (active) {
-          setError(message(cause));
-          if (accessDenied(cause)) onDenied(message(cause));
-        }
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [request, organizationId, branchId, role, queryKey, revision, onDenied]);
   return (
     <OperationalCollection
       surface="data"
       title="Find sale to refund"
-      description="Select the original receipt. Available quantities are checked before starting a return."
-      action={
-        <Button
-          variant="quiet"
-          disabled={locked}
-          onClick={() =>
-            navigate({
-              select: undefined,
-              saleQ: undefined,
-              salePage: undefined,
-            })
-          }
-        >
-          Back to refund history
-        </Button>
-      }
-      controls={
-        <form
-          className="flex items-end gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            navigate({ saleQ: search.trim(), salePage: undefined });
-          }}
-        >
-          <label
-            className="grid flex-1 gap-2 text-xs font-medium text-muted"
-            htmlFor="return-sale-search"
-          >
-            Receipt search
-            <InputControl
-              id="return-sale-search"
-              maxLength={254}
-              placeholder="e.g. receipt code"
-              value={search}
-              disabled={locked}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </label>
-          <Button type="submit" disabled={locked}>
-            Search sales
-          </Button>
-        </form>
-      }
+      description="Enter the complete original receipt code to start a return."
     >
-      {error ? (
-        <RequestError
-          className="p-5"
-          message={error}
-          onRetry={() => setRevision((n) => n + 1)}
-        />
-      ) : !result ? (
-        <ListSkeleton className="p-5" label="Loading original sales" />
-      ) : (
-        <OperationalTableFrame
-          empty={
-            !result.page.items.length ? (
-              <EmptyState
-                title="No matching sales."
-                description="Try another receipt code or page."
-              />
-            ) : undefined
+      <form
+        className="flex flex-wrap items-end gap-3 p-5"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          if (pending || locked || !search.trim()) return;
+          setPending(true);
+          setError(null);
+          try {
+            const code = search.trim();
+            const result = await listSales(request, scope, role, {
+              page: 1,
+              limit: 15,
+              q: code,
+            });
+            const sale = result.page.items.find(
+              (item) => item.receiptCode === code,
+            );
+            if (sale) navigate({ sale: sale.id, refund: undefined });
+            else
+              setError(
+                'Receipt code not found or unavailable in this branch. Check the code and try again.',
+              );
+          } catch (cause) {
+            setError(message(cause));
+            if (accessDenied(cause)) onDenied(message(cause));
+          } finally {
+            setPending(false);
           }
-          footer={
-            <PaginationControls
-              ariaLabel="Original sales pagination"
-              currentPage={result.page.page}
-              totalPages={result.page.totalPages}
-              hasNext={result.page.page < result.page.totalPages}
-              summary={`${result.page.total} sales`}
-              pending={locked}
-              onPrevious={() => navigate({ salePage: String(query.page - 1) })}
-              onNext={() => navigate({ salePage: String(query.page + 1) })}
-            />
-          }
+        }}
+      >
+        <label
+          className="grid flex-1 gap-2 text-xs font-medium text-muted"
+          htmlFor="return-sale-search"
         >
-          <OperationalTable
-            className="min-w-[40rem]"
-            tableProps={{ 'aria-label': 'Original sales' }}
-          >
-            <thead>
-              <tr>
-                <th scope="col">Original receipt</th>
-                <th scope="col">Sale date</th>
-                <th scope="col">Original total</th>
-                <th scope="col">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.page.items.map((sale) => (
-                <tr key={sale.id}>
-                  <td className="font-semibold">{sale.receiptCode}</td>
-                  <td>{date(sale.completedAt)}</td>
-                  <td className="tabular-nums">
-                    PHP {'total' in sale ? sale.total : sale.ownItemsSubtotal}
-                  </td>
-                  <td>
-                    <Button
-                      variant="quiet"
-                      disabled={locked}
-                      onClick={() =>
-                        navigate({ sale: sale.id, refund: undefined })
-                      }
-                    >
-                      Select sale
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </OperationalTable>
-        </OperationalTableFrame>
-      )}
+          Receipt code
+          <InputControl
+            id="return-sale-search"
+            maxLength={254}
+            placeholder="Enter complete receipt code"
+            value={search}
+            disabled={locked || pending}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <Button type="submit" disabled={locked || pending || !search.trim()}>
+          {pending ? 'Selecting sale...' : 'Select sale'}
+        </Button>
+        {error ? (
+          <p role="alert" className="w-full text-sm text-danger">
+            {error}
+          </p>
+        ) : null}
+      </form>
     </OperationalCollection>
   );
 }

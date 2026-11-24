@@ -233,6 +233,7 @@ describe('read-only scoped sales workflows', () => {
           name: `View receipt ${completedSale.receiptCode}`,
         }),
       ).toBeInTheDocument();
+      expect(screen.getByText('9/13/2026')).toHaveClass('whitespace-nowrap');
     },
   );
   it('automatically filters the fifteen-row staff history with Manila date-only controls', async () => {
@@ -245,9 +246,15 @@ describe('read-only scoped sales workflows', () => {
     );
     render(<BranchSales {...scope} />);
 
-    await screen.findByRole('link', {
+    const receiptLink = await screen.findByRole('link', {
       name: `View receipt ${completedSale.receiptCode}`,
     });
+    expect(receiptLink.closest('li')?.className).toContain(
+      'minmax(10rem,1.1fr)',
+    );
+    const history = screen.getByRole('list', { name: 'Sales history' });
+    expect(history).toHaveClass('lg:min-w-[62.5rem]');
+    expect(history.parentElement).toHaveClass('overflow-x-auto');
     expect(
       request.mock.calls.some(([path]) => path.endsWith('page=1&limit=15')),
     ).toBe(true);

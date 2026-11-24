@@ -184,17 +184,33 @@ describe('POS branch refund history', () => {
     expect(params.get('refund')).toBe(staffRefund.id);
     expect(request.mock.calls.every((call) => call.length === 1)).toBe(true);
   });
+  it('automatically searches refund history after the receipt query settles', async () => {
+    render(<BranchRefunds {...scope} />);
+    const search = await screen.findByLabelText('Search');
+    expect(
+      screen.queryByRole('button', { name: 'Search' }),
+    ).not.toBeInTheDocument();
+    fireEvent.change(search, { target: { value: 'REF-001' } });
+    await waitFor(() =>
+      expect(navigation.push).toHaveBeenCalledWith(`${base}?q=REF-001`, {
+        scroll: false,
+      }),
+    );
+  });
   it('starts selection directly, then loads fresh quantities and the existing return form', async () => {
     const view = render(<BranchRefunds {...scope} />);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Find sale to refund' }),
-    );
-    expect(navigation.push).toHaveBeenCalledWith(`${base}?select=1`, {
-      scroll: false,
+    fireEvent.change(screen.getByLabelText('Receipt code'), {
+      target: { value: completedSale.receiptCode },
     });
     navigation.params = 'select=1';
     view.rerender(<BranchRefunds {...scope} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Select sale' }));
+    await waitFor(() =>
+      expect(navigation.push).toHaveBeenCalledWith(
+        `${base}?select=1&sale=${completedSale.id}`,
+        { scroll: false },
+      ),
+    );
     navigation.params = `select=1&sale=${completedSale.id}`;
     view.rerender(<BranchRefunds {...scope} />);
     expect(
@@ -404,8 +420,6 @@ describe('POS branch refund history', () => {
     ).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Acknowledge' }));
-    expect(
-      await screen.findByRole('button', { name: 'Find sale to refund' }),
-    ).toBeEnabled();
+    expect(await screen.findByLabelText('Receipt code')).toBeEnabled();
   });
 });

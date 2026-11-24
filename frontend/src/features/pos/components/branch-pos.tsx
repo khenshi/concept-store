@@ -939,7 +939,7 @@ function ScopedBranchPos({
     ...(role === 'OWNER' || role === 'MANAGER'
       ? [
           {
-            label: 'Refund history',
+            label: 'Refund',
             href: `${pathname}/refunds`,
             active: refundsActive,
           },
