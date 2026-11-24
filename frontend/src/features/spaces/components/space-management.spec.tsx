@@ -232,6 +232,7 @@ describe('Space management', () => {
       'font-normal',
       'text-success-ink',
     );
+    expect(within(spaces).getByText('None')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Assign' })).toBeInTheDocument();
     const archive = screen.getByRole('button', { name: 'Archive' });
     expect(archive).toHaveClass('text-danger');
@@ -272,8 +273,22 @@ describe('Space management', () => {
         within(dialog).getByRole('combobox', { name: 'Merchant' }),
       ).toBeEnabled(),
     );
-    fireEvent.click(within(dialog).getByRole('combobox', { name: 'Merchant' }));
-    fireEvent.click(within(dialog).getByRole('option', { name: 'Amihan' }));
+    const merchantPicker = within(dialog).getByRole('combobox', {
+      name: 'Merchant',
+    });
+    expect(merchantPicker).toHaveAttribute('aria-expanded', 'false');
+    expect(
+      within(dialog).queryByPlaceholderText('Search merchants'),
+    ).not.toBeInTheDocument();
+    fireEvent.click(merchantPicker);
+    expect(
+      await within(dialog).findByRole('combobox', {
+        name: 'Merchant',
+      }),
+    ).toHaveAttribute('type', 'search');
+    fireEvent.click(
+      await within(dialog).findByRole('option', { name: 'Amihan' }),
+    );
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Assign space' }),
     );
@@ -417,7 +432,9 @@ describe('Space management', () => {
       ).toBeEnabled(),
     );
     fireEvent.click(within(dialog).getByRole('combobox', { name: 'Merchant' }));
-    fireEvent.click(within(dialog).getByRole('option', { name: 'Amihan' }));
+    fireEvent.click(
+      await within(dialog).findByRole('option', { name: 'Amihan' }),
+    );
     fireEvent.click(
       within(dialog).getByRole('button', { name: 'Assign space' }),
     );

@@ -6,7 +6,10 @@ import {
   type AssociationScope,
 } from '@/features/merchant-branches/api/merchant-branch-api';
 import { SelectControl } from '@/shared/components/ui/select-control';
-import { PagedOptionSelect } from '@/shared/components/ui/paged-option-select';
+import {
+  PagedOptionSelect,
+  type PagedOption,
+} from '@/shared/components/ui/paged-option-select';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { InputControl } from '@/shared/components/ui/input-control';
 import { TextField } from '@/shared/components/ui/text-field';
@@ -353,6 +356,7 @@ export function AssignmentForm({
 }) {
   const { request } = useAuth();
   const [relatedId, setRelatedId] = useState(''),
+    [relatedOption, setRelatedOption] = useState<PagedOption | null>(null),
     [spaceId, setSpaceId] = useState(space?.id ?? '');
   const [spaces, setSpaces] = useState<SpaceListItem[] | null>(
     space ? [space] : null,
@@ -471,41 +475,16 @@ export function AssignmentForm({
             Retry assignment choices
           </button>
         )}
-        <div className="flex items-center justify-between gap-4 rounded-control border border-control-border bg-subtle px-3 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">
-              Record a completed past occupancy
-            </p>
-            <p className="mt-1 text-xs leading-5 text-muted">
-              Turn this on to enter a completed date range.
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-label="Record a completed past occupancy"
-            aria-checked={historical}
-            disabled={pending || historyOnly}
-            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60 ${historical ? 'border-ink bg-ink' : 'border-control-border bg-surface'}`}
-            onClick={() => {
-              setHistorical(!historical);
-              setSpaceId(space?.id ?? '');
-            }}
-          >
-            <span
-              aria-hidden="true"
-              className={`size-5 rounded-full border border-control-border bg-surface transition-transform ${historical ? 'translate-x-6' : 'translate-x-1'}`}
-            />
-          </button>
-        </div>
         <div className="grid gap-5 md:grid-cols-2">
           <label className="grid gap-2 text-sm font-semibold">
             {scope.kind === 'branch' ? 'Merchant' : 'Branch'}
             <PagedOptionSelect
               id="assignment-related"
               value={relatedId}
+              selectedOption={relatedOption}
               placeholder={`Choose a ${scope.kind === 'branch' ? 'merchant' : 'branch'}`}
               searchPlaceholder={`Search ${scope.kind === 'branch' ? 'merchants' : 'branches'}`}
+              searchOnOpen={scope.kind === 'branch'}
               aria-label={scope.kind === 'branch' ? 'Merchant' : 'Branch'}
               emptyMessage={
                 scope.kind === 'branch'
@@ -518,6 +497,7 @@ export function AssignmentForm({
                 setRelatedId(value);
                 if (!space) setSpaceId('');
               }}
+              onOptionChange={setRelatedOption}
             />
           </label>
           {space ? (
@@ -561,6 +541,33 @@ export function AssignmentForm({
             first.
           </p>
         )}
+        <div className="flex items-center justify-between gap-4 rounded-control border border-control-border bg-subtle px-3 py-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">
+              Record a completed past occupancy
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              Turn this on to enter a completed date range.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-label="Record a completed past occupancy"
+            aria-checked={historical}
+            disabled={pending || historyOnly}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60 ${historical ? 'border-ink bg-ink' : 'border-control-border bg-surface'}`}
+            onClick={() => {
+              setHistorical(!historical);
+              setSpaceId(space?.id ?? '');
+            }}
+          >
+            <span
+              aria-hidden="true"
+              className={`size-5 rounded-full border border-control-border bg-surface transition-transform ${historical ? 'translate-x-6' : 'translate-x-1'}`}
+            />
+          </button>
+        </div>
         <div className={historical ? 'grid gap-5 md:grid-cols-2' : undefined}>
           <div className="grid gap-2 text-sm">
             <label className="grid gap-2 text-sm font-semibold">

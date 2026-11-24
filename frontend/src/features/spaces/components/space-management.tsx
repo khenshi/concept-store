@@ -542,7 +542,7 @@ function ScopedSpaces(
                     </span>
                   </div>
                   <div className={spaceTableCell}>
-                    {row.currentOccupancy?.merchant.name ?? ''}
+                    {row.currentOccupancy?.merchant.name ?? 'None'}
                   </div>
                   <div className={spaceTableCell}>
                     {row.currentOccupancy ? (

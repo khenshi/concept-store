@@ -19,7 +19,7 @@ Space Detail success feedback, including release confirmation, uses the shared
 floating slide-down/up notice with manual and five-second automatic dismissal.
 
 The Spaces table uses a narrower Space column and a separate Current merchant
-column, blank for vacant spaces. Occupancy shows status/start date without
+column, showing `None` for vacant spaces. Occupancy shows status/start date without
 repeating the merchant name. Existing access-scoped data remains unchanged.
 
 Space edit dirty-state reporting compares baseline name/type values rather than
@@ -91,7 +91,7 @@ Every request requires authentication and current organization membership. Owner
 
 ## Frontend
 
-Branch details contain an optional Spaces section with search, catalog type/status filters, current occupancy, history, and owner-only create/edit/assign/release/archive controls. Merchant profiles contain Current spaces and Past occupancy views across authorized branches, with owner assignment/release controls. Assignment choices use active affiliations and active profiles. Historical recording requires both start and end dates. A currently occupied space still permits an owner to record a non-overlapping past interval.
+Branch details contain an optional Spaces section with search, catalog type/status filters, current occupancy, history, and owner-only create/edit/assign/release/archive controls. Merchant profiles contain Current spaces and Past occupancy views across authorized branches, with owner assignment/release controls. Assignment choices use active affiliations and active profiles. In the Assign space modal, merchant selection is one closed dropdown that opens into a searchable, paginated merchant list; the completed-past-occupancy switch sits between the merchant/space selection and date controls. Historical recording requires both start and end dates. A currently occupied space still permits an owner to record a non-overlapping past interval.
 
 Managers and merchants receive read-only lists/history, and cashiers receive no section or requests. Lists use flat responsive operational rows and existing native dialogs, with responsive loading skeletons that mirror the filters and row geometry, local loading/error/empty/success feedback, repeat-submit protection, retry controls, and obsolete-read protection. Participation and lifecycle confirmation dialogs load an advisory current occupancy count and explain automatic release before confirmation; failed count reads prevent the status command. The backend rechecks actual occupancy transactionally. Successful status/participation changes refresh the Spaces section. Empty table states use the same panel inset and vertical spacing across the Spaces list and detail history surfaces.
 The branch list and occupancy history use the shared frontend
