@@ -96,8 +96,16 @@ external balances.
 Owners manage accounts from the organization sidebar at
 `/app/organizations/:organizationId/payment-accounts`. The page uses the shared
 operational collection, filters, versioned modal form and searchable branch-access
-picker. Branch filters and selected-branch assignments use bounded server search
-with load-more continuation; account assignment remains complete across pages.
+picker. The account list uses a branch dropdown; selected-branch assignments use
+bounded server search with load-more continuation, and account assignment remains
+complete across pages.
+The create/edit modal places account settings beside an always-visible fixed-height
+scrollable branch list and uses an All branches switch for organization-wide
+assignment. The selected-branch picker keeps its Clear action as a compact control
+inside the scrollable list, while the invitation branch picker retains its full
+selection summary.
+The account table presents Enabled and Disabled availability as compact status
+pills.
 Cash has no edit action; custom accounts expose edit and enable/disable controls.
 Save is disabled for invalid or unchanged drafts, and success/error feedback
 uses the shared floating notice/footer patterns.

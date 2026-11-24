@@ -15,6 +15,9 @@ export function BranchAccessPicker({
   selectedIds,
   disabled = false,
   loading = false,
+  showSearch = true,
+  fixedListHeight = false,
+  compactSelection = false,
   description = 'Staff can access only the branches selected here.',
   onChange,
 }: {
@@ -23,6 +26,9 @@ export function BranchAccessPicker({
   selectedIds: string[];
   disabled?: boolean;
   loading?: boolean;
+  showSearch?: boolean;
+  fixedListHeight?: boolean;
+  compactSelection?: boolean;
   description?: string;
   onChange(nextIds: string[]): void;
 }) {
@@ -143,39 +149,43 @@ export function BranchAccessPicker({
 
   return (
     <div className="mt-3 grid gap-3">
-      <div className="flex items-center justify-between gap-3 rounded-control border border-hairline bg-subtle px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface text-muted">
-            <Icon name="building" className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-ink">
-              {selectedCount
-                ? `${selectedCount} branch${selectedCount === 1 ? '' : 'es'} selected`
-                : 'No branches selected'}
-            </p>
-            <p className="text-xs leading-5 text-muted">{description}</p>
+      {!compactSelection ? (
+        <div className="flex items-center justify-between gap-3 rounded-control border border-hairline bg-subtle px-3 py-2.5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface text-muted">
+              <Icon name="building" className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-ink">
+                {selectedCount
+                  ? `${selectedCount} branch${selectedCount === 1 ? '' : 'es'} selected`
+                  : 'No branches selected'}
+              </p>
+              <p className="text-xs leading-5 text-muted">{description}</p>
+            </div>
           </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-full px-2.5 py-1.5 text-xs font-semibold text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Clear branch selection"
+            disabled={disabled || selectedCount === 0}
+            onClick={() => onChange([])}
+          >
+            Clear
+          </button>
         </div>
-        <button
-          type="button"
-          className="shrink-0 rounded-full px-2.5 py-1.5 text-xs font-semibold text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50"
-          aria-label="Clear branch selection"
-          disabled={disabled || selectedCount === 0}
-          onClick={() => onChange([])}
-        >
-          Clear
-        </button>
-      </div>
-      <InputControl
-        type="search"
-        aria-label="Filter branches"
-        placeholder="Search branches"
-        value={query}
-        disabled={disabled}
-        icon="search"
-        onChange={(event) => setQuery(event.target.value)}
-      />
+      ) : null}
+      {showSearch ? (
+        <InputControl
+          type="search"
+          aria-label="Filter branches"
+          placeholder="Search branches"
+          value={query}
+          disabled={disabled}
+          icon="search"
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      ) : null}
       {loading || loadingPage ? (
         <div
           className="grid gap-1.5 rounded-control border border-hairline bg-surface p-1.5"
@@ -210,10 +220,23 @@ export function BranchAccessPicker({
       ) : visibleBranches.length ? (
         <>
           <div
-            className="max-h-60 overflow-y-auto overscroll-contain rounded-control border border-hairline bg-surface p-1.5"
+            className={`${fixedListHeight ? 'h-60' : 'max-h-60'} overflow-y-auto overscroll-contain rounded-control border border-hairline bg-surface p-1.5`}
             role="group"
             aria-label="Available branches"
           >
+            {compactSelection ? (
+              <div className="flex justify-end border-b border-hairline px-2 pb-1">
+                <button
+                  type="button"
+                  className="rounded-full px-2 py-1 text-xs font-semibold text-muted transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label="Clear branch selection"
+                  disabled={disabled || selectedCount === 0}
+                  onClick={() => onChange([])}
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
             {visibleBranches.map((branch) => {
               const selected = selectedIds.includes(branch.id);
               const atLimit =
@@ -265,9 +288,11 @@ export function BranchAccessPicker({
           No branches available. Access can be assigned later.
         </p>
       )}
-      <p className="text-xs text-muted">
-        {selectedCount}/{maxBranchAssignments} selected
-      </p>
+      {!compactSelection ? (
+        <p className="text-xs text-muted">
+          {selectedCount}/{maxBranchAssignments} selected
+        </p>
+      ) : null}
     </div>
   );
 }

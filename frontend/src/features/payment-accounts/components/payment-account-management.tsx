@@ -205,7 +205,6 @@ function ScopedPaymentAccounts({ organizationId }: { organizationId: string }) {
                 value={branch}
                 selectedOption={branchOption}
                 placeholder="All branches"
-                searchPlaceholder="Search branches"
                 loadPage={loadBranchPage}
                 onValueChange={(value) => {
                   setBranch(value);
@@ -271,10 +270,12 @@ function ScopedPaymentAccounts({ organizationId }: { organizationId: string }) {
                     </td>
                     <td>
                       <span
-                        className={
-                          account.enabled ? 'text-success-ink' : 'text-muted'
-                        }
+                        className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold ${account.enabled ? 'border-success/30 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
                       >
+                        <span
+                          aria-hidden="true"
+                          className={`size-1.5 rounded-full ${account.enabled ? 'bg-success' : 'bg-muted'}`}
+                        />
                         {account.enabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </td>
@@ -362,11 +363,6 @@ function PaymentAccountForm({
   onSaved(account: PaymentAccount): void;
 }) {
   const { request } = useAuth();
-  const loadBranchPage = useCallback(
-    (query: string, page: number) =>
-      listBranchOptions(request, organizationId, { search: query, page }),
-    [organizationId, request],
-  );
   const initial: PaymentAccountInput = {
     name: account?.name ?? '',
     enabled: account?.enabled ?? true,
@@ -413,72 +409,99 @@ function PaymentAccountForm({
     <FormDialog
       title={account ? 'Edit payment account' : 'Create payment account'}
       description="Changes apply to future payments and refunds. Saved transactions keep their original account details."
-      size="compact"
+      size="medium"
       pending={pending}
       onClose={onClose}
     >
-      <form className="mt-6 grid gap-5" onSubmit={submit}>
-        <TextField
-          label="Account name"
-          placeholder="GCash Main"
-          maxLength={100}
-          required
-          value={draft.name}
-          disabled={pending}
-          onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-        />
-        <FilterField id="payment-account-availability" label="Availability">
-          <SelectControl
-            id="payment-account-availability"
-            value={draft.enabled ? 'enabled' : 'disabled'}
+      <form
+        className="mt-6 grid gap-6 md:grid-cols-[minmax(0,0.9fr)_minmax(18rem,1.1fr)]"
+        onSubmit={submit}
+      >
+        <div className="grid content-start gap-5">
+          <TextField
+            label="Account name"
+            placeholder="GCash Main"
+            maxLength={100}
+            required
+            value={draft.name}
             disabled={pending}
-            onValueChange={(value) =>
-              setDraft({ ...draft, enabled: value === 'enabled' })
+            onChange={(event) =>
+              setDraft({ ...draft, name: event.target.value })
             }
-          >
-            <option value="enabled">Enabled</option>
-            <option value="disabled">Disabled</option>
-          </SelectControl>
-        </FilterField>
-        <FilterField id="payment-account-reference" label="Account reference">
-          <SelectControl
-            id="payment-account-reference"
-            value={draft.requiresReference ? 'required' : 'optional'}
-            disabled={pending}
-            onValueChange={(value) =>
-              setDraft({ ...draft, requiresReference: value === 'required' })
-            }
-          >
-            <option value="required">Required</option>
-            <option value="optional">Optional</option>
-          </SelectControl>
-        </FilterField>
-        <FilterField id="payment-account-branches" label="Branch assignment">
-          <SelectControl
-            id="payment-account-branches"
-            value={draft.assignmentMode}
-            disabled={pending}
-            onValueChange={(value) =>
-              setDraft({
-                ...draft,
-                assignmentMode: value as 'ALL' | 'SELECTED',
-              })
-            }
-          >
-            <option value="SELECTED">Selected branches</option>
-            <option value="ALL">All current and future branches</option>
-          </SelectControl>
-        </FilterField>
-        {draft.assignmentMode === 'SELECTED' ? (
+          />
+          <FilterField id="payment-account-availability" label="Availability">
+            <SelectControl
+              id="payment-account-availability"
+              value={draft.enabled ? 'enabled' : 'disabled'}
+              disabled={pending}
+              onValueChange={(value) =>
+                setDraft({ ...draft, enabled: value === 'enabled' })
+              }
+            >
+              <option value="enabled">Enabled</option>
+              <option value="disabled">Disabled</option>
+            </SelectControl>
+          </FilterField>
+          <FilterField id="payment-account-reference" label="Account reference">
+            <SelectControl
+              id="payment-account-reference"
+              value={draft.requiresReference ? 'required' : 'optional'}
+              disabled={pending}
+              onValueChange={(value) =>
+                setDraft({ ...draft, requiresReference: value === 'required' })
+              }
+            >
+              <option value="required">Required</option>
+              <option value="optional">Optional</option>
+            </SelectControl>
+          </FilterField>
+        </div>
+        <div className="grid content-start gap-3">
+          <div className="flex items-center justify-between gap-4 rounded-control border border-control-border bg-subtle px-3 py-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">All branches</p>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                Allow this account in all current and future branches.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-label="All branches"
+              aria-checked={draft.assignmentMode === 'ALL'}
+              disabled={pending}
+              className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:opacity-60 ${draft.assignmentMode === 'ALL' ? 'border-ink bg-ink' : 'border-control-border bg-surface'}`}
+              onClick={() =>
+                setDraft({
+                  ...draft,
+                  assignmentMode:
+                    draft.assignmentMode === 'ALL' ? 'SELECTED' : 'ALL',
+                })
+              }
+            >
+              <span
+                aria-hidden="true"
+                className={`size-5 rounded-full border border-control-border bg-surface transition-transform ${draft.assignmentMode === 'ALL' ? 'translate-x-6' : 'translate-x-1'}`}
+              />
+            </button>
+          </div>
           <BranchAccessPicker
             branches={branches}
-            loadPage={loadBranchPage}
-            selectedIds={draft.branchIds}
-            disabled={pending}
-            description="This payment account can be used only in selected branches."
-            onChange={(branchIds) => setDraft({ ...draft, branchIds })}
+            selectedIds={
+              draft.assignmentMode === 'ALL'
+                ? branches.map(({ id }) => id)
+                : draft.branchIds
+            }
+            showSearch={false}
+            fixedListHeight
+            compactSelection
+            disabled={pending || draft.assignmentMode === 'ALL'}
+            description="Choose the branches where this payment account can be used."
+            onChange={(branchIds) =>
+              setDraft({ ...draft, assignmentMode: 'SELECTED', branchIds })
+            }
           />
-        ) : null}
+        </div>
         <ModalActionRow
           feedback={
             error ? (
