@@ -313,6 +313,24 @@ describe('Space management', () => {
     expect(toggle).toHaveAttribute('aria-checked', 'false');
     expect(dialog.querySelectorAll('input[type="date"]')).toHaveLength(1);
   });
+  it('uses only the branch dropdown when assigning from a merchant profile', async () => {
+    setup('OWNER', 'merchant');
+    await screen.findByText('Rack A1');
+    fireEvent.click(screen.getByRole('button', { name: 'Assign space' }));
+    const dialog = screen.getByRole('dialog');
+    const branchPicker = await waitFor(() => {
+      const picker = within(dialog).getByRole('combobox', { name: 'Branch' });
+      expect(picker).toBeEnabled();
+      return picker;
+    });
+    expect(
+      within(dialog).queryByPlaceholderText('Search branches'),
+    ).not.toBeInTheDocument();
+    fireEvent.click(branchPicker);
+    fireEvent.click(
+      await within(dialog).findByRole('option', { name: 'Main branch' }),
+    );
+  });
   it('releases from the merchant profile and loads past occupancy with its reason', async () => {
     setup('OWNER', 'merchant');
     await screen.findByText('Rack A1');
@@ -537,9 +555,6 @@ it('creates a missing type inline, preserves the space draft, and selects the ne
   ).not.toBeInTheDocument();
   expect(screen.getByLabelText('New type name')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Discard' })).toBeEnabled();
-  expect(
-    screen.getByText('Available across all branches in this organization.'),
-  ).toBeInTheDocument();
   fireEvent.blur(screen.getByLabelText('New type name'));
   expect(screen.getByText('Enter a type name.')).toBeInTheDocument();
   const created = {

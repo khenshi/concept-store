@@ -483,7 +483,9 @@ export function AssignmentForm({
               value={relatedId}
               selectedOption={relatedOption}
               placeholder={`Choose a ${scope.kind === 'branch' ? 'merchant' : 'branch'}`}
-              searchPlaceholder={`Search ${scope.kind === 'branch' ? 'merchants' : 'branches'}`}
+              searchPlaceholder={
+                scope.kind === 'branch' ? 'Search merchants' : undefined
+              }
               searchOnOpen={scope.kind === 'branch'}
               aria-label={scope.kind === 'branch' ? 'Merchant' : 'Branch'}
               emptyMessage={
