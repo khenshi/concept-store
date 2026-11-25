@@ -30,9 +30,9 @@ The directory endpoint returns a bounded 15-row response with `items`, `page`,
 `limit`, `total`, `totalPages`, and `hasNext`. It preserves the existing
 product/merchant/status filters and stable name/ID ordering. The array list
 endpoint remains available to identity/projection consumers. Product and merchant
-selectors use bounded server search; the optional opening-stock branch selector
-uses active merchant-branch participation with the same paged search and load-more
-behavior, so it does not truncate eligible branches at the first page.
+selectors use bounded server search; the optional opening-stock branch list uses
+active merchant-branch participation with the same paged load-more behavior, so it
+does not truncate eligible branches at the first page.
 
 Every route requires authentication and organization membership. Only owners
 create/edit/change status. Managers read only products placed in assigned branches;
@@ -125,8 +125,9 @@ View actions and lifecycle statuses rendered as pills matching the merchant
 directory. Product creation, role visibility, and scoped reads remain unchanged.
 
 Product directory search matches name/SKU case-insensitively and barcode
-case-sensitively. Merchant and product status filters are optional. Results order
-by name then ID and use the directory's 15-row pagination contract.
+case-sensitively. The merchant filter is a paged dropdown without a separate
+merchant search field; product status filters are optional. Results order by name
+then ID and use the directory's 15-row pagination contract.
 
 Placement listing resolves the product in the active tenant, then returns scoped
 inventory records with branch ID/name/code, quantity, and PHP selling price as an
@@ -152,10 +153,14 @@ automated tests. The unperformed checklist is retained in the
 
 ## Workspace UI
 
-The new-product dialog includes optional Add initial stock with an explicit searchable
-branch selector, PHP price and whole-unit quantity. The branch choices are limited
-to active participation for the selected merchant and load in bounded pages. No
-branch is selected automatically, even when only one exists. Loading, empty and
+The product identity card uses the shared responsive card padding for its detail
+content and supporting note so its contents align with other workspace cards.
+
+The new-product dialog includes optional Add initial stock below the product fields;
+when enabled, its PHP/whole-unit stock inputs and fixed-height, scrollable branch
+list occupy separate columns, with the branch list on the right. The branch choices
+are limited to active participation for the selected merchant and load in bounded
+pages. No branch is selected automatically, even when only one exists. Loading, empty and
 failed branch reads block enabled opening-stock creation; read-only Retry branches
 never writes a product. Disabling the section removes its controls/errors and omits
 both opening inventory and request ID from the legacy product-only command.
@@ -201,8 +206,9 @@ include products owned by affiliated merchants in assigned branches, including p
 
 - Products navigation and direct screens are available to owners/managers/merchants.
   Disallowed roles do not request product data; backend guards remain authoritative.
-- Directory supports debounced name/SKU/barcode search and merchant/status filters,
-  divided responsive rows, loading, retryable errors, and contextual empty states.
+- Directory supports debounced name/SKU/barcode search, merchant/status dropdown
+  filters, divided responsive rows, loading, retryable errors, and contextual empty
+  states.
   Obsolete read responses are ignored when filters or routes change.
 - Creation uses the shared native `FormDialog` with contained scrolling, initial
   heading focus, browser focus containment, Escape/backdrop dismissal protection
@@ -214,18 +220,20 @@ include products owned by affiliated merchants in assigned branches, including p
 - Product identity editing cannot change merchant ownership or status. SKU is
   normalized to uppercase; barcode case/leading zeroes remain unchanged. Blank
   optional identifiers are sent as null to clear them.
-- Lifecycle changes use a separate confirmed action and explain that branch stock,
-  prices, and history are preserved. Existing inactive products remain editable.
+- Lifecycle changes use the header status dropdown, automatically open a confirmed
+  action, and explain that branch stock, prices, and history are preserved. Existing
+  inactive products remain editable.
 - Details show branch identity, whole-unit quantity, and exact two-decimal PHP
-  price strings, without converting monetary values through floating point.
+  price strings in labeled branch-placement columns, without converting monetary
+  values through floating point.
   Placement links open the matching branch-scoped inventory detail for price,
   receiving, corrections, and immutable history. See [Branch Inventory](branch-inventory.md).
 - API response schemas reject malformed identities, status, dates, quantity bounds,
   and non-decimal-string prices before rendering.
 
 The product profile uses the shared warm-neutral page frame and centered rounded
-panels for identity, lifecycle status, and branch placements. Lifecycle
-confirmations explain that inactive products cannot be sold, newly placed, or
+panels for identity and branch placements, with lifecycle status controlled from
+the page header. Lifecycle confirmations explain that inactive products cannot be sold, newly placed, or
 receive stock, while branch prices, quantities, and movement history remain
 preserved. Reactivation explains that selling is allowed again without changing
 those records. Loading, retry, and edit-dialog behavior remain unchanged.

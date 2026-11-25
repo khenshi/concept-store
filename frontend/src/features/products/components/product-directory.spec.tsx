@@ -99,6 +99,9 @@ describe('ProductDirectory workflows', () => {
       `/app/organizations/${organizationId}/products/${product.id}`,
     );
     expect(screen.getByText('Action')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('searchbox', { name: 'Search merchants' }),
+    ).not.toBeInTheDocument();
     expect(within(productLink).getByText('View', { exact: true })).toHaveClass(
       'text-sm',
       'font-semibold',
@@ -220,17 +223,19 @@ describe('ProductDirectory workflows', () => {
       target: { value: 'Vase' },
     });
     fireEvent.click(modal.getByRole('checkbox', { name: 'Add initial stock' }));
-    await waitFor(() =>
-      expect(
-        modal.getByRole('combobox', { name: 'Initial stock branch' }),
-      ).toBeEnabled(),
+    const optionalStock = modal.getByRole('region', {
+      name: 'Optional initial stock',
+    });
+    expect(optionalStock.parentElement).toHaveClass(
+      'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
     );
-    fireEvent.click(
-      modal.getByRole('combobox', { name: 'Initial stock branch' }),
-    );
-    fireEvent.click(modal.getByRole('option', { name: 'Makati · MKT' }));
+    const branchList = await modal.findByRole('group', {
+      name: 'Available branches',
+    });
+    expect(branchList).toHaveClass('h-60', 'overflow-y-auto');
+    fireEvent.click(within(branchList).getByRole('button', { name: /Makati/ }));
     fireEvent.change(
-      modal.getByRole('textbox', { name: 'Branch selling price (PHP)' }),
+      modal.getByRole('textbox', { name: 'Branch selling price' }),
       { target: { value: '12.50' } },
     );
     fireEvent.change(
@@ -264,17 +269,12 @@ describe('ProductDirectory workflows', () => {
       target: { value: 'Vase' },
     });
     fireEvent.click(modal.getByRole('checkbox', { name: 'Add initial stock' }));
-    await waitFor(() =>
-      expect(
-        modal.getByRole('combobox', { name: 'Initial stock branch' }),
-      ).toBeEnabled(),
-    );
-    fireEvent.click(
-      modal.getByRole('combobox', { name: 'Initial stock branch' }),
-    );
-    fireEvent.click(modal.getByRole('option', { name: 'Makati · MKT' }));
+    const branchList = await modal.findByRole('group', {
+      name: 'Available branches',
+    });
+    fireEvent.click(within(branchList).getByRole('button', { name: /Makati/ }));
     fireEvent.change(
-      modal.getByRole('textbox', { name: 'Branch selling price (PHP)' }),
+      modal.getByRole('textbox', { name: 'Branch selling price' }),
       { target: { value: '12.50' } },
     );
     fireEvent.change(

@@ -240,7 +240,6 @@ function ScopedProductDirectory({
                 value={merchantId}
                 selectedOption={merchantOption}
                 placeholder="All merchants"
-                searchPlaceholder="Search merchants"
                 loadPage={loadMerchantPage}
                 disabled={creating}
                 onValueChange={(value) => {

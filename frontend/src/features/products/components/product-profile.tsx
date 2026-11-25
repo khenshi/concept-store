@@ -116,17 +116,17 @@ function ScopedProductProfile({
       active = false;
     };
   }, [allowed, organization, request, organizationId, productId, revision]);
-  async function changeStatus() {
+  async function changeStatus(nextStatus = status) {
     if (
       !canEdit ||
       !product ||
       pending ||
       statusLock.current ||
-      status === product.status
+      nextStatus === product.status
     )
       return;
     statusLock.current = true;
-    const nextStatus = status;
+    setPending(true);
     try {
       if (
         !(await confirm({
@@ -138,9 +138,10 @@ function ScopedProductProfile({
           confirmLabel: 'Change status',
           tone: nextStatus === 'INACTIVE' ? 'danger' : 'primary',
         }))
-      )
+      ) {
+        setStatus(product.status);
         return;
-      setPending(true);
+      }
       setError(null);
       setSuccess(null);
       const saved = await updateProductStatus(
@@ -153,6 +154,7 @@ function ScopedProductProfile({
       setStatus(saved.status);
       setSuccess(`${saved.name} is now ${saved.status.toLowerCase()}.`);
     } catch (cause) {
+      setStatus(product.status);
       setError(
         cause instanceof ApiError
           ? cause.message
@@ -215,17 +217,27 @@ function ScopedProductProfile({
             </p>
           </div>
           {canEdit ? (
-            <button
-              type="button"
-              className={buttonStyles({ variant: 'primary' })}
-              disabled={pending}
-              onClick={() => {
-                setEditing(true);
-                setSuccess(null);
-              }}
-            >
-              Edit profile
-            </button>
+            <div className="flex w-full flex-wrap items-end justify-end gap-3 sm:w-auto">
+              <label
+                className="grid min-w-48 gap-2 text-label font-semibold"
+                htmlFor="product-lifecycle-status"
+              >
+                Status
+                <SelectControl
+                  disabled={pending}
+                  id="product-lifecycle-status"
+                  onValueChange={(value) => {
+                    const nextStatus = value as ProductStatus;
+                    setStatus(nextStatus);
+                    void changeStatus(nextStatus);
+                  }}
+                  value={status}
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </SelectControl>
+              </label>
+            </div>
           ) : null}
         </header>
         {success ? <StatusNotice>{success}</StatusNotice> : null}
@@ -234,8 +246,26 @@ function ScopedProductProfile({
             {error}
           </p>
         ) : null}
-        <OperationalPanel className="mt-0" title="Product identity">
-          <dl className="grid gap-5 break-words py-6 sm:grid-cols-2 [&>div]:min-w-0">
+        <OperationalPanel
+          className="mt-0"
+          title="Product identity"
+          action={
+            canEdit ? (
+              <button
+                type="button"
+                className={buttonStyles({ variant: 'primary' })}
+                disabled={pending}
+                onClick={() => {
+                  setEditing(true);
+                  setSuccess(null);
+                }}
+              >
+                Edit profile
+              </button>
+            ) : undefined
+          }
+        >
+          <dl className="grid gap-5 break-words p-5 sm:grid-cols-2 sm:p-6 [&>div]:min-w-0">
             {[
               ['Merchant', merchant.name],
               ['Product name', product.name],
@@ -248,45 +278,11 @@ function ScopedProductProfile({
               </div>
             ))}
           </dl>
-          <p className="px-6 pb-6 text-sm text-muted">
+          <p className="px-5 pb-5 text-sm text-muted sm:px-6 sm:pb-6">
             Each product has one fixed merchant. Branch prices and stock are
             independent.
           </p>
         </OperationalPanel>
-        {canEdit ? (
-          <OperationalPanel
-            className="mt-0"
-            title="Lifecycle status"
-            description="Status changes require confirmation and do not modify inventory."
-          >
-            <div className="flex flex-wrap items-end gap-3 p-6">
-              <label
-                htmlFor="product-lifecycle"
-                className="grid w-full max-w-xs gap-2 text-label font-semibold"
-              >
-                Status
-                <SelectControl
-                  id="product-lifecycle"
-                  value={status}
-                  disabled={pending}
-                  onValueChange={(value) => setStatus(value as ProductStatus)}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </SelectControl>
-              </label>
-              <button
-                type="button"
-                className={buttonStyles({ variant: 'secondary' })}
-                disabled={pending || status === product.status}
-                aria-busy={pending}
-                onClick={() => void changeStatus()}
-              >
-                {pending ? 'Changing…' : 'Change status'}
-              </button>
-            </div>
-          </OperationalPanel>
-        ) : null}
         <OperationalPanel
           className="mt-0"
           title="Branch placements"
@@ -301,26 +297,64 @@ function ScopedProductProfile({
               aria-label="Branch placements"
               className="m-0 list-none divide-y divide-hairline p-0"
             >
+              <li className="data-column-header hidden gap-x-6 gap-y-3 px-5 py-4 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))]">
+                <span>Branch</span>
+                <span>Selling price</span>
+                <span>Quantity</span>
+                <span>Stock status</span>
+                <span>Low-stock threshold</span>
+              </li>
               {placements.map((placement) => (
                 <li
                   key={placement.id}
-                  className="grid min-w-0 gap-3 py-6 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                  className="data-row grid min-w-0 gap-x-6 gap-y-4 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,1fr))] lg:items-start"
                 >
-                  <Link
-                    className="min-w-0 break-words"
-                    href={`/app/organizations/${organizationId}/branches/${placement.branchId}/inventory/${placement.id}`}
-                  >
-                    {placement.branch.name}
-                    {placement.branch.code ? ` · ${placement.branch.code}` : ''}
-                  </Link>
-                  <span className="text-sm tabular-nums">
-                    PHP {placement.sellingPrice}
-                  </span>
-                  <span className="text-sm tabular-nums">
-                    {placement.quantity.toLocaleString()} units ·{' '}
-                    {inventoryStockStatusLabel(placement.stockStatus)} ·
-                    threshold {placement.lowStockThreshold.toLocaleString()}
-                  </span>
+                  <div className="min-w-0 break-words">
+                    <span className="block text-xs font-medium text-muted lg:hidden">
+                      Branch
+                    </span>
+                    <Link
+                      className="mt-1 block min-w-0 text-sm text-ink lg:mt-0"
+                      href={`/app/organizations/${organizationId}/branches/${placement.branchId}/inventory/${placement.id}`}
+                    >
+                      {placement.branch.name}
+                      {placement.branch.code
+                        ? ` · ${placement.branch.code}`
+                        : ''}
+                    </Link>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-xs font-medium text-muted lg:hidden">
+                      Selling price
+                    </span>
+                    <span className="mt-1 block text-sm tabular-nums lg:mt-0">
+                      PHP {placement.sellingPrice}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-xs font-medium text-muted lg:hidden">
+                      Quantity
+                    </span>
+                    <span className="mt-1 block text-sm tabular-nums lg:mt-0">
+                      {placement.quantity.toLocaleString()} units
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-xs font-medium text-muted lg:hidden">
+                      Stock status
+                    </span>
+                    <span className="mt-1 block text-sm lg:mt-0">
+                      {inventoryStockStatusLabel(placement.stockStatus)}
+                    </span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-xs font-medium text-muted lg:hidden">
+                      Low-stock threshold
+                    </span>
+                    <span className="mt-1 block text-sm tabular-nums lg:mt-0">
+                      {placement.lowStockThreshold.toLocaleString()} units
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>

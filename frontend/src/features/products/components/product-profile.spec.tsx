@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { getMerchant } from '@/features/merchants/api/merchant-api';
@@ -49,9 +55,27 @@ describe('ProductProfile workflows', () => {
       <ProductProfile organizationId={organizationId} productId={product.id} />,
     );
     expect(await screen.findByText('PHP 850.00')).toBeInTheDocument();
+    expect(screen.getByText('Merchant').closest('dl')).toHaveClass(
+      'p-5',
+      'sm:p-6',
+    );
+    const placements = screen.getByRole('list', {
+      name: 'Branch placements',
+    });
+    expect(within(placements).getAllByText('Selling price')).not.toHaveLength(
+      0,
+    );
+    expect(within(placements).getAllByText('Quantity')).not.toHaveLength(0);
+    expect(within(placements).getAllByText('Stock status')).not.toHaveLength(0);
+    expect(within(placements).getByText('10 units')).toBeInTheDocument();
+    expect(within(placements).getByText('In stock')).toBeInTheDocument();
     expect(
-      screen.getByText(/10 units · In stock · threshold 5/),
-    ).toBeInTheDocument();
+      within(placements).getAllByText('Low-stock threshold'),
+    ).not.toHaveLength(0);
+    expect(within(placements).getByText('5 units')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Makati · MKT' }).closest('li'),
+    ).toHaveClass('px-5', 'py-5', 'sm:px-6', 'sm:py-6');
     expect(screen.getByRole('link', { name: 'Makati · MKT' })).toHaveAttribute(
       'href',
       `/app/organizations/${organizationId}/branches/${placement.branchId}/inventory/${placement.id}`,
@@ -94,9 +118,14 @@ describe('ProductProfile workflows', () => {
       <ProductProfile organizationId={organizationId} productId={product.id} />,
     );
     await screen.findByText('PHP 850.00');
+    expect(
+      screen.queryByRole('heading', { name: 'Lifecycle status' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Change status' }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change status' }));
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
       'This stops selling the product and prevents new placements or stock receipts',
     );
@@ -105,7 +134,8 @@ describe('ProductProfile workflows', () => {
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
     );
     expect(updateProductStatus).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Change status' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Inactive' }));
     const dialog = screen.getByRole('alertdialog');
     fireEvent.click(dialog.querySelectorAll('button')[1]);
     await waitFor(() =>
@@ -130,6 +160,13 @@ describe('ProductProfile workflows', () => {
       <ProductProfile organizationId={organizationId} productId={product.id} />,
     );
     await screen.findByText('PHP 850.00');
+    const identityPanel = screen
+      .getByRole('heading', { name: 'Product identity' })
+      .closest('section');
+    expect(identityPanel).not.toBeNull();
+    expect(
+      within(identityPanel!).getByRole('button', { name: 'Edit profile' }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
     expect(
       screen.getByRole('dialog', { name: 'Edit product profile' }),
