@@ -134,6 +134,10 @@ owner-only access-history panel. History displays committed operations, target
 identity, actor identity, and timestamp without passwords, tokens, financial
 payloads, or cross-organization records.
 
+Member, access-history, and invitation tables retain their stacked mobile layout
+and become horizontally scrollable when their wider column layout does not fit
+the available workspace width.
+
 ## Final verification (Part 8)
 
 Prisma formatting/validation/client generation, backend formatting/lint/build,

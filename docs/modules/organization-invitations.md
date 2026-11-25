@@ -112,8 +112,8 @@ token route previews and accepts invitations.
 
 The owner invitation modal loads tenant-local branch and merchant options through
 bounded server search. Staff branch access uses a searchable custom picker with
-zero to 100 distinct assignments, selected-count feedback, load-more continuation
-and a clear action; MERCHANT requires a
+zero to 100 distinct assignments, load-more continuation, and a compact clear
+action inside the branch list; MERCHANT requires a
 profile selection and shows inherited-access guidance instead of branch access.
 Switching away from MERCHANT clears the link selection.
 Validation runs 300 ms after input changes, immediately on blur, and again on

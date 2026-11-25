@@ -183,7 +183,7 @@ it('uses a searchable custom branch picker for staff invitations', async () => {
   expect(makati).toHaveAttribute('aria-pressed', 'false');
   fireEvent.click(makati);
   expect(makati).toHaveAttribute('aria-pressed', 'true');
-  expect(screen.getByText('1/100 selected')).toBeInTheDocument();
+  expect(screen.queryByText('1/100 selected')).not.toBeInTheDocument();
   fireEvent.change(screen.getByRole('searchbox', { name: 'Filter branches' }), {
     target: { value: 'BGC' },
   });
@@ -196,7 +196,10 @@ it('uses a searchable custom branch picker for staff invitations', async () => {
   fireEvent.click(
     screen.getByRole('button', { name: 'Clear branch selection' }),
   );
-  expect(screen.getByText('No branches selected')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /BGC/ })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 });
 
 it('requires a merchant link before submitting a merchant invitation', async () => {

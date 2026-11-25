@@ -453,45 +453,108 @@ export function OrganizationMemberManagement({
                   </div>
                 ) : (
                   <>
-                    <ul
-                      aria-label="Organization members"
-                      className="m-0 list-none p-0"
-                    >
-                      <li className="data-column-header hidden grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] gap-x-5 gap-y-3 sm:grid">
-                        <span>Member</span>
-                        <span>Contact</span>
-                        <span>Role</span>
-                        <span>Access</span>
-                        <span>Joined</span>
-                        <span>Actions</span>
-                      </li>
-                      {members.map((member) => (
-                        <li
-                          className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] sm:items-start"
-                          key={member.id}
-                        >
-                          <div className="min-w-0 break-words">
-                            <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                              Member
-                            </span>
-                            <strong className="block text-sm font-semibold">
-                              <span className="block">{member.firstName}</span>
-                              <span className="block">{member.lastName}</span>
-                            </strong>
-                          </div>
-                          <div className="min-w-0 break-words">
-                            <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                              Contact
-                            </span>
-                            <p className="m-0 break-words text-sm text-ink">
-                              {member.email}
-                            </p>
-                            <p className="mt-1 text-xs text-muted">
-                              {member.phone ?? 'No phone added'}
-                            </p>
-                          </div>
-                          {canManageMembers ? (
-                            <>
+                    <div className="overflow-x-auto">
+                      <ul
+                        aria-label="Organization members"
+                        className="m-0 min-w-0 list-none p-0 sm:min-w-[64rem]"
+                      >
+                        <li className="data-column-header hidden grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] gap-x-5 gap-y-3 sm:grid">
+                          <span>Member</span>
+                          <span>Contact</span>
+                          <span>Role</span>
+                          <span>Access</span>
+                          <span>Joined</span>
+                          <span>Actions</span>
+                        </li>
+                        {members.map((member) => (
+                          <li
+                            className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1fr)_minmax(7rem,0.65fr)_minmax(10rem,0.85fr)_minmax(7rem,0.65fr)_minmax(11rem,auto)] sm:items-start"
+                            key={member.id}
+                          >
+                            <div className="min-w-0 break-words">
+                              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                Member
+                              </span>
+                              <strong className="block text-sm font-semibold">
+                                <span className="block">
+                                  {member.firstName}
+                                </span>
+                                <span className="block">{member.lastName}</span>
+                              </strong>
+                            </div>
+                            <div className="min-w-0 break-words">
+                              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                Contact
+                              </span>
+                              <p className="m-0 break-words text-sm text-ink">
+                                {member.email}
+                              </p>
+                              <p className="mt-1 text-xs text-muted">
+                                {member.phone ?? 'No phone added'}
+                              </p>
+                            </div>
+                            {canManageMembers ? (
+                              <>
+                                <div className="min-w-0">
+                                  <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                    Role
+                                  </span>
+                                  <span className="text-sm font-semibold text-ink">
+                                    {roleLabels[member.role]}
+                                  </span>
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                    Access
+                                  </span>
+                                  <strong className="block text-sm font-semibold text-ink">
+                                    {accessSummary(member).label}
+                                  </strong>
+                                  <p className="mt-1 text-xs text-muted">
+                                    {accessSummary(member).description}
+                                  </p>
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                    Joined
+                                  </span>
+                                  <span className="text-sm text-ink">
+                                    {joinedDate(member.joinedAt)}
+                                  </span>
+                                </div>
+                                <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
+                                  <span className="mb-1 block basis-full text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
+                                    Actions
+                                  </span>
+                                  <button
+                                    className={buttonStyles({
+                                      variant: 'quiet',
+                                      className:
+                                        'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm',
+                                    })}
+                                    type="button"
+                                    disabled={Boolean(pendingMemberId)}
+                                    aria-label={`Edit ${member.email}`}
+                                    onClick={() => setAccessMember(member)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    className={buttonStyles({
+                                      variant: 'quiet',
+                                      className:
+                                        'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
+                                    })}
+                                    type="button"
+                                    disabled={Boolean(pendingMemberId)}
+                                    aria-label={`Remove ${member.email}`}
+                                    onClick={() => void handleRemove(member)}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
                               <div className="min-w-0">
                                 <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
                                   Role
@@ -500,70 +563,11 @@ export function OrganizationMemberManagement({
                                   {roleLabels[member.role]}
                                 </span>
                               </div>
-                              <div className="min-w-0">
-                                <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                                  Access
-                                </span>
-                                <strong className="block text-sm font-semibold text-ink">
-                                  {accessSummary(member).label}
-                                </strong>
-                                <p className="mt-1 text-xs text-muted">
-                                  {accessSummary(member).description}
-                                </p>
-                              </div>
-                              <div className="min-w-0">
-                                <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                                  Joined
-                                </span>
-                                <span className="text-sm text-ink">
-                                  {joinedDate(member.joinedAt)}
-                                </span>
-                              </div>
-                              <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
-                                <span className="mb-1 block basis-full text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                                  Actions
-                                </span>
-                                <button
-                                  className={buttonStyles({
-                                    variant: 'quiet',
-                                    className:
-                                      'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm',
-                                  })}
-                                  type="button"
-                                  disabled={Boolean(pendingMemberId)}
-                                  aria-label={`Edit ${member.email}`}
-                                  onClick={() => setAccessMember(member)}
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  className={buttonStyles({
-                                    variant: 'quiet',
-                                    className:
-                                      'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
-                                  })}
-                                  type="button"
-                                  disabled={Boolean(pendingMemberId)}
-                                  aria-label={`Remove ${member.email}`}
-                                  onClick={() => void handleRemove(member)}
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </>
-                          ) : (
-                            <div className="min-w-0">
-                              <span className="mb-1 block text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-muted sm:hidden">
-                                Role
-                              </span>
-                              <span className="text-sm font-semibold text-ink">
-                                {roleLabels[member.role]}
-                              </span>
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                     <PaginationControls
                       ariaLabel="Member pages"
                       currentPage={memberPage}
@@ -615,35 +619,39 @@ export function OrganizationMemberManagement({
                     />
                   ) : (
                     <>
-                      <ul
-                        className="m-0 list-none p-0"
-                        aria-label="Access history"
-                      >
-                        {history.map((event) => (
-                          <li
-                            className="data-row grid gap-2 px-5 py-4 sm:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1.3fr)_minmax(12rem,1fr)] sm:items-center sm:px-6"
-                            key={event.id}
-                          >
-                            <div>
-                              <strong className="block text-sm font-semibold">
-                                {event.operation.replaceAll('_', ' ')}
-                              </strong>
-                              <span className="text-xs text-muted">
-                                {joinedDate(event.occurredAt)}
-                              </span>
-                            </div>
-                            <div className="text-sm">
-                              <span className="block">{event.targetName}</span>
-                              <span className="text-xs text-muted">
-                                Target {event.targetUserId}
-                              </span>
-                            </div>
-                            <div className="text-xs text-muted">
-                              Actor {event.actorId}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="overflow-x-auto">
+                        <ul
+                          className="m-0 min-w-0 list-none p-0 sm:min-w-[36rem]"
+                          aria-label="Access history"
+                        >
+                          {history.map((event) => (
+                            <li
+                              className="data-row grid gap-2 px-5 py-4 sm:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1.3fr)_minmax(12rem,1fr)] sm:items-center sm:px-6"
+                              key={event.id}
+                            >
+                              <div>
+                                <strong className="block text-sm font-semibold">
+                                  {event.operation.replaceAll('_', ' ')}
+                                </strong>
+                                <span className="text-xs text-muted">
+                                  {joinedDate(event.occurredAt)}
+                                </span>
+                              </div>
+                              <div className="text-sm">
+                                <span className="block">
+                                  {event.targetName}
+                                </span>
+                                <span className="text-xs text-muted">
+                                  Target {event.targetUserId}
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted">
+                                Actor {event.actorId}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                       <PaginationControls
                         ariaLabel="Access history pages"
                         currentPage={historyPage}
@@ -821,98 +829,100 @@ function InvitationList({
               </button>
             </div>
           ) : null}
-          <ul className="list-none p-0">
-            <li className="data-column-header hidden grid-cols-[minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(8rem,0.75fr)_minmax(8rem,auto)] gap-x-5 gap-y-3 sm:grid">
-              <span>Recipient</span>
-              <span>Role</span>
-              <span>Access</span>
-              <span>Status</span>
-              <span>Expires</span>
-              <span>Actions</span>
-            </li>
-            {invitations.map((invitation) => {
-              const pending = invitation.status === 'PENDING';
-              const status =
-                invitation.status.charAt(0) +
-                invitation.status.slice(1).toLowerCase();
-              return (
-                <li
-                  className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(8rem,0.75fr)_minmax(8rem,auto)] sm:items-start"
-                  key={invitation.id}
-                >
-                  <div className="min-w-0 break-words">
-                    <span className={mobileColumnLabelClass}>Recipient</span>
-                    <strong className="text-sm font-semibold">
-                      {invitation.email}
-                    </strong>
-                  </div>
-                  <div className="min-w-0">
-                    <span className={mobileColumnLabelClass}>Role</span>
-                    <span className="text-sm font-semibold text-ink">
-                      {roleLabels[invitation.role]}
-                    </span>
-                  </div>
-                  <div className="min-w-0 break-words">
-                    <span className={mobileColumnLabelClass}>Access</span>
-                    <span className="text-sm text-ink">
-                      {invitation.role === 'MERCHANT'
-                        ? invitation.merchant
-                          ? `Merchant profile · ${invitation.merchant.name}`
-                          : 'Merchant profile required'
-                        : invitation.branches
-                            ?.map(({ branch }) => branch.name)
-                            .join(', ') || 'No branches assigned'}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <span className={mobileColumnLabelClass}>Status</span>
-                    <span
-                      className={`text-sm font-semibold ${status === 'Pending' ? 'text-success-ink' : status === 'Revoked' ? 'text-danger' : 'text-muted'}`}
-                    >
-                      {status}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <span className={mobileColumnLabelClass}>Expires</span>
-                    <span className="text-sm text-ink">
-                      {joinedDate(invitation.expiresAt)}
-                    </span>
-                  </div>
-                  <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
-                    <span className={`${mobileColumnLabelClass} basis-full`}>
-                      Actions
-                    </span>
-                    <button
-                      className={buttonStyles({
-                        variant: 'quiet',
-                        className:
-                          'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-ink hover:bg-subtle',
-                      })}
-                      type="button"
-                      disabled={Boolean(pendingId) || !pending}
-                      aria-busy={pendingId === invitation.id}
-                      onClick={() => void onResend(invitation)}
-                    >
-                      {pendingId === invitation.id ? 'Sending…' : 'Resend'}
-                    </button>
-                    <button
-                      className={buttonStyles({
-                        variant: 'quiet',
-                        className:
-                          'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
-                      })}
-                      type="button"
-                      disabled={Boolean(pendingId)}
-                      aria-busy={pendingId === invitation.id}
-                      onClick={() => void onRemove(invitation)}
-                    >
-                      {pendingId === invitation.id ? 'Removing…' : 'Remove'}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="overflow-x-auto">
+            <ul className="min-w-0 list-none p-0 sm:min-w-[62rem]">
+              <li className="data-column-header hidden grid-cols-[minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(8rem,0.75fr)_minmax(8rem,auto)] gap-x-5 gap-y-3 sm:grid">
+                <span>Recipient</span>
+                <span>Role</span>
+                <span>Access</span>
+                <span>Status</span>
+                <span>Expires</span>
+                <span>Actions</span>
+              </li>
+              {invitations.map((invitation) => {
+                const pending = invitation.status === 'PENDING';
+                const status =
+                  invitation.status.charAt(0) +
+                  invitation.status.slice(1).toLowerCase();
+                return (
+                  <li
+                    className="data-row grid min-w-0 gap-x-5 gap-y-4 px-4 py-4 sm:grid-cols-[minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(12rem,1.2fr)_minmax(7rem,0.65fr)_minmax(8rem,0.75fr)_minmax(8rem,auto)] sm:items-start"
+                    key={invitation.id}
+                  >
+                    <div className="min-w-0 break-words">
+                      <span className={mobileColumnLabelClass}>Recipient</span>
+                      <strong className="text-sm font-semibold">
+                        {invitation.email}
+                      </strong>
+                    </div>
+                    <div className="min-w-0">
+                      <span className={mobileColumnLabelClass}>Role</span>
+                      <span className="text-sm font-semibold text-ink">
+                        {roleLabels[invitation.role]}
+                      </span>
+                    </div>
+                    <div className="min-w-0 break-words">
+                      <span className={mobileColumnLabelClass}>Access</span>
+                      <span className="text-sm text-ink">
+                        {invitation.role === 'MERCHANT'
+                          ? invitation.merchant
+                            ? `Merchant profile · ${invitation.merchant.name}`
+                            : 'Merchant profile required'
+                          : invitation.branches
+                              ?.map(({ branch }) => branch.name)
+                              .join(', ') || 'No branches assigned'}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <span className={mobileColumnLabelClass}>Status</span>
+                      <span
+                        className={`text-sm font-semibold ${status === 'Pending' ? 'text-success-ink' : status === 'Revoked' ? 'text-danger' : 'text-muted'}`}
+                      >
+                        {status}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <span className={mobileColumnLabelClass}>Expires</span>
+                      <span className="text-sm text-ink">
+                        {joinedDate(invitation.expiresAt)}
+                      </span>
+                    </div>
+                    <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
+                      <span className={`${mobileColumnLabelClass} basis-full`}>
+                        Actions
+                      </span>
+                      <button
+                        className={buttonStyles({
+                          variant: 'quiet',
+                          className:
+                            'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-ink hover:bg-subtle',
+                        })}
+                        type="button"
+                        disabled={Boolean(pendingId) || !pending}
+                        aria-busy={pendingId === invitation.id}
+                        onClick={() => void onResend(invitation)}
+                      >
+                        {pendingId === invitation.id ? 'Sending…' : 'Resend'}
+                      </button>
+                      <button
+                        className={buttonStyles({
+                          variant: 'quiet',
+                          className:
+                            'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
+                        })}
+                        type="button"
+                        disabled={Boolean(pendingId)}
+                        aria-busy={pendingId === invitation.id}
+                        onClick={() => void onRemove(invitation)}
+                      >
+                        {pendingId === invitation.id ? 'Removing…' : 'Remove'}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
           <PaginationControls
             ariaLabel="Invitation pages"
             currentPage={page}

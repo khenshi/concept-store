@@ -178,7 +178,7 @@ export function OrganizationInvitationModal({
   return (
     <FormDialog
       title={created ? 'Invitation ready' : 'Invite a member'}
-      size="compact"
+      size="form"
       pending={isSubmitting}
       onClose={onClose}
     >
@@ -238,121 +238,137 @@ export function OrganizationInvitationModal({
             The recipient will sign in or create their own account before
             accepting access.
           </p>
-          <div className="grid gap-2">
-            <label className="text-sm font-bold" htmlFor="invitation-email">
-              Email address
-            </label>
-            <InputControl
-              id="invitation-email"
-              icon="mail"
-              name="email"
-              type="email"
-              placeholder="e.g. teammate@example.com"
-              autoComplete="email"
-              maxLength={254}
-              required
-              value={email}
-              disabled={isSubmitting}
-              onChange={(event) => {
-                dirty.current = true;
-                setEmail(event.target.value);
-              }}
-              onBlur={validateInputs}
-              aria-invalid={Boolean(emailError)}
-              aria-describedby={
-                emailError ? 'invitation-email-error' : undefined
-              }
-            />
-            {emailError ? (
-              <p className="text-sm text-danger" id="invitation-email-error">
-                {emailError}
-              </p>
-            ) : null}
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-bold" htmlFor="invitation-role">
-              Organization role
-            </label>
-            <SelectControl
-              id="invitation-role"
-              name="role"
-              value={role}
-              disabled={isSubmitting}
-              onValueChange={(value) => {
-                dirty.current = true;
-                setRole(value as typeof role);
-                setMerchantId('');
-                setMerchantOption(null);
-                setMerchantError(null);
-              }}
-            >
-              {Object.entries(roleLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </SelectControl>
-          </div>
-          {role === 'MERCHANT' && (
-            <div className="grid gap-2">
-              <label
-                className="text-sm font-bold"
-                htmlFor="invitation-merchant"
-              >
-                Merchant profile
-              </label>
-              <div onBlur={validateInputs}>
-                <PagedOptionSelect
-                  id="invitation-merchant"
-                  value={merchantId}
+          <div
+            className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start"
+            role="group"
+            aria-label="Invitation fields"
+          >
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-bold" htmlFor="invitation-email">
+                  Email address
+                </label>
+                <InputControl
+                  id="invitation-email"
+                  icon="mail"
+                  name="email"
+                  type="email"
+                  placeholder="e.g. teammate@example.com"
+                  autoComplete="email"
+                  maxLength={254}
+                  required
+                  value={email}
                   disabled={isSubmitting}
-                  selectedOption={merchantOption}
-                  placeholder="Choose a merchant"
-                  searchPlaceholder="Search merchants"
-                  emptyMessage="No active merchants found."
-                  loadPage={loadMerchantPage}
-                  aria-invalid={Boolean(merchantError)}
-                  aria-describedby="invitation-merchant-error"
+                  onChange={(event) => {
+                    dirty.current = true;
+                    setEmail(event.target.value);
+                  }}
+                  onBlur={validateInputs}
+                  aria-invalid={Boolean(emailError)}
+                  aria-describedby={
+                    emailError ? 'invitation-email-error' : undefined
+                  }
+                />
+                {emailError ? (
+                  <p
+                    className="text-sm text-danger"
+                    id="invitation-email-error"
+                  >
+                    {emailError}
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-bold" htmlFor="invitation-role">
+                  Organization role
+                </label>
+                <SelectControl
+                  id="invitation-role"
+                  name="role"
+                  value={role}
+                  disabled={isSubmitting}
                   onValueChange={(value) => {
                     dirty.current = true;
-                    setMerchantId(value);
+                    setRole(value as typeof role);
+                    setMerchantId('');
+                    setMerchantOption(null);
+                    setMerchantError(null);
                   }}
-                  onOptionChange={setMerchantOption}
-                />
-              </div>
-              {merchantError && (
-                <p
-                  id="invitation-merchant-error"
-                  className="text-sm text-danger"
                 >
-                  {merchantError}
-                </p>
+                  {Object.entries(roleLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </SelectControl>
+              </div>
+              {role === 'MERCHANT' && (
+                <div className="grid gap-2">
+                  <label
+                    className="text-sm font-bold"
+                    htmlFor="invitation-merchant"
+                  >
+                    Merchant profile
+                  </label>
+                  <div onBlur={validateInputs}>
+                    <PagedOptionSelect
+                      id="invitation-merchant"
+                      value={merchantId}
+                      disabled={isSubmitting}
+                      selectedOption={merchantOption}
+                      placeholder="Choose a merchant"
+                      searchPlaceholder="Search merchants"
+                      emptyMessage="No active merchants found."
+                      loadPage={loadMerchantPage}
+                      aria-invalid={Boolean(merchantError)}
+                      aria-describedby="invitation-merchant-error"
+                      onValueChange={(value) => {
+                        dirty.current = true;
+                        setMerchantId(value);
+                      }}
+                      onOptionChange={setMerchantOption}
+                    />
+                  </div>
+                  {merchantError && (
+                    <p
+                      id="invitation-merchant-error"
+                      className="text-sm text-danger"
+                    >
+                      {merchantError}
+                    </p>
+                  )}
+                </div>
               )}
+              {role === 'MERCHANT' ? (
+                <p className="text-sm text-muted">
+                  Merchant users inherit every branch associated with the
+                  selected merchant profile.
+                </p>
+              ) : null}
             </div>
-          )}
-          {role === 'MERCHANT' ? (
-            <p className="text-sm text-muted">
-              Merchant users inherit every branch associated with the selected
-              merchant profile.
-            </p>
-          ) : (
-            <fieldset disabled={isSubmitting} className="min-w-0">
-              <legend className="text-sm font-bold">Branch assignments</legend>
-              <p className="mt-2 text-sm text-muted">
-                Optional. Staff without assignments cannot access branches.
-              </p>
-              <BranchAccessPicker
-                branches={[]}
-                loadPage={loadBranchPage}
-                selectedIds={branchIds}
-                disabled={isSubmitting}
-                onChange={(nextIds) => {
-                  dirty.current = true;
-                  setBranchIds(nextIds);
-                }}
-              />
-            </fieldset>
-          )}
+            {role !== 'MERCHANT' ? (
+              <fieldset disabled={isSubmitting} className="min-w-0">
+                <legend className="text-sm font-bold">
+                  Branch assignments
+                </legend>
+                <p className="mt-2 text-sm text-muted">
+                  Optional. Staff without assignments cannot access branches.
+                </p>
+                <BranchAccessPicker
+                  branches={[]}
+                  loadPage={loadBranchPage}
+                  selectedIds={branchIds}
+                  compactSelection
+                  fixedListHeight
+                  disabled={isSubmitting}
+                  onChange={(nextIds) => {
+                    dirty.current = true;
+                    setBranchIds(nextIds);
+                  }}
+                />
+              </fieldset>
+            ) : null}
+          </div>
           <ModalActionRow
             className="mt-2"
             feedback={

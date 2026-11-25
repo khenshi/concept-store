@@ -93,6 +93,9 @@ it('renders responsive member rows with readable roles and uniquely named owner 
   expect(
     await screen.findByRole('list', { name: 'Organization members' }),
   ).toBeVisible();
+  const memberList = screen.getByRole('list', { name: 'Organization members' });
+  expect(memberList).toHaveClass('sm:min-w-[64rem]');
+  expect(memberList.parentElement).toHaveClass('overflow-x-auto');
   expect(screen.getByText('Mara')).toBeVisible();
   expect(screen.getByText('Santos')).toBeVisible();
   expect(screen.getByText('Manager')).toBeVisible();
@@ -134,6 +137,12 @@ it('renders invitation details in separate labeled columns', async () => {
   expect(screen.getByText('Makati')).toBeVisible();
   expect(screen.getByText('Pending')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Remove' })).toBeVisible();
+  const invitationList = screen
+    .getByText('new-member@example.com')
+    .closest('ul');
+  expect(invitationList).not.toBeNull();
+  expect(invitationList).toHaveClass('sm:min-w-[62rem]');
+  expect(invitationList?.parentElement).toHaveClass('overflow-x-auto');
   expect(screen.getAllByText('Recipient')).toHaveLength(2);
   expect(screen.getAllByText('Access')).toHaveLength(4);
   expect(screen.getAllByText('Actions')).toHaveLength(4);
