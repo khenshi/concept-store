@@ -22,6 +22,8 @@ import { BranchManagement } from './branch-management';
 import { BranchDetail } from './branch-detail';
 import { BranchForm } from './branch-form';
 import { getInventoryHealthSummary } from '@/features/inventory/api/inventory-api';
+import { listAssociations } from '@/features/merchant-branches/api/merchant-branch-api';
+import { listSpaces } from '@/features/spaces/api/space-api';
 
 vi.mock('@/features/auth/model/auth-context', () => ({ useAuth: vi.fn() }));
 vi.mock(
@@ -37,6 +39,12 @@ vi.mock('../api/branch-api', () => ({
 }));
 vi.mock('@/features/inventory/api/inventory-api', () => ({
   getInventoryHealthSummary: vi.fn(),
+}));
+vi.mock('@/features/merchant-branches/api/merchant-branch-api', () => ({
+  listAssociations: vi.fn(),
+}));
+vi.mock('@/features/spaces/api/space-api', () => ({
+  listSpaces: vi.fn(),
 }));
 
 const request = vi.fn();
@@ -139,6 +147,8 @@ beforeEach(() => {
     lowStock: 2,
     outOfStock: 1,
   });
+  vi.mocked(listAssociations).mockResolvedValue({ total: 4 } as never);
+  vi.mocked(listSpaces).mockResolvedValue({ total: 6 } as never);
   workspace = {
     organizationId: 'org',
     organization: {
@@ -510,7 +520,10 @@ describe('BranchDetail', () => {
     expect(informationPanel).not.toBeNull();
     expect(
       within(informationPanel!).getByRole('button', { name: 'Edit branch' }),
-    ).toHaveClass('ui-button-quiet');
+    ).toHaveClass('ui-button-quiet', 'border-control-border');
+    expect(screen.getByText('Active', { exact: true })).toHaveClass(
+      'rounded-full',
+    );
     expect(
       within(
         screen.getByRole('heading', { name: 'Makati Main' }).closest('header')!,
@@ -525,7 +538,14 @@ describe('BranchDetail', () => {
     );
     expect(screen.getByRole('link', { name: 'Open POS cart' })).toHaveClass(
       'ui-button-quiet',
+      'border-control-border',
     );
+    const workspaceSummary = screen
+      .getByText('Merchants', { exact: true })
+      .closest('dl');
+    expect(workspaceSummary).not.toBeNull();
+    expect(within(workspaceSummary!).getByText('4')).toBeInTheDocument();
+    expect(within(workspaceSummary!).getByText('6')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open POS cart' })).toHaveAttribute(
       'href',
       '/app/organizations/org/branches/branch-id/pos',

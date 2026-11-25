@@ -19,6 +19,8 @@ import { BranchForm } from './branch-form';
 import type { BranchStatus, BranchView } from '../model/branch.types';
 import { getInventoryHealthSummary } from '@/features/inventory/api/inventory-api';
 import type { InventoryHealthSummary } from '@/features/inventory/model/inventory.types';
+import { listAssociations } from '@/features/merchant-branches/api/merchant-branch-api';
+import { listSpaces } from '@/features/spaces/api/space-api';
 
 function addressFor(branch: BranchView): string {
   if (!('addressLine1' in branch))
@@ -73,6 +75,11 @@ function ScopedBranchDetail({
   const [inventoryHealth, setInventoryHealth] =
     useState<InventoryHealthSummary | null>(null);
   const [inventoryHealthError, setInventoryHealthError] = useState(false);
+  const [workspaceCounts, setWorkspaceCounts] = useState<{
+    merchants: number;
+    spaces: number;
+  } | null>(null);
+  const [workspaceCountsError, setWorkspaceCountsError] = useState(false);
   const [revision, setRevision] = useState(0);
   const readGeneration = useRef(0);
   const canViewInventory =
@@ -92,6 +99,8 @@ function ScopedBranchDetail({
         setBranch(null);
         setInventoryHealth(null);
         setInventoryHealthError(false);
+        setWorkspaceCounts(null);
+        setWorkspaceCountsError(false);
         setError(null);
         setStatusError(null);
         if (canViewInventory)
@@ -106,6 +115,31 @@ function ScopedBranchDetail({
             .catch(() => {
               if (active && generation === readGeneration.current)
                 setInventoryHealthError(true);
+            });
+        if (organization.role !== 'CASHIER')
+          void Promise.all([
+            listAssociations(
+              request,
+              { organizationId, kind: 'branch', id: branchId },
+              { page: 1, status: 'ACTIVE' },
+            ),
+            listSpaces(request, organizationId, branchId, {
+              page: 1,
+              status: 'ACTIVE',
+              projection:
+                organization.role === 'MERCHANT' ? 'merchant' : 'staff',
+            }),
+          ])
+            .then(([participationPage, spacePage]) => {
+              if (active && generation === readGeneration.current)
+                setWorkspaceCounts({
+                  merchants: participationPage.total,
+                  spaces: spacePage.total,
+                });
+            })
+            .catch(() => {
+              if (active && generation === readGeneration.current)
+                setWorkspaceCountsError(true);
             });
         return getBranch(request, organizationId, branchId, organization.role);
       })
@@ -289,7 +323,7 @@ function ScopedBranchDetail({
             canManage ? (
               <Button
                 variant="quiet"
-                className="max-sm:w-full"
+                className="border-control-border max-sm:w-full"
                 onClick={() => {
                   setSuccess(null);
                   setEditing(true);
@@ -398,7 +432,10 @@ function ScopedBranchDetail({
           <OperationalPanel className="mt-0" title="POS and sales">
             <div className="flex flex-wrap gap-3 px-5 py-6 sm:px-6">
               <Link
-                className={buttonStyles({ variant: 'quiet' })}
+                className={buttonStyles({
+                  variant: 'quiet',
+                  className: 'border-control-border',
+                })}
                 href={`/app/organizations/${organizationId}/branches/${branchId}/pos`}
               >
                 Open POS cart
@@ -414,19 +451,50 @@ function ScopedBranchDetail({
         ) : null}
         {canManage || organization.role === 'MERCHANT' ? (
           <OperationalPanel className="mt-0" title="Branch workspaces">
-            <div className="flex flex-wrap gap-3 px-5 py-5 sm:px-6">
-              <Link
-                className={buttonStyles({ variant: 'secondary' })}
-                href={`/app/organizations/${organizationId}/merchants`}
-              >
-                View merchants
-              </Link>
-              <Link
-                className={buttonStyles({ variant: 'secondary' })}
-                href={`/app/organizations/${organizationId}/branches/${branchId}/spaces`}
-              >
-                View branch spaces
-              </Link>
+            <div className="grid gap-5 px-5 py-5 sm:px-6">
+              {workspaceCountsError ? (
+                <p className="text-sm text-muted" role="status">
+                  Workspace counts could not be loaded.
+                </p>
+              ) : workspaceCounts ? (
+                <dl
+                  className="grid grid-cols-2 gap-4"
+                  aria-label="Branch workspace summary"
+                >
+                  <div>
+                    <dt className="text-xs font-medium text-muted">
+                      Merchants
+                    </dt>
+                    <dd className="mt-1 text-2xl font-semibold tabular-nums text-ink">
+                      {workspaceCounts.merchants}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-muted">Spaces</dt>
+                    <dd className="mt-1 text-2xl font-semibold tabular-nums text-ink">
+                      {workspaceCounts.spaces}
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-sm text-muted" role="status">
+                  Loading workspace counts…
+                </p>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  className={buttonStyles({ variant: 'secondary' })}
+                  href={`/app/organizations/${organizationId}/merchants`}
+                >
+                  View merchants
+                </Link>
+                <Link
+                  className={buttonStyles({ variant: 'secondary' })}
+                  href={`/app/organizations/${organizationId}/branches/${branchId}/spaces`}
+                >
+                  View branch spaces
+                </Link>
+              </div>
             </div>
           </OperationalPanel>
         ) : null}
@@ -485,7 +553,7 @@ function StatusBadge({ status }: { status: BranchStatus }) {
   const active = status === 'ACTIVE';
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-compact border px-2.5 py-1 text-xs font-semibold ${active ? 'border-success/30 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
+      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold ${active ? 'border-success/30 bg-success/5 text-success-ink' : 'border-hairline bg-subtle text-muted'}`}
     >
       <span
         aria-hidden="true"

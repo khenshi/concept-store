@@ -160,13 +160,16 @@ and owner/manager edit action. Branch information, inventory health summaries,
 POS, sales, merchant participation, and spaces are presented on one page. The
 inventory action is in the card header, while POS and sales share one card with
 direct links to their branch workspaces. Participation and spaces are represented
-by direct workspace links instead of embedded tables. Successful create/edit
+by direct workspace links instead of embedded tables, with active merchant and
+space counts shown as a compact summary. Successful create/edit
 operations update the workspace cache and announce the affected branch. Edit
 requests still explicitly send `null` when clearing optional code, second address
 line, or postal code. API scoping, authorization, schema validation, and
 normalization are unchanged. On wider screens, the POS and Branch workspaces
 cards share a row and stack responsively on narrow screens.
-Edit branch and Open POS use the transparent quiet action treatment.
+Edit branch and Open POS use transparent quiet actions with the shared control
+border treatment. The detail-page Active/Inactive status badge uses the same
+pill shape as the directory status badges.
 
 Rendered branch inventory-health card layout, filtered-link behavior, keyboard/
 focus behavior, non-color communication and 200% zoom QA were explicitly waived
