@@ -5,6 +5,7 @@ import { MerchantBranchManagement } from '@/features/merchant-branches/component
 
 import { useEffect, useRef, useState } from 'react';
 import { buttonStyles } from '@/shared/components/ui/button';
+import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { ApiError } from '@/features/auth/api/auth-client';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
@@ -55,6 +56,7 @@ function ScopedMerchantProfile({
   const [merchant, setMerchant] = useState<MerchantView | null>(null);
   const [status, setStatus] = useState<MerchantStatus>('ACTIVE');
   const [editing, setEditing] = useState(false);
+  const [editingPending, setEditingPending] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,45 +100,52 @@ function ScopedMerchantProfile({
     };
   }, [merchantId, organizationId, organization, request, revision]);
 
-  async function changeStatus() {
+  async function changeStatus(nextStatus = status) {
     if (
       !canEdit ||
       !merchant ||
       changingStatus ||
       statusLock.current ||
-      status === merchant.status
+      nextStatus === merchant.status
     )
       return;
     statusLock.current = true;
     try {
       setChangingStatus(true);
       const occupied =
-        status === 'ACTIVE'
+        nextStatus === 'ACTIVE'
           ? 0
           : await occupiedSpaceCount(request, organizationId, merchant.id);
       const accepted = await confirm({
-        title: `Change ${merchant.name} to ${status.toLowerCase()}?`,
+        title: `Change ${merchant.name} to ${nextStatus.toLowerCase()}?`,
         description:
-          status !== 'ACTIVE'
+          nextStatus !== 'ACTIVE'
             ? `This stops new sales for this merchant, prevents new product placements and stock receipts, releases all ${occupied} occupied spaces across branches, and preserves existing products, balances, sales, and history.`
             : 'This allows new sales, product placements, and stock receipts again. Previous space assignments will not be restored; existing products, balances, sales, and history remain.',
         confirmLabel: 'Change status',
         tone:
-          status === 'ENDED' || status === 'SUSPENDED' ? 'danger' : 'primary',
+          nextStatus === 'ENDED' || nextStatus === 'SUSPENDED'
+            ? 'danger'
+            : 'primary',
       });
-      if (!accepted) return;
+      if (!accepted) {
+        setStatus(merchant.status);
+        return;
+      }
       setChangingStatus(true);
       setError(null);
       const saved = await updateMerchantStatus(
         request,
         organizationId,
         merchant.id,
-        status,
+        nextStatus,
       );
       setMerchant(saved);
+      setStatus(saved.status);
       setSpaceRevision((value) => value + 1);
       setSuccess(`${saved.name} is now ${saved.status.toLowerCase()}.`);
     } catch (cause: unknown) {
+      setStatus(merchant.status);
       setError(
         errorMessage(cause, 'The merchant status could not be changed.'),
       );
@@ -202,16 +211,29 @@ function ScopedMerchantProfile({
             </div>
           </div>
           {canEdit ? (
-            <button
-              className={buttonStyles({ variant: 'primary' })}
-              onClick={() => {
-                setEditing((current) => !current);
-                setSuccess(null);
-              }}
-              type="button"
-            >
-              {editing ? 'Close editor' : 'Edit profile'}
-            </button>
+            <div className="flex w-full flex-wrap items-end justify-end gap-3 sm:w-auto">
+              <label
+                className="grid min-w-48 gap-2 text-sm font-bold"
+                htmlFor="merchant-lifecycle-status"
+              >
+                Status
+                <SelectControl
+                  disabled={changingStatus}
+                  id="merchant-lifecycle-status"
+                  onValueChange={(value) => {
+                    const nextStatus = value as MerchantStatus;
+                    setStatus(nextStatus);
+                    void changeStatus(nextStatus);
+                  }}
+                  value={status}
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="SUSPENDED">Suspended</option>
+                  <option value="ENDED">Ended</option>
+                </SelectControl>
+              </label>
+            </div>
           ) : null}
         </header>
         {success ? <StatusNotice>{success}</StatusNotice> : null}
@@ -224,12 +246,77 @@ function ScopedMerchantProfile({
           </p>
         ) : null}
 
+        <OperationalPanel
+          className="mt-5"
+          title={
+            organization.role === 'MANAGER'
+              ? 'Business identity'
+              : 'Business and contact information'
+          }
+          action={
+            canEdit ? (
+              <button
+                className={buttonStyles({ variant: 'primary' })}
+                onClick={() => {
+                  setEditing(true);
+                  setSuccess(null);
+                }}
+                type="button"
+              >
+                Edit profile
+              </button>
+            ) : undefined
+          }
+        >
+          <dl className="grid gap-5 break-words p-5 sm:grid-cols-2 sm:p-6 [&>div]:min-w-0">
+            <div>
+              <dt className="text-xs font-bold text-muted uppercase">
+                Business name
+              </dt>
+              <dd className="mt-1">{merchant.name}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-bold text-muted uppercase">Code</dt>
+              <dd className="mt-1">{merchant.code ?? 'Not set'}</dd>
+            </div>
+            {organization.role !== 'MANAGER' && 'contactName' in merchant ? (
+              <>
+                <div>
+                  <dt className="text-xs font-bold text-muted uppercase">
+                    Contact
+                  </dt>
+                  <dd className="mt-1">{merchant.contactName}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-bold text-muted uppercase">
+                    Phone
+                  </dt>
+                  <dd className="mt-1">{merchant.phone}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-bold text-muted uppercase">
+                    Email
+                  </dt>
+                  <dd className="mt-1">{merchant.email ?? 'Not set'}</dd>
+                </div>
+              </>
+            ) : null}
+          </dl>
+        </OperationalPanel>
         {editing && canEdit && 'contactName' in merchant ? (
-          <OperationalPanel className="mt-5" title="Edit profile">
+          <FormDialog
+            title="Edit profile"
+            description="Update the merchant business and primary contact information."
+            eyebrow="Merchant identity"
+            size="form"
+            pending={editingPending}
+            onClose={() => setEditing(false)}
+          >
             <MerchantForm
               merchant={merchant}
               organizationId={organizationId}
               onCancel={() => setEditing(false)}
+              onPendingChange={setEditingPending}
               onSaved={(saved) => {
                 setMerchant(saved);
                 setStatus(saved.status);
@@ -237,89 +324,9 @@ function ScopedMerchantProfile({
                 setSuccess(`${saved.name} was updated successfully.`);
               }}
             />
-          </OperationalPanel>
-        ) : (
-          <OperationalPanel
-            className="mt-5"
-            title={
-              organization.role === 'MANAGER'
-                ? 'Business identity'
-                : 'Business and contact information'
-            }
-          >
-            <dl className="grid gap-5 break-words p-5 sm:grid-cols-2 sm:p-6 [&>div]:min-w-0">
-              <div>
-                <dt className="text-xs font-bold text-muted uppercase">
-                  Business name
-                </dt>
-                <dd className="mt-1">{merchant.name}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-bold text-muted uppercase">Code</dt>
-                <dd className="mt-1">{merchant.code ?? 'Not set'}</dd>
-              </div>
-              {organization.role !== 'MANAGER' && 'contactName' in merchant ? (
-                <>
-                  <div>
-                    <dt className="text-xs font-bold text-muted uppercase">
-                      Contact
-                    </dt>
-                    <dd className="mt-1">{merchant.contactName}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-bold text-muted uppercase">
-                      Phone
-                    </dt>
-                    <dd className="mt-1">{merchant.phone}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-bold text-muted uppercase">
-                      Email
-                    </dt>
-                    <dd className="mt-1">{merchant.email ?? 'Not set'}</dd>
-                  </div>
-                </>
-              ) : null}
-            </dl>
-          </OperationalPanel>
-        )}
-
-        {canEdit ? (
-          <OperationalPanel className="mt-5" title="Lifecycle status">
-            <p className="px-5 pt-5 text-sm leading-6 text-muted sm:px-6 sm:pt-6">
-              Status is changed separately from profile details and requires
-              confirmation.
-            </p>
-            <div className="flex max-w-md flex-wrap items-end gap-3 p-5 sm:p-6">
-              <label
-                className="grid min-w-52 flex-1 gap-2 text-sm font-bold"
-                htmlFor="merchant-lifecycle-status"
-              >
-                Status
-                <SelectControl
-                  disabled={changingStatus}
-                  id="merchant-lifecycle-status"
-                  onValueChange={(value) => setStatus(value as MerchantStatus)}
-                  value={status}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="SUSPENDED">Suspended</option>
-                  <option value="ENDED">Ended</option>
-                </SelectControl>
-              </label>
-              <button
-                className={buttonStyles({ variant: 'secondary' })}
-                disabled={changingStatus || status === merchant.status}
-                aria-busy={changingStatus}
-                onClick={() => void changeStatus()}
-                type="button"
-              >
-                {changingStatus ? 'Changing…' : 'Change status'}
-              </button>
-            </div>
-          </OperationalPanel>
+          </FormDialog>
         ) : null}
+
         <MerchantBranchManagement
           organizationId={organizationId}
           kind="merchant"

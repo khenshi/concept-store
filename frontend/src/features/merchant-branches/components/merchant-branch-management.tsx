@@ -1,5 +1,6 @@
 'use client';
 import { occupiedSpaceCount } from '@/features/spaces/api/space-api';
+import { BranchAccessPicker } from '@/features/organization-invitations/components/branch-access-picker';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/features/auth/model/auth-context';
@@ -11,13 +12,17 @@ import { ModalActionRow } from '@/shared/components/ui/modal-action-row';
 import { EmptyState } from '@/shared/components/ui/empty-state';
 import { FormDialog } from '@/shared/components/ui/form-dialog';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
-import { Icon } from '@/shared/components/ui/icon';
 import { InputControl } from '@/shared/components/ui/input-control';
+import {
+  FilterField,
+  OperationalPanel,
+} from '@/shared/components/ui/operational-page';
 import {
   PagedOptionSelect,
   type PagedOption,
 } from '@/shared/components/ui/paged-option-select';
 import { PaginationControls } from '@/shared/components/ui/pagination-controls';
+import { SelectControl } from '@/shared/components/ui/select-control';
 import {
   listAssociations,
   saveAssociation,
@@ -27,6 +32,8 @@ import type {
   MerchantBranch,
   MerchantBranchPage,
 } from '../model/merchant-branch.schemas';
+
+const associationGrid = 'sm:grid-cols-[minmax(0,1fr)_8rem_18rem]';
 
 export function MerchantBranchManagement(
   props: AssociationScope & { onChanged?(): void },
@@ -238,156 +245,174 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
   const related = (row: MerchantBranch) =>
     kind === 'merchant' ? row.branch : row.merchant;
   return (
-    <section
-      className="mt-8 min-w-0 bg-surface py-6"
+    <OperationalPanel
+      className="mt-5 min-w-0"
       aria-label={`${title} participation`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">{title}</h2>
-        {owner && (
+      title={title}
+      description="Branch participation is shared by all users linked to the merchant profile. Inactive participation preserves stock and history."
+      action={
+        owner ? (
           <button
             type="button"
-            className={buttonStyles({ variant: 'secondary' })}
+            className={buttonStyles({ variant: 'primary' })}
             disabled={pending}
             onClick={() => setAssigning(true)}
           >
             Assign {kind === 'merchant' ? 'branch' : 'merchant'}
           </button>
+        ) : undefined
+      }
+    >
+      <div className="px-5 pb-6 sm:px-6">
+        <div className="mt-5 flex flex-wrap gap-3">
+          <div className="min-w-0 flex-1">
+            <FilterField
+              id="association-search"
+              label={`Search ${title.toLowerCase()}`}
+            >
+              <InputControl
+                id="association-search"
+                icon="search"
+                value={q}
+                disabled={pending}
+                maxLength={120}
+                onChange={(event) => {
+                  setQ(event.target.value);
+                  setPage(1);
+                }}
+              />
+            </FilterField>
+          </div>
+          <div className="min-w-48">
+            <FilterField id="association-status" label="Participation">
+              <SelectControl
+                id="association-status"
+                aria-label="Participation"
+                value={status}
+                disabled={pending}
+                onValueChange={(value) => {
+                  setStatus(value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </SelectControl>
+            </FilterField>
+          </div>
+        </div>
+        {success && (
+          <p className="mt-4 text-sm text-success-ink" role="status">
+            {success}
+          </p>
+        )}
+        {error && (
+          <div className="mt-4" role="alert">
+            <p className="text-danger">{error}</p>
+            <button
+              type="button"
+              className={buttonStyles({ variant: 'quiet' })}
+              onClick={() => setRevision((value) => value + 1)}
+            >
+              Retry associations
+            </button>
+          </div>
+        )}
+        {!data && !error && (
+          <p className="mt-5 text-sm text-muted" role="status">
+            Loading associations…
+          </p>
+        )}
+        {data && (
+          <>
+            <div className="mt-5 -mx-5 overflow-x-auto sm:-mx-6">
+              <ul className="list-none p-0" aria-label={`${title} table`}>
+                <li
+                  className={`data-column-header hidden gap-x-6 gap-y-3 sm:grid sm:!px-6 ${associationGrid}`}
+                >
+                  <span>{kind === 'merchant' ? 'Branch' : 'Merchant'}</span>
+                  <span>Status</span>
+                  <span>Actions</span>
+                </li>
+                {data.items.map((row) => (
+                  <li
+                    key={row.id}
+                    className={`data-row grid min-w-0 gap-x-6 gap-y-3 !px-4 py-4 sm:items-center sm:!px-6 ${associationGrid}`}
+                  >
+                    <div className="min-w-0 break-words">
+                      <p className="font-semibold">{related(row).name}</p>
+                      <p className="mt-1 text-sm text-muted">
+                        {related(row).code ?? 'No code'}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex w-fit items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${row.status === 'ACTIVE' ? 'border-success/20 bg-success/5 text-success-ink' : 'border-danger/20 bg-danger/5 text-danger'}`}
+                    >
+                      {row.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                    </span>
+                    <div className="flex flex-wrap gap-3">
+                      <Link
+                        className={buttonStyles({ variant: 'quiet' })}
+                        href={`/app/organizations/${organizationId}/branches/${row.branchId}/inventory`}
+                      >
+                        View inventory
+                      </Link>
+                      {owner && (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          className={buttonStyles({
+                            variant: 'quiet',
+                            className:
+                              row.status === 'ACTIVE'
+                                ? 'text-danger hover:text-danger'
+                                : undefined,
+                          })}
+                          onClick={() =>
+                            void write(
+                              kind === 'merchant'
+                                ? row.branchId
+                                : row.merchantId,
+                              row.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
+                            )
+                          }
+                        >
+                          {row.status === 'ACTIVE'
+                            ? 'Deactivate'
+                            : 'Reactivate'}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {!data.items.length ? (
+              <EmptyState
+                className="mt-5"
+                title={`No ${q || status ? 'matching ' : ''}associations.`}
+                description={
+                  owner
+                    ? 'Assign a merchant to a branch to begin.'
+                    : 'Ask an owner to configure branch participation.'
+                }
+              />
+            ) : null}
+            <PaginationControls
+              className="px-0 py-4"
+              ariaLabel="Merchant branch associations pagination"
+              currentPage={data.page}
+              totalPages={data.totalPages}
+              pending={pending}
+              hasNext={data.hasNext}
+              summary={`${data.total} associations`}
+              onPrevious={() => setPage((value) => value - 1)}
+              onNext={() => setPage((value) => value + 1)}
+            />
+          </>
         )}
       </div>
-      <p className="mt-2 text-sm text-muted">
-        Branch participation is shared by all users linked to the merchant
-        profile. Inactive participation preserves stock and history.
-      </p>
-      <div className="mt-5 flex flex-wrap gap-3">
-        <label
-          className="grid flex-1 gap-1 text-sm"
-          htmlFor="association-search"
-        >
-          Search {title.toLowerCase()}
-          <InputControl
-            id="association-search"
-            icon="search"
-            value={q}
-            disabled={pending}
-            maxLength={120}
-            onChange={(event) => {
-              setQ(event.target.value);
-              setPage(1);
-            }}
-          />
-        </label>
-        <label className="grid gap-1 text-sm" htmlFor="association-status">
-          Participation
-          <span className="relative block min-w-0">
-            <Icon
-              name="filter"
-              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted"
-            />
-            <select
-              id="association-status"
-              className="min-h-11 w-full rounded-full border border-control-border bg-surface px-3 !pl-10 text-ink"
-              value={status}
-              disabled={pending}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </span>
-        </label>
-      </div>
-      {success && (
-        <p className="mt-4 text-sm text-success-ink" role="status">
-          {success}
-        </p>
-      )}
-      {error && (
-        <div className="mt-4" role="alert">
-          <p className="text-danger">{error}</p>
-          <button
-            type="button"
-            className={buttonStyles({ variant: 'quiet' })}
-            onClick={() => setRevision((value) => value + 1)}
-          >
-            Retry associations
-          </button>
-        </div>
-      )}
-      {!data && !error && (
-        <p className="mt-5 text-sm text-muted" role="status">
-          Loading associations…
-        </p>
-      )}
-      {data && (
-        <>
-          <ul className="mt-5 list-none p-0">
-            {data.items.map((row) => (
-              <li
-                key={row.id}
-                className="data-row flex flex-wrap items-center justify-between gap-4 py-4"
-              >
-                <div>
-                  <p className="font-semibold">{related(row).name}</p>
-                  <p className="mt-1 text-sm text-muted">
-                    {related(row).code ?? 'No code'} ·{' '}
-                    {row.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Link
-                    className={buttonStyles({ variant: 'quiet' })}
-                    href={`/app/organizations/${organizationId}/branches/${row.branchId}/inventory`}
-                  >
-                    View inventory
-                  </Link>
-                  {owner && (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      className={buttonStyles({ variant: 'quiet' })}
-                      onClick={() =>
-                        void write(
-                          kind === 'merchant' ? row.branchId : row.merchantId,
-                          row.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
-                        )
-                      }
-                    >
-                      {row.status === 'ACTIVE' ? 'Deactivate' : 'Reactivate'}
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-          {!data.items.length ? (
-            <EmptyState
-              className="mt-5"
-              title={`No ${q || status ? 'matching ' : ''}associations.`}
-              description={
-                owner
-                  ? 'Assign a merchant to a branch to begin.'
-                  : 'Ask an owner to configure branch participation.'
-              }
-            />
-          ) : null}
-          <PaginationControls
-            className="px-0 py-4"
-            ariaLabel="Merchant branch associations pagination"
-            currentPage={data.page}
-            totalPages={data.totalPages}
-            pending={pending}
-            hasNext={data.hasNext}
-            summary={`${data.total} associations`}
-            onPrevious={() => setPage((value) => value - 1)}
-            onNext={() => setPage((value) => value + 1)}
-          />
-        </>
-      )}
       {assigning && (
         <FormDialog
           title={`Assign ${kind === 'merchant' ? 'branch' : 'merchant'}`}
@@ -414,24 +439,43 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
                 </button>
               </div>
             )}
-            <label
-              className="grid gap-2 text-sm font-semibold"
-              htmlFor="association-choice"
-            >
-              {kind === 'merchant' ? 'Branch' : 'Merchant'}
-              <PagedOptionSelect
-                id="association-choice"
-                value={selected}
-                selectedOption={choiceOption}
-                placeholder={`Choose ${kind === 'merchant' ? 'a branch' : 'a merchant'}`}
-                searchPlaceholder={`Search ${kind === 'merchant' ? 'branches' : 'merchants'}`}
-                emptyMessage="No unassigned choices remain. Existing inactive associations can be reactivated."
-                disabled={pending || !choicesReady}
-                loadPage={loadChoicePage}
-                onValueChange={setSelected}
-                onOptionChange={setChoiceOption}
-              />
-            </label>
+            {kind === 'merchant' ? (
+              <div className="grid gap-2 text-sm font-semibold">
+                <span>Branch</span>
+                <BranchAccessPicker
+                  branches={[]}
+                  loadPage={loadChoicePage}
+                  selectedIds={selected ? [selected] : []}
+                  showSearch={false}
+                  fixedListHeight
+                  compactSelection
+                  disabled={pending || !choicesReady}
+                  description="Choose the branch where this merchant operates."
+                  onChange={(branchIds) =>
+                    setSelected(branchIds[branchIds.length - 1] ?? '')
+                  }
+                />
+              </div>
+            ) : (
+              <label
+                className="grid gap-2 text-sm font-semibold"
+                htmlFor="association-choice"
+              >
+                Merchant
+                <PagedOptionSelect
+                  id="association-choice"
+                  value={selected}
+                  selectedOption={choiceOption}
+                  placeholder="Choose a merchant"
+                  searchPlaceholder="Search merchants"
+                  emptyMessage="No unassigned choices remain. Existing inactive associations can be reactivated."
+                  disabled={pending || !choicesReady}
+                  loadPage={loadChoicePage}
+                  onValueChange={setSelected}
+                  onOptionChange={setChoiceOption}
+                />
+              </label>
+            )}
             <ModalActionRow
               feedback={
                 error ? (
@@ -461,6 +505,6 @@ function AssociationSection(scope: AssociationScope & { onChanged?(): void }) {
         </FormDialog>
       )}
       {confirmationDialog}
-    </section>
+    </OperationalPanel>
   );
 }

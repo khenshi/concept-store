@@ -101,6 +101,42 @@ describe('Merchant branch management', () => {
   });
   it('shows owner actions, confirms reactivation and refreshes branch access', async () => {
     setup();
+    await screen.findByText('Makati');
+    const section = screen.getByRole('region', {
+      name: 'Branches participation',
+    });
+    expect(section).toHaveClass('card-surface');
+    expect(
+      within(section).getByText('Branch', { exact: true }),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByText('Status', { exact: true }),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByText('Actions', { exact: true }),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByText('Search branches', { exact: true }),
+    ).toHaveClass('text-label', 'font-semibold', 'text-ink');
+    expect(
+      within(section).getByText('Participation', { exact: true }),
+    ).toHaveClass('text-label', 'font-semibold', 'text-ink');
+    expect(
+      within(section).getByRole('combobox', { name: 'Participation' }),
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByText('Status', { exact: true }).closest('li'),
+    ).toHaveClass(
+      'data-column-header',
+      'sm:!px-6',
+      'sm:grid-cols-[minmax(0,1fr)_8rem_18rem]',
+    );
+    expect(
+      within(section).getByText('Makati', { exact: true }).closest('li'),
+    ).toHaveClass('sm:grid-cols-[minmax(0,1fr)_8rem_18rem]');
+    expect(
+      within(section).getByRole('button', { name: 'Assign branch' }),
+    ).toHaveClass('ui-button-primary');
     fireEvent.click(await screen.findByRole('button', { name: 'Reactivate' }));
     await screen.findByText('Participation is now active.');
     expect(saveAssociation).toHaveBeenCalledWith(
@@ -144,14 +180,22 @@ describe('Merchant branch management', () => {
       await screen.findByRole('button', { name: 'Assign branch' }),
     );
     const dialog = await screen.findByRole('dialog');
+    const branchList = await within(dialog).findByRole('group', {
+      name: 'Available branches',
+    });
     await waitFor(() =>
-      expect(within(dialog).getByRole('combobox')).toBeEnabled(),
+      expect(
+        within(branchList).getByRole('button', { name: /BGC/ }),
+      ).toBeEnabled(),
     );
     expect(
-      within(dialog).queryByRole('option', { name: /Makati/ }),
+      within(branchList).queryByRole('button', { name: /Makati/ }),
     ).not.toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('combobox'));
-    fireEvent.click(within(dialog).getByRole('option', { name: other.name }));
+    expect(branchList).toHaveClass('h-60', 'overflow-y-auto');
+    expect(
+      within(dialog).queryByRole('searchbox', { name: 'Filter branches' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(branchList).getByRole('button', { name: /BGC/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Assign' }));
     await screen.findByText('Branch assignment saved.');
     expect(saveAssociation).toHaveBeenCalledWith(
@@ -191,6 +235,19 @@ describe('Merchant branch management', () => {
       items: [{ ...row, status: 'ACTIVE' }],
     });
     setup();
+    await screen.findByText('Makati');
+    const section = screen.getByRole('region', {
+      name: 'Branches participation',
+    });
+    expect(
+      within(section).getByText('Active', {
+        exact: true,
+        selector: 'span',
+      }),
+    ).toHaveClass('rounded-full', 'bg-success/5', 'text-success-ink');
+    expect(
+      within(section).getByRole('button', { name: 'Deactivate' }),
+    ).toHaveClass('text-danger', 'hover:text-danger');
     fireEvent.click(await screen.findByRole('button', { name: 'Deactivate' }));
     await waitFor(() => expect(confirm).toHaveBeenCalled());
     expect(occupiedSpaceCount).toHaveBeenCalledWith(

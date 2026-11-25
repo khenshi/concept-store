@@ -24,12 +24,12 @@ Existing global merchant/product eligibility checks still apply.
 
 ## API
 
-| Method and path (under `/organizations/:organizationId`) | Behavior |
-| --- | --- |
-| `GET /merchants/:merchantId/branches` | List associated branches |
-| `GET /branches/:branchId/merchants` | List affiliated merchants |
-| `PUT /merchants/:merchantId/branches/:branchId` | Create active participation, or return existing association unchanged |
-| `PATCH /merchants/:merchantId/branches/:branchId/status` | Set `ACTIVE` or `INACTIVE` |
+| Method and path (under `/organizations/:organizationId`) | Behavior                                                              |
+| -------------------------------------------------------- | --------------------------------------------------------------------- |
+| `GET /merchants/:merchantId/branches`                    | List associated branches                                              |
+| `GET /branches/:branchId/merchants`                      | List affiliated merchants                                             |
+| `PUT /merchants/:merchantId/branches/:branchId`          | Create active participation, or return existing association unchanged |
+| `PATCH /merchants/:merchantId/branches/:branchId/status` | Set `ACTIVE` or `INACTIVE`                                            |
 
 Lists accept `page` (default 1), optional `q` (identity name/code, maximum 120
 characters), and optional `status`. Page size is fixed at 15. Responses contain
@@ -89,8 +89,13 @@ Merchant profiles show a paginated Branches section; branch details show Merchan
 Owners assign unassociated identities and confirm deactivation/reactivation.
 Inactive associations are excluded from assignment choices and offer reactivation.
 Managers/merchants receive scoped read-only lists and inventory links. Sections use
-open operational rows, native dialogs, pending protection, retry feedback, and
-obsolete-response protection. Mutation refreshes current branch choices/counts.
+shared padded card panels with consistent borders, labeled responsive association
+columns, aligned fixed status/action tracks, colored status pills, native dialogs, pending
+protection, retry feedback, and obsolete-response protection. Owners use the
+colored assignment action. Branch assignment uses a fixed-height scrollable list;
+merchant assignment retains the paged selector. Mutation refreshes current branch
+choices/counts. Association search and participation filters use the shared field
+label styling and custom dropdown control.
 Opening-stock choices include only active affiliations. Placement choices exclude
 missing/inactive participation and owners receive assignment-management links.
 Inactive inventory/POS controls explain why receiving/selling is unavailable while

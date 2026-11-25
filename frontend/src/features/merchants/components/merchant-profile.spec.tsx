@@ -9,7 +9,13 @@ vi.mock(
   '@/features/merchant-branches/components/merchant-branch-management',
   () => ({ MerchantBranchManagement: () => null }),
 );
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { useAuth } from '@/features/auth/model/auth-context';
 import { useOrganizationWorkspaceContext } from '@/features/organizations/components/organization-workspace-context';
 import { useConfirmationDialog } from '@/shared/components/ui/confirmation-dialog';
@@ -73,10 +79,39 @@ describe('MerchantProfile', () => {
       />,
     );
     expect(await screen.findByText(merchant.contactName)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const informationPanel = screen
+      .getByRole('heading', {
+        name: 'Business and contact information',
+      })
+      .closest('section');
+    expect(informationPanel).not.toBeNull();
     expect(
-      screen.getByRole('heading', { name: 'Edit profile' }),
+      within(informationPanel!).getByRole('button', { name: 'Edit profile' }),
     ).toBeInTheDocument();
+    const pageHeader = screen
+      .getByRole('heading', { name: merchant.name })
+      .closest('header');
+    expect(pageHeader).not.toBeNull();
+    expect(
+      within(pageHeader!).getByRole('combobox', { name: 'Status' }),
+    ).toBeInTheDocument();
+    expect(
+      within(pageHeader!).queryByRole('button', { name: 'Change status' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Lifecycle status' }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
+    const dialog = screen.getByRole('dialog', { name: 'Edit profile' });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Contact name')).toHaveValue(
+      merchant.contactName,
+    );
+    expect(screen.getByText(merchant.contactName)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(
+      screen.queryByRole('dialog', { name: 'Edit profile' }),
+    ).not.toBeInTheDocument();
   });
   it('shows manager identity/status without contact details or mutations', async () => {
     vi.mocked(useOrganizationWorkspaceContext).mockReturnValue({
@@ -145,7 +180,6 @@ describe('MerchantProfile', () => {
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'Ended' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change status' }));
 
     await waitFor(() => expect(confirm).toHaveBeenCalledOnce());
     expect(confirm).toHaveBeenCalledWith(
@@ -178,11 +212,12 @@ describe('MerchantProfile', () => {
     await screen.findByText(merchant.contactName);
     fireEvent.click(screen.getByRole('combobox', { name: 'Status' }));
     fireEvent.click(screen.getByRole('option', { name: 'Ended' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Change status' }));
     await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Change status' }),
-      ).toBeEnabled(),
+      expect(occupiedSpaceCount).toHaveBeenCalledWith(
+        request,
+        merchant.organizationId,
+        merchant.id,
+      ),
     );
     expect(confirm).not.toHaveBeenCalled();
     expect(updateMerchantStatus).not.toHaveBeenCalled();
