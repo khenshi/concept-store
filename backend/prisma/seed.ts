@@ -215,6 +215,7 @@ async function seedFoundation(prisma: PrismaClient): Promise<void> {
 
   await seedProductInventory(prisma);
   await seedSales(prisma);
+  await seedRetailExpansion(prisma);
 
   const invitationToken = 'foundation-demo-invitation-token-0000000001';
   await prisma.organizationInvitation.create({
@@ -714,6 +715,162 @@ async function seedSales(prisma: PrismaClient): Promise<void> {
       });
     },
     { timeout: 30_000 },
+  );
+}
+
+async function seedRetailExpansion(prisma: PrismaClient): Promise<void> {
+  const organizationId = ids.organization;
+  const catalogs = [
+    {
+      name: 'Sinag Candle Co.',
+      code: 'SINAG',
+      contactName: 'Isabel Mendoza',
+      products: [
+        ['Soy Candle — Sampaguita', '480.00'],
+        ['Reed Diffuser — Bamboo', '720.00'],
+        ['Travel Candle Trio', '650.00'],
+        ['Linen Room Spray', '350.00'],
+      ],
+    },
+    {
+      name: 'Hiraya Paper Goods',
+      code: 'HIRAYA',
+      contactName: 'Miguel Ramos',
+      products: [
+        ['Undated Daily Planner', '395.00'],
+        ['Botanical Notebook', '185.00'],
+        ['Manila Postcard Set', '150.00'],
+        ['Washi Tape Collection', '220.00'],
+      ],
+    },
+    {
+      name: 'Isla Everyday',
+      code: 'ISLA',
+      contactName: 'Sofia Garcia',
+      products: [
+        ['Canvas Market Tote', '550.00'],
+        ['Woven Coin Purse', '195.00'],
+        ['Recycled Cotton Scarf', '890.00'],
+        ['Handwoven Key Strap', '175.00'],
+      ],
+    },
+    {
+      name: 'Baryo Pantry',
+      code: 'BARYO',
+      contactName: 'Rafael Lim',
+      products: [
+        ['Tablea Hot Chocolate 200g', '280.00'],
+        ['Calamansi Marmalade 220g', '245.00'],
+        ['Coconut Granola 300g', '325.00'],
+        ['Wildflower Honey 250ml', '420.00'],
+      ],
+    },
+  ] as const;
+  await prisma.$transaction(
+    async (tx) => {
+      for (const [merchantIndex, catalog] of catalogs.entries()) {
+        const merchant = await tx.merchant.create({
+          data: {
+            organizationId,
+            name: catalog.name,
+            code: catalog.code,
+            contactName: catalog.contactName,
+            email: `hello@${catalog.code.toLowerCase()}.example.com`,
+            phone: `+63 917 555 02${merchantIndex.toString().padStart(2, '0')}`,
+          },
+        });
+        for (const branchId of Object.values(ids.branches)) {
+          await tx.merchantBranch.create({
+            data: { organizationId, branchId, merchantId: merchant.id },
+          });
+        }
+        for (const [
+          productIndex,
+          [name, price],
+        ] of catalog.products.entries()) {
+          const product = await tx.product.create({
+            data: {
+              organizationId,
+              merchantId: merchant.id,
+              name,
+              sku: `${catalog.code}-${String(productIndex + 1).padStart(3, '0')}`,
+              barcode: `200${merchantIndex}${String(productIndex).padStart(8, '0')}`,
+            },
+          });
+          for (const [branchIndex, branchId] of Object.values(
+            ids.branches,
+          ).entries()) {
+            const quantity =
+              (merchantIndex * 7 + productIndex * 5 + branchIndex * 3) % 26;
+            const inventory = await tx.branchInventory.create({
+              data: {
+                organizationId,
+                branchId,
+                merchantId: merchant.id,
+                productId: product.id,
+                sellingPrice: price,
+                quantity,
+                lowStockThreshold: 5,
+              },
+            });
+            if (quantity > 0)
+              await tx.inventoryMovement.create({
+                data: {
+                  organizationId,
+                  branchId,
+                  branchInventoryId: inventory.id,
+                  type: InventoryMovementType.RECEIPT,
+                  quantityChange: quantity,
+                  quantityAfter: quantity,
+                  reason: 'Opening consignment delivery',
+                  createdById: ids.users.owner,
+                  requestId: randomUUID(),
+                },
+              });
+          }
+        }
+      }
+      for (const name of ['Shelf', 'Display table', 'Clothing rack'])
+        await tx.spaceType.create({ data: { organizationId, name } });
+      for (const branchId of Object.values(ids.branches)) {
+        const participants = await tx.merchantBranch.findMany({
+          where: {
+            organizationId,
+            branchId,
+            status: 'ACTIVE',
+            merchant: { status: 'ACTIVE' },
+          },
+          orderBy: { merchantId: 'asc' },
+        });
+        for (let index = 0; index < 12; index++) {
+          const type = ['Shelf', 'Display table', 'Clothing rack'][index % 3];
+          const space = await tx.space.create({
+            data: {
+              organizationId,
+              branchId,
+              name: `${type} ${String(index + 1).padStart(2, '0')}`,
+              type,
+            },
+          });
+          if (index < 8 && participants.length)
+            await tx.spaceOccupancy.create({
+              data: {
+                organizationId,
+                branchId,
+                spaceId: space.id,
+                merchantId:
+                  participants[index % participants.length].merchantId,
+                startedAt: new Date(Date.now() - 30 * 86400000),
+                assignedById: ids.users.owner,
+              },
+            });
+        }
+      }
+    },
+    { timeout: 60_000 },
+  );
+  console.info(
+    'Expanded retail demo: 9 merchants, 20 products, 37 placements, 24 spaces (16 occupied).',
   );
 }
 

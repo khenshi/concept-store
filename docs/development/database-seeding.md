@@ -1,5 +1,12 @@
 # Development Database Seeding
 
+The expanded retail demo contains nine merchants, twenty products, thirty-seven
+branch placements, and twenty-four spaces across Makati and BGC. Sixteen spaces
+are occupied and eight are vacant. Candle, stationery, accessories and pantry
+catalogs use PHP prices, unique SKUs/barcodes, and varied available, low and zero
+stock balances. Positive opening balances have attributed receipt movements.
+Existing completed sales and partial-refund examples are retained.
+
 The foundation seed is destructive and is intended only for disposable local or
 explicitly confirmed development databases. It truncates application tables, then creates one organization,
 two branches, OWNER/MANAGER/CASHIER/MERCHANT members, and one pending invitation.
