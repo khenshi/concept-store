@@ -887,7 +887,7 @@ function InvitationList({
                         {joinedDate(invitation.expiresAt)}
                       </span>
                     </div>
-                    <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
+                    <div className="flex min-w-max flex-wrap items-center justify-start gap-2 sm:flex-nowrap">
                       <span className={`${mobileColumnLabelClass} basis-full`}>
                         Actions
                       </span>
@@ -908,7 +908,7 @@ function InvitationList({
                         className={buttonStyles({
                           variant: 'quiet',
                           className:
-                            'min-h-9 min-w-0 border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
+                            'min-h-9 min-w-0 shrink-0 whitespace-nowrap border-0 px-3 py-1.5 text-sm text-danger hover:bg-danger/10 hover:text-danger',
                         })}
                         type="button"
                         disabled={Boolean(pendingId)}

@@ -1,5 +1,8 @@
 # Organization Memberships
 
+Invitation row actions remain on one line at table widths. The Remove button
+keeps its label on one line, with the table's horizontal scroll handling overflow.
+
 Staff branch access grants return `BRANCH_INACTIVE` for inactive branches while
 assignment removals remain available. This lifecycle check is enforced in the
 backend transaction, not only by workspace controls.
